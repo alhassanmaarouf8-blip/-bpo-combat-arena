@@ -1,0 +1,609 @@
+{
+  "_meta": {
+    "title": "German B2/C1 Feedback Playbook — BPO / Call-Center Training",
+    "purpose": "Reference bank of formal Redemittel, grammar structures, de-escalation scenarios and common-error corrections used to generate end-of-session coaching feedback for Egyptian learners targeting German-market BPO jobs.",
+    "sources": [
+      "C1 Kurs- und Arbeitsbuch Teil 1 & 2 (Klett, OCR)",
+      "Hören & Sprechen C1 (Hueber)",
+      "Station C1 — Vorbereitung zur Prüfung Zertifikat C1",
+      "Telc C1 Übungstest R11",
+      "Kommunikationsmittel (Redemittel-Sammlung)"
+    ],
+    "levels": ["B2", "C1"],
+    "generated": "2026-06-06"
+  },
+
+  "phrases": [
+    {
+      "function": "expressing-opinions",
+      "level": "B2",
+      "german": "Meiner Meinung nach sollte man das anders sehen.",
+      "english": "In my opinion, one should look at this differently.",
+      "context": "discussion / interview"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "C1",
+      "german": "Meiner Ansicht nach überwiegen hier die Vorteile deutlich.",
+      "english": "In my view, the advantages clearly outweigh the disadvantages here.",
+      "context": "discussion / interview"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "C1",
+      "german": "Meines Erachtens lässt sich diese Frage nicht pauschal beantworten.",
+      "english": "In my estimation, this question cannot be answered in a blanket way.",
+      "context": "formal discussion"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "C1",
+      "german": "Ich bin der festen Überzeugung, dass sich Geduld am Telefon immer auszahlt.",
+      "english": "I am firmly convinced that patience on the phone always pays off.",
+      "context": "interview / customer service"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "C1",
+      "german": "Wenn Sie mich fragen, kommt es vor allem auf eine klare Kommunikation an.",
+      "english": "If you ask me, what matters most is clear communication.",
+      "context": "interview"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "C1",
+      "german": "Es lässt sich nicht von der Hand weisen, dass der Druck im Call-Center hoch ist.",
+      "english": "It cannot be denied that the pressure in a call center is high.",
+      "context": "discussion"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "C1",
+      "german": "Ich vertrete den Standpunkt, dass der Kunde stets im Mittelpunkt stehen muss.",
+      "english": "I take the position that the customer must always be the focus.",
+      "context": "interview / customer service"
+    },
+    {
+      "function": "expressing-opinions",
+      "level": "B2",
+      "german": "Ich halte es für sinnvoll, zuerst aktiv zuzuhören.",
+      "english": "I consider it sensible to listen actively first.",
+      "context": "interview / customer service"
+    },
+
+    {
+      "function": "disagreeing",
+      "level": "C1",
+      "german": "Da muss ich Ihnen leider widersprechen, denn die Zahlen sprechen eine andere Sprache.",
+      "english": "I'm afraid I have to disagree with you there, because the figures tell a different story.",
+      "context": "formal discussion"
+    },
+    {
+      "function": "disagreeing",
+      "level": "C1",
+      "german": "Das kann ich so nicht ganz nachvollziehen.",
+      "english": "I can't quite follow / accept that as it stands.",
+      "context": "discussion"
+    },
+    {
+      "function": "disagreeing",
+      "level": "C1",
+      "german": "Das halte ich für etwas übertrieben.",
+      "english": "I find that somewhat exaggerated.",
+      "context": "discussion"
+    },
+    {
+      "function": "disagreeing",
+      "level": "C1",
+      "german": "Ich gebe Ihnen teilweise recht, allerdings sollte man bedenken, dass …",
+      "english": "I partly agree with you, however one should bear in mind that …",
+      "context": "diplomatic disagreement"
+    },
+    {
+      "function": "disagreeing",
+      "level": "C1",
+      "german": "Gegen diese Behauptung spricht aber, dass …",
+      "english": "What argues against this claim, though, is that …",
+      "context": "formal discussion"
+    },
+    {
+      "function": "disagreeing",
+      "level": "B2",
+      "german": "Das sehe ich anders.",
+      "english": "I see that differently.",
+      "context": "discussion"
+    },
+    {
+      "function": "disagreeing",
+      "level": "C1",
+      "german": "Bei allem Verständnis kann ich diesen Standpunkt nicht teilen.",
+      "english": "With all due understanding, I cannot share this point of view.",
+      "context": "diplomatic disagreement"
+    },
+
+    {
+      "function": "advising",
+      "level": "C1",
+      "german": "Ich würde Ihnen raten, sich zunächst die Bestellnummer bereitzulegen.",
+      "english": "I would advise you to have your order number ready first.",
+      "context": "customer service"
+    },
+    {
+      "function": "advising",
+      "level": "C1",
+      "german": "An Ihrer Stelle würde ich das Gerät einmal neu starten.",
+      "english": "If I were you, I would restart the device once.",
+      "context": "customer service / tech support"
+    },
+    {
+      "function": "advising",
+      "level": "C1",
+      "german": "Es wäre ratsam, die Unterlagen vorab per E-Mail zu schicken.",
+      "english": "It would be advisable to send the documents in advance by email.",
+      "context": "customer service"
+    },
+    {
+      "function": "advising",
+      "level": "C1",
+      "german": "Darf ich Ihnen vorschlagen, dass wir gemeinsam die Einstellungen durchgehen?",
+      "english": "May I suggest that we go through the settings together?",
+      "context": "customer service"
+    },
+    {
+      "function": "advising",
+      "level": "B2",
+      "german": "Am besten wäre es, wenn Sie kurz Ihre Kundennummer angeben.",
+      "english": "It would be best if you briefly state your customer number.",
+      "context": "customer service"
+    },
+    {
+      "function": "advising",
+      "level": "C1",
+      "german": "Ich empfehle Ihnen, den Vorgang zur Sicherheit schriftlich festzuhalten.",
+      "english": "I recommend that you record the matter in writing, just to be safe.",
+      "context": "customer service"
+    },
+
+    {
+      "function": "presenting",
+      "level": "C1",
+      "german": "Ich möchte Ihnen heute kurz erläutern, wie unser Beschwerdeprozess abläuft.",
+      "english": "Today I would like to briefly explain to you how our complaints process works.",
+      "context": "presentation"
+    },
+    {
+      "function": "presenting",
+      "level": "C1",
+      "german": "Mein Vortrag gliedert sich in drei Teile: erstens …, zweitens …, und schließlich …",
+      "english": "My presentation is divided into three parts: firstly …, secondly …, and finally …",
+      "context": "presentation"
+    },
+    {
+      "function": "presenting",
+      "level": "C1",
+      "german": "Lassen Sie mich das an einem konkreten Beispiel verdeutlichen.",
+      "english": "Let me illustrate this with a concrete example.",
+      "context": "presentation"
+    },
+    {
+      "function": "presenting",
+      "level": "C1",
+      "german": "Zusammenfassend lässt sich sagen, dass schnelle Erreichbarkeit entscheidend ist.",
+      "english": "In summary, it can be said that fast availability is decisive.",
+      "context": "presentation"
+    },
+    {
+      "function": "presenting",
+      "level": "B2",
+      "german": "Kommen wir nun zum nächsten Punkt.",
+      "english": "Let us now move on to the next point.",
+      "context": "presentation"
+    },
+    {
+      "function": "presenting",
+      "level": "C1",
+      "german": "Gibt es dazu noch Fragen, bevor ich fortfahre?",
+      "english": "Are there any questions on this before I continue?",
+      "context": "presentation"
+    },
+
+    {
+      "function": "comparing",
+      "level": "C1",
+      "german": "Einerseits ist der telefonische Kontakt persönlich, andererseits ist er zeitaufwendig.",
+      "english": "On the one hand, telephone contact is personal; on the other, it is time-consuming.",
+      "context": "discussion"
+    },
+    {
+      "function": "comparing",
+      "level": "C1",
+      "german": "Im Gegensatz zu E-Mails ermöglicht ein Anruf eine sofortige Klärung.",
+      "english": "In contrast to emails, a call allows for immediate clarification.",
+      "context": "discussion"
+    },
+    {
+      "function": "comparing",
+      "level": "C1",
+      "german": "Verglichen mit der schriftlichen Bearbeitung ist der Chat deutlich schneller.",
+      "english": "Compared with written processing, chat is considerably faster.",
+      "context": "discussion"
+    },
+    {
+      "function": "comparing",
+      "level": "C1",
+      "german": "Zwar ist die Schulung anspruchsvoll, dennoch lohnt sie sich langfristig.",
+      "english": "The training is demanding, to be sure, yet it pays off in the long run.",
+      "context": "discussion"
+    },
+    {
+      "function": "comparing",
+      "level": "C1",
+      "german": "Während die einen auf Automatisierung setzen, bevorzugen die anderen persönliche Beratung.",
+      "english": "While some rely on automation, others prefer personal advice.",
+      "context": "discussion"
+    },
+    {
+      "function": "comparing",
+      "level": "B2",
+      "german": "Der größte Unterschied besteht darin, dass …",
+      "english": "The biggest difference is that …",
+      "context": "discussion"
+    },
+
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Ich kann Ihren Ärger sehr gut nachvollziehen, und es tut mir aufrichtig leid, dass das passiert ist.",
+      "english": "I can understand your annoyance very well, and I am sincerely sorry that this happened.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Ich verstehe Ihre Frustration vollkommen — lassen Sie uns das gemeinsam lösen.",
+      "english": "I completely understand your frustration — let's solve this together.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Es tut mir leid, dass Sie so lange warten mussten. Ich kümmere mich umgehend darum.",
+      "english": "I'm sorry you had to wait so long. I'll see to it right away.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "B2",
+      "german": "Bitte entschuldigen Sie die Unannehmlichkeiten.",
+      "english": "Please excuse the inconvenience.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Bleiben wir bitte sachlich, dann finden wir bestimmt schnell eine Lösung.",
+      "english": "Let's please stay objective, then we'll surely find a solution quickly.",
+      "context": "customer service / angry caller"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Ich nehme Ihr Anliegen sehr ernst und leite es sofort an die zuständige Stelle weiter.",
+      "english": "I take your concern very seriously and will forward it to the responsible department immediately.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Darf ich kurz zusammenfassen, damit ich Sie auch richtig verstanden habe?",
+      "english": "May I briefly summarize, so that I have understood you correctly?",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Was ich konkret für Sie tun kann, ist Folgendes: …",
+      "english": "What I can concretely do for you is the following: …",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Ich verspreche Ihnen, dass ich persönlich dranbleibe, bis das Problem gelöst ist.",
+      "english": "I promise you that I will personally stay on it until the problem is solved.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "B2",
+      "german": "Vielen Dank für Ihre Geduld.",
+      "english": "Thank you very much for your patience.",
+      "context": "customer service"
+    },
+    {
+      "function": "de-escalation",
+      "level": "C1",
+      "german": "Ich kann zwar das Geschehene nicht rückgängig machen, aber ich kann dafür sorgen, dass es nicht wieder vorkommt.",
+      "english": "I cannot undo what has happened, but I can make sure it doesn't happen again.",
+      "context": "customer service"
+    }
+  ],
+
+  "grammar": [
+    {
+      "structure": "Konjunktiv II — höfliche Bitte / Angebot",
+      "level": "B2",
+      "explanation": "Polite requests and offers use würde + infinitive or the Konjunktiv II of haben/sein/können. Softens directness — essential register for customer service.",
+      "examples": [
+        { "wrong": "Ich will Ihre Kundennummer.", "right": "Könnten Sie mir bitte Ihre Kundennummer nennen?" },
+        { "wrong": "Geben Sie mir die Bestellnummer.", "right": "Würden Sie mir bitte die Bestellnummer geben?" }
+      ]
+    },
+    {
+      "structure": "Konjunktiv II — Irreales / hypothetische Beratung",
+      "level": "C1",
+      "explanation": "Hypothetical advice and unreal conditionals: wenn-clause + würde/Konjunktiv II. Used for 'if I were you' style advice and counterfactuals.",
+      "examples": [
+        { "wrong": "Wenn ich Sie bin, ich mache das anders.", "right": "An Ihrer Stelle würde ich das anders machen." },
+        { "wrong": "Wenn ich mehr Zeit hatte, ich hätte geholfen.", "right": "Wenn ich mehr Zeit gehabt hätte, hätte ich geholfen." }
+      ]
+    },
+    {
+      "structure": "Passiv (Vorgangspassiv) — werden + Partizip II",
+      "level": "B2",
+      "explanation": "Process passive de-emphasizes the agent — neutral, professional tone for describing procedures. Tense is shown by the form of 'werden'.",
+      "examples": [
+        { "wrong": "Wir bearbeiten Ihre Anfrage. (gewünscht: agentenlos)", "right": "Ihre Anfrage wird umgehend bearbeitet." },
+        { "wrong": "Man hat das Paket gestern geschickt.", "right": "Das Paket wurde gestern verschickt." }
+      ]
+    },
+    {
+      "structure": "Passiv mit Modalverb",
+      "level": "C1",
+      "explanation": "Modal + passive infinitive (… muss bearbeitet werden). Common for obligations and possibilities in formal/process language.",
+      "examples": [
+        { "wrong": "Das Formular muss man ausfüllen zuerst.", "right": "Das Formular muss zuerst ausgefüllt werden." },
+        { "wrong": "Die Beschwerde kann man online einreichen.", "right": "Die Beschwerde kann online eingereicht werden." }
+      ]
+    },
+    {
+      "structure": "Passiversatzformen (sich lassen / sein + zu + Infinitiv)",
+      "level": "C1",
+      "explanation": "Passive-equivalent constructions: 'lässt sich + Infinitiv' (can be done) and 'ist zu + Infinitiv' (must/can be done). Hallmark of C1 register.",
+      "examples": [
+        { "wrong": "Das kann man leicht lösen.", "right": "Das lässt sich leicht lösen." },
+        { "wrong": "Diese Frage muss man noch klären.", "right": "Diese Frage ist noch zu klären." }
+      ]
+    },
+    {
+      "structure": "Nebensatz — Verbendstellung (weil, dass, obwohl, damit)",
+      "level": "B2",
+      "explanation": "In subordinate clauses the conjugated verb goes to the very end. The single most common error for Arabic/English L1 speakers.",
+      "examples": [
+        { "wrong": "Ich denke, dass ich kann das gut machen.", "right": "Ich denke, dass ich das gut machen kann." },
+        { "wrong": "Weil ich habe Erfahrung im Kundenservice.", "right": "Weil ich Erfahrung im Kundenservice habe." }
+      ]
+    },
+    {
+      "structure": "Relativsätze (auch mit Präposition)",
+      "level": "C1",
+      "explanation": "Relative clauses agree in gender/number with the antecedent and take case from their role in the clause; prepositions move before the relative pronoun.",
+      "examples": [
+        { "wrong": "Der Kunde, den ich gesprochen habe mit ihm, war zufrieden.", "right": "Der Kunde, mit dem ich gesprochen habe, war zufrieden." },
+        { "wrong": "Das ist die Lösung, die ich denke daran.", "right": "Das ist die Lösung, an die ich denke." }
+      ]
+    },
+    {
+      "structure": "Konnektoren / zweiteilige Konnektoren",
+      "level": "C1",
+      "explanation": "Adverbial connectors (deshalb, trotzdem, dennoch, folglich) trigger inversion; two-part connectors (zwar … aber, einerseits … andererseits, je … desto) structure argumentation.",
+      "examples": [
+        { "wrong": "Es war schwierig, trotzdem ich habe es geschafft.", "right": "Es war schwierig, trotzdem habe ich es geschafft." },
+        { "wrong": "Je mehr man übt, man wird besser.", "right": "Je mehr man übt, desto besser wird man." }
+      ]
+    },
+    {
+      "structure": "Modalpartikeln (doch, mal, ja, eben, halt, denn)",
+      "level": "C1",
+      "explanation": "Modal particles add nuance and natural, native-sounding tone. 'denn' softens questions; 'doch mal' makes requests friendly; 'ja' signals shared knowledge. Overuse or wrong choice sounds off.",
+      "examples": [
+        { "wrong": "Versuchen Sie das.", "right": "Versuchen Sie das doch mal." },
+        { "wrong": "Was ist das Problem?", "right": "Was ist denn das Problem?" }
+      ]
+    },
+    {
+      "structure": "Verbposition — Hauptsatz (Verb an Position 2)",
+      "level": "B2",
+      "explanation": "In a main clause the conjugated verb is always the second element; if the sentence starts with an adverbial, the subject follows the verb (inversion).",
+      "examples": [
+        { "wrong": "Gestern ich habe mit dem Kunden telefoniert.", "right": "Gestern habe ich mit dem Kunden telefoniert." },
+        { "wrong": "Deshalb ich kümmere mich darum.", "right": "Deshalb kümmere ich mich darum." }
+      ]
+    },
+    {
+      "structure": "Nominalisierung / Funktionsverbgefüge",
+      "level": "C1",
+      "explanation": "Formal written/spoken German often uses noun-style constructions and light-verb phrases (eine Entscheidung treffen, in Anspruch nehmen, zur Verfügung stellen).",
+      "examples": [
+        { "wrong": "Ich entscheide das schnell.", "right": "Ich treffe schnell eine Entscheidung." },
+        { "wrong": "Wir helfen Ihnen gern. (gewünscht: formell)", "right": "Wir stehen Ihnen gern zur Verfügung." }
+      ]
+    }
+  ],
+
+  "scenarios": [
+    {
+      "id": "late-delivery",
+      "title": "Verspätete Lieferung",
+      "level": "C1",
+      "situation": "Der Kunde ist verärgert, weil ein bestelltes Paket seit zwei Wochen überfällig ist.",
+      "deescalation_steps": [
+        "Zuhören & Verständnis zeigen",
+        "Sich entschuldigen",
+        "Information einholen (Bestellnummer)",
+        "Konkrete Lösung anbieten",
+        "Nachfassen zusichern"
+      ],
+      "key_language": [
+        { "german": "Das tut mir wirklich leid, dass Ihr Paket noch nicht angekommen ist.", "english": "I'm really sorry that your parcel hasn't arrived yet." },
+        { "german": "Damit ich das sofort prüfen kann, nennen Sie mir bitte Ihre Bestellnummer.", "english": "So that I can check this immediately, please give me your order number." },
+        { "german": "Ich veranlasse umgehend eine Nachforschung und melde mich heute noch bei Ihnen.", "english": "I will initiate an investigation right away and get back to you today." }
+      ]
+    },
+    {
+      "id": "billing-error",
+      "title": "Falsche Rechnung",
+      "level": "C1",
+      "situation": "Dem Kunden wurde ein Betrag doppelt abgebucht.",
+      "deescalation_steps": [
+        "Fehler ernst nehmen, nicht abstreiten",
+        "Verantwortung übernehmen",
+        "Rückerstattung erklären",
+        "Zeitrahmen nennen"
+      ],
+      "key_language": [
+        { "german": "Sie haben völlig recht, das hätte nicht passieren dürfen.", "english": "You are absolutely right, that should not have happened." },
+        { "german": "Den zu viel gezahlten Betrag erstatten wir Ihnen selbstverständlich zurück.", "english": "We will of course refund you the amount overpaid." },
+        { "german": "Die Gutschrift wird innerhalb von drei bis fünf Werktagen veranlasst.", "english": "The credit will be arranged within three to five working days." }
+      ]
+    },
+    {
+      "id": "angry-caller",
+      "title": "Aggressiver Anrufer",
+      "level": "C1",
+      "situation": "Der Kunde schreit und benutzt eine unhöfliche Sprache.",
+      "deescalation_steps": [
+        "Ruhig und freundlich bleiben",
+        "Empathie ausdrücken, ohne sich beschimpfen zu lassen",
+        "Auf die Sachebene zurückführen",
+        "Bei Bedarf höflich Grenzen setzen"
+      ],
+      "key_language": [
+        { "german": "Ich höre, dass Sie sehr verärgert sind, und das verstehe ich gut.", "english": "I hear that you are very upset, and I understand that well." },
+        { "german": "Ich möchte Ihnen wirklich helfen. Dafür müssen wir bitte sachlich bleiben.", "english": "I really want to help you. For that, we need to stay objective, please." },
+        { "german": "Lassen Sie uns gemeinsam Schritt für Schritt eine Lösung finden.", "english": "Let's find a solution together, step by step." }
+      ]
+    },
+    {
+      "id": "tech-support",
+      "title": "Technisches Problem",
+      "level": "C1",
+      "situation": "Der Kunde kommt mit einem Gerät / Dienst nicht zurecht und ist frustriert.",
+      "deescalation_steps": [
+        "Geduld signalisieren",
+        "In einfachen Schritten anleiten",
+        "Zwischenstand bestätigen",
+        "Erfolg sichern"
+      ],
+      "key_language": [
+        { "german": "Kein Problem, wir gehen das ganz in Ruhe gemeinsam durch.", "english": "No problem, we'll go through it together calmly." },
+        { "german": "Könnten Sie mir bitte sagen, was genau auf dem Bildschirm steht?", "english": "Could you please tell me exactly what is shown on the screen?" },
+        { "german": "Sehr gut, das haben Sie genau richtig gemacht.", "english": "Very good, you've done that exactly right." }
+      ]
+    },
+    {
+      "id": "cancellation-retention",
+      "title": "Kündigung / Kundenbindung",
+      "level": "C1",
+      "situation": "Der Kunde möchte den Vertrag kündigen; Ziel ist Verständnis und ggf. eine Alternative.",
+      "deescalation_steps": [
+        "Entscheidung respektieren",
+        "Nach dem Grund fragen",
+        "Bei Unzufriedenheit Lösung / Alternative anbieten",
+        "Druck vermeiden"
+      ],
+      "key_language": [
+        { "german": "Selbstverständlich respektiere ich Ihre Entscheidung.", "english": "Of course I respect your decision." },
+        { "german": "Darf ich fragen, was der ausschlaggebende Grund für Ihre Kündigung ist?", "english": "May I ask what the decisive reason for your cancellation is?" },
+        { "german": "Vielleicht gibt es ja eine Lösung, mit der Sie doch noch zufrieden wären.", "english": "Perhaps there is a solution you would still be happy with after all." }
+      ]
+    }
+  ],
+
+  "errors": [
+    {
+      "category": "Verbstellung im Nebensatz",
+      "level": "B2",
+      "wrong": "Ich glaube, dass ich kann diese Stelle gut machen.",
+      "right": "Ich glaube, dass ich diese Stelle gut machen kann.",
+      "note": "Conjugated verb goes to the end of the subordinate clause."
+    },
+    {
+      "category": "Verbstellung nach 'weil'",
+      "level": "B2",
+      "wrong": "Weil ich habe drei Jahre Erfahrung.",
+      "right": "Weil ich drei Jahre Erfahrung habe.",
+      "note": "'weil' is subordinating — verb to the end. (Note: 'weil + Verb-zweit' occurs in casual speech but is non-standard for an interview.)"
+    },
+    {
+      "category": "Inversion (Verb an Position 2)",
+      "level": "B2",
+      "wrong": "Deshalb ich rufe Sie morgen zurück.",
+      "right": "Deshalb rufe ich Sie morgen zurück.",
+      "note": "When an element precedes the subject, verb stays in position 2 and subject follows."
+    },
+    {
+      "category": "Artikel / Genus",
+      "level": "B2",
+      "wrong": "Ich schicke Ihnen die Bescheid.",
+      "right": "Ich schicke Ihnen den Bescheid.",
+      "note": "'der Bescheid' is masculine; in the accusative it becomes 'den Bescheid'."
+    },
+    {
+      "category": "Substantiv-Großschreibung",
+      "level": "B2",
+      "wrong": "Ich gehe nach hause und mache meine arbeit.",
+      "right": "Ich gehe nach Hause und mache meine Arbeit.",
+      "note": "All nouns are capitalized in German."
+    },
+    {
+      "category": "Dativ nach Präposition",
+      "level": "B2",
+      "wrong": "Ich spreche mit der Kunde.",
+      "right": "Ich spreche mit dem Kunden.",
+      "note": "'mit' takes the dative; 'Kunde' is an n-declension noun → 'dem Kunden'."
+    },
+    {
+      "category": "n-Deklination",
+      "level": "C1",
+      "wrong": "Ich habe den Kollege gefragt.",
+      "right": "Ich habe den Kollegen gefragt.",
+      "note": "Weak masculine nouns (Kollege, Kunde, Herr, Mensch) add -(e)n in all cases except nominative singular."
+    },
+    {
+      "category": "Konjunktiv II Form",
+      "level": "B2",
+      "wrong": "Wenn ich Sie wäre, ich würde anrufen.",
+      "right": "An Ihrer Stelle würde ich anrufen.",
+      "note": "Idiomatic German prefers 'an Ihrer Stelle' over a literal 'wenn ich Sie wäre'."
+    },
+    {
+      "category": "Wechselpräposition (Akkusativ vs. Dativ)",
+      "level": "B2",
+      "wrong": "Ich lege das Dokument auf den Tisch. (Position gemeint)",
+      "right": "Das Dokument liegt auf dem Tisch.",
+      "note": "Two-way prepositions: motion → accusative (legen … auf den Tisch), position → dative (liegen … auf dem Tisch)."
+    },
+    {
+      "category": "Falscher Konnektor / Verbposition",
+      "level": "C1",
+      "wrong": "Trotzdem dass es spät war, ich habe geholfen.",
+      "right": "Obwohl es spät war, habe ich geholfen.",
+      "note": "'trotzdem' is an adverb (not a conjunction with 'dass'); use 'obwohl' to introduce a concessive clause."
+    },
+    {
+      "category": "Verb-Rektion (festes Präpositionalobjekt)",
+      "level": "C1",
+      "wrong": "Ich kümmere mich über Ihr Problem.",
+      "right": "Ich kümmere mich um Ihr Problem.",
+      "note": "'sich kümmern' governs 'um + Akkusativ'. Learn verb+preposition pairs as fixed units."
+    },
+    {
+      "category": "Wortstellung im Mittelfeld (TeKaMoLo)",
+      "level": "C1",
+      "wrong": "Ich rufe morgen Sie wegen der Rechnung an.",
+      "right": "Ich rufe Sie morgen wegen der Rechnung an.",
+      "note": "Pronoun objects come early; order tends to be Temporal–Kausal–Modal–Lokal for the rest."
+    }
+  ]
+}

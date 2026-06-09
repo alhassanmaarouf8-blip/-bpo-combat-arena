@@ -1,0 +1,216 @@
+/**
+ * audioRecorder.js
+ * Continuous microphone streaming — no push-to-talk.
+ * Captures audio at 24 kHz mono, encodes as PCM16, emits base64 chunks ~100ms.
+ * Uses an AudioWorklet (off main thread) so UI never blocks the audio pipeline.
+ */
+
+const SAMPLE_RATE  = 24_000;  // Hz — must match OAI Realtime API input
+const CHUNK_FRAMES = 2_400;   // samples per emit = 100ms at 24 kHz
+
+// AudioWorklet processor — serialised to a Blob URL at runtime.
+// Runs in the dedicated audio rendering thread; has no DOM/window access.
+const WORKLET_SRC = `
+class PCM16Processor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._buf    = new Int16Array(${CHUNK_FRAMES});
+    this._offset = 0;
+  }
+  process(inputs) {
+    const ch = inputs[0]?.[0];
+    if (!ch) return true;
+    for (let i = 0; i < ch.length; i++) {
+      const s = Math.max(-1, Math.min(1, ch[i]));
+      this._buf[this._offset++] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      if (this._offset >= ${CHUNK_FRAMES}) {
+        this.port.postMessage({ pcm16: this._buf.slice() }, [this._buf.buffer]);
+        this._buf    = new Int16Array(${CHUNK_FRAMES});
+        this._offset = 0;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('pcm16-processor', PCM16Processor);
+`;
+
+export class AudioRecorder {
+  /**
+   * @param {{
+   *   onChunk:  (base64: string) => void,
+   *   onVolume: (level: number) => void,
+   *   onError:  (err: Error)    => void,
+   * }} callbacks
+   */
+  constructor({ onChunk, onVolume, onError }) {
+    this._onChunk  = onChunk;
+    this._onVolume = onVolume;
+    this._onError  = onError;
+
+    this._ctx          = null;
+    this._stream       = null;
+    this._source       = null;
+    this._worklet      = null;
+    this._analyser     = null;
+    this._analyserBuf  = null;
+    this._blobUrl      = null;
+    this._rafId        = null;
+    this._state        = 'idle'; // idle | recording | stopped
+  }
+
+  get isRecording() { return this._state === 'recording'; }
+
+  // ── Start continuous streaming ─────────────────────────────────────────────
+
+  async start() {
+    if (this._state === 'recording') return;
+
+    try {
+      // 1. Mic access — echoCancellation prevents boss audio looping back
+      this._stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate:       { ideal: SAMPLE_RATE },
+          channelCount:     { exact: 1 },
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl:  true,
+        },
+        video: false,
+      });
+
+      // 2. AudioContext locked to 24 kHz
+      this._ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+      if (this._ctx.state === 'suspended') await this._ctx.resume();
+
+      // Resume if tab goes background then foreground
+      this._ctx.addEventListener('statechange', () => {
+        if (this._ctx?.state === 'suspended') this._ctx.resume().catch(() => {});
+      });
+
+      // 3. Register AudioWorklet from Blob URL
+      this._blobUrl = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' }));
+      await this._ctx.audioWorklet.addModule(this._blobUrl);
+
+      // 4. Build audio graph
+      //    MediaStreamSource ──┬── AnalyserNode  (volume tap, no output)
+      //                        └── AudioWorkletNode (PCM16 encoder, no output)
+      this._source   = this._ctx.createMediaStreamSource(this._stream);
+      this._analyser = this._ctx.createAnalyser();
+      this._analyser.fftSize = 256;
+      this._analyser.smoothingTimeConstant = 0.8;
+      this._analyserBuf = new Uint8Array(this._analyser.frequencyBinCount);
+
+      this._worklet = new AudioWorkletNode(this._ctx, 'pcm16-processor', {
+        numberOfInputs:        1,
+        numberOfOutputs:       0,
+        channelCount:          1,
+        channelCountMode:      'explicit',
+        channelInterpretation: 'discrete',
+      });
+
+      this._worklet.port.onmessage = ({ data }) => {
+        if (this._state !== 'recording') return;
+        this._onChunk(_int16ToBase64(data.pcm16));
+      };
+
+      this._worklet.port.onmessageerror = () =>
+        this._onError(new Error('AudioWorklet message error'));
+
+      this._source.connect(this._analyser);
+      this._source.connect(this._worklet);
+
+      // 5. Volume animation loop (60 fps)
+      this._startVolumePoll();
+
+      this._state = 'recording';
+      console.log('[audioRecorder] Started  sampleRate=', this._ctx.sampleRate);
+
+    } catch (err) {
+      this._cleanup();
+      this._state = 'stopped';
+
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        const e = Object.assign(new Error('Microphone permission denied'), { code: 'MIC_DENIED' });
+        this._onError(e);
+        throw e;
+      }
+      if (err.name === 'NotFoundError') {
+        const e = Object.assign(new Error('No microphone found'), { code: 'MIC_NOT_FOUND' });
+        this._onError(e);
+        throw e;
+      }
+      this._onError(err);
+      throw err;
+    }
+  }
+
+  // ── Stop and release all resources ────────────────────────────────────────
+
+  async stop() {
+    if (this._state === 'stopped' || this._state === 'idle') return;
+    this._state = 'stopped';
+
+    this._stopVolumePoll();
+
+    try { this._source?.disconnect();  } catch {}
+    try { this._worklet?.disconnect(); } catch {}
+    try { this._analyser?.disconnect(); } catch {}
+
+    if (this._ctx && this._ctx.state !== 'closed') {
+      await this._ctx.close().catch(() => {});
+    }
+
+    this._cleanup();
+    console.log('[audioRecorder] Stopped');
+  }
+
+  // ── Volume polling ────────────────────────────────────────────────────────
+
+  _startVolumePoll() {
+    const poll = () => {
+      if (this._state !== 'recording') return;
+      if (this._analyser && this._analyserBuf) {
+        this._analyser.getByteFrequencyData(this._analyserBuf);
+        let sum = 0;
+        for (let i = 0; i < this._analyserBuf.length; i++) sum += this._analyserBuf[i] ** 2;
+        this._onVolume(Math.sqrt(sum / this._analyserBuf.length) / 255);
+      }
+      this._rafId = requestAnimationFrame(poll);
+    };
+    this._rafId = requestAnimationFrame(poll);
+  }
+
+  _stopVolumePoll() {
+    if (this._rafId !== null) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+    this._onVolume(0);
+  }
+
+  // ── Internal cleanup ──────────────────────────────────────────────────────
+
+  _cleanup() {
+    this._stream?.getTracks().forEach(t => t.stop());
+    if (this._blobUrl) { URL.revokeObjectURL(this._blobUrl); this._blobUrl = null; }
+    this._ctx = this._stream = this._source = this._worklet = this._analyser = this._analyserBuf = null;
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function _int16ToBase64(int16) {
+  const bytes  = new Uint8Array(int16.buffer);
+  const CHUNK  = 0x8000;
+  let   binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+export function checkAudioSupport() {
+  const missing = [];
+  if (!navigator.mediaDevices?.getUserMedia) missing.push('getUserMedia');
+  if (!window.AudioContext && !window.webkitAudioContext) missing.push('AudioContext');
+  if (!window.AudioWorkletNode) missing.push('AudioWorklet');
+  return { supported: missing.length === 0, missing };
+}

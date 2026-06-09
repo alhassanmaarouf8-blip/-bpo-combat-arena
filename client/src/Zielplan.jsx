@@ -1,0 +1,348 @@
+/**
+ * Zielplan.jsx — "goal plan" coaching layer, a NEW section added on top of the app.
+ *
+ * Phase 1: the user builds their own plan (title + deadline), adds dated days, and adds
+ * steps (4 types) to each day; everything persists to the backend (/api/plans) which is
+ * the single source of truth. NO AI here and the voice interview is NOT touched — step
+ * guidance (Phase 2) and launching the mock fight (Phase 3) come later.
+ */
+import { useState, useEffect, useCallback } from 'react';
+
+const STEP_META = {
+  research: { label: 'Recherche',   icon: '🔍', color: 'var(--accent)',   hint: 'Thema recherchieren → Ergebnisse einfügen' },
+  written:  { label: 'Schriftlich', icon: '✍️', color: 'var(--violet)',   hint: 'Vokabel- / Grammatik-Übung' },
+  speaking: { label: 'Sprechen',    icon: '🗣️', color: 'var(--player-2)', hint: 'Kurze Sprech-Übung' },
+  fight:    { label: 'Mock-Kampf',  icon: '⚔️', color: 'var(--boss)',     hint: 'Volles Voice-Interview (rationiert)' },
+};
+const todayStr = () => { try { return new Date().toISOString().slice(0, 10); } catch { return ''; } };
+
+export default function Zielplan({ token, apiUrl, onClose }) {
+  const [plans, setPlans] = useState(null);   // null = loading
+  const [active, setActive] = useState(null); // the open plan
+  const [err, setErr] = useState('');
+  const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`${apiUrl}/api/plans`, { headers: headers() });
+      const d = await r.json();
+      setPlans(d.plans || []);
+    } catch { setPlans([]); setErr('Server nicht erreichbar.'); }
+  }, [apiUrl, headers]);
+  useEffect(() => { load(); }, [load]);
+
+  // ── create ──
+  const [title, setTitle] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const [maxFights, setMaxFights] = useState(2);
+  const createPlan = async () => {
+    setErr('');
+    if (!title.trim() || !deadline) { setErr('Titel und Frist sind nötig.'); return; }
+    try {
+      const r = await fetch(`${apiUrl}/api/plans`, { method: 'POST', headers: headers(), body: JSON.stringify({ title, deadline, maxFights }) });
+      const d = await r.json();
+      if (d.plan) { setTitle(''); setDeadline(''); await load(); setActive(d.plan); }
+      else setErr(d.error || 'Fehler beim Anlegen.');
+    } catch { setErr('Server nicht erreichbar.'); }
+  };
+
+  // ── structure mutations (server is authoritative; PUT returns the canonical plan) ──
+  const putPlan = useCallback(async (patch) => {
+    setErr('');
+    try {
+      const r = await fetch(`${apiUrl}/api/plans/${active.id}`, { method: 'PUT', headers: headers(), body: JSON.stringify(patch) });
+      const d = await r.json();
+      if (d.plan) setActive(d.plan);
+      else setErr(d.error === 'fight_cap' ? `Höchstens ${d.max} Mock-Kämpfe pro Plan.` : (d.error || 'Fehler.'));
+    } catch { setErr('Server nicht erreichbar.'); }
+  }, [apiUrl, active, headers]);
+
+  const toggleStep = async (stepId) => {
+    try {
+      const r = await fetch(`${apiUrl}/api/plans/${active.id}/steps/${stepId}`, { method: 'PATCH', headers: headers(), body: '{}' });
+      const d = await r.json();
+      if (d.plan) setActive(d.plan);
+    } catch { /* ignore */ }
+  };
+  const deletePlan = async (id) => {
+    try { await fetch(`${apiUrl}/api/plans/${id}`, { method: 'DELETE', headers: headers() }); setActive(null); await load(); } catch { /* ignore */ }
+  };
+
+  // ── cheap-model guidance (steps 1–3) ──
+  const generateTask = async (stepId) => {
+    try {
+      const r = await fetch(`${apiUrl}/api/plans/${active.id}/steps/${stepId}/generate`, { method: 'POST', headers: headers(), body: JSON.stringify({ level: 'a2-b1' }) });
+      const d = await r.json();
+      if (d.plan) setActive(d.plan);
+      return d;
+    } catch { return { error: 'net' }; }
+  };
+  const sendForFeedback = async (stepId, input) => {
+    try {
+      const r = await fetch(`${apiUrl}/api/plans/${active.id}/steps/${stepId}/feedback`, { method: 'POST', headers: headers(), body: JSON.stringify({ input, level: 'a2-b1' }) });
+      const d = await r.json();
+      if (d.plan) setActive(d.plan);
+      return d;
+    } catch { return { error: 'net' }; }
+  };
+
+  const cloneDays = () => (active?.days || []).map((d) => ({ ...d, steps: (Array.isArray(d?.steps) ? d.steps : []).map((s) => ({ ...s })) }));
+  const addDay = (date) => {
+    if (!date) return;
+    const days = cloneDays();
+    if (!days.some((d) => d.date === date)) days.push({ date, steps: [] });
+    days.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    putPlan({ days });
+  };
+  const addStep = (dayId, type, topic) => {
+    const days = cloneDays();
+    const day = days.find((d) => d.id === dayId);
+    if (!day) return;
+    day.steps.push({ type, topic });
+    putPlan({ days });
+  };
+  const removeStep = (dayId, stepId) =>
+    putPlan({ days: cloneDays().map((d) => d.id === dayId ? { ...d, steps: d.steps.filter((s) => s.id !== stepId) } : d) });
+  const removeDay = (dayId) => putPlan({ days: cloneDays().filter((d) => d.id !== dayId) });
+
+  // ── derived ──
+  const planStats = (p) => {
+    const steps = (p?.days || []).flatMap((d) => (Array.isArray(d?.steps) ? d.steps : [])).filter(Boolean);
+    const done = steps.filter((s) => s && s.done).length;
+    const fights = steps.filter((s) => s && s.type === 'fight').length;
+    const ms = new Date(p?.deadline) - new Date(todayStr());
+    const daysLeft = Number.isFinite(ms) ? Math.ceil(ms / 86400000) : 0;
+    return { total: steps.length, done, pct: steps.length ? Math.round((done / steps.length) * 100) : 0, fights, daysLeft };
+  };
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 220, display: 'flex', flexDirection: 'column',
+      background: 'rgba(2,4,9,0.98)', backdropFilter: 'blur(6px)', animation: 'flash-in 0.3s ease' }}>
+
+      {/* header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, letterSpacing: '0.12em',
+            color: 'var(--accent)', textShadow: 'var(--glow-accent)' }}>ZIELPLAN</div>
+          <div style={{ fontSize: 9, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>DEIN WEG ZUM ZIEL · TÄGLICHE SCHRITTE</div>
+        </div>
+        <button onClick={active ? () => setActive(null) : onClose}
+          style={btnGhost}>{active ? '← PLÄNE' : '✕ SCHLIESSEN'}</button>
+      </div>
+
+      {err && <div style={{ margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11,
+        background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' }}>⚠ {err}</div>}
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+        {/* ── LIST + CREATE ───────────────────────────────────────────── */}
+        {!active && (
+          <>
+            <div style={card}>
+              <div style={sectionTitle}>NEUEN PLAN ERSTELLEN</div>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120}
+                placeholder="Ziel, z.B. „Deutsches Remote-Sales-Interview bestehen“" style={input} />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <label style={{ flex: 1, fontSize: 9, color: 'var(--text-dim)' }}>FRIST
+                  <input type="date" value={deadline} min={todayStr()} onChange={(e) => setDeadline(e.target.value)} style={{ ...input, marginTop: 3 }} />
+                </label>
+                <label style={{ width: 130, fontSize: 9, color: 'var(--text-dim)' }}>MOCK-KÄMPFE (max.)
+                  <select value={maxFights} onChange={(e) => setMaxFights(+e.target.value)} style={{ ...input, marginTop: 3 }}>
+                    <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option>
+                  </select>
+                </label>
+              </div>
+              <div style={{ fontSize: 9, color: 'var(--text-faint)', marginTop: 6 }}>
+                Mock-Kämpfe sind das teure Voice-Interview — bewusst rationiert, am besten kurz vor der Frist.
+              </div>
+              <button onClick={createPlan} style={{ ...btnPrimary, marginTop: 10 }}>+ PLAN ANLEGEN</button>
+            </div>
+
+            <div style={sectionTitle}>DEINE PLÄNE</div>
+            {plans === null && <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>Lade…</div>}
+            {plans && plans.length === 0 && <div style={{ color: 'var(--text-faint)', fontSize: 12, fontStyle: 'italic' }}>Noch kein Plan. Lege oben deinen ersten an.</div>}
+            {plans && plans.map((p) => {
+              const st = planStats(p);
+              return (
+                <button key={p.id} onClick={() => setActive(p)} style={{ ...card, cursor: 'pointer', textAlign: 'left', border: '1px solid var(--line)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>{p.title}</span>
+                    <span style={{ fontSize: 9, color: st.daysLeft < 0 ? '#f87171' : 'var(--warn)' }}>
+                      {st.daysLeft < 0 ? 'überfällig' : st.daysLeft === 0 ? 'heute fällig' : `${st.daysLeft} Tg. übrig`}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 9.5, color: 'var(--text-dim)', marginTop: 2 }}>Frist {p.deadline} · {st.done}/{st.total} Schritte · {st.fights}/{p.maxFights} ⚔</div>
+                  <ProgressBar pct={st.pct} />
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {/* ── ONE PLAN (builder + dashboard) ──────────────────────────── */}
+        {active && <PlanView plan={active} stats={planStats(active)}
+          onAddDay={addDay} onAddStep={addStep} onRemoveStep={removeStep} onRemoveDay={removeDay}
+          onToggle={toggleStep} onDelete={() => deletePlan(active.id)}
+          onGenerate={generateTask} onFeedback={sendForFeedback} />}
+      </div>
+    </div>
+  );
+}
+
+function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay, onToggle, onDelete, onGenerate, onFeedback }) {
+  const [newDay, setNewDay] = useState('');
+  return (
+    <>
+      <div style={card}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: '#fff' }}>{plan.title}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>
+          Frist {plan.deadline} · {stats.daysLeft < 0 ? 'überfällig' : `${stats.daysLeft} Tage übrig`} · Mock-Kämpfe {stats.fights}/{plan.maxFights}
+        </div>
+        <ProgressBar pct={stats.pct} />
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>{stats.done} von {stats.total} Schritten erledigt ({stats.pct}%)</div>
+      </div>
+
+      {/* add a day */}
+      <div style={{ ...card, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input type="date" value={newDay} min={todayStr()} max={plan.deadline} onChange={(e) => setNewDay(e.target.value)} style={{ ...input, flex: 1 }} />
+        <button onClick={() => { onAddDay(newDay); setNewDay(''); }} style={btnPrimary}>+ TAG</button>
+      </div>
+
+      {(plan.days || []).length === 0 && <div style={{ color: 'var(--text-faint)', fontSize: 12, fontStyle: 'italic' }}>Noch keine Tage. Füge oben den ersten Trainingstag hinzu.</div>}
+      {(plan.days || []).map((day) => (
+        <DayCard key={day.id} day={day} onAddStep={onAddStep} onRemoveStep={onRemoveStep} onRemoveDay={onRemoveDay}
+          onToggle={onToggle} onGenerate={onGenerate} onFeedback={onFeedback} />
+      ))}
+
+      <button onClick={onDelete} style={{ ...btnGhost, color: '#fca5a5', borderColor: 'rgba(239,68,68,0.35)', marginTop: 6 }}>PLAN LÖSCHEN</button>
+    </>
+  );
+}
+
+function DayCard({ day, onAddStep, onRemoveStep, onRemoveDay, onToggle, onGenerate, onFeedback }) {
+  const [type, setType] = useState('research');
+  const [topic, setTopic] = useState('');
+  const dateLabel = (() => { try { return new Date(day.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); } catch { return day.date; } })();
+
+  return (
+    <div style={card}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', color: 'var(--accent)' }}>{dateLabel}</span>
+        <button onClick={() => onRemoveDay(day.id)} style={xBtn}>✕ Tag</button>
+      </div>
+
+      {(day.steps || []).length === 0 && <div style={{ fontSize: 10, color: 'var(--text-faint)', fontStyle: 'italic', marginBottom: 6 }}>Keine Schritte.</div>}
+      {(day.steps || []).map((s) => {
+        const m = STEP_META[s.type] || STEP_META.written;
+        return (
+          <div key={s.id} style={{ padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <button onClick={() => onToggle(s.id)} title="Erledigt umschalten" style={{
+                width: 20, height: 20, flexShrink: 0, borderRadius: 5, cursor: 'pointer',
+                border: `1px solid ${s.done ? 'var(--player)' : 'var(--line)'}`,
+                background: s.done ? 'var(--player)' : 'transparent', color: '#04070d', fontSize: 12, lineHeight: 1 }}>
+                {s.done ? '✓' : ''}
+              </button>
+              <span style={{ fontSize: 14 }}>{m.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 11, color: m.color,
+                  textDecoration: s.done ? 'line-through' : 'none', opacity: s.done ? 0.6 : 1 }}>{m.label}</div>
+                {s.topic && <div style={{ fontSize: 11, color: '#cbd5e1', opacity: s.done ? 0.5 : 1 }}>{s.topic}</div>}
+              </div>
+              <button onClick={() => onRemoveStep(day.id, s.id)} style={xBtn}>✕</button>
+            </div>
+            <StepRunner step={s} onGenerate={onGenerate} onFeedback={onFeedback} />
+          </div>
+        );
+      })}
+
+      {/* add a step */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...input, width: 120, padding: '8px' }}>
+          {Object.entries(STEP_META).map(([k, m]) => <option key={k} value={k}>{m.icon} {m.label}</option>)}
+        </select>
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={200}
+          placeholder="Thema (optional)" style={{ ...input, flex: 1, minWidth: 100 }} />
+        <button onClick={() => { onAddStep(day.id, type, topic); setTopic(''); }} style={btnPrimary}>+ SCHRITT</button>
+      </div>
+      <div style={{ fontSize: 8.5, color: 'var(--text-faint)', marginTop: 5 }}>{STEP_META[type].hint}</div>
+    </div>
+  );
+}
+
+// Interactive guidance for steps 1–3 (cheap text model). Step 4 (fight) is Phase 3.
+function StepRunner({ step, onGenerate, onFeedback }) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState(step.result?.input || '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const task = step.result?.task;
+  const feedback = step.result?.feedback;
+
+  if (step.type === 'fight') {
+    return <div style={{ fontSize: 9, color: 'var(--text-faint)', marginLeft: 29, marginTop: 2 }}>⚔ Voller Mock-Kampf — Start kommt in Phase 3.</div>;
+  }
+  const genLabel = step.type === 'research' ? 'Leitfragen generieren' : step.type === 'speaking' ? 'Sprech-Aufgabe' : 'Übung generieren';
+
+  const gen = async () => {
+    setBusy(true); setErr('');
+    const d = await onGenerate(step.id); setBusy(false);
+    if (d?.error) setErr(d.error === 'no_api_key' ? 'KI nicht verfügbar (kein API-Key).' : 'Konnte Aufgabe nicht laden.');
+  };
+  const submit = async () => {
+    if (!input.trim()) return;
+    setBusy(true); setErr('');
+    const d = await onFeedback(step.id, input); setBusy(false);
+    if (d?.error) setErr(d.error === 'no_api_key' ? 'KI nicht verfügbar (kein API-Key).' : 'Feedback fehlgeschlagen.');
+  };
+
+  return (
+    <div style={{ marginLeft: 29, marginTop: 5 }}>
+      <button onClick={() => setOpen((o) => !o)} style={smallBtn}>
+        {open ? '▾ Schließen' : feedback ? '▸ Üben · Feedback vorhanden' : '▸ Üben'}
+      </button>
+      {open && (
+        <div style={panel}>
+          {!task && <button onClick={gen} disabled={busy} style={{ ...btnPrimary, opacity: busy ? 0.6 : 1 }}>{busy ? '…' : genLabel}</button>}
+          {task && <div style={taskBox}>{task}</div>}
+          <textarea value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000}
+            placeholder={step.type === 'research' ? 'Deine Recherche-Ergebnisse einfügen…' : 'Deine Antwort auf Deutsch…'}
+            style={textareaStyle} />
+          <button onClick={submit} disabled={busy || !input.trim()} style={{ ...btnPrimary, opacity: (busy || !input.trim()) ? 0.6 : 1 }}>
+            {busy ? 'Prüfe…' : 'Prüfen / Feedback'}
+          </button>
+          {err && <div style={{ color: '#fca5a5', fontSize: 10 }}>⚠ {err}</div>}
+          {feedback && (
+            <div style={feedbackBox}>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 8.5, letterSpacing: '0.1em', color: 'var(--player-2)', marginBottom: 4 }}>FEEDBACK</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{feedback}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProgressBar({ pct }) {
+  return (
+    <div style={{ height: 8, borderRadius: 'var(--r-pill)', overflow: 'hidden', background: 'rgba(0,0,0,0.45)', border: '1px solid var(--line)', marginTop: 8 }}>
+      <div style={{ height: '100%', width: `${pct}%`, borderRadius: 'inherit',
+        background: 'linear-gradient(90deg, var(--player), var(--accent))', boxShadow: '0 0 8px var(--accent-dim)',
+        transition: 'width 0.5s var(--ease-out)' }} />
+    </div>
+  );
+}
+
+// ── shared inline styles ──
+const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))', border: '1px solid var(--line)', boxShadow: 'inset 0 0 24px rgba(0,0,0,0.45)' };
+const sectionTitle = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9.5, letterSpacing: '0.14em', color: 'var(--text-dim)', marginBottom: 6 };
+const input = { width: '100%', padding: '10px', borderRadius: 'var(--r-sm)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 13, border: '1px solid var(--line)', outline: 'none' };
+const btnPrimary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', padding: '9px 13px', borderRadius: 'var(--r-sm)', cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid var(--accent)', color: '#04070d', background: 'linear-gradient(135deg, var(--accent-2), var(--accent))' };
+const btnGhost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '7px 11px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--accent)' };
+const xBtn = { fontSize: 9, cursor: 'pointer', padding: '3px 6px', borderRadius: 5, border: '1px solid rgba(148,163,184,0.25)', background: 'transparent', color: '#94a3b8' };
+const smallBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9.5, letterSpacing: '0.04em', cursor: 'pointer', padding: '4px 8px', borderRadius: 5, border: '1px solid var(--line)', background: 'transparent', color: 'var(--accent)' };
+const panel = { marginTop: 7, padding: 10, borderRadius: 'var(--r-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 };
+const taskBox = { fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-wrap', padding: 8, borderRadius: 6, background: 'rgba(0,229,255,0.05)', border: '1px solid var(--line)' };
+const feedbackBox = { fontSize: 11.5, color: '#d1fae5', lineHeight: 1.55, padding: 9, borderRadius: 6, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' };
+const textareaStyle = { width: '100%', minHeight: 70, padding: 9, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 12.5, border: '1px solid var(--line)', outline: 'none' };

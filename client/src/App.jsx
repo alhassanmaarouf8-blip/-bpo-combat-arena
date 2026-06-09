@@ -1,0 +1,2231 @@
+import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
+import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
+import { AudioPlayer } from './audioPlayer.js';
+import Zielplan from './Zielplan.jsx';
+
+// Isolates an overlay so a crash inside it shows a readable message instead of blacking
+// out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
+class OverlayBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) {
+    console.error('[overlay] crashed:', error, info);
+    try {
+      fetch(`${API_URL}/api/clienterror`, { method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+        body: JSON.stringify({ title:'OverlayBoundary', detail: String(error?.stack || error) + '\n' + (info?.componentStack || '') }) }).catch(() => {});
+    } catch { /* ignore */ }
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ position:'absolute', inset:0, zIndex:300, display:'flex', flexDirection:'column',
+        alignItems:'center', justifyContent:'center', gap:14, padding:24, textAlign:'center',
+        background:'rgba(2,4,9,0.98)', color:'#fca5a5' }}>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:14, color:'#f87171' }}>Etwas ist schiefgelaufen</div>
+        <div style={{ fontSize:11, color:'#94a3b8', maxWidth:340, wordBreak:'break-word' }}>
+          {String(this.state.error?.message || this.state.error)}
+        </div>
+        <div style={{ fontSize:10, color:'#64748b' }}>Tipp: Seite neu laden (Strg+Shift+R).</div>
+        <button onClick={this.props.onClose} style={{ fontFamily:'Orbitron,monospace', fontSize:11,
+          padding:'10px 18px', borderRadius:8, cursor:'pointer', border:'1px solid #00e5ff',
+          color:'#00e5ff', background:'rgba(0,229,255,0.06)' }}>SCHLIESSEN</button>
+      </div>
+    );
+  }
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:3001';
+const API_URL = WS_URL.replace(/^ws/, 'http');   // same origin, http(s) scheme
+
+// ── Auth storage (token + cached account) ──────────────────────────────────────
+function loadStoredAuth() {
+  try {
+    const token = localStorage.getItem('bpo_token');
+    const acct  = localStorage.getItem('bpo_account');
+    return token && acct ? { token, account: JSON.parse(acct) } : null;
+  } catch { return null; }
+}
+function persistAuth(auth) {
+  try {
+    if (auth) { localStorage.setItem('bpo_token', auth.token); localStorage.setItem('bpo_account', JSON.stringify(auth.account)); }
+    else      { localStorage.removeItem('bpo_token'); localStorage.removeItem('bpo_account'); }
+  } catch { /* ignore */ }
+}
+function authErrText(code) {
+  return ({
+    invalid_email:       'Ungültige E-Mail-Adresse.',
+    weak_password:       'Passwort muss mindestens 6 Zeichen haben.',
+    email_taken:         'Diese E-Mail ist bereits registriert.',
+    invalid_credentials: 'E-Mail oder Passwort ist falsch.',
+  })[code] || 'Etwas ist schiefgelaufen.';
+}
+
+// ── Server message types ──────────────────────────────────────────────────────
+const S = {
+  SESSION_READY:    'session_ready',
+  SESSION_CLOSED:   'session_closed',
+  AUDIO_DELTA:      'audio_delta',
+  TRANSCRIPT_DELTA: 'transcript_delta',
+  TRANSCRIPT_DONE:  'transcript_done',
+  BOSS_SPEECH:      'boss_speech',
+  BOSS_SPEECH_DONE: 'boss_speech_done',
+  SCENARIO_INFO:    'scenario_info',
+  STAGE_UPDATE:     'stage_update',
+  DEBRIEF_PENDING:  'debrief_pending',
+  DEBRIEF:          'debrief',
+  PAYWALL:          'paywall',
+  HP_UPDATE:        'hp_update',
+  LIVE_STATS:       'live_stats',
+  ERROR:            'error',
+  PONG:             'pong',
+};
+
+// ── Client message types ──────────────────────────────────────────────────────
+const C = {
+  START_FIGHT: 'start_fight',
+  STOP_FIGHT:  'stop_fight',
+  AUDIO_CHUNK: 'audio_chunk',
+  PING:        'ping',
+};
+
+// ── Boss emotional states → drives the SVG interviewer's expression ───────────
+const EMOTIONS = {
+  // Pre-fight default + the FOUR backend-driven reaction states. Each carries the SVG
+  // face, the German status label, and the accent colour the whole boss card shifts to.
+  idle:        { face: 'composed',  label: 'GEFASST',     color: '#22d3ee' }, // before the fight
+  gefasst:     { face: 'composed',  label: 'GEFASST',     color: '#22d3ee' }, // composed authority
+  skeptisch:   { face: 'skeptical', label: 'SKEPTISCH',   color: '#f59e0b' }, // mild doubt — weak answer
+  beeindruckt: { face: 'impressed', label: 'BEEINDRUCKT', color: '#10b981' }, // grudging respect
+  wuetend:     { face: 'furious',   label: 'WÜTEND',      color: '#ef4444' }, // cornered / candidate fails
+  hurt:        { face: 'shaken',    label: 'GETROFFEN',   color: '#f59e0b' }, // rattled (transient)
+};
+
+// Per-expression facial parameters (driven into the SVG below).
+const FACE_PARAMS = {
+  composed:  { browTilt:  6, browLift:  0, eyeOpen: 1.0,  mouthCurve: -0.10, mouthOpen: 0.00 },
+  skeptical: { browTilt: 13, browLift: -5, eyeOpen: 0.80, mouthCurve: -0.16, mouthOpen: 0.05, smirk: true },
+  smug:      { browTilt:  3, browLift: -3, eyeOpen: 0.85, mouthCurve:  0.34, mouthOpen: 0.04, smirk: true },
+  impressed: { browTilt: -9, browLift: -9, eyeOpen: 1.18, mouthCurve:  0.14, mouthOpen: 0.20 },
+  furious:   { browTilt: 20, browLift:  2, eyeOpen: 0.62, mouthCurve: -0.42, mouthOpen: 0.55 },
+  shaken:    { browTilt:-12, browLift:-10, eyeOpen: 1.25, mouthCurve: -0.05, mouthOpen: 0.55 },
+};
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const GLOBAL_CSS = `
+  /* Chakra Petch (display) + Inter (body) both fully support ä ö ü ß. Orbitron + Share
+     Tech Mono kept so not-yet-migrated labels still render during the phased redesign. */
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  /* ── OMNI-PERFORM design tokens ─────────────────────────────────────────────
+     Single source of truth for colour, type, spacing, radius, motion, depth.
+     Everything in the redesign references these — never hard-coded hexes. */
+  :root {
+    /* surfaces / depth */
+    --bg-0:#020409; --bg-1:#070d18; --bg-2:#0c1626;
+    --surface:rgba(255,255,255,0.045); --surface-2:rgba(255,255,255,0.07);
+    --line:rgba(0,229,255,0.18); --line-strong:rgba(0,229,255,0.4);
+    /* accents */
+    --accent:#00e5ff; --accent-2:#22d3ee; --accent-dim:rgba(0,229,255,0.5);
+    --player:#10b981; --player-2:#34d399; --player-glow:rgba(16,185,129,0.55);
+    --boss:#ef4444; --boss-2:#f97316; --boss-glow:rgba(239,68,68,0.5);
+    --warn:#f59e0b; --good:#34d399; --bad:#f87171; --violet:#a78bfa;
+    /* text */
+    --text:#e2e8f0; --text-dim:#94a3b8; --text-faint:#475569;
+    /* type */
+    --font-display:'Chakra Petch','Inter',sans-serif;
+    --font-body:'Inter',system-ui,sans-serif;
+    --font-mono:'Share Tech Mono',monospace;
+    /* radius / spacing */
+    --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+    /* motion */
+    --dur-fast:150ms; --dur:240ms; --dur-slow:320ms;
+    --ease:cubic-bezier(.4,0,.2,1);
+    --ease-out:cubic-bezier(.23,1,.32,1);
+    --ease-spring:cubic-bezier(.34,1.56,.64,1);
+    /* depth primitives */
+    --glow-accent:0 0 18px rgba(0,229,255,0.35);
+    --glow-player:0 0 16px var(--player-glow);
+    --glow-boss:0 0 16px var(--boss-glow);
+    --shadow-card:0 12px 38px rgba(0,0,0,0.55), inset 0 0 60px rgba(0,0,0,0.45);
+    --vignette:radial-gradient(120% 100% at 50% 32%, transparent 48%, rgba(0,0,0,0.55) 100%);
+  }
+
+  /* Respect the OS "reduce motion" setting — all juice becomes instant. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration:0.001ms !important; animation-iteration-count:1 !important;
+      transition-duration:0.001ms !important; scroll-behavior:auto !important;
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root {
+    min-height: 100svh;            /* grow with content — do NOT lock to 100% (clips the start button) */
+    background:
+      radial-gradient(140% 100% at 50% -10%, #0a1422 0%, transparent 55%),
+      var(--bg-0);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.25); border-radius: 2px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(7px)} }
+  @keyframes boss-hurt { 0%,100%{transform:scale(1)} 30%{transform:scale(1.14) rotate(-3deg)} 70%{transform:scale(0.93)} }
+  @keyframes flash-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  @keyframes dmg-float { 0%{opacity:0;transform:translate(-50%,4px) scale(0.6)} 18%{opacity:1} 100%{opacity:0;transform:translate(-50%,-52px) scale(1.3)} }
+  @keyframes hp-reason { 0%{opacity:0;transform:translateY(6px)} 12%{opacity:1} 80%{opacity:1} 100%{opacity:0;transform:translateY(-10px)} }
+  @keyframes hp-low { 0%,100%{opacity:1} 50%{opacity:0.45} }
+  @keyframes hp-sheen { 0%{transform:translateX(-120%)} 100%{transform:translateX(320%)} }
+  @keyframes orb-ring { 0%{transform:scale(0.85);opacity:0.55} 100%{transform:scale(1.7);opacity:0} }
+  .hp-low-pulse { animation: hp-low 1.1s ease-in-out infinite; }
+  @keyframes tick-pop { 0%{transform:scale(1)} 35%{transform:scale(1.55)} 100%{transform:scale(1)} }
+  @keyframes combo-in { 0%{transform:scale(0.4);opacity:0} 60%{transform:scale(1.18)} 100%{transform:scale(1);opacity:1} }
+  @keyframes combo-glow { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  @keyframes node-pop { 0%{transform:scale(1)} 50%{transform:scale(1.32)} 100%{transform:scale(1)} }
+  @keyframes round-pop { 0%{opacity:0;transform:translate(-50%,-50%) scale(0.8)} 14%{opacity:1;transform:translate(-50%,-50%) scale(1.05)} 78%{opacity:1;transform:translate(-50%,-50%) scale(1)} 100%{opacity:0;transform:translate(-50%,-50%) scale(1.03)} }
+  @keyframes rank-pop { 0%{opacity:0;transform:scale(0.3) rotate(-8deg)} 55%{opacity:1;transform:scale(1.16) rotate(2deg)} 100%{opacity:1;transform:scale(1) rotate(0)} }
+  @keyframes result-rise { 0%{opacity:0;transform:translateY(14px)} 100%{opacity:1;transform:translateY(0)} }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .spin { animation: spin 0.9s linear infinite; }
+  @keyframes scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
+  .scanline { position:fixed;top:0;left:0;width:100%;height:3px;background:rgba(0,255,200,0.04);animation:scan 5s linear infinite;pointer-events:none;z-index:9998; }
+  .shake  { animation: shake 0.4s ease; }
+  .hurt   { animation: boss-hurt 0.55s ease; }
+  .flash  { animation: flash-in 0.2s ease; }
+  @keyframes boss-talk { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1)} }
+  .boss-talk { animation: boss-talk 0.22s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes breathe { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-3px) scale(1.012)} }
+  .breathe { animation: breathe 4.5s ease-in-out infinite; }
+  @keyframes portrait-glow { 0%,100%{opacity:0.55} 50%{opacity:0.9} }
+  @keyframes grid-drift { from{background-position:0 0} to{background-position:0 56px} }
+  @keyframes vignette-pulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
+`;
+
+// ── Component: BossAvatar (designed SVG interviewer that emotes) ───────────────
+function _eyePath(cx, cy, open) {
+  const ry = 9 * open;
+  return `M ${cx-15} ${cy} Q ${cx} ${cy-ry} ${cx+15} ${cy} Q ${cx} ${cy+ry} ${cx-15} ${cy} Z`;
+}
+function _mouthPath(cx, cy, curve, open) {
+  const w = 22, mid = cy + curve * 26, h = open * 22;
+  return `M ${cx-w} ${cy} Q ${cx} ${mid} ${cx+w} ${cy} Q ${cx} ${mid + h} ${cx-w} ${cy} Z`;
+}
+
+function BossAvatar({ emotion = 'composed', speaking = false, color = '#22d3ee' }) {
+  const p = FACE_PARAMS[emotion] || FACE_PARAMS.composed;
+  const eyeCY = 102, browY = 80 + p.browLift, mouthCY = 150;
+
+  return (
+    <svg viewBox="0 0 220 244" style={{ width:'100%', height:'100%', display:'block', overflow:'visible' }}>
+      <defs>
+        <radialGradient id="ba-spot" cx="50%" cy="34%" r="64%">
+          <stop offset="0%"  stopColor={color} stopOpacity="0.30" />
+          <stop offset="55%" stopColor={color} stopOpacity="0.05" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="ba-skin" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3b4658" /><stop offset="55%" stopColor="#2a3340" /><stop offset="100%" stopColor="#1b212c" />
+        </linearGradient>
+        <linearGradient id="ba-hair" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#10192a" /><stop offset="100%" stopColor="#05080f" />
+        </linearGradient>
+        <linearGradient id="ba-suit" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0e1623" /><stop offset="100%" stopColor="#05080d" />
+        </linearGradient>
+        <filter id="ba-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2" /></filter>
+      </defs>
+
+      <rect x="0" y="0" width="220" height="244" fill="url(#ba-spot)" />
+
+      {/* suit + shirt + tie */}
+      <path d="M 28 244 Q 28 196 70 183 L 150 183 Q 192 196 192 244 Z" fill="url(#ba-suit)" stroke={color} strokeOpacity="0.28" strokeWidth="1.5" />
+      <path d="M 92 183 L 110 210 L 128 183 Z" fill="#0b1119" />
+      <path d="M 92 183 L 110 206 M 128 183 L 110 206" stroke={color} strokeOpacity="0.55" strokeWidth="2" fill="none" />
+      <path d="M 104 187 L 116 187 L 120 232 L 110 244 L 100 232 Z" fill={color} fillOpacity="0.5" />
+
+      {/* neck + head */}
+      <rect x="96" y="156" width="28" height="34" rx="11" fill="url(#ba-skin)" />
+      <ellipse cx="110" cy="108" rx="60" ry="70" fill="url(#ba-skin)" />
+      <ellipse cx="110" cy="108" rx="60" ry="70" fill="none" stroke={color} strokeOpacity="0.5" strokeWidth="1.5" filter="url(#ba-soft)" />
+      <ellipse cx="110" cy="150" rx="40" ry="24" fill="#10161f" opacity="0.45" />
+
+      {/* hair */}
+      <path d="M 50 98 Q 46 36 110 34 Q 174 36 170 98 Q 150 68 110 68 Q 70 68 50 98 Z" fill="url(#ba-hair)" />
+      <path d="M 50 98 Q 46 36 110 34 Q 174 36 170 98" fill="none" stroke={color} strokeOpacity="0.4" strokeWidth="1.5" />
+
+      {/* ears + call-center headset (themed) */}
+      <circle cx="48" cy="114" r="12" fill="url(#ba-skin)" />
+      <circle cx="172" cy="114" r="12" fill="url(#ba-skin)" />
+      <path d="M 40 112 Q 40 42 110 40 Q 180 42 180 112" fill="none" stroke="#1a2430" strokeWidth="7" strokeLinecap="round" />
+      <path d="M 40 112 Q 40 42 110 40 Q 180 42 180 112" fill="none" stroke={color} strokeOpacity="0.45" strokeWidth="2" />
+      <rect x="33" y="105" width="16" height="22" rx="6" fill="#0c131c" stroke={color} strokeWidth="1.5" />
+      <circle cx="41" cy="116" r="2.6" fill={color}>
+        <animate attributeName="opacity" values="1;0.25;1" dur="1.5s" repeatCount="indefinite" />
+      </circle>
+      <path d="M 35 124 Q 28 152 64 158" fill="none" stroke="#1a2430" strokeWidth="4" strokeLinecap="round" />
+      <circle cx="64" cy="158" r="4.5" fill={color} fillOpacity="0.7" />
+
+      {/* brows */}
+      <g fill={color}>
+        <rect x="73"  y={browY-3} width="34" height="7" rx="3.5" transform={`rotate(${p.browTilt} 90 ${browY})`} />
+        <rect x="113" y={browY-3} width="34" height="7" rx="3.5" transform={`rotate(${-p.browTilt} 130 ${browY})`} />
+      </g>
+
+      {/* eyes */}
+      <path d={_eyePath(90, eyeCY, p.eyeOpen)}  fill="#e6edf5" />
+      <path d={_eyePath(130, eyeCY, p.eyeOpen)} fill="#e6edf5" />
+      <circle cx="90"  cy={eyeCY} r="5" fill="#0a0f16" />
+      <circle cx="130" cy={eyeCY} r="5" fill="#0a0f16" />
+      <circle cx="88.5"  cy={eyeCY-1.5} r="1.5" fill={color} />
+      <circle cx="128.5" cy={eyeCY-1.5} r="1.5" fill={color} />
+
+      {/* nose */}
+      <path d="M 110 110 L 103 133 Q 110 138 117 133 Z" fill="#10161f" opacity="0.5" />
+
+      {/* mouth (lip-syncs while the boss speaks) */}
+      <g className={speaking ? 'boss-talk' : ''}>
+        <path d={_mouthPath(110, mouthCY, p.mouthCurve, p.mouthOpen)} fill="#0a0f16" stroke={color} strokeOpacity="0.55" strokeWidth="1.2" />
+      </g>
+    </svg>
+  );
+}
+
+// ── Component: HpBar ──────────────────────────────────────────────────────────
+// Smoothly tweens a displayed integer toward `target` with rAF (cubic ease-out).
+// Only this small component re-renders during the ~0.55s count; nothing else.
+function useAnimatedNumber(target, dur = 550) {
+  const [val, setVal] = useState(target);
+  const fromRef = useRef(target);
+  const rafRef  = useRef(0);
+  useEffect(() => {
+    const from  = fromRef.current;
+    const delta = target - from;
+    if (delta === 0) { setVal(target); return undefined; }
+    let start = 0;
+    const step = (t) => {
+      if (!start) start = t;
+      const p     = Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(from + delta * eased);
+      if (p < 1) rafRef.current = requestAnimationFrame(step);
+      else { fromRef.current = target; setVal(target); }
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, dur]);
+  return Math.round(val);
+}
+
+function HpBar({ label, value, isPlayer, reason }) {
+  const pct   = Math.max(0, Math.min(100, value));
+  const shown = useAnimatedNumber(pct);
+  const low   = pct <= 25;
+  // Palette tracks the design tokens; solid hexes kept where glow math needs string concat.
+  const solid = isPlayer
+    ? (pct > 50 ? '#10b981' : pct > 25 ? '#f59e0b' : '#ef4444')
+    : (pct > 50 ? '#ef4444' : pct > 25 ? '#f97316' : '#dc2626');
+  const glow   = solid + '66';
+  const rColor = isPlayer ? '#f87171' : '#34d399';   // player loss = red, gain = green
+  const rSign  = isPlayer ? '−' : '+';
+
+  return (
+    <div style={{ marginBottom: 'var(--sp-2)', position:'relative' }}>
+      {reason && (
+        <div key={reason.id} style={{ position:'absolute', right:0, top:-15, zIndex:6, pointerEvents:'none',
+          fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, color:rColor,
+          textShadow:`0 0 8px ${rColor}99`, whiteSpace:'nowrap',
+          animation:'hp-reason 2s var(--ease-out) forwards' }}>
+          {rSign}{reason.amount} {reason.label}
+        </div>
+      )}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:5 }}>
+        <span style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:600, letterSpacing:'0.16em',
+          color:solid, textShadow:`0 0 9px ${glow}` }}>
+          {label}
+        </span>
+        <span style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:700, color:solid,
+          textShadow:`0 0 8px ${glow}`, fontVariantNumeric:'tabular-nums' }}>
+          {shown}<span style={{ opacity:0.45, fontSize:10 }}> / 100</span>
+        </span>
+      </div>
+      {/* weighty track */}
+      <div className={low ? 'hp-low-pulse' : ''} style={{ height:15, borderRadius:'var(--r-sm)',
+        background:'linear-gradient(180deg, rgba(0,0,0,0.5), rgba(255,255,255,0.03))',
+        border:`1px solid ${glow}`, overflow:'hidden', position:'relative',
+        boxShadow:`inset 0 2px 6px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.4)` }}>
+        {/* fill — spring-eased width */}
+        <div style={{ position:'absolute', inset:0, width:`${pct}%`, borderRadius:'inherit',
+          background:`linear-gradient(90deg, ${solid}99, ${solid})`,
+          boxShadow:`0 0 12px ${glow}, inset 0 1px 0 rgba(255,255,255,0.35)`,
+          transition:'width 0.55s var(--ease-spring), background 0.4s var(--ease)' }}>
+          {/* moving sheen on the fill */}
+          <div style={{ position:'absolute', top:0, bottom:0, width:'30%',
+            background:'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
+            filter:'blur(2px)', animation:'hp-sheen 2.6s var(--ease) infinite' }} />
+        </div>
+        {/* segment ticks for that weighty, gauge-like read */}
+        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+          background:'repeating-linear-gradient(90deg,transparent,transparent 17px,rgba(0,0,0,0.28) 17px,rgba(0,0,0,0.28) 19px)' }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Phase 2: Live performance HUD ─────────────────────────────────────────────
+// All values here are DISPLAY-ONLY, supplied by the backend over the websocket
+// (live_stats / hp_update). The client never computes score-affecting numbers.
+
+// Live WPM meter with the 140–160 target zone highlighted in green.
+const WPM_MAX = 220;
+function WpmMeter({ wpm }) {
+  const shown = useAnimatedNumber(Math.max(0, Math.min(WPM_MAX, wpm)), 350);
+  const pos   = Math.max(0, Math.min(100, (wpm / WPM_MAX) * 100));
+  const inZone = wpm >= 140 && wpm <= 160;
+  const near   = wpm >= 110 && wpm < 140;
+  const mColor = inZone ? '#34d399' : near || (wpm > 160 && wpm <= 185) ? '#f59e0b' : wpm === 0 ? '#475569' : '#f87171';
+  const zoneL  = (140 / WPM_MAX) * 100;
+  const zoneW  = ((160 - 140) / WPM_MAX) * 100;
+  return (
+    <div style={{ flex:1, minWidth:0 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:3 }}>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.14em', color:'var(--text-dim)' }}>TEMPO</span>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:11, color:mColor, fontVariantNumeric:'tabular-nums' }}>
+          {shown}<span style={{ opacity:0.5, fontSize:8 }}> WpM</span>
+        </span>
+      </div>
+      <div style={{ position:'relative', height:8, borderRadius:'var(--r-pill)', overflow:'hidden',
+        background:'rgba(0,0,0,0.45)', border:'1px solid var(--line)' }}>
+        {/* green target zone */}
+        <div style={{ position:'absolute', top:0, bottom:0, left:`${zoneL}%`, width:`${zoneW}%`,
+          background:'linear-gradient(90deg, rgba(52,211,153,0.25), rgba(52,211,153,0.4))',
+          boxShadow:'0 0 8px rgba(52,211,153,0.5)' }} />
+        {/* needle */}
+        <div style={{ position:'absolute', top:-2, bottom:-2, left:`${pos}%`, width:3, marginLeft:-1.5,
+          borderRadius:2, background:mColor, boxShadow:`0 0 8px ${mColor}`,
+          transition:'left var(--dur) var(--ease-out), background var(--dur)' }} />
+      </div>
+    </div>
+  );
+}
+
+// Filler-word counter — pops each time the backend reports more fillers.
+function FillerCounter({ count }) {
+  const hot = count > 0;
+  return (
+    <div style={{ textAlign:'center', minWidth:54 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.12em',
+        color:'var(--text-dim)', marginBottom:3 }}>FÜLLWÖRTER</div>
+      {/* key=count remounts the number so it replays the pop animation on every change */}
+      <div key={count} style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, lineHeight:1,
+        color: hot ? '#f87171' : '#64748b',
+        textShadow: hot ? '0 0 10px rgba(248,113,113,0.6)' : 'none',
+        animation: hot ? 'tick-pop 0.4s var(--ease-spring)' : 'none' }}>
+        {count}
+      </div>
+    </div>
+  );
+}
+
+// Combo / streak multiplier — escalates glow and size as the streak climbs.
+function ComboMeter({ combo }) {
+  const active = combo >= 2;
+  const intensity = Math.min(combo, 6);
+  return (
+    <div style={{ textAlign:'center', minWidth:64 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.12em',
+        color:'var(--text-dim)', marginBottom:3 }}>KOMBO</div>
+      {active ? (
+        <div key={combo} style={{ fontFamily:'var(--font-display)', fontWeight:700,
+          fontSize: 14 + intensity * 1.5, lineHeight:1,
+          color:'#fbbf24',
+          textShadow:`0 0 ${6 + intensity * 3}px rgba(251,191,36,${0.5 + intensity * 0.08})`,
+          animation:'combo-in 0.35s var(--ease-spring)' }}>
+          x{combo}
+        </div>
+      ) : (
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, lineHeight:1, color:'#64748b' }}>—</div>
+      )}
+    </div>
+  );
+}
+
+// The strip that holds the three live meters. Glows brighter as the combo climbs.
+function PerformanceHud({ wpm, fillers, combo }) {
+  const hot = combo >= 3;
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:'var(--sp-3)', marginBottom:'var(--sp-3)',
+      padding:'8px 12px', borderRadius:'var(--r-md)',
+      background:'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))',
+      border:`1px solid ${hot ? 'rgba(251,191,36,0.45)' : 'var(--line)'}`,
+      boxShadow: hot ? '0 0 22px rgba(251,191,36,0.18), inset 0 0 24px rgba(0,0,0,0.5)' : 'inset 0 0 24px rgba(0,0,0,0.5)',
+      transition:'border-color var(--dur-slow), box-shadow var(--dur-slow)' }}>
+      <WpmMeter wpm={wpm} />
+      <div style={{ width:1, alignSelf:'stretch', background:'var(--line)' }} />
+      <FillerCounter count={fillers} />
+      <div style={{ width:1, alignSelf:'stretch', background:'var(--line)' }} />
+      <ComboMeter combo={combo} />
+    </div>
+  );
+}
+
+// ── Component: WaveformRing ───────────────────────────────────────────────────
+function WaveformRing({ volRef, active, bossSpeak }) {
+  // Animate locally via requestAnimationFrame. Volume used to be React state on the
+  // parent, so every audio frame (60fps) re-rendered the ENTIRE app — that render
+  // storm is what blacked out the screen mid-speech. Now volume is a ref and only
+  // this ring re-renders, at a capped ~25fps.
+  const [, tick] = useReducer((x) => (x + 1) % 1e6, 0);
+  useEffect(() => {
+    if (!active) return undefined;
+    let raf, last = 0;
+    const loop = (t) => {
+      if (t - last >= 40) { last = t; tick(); }   // ~25fps, this component only
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+
+  const bars    = 28;
+  const volume  = active ? Math.min(volRef.current || 0, 1) : 0;
+  const baseHue = bossSpeak ? 185 : (active ? 160 : 220);
+  // The orb breathes with the mic amplitude — transform: scale only (GPU-cheap, no reflow).
+  const scale   = active ? (1 + volume * 0.3).toFixed(3) : '1';
+  const ringCol = bossSpeak ? '#22d3ee' : active ? '#00e5ff' : '#475569';
+
+  return (
+    <div style={{ position:'relative', width:154, height:154, margin:'0 auto',
+      display:'flex', alignItems:'center', justifyContent:'center' }}>
+
+      {/* expanding pulse rings (only while live) */}
+      {active && [0, 1].map(i => (
+        <div key={`r${i}`} style={{ position:'absolute', width:100, height:100, borderRadius:'50%',
+          border:`2px solid ${ringCol}`, opacity:0, pointerEvents:'none',
+          animation:`orb-ring 1.9s var(--ease-out) ${i * 0.95}s infinite` }} />
+      ))}
+
+      {/* radial amplitude bars */}
+      {Array.from({ length: bars }).map((_, i) => {
+        const angle = (i / bars) * 360;
+        const h     = active
+          ? 6 + Math.abs(Math.sin(Date.now() / 110 + i * 0.6)) * 12 * Math.max(volume, 0.06)
+          : 4;
+        return (
+          <div key={i} style={{ position:'absolute', left:'50%', top:'50%',
+            width: 3, height: h, borderRadius: 2,
+            background: `hsl(${baseHue},85%,${active ? 60 : 30}%)`,
+            opacity: active ? 0.5 + volume * 0.5 : 0.18,
+            transform: `rotate(${angle}deg) translateY(-70px)`,
+            transformOrigin: '50% 100%',
+            transition: 'height 0.06s linear, opacity 0.12s, background 0.4s',
+          }} />
+        );
+      })}
+
+      {/* the core orb — scales with voice */}
+      <div style={{ position:'relative', zIndex:2, width:94, height:94, borderRadius:'50%',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        border:`2px solid ${ringCol}`, fontSize:34, userSelect:'none',
+        background: active
+          ? 'radial-gradient(circle at 50% 32%, rgba(0,229,255,0.20), rgba(0,229,255,0.04) 70%)'
+          : 'rgba(255,255,255,0.02)',
+        boxShadow: active
+          ? `0 0 30px ${ringCol}55, inset 0 0 24px ${ringCol}33`
+          : 'inset 0 0 18px rgba(0,0,0,0.5)',
+        transform: `scale(${scale})`,
+        transition:'transform 0.08s linear, box-shadow var(--dur-slow) var(--ease), border-color var(--dur-slow), background var(--dur-slow)',
+      }}>
+        🎙️
+      </div>
+    </div>
+  );
+}
+
+// ── Component: TranscriptPanel ────────────────────────────────────────────────
+const FILLER_RE = /\b(äh+|ehm+|um+|also\s|halt\s|irgendwie|quasi|sozusagen)\b/gi;
+
+function TranscriptPanel({ lines, userSpeak }) {
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }); }, [lines]);
+
+  return (
+    <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', fontSize:12.5, lineHeight:1.8,
+      fontFamily:'var(--font-body)',
+      background:'linear-gradient(180deg, rgba(0,0,0,0.42), rgba(0,0,0,0.28))',
+      borderRadius:'var(--r-md)', border:'1px solid var(--line)',
+      boxShadow:'inset 0 0 30px rgba(0,0,0,0.4)', minHeight:90 }}>
+      {lines.length === 0 && (
+        <span style={{ color:'var(--text-faint)', fontStyle:'italic' }}>Bereit für das Gespräch…</span>
+      )}
+      {lines.map(line => (
+        <div key={line.id} style={{ marginBottom:5,
+          color: line.speaker === 'boss' ? 'var(--accent)' : 'var(--text)',
+          opacity: line.partial ? 0.65 : 1 }}>
+          <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, letterSpacing:'0.14em', marginRight:8,
+            color: line.speaker === 'boss' ? 'var(--accent-dim)' : 'rgba(16,185,129,0.6)' }}>
+            {line.speaker === 'boss' ? 'TARIQ' : 'DU'}
+          </span>
+          {_highlight(line.text)}
+          {line.partial && <span style={{ color:'#475569', animation:'pulse 1s infinite' }}> ▋</span>}
+        </div>
+      ))}
+      {userSpeak && lines.length === 0 && (
+        <div style={{ color:'#10b981', animation:'pulse 0.8s infinite' }}>Höre zu…</div>
+      )}
+      <div ref={endRef} />
+    </div>
+  );
+}
+
+function _highlight(text) {
+  if (!text) return text;
+  const parts = []; let last = 0;
+  FILLER_RE.lastIndex = 0;
+  let m;
+  while ((m = FILLER_RE.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(<mark key={m.index} style={{ background:'rgba(239,68,68,0.25)',color:'#fca5a5',borderRadius:2,padding:'0 2px' }}>{m[0]}</mark>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts.length ? parts : text;
+}
+
+// ── Component: GameOver ───────────────────────────────────────────────────────
+function GameOver({ winner, onRestart }) {
+  const win = winner === 'player';
+  return (
+    <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
+      background:'rgba(0,0,0,0.88)', backdropFilter:'blur(6px)', flexDirection:'column', padding:24,
+      animation:'flash-in 0.4s ease' }}>
+      <div style={{ fontSize:70, marginBottom:16 }}>{win ? '🏆' : '💀'}</div>
+      <div style={{ fontFamily:'Orbitron,monospace', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
+        color: win ? '#10b981' : '#ef4444',
+        textShadow:`0 0 30px ${win ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
+        {win ? 'SIEG!' : 'NIEDERLAGE'}
+      </div>
+      <div style={{ fontSize:12, color:'#94a3b8', marginBottom:28, textAlign:'center', lineHeight:1.6 }}>
+        {win ? 'Herr Tariq ist besiegt. Du hast den Level bestanden.' : 'Herr Tariq triumphiert. Versuche es erneut.'}
+      </div>
+      <button onClick={onRestart} style={{ fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.14em',
+        padding:'12px 32px', borderRadius:8, cursor:'pointer',
+        border:`1px solid ${win ? '#00e5ff' : '#ef4444'}`,
+        color:  win ? '#00e5ff' : '#ef4444',
+        background:'transparent',
+        boxShadow:`0 0 20px ${win ? 'rgba(0,229,255,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
+        NEU STARTEN
+      </button>
+    </div>
+  );
+}
+
+// ── Component: Metric pill ────────────────────────────────────────────────────
+function Metric({ label, value, sub, color = '#00e5ff' }) {
+  return (
+    <div style={{ flex:1, minWidth:78, padding:'8px 6px', borderRadius:8, textAlign:'center',
+      background:'rgba(0,0,0,0.35)', border:`1px solid ${color}33` }}>
+      <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, color }}>{value}</div>
+      <div style={{ fontSize:8, letterSpacing:'0.08em', color:'#94a3b8', marginTop:2 }}>{label}</div>
+      {sub && <div style={{ fontSize:7.5, color:'#64748b', marginTop:1 }}>{sub}</div>}
+    </div>
+  );
+}
+
+// ── Component: animated category "damage" bar ─────────────────────────────────
+function CatBar({ label, value, color }) {
+  const v = useAnimatedNumber(Math.max(0, Math.min(100, value || 0)), 700);
+  return (
+    <div style={{ marginBottom:8 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9.5, letterSpacing:'0.06em', color:'#cbd5e1' }}>{label}</span>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, color, fontVariantNumeric:'tabular-nums' }}>{v}</span>
+      </div>
+      <div style={{ height:9, borderRadius:'var(--r-pill)', overflow:'hidden',
+        background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, value || 0))}%`, borderRadius:'inherit',
+          background:`linear-gradient(90deg, ${color}99, ${color})`, boxShadow:`0 0 10px ${color}66`,
+          transition:'width 0.7s var(--ease-out)' }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Component: Debrief (end-of-session feedback) ──────────────────────────────
+// lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
+// corrections always stay German. All values are backend-supplied (display-only).
+function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName }) {
+  const [showAll, setShowAll] = useState(false);
+  const [copied, setCopied]   = useState(false);
+  const m = data?.metrics ?? {};
+  const r = data?.result ?? {};
+  const ar = lang === 'ar';
+  const pick = (de, arr) => (ar && arr ? arr : de) || de || '';   // explanation chooser
+  const rtl  = ar ? { direction:'rtl', textAlign:'right' } : null;
+  const [lo, hi] = m.wpmTarget ?? [140, 160];
+  const wpmColor = m.wpm >= lo && m.wpm <= hi ? '#10b981'
+                 : (m.wpm >= lo - 30 && m.wpm <= hi + 25) ? '#f59e0b' : '#ef4444';
+  const win   = r.outcome === 'win';
+  const score = Number.isFinite(r.score) ? r.score : (m.avgScore ?? 0);
+  const shownScore = useAnimatedNumber(score, 900);
+  const rank  = r.rank ?? '–';
+  const cats  = r.categories ?? {};
+  const accent = win ? '#34d399' : '#f59e0b';
+
+  const shareText = `⚔️ German BPO Combat Arena — RANG ${rank} · ${score}/100 gegen ${bossName || 'den Interviewer'}! Schaffst du es besser?`;
+  const onShare = async () => {
+    try {
+      if (navigator.share) { await navigator.share({ title:'German BPO Combat Arena', text: shareText }); }
+      else { await navigator.clipboard?.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+    } catch { /* user cancelled */ }
+  };
+
+  const LangToggle = onLang ? (
+    <div style={{ display:'inline-flex', borderRadius:'var(--r-pill)', overflow:'hidden',
+      border:'1px solid var(--line)', background:'rgba(0,0,0,0.4)' }}>
+      {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
+        <button key={id} onClick={() => onLang(id)} style={{ cursor:'pointer', padding:'4px 12px',
+          fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
+          color: lang === id ? '#04070d' : '#94a3b8',
+          background: lang === id ? 'var(--accent)' : 'transparent', transition:'background var(--dur), color var(--dur)' }}>
+          {lbl}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', flexDirection:'column',
+      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.4s ease', overflow:'hidden' }}>
+
+      {pending && !data ? (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
+          <div className="spin" style={{ width:34, height:34, borderRadius:'50%',
+            border:'3px solid rgba(0,229,255,0.2)', borderTopColor:'#00e5ff' }} />
+          <div style={{ fontSize:12, color:'#94a3b8' }}>Analyse deiner Antworten läuft…</div>
+        </div>
+      ) : (
+        <div style={{ flex:1, overflowY:'auto', padding:'16px 16px 16px', display:'flex', flexDirection:'column', gap:14 }}>
+
+          {/* ── Cinematic outcome + rank reveal ─────────────────────────────── */}
+          <div style={{ textAlign:'center', padding:'8px 0 4px' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, letterSpacing:'0.22em',
+              color:accent, textShadow:`0 0 16px ${accent}88`, animation:'result-rise 0.4s var(--ease-out)' }}>
+              {win ? 'SIEG' : 'NIEDERLAGE'}
+            </div>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:54, lineHeight:1, color:'#fff',
+              margin:'6px 0 2px', textShadow:`0 0 30px ${accent}aa, 0 2px 12px rgba(0,0,0,0.8)`,
+              animation:'rank-pop 0.7s var(--ease-spring)' }}>
+              {rank}
+            </div>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:11, letterSpacing:'0.14em', color:'#94a3b8' }}>
+              RANG · {shownScore}<span style={{ opacity:0.5 }}> / 100</span>
+            </div>
+            {r.jobLabel && (
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'#fbbf24', textShadow:'0 0 10px rgba(251,191,36,0.35)', marginTop:4 }}>
+                {r.jobLabel.toUpperCase()}
+              </div>
+            )}
+            {/* Motivating loss / win line */}
+            <div style={{ marginTop:8, fontSize:12, color: win ? '#a7f3d0' : '#fcd34d', lineHeight:1.5,
+              animation:'result-rise 0.6s var(--ease-out)' }}>
+              {win
+                ? `Stark! Du hast ${bossName || 'den Interviewer'} bezwungen — nur noch ${r.playerHp ?? '?'} HP übrig bei dir.`
+                : `So nah! ${bossName || 'Der Interviewer'} hatte nur ${r.bossHp ?? '?'} HP übrig. Beim nächsten Mal knackst du ihn.`}
+            </div>
+          </div>
+
+          {/* Language toggle (Arabic explanations) */}
+          {LangToggle && (
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <span style={{ fontSize:9.5, color:'#64748b', letterSpacing:'0.06em' }}>Erklärungen / الشرح</span>
+              {LangToggle}
+            </div>
+          )}
+
+          {/* ── Schaden nach Kategorie ──────────────────────────────────────── */}
+          <Section title={ar ? 'الضرر حسب الفئة · SCHADEN' : 'SCHADEN NACH KATEGORIE'} color="#00e5ff">
+            <CatBar label="Flüssigkeit"   value={cats.fluency}      color="#34d399" />
+            <CatBar label="Grammatik"     value={cats.grammar}      color="#00e5ff" />
+            <CatBar label="Wortschatz"    value={cats.vocab}        color="#a78bfa" />
+            <CatBar label="De-Eskalation" value={cats.deescalation} color="#f59e0b" />
+          </Section>
+
+          {/* Progression: XP gained, level, rank, level-up, personal best marker */}
+          {data?.progress && (
+            <div style={{ padding:'10px 12px', borderRadius:10,
+              background: data.progress.leveledUp ? 'rgba(167,139,250,0.14)' : 'rgba(0,229,255,0.06)',
+              border:`1px solid ${data.progress.leveledUp ? '#a78bfa' : 'rgba(0,229,255,0.25)'}` }}>
+              {data.progress.leveledUp && (
+                <div style={{ fontFamily:'Orbitron,monospace', fontSize:12, fontWeight:900, color:'#a78bfa',
+                  letterSpacing:'0.1em', marginBottom:4, textShadow:'0 0 12px rgba(167,139,250,0.7)' }}>
+                  ↑ LEVEL UP — LEVEL {data.progress.level}
+                </div>
+              )}
+              <div style={{ fontSize:12, color:'#e2e8f0' }}>
+                <b style={{ color:'#34d399' }}>+{data.progress.xpGained} XP</b>
+                <span style={{ color:'#94a3b8' }}> · RANG {data.result?.rank ?? '–'} · Level {data.progress.level}</span>
+                {typeof data.progress.dueReviews === 'number' && data.progress.dueReviews > 0 && (
+                  <span style={{ color:'#f59e0b' }}> · {data.progress.dueReviews} Wiederholung(en) fällig</span>
+                )}
+              </div>
+              {data.progress.levelProgress && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
+                  <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, data.progress.levelProgress.pct || 0))}%`, borderRadius:'inherit',
+                      background:'linear-gradient(90deg, #22d3ee99, #00e5ff)', boxShadow:'0 0 8px rgba(0,229,255,0.35)', transition:'width 0.7s var(--ease-out)' }} />
+                  </div>
+                  <span style={{ fontSize:9.5, color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{data.progress.levelProgress.pct ?? 0}%</span>
+                </div>
+              )}
+              {data.progress.nextBoss && (
+                <div style={{ fontSize:9.5, color:'#64748b', marginTop:4 }}>
+                  Nächster Gegner ab Level {data.progress.nextBoss.minLevel}: {data.progress.nextBoss.name}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Metrics */}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            <Metric label="WpM"        value={m.wpm ?? '–'}            sub={`Ziel ${lo}–${hi}`} color={wpmColor} />
+            <Metric label="FÜLLWÖRTER" value={m.fillers ?? 0}         sub="äh/ehm/also" color="#f59e0b" />
+            <Metric label="C1-VOKABEL" value={m.c1Hits ?? 0}          color="#10b981" />
+            <Metric label="KONJ. II"   value={m.konjunktivHits ?? 0}  sub="Höflichkeit" color="#a78bfa" />
+            <Metric label="KONNEKTOR"  value={m.connectorHits ?? 0}   sub="weil/obwohl…" color="#00e5ff" />
+          </div>
+
+          {data?.note && (
+            <div style={{ fontSize:10, color:'#94a3b8', fontStyle:'italic' }}>{data.note}</div>
+          )}
+
+          {/* Strengths */}
+          {!!data?.strengths?.length && (
+            <Section title="DAS LIEF GUT" color="#10b981">
+              {data.strengths.map((s, i) => {
+                const txt = ar && data.strengths_ar?.[i] ? data.strengths_ar[i] : s;
+                return <div key={i} style={{ fontSize:12, color:'#d1fae5', marginBottom:5, lineHeight:1.5, ...rtl }}>✓ {txt}</div>;
+              })}
+            </Section>
+          )}
+
+          {/* Grammar grouped by rule */}
+          {!!data?.grammar?.length && (
+            <Section title="GRAMMATIK · NACH REGEL" color="#f87171"
+              right={
+                <button onClick={() => setShowAll(v => !v)} style={{ fontSize:8.5, cursor:'pointer',
+                  fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 7px', borderRadius:5,
+                  border:'1px solid rgba(248,113,113,0.4)', background:'transparent', color:'#f87171' }}>
+                  {showAll ? 'NUR BEISPIELE' : 'ALLE FEHLER ANZEIGEN'}
+                </button>
+              }>
+              <div style={{ fontSize:9, color:'#64748b', marginBottom:7, fontStyle:'italic', ...rtl }}>
+                {ar ? 'فقط أخطاء حقيقية رصدها المدقق. الأحمر = ما قلته · الأخضر = التصحيح.'
+                    : 'Nur echte, vom Grammatik-Prüfer erkannte Fehler. Rot = was du gesagt hast · Grün = Korrektur.'}
+              </div>
+              {data.grammar.map((g, i) => {
+                const ex = (showAll ? g.allExamples : g.summaryExamples) ?? [];
+                return (
+                  <div key={i} style={{ marginBottom:12 }}>
+                    <div style={{ fontSize:12, color:'#fca5a5', fontWeight:700 }}>
+                      {g.rule} {g.count ? <span style={{ color:'#7f1d1d', fontWeight:400 }}>· {g.count}×</span> : null}
+                    </div>
+                    {(ar && g.explanation_ar) || g.explanation
+                      ? <div style={{ fontSize:11, color:'#94a3b8', margin:'2px 0 5px', lineHeight:1.45, ...rtl }}>
+                          {ar && g.explanation_ar ? g.explanation_ar : g.explanation}
+                        </div>
+                      : null}
+                    {ex.map((e, j) => (
+                      <div key={j} style={{ marginBottom:4, fontSize:11, lineHeight:1.4 }}>
+                        <span style={{ color:'#ef4444' }}>✗ {e.wrong}</span><br />
+                        <span style={{ color:'#34d399' }}>✓ {e.right}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </Section>
+          )}
+
+          {/* No real grammar errors → celebrate, then pivot to lesson/enrichment */}
+          {!data?.grammar?.length && (m.answers > 0) && (
+            <div style={{ padding:'10px 12px', borderRadius:10, ...rtl,
+              background:'rgba(16,185,129,0.10)', border:'1px solid rgba(16,185,129,0.3)',
+              fontSize:11.5, color:'#a7f3d0', lineHeight:1.5 }}>
+              {ar ? '✓ لم يتم رصد أخطاء نحوية واضحة — أداء نظيف. ارفع ألمانيتك إلى مستوى أقوى:'
+                  : '✓ Keine klaren Grammatikfehler gefunden — saubere Leistung. Heb dein Deutsch jetzt auf die nächste Stufe:'}
+            </div>
+          )}
+
+          {/* Lesson when there are few/no corrections */}
+          {!!data?.lesson?.length && (
+            <Section title={ar ? 'الدرس · LESSON' : 'LESSON'} color="#f59e0b">
+              {data.lesson.map((line, i) => (
+                <div key={i} style={{ fontSize:11.5, color:'#fde68a', lineHeight:1.5, marginBottom:4 }}>{line}</div>
+              ))}
+            </Section>
+          )}
+
+          {/* Enrichment: STRONGER ways to say what the candidate ACTUALLY said (not corrections) */}
+          {!!data?.upgrades?.length && (
+            <Section title={ar ? 'صياغة أقوى · STÄRKER FORMULIEREN' : 'STÄRKER FORMULIEREN'} color="#a78bfa">
+              {data.upgrades.map((u, i) => {
+                const why = ar && u.why_ar ? u.why_ar : u.why;
+                return (
+                  <div key={i} style={{ marginBottom:9, fontSize:11.5, lineHeight:1.45 }}>
+                    <div style={{ color:'#94a3b8' }}>Du: „{u.original}“</div>
+                    <div style={{ color:'#c4b5fd' }}>Stärker: <b style={{ color:'#ede9fe' }}>{u.better}</b></div>
+                    {why && <div style={{ color:'#64748b', fontSize:10, marginTop:1, ...rtl }}>{why}</div>}
+                  </div>
+                );
+              })}
+            </Section>
+          )}
+
+          {/* What to study next */}
+          {!!data?.studyNext?.length && (
+            <Section title="NÄCHSTE SCHRITTE" color="#00e5ff">
+              {data.studyNext.map((s, i) => {
+                const title  = ar && s.title_ar  ? s.title_ar  : s.title;
+                const detail = ar && s.detail_ar ? s.detail_ar : s.detail;
+                return (
+                  <div key={i} style={{ fontSize:12, color:'#e2e8f0', marginBottom:6, lineHeight:1.45, ...rtl }}>
+                    <span style={{ color:'#00e5ff' }}>▸ {title}</span>
+                    {detail && <span style={{ color:'#94a3b8' }}> — {detail}</span>}
+                  </div>
+                );
+              })}
+            </Section>
+          )}
+
+          {/* Vocab to drill (also queued into spaced repetition) */}
+          {!!data?.vocabTargets?.length && (
+            <Section title="VOKABELN ZUM ÜBEN" color="#10b981">
+              {data.vocabTargets.map((v, i) => {
+                const note = ar && v.note_ar ? v.note_ar : v.note;
+                return (
+                  <div key={i} style={{ fontSize:12, marginBottom:4, lineHeight:1.45 }}>
+                    <b style={{ color:'#34d399' }}>{v.de}</b>
+                    <span style={{ color:'#94a3b8' }}> — {v.en}{note ? ` (${note})` : ''}</span>
+                  </div>
+                );
+              })}
+              <div style={{ fontSize:9, color:'#64748b', marginTop:4, fontStyle:'italic' }}>
+                Diese werden in kommenden Sitzungen als Schnell-Wiederholung abgefragt.
+              </div>
+            </Section>
+          )}
+        </div>
+      )}
+
+      <div style={{ padding:'10px 16px 20px', display:'flex', gap:10 }}>
+        <button onClick={onRestart} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
+          letterSpacing:'0.1em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
+          border:'1px solid var(--accent)', color:'#04070d',
+          background:'linear-gradient(135deg, var(--accent-2), var(--accent))',
+          boxShadow:'0 0 22px rgba(0,229,255,0.4)' }}>
+          ⚔ NOCHMAL KÄMPFEN
+        </button>
+        <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
+          letterSpacing:'0.08em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
+          border:'1px solid var(--violet)', color:'var(--violet)', background:'rgba(167,139,250,0.08)' }}>
+          {copied ? '✓ KOPIERT' : '↗ TEILEN'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, color, right, children }) {
+  return (
+    <div style={{ borderRadius:10, padding:'10px 12px',
+      background:'rgba(0,0,0,0.35)', border:`1px solid ${color}2a` }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
+        <span style={{ fontFamily:'Orbitron,monospace', fontSize:9.5, letterSpacing:'0.12em', color,
+          textShadow:`0 0 8px ${color}55` }}>{title}</span>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Component: Sparkline (zero-dependency inline SVG) ─────────────────────────
+function Sparkline({ data, color = '#00e5ff', invert = false, height = 34 }) {
+  const pts = (data || []).filter((n) => Number.isFinite(n));
+  if (pts.length < 2) {
+    return <div style={{ height, display:'flex', alignItems:'center', fontSize:9, color:'#475569' }}>
+      Noch nicht genug Daten</div>;
+  }
+  const w = 100, h = height, max = Math.max(...pts, 1), min = Math.min(...pts, 0);
+  const span = max - min || 1;
+  const path = pts.map((v, i) => {
+    const x = (i / (pts.length - 1)) * w;
+    const y = h - ((v - min) / span) * (h - 4) - 2;
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width:'100%', height }}>
+      <path d={path} fill="none" stroke={color} strokeWidth="1.6" />
+      <circle cx={w} cy={h - ((pts[pts.length-1] - min) / span) * (h - 4) - 2} r="2" fill={color} />
+    </svg>
+  );
+}
+
+// ── Component: Dashboard (return-to progress view) ────────────────────────────
+function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
+  const t   = data?.totals ?? {};
+  const lp  = data?.levelProgress ?? { level: 1, pct: 0, intoLevel: 0, perLevel: 120 };
+  const acc = data?.account ?? account;
+  const sub = acc?.subscription ?? {};
+  const ent = acc?.entitlement ?? {};
+  const tierLabel = sub.tier === 'pro' ? 'PRO' : sub.tier === 'team' ? 'TEAM'
+                  : `TESTPHASE${Number.isFinite(ent.sessionsLeft) ? ` · ${ent.sessionsLeft} übrig` : ''}`;
+  return (
+    <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
+      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, letterSpacing:2,
+          color:'#00e5ff', textShadow:'0 0 20px rgba(0,229,255,0.5)' }}>FORTSCHRITT</div>
+        <button onClick={onClose} style={{ fontFamily:'Orbitron,monospace', fontSize:10, cursor:'pointer',
+          padding:'6px 12px', borderRadius:6, border:'1px solid rgba(0,229,255,0.3)', background:'transparent', color:'#00e5ff' }}>
+          ✕ ZURÜCK
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'#94a3b8', fontSize:12 }}>
+          Lade Fortschritt…
+        </div>
+      ) : (
+        <div style={{ flex:1, overflowY:'auto', padding:'0 16px 16px', display:'flex', flexDirection:'column', gap:13 }}>
+
+          {/* Account + subscription */}
+          {acc && (
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'8px 12px', borderRadius:8, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(0,229,255,0.18)' }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:11, color:'#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
+                <div style={{ fontSize:9, color: sub.tier==='trial' ? '#f59e0b' : '#10b981', fontFamily:'Orbitron,monospace', letterSpacing:'0.08em', marginTop:2 }}>
+                  {tierLabel}
+                </div>
+              </div>
+              <button onClick={onLogout} style={{ fontSize:9, cursor:'pointer', fontFamily:'Orbitron,monospace',
+                padding:'5px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#fca5a5' }}>
+                ABMELDEN
+              </button>
+            </div>
+          )}
+
+          {/* Level + boss ladder */}
+          <Section title={`LEVEL ${lp.level}`} color="#a78bfa" right={
+            <span style={{ fontSize:9, color:'#94a3b8' }}>{lp.intoLevel}/{lp.perLevel} XP</span>}>
+            <div style={{ height:9, borderRadius:5, background:'rgba(255,255,255,0.06)', overflow:'hidden', marginBottom:8 }}>
+              <div style={{ height:'100%', width:`${lp.pct}%`,
+                background:'linear-gradient(90deg,#7c3aed,#a78bfa)', boxShadow:'0 0 10px rgba(167,139,250,0.6)',
+                transition:'width 0.6s' }} />
+            </div>
+            <div style={{ fontSize:11, color:'#cbd5e1' }}>
+              Aktueller Gegner: <b style={{ color:'#fca5a5' }}>{data?.currentBoss?.name}</b>
+              <span style={{ color:'#64748b' }}> · {data?.currentBoss?.tier}</span>
+            </div>
+            {data?.nextBoss && (
+              <div style={{ fontSize:10, color:'#64748b', marginTop:3 }}>
+                Nächster Gegner ab Level {data.nextBoss.minLevel}: {data.nextBoss.name} ({data.nextBoss.tier})
+              </div>
+            )}
+          </Section>
+
+          {/* Stat tiles */}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            <Metric label="SITZUNGEN"      value={t.sessions ?? 0}      color="#00e5ff" />
+            <Metric label="VOKABEL"        value={t.vocabLearned ?? 0}  sub="gelernt" color="#10b981" />
+            <Metric label="REGELN"         value={t.rulesMastered ?? 0} sub="gemeistert" color="#a78bfa" />
+            <Metric label="FÄLLIG"         value={t.dueReviews ?? 0}    sub="Wiederholung" color="#f59e0b" />
+          </div>
+
+          {/* Review CTA */}
+          {(t.dueReviews ?? 0) > 0 && (
+            <button onClick={onReview} style={{ width:'100%', fontFamily:'Orbitron,monospace', fontSize:11,
+              letterSpacing:'0.12em', padding:'11px', borderRadius:8, cursor:'pointer',
+              border:'1px solid #f59e0b', color:'#f59e0b', background:'rgba(245,158,11,0.08)' }}>
+              ⚡ {t.dueReviews} WIEDERHOLUNG{(t.dueReviews) === 1 ? '' : 'EN'} JETZT ÜBEN
+            </button>
+          )}
+
+          {/* Trends */}
+          <Section title="FLÜSSIGKEIT ÜBER ZEIT" color="#10b981">
+            <Sparkline data={data?.trends?.fluency} color="#10b981" />
+          </Section>
+          <Section title="FÜLLWÖRTER-TREND (weniger = besser)" color="#f59e0b">
+            <Sparkline data={data?.trends?.fillers} color="#f59e0b" />
+          </Section>
+          <Section title="WORTSCHATZ-WACHSTUM" color="#00e5ff">
+            <Sparkline data={data?.trends?.vocab} color="#00e5ff" />
+          </Section>
+
+          {!!data?.masteredRules?.length && (
+            <Section title="GEMEISTERTE REGELN" color="#a78bfa">
+              {data.masteredRules.map((r, i) => (
+                <div key={i} style={{ fontSize:11, color:'#ddd6fe', marginBottom:3 }}>✓ {r}</div>
+              ))}
+            </Section>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Component: RecallDrill (production-style spaced repetition) ────────────────
+function RecallDrill({ items, token, onDone }) {
+  const [idx, setIdx]       = useState(0);
+  const [answer, setAnswer] = useState('');
+  const [result, setResult] = useState(null);   // {correct, expected, fast}
+  const [busy, setBusy]     = useState(false);
+  const startRef = useRef(Date.now());
+  const item = items[idx];
+
+  useEffect(() => { startRef.current = Date.now(); setAnswer(''); setResult(null); }, [idx]);
+
+  const submit = async () => {
+    if (!answer.trim() || busy || result) return;
+    setBusy(true);
+    const responseMs = Date.now() - startRef.current;
+    try {
+      const r = await fetch(`${API_URL}/api/review/grade`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: item.id, answer, responseMs }),
+      });
+      setResult(await r.json());
+    } catch {
+      setResult({ correct: false, expected: '—' });
+    }
+    setBusy(false);
+  };
+
+  const next = () => { idx + 1 < items.length ? setIdx(idx + 1) : onDone(); };
+
+  return (
+    <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
+      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18 }}>
+      <div style={{ textAlign:'center', marginBottom:6 }}>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:16, fontWeight:900, letterSpacing:2,
+          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>SCHNELL-WIEDERHOLUNG</div>
+        <div style={{ fontSize:9, color:'#64748b', marginTop:3 }}>
+          Produziere das Deutsch laut/schnell — Automatik unter 200&nbsp;ms ist das Ziel · {idx + 1}/{items.length}
+        </div>
+      </div>
+
+      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', gap:14 }}>
+        <div style={{ padding:'16px', borderRadius:12, background:'rgba(0,0,0,0.4)',
+          border:'1px solid rgba(245,158,11,0.3)' }}>
+          <div style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.1em', color:'#f59e0b', marginBottom:8 }}>
+            {item?.type === 'vocab' ? 'VOKABEL · PRODUZIEREN' : 'GRAMMATIK · KORRIGIEREN'}
+          </div>
+          <div style={{ fontSize:15, color:'#e2e8f0', lineHeight:1.5 }}>{item?.prompt}</div>
+        </div>
+
+        <input
+          autoFocus value={answer} disabled={!!result}
+          onChange={(e) => setAnswer(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') (result ? next() : submit()); }}
+          placeholder="Auf Deutsch tippen…"
+          style={{ width:'100%', padding:'13px', borderRadius:8, fontSize:15,
+            background:'rgba(255,255,255,0.04)', color:'#e2e8f0', fontFamily:'Share Tech Mono, monospace',
+            border:`1px solid ${result ? (result.correct ? '#10b981' : '#ef4444') : 'rgba(0,229,255,0.3)'}`,
+            outline:'none' }} />
+
+        {result && (
+          <div className="flash" style={{ padding:'10px 12px', borderRadius:8,
+            background: result.correct ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+            border:`1px solid ${result.correct ? '#10b98155' : '#ef444455'}` }}>
+            <div style={{ fontSize:13, fontWeight:700, color: result.correct ? '#34d399' : '#f87171' }}>
+              {result.correct ? (result.fast ? '✓ Schnell & richtig!' : '✓ Richtig') : '✗ Nochmal üben'}
+            </div>
+            <div style={{ fontSize:12, color:'#cbd5e1', marginTop:3 }}>
+              Lösung: <b style={{ color:'#e2e8f0' }}>{result.expected}</b>
+            </div>
+            {result.note && (
+              <div style={{ fontSize:11, color:'#fbbf24', marginTop:5, lineHeight:1.4 }}>
+                ⚠ {result.note}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display:'flex', gap:8 }}>
+        <button onClick={onDone} style={{ flex:1, fontFamily:'Orbitron,monospace', fontSize:10, cursor:'pointer',
+          padding:'12px', borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
+          DRILL ÜBERSPRINGEN
+        </button>
+        <button onClick={result ? next : submit} disabled={busy || (!result && !answer.trim())}
+          style={{ flex:2, fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em',
+            padding:'12px', borderRadius:8, cursor:'pointer',
+            border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)',
+            opacity: (busy || (!result && !answer.trim())) ? 0.5 : 1 }}>
+          {result ? (idx + 1 < items.length ? 'WEITER →' : 'KAMPF STARTEN →') : 'PRÜFEN'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Component: AuthScreen (login / signup gate) ───────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode]   = useState('login');
+  const [email, setEmail] = useState('');
+  const [pw, setPw]       = useState('');
+  const [err, setErr]     = useState('');
+  const [busy, setBusy]   = useState(false);
+
+  const submit = async () => {
+    if (busy || !email || !pw) return;
+    setErr(''); setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pw }),
+      });
+      const data = await r.json();
+      if (!r.ok) { setErr(authErrText(data.error)); setBusy(false); return; }
+      onAuth({ token: data.token, account: data.account });
+    } catch { setErr('Server nicht erreichbar. Läuft der Server?'); setBusy(false); }
+  };
+
+  return (
+    <div style={{ minHeight:'100svh', maxWidth:440, margin:'0 auto', display:'flex', flexDirection:'column',
+      justifyContent:'center', padding:'24px', position:'relative' }}>
+      <div className="scanline" />
+      <div style={{ textAlign:'center', marginBottom:24 }}>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:22, fontWeight:900, letterSpacing:3,
+          color:'#00e5ff', textShadow:'0 0 24px rgba(0,229,255,0.6)' }}>OMNI-PERFORM</div>
+        <div style={{ fontSize:10, color:'#64748b', marginTop:4, letterSpacing:'0.12em' }}>
+          DE BPO COMBAT · SPRACHTRAINING
+        </div>
+      </div>
+
+      <div style={{ borderRadius:14, padding:20,
+        background:'linear-gradient(145deg,#0a0f1a,#060c15)', border:'1px solid rgba(0,229,255,0.25)',
+        boxShadow:'0 0 28px rgba(0,229,255,0.12)' }}>
+        <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+          {['login','signup'].map((m) => (
+            <button key={m} onClick={() => { setMode(m); setErr(''); }}
+              style={{ flex:1, padding:'8px', cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10,
+                letterSpacing:'0.1em', borderRadius:7, border:`1px solid ${mode===m?'#00e5ff':'rgba(0,229,255,0.2)'}`,
+                background: mode===m?'rgba(0,229,255,0.1)':'transparent', color: mode===m?'#00e5ff':'#64748b' }}>
+              {m === 'login' ? 'ANMELDEN' : 'REGISTRIEREN'}
+            </button>
+          ))}
+        </div>
+
+        <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="E-Mail"
+          autoComplete="email" style={inputStyle} />
+        <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="Passwort (min. 6 Zeichen)"
+          autoComplete={mode==='signup'?'new-password':'current-password'}
+          onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} style={{ ...inputStyle, marginTop:10 }} />
+
+        {err && <div style={{ color:'#fca5a5', fontSize:11, marginTop:10 }}>⚠ {err}</div>}
+
+        <button onClick={submit} disabled={busy}
+          style={{ width:'100%', marginTop:16, padding:'13px', cursor:busy?'wait':'pointer',
+            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.14em', borderRadius:8,
+            border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)', opacity:busy?0.6:1 }}>
+          {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
+        </button>
+        <div style={{ fontSize:9, color:'#475569', textAlign:'center', marginTop:12 }}>
+          Neue Konten starten mit einer kostenlosen Testphase (3 Sitzungen).
+        </div>
+      </div>
+    </div>
+  );
+}
+const inputStyle = {
+  width:'100%', padding:'12px', borderRadius:8, fontSize:14, fontFamily:'Share Tech Mono, monospace',
+  background:'rgba(255,255,255,0.04)', color:'#e2e8f0', border:'1px solid rgba(0,229,255,0.25)', outline:'none',
+};
+
+// ── Component: PaywallScreen (trial → paid tiers; processor not wired) ─────────
+function PaywallScreen({ token, info, onUpgraded, onClose }) {
+  const [busy, setBusy] = useState(null);
+  const TIERS = [
+    { id:'pro',  label:'PRO',  price:'19 €/Mon.', perks:['Unbegrenzte Sitzungen','Alle Bosse','Volle Wiederholung'] },
+    { id:'team', label:'TEAM', price:'49 €/Mon.', perks:['Pro für bis zu 5 Lernende','Fortschrittsberichte'] },
+  ];
+  const upgrade = async (tier) => {
+    setBusy(tier);
+    try {
+      const r = await fetch(`${API_URL}/api/billing/upgrade`, {
+        method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ tier }),
+      });
+      const data = await r.json();
+      if (r.ok) onUpgraded(data.account);
+    } catch { /* ignore */ }
+    setBusy(null);
+  };
+
+  return (
+    <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
+      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
+      <div style={{ textAlign:'center', marginBottom:8 }}>
+        <div style={{ fontSize:40 }}>🔒</div>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, letterSpacing:2,
+          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>TESTPHASE BEENDET</div>
+        <div style={{ fontSize:11, color:'#94a3b8', marginTop:6, lineHeight:1.5 }}>
+          {info?.sessionsLeft === 0
+            ? 'Du hast deine 3 kostenlosen Sitzungen genutzt.'
+            : 'Deine Testphase ist abgelaufen.'} Schalte unbegrenztes Training frei.
+        </div>
+      </div>
+
+      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10, justifyContent:'center' }}>
+        {TIERS.map((t) => (
+          <div key={t.id} style={{ borderRadius:12, padding:14,
+            background:'rgba(0,0,0,0.4)', border:'1px solid rgba(0,229,255,0.25)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+              <span style={{ fontFamily:'Orbitron,monospace', fontSize:15, fontWeight:900, color:'#00e5ff' }}>{t.label}</span>
+              <span style={{ fontSize:13, color:'#e2e8f0' }}>{t.price}</span>
+            </div>
+            {t.perks.map((p) => (
+              <div key={p} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {p}</div>
+            ))}
+            <button onClick={() => upgrade(t.id)} disabled={!!busy}
+              style={{ width:'100%', marginTop:10, padding:'11px', cursor:'pointer',
+                fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em', borderRadius:8,
+                border:'1px solid #00e5ff', color:'#020409', background:'#00e5ff', opacity:busy?0.6:1 }}>
+              {busy === t.id ? '…' : `${t.label} FREISCHALTEN`}
+            </button>
+          </div>
+        ))}
+        <div style={{ fontSize:9, color:'#64748b', textAlign:'center', fontStyle:'italic' }}>
+          Zahlung ist simuliert — kein echter Zahlungsanbieter angebunden (Demo-Gating).
+        </div>
+      </div>
+
+      <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', cursor:'pointer',
+        fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8,
+        border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
+        ZURÜCK
+      </button>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+let _lineId = 0;
+
+// Feedback-explanation language preference ('de' | 'ar'), persisted across sessions.
+function loadFeedbackLang() {
+  try { return localStorage.getItem('omni_feedback_lang') === 'ar' ? 'ar' : 'de'; } catch { return 'de'; }
+}
+function saveFeedbackLang(l) {
+  try { localStorage.setItem('omni_feedback_lang', l); } catch { /* ignore */ }
+}
+
+// Training-streak cache — instant render before the authoritative backend value loads,
+// and an offline fallback. The backend (computeStreak) remains the source of truth.
+function loadStreakCache() { try { return parseInt(localStorage.getItem('omni_streak') || '0', 10) || 0; } catch { return 0; } }
+function saveStreakCache(n) { try { localStorage.setItem('omni_streak', String(n)); } catch { /* ignore */ } }
+
+function Arena({ auth, onLogout, onAccountUpdate }) {
+  // Inject global CSS once
+  useEffect(() => {
+    const el = document.createElement('style');
+    el.textContent = GLOBAL_CSS;
+    document.head.prepend(el);
+    return () => el.remove();
+  }, []);
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [phase, setPhase]         = useState('idle');
+  // idle | connecting | active | stopping | error
+  const [bossHp, setBossHp]       = useState(100);
+  const [playerHp, setPlayerHp]   = useState(100);
+  const [emotion, setEmotion]     = useState('idle');
+  const [bossText, setBossText]   = useState('');
+  const [transcript, setTranscript] = useState([]);
+  const [bossSpeak, setBossSpeak] = useState(false);
+  const [userSpeak, setUserSpeak] = useState(false);
+  const [error, setError]         = useState(null);
+  const [scoreFlash, setScoreFlash] = useState(null);
+  const [screenFlash, setScreenFlash] = useState(null); // 'green' | 'red' | null
+  const [bossHurt, setBossHurt]   = useState(false);
+  const [shakeScreen, setShakeScreen] = useState(false);
+  const [bossDmgFloat, setBossDmgFloat] = useState(null); // {id, amount} flying damage number
+  const [bossReason, setBossReason]     = useState(null); // {id, amount, label} why boss lost HP
+  const [playerReason, setPlayerReason] = useState(null); // {id, amount, label} why player lost HP
+  const [liveWpm, setLiveWpm]   = useState(0);   // live HUD — all backend-supplied, display-only
+  const [fillerCount, setFillerCount] = useState(0);
+  const [combo, setCombo]       = useState(0);
+  const [roundFlash, setRoundFlash] = useState(null); // {id, n, label} round-advance banner
+  const [feedbackLang, setFeedbackLang] = useState(loadFeedbackLang); // 'de'|'ar' — explanation language
+  const chooseFeedbackLang = useCallback((l) => { setFeedbackLang(l); saveFeedbackLang(l); }, []);
+  const [streak, setStreak] = useState(loadStreakCache); // Trainingsserie (consecutive days)
+  const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
+  const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
+  const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
+  const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
+  const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
+  const [debriefPending, setDebriefPending] = useState(false);
+  const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
+  const [review, setReview]       = useState(null);        // { items, then:'fight'|'close' } | null
+  const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
+
+  const phaseRef       = useRef('idle');
+  const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
+  const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
+  const wsRef          = useRef(null);
+  const recorderRef    = useRef(null);
+  const playerRef      = useRef(null);
+  const pingRef        = useRef(null);
+  const partialIdRef   = useRef(null);
+  const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
+  const prevBossHpRef  = useRef(100);
+  const prevPlayerHpRef = useRef(100);
+  const prevIdxRef     = useRef(0);   // tracks the round index to detect advances
+
+  const setPhaseSync = useCallback((p) => { phaseRef.current = p; setPhase(p); }, []);
+  const chooseLevel  = useCallback((l) => { levelRef.current = l; setLevel(l); }, []);
+
+  // The SERVER is the single source of truth for whether the session is over.
+  // HP is purely a visual stake — it NEVER ends the session. The result screen only
+  // appears in response to server debrief/session events (see handleMsg + render).
+
+  // ── HP change animations ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (bossHp < prevBossHpRef.current) {
+      setBossHurt(true); setTimeout(() => setBossHurt(false), 600);
+      setScreenFlash('green'); setTimeout(() => setScreenFlash(null), 320);
+    }
+    if (playerHp < prevPlayerHpRef.current) {
+      setShakeScreen(true); setTimeout(() => setShakeScreen(false), 420);
+      setScreenFlash('red'); setTimeout(() => setScreenFlash(null), 320);
+    }
+    prevBossHpRef.current   = bossHp;
+    prevPlayerHpRef.current = playerHp;
+  }, [bossHp, playerHp]);
+
+  // ── Round advance → cinematic "RUNDE n" banner ────────────────────────────
+  useEffect(() => {
+    const idx = funnel?.idx ?? 0;
+    if (!funnel) { prevIdxRef.current = 0; return; }
+    if (idx !== prevIdxRef.current && idx > 0) {
+      const st  = funnel.stages?.[idx];
+      const rid = ++_lineId;
+      setRoundFlash({ id: rid, n: idx + 1, label: st?.label ?? '' });
+      setTimeout(() => setRoundFlash(r => (r && r.id === rid ? null : r)), 1700);
+    }
+    prevIdxRef.current = idx;
+  }, [funnel?.idx]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── WS message dispatch ────────────────────────────────────────────────────
+  const handleMsg = useCallback((msg) => {
+    switch (msg.type) {
+      case S.SESSION_READY:
+        setBossHp(msg.bossHp ?? 100);
+        setPlayerHp(msg.playerHp ?? 100);
+        setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
+        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current }));
+        break;
+
+      case S.LIVE_STATS:
+        // Backend-computed live meters (display-only).
+        if (Number.isFinite(msg.wpm))         setLiveWpm(msg.wpm);
+        if (Number.isFinite(msg.fillerTotal)) setFillerCount(msg.fillerTotal);
+        if (Number.isFinite(msg.combo))       setCombo(msg.combo);
+        break;
+
+      case S.SCENARIO_INFO:
+        setFunnel({
+          stages:      msg.stages ?? [],
+          idx:         0,
+          levelLabel:  msg.levelLabel ?? '',
+          displayName: msg.displayName ?? 'HERR TARIQ',
+        });
+        break;
+
+      case S.STAGE_UPDATE:
+        setFunnel(f => f ? { ...f, idx: msg.index ?? f.idx } : f);
+        break;
+
+      case S.DEBRIEF_PENDING:
+        setDebriefPending(true);
+        break;
+
+      case S.DEBRIEF:
+        setDebrief(msg);
+        setDebriefPending(false);
+        if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
+        break;
+
+      case S.PAYWALL:
+        // Server refused to start the session — trial exhausted. Show the upgrade wall.
+        setPhaseSync('idle');
+        recorderRef.current?.stop().catch(() => {});
+        recorderRef.current = null;
+        try { wsRef.current?.close(1000, 'paywall'); } catch {}
+        wsRef.current = null;
+        setPaywall(msg);
+        break;
+
+      case S.AUDIO_DELTA:
+        // Ignore any late boss audio once the user has chosen to end (phase 'stopping'),
+        // so it can't briefly un-hide the result screen. Auto-completion stays 'active'
+        // through the boss's final line, so that audio still plays normally.
+        if (phaseRef.current === 'stopping') break;
+        if (msg.audio) {
+          playerRef.current?.enqueue(msg.audio);
+          setBossSpeak(true);
+        }
+        break;
+
+      case S.TRANSCRIPT_DELTA:
+        if (!msg.text) break;
+        setUserSpeak(true);
+        setTranscript(prev => {
+          if (partialIdRef.current === null) {
+            const id = ++_lineId;
+            partialIdRef.current = id;
+            return [...prev.slice(-39), { id, speaker:'player', text:msg.text, partial:true }];
+          }
+          return prev.map(l => l.id === partialIdRef.current ? { ...l, text: l.text + msg.text } : l);
+        });
+        break;
+
+      case S.TRANSCRIPT_DONE:
+        setUserSpeak(false);
+        setTranscript(prev =>
+          prev.map(l => l.id === partialIdRef.current ? { ...l, text: msg.transcript, partial:false } : l)
+        );
+        partialIdRef.current = null;
+        break;
+
+      case S.BOSS_SPEECH: {
+        if (!msg.text) break;
+        setBossSpeak(true);
+        // Stream the boss's words live. A new utterance (ref cleared by the previous
+        // BOSS_SPEECH_DONE) resets the subtitle box and opens one fresh transcript
+        // line; subsequent deltas append to that same line instead of spawning many.
+        if (bossPartialIdRef.current === null) {
+          const id = ++_lineId;
+          bossPartialIdRef.current = id;
+          setBossText(msg.text);
+          setTranscript(prev => [...prev.slice(-39), { id, speaker:'boss', text:msg.text, partial:true }]);
+        } else {
+          const id = bossPartialIdRef.current;
+          setBossText(t => t + msg.text);
+          setTranscript(prev => prev.map(l => l.id === id ? { ...l, text: l.text + msg.text } : l));
+        }
+        break;
+      }
+
+      case S.BOSS_SPEECH_DONE:
+        setTranscript(prev =>
+          prev.map(l => l.id === bossPartialIdRef.current ? { ...l, partial:false } : l)
+        );
+        bossPartialIdRef.current = null;
+        break;
+
+      case S.HP_UPDATE:
+        // Guard against non-finite values so a malformed update can't NaN the bars
+        // (which silently blanks them) or trip a false game-over.
+        if (Number.isFinite(msg.bossHp))   setBossHp(Math.max(0, Math.min(100, msg.bossHp)));
+        if (Number.isFinite(msg.playerHp)) setPlayerHp(Math.max(0, Math.min(100, msg.playerHp)));
+        // Live HUD values bundled with the scored exchange (display-only).
+        if (Number.isFinite(msg.wpm))         setLiveWpm(msg.wpm);
+        if (Number.isFinite(msg.fillerTotal)) setFillerCount(msg.fillerTotal);
+        if (Number.isFinite(msg.combo))       setCombo(msg.combo);
+        // Boss emotion is decided by the BACKEND (gefasst/skeptisch/beeindruckt/wuetend)
+        // and just displayed here — the client never invents it.
+        if (msg.emotion) setEmotion(msg.emotion);
+        if (msg.score !== undefined) {
+          setScoreFlash({ score: msg.score, damage: msg.damage });
+          setTimeout(() => setScoreFlash(null), 2800);
+
+          // Fly a damage number off the boss when the player lands a hit.
+          if (msg.bossDamage > 0) {
+            const fid = ++_lineId;
+            setBossDmgFloat({ id: fid, amount: msg.bossDamage });
+            setTimeout(() => setBossDmgFloat(f => (f && f.id === fid ? null : f)), 1000);
+          }
+        }
+
+        // Tiny floating reason labels next to each HP bar — the SPECIFIC cause of the
+        // change, e.g. "+6 fließend" or "−4 Füllwörter". Fades after ~2s.
+        if (msg.reasons?.boss) {
+          const rid = ++_lineId;
+          setBossReason({ id: rid, ...msg.reasons.boss });
+          setTimeout(() => setBossReason(r => (r && r.id === rid ? null : r)), 2000);
+        }
+        if (msg.reasons?.player) {
+          const rid = ++_lineId;
+          setPlayerReason({ id: rid, ...msg.reasons.player });
+          setTimeout(() => setPlayerReason(r => (r && r.id === rid ? null : r)), 2000);
+        }
+        break;
+
+      case S.SESSION_CLOSED:
+        // The session is over per the SERVER. Stop the mic and close the socket, but
+        // do NOT flush the boss audio — let the final line play out. The result screen
+        // is gated on the voice finishing (bossSpeak), so screen and audio stay in sync.
+        setPhaseSync('idle');
+        clearInterval(pingRef.current);
+        recorderRef.current?.stop().catch(() => {});
+        recorderRef.current = null;
+        volRef.current = 0; setUserSpeak(false);
+        try { wsRef.current?.close(1000, 'closed'); } catch {}
+        wsRef.current = null;
+        break;
+
+      case S.ERROR:
+        setError(msg.code ?? 'server_error');
+        break;
+
+      case S.PONG:
+        break;
+    }
+  }, [setPhaseSync]);
+
+  // ── Start interview ────────────────────────────────────────────────────────
+  const start = useCallback(async () => {
+    if (phaseRef.current !== 'idle') return;
+
+    const support = checkAudioSupport();
+    if (!support.supported) {
+      setError(`Kein Browser-Support für: ${support.missing.join(', ')}`);
+      return;
+    }
+
+    setError(null);
+    setBossHp(100); setPlayerHp(100);
+    setBossText(''); setTranscript([]);
+    setEmotion('idle'); setScoreFlash(null); setBossDmgFloat(null);
+    setFunnel(null); setDebrief(null); setDebriefPending(false);
+    partialIdRef.current = null;
+    bossPartialIdRef.current = null;
+
+    // Init AudioPlayer (must be in user gesture)
+    if (!playerRef.current) {
+      playerRef.current = new AudioPlayer({
+        onPlaybackStart: () => setBossSpeak(true),
+        onPlaybackEnd:   () => setBossSpeak(false),
+        onError: console.error,
+      });
+    }
+
+    // Init AudioRecorder
+    recorderRef.current = new AudioRecorder({
+      onChunk:  (b64) => {
+        if (phaseRef.current !== 'active') return;
+        wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, audio: b64 }));
+      },
+      onVolume: (v) => { volRef.current = v; },   // ref write only — no re-render
+      onError:  (err) => {
+        console.error('[recorder]', err);
+        setError(err.message);
+        setPhaseSync('error');
+      },
+    });
+
+    try {
+      await recorderRef.current.start();
+    } catch {
+      return; // errors surfaced via onError above
+    }
+
+    setPhaseSync('connecting');
+
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setPhaseSync('active');
+      pingRef.current = setInterval(() => ws.send(JSON.stringify({ type: C.PING })), 25_000);
+    };
+
+    ws.onmessage = (ev) => {
+      try { handleMsg(JSON.parse(ev.data)); } catch {}
+    };
+
+    ws.onclose = (ev) => {
+      clearInterval(pingRef.current);
+      if (phaseRef.current !== 'stopping' && phaseRef.current !== 'idle') {
+        setError(`Verbindung getrennt (${ev.code}). Bitte neu starten.`);
+        setPhaseSync('error');
+        recorderRef.current?.stop().catch(() => {});
+        playerRef.current?.flush();
+        volRef.current = 0; setUserSpeak(false); setBossSpeak(false);
+      } else {
+        setPhaseSync('idle');
+      }
+    };
+
+    ws.onerror = () => {
+      setError('WebSocket-Verbindungsfehler. Läuft der Server?');
+    };
+
+  }, [handleMsg, setPhaseSync]);
+
+  // ── End interview → request debrief ──────────────────────────────────────────
+  // The socket is kept OPEN so the server can stream back the debrief before closing
+  // (SESSION_CLOSED handles the final teardown).
+  const finishSession = useCallback(async () => {
+    if (phaseRef.current !== 'active') return;
+    setPhaseSync('stopping');
+
+    // Stop the mic right away so the user isn't streaming during analysis.
+    await recorderRef.current?.stop().catch(() => {});
+    recorderRef.current = null;
+    playerRef.current?.flush();
+    volRef.current = 0; setUserSpeak(false); setBossSpeak(false);
+
+    setDebriefPending(true);
+    wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT }));
+  }, [setPhaseSync]);
+
+  const handleRestart = useCallback(() => {
+    setDebrief(null); setDebriefPending(false);
+    clearInterval(pingRef.current);
+    try { wsRef.current?.close(1000, 'restart'); } catch {}
+    wsRef.current = null;
+    setPhaseSync('idle');
+    setTimeout(start, 250);
+  }, [start, setPhaseSync]);
+
+  // (Removed) HP no longer ends the session — only the server does. A weak run can
+  // drain the bar to zero and the interview still plays all three parts to the end.
+
+  // Safety net: never trap the result behind audio that failed to signal completion.
+  useEffect(() => {
+    if ((debrief || debriefPending) && bossSpeak) {
+      const t = setTimeout(() => setBossSpeak(false), 12000);
+      return () => clearTimeout(t);
+    }
+  }, [debrief, debriefPending, bossSpeak]);
+
+  const authHeaders = useCallback(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token]);
+
+  // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
+  const beginSession = useCallback(async () => {
+    if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
+    // Don't even open a socket if the trial is spent — show the wall up front.
+    if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
+      setPaywall(auth.account.entitlement); return;
+    }
+    try {
+      const r = await fetch(`${API_URL}/api/review`, { headers: authHeaders() });
+      const { items } = await r.json();
+      if (items && items.length) { setReview({ items, then: 'fight' }); return; }
+    } catch { /* offline → just start */ }
+    start();
+  }, [start, auth.account, authHeaders]);
+
+  const handleDrillDone = useCallback(() => {
+    setReview((rv) => {
+      if (rv?.then === 'fight') setTimeout(start, 0);
+      return null;
+    });
+  }, [start]);
+
+  const openDashboard = useCallback(async () => {
+    setDashboard({ data: null, loading: true });
+    try {
+      const r = await fetch(`${API_URL}/api/progress`, { headers: authHeaders() });
+      const data = await r.json();
+      if (data.account) onAccountUpdate?.(data.account);
+      setDashboard({ data, loading: false });
+    } catch { setDashboard({ data: null, loading: false }); }
+  }, [authHeaders, onAccountUpdate]);
+
+  const startReviewFromDash = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/review`, { headers: authHeaders() });
+      const { items } = await r.json();
+      setDashboard(null);
+      if (items?.length) setReview({ items, then: 'close' });
+    } catch { /* ignore */ }
+  }, [authHeaders]);
+
+  const handleUpgraded = useCallback((account) => {
+    onAccountUpdate?.(account);
+    setPaywall(null);
+  }, [onAccountUpdate]);
+
+  // ── Cleanup on unmount ────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      clearInterval(pingRef.current);
+      recorderRef.current?.stop().catch(() => {});
+      playerRef.current?.dispose().catch(() => {});
+      wsRef.current?.close(1000, 'unmount');
+    };
+  }, []);
+
+  // ── Load the authoritative training streak for the home screen ─────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/progress`, { headers: authHeaders() });
+        const data = await r.json();
+        if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
+        if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);
+      } catch { /* keep cached value */ }
+    })();
+    return () => { cancelled = true; };
+  }, [authHeaders]);
+
+  // ── Derived display state ─────────────────────────────────────────────────
+  const isActive     = phase === 'active';
+  const isConnecting = phase === 'connecting';
+  const canStart     = phase === 'idle' || phase === 'error';
+  const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <div className={shakeScreen ? 'shake' : ''} style={{
+      minHeight:'100svh', maxWidth:440, margin:'0 auto',
+      display:'flex', flexDirection:'column', position:'relative', overflowX:'hidden',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+    }}>
+      <div className="scanline" />
+
+      {/* Screen flash */}
+      {screenFlash && (
+        <div style={{ position:'absolute', inset:0, zIndex:50, pointerEvents:'none',
+          background: screenFlash === 'green' ? 'rgba(16,185,129,0.16)' : 'rgba(239,68,68,0.2)',
+          transition:'opacity 0.1s' }} />
+      )}
+
+      {/* Cinematic round-advance banner ("RUNDE 2 — VERHALTENSFRAGE") */}
+      {roundFlash && (
+        <div key={roundFlash.id} style={{ position:'absolute', left:'50%', top:'40%', zIndex:55,
+          pointerEvents:'none', textAlign:'center', whiteSpace:'nowrap',
+          animation:'round-pop 1.7s var(--ease-out) forwards' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, letterSpacing:'0.3em',
+            color:'var(--accent)', textShadow:'var(--glow-accent)' }}>RUNDE {roundFlash.n}</div>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:26, color:'#fff',
+            letterSpacing:'0.04em', textShadow:'0 0 18px rgba(0,229,255,0.55), 0 2px 10px rgba(0,0,0,0.8)' }}>
+            {(roundFlash.label || '').toUpperCase()}
+          </div>
+        </div>
+      )}
+
+      {/* Subscription paywall (trial exhausted) */}
+      {paywall && (
+        <PaywallScreen token={auth.token} info={paywall}
+          onUpgraded={handleUpgraded} onClose={() => setPaywall(null)} />
+      )}
+
+      {/* Zielplan (goal plan) — a separate coaching section layered over the arena */}
+      {zielplanOpen && (
+        <OverlayBoundary onClose={() => setZielplanOpen(false)}>
+          <Zielplan token={auth.token} apiUrl={API_URL} onClose={() => setZielplanOpen(false)} />
+        </OverlayBoundary>
+      )}
+
+      {/* Spaced-repetition recall drill (before a fight or from the dashboard) */}
+      {review && <RecallDrill items={review.items} token={auth.token} onDone={handleDrillDone} />}
+
+      {/* Progress dashboard */}
+      {dashboard && (
+        <Dashboard data={dashboard.data} loading={dashboard.loading} account={auth.account}
+          onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
+      )}
+
+      {/* Result screen: ONLY when the server has ended the session, and only once the
+          boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
+      {(debrief || debriefPending) && !bossSpeak && (
+        <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart}
+          lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName} />
+      )}
+
+      {/* ── HEADER ─────────────────────────────────────────────────────── */}
+      <div style={{ padding:'16px 16px 0' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+          <div style={{ width:7, height:7, borderRadius:'50%',
+            background: isActive ? '#10b981' : isConnecting ? '#f59e0b' : '#475569',
+            boxShadow: isActive ? '0 0 6px #10b981' : 'none',
+            animation: isActive ? 'pulse 2s infinite' : 'none' }} />
+          <span style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+            {isActive ? 'VERBUNDEN' : isConnecting ? 'VERBINDE…' : 'GETRENNT'}
+          </span>
+        </div>
+
+        {/* Campaign / round progress (during a session) or level selector (before start) */}
+        {funnel ? (
+          <div style={{ marginBottom:'var(--sp-3)' }}>
+            <div style={{ position:'relative', display:'flex', justifyContent:'space-between',
+              alignItems:'flex-start', padding:'0 6px', marginBottom:9 }}>
+              {/* connecting track */}
+              <div style={{ position:'absolute', left:18, right:18, top:11, height:3, borderRadius:2,
+                background:'rgba(255,255,255,0.08)' }} />
+              {/* animated progress fill — grows as rounds are cleared */}
+              <div style={{ position:'absolute', left:18, top:11, height:3, borderRadius:2,
+                width:`calc((100% - 36px) * ${funnel.stages.length > 1 ? funnel.idx / (funnel.stages.length - 1) : 0})`,
+                background:'linear-gradient(90deg, var(--player), var(--accent))',
+                boxShadow:'0 0 8px var(--accent-dim)',
+                transition:'width 0.6s var(--ease-out)' }} />
+              {funnel.stages.map((st, i) => {
+                const done = i < funnel.idx, cur = i === funnel.idx;
+                const c = cur ? 'var(--accent)' : done ? 'var(--player)' : '#475569';
+                return (
+                  <div key={st.id} style={{ position:'relative', zIndex:2, flex:1, textAlign:'center' }}>
+                    <div key={cur ? `cur${i}` : `n${i}`} style={{ width:23, height:23, borderRadius:'50%', margin:'0 auto',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontFamily:'var(--font-display)', fontWeight:700, fontSize:11,
+                      color: (cur || done) ? '#04070d' : '#94a3b8',
+                      background: cur ? 'var(--accent)' : done ? 'var(--player)' : 'rgba(255,255,255,0.05)',
+                      border:`2px solid ${cur ? 'var(--accent)' : done ? 'var(--player)' : '#334155'}`,
+                      boxShadow: cur ? '0 0 12px var(--accent-dim)' : 'none',
+                      animation: cur ? 'node-pop 0.5s var(--ease-spring)' : 'none',
+                      transition:'background var(--dur), border-color var(--dur), color var(--dur)' }}>
+                      {done ? '✓' : i + 1}
+                    </div>
+                    <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:7.5, letterSpacing:'0.06em',
+                      color:c, marginTop:5, lineHeight:1.25, transition:'color var(--dur)' }}>
+                      {(st.label || '').toUpperCase()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ textAlign:'center', padding:'7px 10px', borderRadius:'var(--r-md)',
+              background:'linear-gradient(90deg,rgba(0,229,255,0.06),rgba(0,200,255,0.1),rgba(0,229,255,0.06))',
+              border:'1px solid var(--line)' }}>
+              <span style={{ fontSize:11.5, color:'#cbd5e1', lineHeight:1.45 }}>
+                {funnel.stages[funnel.idx]?.prompt ?? ''}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div style={{ marginBottom:12 }}>
+            {/* Trainingsserie (training streak) — drives the cheap daily-return habit */}
+            <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:13, padding:'11px 13px',
+              borderRadius:'var(--r-md)',
+              background: streak > 0
+                ? 'linear-gradient(135deg, rgba(245,158,11,0.16), rgba(239,68,68,0.10))'
+                : 'rgba(255,255,255,0.03)',
+              border:`1px solid ${streak > 0 ? 'rgba(245,158,11,0.45)' : 'var(--line)'}`,
+              boxShadow: streak > 0 ? '0 0 22px rgba(245,158,11,0.16)' : 'none',
+              transition:'all var(--dur-slow)' }}>
+              <div style={{ fontSize:28, lineHeight:1,
+                filter: streak > 0 ? 'none' : 'grayscale(1)', opacity: streak > 0 ? 1 : 0.45,
+                animation: streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:15, letterSpacing:'0.04em',
+                  color: streak > 0 ? '#fbbf24' : '#94a3b8',
+                  textShadow: streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
+                  {streak > 0 ? `${streak} ${streak === 1 ? 'TAG' : 'TAGE'} · TRAININGSSERIE` : 'TRAININGSSERIE'}
+                </div>
+                <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:2, lineHeight:1.35 }}>
+                  {streak > 0 ? 'Trainiere heute, um deine Serie zu halten.' : 'Trainiere täglich und baue deine Serie auf.'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',
+              color:'var(--accent-dim)', textAlign:'center', marginBottom:9 }}>
+              WÄHLE DEIN NIVEAU
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              {[['a2-b1','A2–B1','Langsamer · einfacher · verzeiht Fehler'],
+                ['b2','B2','Natürliches Tempo · komplexe Strukturen']].map(([id, lbl, desc]) => {
+                const sel = level === id;
+                return (
+                  <button key={id} onClick={() => chooseLevel(id)} disabled={!canStart}
+                    style={{ flex:1, padding:'12px 12px', cursor: canStart ? 'pointer' : 'default',
+                      borderRadius:'var(--r-md)', textAlign:'left', position:'relative', overflow:'hidden',
+                      border:`1px solid ${sel ? 'var(--accent)' : 'var(--line)'}`,
+                      background: sel
+                        ? 'linear-gradient(135deg, rgba(0,229,255,0.15), rgba(0,229,255,0.03))'
+                        : 'rgba(255,255,255,0.02)',
+                      boxShadow: sel ? '0 0 18px rgba(0,229,255,0.3), inset 0 0 20px rgba(0,229,255,0.06)' : 'none',
+                      transition:'all var(--dur) var(--ease)' }}>
+                    <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, letterSpacing:'0.04em',
+                      color: sel ? 'var(--accent)' : '#cbd5e1', textShadow: sel ? 'var(--glow-accent)' : 'none' }}>{lbl}</div>
+                    <div style={{ fontSize:8.5, color:'#94a3b8', marginTop:3, lineHeight:1.35 }}>{desc}</div>
+                    {sel && <div style={{ position:'absolute', top:7, right:9, fontSize:10, color:'var(--accent)' }}>✓</div>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Feedback explanation language (also switchable on the results screen) */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginTop:10 }}>
+              <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Feedback-Sprache · لغة الشرح</span>
+              <div style={{ display:'inline-flex', borderRadius:'var(--r-pill)', overflow:'hidden',
+                border:'1px solid var(--line)', background:'rgba(0,0,0,0.4)' }}>
+                {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
+                  <button key={id} onClick={() => chooseFeedbackLang(id)} style={{ cursor:'pointer', padding:'4px 12px',
+                    fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
+                    color: feedbackLang === id ? '#04070d' : '#94a3b8',
+                    background: feedbackLang === id ? 'var(--accent)' : 'transparent',
+                    transition:'background var(--dur), color var(--dur)' }}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HP bars */}
+        <HpBar label="BOSS HP"  value={bossHp}   isPlayer={false} reason={bossReason} />
+        <HpBar label="DEINE HP" value={playerHp} isPlayer={true}  reason={playerReason} />
+
+        {/* Phase 2: live performance HUD (appears once a fight is in progress) */}
+        {funnel && <PerformanceHud wpm={liveWpm} fillers={fillerCount} combo={combo} />}
+      </div>
+
+      {/* ── BOSS CARD ──────────────────────────────────────────────────── */}
+      <div style={{ padding:'10px 16px 0' }}>
+        <div style={{ borderRadius:16, position:'relative', overflow:'hidden',
+          background:'radial-gradient(120% 90% at 50% 0%, #0c1626 0%, #070d18 55%, #04070d 100%)',
+          border:`1px solid ${boss.color}66`,
+          boxShadow:`0 0 34px ${boss.color}33, inset 0 0 60px rgba(0,0,0,0.6)`,
+          transition:'border-color 0.6s, box-shadow 0.6s' }}>
+
+          {/* drifting grid */}
+          <div style={{ position:'absolute', inset:0, opacity:0.05, pointerEvents:'none',
+            backgroundImage:'linear-gradient(rgba(0,255,200,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,0.5) 1px,transparent 1px)',
+            backgroundSize:'28px 28px', animation:'grid-drift 6s linear infinite' }} />
+          {/* emotion glow */}
+          <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+            background:`radial-gradient(62% 52% at 50% 30%, ${boss.color}33, transparent 70%)`,
+            animation:'portrait-glow 3.5s ease-in-out infinite', transition:'background 0.6s' }} />
+          {/* vignette */}
+          <div style={{ position:'absolute', inset:0, pointerEvents:'none',
+            background:'radial-gradient(120% 100% at 50% 36%, transparent 46%, rgba(0,0,0,0.66) 100%)' }} />
+
+          {/* ENDGEGNER ribbon */}
+          <div style={{ position:'absolute', top:10, left:12, zIndex:4,
+            fontFamily:'Orbitron,monospace', fontSize:9, letterSpacing:'0.16em',
+            color:'#fca5a5', padding:'3px 8px', borderRadius:4,
+            background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)' }}>
+            ⚔ ENDGEGNER
+          </div>
+          {/* emotion badge */}
+          <div style={{ position:'absolute', top:10, right:12, zIndex:4,
+            fontFamily:'Orbitron,monospace', fontSize:9, letterSpacing:'0.12em',
+            color:boss.color, padding:'3px 8px', borderRadius:4,
+            background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
+            textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>
+            {boss.label}
+          </div>
+
+          {/* flying damage number */}
+          {bossDmgFloat && (
+            <div key={bossDmgFloat.id} style={{ position:'absolute', left:'50%', top:50, zIndex:6,
+              pointerEvents:'none', fontFamily:'Orbitron,monospace', fontWeight:900, fontSize:42,
+              color:'#34d399', textShadow:'0 0 20px rgba(52,211,153,0.95), 0 0 6px #fff',
+              animation:'dmg-float 1s ease-out forwards' }}>
+              −{bossDmgFloat.amount}
+            </div>
+          )}
+
+          {/* the portrait */}
+          <div className={bossHurt ? 'hurt' : ''} style={{ position:'relative', zIndex:3,
+            height:214, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+            <div className={isActive && !bossSpeak ? 'breathe' : ''} style={{ width:202, height:210 }}>
+              <BossAvatar emotion={boss.face} speaking={bossSpeak} color={boss.color} />
+            </div>
+          </div>
+
+          {/* name plate */}
+          <div style={{ position:'relative', zIndex:4, textAlign:'center', padding:'0 12px 13px' }}>
+            <div style={{ fontFamily:'Orbitron,monospace', fontSize:20, fontWeight:900, color:'#fff',
+              letterSpacing:'0.03em', lineHeight:1,
+              textShadow:`0 0 18px ${boss.color}aa, 0 2px 10px rgba(0,0,0,0.85)`, transition:'text-shadow 0.5s' }}>
+              {funnel?.displayName ?? 'DEIN GEGNER'}
+            </div>
+            {!funnel && (
+              <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4, letterSpacing:'0.03em' }}>
+                Dein nächster Interview-Gegner wartet.
+              </div>
+            )}
+            <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:9 }}>
+              {[['◆','HOCHDRUCK'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
+                <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 9px',
+                  borderRadius:'var(--r-pill)', letterSpacing:'0.1em', display:'inline-flex', alignItems:'center', gap:5,
+                  background:`${boss.color}12`, border:`1px solid ${boss.color}55`, color:'#e2e8f0',
+                  boxShadow:`0 0 10px ${boss.color}22` }}>
+                  <span style={{ color:boss.color, fontSize:7 }}>{ic}</span>{t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── DIALOGUE BOX ───────────────────────────────────────────────── */}
+      <div style={{ padding:'10px 16px 0' }}>
+        <div style={{ borderRadius:8, padding:12, position:'relative',
+          background:'linear-gradient(135deg,rgba(0,30,60,0.82),rgba(0,15,30,0.95))',
+          border:'1px solid rgba(0,200,255,0.22)', boxShadow:'0 0 14px rgba(0,200,255,0.08)' }}>
+          <div style={{ position:'absolute', top:-7, left:30, width:13, height:13,
+            background:'rgba(0,30,60,0.85)', transform:'rotate(45deg)',
+            borderTop:'1px solid rgba(0,200,255,0.22)', borderLeft:'1px solid rgba(0,200,255,0.22)' }} />
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9.5, letterSpacing:'0.16em',
+            color:'var(--accent)', textShadow:'var(--glow-accent)', marginBottom:6 }}>{(funnel?.displayName ?? 'DEIN GEGNER')} SAGT:</div>
+          <p style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.65, minHeight:38 }}>
+            {bossText
+              ? bossText
+              : isActive
+                ? <span style={{ color:'#475569', animation:'pulse 1.2s infinite' }}>{(funnel?.displayName ?? 'Der Gegner')} spricht…</span>
+                : <span style={{ color:'#334155' }}>Interview noch nicht gestartet.</span>
+            }
+          </p>
+
+          {/* Score flash */}
+          {scoreFlash && (
+            <div className="flash" style={{ marginTop:8, padding:'7px 10px', borderRadius:6,
+              background: scoreFlash.score >= 60 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
+              border:`1px solid ${scoreFlash.score >= 60 ? '#10b98140' : '#ef444440'}`,
+              color:  scoreFlash.score >= 60 ? '#34d399' : '#f87171',
+              fontSize:11, lineHeight:1.5 }}>
+              <span style={{ fontFamily:'Orbitron,monospace', fontSize:9, letterSpacing:'0.1em' }}>
+                KAMPFWERTUNG
+              </span><br />
+              ⚡ Score {scoreFlash.score}/100 · {scoreFlash.damage > 0 ? `−${scoreFlash.damage} HP` : 'Kein Schaden'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── TRANSCRIPT ─────────────────────────────────────────────────── */}
+      <div style={{ padding:'10px 16px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+        <div style={{ fontSize:9.5, color:'var(--text-faint)', fontFamily:'var(--font-display)', fontWeight:600, letterSpacing:'0.14em', marginBottom:5 }}>
+          LIVE TRANSKRIPT
+          {userSpeak && <span style={{ marginLeft:8, color:'var(--player)', animation:'pulse 0.8s infinite' }}>● SPRICHT</span>}
+        </div>
+        <TranscriptPanel lines={transcript} userSpeak={userSpeak} />
+      </div>
+
+      {/* ── MIC + CONTROLS (pinned to viewport bottom so the START button is
+             ALWAYS visible, regardless of screen height) ─────────────────── */}
+      <div style={{ padding:'14px 16px 24px', textAlign:'center',
+        position:'sticky', bottom:0, zIndex:30,
+        background:'linear-gradient(180deg, rgba(2,4,9,0) 0%, rgba(2,4,9,0.88) 26%, #020409 60%)' }}>
+        {error && (
+          <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8,
+            background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
+            color:'#fca5a5', fontSize:11 }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />
+
+        <div style={{ margin:'10px 0 14px' }}>
+          <div style={{ fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.15em',
+            color: isActive ? '#00e5ff' : '#475569',
+            textShadow: isActive ? '0 0 10px rgba(0,229,255,0.5)' : 'none',
+            transition:'all 0.3s' }}>
+            {isActive
+              ? bossSpeak ? 'BOSS SPRICHT…' : userSpeak ? 'MICROPHONE AKTIV' : 'HÖRE ZU…'
+              : isConnecting ? 'VERBINDE…' : 'BEREIT ZUM KAMPF'}
+          </div>
+          {isActive && (
+            <div style={{ fontSize:9, color:'#334155', marginTop:3 }}>
+              Kein Push-to-Talk — spreche einfach Deutsch
+            </div>
+          )}
+        </div>
+
+        {/* Start / Stop toggle */}
+        <button
+          onClick={canStart ? beginSession : finishSession}
+          disabled={isConnecting}
+          style={{
+            width:'100%', padding:'14px 20px', cursor: isConnecting ? 'wait' : 'pointer',
+            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.15em',
+            borderRadius:8, border:`1px solid ${canStart ? '#00e5ff' : '#ef4444'}`,
+            color:       canStart ? '#00e5ff' : '#ef4444',
+            background:  canStart
+              ? 'linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.02))'
+              : 'linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02))',
+            boxShadow: isActive ? '0 0 22px rgba(239,68,68,0.2)' : '0 0 14px rgba(0,229,255,0.12)',
+            transition:'all 0.25s',
+            opacity: isConnecting ? 0.55 : 1,
+          }}>
+          {isConnecting ? '⠋ VERBINDE…' : canStart ? '▶  INTERVIEW STARTEN' : '■  INTERVIEW BEENDEN'}
+        </button>
+
+        {/* Progress dashboard access (idle only) */}
+        {canStart && (
+          <button onClick={openDashboard} style={{ width:'100%', marginTop:8, padding:'10px',
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
+            borderRadius:8, border:'1px solid rgba(167,139,250,0.4)', color:'#a78bfa',
+            background:'rgba(167,139,250,0.06)' }}>
+            📊  FORTSCHRITT & WIEDERHOLUNG
+          </button>
+        )}
+
+        {/* Review quick-start CTA when due items exist */}
+        {canStart && dueReviews > 0 && (
+          <button onClick={startReviewFromDash} style={{ width:'100%', marginTop:8, padding:'10px',
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.14em',
+            borderRadius:8, border:'1px solid rgba(245,158,11,0.45)', color:'#fbbf24',
+            background:'rgba(245,158,11,0.08)' }}>
+            ⚡  WIEDERHOLUNG STARTEN · {dueReviews} KARTE{dueReviews === 1 ? '' : 'N'} OFFEN
+          </button>
+        )}
+
+        {/* Zielplan (goal plan) access (idle only) */}
+        {canStart && (
+          <button onClick={() => setZielplanOpen(true)} style={{ width:'100%', marginTop:8, padding:'10px',
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
+            borderRadius:8, border:'1px solid rgba(0,229,255,0.4)', color:'#00e5ff',
+            background:'rgba(0,229,255,0.06)' }}>
+            🎯  ZIELPLAN — DEIN TRAININGSPLAN
+          </button>
+        )}
+
+        {/* Boss speaking indicator */}
+        {bossSpeak && (
+          <div style={{ marginTop:10, height:2, borderRadius:1,
+            background:'linear-gradient(90deg,transparent,#00e5ff,transparent)',
+            animation:'pulse 1s infinite' }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Root: authentication gate around the arena ────────────────────────────────
+export default function App() {
+  const [auth, setAuth] = useState(loadStoredAuth);
+
+  // Validate / refresh the stored token on mount; drop it if the server rejects.
+  useEffect(() => {
+    if (!auth) return;
+    let cancelled = false;
+    fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${auth.token}` } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('unauth'))))
+      .then((d) => { if (!cancelled) { const a = { token: auth.token, account: d.account }; persistAuth(a); setAuth(a); } })
+      .catch(() => { if (!cancelled) { persistAuth(null); setAuth(null); } });
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAuth    = useCallback((a) => { persistAuth(a); setAuth(a); }, []);
+  const handleLogout  = useCallback(() => { persistAuth(null); setAuth(null); }, []);
+  const handleAccount = useCallback((account) => {
+    setAuth((cur) => { if (!cur) return cur; const a = { token: cur.token, account }; persistAuth(a); return a; });
+  }, []);
+
+  if (!auth) return <AuthScreen onAuth={handleAuth} />;
+  return <Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} />;
+}

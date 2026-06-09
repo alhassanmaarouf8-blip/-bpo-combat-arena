@@ -1,0 +1,193 @@
+/**
+ * auth.js
+ * Accounts, password auth, signed session tokens, and subscription gating.
+ *
+ * Multi-user: every account has an id; the progress store (store.js) is keyed by that
+ * id, so each user's data is isolated. Secrets never leave the server — the browser only
+ * ever holds a signed session token, never the OpenAI key or the auth secret.
+ *
+ * Billing is structured but NOT wired to a real processor: upgrade() simply flips the
+ * tier (marked mock:true). The single seam to drop Stripe in later is billingRouter
+ * POST /upgrade — everything else (tiers, entitlement, trial limits, gating) is ready.
+ */
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { existsSync }                 from 'fs';
+import path                           from 'path';
+import { fileURLToPath }              from 'url';
+import express                        from 'express';
+import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
+
+const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
+const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
+const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-insecure-secret-change-me-in-production';
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const DAY = 24 * 60 * 60 * 1000;
+
+// ── Trial + tier config ──────────────────────────────────────────────────────
+const TRIAL_SESSIONS = 3;
+const TRIAL_DAYS     = 7;
+
+export const TIERS = {
+  trial: { id: 'trial', label: 'Testphase', priceEur: 0,  blurb: `${TRIAL_SESSIONS} Sitzungen gratis (${TRIAL_DAYS} Tage)` },
+  pro:   { id: 'pro',   label: 'Pro',       priceEur: 19, blurb: 'Unbegrenzte Sitzungen, alle Bosse, volle Wiederholung' },
+  team:  { id: 'team',  label: 'Team',      priceEur: 49, blurb: 'Pro für bis zu 5 Lernende + Fortschrittsberichte' },
+};
+
+// ── Account store (single JSON file, cached in memory) ───────────────────────
+let _store = null; // { accounts: {id: account}, emailIndex: {email: id} }
+
+async function load() {
+  if (_store) return _store;
+  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+  try { _store = JSON.parse(await readFile(ACCT_FILE, 'utf8')); }
+  catch { _store = { accounts: {}, emailIndex: {} }; }
+  _store.accounts   ??= {};
+  _store.emailIndex ??= {};
+  return _store;
+}
+async function persist() {
+  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(ACCT_FILE, JSON.stringify(_store, null, 2), 'utf8');
+}
+
+// ── Passwords (scrypt, no external deps) ─────────────────────────────────────
+function hashPassword(pw) {
+  const salt = randomBytes(16).toString('hex');
+  return `${salt}:${scryptSync(pw, salt, 64).toString('hex')}`;
+}
+function verifyPassword(pw, stored) {
+  try {
+    const [salt, hash] = String(stored).split(':');
+    const test = scryptSync(pw, salt, 64).toString('hex');
+    return timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(test, 'hex'));
+  } catch { return false; }
+}
+
+// ── Signed session tokens (HMAC, no external deps) ───────────────────────────
+const hmac = (s) => createHmac('sha256', AUTH_SECRET).update(s).digest('base64url');
+export function signToken(uid) {
+  const body = Buffer.from(JSON.stringify({ uid, exp: Date.now() + TOKEN_TTL_MS })).toString('base64url');
+  return `${body}.${hmac(body)}`;
+}
+export function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const [body, sig] = token.split('.');
+  if (!body || !sig || hmac(body) !== sig) return null;
+  try {
+    const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (p.exp && Date.now() > p.exp) return null;
+    return p;
+  } catch { return null; }
+}
+
+// ── Accounts ─────────────────────────────────────────────────────────────────
+export async function getAccountById(id) {
+  return (await load()).accounts[id] || null;
+}
+async function getAccountByEmail(email) {
+  const s = await load();
+  const id = s.emailIndex[String(email).toLowerCase()];
+  return id ? s.accounts[id] : null;
+}
+
+export async function createAccount(email, password) {
+  const s = await load();
+  email = String(email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
+  if (String(password || '').length < 6)        throw Object.assign(new Error('weak_password'), { code: 400 });
+  if (s.emailIndex[email])                       throw Object.assign(new Error('email_taken'),   { code: 409 });
+
+  const id = 'a_' + randomBytes(8).toString('hex');
+  const account = {
+    id, email,
+    passwordHash: hashPassword(password),
+    createdAt:    Date.now(),
+    subscription: { tier: 'trial', trialStartedAt: Date.now(), trialSessionsUsed: 0 },
+  };
+  s.accounts[id] = account;
+  s.emailIndex[email] = id;
+  await persist();
+  return account;
+}
+
+export async function authenticate(email, password) {
+  const acct = await getAccountByEmail(email);
+  if (!acct || !verifyPassword(password, acct.passwordHash)) return null;
+  return acct;
+}
+
+// ── Subscription / entitlement ───────────────────────────────────────────────
+export function entitlement(account) {
+  const s = account?.subscription || {};
+  if (s.tier === 'pro' || s.tier === 'team') {
+    return { allowed: true, tier: s.tier, unlimited: true };
+  }
+  const used         = s.trialSessionsUsed || 0;
+  const sessionsLeft = Math.max(0, TRIAL_SESSIONS - used);
+  const daysLeft     = Math.max(0, TRIAL_DAYS - Math.floor((Date.now() - (s.trialStartedAt || Date.now())) / DAY));
+  return {
+    allowed: sessionsLeft > 0 && daysLeft > 0,
+    tier: 'trial', sessionsLeft, daysLeft, trialSessions: TRIAL_SESSIONS,
+  };
+}
+
+export async function consumeTrialSession(account) {
+  if (account?.subscription?.tier === 'trial') {
+    account.subscription.trialSessionsUsed = (account.subscription.trialSessionsUsed || 0) + 1;
+    await persist();
+  }
+}
+
+export async function upgrade(account, tier) {
+  if (!TIERS[tier] || tier === 'trial') throw Object.assign(new Error('invalid_tier'), { code: 400 });
+  // ── Stripe checkout would go HERE; for now we simply flip the tier (mock). ──
+  account.subscription = { ...account.subscription, tier, upgradedAt: Date.now(), mock: true };
+  await persist();
+  return account;
+}
+
+export function publicAccount(a) {
+  return { id: a.id, email: a.email, subscription: a.subscription, entitlement: entitlement(a) };
+}
+
+// ── Express middleware + routers ─────────────────────────────────────────────
+export async function requireAuth(req, res, next) {
+  const h = req.headers.authorization || '';
+  const payload = verifyToken(h.startsWith('Bearer ') ? h.slice(7) : null);
+  if (!payload) return res.status(401).json({ error: 'auth_required' });
+  const acct = await getAccountById(payload.uid);
+  if (!acct) return res.status(401).json({ error: 'auth_required' });
+  req.account = acct;
+  next();
+}
+
+export const authRouter = express.Router();
+
+authRouter.post('/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const acct = await createAccount(email, password);
+    res.json({ token: signToken(acct.id), account: publicAccount(acct) });
+  } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
+});
+
+authRouter.post('/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  const acct = await authenticate(email, password);
+  if (!acct) return res.status(401).json({ error: 'invalid_credentials' });
+  res.json({ token: signToken(acct.id), account: publicAccount(acct) });
+});
+
+authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccount(req.account) }));
+
+export const billingRouter = express.Router();
+
+billingRouter.get('/status', requireAuth, (req, res) =>
+  res.json({ tiers: TIERS, account: publicAccount(req.account) }));
+
+billingRouter.post('/upgrade', requireAuth, async (req, res) => {
+  try {
+    await upgrade(req.account, (req.body || {}).tier);
+    res.json({ account: publicAccount(req.account) });
+  } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
+});

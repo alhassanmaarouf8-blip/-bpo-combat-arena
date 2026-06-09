@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────
+# Dependencies
+# ─────────────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ─────────────────────────────────────────────────────────────
+# SECRETS — never commit ANY env file. Keys must ONLY be set as
+# environment variables on the host (Render/Vercel dashboards).
+# (No .env.example exception: real keys have ended up in example files.)
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+**/.env
+**/.env.*
+
+# ─────────────────────────────────────────────────────────────
+# Build output
+# ─────────────────────────────────────────────────────────────
+dist/
+build/
+client/dist/
+
+# ─────────────────────────────────────────────────────────────
+# Local runtime data (user accounts/progress JSON) — not for the repo
+# ─────────────────────────────────────────────────────────────
+server/data/
+
+# ─────────────────────────────────────────────────────────────
+# Caches, logs, temp/diagnostic scratch files
+# ─────────────────────────────────────────────────────────────
+**/.vite/
+*.log
+npm-debug.log*
+_*.mjs
+_*.py
+_*.cjs
+_pdf_text/
+
+# ─────────────────────────────────────────────────────────────
+# OS / editor noise
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
