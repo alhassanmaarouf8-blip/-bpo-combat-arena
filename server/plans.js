@@ -18,7 +18,7 @@ import express from 'express';
 import { randomUUID } from 'crypto';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth }        from './auth.js';
-import { generateTask, giveFeedback } from './planGuide.js';
+import { generateTask, giveFeedback, transcribeAudio, speakingFeedback } from './planGuide.js';
 
 export const planRouter = express.Router();
 
@@ -221,23 +221,64 @@ planRouter.post('/plans/:id/steps/:stepId/feedback', requireAuth, async (req, re
     const input = str(req.body?.input, 2000);
     if (!input) return res.status(400).json({ error: 'empty_input' });
 
-    const feedback = await giveFeedback({
+    const fb = await giveFeedback({
       type:  found.step.type,
       topic: found.step.topic,
       task:  found.step.result?.task,
       input,
       level: req.body?.level === 'b2' ? 'b2' : 'a2-b1',
     });
-    found.step.result = { ...(found.step.result || {}), input, feedback, feedbackAt: Date.now() };
+    found.step.result = { ...(found.step.result || {}), input, feedback: fb.de, feedback_ar: fb.ar, feedbackAt: Date.now() };
     found.plan.updatedAt = Date.now();
     await saveUser(found.profile);
-    res.json({ plan: found.plan, feedback });
+    res.json({ plan: found.plan, feedback: fb.de, feedback_ar: fb.ar });
   } catch (err) {
     console.error('[plans] feedback error:', err.message);
     const code = err.message === 'no_api_key' ? 503 : err.message === 'empty_input' ? 400 : 500;
     res.status(code).json({ error: code === 503 ? 'no_api_key' : 'guide_failed' });
   }
 });
+
+// ── Speaking step: raw audio → transcript → metrics + feedback (cheap models only) ──
+planRouter.post('/plans/:id/steps/:stepId/speak',
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
+  requireAuth,
+  async (req, res) => {
+    try {
+      const found = await findStep(req.account.id, req.params.id, req.params.stepId);
+      if (found.error) return res.status(404).json({ error: found.error });
+      if (found.step.type !== 'speaking') return res.status(400).json({ error: 'not_a_speaking_step' });
+
+      const audio = req.body;
+      if (!Buffer.isBuffer(audio) || audio.length < 1000) return res.status(400).json({ error: 'empty_audio' });
+      const durationMs = Math.max(0, parseInt(req.query.ms, 10) || 0);
+      const level      = req.query.level === 'b2' ? 'b2' : 'a2-b1';
+
+      // 1) transcribe (gpt-4o-mini-transcribe)
+      const transcript = await transcribeAudio(audio, { mime: req.headers['content-type'] || 'audio/wav' });
+      // 2) compute metrics deterministically (the model never invents numbers)
+      const words   = transcript.split(/\s+/).filter(Boolean).length;
+      const wpm     = durationMs > 0 ? Math.round(words / (durationMs / 60000)) : 0;
+      const fillers = (` ${transcript.toLowerCase()} `.match(/\b(äh+|ähm+|ehm+|also|halt|irgendwie|quasi|sozusagen)\b/g) ?? []).length;
+      // 3) named feedback on the transcript (gpt-4o-mini), German + Arabic
+      let feedback = { de: '', ar: '' };
+      if (words >= 2) {
+        try { feedback = await speakingFeedback({ transcript, wpm, fillers, topic: found.step.topic, level }); }
+        catch (e) { console.error('[plans] speaking feedback failed:', e.message); }
+      }
+
+      found.step.result = { ...(found.step.result || {}), transcript,
+        feedback: feedback.de, feedback_ar: feedback.ar, wpm, fillers, words, durationMs, at: Date.now() };
+      found.plan.updatedAt = Date.now();
+      await saveUser(found.profile);
+
+      res.json({ transcript, feedback: feedback.de, feedback_ar: feedback.ar,
+        metrics: { wpm, fillers, words, durationMs }, plan: found.plan });
+    } catch (err) {
+      console.error('[plans] speak error:', err.message);
+      res.status(err.message === 'no_api_key' ? 503 : 500).json({ error: err.message === 'no_api_key' ? 'no_api_key' : 'speak_failed' });
+    }
+  });
 
 // ── Delete ──────────────────────────────────────────────────────────────────────
 planRouter.delete('/plans/:id', requireAuth, async (req, res) => {

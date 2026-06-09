@@ -4,7 +4,7 @@ import { RealtimeClient }  from './realtimeClient.js';
 import { generateDebrief } from './coach.js';
 import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount }  from './srs.js';
-import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak } from './progression.js';
+import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank } from './progression.js';
 import { verifyToken, getAccountById, entitlement, consumeTrialSession } from './auth.js';
 
 const PING_INTERVAL_MS   = 25_000;
@@ -28,6 +28,15 @@ function stageForAnswers(n) {
   if (n < STAGE_AFTER[0]) return 0;
   if (n < STAGE_AFTER[1]) return 1;
   return 2;
+}
+
+// The candidate's most recurring grammar weakness (for the boss memory dossier):
+// the still-unmastered grammar rule they've relapsed on most.
+function topWeakRule(profile) {
+  const items = (profile?.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content);
+  if (!items.length) return null;
+  items.sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || (b.reps || 0) - (a.reps || 0));
+  return items[0].content;
 }
 // All three parts are "complete" once the roleplay (final part) has had this many
 // scored exchanges. The SERVER alone decides the session is over (never the client),
@@ -118,6 +127,7 @@ export class WebSocketManager {
       fillerTotal:    0,       // cumulative filler words this session (for the live counter)
       combo:          0,       // consecutive strong answers (for the combo multiplier)
       comboBest:      0,       // best combo reached this session
+      weakStreak:     0,       // consecutive broken answers (triggers the rescue move)
     };
 
     this._sessions.set(sessionId, ctx);
@@ -203,15 +213,21 @@ export class WebSocketManager {
 
     // Boss is chosen by the user's progression (warm-up → standard → final boss).
     let bossId = 'herr-tariq';
-    try { bossId = bossForLevel((await loadUser(ctx.userId)).level).id; } catch {}
+    let dossier = null;
+    try {
+      const prof = await loadUser(ctx.userId);
+      bossId  = bossForLevel(prof.level).id;
+      dossier = topWeakRule(prof);   // recurring weak grammar rule → boss memory dossier
+    } catch {}
     ctx.bossId = bossId;
-    console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  session=${ctx.sessionId}`);
+    console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  dossier=${dossier ?? '—'}  session=${ctx.sessionId}`);
 
     try {
       ctx.realtimeClient = new RealtimeClient({
         sessionId: ctx.sessionId,
         bossId,
         level,
+        dossier,
         onAudioDelta:      (chunk)  => this._send(ctx, { type: S.AUDIO_DELTA,      audio: chunk }),
         onTranscriptDelta: (text)   => this._send(ctx, { type: S.TRANSCRIPT_DELTA, text }),
         onTranscriptDone:  (data)   => this._onTranscriptDone(ctx, data),
@@ -354,6 +370,14 @@ export class WebSocketManager {
 
       await saveUser(p);
 
+      // ── Visible-progress signals for the end screen ──
+      // Trend of the last few sessions (the user must SEE improvement, not be told it),
+      // a personal-best flag, and the interview-readiness rank — all from stored scores.
+      const flAll = p.sessions.map((s) => s.fluency ?? 0);
+      const fiAll = p.sessions.map((s) => s.fillers ?? 0);
+      const prevFl = flAll.slice(0, -1);                       // sessions before this one
+      const personalBest = prevFl.length > 0 && (metrics.fluency ?? 0) > Math.max(...prevFl);
+
       return {
         xpGained, level: p.level, leveledUp,
         levelProgress: levelProgress(p.xp),
@@ -361,6 +385,10 @@ export class WebSocketManager {
         nextBoss:      nextBoss(p.level),
         bossId:        ctx.bossId,
         streak:        computeStreak(p.sessions),
+        rank:          computeRank(p.sessions),
+        trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
+        personalBest,
+        bestFluency:   Math.max(...flAll),
       };
     } catch (err) {
       console.error(`[wsManager] persist progress failed session=${ctx.sessionId}:`, err.message);
@@ -520,6 +548,10 @@ export class WebSocketManager {
     if      (score >= 65) { ctx.combo += 1; if (ctx.combo > ctx.comboBest) ctx.comboBest = ctx.combo; }
     else if (score < 45)  { ctx.combo = 0; }
     const exWpm = durationMs > 0 ? Math.round((wordCount / durationMs) * 60_000) : 0;
+
+    // Rescue move: two broken answers in a row → the boss eases up on its next turn.
+    if (score < 40) ctx.weakStreak += 1; else ctx.weakStreak = 0;
+    if (ctx.weakStreak >= 2) { ctx.weakStreak = 0; ctx.realtimeClient?.requestRescue?.('weak'); }
 
     // Boss emotion (display-only, backend-driven so the client never invents it):
     //   cornered (low boss HP) → WÜTEND; strong answer → BEEINDRUCKT;

@@ -127,11 +127,11 @@ export function checkAnswer(answer, expected) {
   const correct = a === e || (e.length >= 4 && levenshtein(a, e) <= 1);
 
   // German nouns are capitalized: right answer, but written lower-case → accept + nudge.
-  const note = (correct && /^[A-ZÄÖÜ]/.test(eRaw) && /^[a-zäöüß]/.test(aRaw))
-    ? `Achtung: Nomen großschreiben → ${eRaw}`
-    : '';
+  const capFix  = correct && /^[A-ZÄÖÜ]/.test(eRaw) && /^[a-zäöüß]/.test(aRaw);
+  const note    = capFix ? `Achtung: Nomen großschreiben → ${eRaw}` : '';
+  const note_ar = capFix ? `انتبه: تُكتب الأسماء بحرف كبير ← ${eRaw}` : '';
 
-  return { correct, note };
+  return { correct, note, note_ar };
 }
 
 /** Backward-compatible boolean wrapper — same single rule as checkAnswer(). */

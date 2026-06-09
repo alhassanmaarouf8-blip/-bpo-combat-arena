@@ -79,6 +79,28 @@ export const CS_RUBRIC =
   `"Ich würde vorschlagen…"). Bleib hart, wenn der Kandidat Schuld zuweist, Ausreden bringt, unhöflich ` +
   `oder unklar antwortet oder ins Englische wechselt.`;
 
+// ── BPO "phrase of the day" pool (for the daily micro-session) ──────────────────
+// Real, high-value call-center German. One is surfaced per day (deterministically),
+// with a tiny drill. No API cost — curated content.
+export const BPO_PHRASES = [
+  { de: 'Ich kann Ihren Ärger vollkommen nachvollziehen.', en: 'I completely understand your frustration.', drill: 'Sag den Satz laut und hänge an: „… und ich kümmere mich sofort darum."' },
+  { de: 'Könnten Sie mir bitte Ihre Bestellnummer nennen?', en: 'Could you please give me your order number?', drill: 'Übe die höfliche Konjunktiv-II-Frage „Könnten Sie …?" mit drei eigenen Bitten.' },
+  { de: 'Das tut mir aufrichtig leid, das hätte nicht passieren dürfen.', en: 'I am sincerely sorry, that should not have happened.', drill: 'Baue den Satz in eine Entschuldigung für eine verspätete Lieferung ein.' },
+  { de: 'Ich kümmere mich umgehend darum.', en: 'I will take care of it right away.', drill: 'Ersetze „umgehend" durch „sofort" und „auf der Stelle" — gleiche Bedeutung.' },
+  { de: 'Darf ich kurz zusammenfassen, damit ich Sie richtig verstanden habe?', en: 'May I briefly summarize so I have understood you correctly?', drill: 'Nutze den Satz, um ein Kundenanliegen in einem Satz zusammenzufassen.' },
+  { de: 'Bleiben wir bitte sachlich, dann finden wir gemeinsam eine Lösung.', en: 'Let us please stay objective, then we will find a solution together.', drill: 'Sag den Satz ruhig und freundlich — übe einen deeskalierenden Ton.' },
+  { de: 'Ich würde Ihnen vorschlagen, dass wir es zunächst gemeinsam neu starten.', en: 'I would suggest that we first restart it together.', drill: 'Bilde zwei eigene Vorschläge mit „Ich würde vorschlagen, dass …".' },
+  { de: 'Vielen Dank für Ihre Geduld.', en: 'Thank you very much for your patience.', drill: 'Übe drei höfliche Dankesformeln für das Ende eines Gesprächs.' },
+  { de: 'Ich verstehe, dass das für Sie sehr ärgerlich ist.', en: 'I understand that this is very annoying for you.', drill: 'Zeige Empathie: beginne drei Sätze mit „Ich verstehe, dass …".' },
+  { de: 'Was ich konkret für Sie tun kann, ist Folgendes …', en: 'What I can concretely do for you is the following …', drill: 'Beende den Satz mit einem klaren nächsten Schritt.' },
+  { de: 'Ich leite Ihr Anliegen sofort an die zuständige Stelle weiter.', en: 'I will forward your concern to the responsible department right away.', drill: 'Erkläre dem Kunden in einem Satz, was als Nächstes passiert.' },
+  { de: 'Selbstverständlich, das übernehme ich gern für Sie.', en: 'Of course, I am happy to take that on for you.', drill: 'Übe eine freundliche Zusage in der Sie-Form.' },
+  { de: 'Entschuldigen Sie bitte die Unannehmlichkeiten.', en: 'Please excuse the inconvenience.', drill: 'Kombiniere die Entschuldigung mit einer Lösung in einem Satz.' },
+  { de: 'Damit ich Ihnen schneller helfen kann, brauche ich kurz Ihre Kundennummer.', en: 'So that I can help you faster, I briefly need your customer number.', drill: 'Formuliere höflich eine Bitte um Information mit „Damit ich …".' },
+  { de: 'Ich verspreche Ihnen, dass ich dranbleibe, bis das Problem gelöst ist.', en: 'I promise you that I will stay on it until the problem is solved.', drill: 'Übe eine verbindliche Zusage, die Vertrauen schafft.' },
+  { de: 'Habe ich Sie richtig verstanden, dass …?', en: 'Have I understood you correctly that …?', drill: 'Stelle eine Rückfrage, um ein Missverständnis zu klären.' },
+];
+
 // ── Funnel stages (for the UI tracker) ──────────────────────────────────────────
 const STAGE_META = [
   { id: 'intro',      label: 'Teil 1 · Selbstvorstellung' },
@@ -96,10 +118,17 @@ function pick(arr) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   const behavioral = pick(BEHAVIORAL_QUESTIONS);
   const cs         = pick(CS_SCENARIOS);
+
+  // Memory dossier: a recurring weak rule from past sessions, so the boss can reference
+  // the candidate's history once — making it feel like a returning, watchful interviewer.
+  const dossierLine = dossier
+    ? `\nDOSSIER (aus früheren Gesprächen): Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
+      `Erwähne das GENAU EINMAL beiläufig und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat.") und achte heute gezielt darauf. Übertreibe es nicht.\n`
+    : '';
 
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
@@ -117,6 +146,7 @@ Sei lebendig und unvorhersehbar: variiere Tonfall, Formulierungen, Nachfragen un
 Korrigiere den Kandidaten NICHT, solange du ihn verstehst — bleib im Gespräch und erhalte die Immersion.
 Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz und natürlich im Gesprächsfluss.
 ${level.speechStyle}
+${dossierLine}
 
 TEIL 1 — SELBSTVORSTELLUNG (ca. 1–2 Wortwechsel):
 Bitte den Kandidaten, sich kurz vorzustellen (Name, Berufserfahrung, Motivation). Hake einmal kurz nach. Gehe dann weiter.

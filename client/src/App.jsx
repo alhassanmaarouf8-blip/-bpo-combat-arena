@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useReducer, Component } from 
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { AudioPlayer } from './audioPlayer.js';
 import Zielplan from './Zielplan.jsx';
+import DailyTraining from './DailyTraining.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -111,6 +112,18 @@ const FACE_PARAMS = {
   shaken:    { browTilt:-12, browLift:-10, eyeOpen: 1.25, mouthCurve: -0.05, mouthOpen: 0.55 },
 };
 
+// Per-emotion posture — a subtle whole-body transform so the mood reads in his stance,
+// not just the badge. (Composed = neutral, skeptical = head-tilt, impressed = sits back,
+// furious = looms forward.)
+const POSTURE = {
+  idle:        '',
+  gefasst:     '',
+  skeptisch:   'rotate(-1.6deg)',
+  beeindruckt: 'translateY(-4px) scale(0.99)',
+  wuetend:     'translateY(5px) scale(1.04)',
+  hurt:        'translateY(2px) rotate(1deg)',
+};
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   /* Chakra Petch (display) + Inter (body) both fully support ä ö ü ß. Orbitron + Share
@@ -203,6 +216,9 @@ const GLOBAL_CSS = `
   .shake  { animation: shake 0.4s ease; }
   .hurt   { animation: boss-hurt 0.55s ease; }
   .flash  { animation: flash-in 0.2s ease; }
+  @keyframes boss-blink { 0%,93%,100%{transform:scaleY(1)} 96%{transform:scaleY(0.08)} }
+  .boss-blink { animation: boss-blink 5.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes boss-sway { 0%,100%{transform:translateX(0) rotate(0deg)} 50%{transform:translateX(-2px) rotate(-0.6deg)} }
   @keyframes boss-talk { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1)} }
   .boss-talk { animation: boss-talk 0.22s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes breathe { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-3px) scale(1.012)} }
@@ -282,13 +298,15 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = '#22d3ee' 
         <rect x="113" y={browY-3} width="34" height="7" rx="3.5" transform={`rotate(${-p.browTilt} 130 ${browY})`} />
       </g>
 
-      {/* eyes */}
-      <path d={_eyePath(90, eyeCY, p.eyeOpen)}  fill="#e6edf5" />
-      <path d={_eyePath(130, eyeCY, p.eyeOpen)} fill="#e6edf5" />
-      <circle cx="90"  cy={eyeCY} r="5" fill="#0a0f16" />
-      <circle cx="130" cy={eyeCY} r="5" fill="#0a0f16" />
-      <circle cx="88.5"  cy={eyeCY-1.5} r="1.5" fill={color} />
-      <circle cx="128.5" cy={eyeCY-1.5} r="1.5" fill={color} />
+      {/* eyes — wrapped so they blink occasionally */}
+      <g className="boss-blink">
+        <path d={_eyePath(90, eyeCY, p.eyeOpen)}  fill="#e6edf5" />
+        <path d={_eyePath(130, eyeCY, p.eyeOpen)} fill="#e6edf5" />
+        <circle cx="90"  cy={eyeCY} r="5" fill="#0a0f16" />
+        <circle cx="130" cy={eyeCY} r="5" fill="#0a0f16" />
+        <circle cx="88.5"  cy={eyeCY-1.5} r="1.5" fill={color} />
+        <circle cx="128.5" cy={eyeCY-1.5} r="1.5" fill={color} />
+      </g>
 
       {/* nose */}
       <path d="M 110 110 L 103 133 Q 110 138 117 133 Z" fill="#10161f" opacity="0.5" />
@@ -661,6 +679,52 @@ function CatBar({ label, value, color }) {
   );
 }
 
+// ── Component: RankLadder (interview-readiness, backend-computed) ─────────────
+function RankLadder({ rank }) {
+  if (!rank?.ranks?.length) return null;
+  const tier = rank.tier ?? 0;
+  const cur  = tier >= 4 ? '#a78bfa' : '#fbbf24';
+  return (
+    <div style={{ padding:'10px 12px', borderRadius:'var(--r-md)', background:'rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:9 }}>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.14em', color:'var(--text-dim)' }}>INTERVIEW-BEREITSCHAFT</span>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, color:cur, textShadow:`0 0 10px ${cur}99` }}>{rank.label}</span>
+      </div>
+      <div style={{ display:'flex', alignItems:'center' }}>
+        {rank.ranks.map((r, i) => (
+          <div key={r} style={{ display:'flex', alignItems:'center', flex: i < rank.ranks.length - 1 ? 1 : '0 0 auto' }}>
+            <div title={r} style={{ width:15, height:15, borderRadius:'50%', flexShrink:0,
+              background: i < tier ? 'var(--player)' : i === tier ? cur : 'rgba(255,255,255,0.08)',
+              border:`2px solid ${i < tier ? 'var(--player)' : i === tier ? cur : '#334155'}`,
+              boxShadow: i === tier ? `0 0 10px ${cur}` : 'none',
+              animation: i === tier ? 'pulse 2s ease-in-out infinite' : 'none' }} />
+            {i < rank.ranks.length - 1 && (
+              <div style={{ flex:1, height:2, margin:'0 3px', borderRadius:1,
+                background: i < tier ? 'var(--player)' : 'rgba(255,255,255,0.08)' }} />
+            )}
+          </div>
+        ))}
+      </div>
+      {rank.nextLabel ? (
+        <div style={{ marginTop:9 }}>
+          <div style={{ height:6, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(0,0,0,0.45)', border:'1px solid var(--line)' }}>
+            <div style={{ height:'100%', width:`${rank.toNextPct}%`, borderRadius:'inherit',
+              background:`linear-gradient(90deg, ${cur}, var(--accent))`, boxShadow:`0 0 8px ${cur}66`,
+              transition:'width 0.7s var(--ease-out)' }} />
+          </div>
+          <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:3 }}>
+            {rank.nextBy === 'sessions'
+              ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
+              : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontSize:10.5, color:'var(--player-2)', marginTop:9, textAlign:'center', fontWeight:600 }}>🏆 Höchster Rang erreicht — Interview-Bereit!</div>
+      )}
+    </div>
+  );
+}
+
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
@@ -743,6 +807,14 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName }) {
                 ? `Stark! Du hast ${bossName || 'den Interviewer'} bezwungen — nur noch ${r.playerHp ?? '?'} HP übrig bei dir.`
                 : `So nah! ${bossName || 'Der Interviewer'} hatte nur ${r.bossHp ?? '?'} HP übrig. Beim nächsten Mal knackst du ihn.`}
             </div>
+            {data?.progress?.personalBest && (
+              <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
+                fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em',
+                color:'#04070d', background:'linear-gradient(135deg,#fde68a,#fbbf24)', boxShadow:'0 0 22px rgba(251,191,36,0.55)',
+                animation:'rank-pop 0.7s var(--ease-spring)' }}>
+                🏆 BESTLEISTUNG!
+              </div>
+            )}
           </div>
 
           {/* Language toggle (Arabic explanations) */}
@@ -760,6 +832,36 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName }) {
             <CatBar label="Wortschatz"    value={cats.vocab}        color="#a78bfa" />
             <CatBar label="De-Eskalation" value={cats.deescalation} color="#f59e0b" />
           </Section>
+
+          {/* ── Dein Fortschritt: readiness rank + one improvement trend line ── */}
+          {(data?.progress?.rank || data?.progress?.trend?.fluency?.length > 1) && (
+            <Section title={ar ? 'تقدّمك · DEIN FORTSCHRITT' : 'DEIN FORTSCHRITT'} color="#a78bfa">
+              {data.progress.rank && <RankLadder rank={data.progress.rank} />}
+              {data.progress.trend?.fluency?.length > 1 && (() => {
+                const f = data.progress.trend.fluency;
+                const delta = f[f.length - 1] - f[0];
+                return (
+                  <div style={{ marginTop:11 }}>
+                    <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:5 }}>Flüssigkeit über deine letzten Sitzungen:</div>
+                    <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, letterSpacing:'0.02em' }}>
+                      {f.map((v, i) => (
+                        <span key={i}>
+                          <span style={{ color: i === f.length - 1 ? '#34d399' : '#94a3b8',
+                            textShadow: i === f.length - 1 ? '0 0 10px rgba(52,211,153,0.6)' : 'none' }}>{v}</span>
+                          {i < f.length - 1 && <span style={{ color:'#475569', margin:'0 7px' }}>→</span>}
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:10, marginTop:4, color: delta > 0 ? '#34d399' : delta < 0 ? '#f87171' : '#94a3b8' }}>
+                      {delta > 0 ? `+${delta} besser als zu Beginn dieser Reihe — du verbesserst dich.`
+                        : delta < 0 ? `${delta} heute — dranbleiben, der Trend dreht sich.`
+                        : 'Stabil — jetzt zum nächsten Sprung.'}
+                    </div>
+                  </div>
+                );
+              })()}
+            </Section>
+          )}
 
           {/* Progression: XP gained, level, rank, level-up, personal best marker */}
           {data?.progress && (
@@ -1088,7 +1190,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
 }
 
 // ── Component: RecallDrill (production-style spaced repetition) ────────────────
-function RecallDrill({ items, token, onDone }) {
+function RecallDrill({ items, token, onDone, lang = 'de' }) {
   const [idx, setIdx]       = useState(0);
   const [answer, setAnswer] = useState('');
   const [result, setResult] = useState(null);   // {correct, expected, fast}
@@ -1156,9 +1258,10 @@ function RecallDrill({ items, token, onDone }) {
             <div style={{ fontSize:12, color:'#cbd5e1', marginTop:3 }}>
               Lösung: <b style={{ color:'#e2e8f0' }}>{result.expected}</b>
             </div>
-            {result.note && (
-              <div style={{ fontSize:11, color:'#fbbf24', marginTop:5, lineHeight:1.4 }}>
-                ⚠ {result.note}
+            {(result.note || result.note_ar) && (
+              <div style={{ fontSize:11, color:'#fbbf24', marginTop:5, lineHeight:1.4,
+                direction: lang === 'ar' ? 'rtl' : 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}>
+                ⚠ {lang === 'ar' && result.note_ar ? result.note_ar : result.note}
               </div>
             )}
           </div>
@@ -1372,7 +1475,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [roundFlash, setRoundFlash] = useState(null); // {id, n, label} round-advance banner
   const [feedbackLang, setFeedbackLang] = useState(loadFeedbackLang); // 'de'|'ar' — explanation language
   const chooseFeedbackLang = useCallback((l) => { setFeedbackLang(l); saveFeedbackLang(l); }, []);
-  const [streak, setStreak] = useState(loadStreakCache); // Trainingsserie (consecutive days)
+  const [streak, setStreak] = useState(loadStreakCache); // (legacy fight streak, kept)
+  const [daily, setDaily]   = useState({ streak: 0, completedToday: false }); // daily-training loop
+  const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
+  const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
@@ -1395,6 +1501,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const prevBossHpRef  = useRef(100);
   const prevPlayerHpRef = useRef(100);
   const prevIdxRef     = useRef(0);   // tracks the round index to detect advances
+  const pendingFightRef = useRef(null); // {planId, stepId} when a fight was launched from a Zielplan step
 
   const setPhaseSync = useCallback((p) => { phaseRef.current = p; setPhase(p); }, []);
   const chooseLevel  = useCallback((l) => { levelRef.current = l; setLevel(l); }, []);
@@ -1468,6 +1575,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setDebrief(msg);
         setDebriefPending(false);
         if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
+        // If this fight was launched from a Zielplan Mock-Kampf step, mark that step done.
+        if (pendingFightRef.current) {
+          const { planId, stepId } = pendingFightRef.current;
+          pendingFightRef.current = null;
+          fetch(`${API_URL}/api/plans/${planId}/steps/${stepId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
+            body: JSON.stringify({ done: true }),
+          }).catch(() => {});
+        }
         break;
 
       case S.PAYWALL:
@@ -1739,6 +1855,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     });
   }, [start]);
 
+  // Launch a real Mock-Kampf from a Zielplan fight step. The step is marked done once the
+  // debrief arrives (see the DEBRIEF handler). Goes through the normal paywall/entitlement gate.
+  const startFightForStep = useCallback((planId, stepId) => {
+    pendingFightRef.current = { planId, stepId };
+    setZielplanOpen(false);
+    beginSession();
+  }, [beginSession]);
+
   const openDashboard = useCallback(async () => {
     setDashboard({ data: null, loading: true });
     try {
@@ -1782,6 +1906,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         const data = await r.json();
         if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
         if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);
+        if (!cancelled && data.daily) setDaily(data.daily);   // daily-training streak + completedToday
+        if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
       } catch { /* keep cached value */ }
     })();
     return () => { cancelled = true; };
@@ -1832,12 +1958,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Zielplan (goal plan) — a separate coaching section layered over the arena */}
       {zielplanOpen && (
         <OverlayBoundary onClose={() => setZielplanOpen(false)}>
-          <Zielplan token={auth.token} apiUrl={API_URL} onClose={() => setZielplanOpen(false)} />
+          <Zielplan token={auth.token} apiUrl={API_URL} onClose={() => setZielplanOpen(false)} lang={feedbackLang} onStartFight={startFightForStep} />
+        </OverlayBoundary>
+      )}
+
+      {/* Tägliches Training — the cheap daily habit loop */}
+      {dailyOpen && (
+        <OverlayBoundary onClose={() => setDailyOpen(false)}>
+          <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            onClose={() => setDailyOpen(false)}
+            onComplete={(s) => setDaily({ streak: s.streak ?? 0, completedToday: true })} />
         </OverlayBoundary>
       )}
 
       {/* Spaced-repetition recall drill (before a fight or from the dashboard) */}
-      {review && <RecallDrill items={review.items} token={auth.token} onDone={handleDrillDone} />}
+      {review && <RecallDrill items={review.items} token={auth.token} onDone={handleDrillDone} lang={feedbackLang} />}
 
       {/* Progress dashboard */}
       {dashboard && (
@@ -1912,29 +2047,39 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         ) : (
           <div style={{ marginBottom:12 }}>
-            {/* Trainingsserie (training streak) — drives the cheap daily-return habit */}
-            <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:13, padding:'11px 13px',
-              borderRadius:'var(--r-md)',
-              background: streak > 0
-                ? 'linear-gradient(135deg, rgba(245,158,11,0.16), rgba(239,68,68,0.10))'
+            {/* Tägliches Training — big streak + the daily habit entry point */}
+            <button onClick={() => setDailyOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:10, marginBottom:9, padding:'8px 12px', borderRadius:'var(--r-md)',
+              background: daily.streak > 0
+                ? 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(239,68,68,0.10))'
                 : 'rgba(255,255,255,0.03)',
-              border:`1px solid ${streak > 0 ? 'rgba(245,158,11,0.45)' : 'var(--line)'}`,
-              boxShadow: streak > 0 ? '0 0 22px rgba(245,158,11,0.16)' : 'none',
+              border:`1px solid ${daily.completedToday ? 'rgba(16,185,129,0.45)' : daily.streak > 0 ? 'rgba(245,158,11,0.5)' : 'var(--line)'}`,
+              boxShadow: daily.streak > 0 ? '0 0 20px rgba(245,158,11,0.15)' : 'none',
               transition:'all var(--dur-slow)' }}>
-              <div style={{ fontSize:28, lineHeight:1,
-                filter: streak > 0 ? 'none' : 'grayscale(1)', opacity: streak > 0 ? 1 : 0.45,
-                animation: streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:15, letterSpacing:'0.04em',
-                  color: streak > 0 ? '#fbbf24' : '#94a3b8',
-                  textShadow: streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
-                  {streak > 0 ? `${streak} ${streak === 1 ? 'TAG' : 'TAGE'} · TRAININGSSERIE` : 'TRAININGSSERIE'}
+              <div style={{ fontSize:22, lineHeight:1,
+                filter: daily.streak > 0 ? 'none' : 'grayscale(1)', opacity: daily.streak > 0 ? 1 : 0.5,
+                animation: daily.streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
+                  color: daily.streak > 0 ? '#fbbf24' : '#94a3b8',
+                  textShadow: daily.streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
+                  Trainingsserie: {daily.streak} {daily.streak === 1 ? 'Tag' : 'Tage'}
                 </div>
-                <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:2, lineHeight:1.35 }}>
-                  {streak > 0 ? 'Trainiere heute, um deine Serie zu halten.' : 'Trainiere täglich und baue deine Serie auf.'}
+                <div style={{ fontSize:9, color:'#94a3b8', marginTop:2, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {daily.completedToday ? '✓ Heute erledigt — nochmal üben?' : 'Tägliches Training · 3–5 Min'}
                 </div>
               </div>
-            </div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.06em', whiteSpace:'nowrap',
+                padding:'6px 11px', borderRadius:'var(--r-pill)',
+                color: daily.completedToday ? 'var(--player-2)' : '#04070d',
+                background: daily.completedToday ? 'transparent' : 'linear-gradient(135deg, #fbbf24, var(--warn))',
+                border: daily.completedToday ? '1px solid var(--player)' : 'none' }}>
+                {daily.completedToday ? '✓ ERLEDIGT' : 'START ▸'}
+              </div>
+            </button>
+
+            {/* Interview-readiness rank ladder (visible progress on the home screen) */}
+            {rank && <div style={{ marginBottom:13 }}><RankLadder rank={rank} /></div>}
 
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',
               color:'var(--accent-dim)', textAlign:'center', marginBottom:9 }}>
@@ -1982,136 +2127,129 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         )}
 
-        {/* HP bars */}
-        <HpBar label="BOSS HP"  value={bossHp}   isPlayer={false} reason={bossReason} />
-        <HpBar label="DEINE HP" value={playerHp} isPlayer={true}  reason={playerReason} />
-
         {/* Phase 2: live performance HUD (appears once a fight is in progress) */}
         {funnel && <PerformanceHud wpm={liveWpm} fillers={fillerCount} combo={combo} />}
       </div>
 
-      {/* ── BOSS CARD ──────────────────────────────────────────────────── */}
-      <div style={{ padding:'10px 16px 0' }}>
-        <div style={{ borderRadius:16, position:'relative', overflow:'hidden',
-          background:'radial-gradient(120% 90% at 50% 0%, #0c1626 0%, #070d18 55%, #04070d 100%)',
+      {/* ── STAGE — the opponent fills the stage, framed by cinematic HP bars ── */}
+      <div style={{ padding:'4px 14px 0' }}>
+        {/* BOSS HP — top frame */}
+        <HpBar label="BOSS HP" value={bossHp} isPlayer={false} reason={bossReason} />
+
+        <div className={bossHurt ? 'hurt' : ''} style={{ marginTop:5, borderRadius:16, position:'relative', overflow:'hidden',
+          height:'min(50vh, 400px)', minHeight:300,
+          background:'radial-gradient(120% 85% at 50% -8%, #0d1828 0%, #070e1a 48%, #02050b 100%)',
           border:`1px solid ${boss.color}66`,
-          boxShadow:`0 0 34px ${boss.color}33, inset 0 0 60px rgba(0,0,0,0.6)`,
+          boxShadow:`0 0 44px ${boss.color}2e, inset 0 0 90px rgba(0,0,0,0.78)`,
           transition:'border-color 0.6s, box-shadow 0.6s' }}>
 
-          {/* drifting grid */}
-          <div style={{ position:'absolute', inset:0, opacity:0.05, pointerEvents:'none',
+          {/* cone of cold light from above — brightens while the boss speaks */}
+          <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:1,
+            background:`radial-gradient(${bossSpeak ? '52% 70%' : '46% 62%'} at 50% -4%, ${boss.color}${bossSpeak ? '5a' : '2e'}, transparent ${bossSpeak ? '68%' : '62%'})`,
+            animation:`portrait-glow ${bossSpeak ? '1.6s' : '3.5s'} ease-in-out infinite`, transition:'background 0.45s' }} />
+          {/* drifting depth grid */}
+          <div style={{ position:'absolute', inset:0, opacity:0.045, pointerEvents:'none', zIndex:1,
             backgroundImage:'linear-gradient(rgba(0,255,200,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,0.5) 1px,transparent 1px)',
-            backgroundSize:'28px 28px', animation:'grid-drift 6s linear infinite' }} />
-          {/* emotion glow */}
-          <div style={{ position:'absolute', inset:0, pointerEvents:'none',
-            background:`radial-gradient(62% 52% at 50% 30%, ${boss.color}33, transparent 70%)`,
-            animation:'portrait-glow 3.5s ease-in-out infinite', transition:'background 0.6s' }} />
-          {/* vignette */}
-          <div style={{ position:'absolute', inset:0, pointerEvents:'none',
-            background:'radial-gradient(120% 100% at 50% 36%, transparent 46%, rgba(0,0,0,0.66) 100%)' }} />
+            backgroundSize:'30px 30px', animation:'grid-drift 6s linear infinite' }} />
+          {/* edge vignette — the dark interview room */}
+          <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:2,
+            background:'radial-gradient(135% 100% at 50% 32%, transparent 38%, rgba(0,0,0,0.82) 100%)' }} />
 
           {/* ENDGEGNER ribbon */}
-          <div style={{ position:'absolute', top:10, left:12, zIndex:4,
-            fontFamily:'Orbitron,monospace', fontSize:9, letterSpacing:'0.16em',
-            color:'#fca5a5', padding:'3px 8px', borderRadius:4,
-            background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)' }}>
-            ⚔ ENDGEGNER
-          </div>
-          {/* emotion badge */}
-          <div style={{ position:'absolute', top:10, right:12, zIndex:4,
-            fontFamily:'Orbitron,monospace', fontSize:9, letterSpacing:'0.12em',
-            color:boss.color, padding:'3px 8px', borderRadius:4,
+          <div style={{ position:'absolute', top:10, left:12, zIndex:5,
+            fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.16em',
+            color:'#fca5a5', padding:'3px 9px', borderRadius:'var(--r-pill)',
+            background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)' }}>⚔ ENDGEGNER</div>
+          {/* emotion badge — the boss's state */}
+          <div style={{ position:'absolute', top:10, right:12, zIndex:5,
+            fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.12em',
+            color:boss.color, padding:'3px 9px', borderRadius:'var(--r-pill)',
             background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
-            textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>
-            {boss.label}
-          </div>
+            textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
 
           {/* flying damage number */}
           {bossDmgFloat && (
-            <div key={bossDmgFloat.id} style={{ position:'absolute', left:'50%', top:50, zIndex:6,
-              pointerEvents:'none', fontFamily:'Orbitron,monospace', fontWeight:900, fontSize:42,
-              color:'#34d399', textShadow:'0 0 20px rgba(52,211,153,0.95), 0 0 6px #fff',
-              animation:'dmg-float 1s ease-out forwards' }}>
-              −{bossDmgFloat.amount}
-            </div>
+            <div key={bossDmgFloat.id} style={{ position:'absolute', left:'50%', top:'30%', zIndex:7, transform:'translateX(-50%)',
+              pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:900, fontSize:48,
+              color:'#34d399', textShadow:'0 0 22px rgba(52,211,153,0.95), 0 0 6px #fff',
+              animation:'dmg-float 1s ease-out forwards' }}>−{bossDmgFloat.amount}</div>
           )}
 
-          {/* the portrait */}
-          <div className={bossHurt ? 'hurt' : ''} style={{ position:'relative', zIndex:3,
-            height:214, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-            <div className={isActive && !bossSpeak ? 'breathe' : ''} style={{ width:202, height:210 }}>
-              <BossAvatar emotion={boss.face} speaking={bossSpeak} color={boss.color} />
+          {/* the lit opponent — leans in to listen while YOU speak; posture shifts with mood */}
+          <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:56, zIndex:3 }}>
+            <div style={{ width:'72%', maxWidth:300, height:'84%',
+              transform: `${userSpeak ? 'translateY(9px) scale(1.05)' : ''} ${POSTURE[emotion] || ''}`.trim() || 'none',
+              transition:'transform 0.5s var(--ease)' }}>
+              <div className={isActive && !bossSpeak && !userSpeak ? 'breathe' : ''} style={{ width:'100%', height:'100%' }}>
+                <BossAvatar emotion={boss.face} speaking={bossSpeak} color={boss.color} />
+              </div>
             </div>
           </div>
+          {/* the room darkens while the candidate speaks — the spotlight shifts to them */}
+          <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:4,
+            background:'radial-gradient(120% 100% at 50% 38%, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.62) 100%)',
+            opacity: userSpeak ? 1 : 0, transition:'opacity 0.45s' }} />
 
-          {/* name plate */}
-          <div style={{ position:'relative', zIndex:4, textAlign:'center', padding:'0 12px 13px' }}>
-            <div style={{ fontFamily:'Orbitron,monospace', fontSize:20, fontWeight:900, color:'#fff',
-              letterSpacing:'0.03em', lineHeight:1,
-              textShadow:`0 0 18px ${boss.color}aa, 0 2px 10px rgba(0,0,0,0.85)`, transition:'text-shadow 0.5s' }}>
+          {/* name + tags at the base of the stage */}
+          <div style={{ position:'absolute', left:0, right:0, bottom:10, zIndex:6, textAlign:'center', padding:'0 12px' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:700, color:'#fff',
+              letterSpacing:'0.04em', lineHeight:1, textShadow:`0 0 18px ${boss.color}aa, 0 2px 10px rgba(0,0,0,0.9)`, transition:'text-shadow 0.5s' }}>
               {funnel?.displayName ?? 'DEIN GEGNER'}
             </div>
-            {!funnel && (
-              <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4, letterSpacing:'0.03em' }}>
-                Dein nächster Interview-Gegner wartet.
-              </div>
-            )}
-            <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:9 }}>
+            {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interview-Gegner wartet.</div>}
+            <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:7 }}>
               {[['◆','HOCHDRUCK'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
                 <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 9px',
                   borderRadius:'var(--r-pill)', letterSpacing:'0.1em', display:'inline-flex', alignItems:'center', gap:5,
-                  background:`${boss.color}12`, border:`1px solid ${boss.color}55`, color:'#e2e8f0',
-                  boxShadow:`0 0 10px ${boss.color}22` }}>
+                  background:`${boss.color}12`, border:`1px solid ${boss.color}55`, color:'#e2e8f0', boxShadow:`0 0 10px ${boss.color}22` }}>
                   <span style={{ color:boss.color, fontSize:7 }}>{ic}</span>{t}
                 </span>
               ))}
             </div>
           </div>
         </div>
+
+        {/* DEINE HP — bottom frame */}
+        <div style={{ marginTop:6 }}>
+          <HpBar label="DEINE HP" value={playerHp} isPlayer={true} reason={playerReason} />
+        </div>
       </div>
 
-      {/* ── DIALOGUE BOX ───────────────────────────────────────────────── */}
-      <div style={{ padding:'10px 16px 0' }}>
-        <div style={{ borderRadius:8, padding:12, position:'relative',
-          background:'linear-gradient(135deg,rgba(0,30,60,0.82),rgba(0,15,30,0.95))',
-          border:'1px solid rgba(0,200,255,0.22)', boxShadow:'0 0 14px rgba(0,200,255,0.08)' }}>
-          <div style={{ position:'absolute', top:-7, left:30, width:13, height:13,
-            background:'rgba(0,30,60,0.85)', transform:'rotate(45deg)',
-            borderTop:'1px solid rgba(0,200,255,0.22)', borderLeft:'1px solid rgba(0,200,255,0.22)' }} />
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9.5, letterSpacing:'0.16em',
-            color:'var(--accent)', textShadow:'var(--glow-accent)', marginBottom:6 }}>{(funnel?.displayName ?? 'DEIN GEGNER')} SAGT:</div>
-          <p style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.65, minHeight:38 }}>
+      {/* ── SUBTITLE STRIP — boss line + live transcript, one film-subtitle panel ── */}
+      <div style={{ padding:'8px 14px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+        <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', borderRadius:'var(--r-md)',
+          background:'linear-gradient(180deg, rgba(0,22,44,0.55), rgba(0,8,18,0.85))',
+          border:'1px solid var(--line)', boxShadow:'inset 0 0 30px rgba(0,0,0,0.45)', overflow:'hidden' }}>
+          {/* who is speaking + live score flash */}
+          <div style={{ padding:'6px 12px', display:'flex', alignItems:'center', gap:8,
+            borderBottom:'1px solid var(--line)', background:'rgba(0,0,0,0.25)' }}>
+            <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.14em',
+              color: bossSpeak ? boss.color : userSpeak ? 'var(--player)' : 'var(--text-dim)',
+              textShadow: bossSpeak ? `0 0 8px ${boss.color}` : 'none', transition:'color 0.3s' }}>
+              {bossSpeak ? `${funnel?.displayName ?? 'GEGNER'} SPRICHT` : userSpeak ? 'DU SPRICHST' : isActive ? 'DIALOG' : 'INTERVIEW'}
+            </span>
+            {userSpeak && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--player)', boxShadow:'0 0 6px var(--player)', animation:'pulse 0.8s infinite' }} />}
+            <div style={{ flex:1 }} />
+            {scoreFlash && (
+              <span className="flash" style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10,
+                color: scoreFlash.score >= 60 ? '#34d399' : '#f87171' }}>
+                ⚡ {scoreFlash.score}/100{scoreFlash.damage > 0 ? ` · −${scoreFlash.damage} HP` : ''}
+              </span>
+            )}
+          </div>
+          {/* the boss's current line — the prominent subtitle */}
+          <div style={{ padding:'9px 13px 5px', fontSize:13.5, color:'#e2e8f0', lineHeight:1.6, minHeight:34 }}>
             {bossText
               ? bossText
               : isActive
-                ? <span style={{ color:'#475569', animation:'pulse 1.2s infinite' }}>{(funnel?.displayName ?? 'Der Gegner')} spricht…</span>
-                : <span style={{ color:'#334155' }}>Interview noch nicht gestartet.</span>
-            }
-          </p>
-
-          {/* Score flash */}
-          {scoreFlash && (
-            <div className="flash" style={{ marginTop:8, padding:'7px 10px', borderRadius:6,
-              background: scoreFlash.score >= 60 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
-              border:`1px solid ${scoreFlash.score >= 60 ? '#10b98140' : '#ef444440'}`,
-              color:  scoreFlash.score >= 60 ? '#34d399' : '#f87171',
-              fontSize:11, lineHeight:1.5 }}>
-              <span style={{ fontFamily:'Orbitron,monospace', fontSize:9, letterSpacing:'0.1em' }}>
-                KAMPFWERTUNG
-              </span><br />
-              ⚡ Score {scoreFlash.score}/100 · {scoreFlash.damage > 0 ? `−${scoreFlash.damage} HP` : 'Kein Schaden'}
-            </div>
-          )}
+                ? <span style={{ color:'#475569', animation:'pulse 1.2s infinite' }}>{funnel?.displayName ?? 'Der Gegner'} spricht…</span>
+                : <span style={{ color:'#334155' }}>Interview noch nicht gestartet.</span>}
+          </div>
+          {/* transcript log */}
+          <div style={{ flex:1, minHeight:0, padding:'0 6px 6px' }}>
+            <TranscriptPanel lines={transcript} userSpeak={userSpeak} />
+          </div>
         </div>
-      </div>
-
-      {/* ── TRANSCRIPT ─────────────────────────────────────────────────── */}
-      <div style={{ padding:'10px 16px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
-        <div style={{ fontSize:9.5, color:'var(--text-faint)', fontFamily:'var(--font-display)', fontWeight:600, letterSpacing:'0.14em', marginBottom:5 }}>
-          LIVE TRANSKRIPT
-          {userSpeak && <span style={{ marginLeft:8, color:'var(--player)', animation:'pulse 0.8s infinite' }}>● SPRICHT</span>}
-        </div>
-        <TranscriptPanel lines={transcript} userSpeak={userSpeak} />
       </div>
 
       {/* ── MIC + CONTROLS (pinned to viewport bottom so the START button is
@@ -2129,19 +2267,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />
 
-        <div style={{ margin:'10px 0 14px' }}>
-          <div style={{ fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.15em',
-            color: isActive ? '#00e5ff' : '#475569',
-            textShadow: isActive ? '0 0 10px rgba(0,229,255,0.5)' : 'none',
+        <div style={{ margin:'6px 0 12px' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.18em',
+            fontSize: (isActive && !bossSpeak && !userSpeak) ? 24 : 13,
+            color: bossSpeak ? boss.color : isActive ? 'var(--accent)' : isConnecting ? 'var(--warn)' : '#475569',
+            textShadow: (isActive && !bossSpeak) ? '0 0 16px rgba(0,229,255,0.6)' : bossSpeak ? `0 0 12px ${boss.color}` : 'none',
             transition:'all 0.3s' }}>
-            {isActive
-              ? bossSpeak ? 'BOSS SPRICHT…' : userSpeak ? 'MICROPHONE AKTIV' : 'HÖRE ZU…'
+            {bossSpeak ? 'GEGNER SPRICHT…'
+              : isActive ? (userSpeak ? 'DU SPRICHST…' : 'SPRICH')
               : isConnecting ? 'VERBINDE…' : 'BEREIT ZUM KAMPF'}
           </div>
-          {isActive && (
-            <div style={{ fontSize:9, color:'#334155', marginTop:3 }}>
-              Kein Push-to-Talk — spreche einfach Deutsch
-            </div>
+          {isActive && !bossSpeak && (
+            <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Kein Push-to-Talk — sprich einfach Deutsch</div>
           )}
         </div>
 

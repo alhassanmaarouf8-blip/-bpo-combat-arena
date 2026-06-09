@@ -8,7 +8,8 @@
 import express from 'express';
 import { loadUser, saveUser }                 from './store.js';
 import { dueItems, dueCount, grade, checkAnswer } from './srs.js';
-import { levelProgress, bossForLevel, nextBoss, computeStreak } from './progression.js';
+import { levelProgress, bossForLevel, nextBoss, computeStreak, computeRank } from './progression.js';
+import { dailyStatus } from './daily.js';
 import { requireAuth, publicAccount }          from './auth.js';
 
 export const progressRouter = express.Router();
@@ -25,6 +26,8 @@ function buildDashboard(p) {
     level:         p.level,
     xp:            p.xp,
     streak:        computeStreak(sessions),
+    daily:         dailyStatus(p),   // { streak, completedToday, best } — the daily-training loop
+    rank:          computeRank(sessions),  // interview-readiness rank ladder
     levelProgress: lp,
     currentBoss:   boss,
     nextBoss:      upcoming,
@@ -81,7 +84,7 @@ progressRouter.post('/review/grade', requireAuth, async (req, res) => {
     const item = (p.srs || []).find((i) => i.id === id);
     if (!item) return res.status(404).json({ error: 'not_found' });
 
-    const { correct, note } = checkAnswer(answer, item.answer);
+    const { correct, note, note_ar } = checkAnswer(answer, item.answer);
     grade(p, id, correct, Date.now());
 
     // Mastered grammar rules graduate to the dashboard list.
@@ -93,6 +96,7 @@ progressRouter.post('/review/grade', requireAuth, async (req, res) => {
     res.json({
       correct,
       note,                       // gentle capitalization nudge (German nouns), or ''
+      note_ar,                    // same nudge in Arabic (for the toggle)
       expected: item.answer,
       mastered: !!item.mastered,
       // Automaticity nudge: a confident live-call answer comes fast.

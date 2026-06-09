@@ -41,6 +41,69 @@ export function levelProgress(xp) {
   return { level, intoLevel: intoLvl, perLevel: XP_PER_LEVEL, pct: Math.round((intoLvl / XP_PER_LEVEL) * 100) };
 }
 
+// ── Interview-readiness rank ladder ───────────────────────────────────────────
+// Computed from STORED session scores (backend = source of truth). Fluency is the
+// spine; clean speech (few fillers) and real structure (connectors) nudge it; top
+// tiers require some experience so one lucky session can't fake "Interview-Bereit".
+export const RANKS = ['Rekrut', 'Anwärter', 'Geübt', 'Profi', 'Interview-Bereit'];
+// Each tier needs BOTH a minimum readiness score AND a minimum number of sessions
+// (so a couple of lucky sessions can't fake the top ranks).
+const TIER_REQ = [
+  { minScore: 0,  minSessions: 0 },
+  { minScore: 42, minSessions: 0 },
+  { minScore: 58, minSessions: 0 },
+  { minScore: 72, minSessions: 4 },
+  { minScore: 85, minSessions: 6 },
+];
+
+export function computeRank(sessions) {
+  const list   = Array.isArray(sessions) ? sessions : [];
+  const recent = list.slice(-5);
+  const n      = list.length;
+
+  let score = 0;
+  if (recent.length) {
+    const mean = (a) => a.reduce((s, x) => s + (x || 0), 0) / a.length;
+    const avgFluency = mean(recent.map((s) => s.fluency ?? 0));
+    const avgFillers = mean(recent.map((s) => s.fillers ?? 0));
+    const avgConn    = mean(recent.map((s) => s.connectorHits ?? 0));
+    score = avgFluency;
+    if (avgFillers <= 3) score += 6; else if (avgFillers >= 10) score -= 6;
+    if (avgConn >= 2) score += 4;
+    score = Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  // Highest tier whose score AND session requirements are both met.
+  let tier = 0;
+  for (let i = 0; i < TIER_REQ.length; i++) {
+    if (score >= TIER_REQ[i].minScore && n >= TIER_REQ[i].minSessions) tier = i;
+  }
+  const isMax = tier >= RANKS.length - 1;
+  const next  = isMax ? null : TIER_REQ[tier + 1];
+
+  // HONEST "to next" — if the score already qualifies but more sessions are required,
+  // report that (sessions), not a misleading 100%.
+  let toNextPct = 100, nextBy = null, sessionsToNext = 0;
+  if (next) {
+    const scoreGap = Math.max(0, next.minScore - score);
+    sessionsToNext = Math.max(0, next.minSessions - n);
+    if (scoreGap > 0) {
+      nextBy = 'score';
+      const lo = TIER_REQ[tier].minScore, hi = next.minScore;
+      toNextPct = Math.max(0, Math.min(100, Math.round(((score - lo) / (hi - lo)) * 100)));
+    } else if (sessionsToNext > 0) {
+      nextBy = 'sessions';
+      toNextPct = 100;
+    }
+  }
+
+  return {
+    tier, label: RANKS[tier], score, sessions: n,
+    nextLabel: isMax ? null : RANKS[tier + 1],
+    toNextPct, nextBy, sessionsToNext, ranks: RANKS,
+  };
+}
+
 /**
  * Consecutive-day training streak ("Trainingsserie") from session timestamps.
  * Counts back from today (or yesterday, if no session yet today) over unbroken days.

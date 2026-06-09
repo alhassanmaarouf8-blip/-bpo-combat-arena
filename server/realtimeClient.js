@@ -100,6 +100,14 @@ Beginne mit: "Guten Tag. Bitte schildern Sie kurz Ihren beruflichen Werdegang."`
 
 const DEFAULT_BOSS = 'herr-tariq';
 
+// ── Rescue move: the boss eases up when the candidate is clearly stuck ──────────
+// Triggers: >RESCUE_SILENCE_MS of no speech after a boss turn, OR (from the gateway)
+// two broken answers in a row. It only ever sends one extra gentle line via the SAME
+// response.create path used for the opening line — the audio pipeline / VAD are untouched.
+// Set RESCUE_ENABLED = false to disable instantly if it ever misbehaves.
+const RESCUE_ENABLED    = true;
+const RESCUE_SILENCE_MS = 6000;
+
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 export class RealtimeClient {
@@ -130,6 +138,7 @@ export class RealtimeClient {
       displayName: this._boss.displayName,
       greeting:    this._boss.greeting,
       levelId:     opts.level,
+      dossier:     opts.dossier,   // recurring weak rule, so the boss can reference past struggles
     });
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).
@@ -152,6 +161,9 @@ export class RealtimeClient {
     this._maxRetries      = 3;
     this._activeResponseId = null;   // id of the in-flight OAI response, or null
     this._pendingResponse  = null;   // interrupt reply deferred until the cancel completes
+    this._silenceTimer  = null;      // rescue: fires if the candidate stays silent after a boss turn
+    this._rescueCooling = false;     // rescue: at most one rescue per stuck episode
+    this._pendingRescue = null;      // rescue: reason, deferred until the current boss turn ends
   }
 
   // True while the boss is mid-turn (used to end a completed session without cutting audio).
@@ -249,6 +261,11 @@ export class RealtimeClient {
           const reply = this._pendingResponse;
           this._pendingResponse = null;
           this._sendEvent('response.create', reply);
+        } else if (this._activeResponseId === null) {
+          // Boss turn over and nothing else queued: a deferred "weak answers" rescue fires
+          // now; otherwise wait for the candidate and arm the silence rescue.
+          if (this._pendingRescue) { const why = this._pendingRescue; this._pendingRescue = null; this._fireRescue(why); }
+          else this._armSilenceRescue();
         }
         break;
       case OAI.ERROR:                  this._onOaiError(event);        break;
@@ -314,6 +331,9 @@ export class RealtimeClient {
   _onSpeechStarted() {
     this._speechStartedAt = Date.now();
     this._transcriptBuf   = '';
+    // The candidate is answering: cancel any pending silence rescue and re-arm for next turn.
+    this._clearSilenceTimer();
+    this._rescueCooling = false;
     console.log(`[realtimeClient] Speech started  session=${this._sessionId}`);
   }
 
@@ -409,6 +429,7 @@ export class RealtimeClient {
   async close() {
     if (this._closing) return;
     this._closing = true;
+    this._clearSilenceTimer();
     console.log(`[realtimeClient] Closing  session=${this._sessionId}`);
 
     if (this._ws && this._connected) {
@@ -422,6 +443,34 @@ export class RealtimeClient {
   }
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Event send helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+
+  // ── Rescue move ────────────────────────────────────────────────────────────
+  _clearSilenceTimer() { if (this._silenceTimer) { clearTimeout(this._silenceTimer); this._silenceTimer = null; } }
+
+  _armSilenceRescue() {
+    this._clearSilenceTimer();
+    if (!RESCUE_ENABLED || this._closing || this._rescueCooling) return;
+    this._silenceTimer = setTimeout(() => { this._silenceTimer = null; this._fireRescue('silence'); }, RESCUE_SILENCE_MS);
+    this._silenceTimer.unref?.();
+  }
+
+  // Public: the gateway calls this after two broken answers. Fires now if the boss is idle,
+  // otherwise defers until the current boss turn finishes (see RESPONSE_DONE).
+  requestRescue(reason = 'weak') {
+    if (!RESCUE_ENABLED) return;
+    if (this._activeResponseId === null) this._fireRescue(reason);
+    else this._pendingRescue = reason;
+  }
+
+  _fireRescue(reason) {
+    if (!RESCUE_ENABLED || this._closing || this._rescueCooling || this._activeResponseId !== null) return;
+    this._rescueCooling = true;   // one rescue per stuck episode; reset when the candidate speaks
+    console.log(`[realtimeClient] Rescue (${reason})  session=${this._sessionId}`);
+    const instr = reason === 'silence'
+      ? `Der Kandidat schweigt und scheint blockiert. Bleib in deiner Rolle, aber HILF kurz: stelle deine letzte Frage EINFACHER und kürzer neu und ermutige in einem Satz ("Nehmen Sie sich ruhig Zeit…"). Höchstens zwei kurze Sätze.`
+      : `Der Kandidat hat mehrfach Mühe. Bleib in deiner Rolle, aber LASS ETWAS NACH: vereinfache, gib einen kleinen Hinweis oder ein Anfangswort und ermutige knapp. Höchstens zwei kurze Sätze.`;
+    this._sendEvent('response.create', { response: { instructions: instr, output_modalities: ['audio'] } });
+  }
 
   _sendEvent(type, payload) {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;

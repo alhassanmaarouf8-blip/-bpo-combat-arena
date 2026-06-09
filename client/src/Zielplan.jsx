@@ -6,7 +6,9 @@
  * the single source of truth. NO AI here and the voice interview is NOT touched — step
  * guidance (Phase 2) and launching the mock fight (Phase 3) come later.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ClipRecorder } from './clipRecorder.js';
+import { checkAudioSupport } from './audioRecorder.js';
 
 const STEP_META = {
   research: { label: 'Recherche',   icon: '🔍', color: 'var(--accent)',   hint: 'Thema recherchieren → Ergebnisse einfügen' },
@@ -16,7 +18,7 @@ const STEP_META = {
 };
 const todayStr = () => { try { return new Date().toISOString().slice(0, 10); } catch { return ''; } };
 
-export default function Zielplan({ token, apiUrl, onClose }) {
+export default function Zielplan({ token, apiUrl, onClose, lang = 'de', onStartFight }) {
   const [plans, setPlans] = useState(null);   // null = loading
   const [active, setActive] = useState(null); // the open plan
   const [err, setErr] = useState('');
@@ -80,6 +82,19 @@ export default function Zielplan({ token, apiUrl, onClose }) {
   const sendForFeedback = async (stepId, input) => {
     try {
       const r = await fetch(`${apiUrl}/api/plans/${active.id}/steps/${stepId}/feedback`, { method: 'POST', headers: headers(), body: JSON.stringify({ input, level: 'a2-b1' }) });
+      const d = await r.json();
+      if (d.plan) setActive(d.plan);
+      return d;
+    } catch { return { error: 'net' }; }
+  };
+  // Speaking step: upload the recorded WAV → transcript + metrics + feedback (cheap models).
+  const sendSpeech = async (stepId, blob, durationMs) => {
+    try {
+      const r = await fetch(`${apiUrl}/api/plans/${active.id}/steps/${stepId}/speak?ms=${durationMs}&level=a2-b1`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'audio/wav', Authorization: `Bearer ${token}` },
+        body: blob,
+      });
       const d = await r.json();
       if (d.plan) setActive(d.plan);
       return d;
@@ -171,7 +186,10 @@ export default function Zielplan({ token, apiUrl, onClose }) {
                       {st.daysLeft < 0 ? 'überfällig' : st.daysLeft === 0 ? 'heute fällig' : `${st.daysLeft} Tg. übrig`}
                     </span>
                   </div>
-                  <div style={{ fontSize: 9.5, color: 'var(--text-dim)', marginTop: 2 }}>Frist {p.deadline} · {st.done}/{st.total} Schritte · {st.fights}/{p.maxFights} ⚔</div>
+                  <div style={{ fontSize: 9.5, color: 'var(--text-dim)', marginTop: 2 }}>
+                    Frist {p.deadline} · {st.done}/{st.total} Schritte · {st.fights}/{p.maxFights} ⚔
+                    {st.total > 0 && st.done === st.total && <span style={{ color: '#34d399', fontWeight: 600 }}> · ✓ abgeschlossen</span>}
+                  </div>
                   <ProgressBar pct={st.pct} />
                 </button>
               );
@@ -183,13 +201,14 @@ export default function Zielplan({ token, apiUrl, onClose }) {
         {active && <PlanView plan={active} stats={planStats(active)}
           onAddDay={addDay} onAddStep={addStep} onRemoveStep={removeStep} onRemoveDay={removeDay}
           onToggle={toggleStep} onDelete={() => deletePlan(active.id)}
-          onGenerate={generateTask} onFeedback={sendForFeedback} />}
+          onGenerate={generateTask} onFeedback={sendForFeedback} onSpeak={sendSpeech} lang={lang}
+          onStartFight={onStartFight ? (stepId) => onStartFight(active.id, stepId) : null} />}
       </div>
     </div>
   );
 }
 
-function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay, onToggle, onDelete, onGenerate, onFeedback }) {
+function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay, onToggle, onDelete, onGenerate, onFeedback, onSpeak, lang, onStartFight }) {
   const [newDay, setNewDay] = useState('');
   return (
     <>
@@ -202,6 +221,16 @@ function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay,
         <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>{stats.done} von {stats.total} Schritten erledigt ({stats.pct}%)</div>
       </div>
 
+      {stats.total > 0 && stats.done === stats.total && (
+        <div style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', textAlign: 'center',
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.16), rgba(0,229,255,0.08))',
+          border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 22px rgba(16,185,129,0.18)' }}>
+          <div style={{ fontSize: 28, lineHeight: 1, animation: 'rank-pop 0.7s var(--ease-spring)' }}>🎯</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#34d399', marginTop: 4, textShadow: '0 0 12px rgba(16,185,129,0.5)' }}>Plan abgeschlossen!</div>
+          <div style={{ fontSize: 10.5, color: '#a7f3d0', marginTop: 2 }}>Alle {stats.total} Schritte erledigt. Bereit fürs echte Interview.</div>
+        </div>
+      )}
+
       {/* add a day */}
       <div style={{ ...card, display: 'flex', gap: 8, alignItems: 'center' }}>
         <input type="date" value={newDay} min={todayStr()} max={plan.deadline} onChange={(e) => setNewDay(e.target.value)} style={{ ...input, flex: 1 }} />
@@ -211,7 +240,7 @@ function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay,
       {(plan.days || []).length === 0 && <div style={{ color: 'var(--text-faint)', fontSize: 12, fontStyle: 'italic' }}>Noch keine Tage. Füge oben den ersten Trainingstag hinzu.</div>}
       {(plan.days || []).map((day) => (
         <DayCard key={day.id} day={day} onAddStep={onAddStep} onRemoveStep={onRemoveStep} onRemoveDay={onRemoveDay}
-          onToggle={onToggle} onGenerate={onGenerate} onFeedback={onFeedback} />
+          onToggle={onToggle} onGenerate={onGenerate} onFeedback={onFeedback} onSpeak={onSpeak} lang={lang} onStartFight={onStartFight} />
       ))}
 
       <button onClick={onDelete} style={{ ...btnGhost, color: '#fca5a5', borderColor: 'rgba(239,68,68,0.35)', marginTop: 6 }}>PLAN LÖSCHEN</button>
@@ -219,7 +248,7 @@ function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay,
   );
 }
 
-function DayCard({ day, onAddStep, onRemoveStep, onRemoveDay, onToggle, onGenerate, onFeedback }) {
+function DayCard({ day, onAddStep, onRemoveStep, onRemoveDay, onToggle, onGenerate, onFeedback, onSpeak, lang, onStartFight }) {
   const [type, setType] = useState('research');
   const [topic, setTopic] = useState('');
   const dateLabel = (() => { try { return new Date(day.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }); } catch { return day.date; } })();
@@ -251,7 +280,7 @@ function DayCard({ day, onAddStep, onRemoveStep, onRemoveDay, onToggle, onGenera
               </div>
               <button onClick={() => onRemoveStep(day.id, s.id)} style={xBtn}>✕</button>
             </div>
-            <StepRunner step={s} onGenerate={onGenerate} onFeedback={onFeedback} />
+            <StepRunner step={s} onGenerate={onGenerate} onFeedback={onFeedback} onSpeak={onSpeak} lang={lang} onStartFight={onStartFight} />
           </div>
         );
       })}
@@ -271,16 +300,31 @@ function DayCard({ day, onAddStep, onRemoveStep, onRemoveDay, onToggle, onGenera
 }
 
 // Interactive guidance for steps 1–3 (cheap text model). Step 4 (fight) is Phase 3.
-function StepRunner({ step, onGenerate, onFeedback }) {
+function StepRunner({ step, onGenerate, onFeedback, onSpeak, lang, onStartFight }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState(step.result?.input || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const ar = lang === 'ar';
   const task = step.result?.task;
-  const feedback = step.result?.feedback;
+  const feedback = ar && step.result?.feedback_ar ? step.result.feedback_ar : step.result?.feedback;
 
   if (step.type === 'fight') {
-    return <div style={{ fontSize: 9, color: 'var(--text-faint)', marginLeft: 29, marginTop: 2 }}>⚔ Voller Mock-Kampf — Start kommt in Phase 3.</div>;
+    return (
+      <div style={{ marginLeft: 29, marginTop: 5 }}>
+        <button onClick={() => onStartFight?.(step.id)} disabled={!onStartFight}
+          style={{ ...btnPrimary, border: '1px solid var(--boss)', background: 'linear-gradient(135deg, #f97316, var(--boss))', opacity: onStartFight ? 1 : 0.5 }}>
+          ⚔ MOCK-KAMPF STARTEN
+        </button>
+        <div style={{ fontSize: 9, color: 'var(--text-faint)', marginTop: 4 }}>
+          {step.done ? '✓ Schon absolviert — du kannst erneut antreten.' : 'Startet das volle Voice-Interview. Danach kehrst du zum Plan zurück.'}
+        </div>
+      </div>
+    );
+  }
+  // A SPEAKING task must involve SPEAKING — never a text box as primary input.
+  if (step.type === 'speaking') {
+    return <SpeakingRunner step={step} onGenerate={onGenerate} onSpeak={onSpeak} lang={lang} />;
   }
   const genLabel = step.type === 'research' ? 'Leitfragen generieren' : step.type === 'speaking' ? 'Sprech-Aufgabe' : 'Übung generieren';
 
@@ -313,10 +357,120 @@ function StepRunner({ step, onGenerate, onFeedback }) {
           </button>
           {err && <div style={{ color: '#fca5a5', fontSize: 10 }}>⚠ {err}</div>}
           {feedback && (
-            <div style={feedbackBox}>
+            <div style={{ ...feedbackBox, direction: ar ? 'rtl' : 'ltr', textAlign: ar ? 'right' : 'left' }}>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 8.5, letterSpacing: '0.1em', color: 'var(--player-2)', marginBottom: 4 }}>FEEDBACK</div>
               <div style={{ whiteSpace: 'pre-wrap' }}>{feedback}</div>
             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Sprechen step: record a spoken answer (reusing the mic), transcribe + give feedback.
+function SpeakingRunner({ step, onGenerate, onSpeak, lang }) {
+  const [open, setOpen]   = useState(!!step.result?.transcript);
+  const [phase, setPhase] = useState('idle');   // idle | recording | processing
+  const [elapsed, setEl]  = useState(0);
+  const [vol, setVol]     = useState(0);
+  const [err, setErr]     = useState('');
+  const [task, setTask]   = useState(step.result?.task || '');
+  const [busyTask, setBusyTask] = useState(false);
+  const recRef = useRef(null);
+  const timerRef = useRef(null);
+  const ar = lang === 'ar';
+  const MAX = 90;
+
+  const r = step.result || {};
+  const transcript = r.transcript;
+  const fb  = ar && r.feedback_ar ? r.feedback_ar : r.feedback;
+  const wpm = r.wpm ?? 0, fillers = r.fillers ?? 0;
+  const support = checkAudioSupport();
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); recRef.current?.stop?.().catch(() => {}); }, []);
+
+  const stopRec = async () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (!recRef.current) return;
+    setPhase('processing'); setVol(0);
+    try {
+      const { blob, durationMs } = await recRef.current.stop();
+      recRef.current = null;
+      const d = await onSpeak(step.id, blob, durationMs);
+      if (d?.error) { setErr(d.error === 'no_api_key' ? 'KI nicht verfügbar (kein API-Key).' : 'Verarbeitung fehlgeschlagen.'); }
+    } catch { setErr('Verarbeitung fehlgeschlagen.'); }
+    setPhase('idle');
+  };
+  const startRec = async () => {
+    setErr('');
+    if (!support.supported) { setErr('Mikrofon wird hier nicht unterstützt.'); return; }
+    try {
+      recRef.current = new ClipRecorder({ onVolume: (v) => setVol(v) });
+      await recRef.current.start();
+      setPhase('recording'); setEl(0);
+      timerRef.current = setInterval(() => setEl((e) => {
+        if (e + 1 >= MAX) { stopRec(); return MAX; }
+        return e + 1;
+      }), 1000);
+    } catch (e) {
+      setErr(e?.code === 'MIC_DENIED' ? 'Mikrofon-Zugriff verweigert.' : 'Aufnahme fehlgeschlagen.');
+      setPhase('idle');
+    }
+  };
+  const genTask = async () => { setBusyTask(true); const d = await onGenerate(step.id); setBusyTask(false); if (d?.task) setTask(d.task); };
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const wpmColor = wpm >= 140 && wpm <= 160 ? '#34d399' : (wpm >= 110 && wpm <= 185) ? '#f59e0b' : '#f87171';
+
+  return (
+    <div style={{ marginLeft: 29, marginTop: 5 }}>
+      <button onClick={() => setOpen((o) => !o)} style={smallBtn}>
+        {open ? '▾ Schließen' : transcript ? '▸ Sprechen · Aufnahme vorhanden' : '▸ Sprechen 🎙'}
+      </button>
+      {open && (
+        <div style={panel}>
+          {task ? <div style={taskBox}>{task}</div>
+                : <button onClick={genTask} disabled={busyTask} style={{ ...btnPrimary, opacity: busyTask ? 0.6 : 1 }}>{busyTask ? '…' : 'Sprech-Aufgabe vorschlagen'}</button>}
+
+          {phase !== 'processing' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+              <button onClick={phase === 'recording' ? stopRec : startRec} aria-label="record"
+                style={{ width: 64, height: 64, borderRadius: '50%', cursor: 'pointer', fontSize: 24, color: '#e2e8f0',
+                  border: `2px solid ${phase === 'recording' ? 'var(--boss)' : 'var(--accent)'}`,
+                  background: phase === 'recording' ? 'rgba(239,68,68,0.15)' : 'rgba(0,229,255,0.08)',
+                  boxShadow: phase === 'recording' ? `0 0 ${12 + vol * 34}px rgba(239,68,68,0.6)` : '0 0 14px rgba(0,229,255,0.25)',
+                  transform: phase === 'recording' ? `scale(${(1 + vol * 0.25).toFixed(3)})` : 'scale(1)',
+                  transition: 'transform 0.08s linear, box-shadow 0.12s, border-color 0.2s' }}>
+                {phase === 'recording' ? '■' : '🎙'}
+              </button>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+                color: phase === 'recording' ? 'var(--boss)' : 'var(--text-dim)' }}>
+                {phase === 'recording' ? `● ${mmss(elapsed)} / 1:30` : transcript ? 'NEU AUFNEHMEN' : 'SPRICH'}
+              </div>
+              {phase !== 'recording' && <div style={{ fontSize: 9, color: 'var(--text-faint)' }}>Max. 90 Sek. · auf Deutsch antworten · Mikrofon nötig</div>}
+            </div>
+          )}
+          {phase === 'processing' && <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 12, padding: '12px 0' }}>Transkription &amp; Feedback…</div>}
+
+          {err && <div style={{ color: '#fca5a5', fontSize: 10 }}>⚠ {err}</div>}
+
+          {transcript && (
+            <>
+              <div>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 8.5, letterSpacing: '0.1em', color: 'var(--text-dim)', marginBottom: 3 }}>DEINE ANTWORT · TRANSKRIPT</div>
+                <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.5, fontStyle: 'italic' }}>„{transcript}"</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={metricBox}><div style={{ color: wpmColor, fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-display)' }}>{wpm}</div><div style={metricLbl}>WpM · Ziel 140–160</div></div>
+                <div style={metricBox}><div style={{ color: fillers <= 2 ? '#34d399' : '#f87171', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-display)' }}>{fillers}</div><div style={metricLbl}>Füllwörter</div></div>
+              </div>
+              {fb && (
+                <div style={{ ...feedbackBox, direction: ar ? 'rtl' : 'ltr', textAlign: ar ? 'right' : 'left' }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 8.5, letterSpacing: '0.1em', color: 'var(--player-2)', marginBottom: 4 }}>FEEDBACK</div>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{fb}</div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -346,3 +500,5 @@ const panel = { marginTop: 7, padding: 10, borderRadius: 'var(--r-sm)', backgrou
 const taskBox = { fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-wrap', padding: 8, borderRadius: 6, background: 'rgba(0,229,255,0.05)', border: '1px solid var(--line)' };
 const feedbackBox = { fontSize: 11.5, color: '#d1fae5', lineHeight: 1.55, padding: 9, borderRadius: 6, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' };
 const textareaStyle = { width: '100%', minHeight: 70, padding: 9, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 12.5, border: '1px solid var(--line)', outline: 'none' };
+const metricBox = { flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 'var(--r-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)' };
+const metricLbl = { fontSize: 8, color: 'var(--text-dim)', marginTop: 2, letterSpacing: '0.04em' };
