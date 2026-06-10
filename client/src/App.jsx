@@ -3,6 +3,7 @@ import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { AudioPlayer } from './audioPlayer.js';
 import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
+import { HomeFeedback, FirstFightCard } from './Feedback.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -728,7 +729,7 @@ function RankLadder({ rank }) {
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
-function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName }) {
+function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token }) {
   const [showAll, setShowAll] = useState(false);
   const [copied, setCopied]   = useState(false);
   const m = data?.metrics ?? {};
@@ -1026,6 +1027,11 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName }) {
                 Diese werden in kommenden Sitzungen als Schnell-Wiederholung abgefragt.
               </div>
             </Section>
+          )}
+
+          {/* One-time feedback prompt, only after the user's first-ever fight. Skippable; never blocks restart. */}
+          {data?.sessionCount === 1 && token && (
+            <FirstFightCard token={token} apiUrl={API_URL} />
           )}
         </div>
       )}
@@ -1984,7 +1990,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && (
         <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart}
-          lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName} />
+          lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
+          token={auth.token} />
       )}
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
@@ -2330,6 +2337,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             🎯  ZIELPLAN — DEIN TRAININGSPLAN
           </button>
         )}
+
+        {/* Permanent feedback button (idle only) */}
+        {canStart && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
 
         {/* Boss speaking indicator */}
         {bossSpeak && (

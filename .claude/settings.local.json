@@ -6,7 +6,10 @@
       "Edit(*)",
       "Write(*)",
       "Grep(*)",
-      "Glob(*)"
+      "Glob(*)",
+      "Bash(npx esbuild *)",
+      "Bash(echo \"---FRONTEND BUNDLE EXIT: $?---\")",
+      "Bash(git add *)"
     ]
   }
 }

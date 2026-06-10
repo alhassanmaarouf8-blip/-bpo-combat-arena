@@ -22,9 +22,10 @@ build/
 client/dist/
 
 # ─────────────────────────────────────────────────────────────
-# Local runtime data (user accounts/progress JSON) — not for the repo
+# Local runtime data (user accounts/progress JSON + collected feedback) — not for the repo
 # ─────────────────────────────────────────────────────────────
 server/data/
+server/feedback.json
 
 # ─────────────────────────────────────────────────────────────
 # Caches, logs, temp/diagnostic scratch files

@@ -384,6 +384,7 @@ export class WebSocketManager {
         dueReviews:    dueCount(p),
         nextBoss:      nextBoss(p.level),
         bossId:        ctx.bossId,
+        sessionCount:  p.sessions.length,   // = 1 on the user's first-ever fight
         streak:        computeStreak(p.sessions),
         rank:          computeRank(p.sessions),
         trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
