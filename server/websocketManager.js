@@ -10,6 +10,13 @@ import { verifyToken, getAccountById, entitlement, consumeTrialSession } from '.
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
 const MAX_MESSAGE_BYTES  = 65_536;
+// Hard wall-clock cap: a single fight can NEVER bill the OpenAI Realtime API longer
+// than this, no matter how active the mic is. (The idle timeout above never fires
+// while audio is streaming.) 8 minutes is well past a complete 3-part interview.
+const MAX_FIGHT_MS = 8 * 60_000;
+// PCM16 mono @ 24 kHz = 48000 bytes per second of audio — used to convert the billed
+// audio byte counts into seconds for the per-fight cost log.
+const PCM16_BYTES_PER_SEC = 48_000;
 
 // ── HP / scoring tuning ───────────────────────────────────────────────────────
 // Damage is deliberately gradual so a session lasts many exchanges and never ends
@@ -75,6 +82,9 @@ export class WebSocketManager {
   constructor(httpServer) {
     /** @type {Map<string, SessionContext>} */
     this._sessions = new Map();
+    // Account IDs with a fight currently in flight — a per-user single-flight lock so a
+    // double-click (which opens TWO browser sockets) cannot open two Realtime sessions.
+    this._activeFightUsers = new Set();
 
     this._wss = new WebSocketServer({
       server:     httpServer,
@@ -116,6 +126,11 @@ export class WebSocketManager {
       stages:         [],
       utterances:     [],     // candidate's real sentences, for the end-of-session debrief
       totalSpeechMs:  0,       // summed VAD speech segments, for WPM
+      fightStartedAt: 0,       // wall-clock start of the billed Realtime session
+      audioInBytes:   0,       // total PCM16 audio bytes sent to OpenAI (user mic)
+      audioOutBytes:  0,       // total PCM16 audio bytes received from OpenAI (boss voice)
+      maxTimer:       null,    // hard MAX_FIGHT_MS cap timer
+      accountLocked:  null,    // account id held in _activeFightUsers (for release)
       debriefSent:    false,
       ending:         false,   // true once the session is being ended
       closed:         false,   // guards _endSession against double-firing
@@ -206,6 +221,17 @@ export class WebSocketManager {
       this._send(ctx, { type: S.PAYWALL, ...ent });
       return;
     }
+
+    // Per-user single-flight lock (check + set are atomic: no await between them) so a
+    // double-click that opens two sockets cannot start two paid Realtime sessions.
+    if (this._activeFightUsers.has(account.id)) {
+      console.warn(`[wsManager] Duplicate start blocked  user=${account.id}  session=${ctx.sessionId}`);
+      this._sendError(ctx, 'fight_already_active');
+      return;
+    }
+    this._activeFightUsers.add(account.id);
+    ctx.accountLocked = account.id;
+
     if (ent.tier === 'trial') await consumeTrialSession(account);
 
     ctx.userId   = account.id;
@@ -228,7 +254,7 @@ export class WebSocketManager {
         bossId,
         level,
         dossier,
-        onAudioDelta:      (chunk)  => this._send(ctx, { type: S.AUDIO_DELTA,      audio: chunk }),
+        onAudioDelta:      (chunk)  => { ctx.audioOutBytes += this._b64Bytes(chunk); this._send(ctx, { type: S.AUDIO_DELTA, audio: chunk }); },
         onTranscriptDelta: (text)   => this._send(ctx, { type: S.TRANSCRIPT_DELTA, text }),
         onTranscriptDone:  (data)   => this._onTranscriptDone(ctx, data),
         onBossSpeech:      (text)   => this._send(ctx, { type: S.BOSS_SPEECH,      text }),
@@ -241,8 +267,14 @@ export class WebSocketManager {
         onSpeechSegment:   (ms)     => { if (ms > 400) ctx.totalSpeechMs += ms; },
         onHpUpdate:        (hp)     => this._onHpUpdate(ctx, hp),
         onError:           (err)    => {
-          console.error(`[wsManager] RealtimeClient error session=${ctx.sessionId}:`, err.message);
-          this._sendError(ctx, 'realtime_error');
+          const code = err?.code || 'realtime_error';
+          console.error(`[wsManager] RealtimeClient error session=${ctx.sessionId}: ${err.message}  code=${code}`);
+          // Fatal, non-recoverable errors (no credit, key problem, OpenAI outage): tell the
+          // user plainly and END the fight so the mic stops streaming / billing immediately.
+          const FATAL = new Set(['insufficient_quota', 'rate_limit_exceeded',
+                                 'authentication_error', 'invalid_api_key', 'server_error']);
+          this._sendError(ctx, FATAL.has(code) ? 'service_unavailable' : 'realtime_error');
+          if (FATAL.has(code) && !ctx.closed) this._endSession(ctx, 'service_error');
         },
         onClose: () => {
           console.log(`[wsManager] RealtimeClient closed  session=${ctx.sessionId}`);
@@ -256,6 +288,14 @@ export class WebSocketManager {
       await ctx.realtimeClient.connect();
       console.log(`[wsManager] RealtimeClient connected  session=${ctx.sessionId}`);
 
+      // Billing starts now: stamp the start time and arm the hard wall-clock cap.
+      ctx.fightStartedAt = Date.now();
+      ctx.maxTimer = setTimeout(() => {
+        console.warn(`[wsManager] MAX_FIGHT_MS reached (${MAX_FIGHT_MS}ms) — force-ending  session=${ctx.sessionId}`);
+        this._endSession(ctx, 'time_limit');
+      }, MAX_FIGHT_MS);
+      ctx.maxTimer.unref?.();
+
       // Tell the browser which level + funnel + scenario it's facing, and open on Teil 1.
       const info = ctx.realtimeClient.sessionInfo;
       ctx.level      = info.level;
@@ -267,9 +307,19 @@ export class WebSocketManager {
     } catch (err) {
       console.error(`[wsManager] Failed to start fight session=${ctx.sessionId}:`, err.message);
       ctx.realtimeClient = null;
+      this._releaseFight(ctx);   // free the per-user lock + cap timer so the user can retry
       this._sendError(ctx, 'fight_start_failed');
     }
   }
+
+  // Release the per-user single-flight lock and the hard-cap timer for this session.
+  _releaseFight(ctx) {
+    if (ctx.maxTimer) { clearTimeout(ctx.maxTimer); ctx.maxTimer = null; }
+    if (ctx.accountLocked) { this._activeFightUsers.delete(ctx.accountLocked); ctx.accountLocked = null; }
+  }
+
+  // base64 → decoded byte count (for the audio-seconds cost log; padding-approximate).
+  _b64Bytes(s) { return typeof s === 'string' ? Math.floor((s.length * 3) / 4) : 0; }
 
   async _handleStopFight(ctx) {
     // User pressed "end". This is one of only TWO ways a session ends — the other is
@@ -284,6 +334,14 @@ export class WebSocketManager {
     if (ctx.closed) return;
     ctx.closed = true;
     ctx.ending = true;
+    this._releaseFight(ctx);   // free the per-user lock + cancel the hard-cap timer
+
+    // Per-fight cost visibility (the founder's only window into OpenAI Realtime spend).
+    const wallSec = ctx.fightStartedAt ? Math.round((Date.now() - ctx.fightStartedAt) / 1000) : 0;
+    const inSec   = Math.round(ctx.audioInBytes  / PCM16_BYTES_PER_SEC);
+    const outSec  = Math.round(ctx.audioOutBytes / PCM16_BYTES_PER_SEC);
+    console.log(`[wsManager] FIGHT COST  user=${ctx.userId}  reason=${reason}  wallSec=${wallSec}  audioInSec=${inSec}  audioOutSec=${outSec}  session=${ctx.sessionId}`);
+
     console.log(`[wsManager] Ending session  reason=${reason}  session=${ctx.sessionId}`);
     await ctx.realtimeClient?.close().catch(() => {});
     ctx.realtimeClient = null;
@@ -478,6 +536,7 @@ export class WebSocketManager {
   _handleAudioChunk(ctx, msg) {
     if (!ctx.realtimeClient) return;
     if (typeof msg.audio !== 'string' || msg.audio.length > 20_000) return;
+    ctx.audioInBytes += this._b64Bytes(msg.audio);   // billed input audio (for the cost log)
     ctx.realtimeClient.sendAudio(msg.audio);
   }
 
@@ -798,6 +857,7 @@ export class WebSocketManager {
   async _onClose(ctx, code, reason) {
     const reasonStr = reason?.toString('utf8') ?? '';
     console.log(`[wsManager] Connection closed  session=${ctx.sessionId}  code=${code}  reason=${reasonStr}`);
+    this._releaseFight(ctx);   // free the per-user lock + cap timer even on an abrupt drop
     await ctx.realtimeClient?.close().catch(() => {});
     this._sessions.delete(ctx.sessionId);
   }

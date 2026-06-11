@@ -413,7 +413,10 @@ export class RealtimeClient {
     console.error(`[realtimeClient] OAI error  code=${code}  message=${msg}  session=${this._sessionId}`);
     this._cb.onError(Object.assign(new Error(msg), { code }));
 
-    if (['authentication_error', 'invalid_api_key'].includes(code)) {
+    // Fatal, non-recoverable errors: close the OpenAI socket NOW so we stop billing audio
+    // (out of credit, key problem, rate-limited, or an OpenAI-side outage).
+    if (['authentication_error', 'invalid_api_key', 'insufficient_quota',
+         'rate_limit_exceeded', 'server_error'].includes(code)) {
       this._closing = true;
       this._ws?.close(1000);
     }

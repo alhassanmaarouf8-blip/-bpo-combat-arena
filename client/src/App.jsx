@@ -42,6 +42,21 @@ const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:
 // Fall back to deriving it from the WebSocket URL if the define is ever missing.
 const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replace(/^ws/, 'http');
 
+// Human-readable, bilingual text for server error codes (DE default + Arabic). Raw
+// recorder/connection strings that aren't codes fall through to their own message.
+const WS_ERROR_TEXT = {
+  service_unavailable:  { de: 'Der Sprachdienst ist gerade nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.', ar: 'خدمة المحادثة مش متاحة دلوقتي. من فضلك جرّب تاني بعد كام دقيقة.' },
+  realtime_error:       { de: 'Verbindungsproblem mit dem Interviewer. Bitte starte den Kampf neu.', ar: 'في مشكلة في الاتصال بالمحاوِر. من فضلك ابدأ الجولة من جديد.' },
+  fight_start_failed:   { de: 'Der Kampf konnte nicht gestartet werden. Bitte versuche es erneut.', ar: 'مقدرناش نبدأ الجولة. من فضلك جرّب تاني.' },
+  fight_already_active: { de: 'Es läuft bereits ein Kampf.', ar: 'في جولة شغّالة بالفعل.' },
+  auth_required:        { de: 'Bitte melde dich erneut an.', ar: 'من فضلك سجّل دخول تاني.' },
+};
+function wsErrorText(code, lang) {
+  const e = WS_ERROR_TEXT[code];
+  if (!e) return null;               // not a known code → caller shows the raw message
+  return lang === 'ar' ? e.ar : e.de;
+}
+
 // ── Auth storage (token + cached account) ──────────────────────────────────────
 function loadStoredAuth() {
   try {
@@ -1498,6 +1513,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
 
   const phaseRef       = useRef('idle');
+  const startingRef    = useRef(false);     // synchronous single-flight guard for start()
   const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
   const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
   const wsRef          = useRef(null);
@@ -1724,11 +1740,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   // ── Start interview ────────────────────────────────────────────────────────
   const start = useCallback(async () => {
-    if (phaseRef.current !== 'idle') return;
+    // phaseRef only flips to 'connecting' AFTER the awaits below, so a rapid double-click
+    // could slip two starts through. startingRef is a synchronous lock that closes that gap.
+    if (phaseRef.current !== 'idle' || startingRef.current) return;
+    startingRef.current = true;
 
     const support = checkAudioSupport();
     if (!support.supported) {
       setError(`Kein Browser-Support für: ${support.missing.join(', ')}`);
+      startingRef.current = false;
       return;
     }
 
@@ -1766,10 +1786,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     try {
       await recorderRef.current.start();
     } catch {
+      startingRef.current = false;
       return; // errors surfaced via onError above
     }
 
     setPhaseSync('connecting');
+    startingRef.current = false;   // phaseRef now guards re-entry
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
@@ -1818,6 +1840,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     setDebriefPending(true);
     wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT }));
   }, [setPhaseSync]);
+
+  // Cost guard: if the user locks the phone or switches apps mid-fight, the Realtime
+  // session would keep billing in the background. End it cleanly (the debrief still
+  // generates) so a backgrounded tab never runs the meter.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden' && phaseRef.current === 'active') {
+        finishSession();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [finishSession]);
 
   const handleRestart = useCallback(() => {
     setDebrief(null); setDebriefPending(false);
@@ -2270,7 +2305,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8,
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
             color:'#fca5a5', fontSize:11 }}>
-            ⚠ {error}
+            ⚠ {wsErrorText(error, feedbackLang) ?? error}
           </div>
         )}
 
