@@ -8,9 +8,11 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync }                 from 'fs';
 import path                           from 'path';
 import { fileURLToPath }              from 'url';
+import { dbEnabled, kvGet, kvSet }    from './db.js';
 
 const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'users');
 const cache    = new Map();
+const NS       = 'profile';   // durable-store namespace for per-user profiles
 
 function safeId(id) {
   return String(id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || 'anon';
@@ -34,11 +36,14 @@ export async function loadUser(userId) {
   const id = safeId(userId);
   if (cache.has(id)) return cache.get(id);
 
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-
   let saved = {};
-  try { saved = JSON.parse(await readFile(path.join(DATA_DIR, `${id}.json`), 'utf8')); }
-  catch { /* new user */ }
+  if (dbEnabled()) {
+    saved = (await kvGet(NS, id)) ?? {};
+  } else {
+    if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+    try { saved = JSON.parse(await readFile(path.join(DATA_DIR, `${id}.json`), 'utf8')); }
+    catch { /* new user */ }
+  }
 
   const profile = { ...defaultProfile(id), ...saved, userId: id };
   cache.set(id, profile);
@@ -49,7 +54,11 @@ export async function saveUser(profile) {
   const id = safeId(profile.userId);
   profile.userId = id;
   cache.set(id, profile);
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(path.join(DATA_DIR, `${id}.json`), JSON.stringify(profile, null, 2), 'utf8');
+  if (dbEnabled()) {
+    await kvSet(NS, id, profile);
+  } else {
+    if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+    await writeFile(path.join(DATA_DIR, `${id}.json`), JSON.stringify(profile, null, 2), 'utf8');
+  }
   return profile;
 }

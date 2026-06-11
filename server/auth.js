@@ -16,6 +16,7 @@ import path                           from 'path';
 import { fileURLToPath }              from 'url';
 import express                        from 'express';
 import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
+import { dbEnabled, kvGet, kvSet }    from './db.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -45,14 +46,19 @@ let _store = null; // { accounts: {id: account}, emailIndex: {email: id} }
 
 async function load() {
   if (_store) return _store;
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-  try { _store = JSON.parse(await readFile(ACCT_FILE, 'utf8')); }
-  catch { _store = { accounts: {}, emailIndex: {} }; }
+  if (dbEnabled()) {
+    _store = (await kvGet('auth', 'store')) ?? { accounts: {}, emailIndex: {} };
+  } else {
+    if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+    try { _store = JSON.parse(await readFile(ACCT_FILE, 'utf8')); }
+    catch { _store = { accounts: {}, emailIndex: {} }; }
+  }
   _store.accounts   ??= {};
   _store.emailIndex ??= {};
   return _store;
 }
 async function persist() {
+  if (dbEnabled()) { await kvSet('auth', 'store', _store); return; }
   if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
   await writeFile(ACCT_FILE, JSON.stringify(_store, null, 2), 'utf8');
 }

@@ -14,12 +14,19 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadUser } from './store.js';
 import { requireAuth } from './auth.js';
+import { dbEnabled, kvGet, kvSet } from './db.js';
 
 export const feedbackRouter = express.Router();
 const FEEDBACK_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'feedback.json');
 
 async function loadFeedback() {
+  if (dbEnabled()) return (await kvGet('feedback', 'all')) ?? [];
   try { return JSON.parse(await readFile(FEEDBACK_FILE, 'utf8')); } catch { return []; }
+}
+
+async function saveFeedback(all) {
+  if (dbEnabled()) { await kvSet('feedback', 'all', all); return; }
+  await writeFile(FEEDBACK_FILE, JSON.stringify(all, null, 2), 'utf8');
 }
 
 feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
@@ -42,7 +49,7 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
 
     const all = await loadFeedback();
     all.push(entry);
-    await writeFile(FEEDBACK_FILE, JSON.stringify(all, null, 2), 'utf8');
+    await saveFeedback(all);
 
     console.log(`[feedback] NEW · user=${entry.userId} · screen=${entry.screen} · rating=${entry.rating ?? '—'} · ` +
       `sessions=${entry.sessionCount} · level=${entry.level} · answers=${JSON.stringify(entry.answers)} · ` +
