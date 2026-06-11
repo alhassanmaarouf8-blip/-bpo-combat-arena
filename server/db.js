@@ -29,11 +29,14 @@ async function getPool() {
   if (_pool) return _pool;
   // Lazy: only require pg when a database is actually configured.
   const pg = (await import('pg')).default;
+  const url = process.env.DATABASE_URL;
+  // Render's INTERNAL host (e.g. dpg-xxxx-a, no domain dot) does NOT use SSL; the
+  // EXTERNAL host (….render.com) requires it. Detect by whether the host has a dot.
+  const useSsl = /@[^/]+\.[^/]+/.test(url);
   _pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    // Render Postgres requires TLS; its cert chain isn't in Node's trust store.
-    ssl: { rejectUnauthorized: false },
-    max: 5,
+    connectionString:  url,
+    ssl:               useSsl ? { rejectUnauthorized: false } : false,
+    max:               5,
     idleTimeoutMillis: 30_000,
   });
   _pool.on('error', (err) => console.error('[db] pool error:', err.message));
