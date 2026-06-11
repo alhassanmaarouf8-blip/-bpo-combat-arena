@@ -23,6 +23,16 @@ const SKIP_CATEGORIES = new Set([
   'STYLE', 'REDUNDANCY', 'COLLOQUIALISMS', 'PLAIN_ENGLISH',
 ]);
 
+// LanguageTool tags each match with an issueType. We only trust the ones it can correct
+// with high confidence (real grammar, agreement, word order, spelling, doubled words).
+// The types below are stylistic / low-confidence and are the usual source of "corrections"
+// that are wrong or pointless on a speech transcript — drop them outright. The rule is:
+// better to show FEWER corrections than a wrong one.
+const SKIP_ISSUE_TYPES = new Set([
+  'style', 'register', 'typographical', 'whitespace', 'characters',
+  'uncategorized', 'non-conformance', 'locale-violation',
+]);
+
 // Canonicalize for the identical-correction guard: collapse whitespace + drop a trailing
 // sentence mark. Case is preserved (a real capitalization fix still counts).
 function canon(s) {
@@ -77,14 +87,18 @@ export async function buildGrammar(utterances) {
     if (repl == null) continue;                                   // no concrete fix → skip
     const catId = mt.rule?.category?.id;
     if (catId && SKIP_CATEGORIES.has(catId)) continue;            // STT/style noise → skip
+    const issueType = mt.rule?.issueType;
+    if (issueType && SKIP_ISSUE_TYPES.has(issueType)) continue;   // low-confidence type → skip
 
     const seg = segments.find((s) => mt.offset >= s.start && (mt.offset + mt.length) <= s.end);
     if (!seg) continue;                                           // spans a boundary → skip
 
     const local   = mt.offset - seg.start;
+    const matched = seg.text.slice(local, local + mt.length);     // exact text LT wants to replace
+    if (canon(matched) === canon(repl)) continue;                 // replacement == original span → no real change
     const wrong   = seg.text;
     const right   = seg.text.slice(0, local) + repl + seg.text.slice(local + mt.length);
-    if (canon(wrong) === canon(right)) continue;                  // identical → NOT an error
+    if (canon(wrong) === canon(right)) continue;                  // identical sentence → NOT an error
 
     const ruleName = (mt.shortMessage || mt.rule?.description || mt.rule?.category?.name || 'Grammatik').trim();
     const key = mt.rule?.id || ruleName;
