@@ -38,7 +38,9 @@ class OverlayBoundary extends Component {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:3001';
-const API_URL = WS_URL.replace(/^ws/, 'http');   // same origin, http(s) scheme
+// API base is injected separately (defaults to the live Render backend in production builds).
+// Fall back to deriving it from the WebSocket URL if the define is ever missing.
+const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replace(/^ws/, 'http');
 
 // ── Auth storage (token + cached account) ──────────────────────────────────────
 function loadStoredAuth() {
