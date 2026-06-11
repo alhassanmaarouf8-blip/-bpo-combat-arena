@@ -19,7 +19,14 @@ import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
-const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-insecure-secret-change-me-in-production';
+const DEV_AUTH_SECRET = 'dev-insecure-secret-change-me-in-production';
+const AUTH_SECRET = process.env.AUTH_SECRET || DEV_AUTH_SECRET;
+// In a deployed environment, refuse to start with the insecure default — otherwise
+// session tokens would be forgeable. (Render sets RENDER=true on every service.)
+if (AUTH_SECRET === DEV_AUTH_SECRET && (process.env.RENDER || process.env.NODE_ENV === 'production')) {
+  console.error('[auth] FATAL: AUTH_SECRET is unset or the insecure default in production. Set a strong AUTH_SECRET env var.');
+  process.exit(1);
+}
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -186,6 +193,12 @@ billingRouter.get('/status', requireAuth, (req, res) =>
   res.json({ tiers: TIERS, account: publicAccount(req.account) }));
 
 billingRouter.post('/upgrade', requireAuth, async (req, res) => {
+  // Mock upgrade has NO payment verification, so anyone could self-grant Pro. Keep it
+  // OFF unless explicitly enabled (set ENABLE_MOCK_BILLING=true for demos/testing). Once
+  // a real payment processor is wired in, this gate is replaced by a verified webhook.
+  if (process.env.ENABLE_MOCK_BILLING !== 'true') {
+    return res.status(403).json({ error: 'billing_not_available' });
+  }
   try {
     await upgrade(req.account, (req.body || {}).tier);
     res.json({ account: publicAccount(req.account) });

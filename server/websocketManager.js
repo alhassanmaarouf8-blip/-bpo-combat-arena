@@ -86,10 +86,21 @@ export class WebSocketManager {
     // double-click (which opens TWO browser sockets) cannot open two Realtime sessions.
     this._activeFightUsers = new Set();
 
+    // Same origin allowlist as the HTTP CORS layer — the WS upgrade must validate Origin
+    // too, otherwise any website could open sockets against us. No Origin header (native
+    // clients / health checks) is allowed; a browser Origin must be on the list.
+    const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+
     this._wss = new WebSocketServer({
       server:     httpServer,
       maxPayload: MAX_MESSAGE_BYTES,
       perMessageDeflate: false,
+      verifyClient: ({ origin }, cb) => {
+        const ok = !origin || allowedOrigins.includes(origin);
+        if (!ok) console.warn(`[wsManager] Rejected WS upgrade — origin not allowed: ${origin}`);
+        cb(ok, ok ? undefined : 403, 'forbidden_origin');
+      },
     });
 
     this._wss.on('connection', (socket, request) => this._onConnection(socket, request));

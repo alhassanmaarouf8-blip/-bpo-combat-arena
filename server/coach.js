@@ -104,6 +104,7 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
       body: JSON.stringify({
         model:           COACH_MODEL,
         temperature:     0.2,
+        max_tokens:      2000,   // hard output cap (debrief JSON fits well under this)
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
