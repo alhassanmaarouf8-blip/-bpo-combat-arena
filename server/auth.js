@@ -159,8 +159,15 @@ export async function upgrade(account, tier) {
   return account;
 }
 
+// Owner/admin recognition: ADMIN_EMAIL is a comma-separated allowlist set on the server.
+// Used to gate the feedback dashboard so only you can read willingness-to-pay data.
+export function isAdminEmail(email) {
+  const admins = String(process.env.ADMIN_EMAIL || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+  return !!email && admins.includes(String(email).toLowerCase());
+}
+
 export function publicAccount(a) {
-  return { id: a.id, email: a.email, subscription: a.subscription, entitlement: entitlement(a) };
+  return { id: a.id, email: a.email, subscription: a.subscription, entitlement: entitlement(a), isAdmin: isAdminEmail(a.email) };
 }
 
 // ── Express middleware + routers ─────────────────────────────────────────────

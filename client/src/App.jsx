@@ -3,7 +3,7 @@ import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { AudioPlayer } from './audioPlayer.js';
 import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
-import { HomeFeedback, FirstFightCard } from './Feedback.jsx';
+import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -2408,6 +2408,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Permanent feedback button (idle only) */}
         {canStart && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
+        {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
 
         {/* Boss speaking indicator */}
         {bossSpeak && (

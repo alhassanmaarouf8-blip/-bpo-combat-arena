@@ -13,7 +13,7 @@ import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadUser } from './store.js';
-import { requireAuth } from './auth.js';
+import { requireAuth, isAdminEmail } from './auth.js';
 import { dbEnabled, kvGet, kvSet } from './db.js';
 
 export const feedbackRouter = express.Router();
@@ -59,5 +59,38 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[feedback] error:', err.message);
     res.status(500).json({ error: 'feedback_failed' });
+  }
+});
+
+// ── Owner-only dashboard: read all feedback + a willingness-to-pay summary ─────
+// Gated to ADMIN_EMAIL accounts (set the env var on the server). Returns aggregates
+// (avg rating, price-bucket counts, "felt real" yes/no) plus the newest entries.
+feedbackRouter.get('/feedback/admin', requireAuth, async (req, res) => {
+  if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const all = Array.isArray(await loadFeedback()) ? await loadFeedback() : [];
+    const ratings = all.map((e) => e.rating).filter((n) => Number.isFinite(n) && n > 0);
+    const avgRating = ratings.length ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10 : null;
+
+    const priceCounts = {};
+    let feltRealYes = 0, feltRealNo = 0;
+    for (const e of all) {
+      const a = e.answers || {};
+      if (a.price) priceCounts[a.price] = (priceCounts[a.price] || 0) + 1;
+      if (a.feltReal === true)  feltRealYes++;
+      else if (a.feltReal === false) feltRealNo++;
+    }
+
+    const summary = { total: all.length, avgRating, ratingCount: ratings.length, priceCounts, feltRealYes, feltRealNo };
+    const entries = all.slice(-200).reverse().map((e) => ({
+      timestamp: e.timestamp, screen: e.screen, rating: e.rating ?? null,
+      answers: e.answers ?? null, text: e.text ?? '', email: e.email ?? null,
+      sessionCount: e.sessionCount, level: e.level,
+    }));
+
+    res.json({ summary, entries });
+  } catch (err) {
+    console.error('[feedback] admin error:', err.message);
+    res.status(500).json({ error: 'feedback_admin_failed' });
   }
 });

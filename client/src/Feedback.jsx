@@ -137,6 +137,78 @@ export function FirstFightCard({ token, apiUrl }) {
   );
 }
 
+// ── Owner-only: feedback dashboard (rendered only for ADMIN_EMAIL accounts) ─────
+export function AdminFeedback({ token, apiUrl }) {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr]   = useState(null);
+
+  const load = async () => {
+    setOpen(true); setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`${apiUrl}/api/feedback/admin`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setData(await r.json());
+    } catch { setErr('Konnte Feedback nicht laden.'); }
+    setBusy(false);
+  };
+
+  const priceRows = data ? Object.entries(data.summary.priceCounts || {}).sort((a, b) => b[1] - a[1]) : [];
+
+  return (
+    <>
+      <button onClick={load} style={{ width: '100%', marginTop: 8, padding: '12px 10px', minHeight: 44,
+        cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 10, letterSpacing: '0.14em',
+        borderRadius: 8, border: '1px solid rgba(52,211,153,0.4)', color: '#34d399', background: 'rgba(52,211,153,0.06)' }}>
+        🛠  FEEDBACK-DATEN (ADMIN)
+      </button>
+
+      {open && (
+        <div onClick={() => setOpen(false)} style={overlay}>
+          <div onClick={(e) => e.stopPropagation()} style={{ ...modal, maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#34d399' }}>Feedback-Daten</span>
+              <button onClick={() => setOpen(false)} style={{ ...btnGhost, flex: 'none', padding: '4px 10px', fontSize: 11 }}>✕</button>
+            </div>
+
+            {busy && <div style={{ color: '#94a3b8', fontSize: 12 }}>Lädt…</div>}
+            {err && <div style={{ color: '#f87171', fontSize: 12 }}>{err}</div>}
+
+            {data && (
+              <>
+                <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 12 }}>
+                  <div><b>{data.summary.total}</b> Rückmeldungen · ⭐ Ø {data.summary.avgRating ?? '—'} ({data.summary.ratingCount})</div>
+                  <div>Wirkte echt: <span style={{ color: '#34d399' }}>{data.summary.feltRealYes} ✓</span> · <span style={{ color: '#f87171' }}>{data.summary.feltRealNo} ✗</span></div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>Zahlungsbereitschaft:</div>
+                  {priceRows.length === 0
+                    ? <div style={{ fontSize: 11, color: '#64748b' }}>noch keine</div>
+                    : priceRows.map(([k, v]) => (
+                        <div key={k} dir="rtl" style={{ fontSize: 12, color: '#cbd5e1' }}>{k} — <b style={{ color: '#34d399' }}>{v}</b></div>
+                      ))}
+                </div>
+
+                <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.1em', marginBottom: 6 }}>NEUESTE ({data.entries.length})</div>
+                {data.entries.map((e, i) => (
+                  <div key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '7px 0', fontSize: 11, color: '#cbd5e1' }}>
+                    <div style={{ color: '#64748b', fontSize: 9.5 }}>
+                      {(e.timestamp || '').slice(0, 16).replace('T', ' ')} · {e.screen} · {e.email || 'anon'}
+                    </div>
+                    {e.rating ? <span style={{ color: '#fbbf24' }}>⭐ {e.rating} </span> : null}
+                    {e.answers?.feltReal != null && <span>· echt: {e.answers.feltReal ? '✓' : '✗'} </span>}
+                    {e.answers?.price && <span dir="rtl">· {e.answers.price} </span>}
+                    {e.text ? <div style={{ color: '#94a3b8', marginTop: 2, overflowWrap: 'anywhere' }}>„{e.text}"</div> : null}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── shared styles ──
 const overlay = { position: 'absolute', inset: 0, zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(2,4,9,0.8)', backdropFilter: 'blur(4px)' };
 const modal   = { width: '100%', maxWidth: 360, padding: '18px 16px', borderRadius: 'var(--r-lg)', background: 'linear-gradient(180deg, rgba(10,18,30,0.98), rgba(4,8,14,0.99))', border: '1px solid var(--line)', boxShadow: 'var(--shadow-card)' };
