@@ -2489,6 +2489,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 export default function App() {
   const [auth, setAuth] = useState(loadStoredAuth);
 
+  // Pre-warm the backend on load: Render's free tier cold-starts (~50s) after idle, so
+  // fire a cheap /health ping immediately to wake it before the user logs in or fights.
+  useEffect(() => { fetch(`${API_URL}/health`).catch(() => {}); }, []);
+
   // Validate / refresh the stored token on mount; drop it if the server rejects.
   useEffect(() => {
     if (!auth) return;
