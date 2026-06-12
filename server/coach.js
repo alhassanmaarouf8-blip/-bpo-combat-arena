@@ -254,7 +254,7 @@ function buildLesson(utterances, metrics, grammar) {
 
   // 4) Variation-only recommendation if they stayed on-topic but were short.
   const words = (metrics?.words ?? 0);
-  if (words > 0 && words < 45) add('Antworten ausdauernder gestalten: zuerst Grund, dann Beispiel, dann Ergebnis.', 'اجعل إجاباتك أكثر Detailed:');
+  if (words > 0 && words < 45) add('Antworten ausdauernder gestalten: zuerst Grund, dann Beispiel, dann Ergebnis.', 'خلّي إجاباتك أطول وأكثر تفصيلاً:');
 
   // 5) If they already used some strong words, anchor on it.
   if (metrics?.c1WordsUsed && metrics.c1WordsUsed.length) {

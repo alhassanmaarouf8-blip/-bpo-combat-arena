@@ -608,7 +608,7 @@ function TranscriptPanel({ lines, userSpeak }) {
         <span style={{ color:'var(--text-faint)', fontStyle:'italic' }}>Bereit für das Gespräch…</span>
       )}
       {lines.map(line => (
-        <div key={line.id} style={{ marginBottom:5,
+        <div key={line.id} style={{ marginBottom:5, overflowWrap:'anywhere',
           color: line.speaker === 'boss' ? 'var(--accent)' : 'var(--text)',
           opacity: line.partial ? 0.65 : 1 }}>
           <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, letterSpacing:'0.14em', marginRight:8,
@@ -892,12 +892,12 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               {data.progress.leveledUp && (
                 <div style={{ fontFamily:'Orbitron,monospace', fontSize:12, fontWeight:900, color:'#a78bfa',
                   letterSpacing:'0.1em', marginBottom:4, textShadow:'0 0 12px rgba(167,139,250,0.7)' }}>
-                  ↑ LEVEL UP — LEVEL {data.progress.level}
+                  ↑ LEVEL UP — LEVEL {data.progress.level ?? '–'}
                 </div>
               )}
               <div style={{ fontSize:12, color:'#e2e8f0' }}>
-                <b style={{ color:'#34d399' }}>+{data.progress.xpGained} XP</b>
-                <span style={{ color:'#94a3b8' }}> · RANG {data.result?.rank ?? '–'} · Level {data.progress.level}</span>
+                <b style={{ color:'#34d399' }}>+{data.progress.xpGained ?? 0} XP</b>
+                <span style={{ color:'#94a3b8' }}> · RANG {data.result?.rank ?? '–'} · Level {data.progress.level ?? '–'}</span>
                 {typeof data.progress.dueReviews === 'number' && data.progress.dueReviews > 0 && (
                   <span style={{ color:'#f59e0b' }}> · {data.progress.dueReviews} Wiederholung(en) fällig</span>
                 )}
@@ -969,7 +969,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                         </div>
                       : null}
                     {ex.map((e, j) => (
-                      <div key={j} style={{ marginBottom:4, fontSize:11, lineHeight:1.4 }}>
+                      <div key={j} style={{ marginBottom:4, fontSize:11, lineHeight:1.4, overflowWrap:'anywhere' }}>
                         <span style={{ color:'#ef4444' }}>✗ {e.wrong}</span><br />
                         <span style={{ color:'#34d399' }}>✓ {e.right}</span>
                       </div>
@@ -1005,7 +1005,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               {data.upgrades.map((u, i) => {
                 const why = ar && u.why_ar ? u.why_ar : u.why;
                 return (
-                  <div key={i} style={{ marginBottom:9, fontSize:11.5, lineHeight:1.45 }}>
+                  <div key={i} style={{ marginBottom:9, fontSize:11.5, lineHeight:1.45, overflowWrap:'anywhere' }}>
                     <div style={{ color:'#94a3b8' }}>Du: „{u.original}“</div>
                     <div style={{ color:'#c4b5fd' }}>Stärker: <b style={{ color:'#ede9fe' }}>{u.better}</b></div>
                     {why && <div style={{ color:'#64748b', fontSize:10, marginTop:1, ...rtl }}>{why}</div>}
@@ -2306,7 +2306,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             )}
           </div>
           {/* the boss's current line — the prominent subtitle */}
-          <div style={{ padding:'9px 13px 5px', fontSize:13.5, color:'#e2e8f0', lineHeight:1.6, minHeight:34 }}>
+          <div style={{ padding:'9px 13px 5px', fontSize:13.5, color:'#e2e8f0', lineHeight:1.6, minHeight:34, overflowWrap:'anywhere' }}>
             {bossText
               ? bossText
               : isActive
@@ -2378,7 +2378,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Progress dashboard access (idle only) */}
         {canStart && (
-          <button onClick={openDashboard} style={{ width:'100%', marginTop:8, padding:'10px',
+          <button onClick={openDashboard} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
             cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
             borderRadius:8, border:'1px solid rgba(167,139,250,0.4)', color:'#a78bfa',
             background:'rgba(167,139,250,0.06)' }}>
@@ -2388,7 +2388,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Review quick-start CTA when due items exist */}
         {canStart && dueReviews > 0 && (
-          <button onClick={startReviewFromDash} style={{ width:'100%', marginTop:8, padding:'10px',
+          <button onClick={startReviewFromDash} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
             cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.14em',
             borderRadius:8, border:'1px solid rgba(245,158,11,0.45)', color:'#fbbf24',
             background:'rgba(245,158,11,0.08)' }}>
@@ -2398,7 +2398,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Zielplan (goal plan) access (idle only) */}
         {canStart && (
-          <button onClick={() => setZielplanOpen(true)} style={{ width:'100%', marginTop:8, padding:'10px',
+          <button onClick={() => setZielplanOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
             cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
             borderRadius:8, border:'1px solid rgba(0,229,255,0.4)', color:'#00e5ff',
             background:'rgba(0,229,255,0.06)' }}>
