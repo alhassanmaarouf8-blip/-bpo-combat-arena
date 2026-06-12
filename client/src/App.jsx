@@ -1523,6 +1523,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [roundFlash, setRoundFlash] = useState(null); // {id, n, label} round-advance banner
   const [feedbackLang, setFeedbackLang] = useState(loadFeedbackLang); // 'de'|'ar' — explanation language
   const chooseFeedbackLang = useCallback((l) => { setFeedbackLang(l); saveFeedbackLang(l); }, []);
+  // One-time "how it works" guide for first-time users (dismissed = stored per device).
+  const [showHowto, setShowHowto] = useState(() => { try { return !localStorage.getItem('bpo_howto_seen'); } catch { return false; } });
+  const dismissHowto = () => { try { localStorage.setItem('bpo_howto_seen', '1'); } catch {} setShowHowto(false); };
   const [streak, setStreak] = useState(loadStreakCache); // (legacy fight streak, kept)
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false }); // daily-training loop
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
@@ -2343,6 +2346,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
             color:'#fca5a5', fontSize:11 }}>
             ⚠ {wsErrorText(error, feedbackLang) ?? error}
+          </div>
+        )}
+
+        {canStart && showHowto && (
+          <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:10, textAlign:'left',
+            background:'rgba(0,229,255,0.06)', border:'1px solid rgba(0,229,255,0.28)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <span style={{ fontFamily:'Orbitron,monospace', fontSize:9.5, letterSpacing:'0.12em', color:'#00e5ff' }}>SO FUNKTIONIERT'S · إزّاي تلعب</span>
+              <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'#64748b', background:'none', border:'none', padding:'2px 4px' }}>✕</button>
+            </div>
+            <div style={{ fontSize:11, color:'#cbd5e1', lineHeight:1.55 }}>
+              1) Niveau wählen · 2) „INTERVIEW STARTEN" drücken und laut Deutsch sprechen · 3) Am Ende sofortiges Feedback.
+            </div>
+            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:4 }}>
+              ١) اختار المستوى · ٢) دوس «ابدأ» واتكلم ألماني بصوت عالي · ٣) في الآخر هتاخد تقييم وتصحيح فوري.
+            </div>
           </div>
         )}
 
