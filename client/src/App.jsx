@@ -768,10 +768,12 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
   const cats  = r.categories ?? {};
   const accent = win ? '#34d399' : '#f59e0b';
 
-  const shareText = `⚔️ German BPO Combat Arena — RANG ${rank} · ${score}/100 gegen ${bossName || 'den Interviewer'}! Schaffst du es besser?`;
+  const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://bpo-combat-arena.vercel.app';
+  const shareText = `⚔️ OMNI-PERFORM — RANG ${rank} · ${score}/100 gegen ${bossName || 'den Interviewer'}!\n`
+    + `Übe deutsche Job-Interviews per Sprache. جرّب إنترفيو الشغل الألماني بالصوت وشوف هتجيب كام:\n${shareUrl}`;
   const onShare = async () => {
     try {
-      if (navigator.share) { await navigator.share({ title:'German BPO Combat Arena', text: shareText }); }
+      if (navigator.share) { await navigator.share({ title:'OMNI-PERFORM', text: shareText, url: shareUrl }); }
       else { await navigator.clipboard?.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 1800); }
     } catch { /* user cancelled */ }
   };
@@ -1413,16 +1415,17 @@ function PaywallScreen({ token, info, onUpgraded, onClose }) {
   const [email, setEmail]   = useState('');
   const [checking, setChecking] = useState(false);
   const [msg, setMsg]           = useState(null);
+  const [prices, setPrices]     = useState({ pro: '19 €/Mon.', team: '49 €/Mon.' });
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { setPayUrl(d.paymentUrl || null); setEmail(d.account?.email || ''); })
+      .then((d) => { setPayUrl(d.paymentUrl || null); setEmail(d.account?.email || ''); if (d.prices) setPrices(d.prices); })
       .catch(() => {});
   }, [token]);
 
   const TIERS = [
-    { id:'pro',  label:'PRO',  price:'19 €/Mon.', perks:['Unbegrenzte Sitzungen','Alle Bosse','Volle Wiederholung'] },
-    { id:'team', label:'TEAM', price:'49 €/Mon.', perks:['Pro für bis zu 5 Lernende','Fortschrittsberichte'] },
+    { id:'pro',  label:'PRO',  price:prices.pro,  perks:['Unbegrenzte Sitzungen','Alle Bosse','Volle Wiederholung'] },
+    { id:'team', label:'TEAM', price:prices.team, perks:['Pro für bis zu 5 Lernende','Fortschrittsberichte'] },
   ];
   // Send the user to the real checkout link (configured server-side via PAYMENT_URL).
   // Their email is passed as a hint so the payment can be matched to their account.

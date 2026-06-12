@@ -233,7 +233,13 @@ authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccou
 export const billingRouter = express.Router();
 
 billingRouter.get('/status', requireAuth, (req, res) =>
-  res.json({ tiers: TIERS, account: publicAccount(req.account), paymentUrl: process.env.PAYMENT_URL || null }));
+  res.json({
+    tiers: TIERS,
+    account: publicAccount(req.account),
+    paymentUrl: process.env.PAYMENT_URL || null,
+    // Displayed price labels — override via env once you set your EGP price (no code change).
+    prices: { pro: process.env.PRICE_PRO || '19 €/Mon.', team: process.env.PRICE_TEAM || '49 €/Mon.' },
+  }));
 
 // Owner-only: grant a paid tier to a user by email — used to fulfill a payment made
 // through the external checkout link (PAYMENT_URL). Gated to ADMIN_EMAIL accounts.
