@@ -76,11 +76,12 @@ function persistAuth(auth) {
 }
 function authErrText(code) {
   return ({
-    invalid_email:       'Ungültige E-Mail-Adresse.',
-    weak_password:       'Passwort muss mindestens 6 Zeichen haben.',
-    email_taken:         'Diese E-Mail ist bereits registriert.',
-    invalid_credentials: 'E-Mail oder Passwort ist falsch.',
-  })[code] || 'Etwas ist schiefgelaufen.';
+    invalid_email:       { de: 'Ungültige E-Mail-Adresse.',            ar: 'الإيميل مش صح.' },
+    weak_password:       { de: 'Passwort muss mind. 6 Zeichen haben.', ar: 'الباسورد لازم ٦ حروف على الأقل.' },
+    email_taken:         { de: 'Diese E-Mail ist bereits registriert.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
+    invalid_credentials: { de: 'E-Mail oder Passwort ist falsch.',     ar: 'الإيميل أو الباسورد غلط.' },
+    too_many_attempts:   { de: 'Zu viele Versuche. Bitte warte ein paar Minuten.', ar: 'محاولات كتير. استنى كام دقيقة وجرّب تاني.' },
+  })[code] || { de: 'Etwas ist schiefgelaufen.', ar: 'حصل خطأ. جرّب تاني.' };
 }
 
 // ── Server message types ──────────────────────────────────────────────────────
@@ -1339,7 +1340,7 @@ function AuthScreen({ onAuth }) {
       const data = await r.json();
       if (!r.ok) { setErr(authErrText(data.error)); setBusy(false); return; }
       onAuth({ token: data.token, account: data.account });
-    } catch { setErr('Server nicht erreichbar. Läuft der Server?'); setBusy(false); }
+    } catch { setErr({ de: 'Server nicht erreichbar. Läuft der Server?', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); setBusy(false); }
   };
 
   return (
@@ -1351,6 +1352,12 @@ function AuthScreen({ onAuth }) {
           color:'#00e5ff', textShadow:'0 0 24px rgba(0,229,255,0.6)' }}>OMNI-PERFORM</div>
         <div style={{ fontSize:10, color:'#64748b', marginTop:4, letterSpacing:'0.12em' }}>
           DE BPO COMBAT · SPRACHTRAINING
+        </div>
+        <div style={{ fontSize:11.5, color:'#cbd5e1', marginTop:14, lineHeight:1.55, maxWidth:360, marginInline:'auto' }}>
+          Trainiere deutsche Job-Interviews per Sprache gegen einen harten HR-Boss — mit sofortigem Feedback.
+        </div>
+        <div dir="rtl" style={{ fontSize:12.5, color:'#94a3b8', marginTop:7, lineHeight:1.6, maxWidth:360, marginInline:'auto' }}>
+          درّب نفسك على إنترفيو شغل ألماني بالصوت قدّام مدير موارد بشرية صعب — وخُد تقييم وتصحيح فوري بعد كل جولة.
         </div>
       </div>
 
@@ -1374,7 +1381,12 @@ function AuthScreen({ onAuth }) {
           autoComplete={mode==='signup'?'new-password':'current-password'}
           onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} style={{ ...inputStyle, marginTop:10 }} />
 
-        {err && <div style={{ color:'#fca5a5', fontSize:11, marginTop:10 }}>⚠ {err}</div>}
+        {err && (
+          <div style={{ marginTop:10 }}>
+            <div style={{ color:'#fca5a5', fontSize:11 }}>⚠ {err.de}</div>
+            {err.ar && <div dir="rtl" style={{ color:'#fca5a5', fontSize:11, marginTop:2 }}>{err.ar}</div>}
+          </div>
+        )}
 
         <button onClick={submit} disabled={busy}
           style={{ width:'100%', marginTop:16, padding:'13px', cursor:busy?'wait':'pointer',
@@ -1382,8 +1394,9 @@ function AuthScreen({ onAuth }) {
             border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)', opacity:busy?0.6:1 }}>
           {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
         </button>
-        <div style={{ fontSize:9, color:'#475569', textAlign:'center', marginTop:12 }}>
-          Neue Konten starten mit einer kostenlosen Testphase (3 Sitzungen).
+        <div style={{ fontSize:9.5, color:'#475569', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
+          Kostenlose Testphase: 3 Sitzungen gratis.
+          <br /><span dir="rtl">تجربة مجانية: ٣ جولات ببلاش.</span>
         </div>
       </div>
     </div>
