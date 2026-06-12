@@ -137,6 +137,44 @@ export function FirstFightCard({ token, apiUrl }) {
   );
 }
 
+// ── Owner-only: fulfill a payment by granting Pro to a user's email ─────────────
+function GrantPro({ token, apiUrl }) {
+  const [email, setEmail] = useState('');
+  const [msg, setMsg]     = useState(null);
+  const [busy, setBusy]   = useState(false);
+
+  const grant = async () => {
+    if (busy || !email.trim()) return;
+    setBusy(true); setMsg(null);
+    try {
+      const r = await fetch(`${apiUrl}/api/billing/admin/grant`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: email.trim(), tier: 'pro' }),
+      });
+      const d = await r.json();
+      if (r.ok) { setMsg({ ok: true, t: `✓ Pro freigeschaltet: ${d.email}` }); setEmail(''); }
+      else setMsg({ ok: false, t: d.error === 'user_not_found' ? 'Kein Konto mit dieser E-Mail.' : `Fehler: ${d.error}` });
+    } catch { setMsg({ ok: false, t: 'Netzwerkfehler.' }); }
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.3)' }}>
+      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 9.5, letterSpacing: '0.1em', color: '#a78bfa', marginBottom: 7 }}>ZAHLUNG ERFÜLLEN · PRO FREISCHALTEN</div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kunde@email.com" type="email"
+          style={{ flex: 1, padding: '9px', borderRadius: 7, fontSize: 12, background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid var(--line)', outline: 'none' }} />
+        <button onClick={grant} disabled={busy || !email.trim()}
+          style={{ padding: '9px 14px', minHeight: 40, borderRadius: 7, cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 10,
+            border: '1px solid #a78bfa', color: '#04070d', background: '#a78bfa', opacity: (busy || !email.trim()) ? 0.5 : 1 }}>
+          {busy ? '…' : 'PRO'}
+        </button>
+      </div>
+      {msg && <div style={{ fontSize: 10.5, marginTop: 6, color: msg.ok ? '#34d399' : '#f87171' }}>{msg.t}</div>}
+    </div>
+  );
+}
+
 // ── Owner-only: feedback dashboard (rendered only for ADMIN_EMAIL accounts) ─────
 export function AdminFeedback({ token, apiUrl }) {
   const [open, setOpen] = useState(false);
@@ -171,6 +209,8 @@ export function AdminFeedback({ token, apiUrl }) {
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#34d399' }}>Feedback-Daten</span>
               <button onClick={() => setOpen(false)} style={{ ...btnGhost, flex: 'none', padding: '4px 10px', fontSize: 11 }}>✕</button>
             </div>
+
+            <GrantPro token={token} apiUrl={apiUrl} />
 
             {busy && <div style={{ color: '#94a3b8', fontSize: 12 }}>Lädt…</div>}
             {err && <div style={{ color: '#f87171', fontSize: 12 }}>{err}</div>}

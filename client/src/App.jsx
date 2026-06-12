@@ -1409,22 +1409,38 @@ const inputStyle = {
 
 // ── Component: PaywallScreen (trial → paid tiers; processor not wired) ─────────
 function PaywallScreen({ token, info, onUpgraded, onClose }) {
-  const [busy, setBusy] = useState(null);
+  const [payUrl, setPayUrl] = useState(null);
+  const [email, setEmail]   = useState('');
+  const [checking, setChecking] = useState(false);
+  const [msg, setMsg]           = useState(null);
+  useEffect(() => {
+    fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => { setPayUrl(d.paymentUrl || null); setEmail(d.account?.email || ''); })
+      .catch(() => {});
+  }, [token]);
+
   const TIERS = [
     { id:'pro',  label:'PRO',  price:'19 €/Mon.', perks:['Unbegrenzte Sitzungen','Alle Bosse','Volle Wiederholung'] },
     { id:'team', label:'TEAM', price:'49 €/Mon.', perks:['Pro für bis zu 5 Lernende','Fortschrittsberichte'] },
   ];
-  const upgrade = async (tier) => {
-    setBusy(tier);
+  // Send the user to the real checkout link (configured server-side via PAYMENT_URL).
+  // Their email is passed as a hint so the payment can be matched to their account.
+  const goPay = (tier) => {
+    if (!payUrl) return;
+    const sep = payUrl.includes('?') ? '&' : '?';
+    window.open(`${payUrl}${sep}ref=${encodeURIComponent(email)}&tier=${tier}`, '_blank', 'noopener');
+  };
+  // After paying, the user taps this to re-check entitlement; unlocks only once granted.
+  const refresh = async () => {
+    setChecking(true); setMsg(null);
     try {
-      const r = await fetch(`${API_URL}/api/billing/upgrade`, {
-        method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
-        body: JSON.stringify({ tier }),
-      });
-      const data = await r.json();
-      if (r.ok) onUpgraded(data.account);
-    } catch { /* ignore */ }
-    setBusy(null);
+      const r = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      if (r.ok && d.account?.entitlement?.allowed) onUpgraded(d.account);
+      else setMsg({ de: 'Noch nicht freigeschaltet — nach der Zahlung kann es kurz dauern.', ar: 'لسه ماتفعّلش — بعد الدفع ممكن ياخد شوية. جرّب تاني بعد دقيقة.' });
+    } catch { setMsg({ de: 'Netzwerkfehler.', ar: 'مشكلة في الشبكة.' }); }
+    setChecking(false);
   };
 
   return (
@@ -1452,20 +1468,33 @@ function PaywallScreen({ token, info, onUpgraded, onClose }) {
             {t.perks.map((p) => (
               <div key={p} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {p}</div>
             ))}
-            <button onClick={() => upgrade(t.id)} disabled={!!busy}
-              style={{ width:'100%', marginTop:10, padding:'11px', cursor:'pointer',
+            <button onClick={() => goPay(t.id)} disabled={!payUrl}
+              style={{ width:'100%', marginTop:10, padding:'12px', minHeight:44, cursor: payUrl ? 'pointer' : 'not-allowed',
                 fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em', borderRadius:8,
-                border:'1px solid #00e5ff', color:'#020409', background:'#00e5ff', opacity:busy?0.6:1 }}>
-              {busy === t.id ? '…' : `${t.label} FREISCHALTEN`}
+                border:'1px solid #00e5ff', color:'#020409', background:'#00e5ff', opacity: payUrl ? 1 : 0.5 }}>
+              {payUrl ? `${t.label} FREISCHALTEN ↗` : 'BALD VERFÜGBAR'}
             </button>
           </div>
         ))}
-        <div style={{ fontSize:9, color:'#64748b', textAlign:'center', fontStyle:'italic' }}>
-          Zahlung ist simuliert — kein echter Zahlungsanbieter angebunden (Demo-Gating).
+        <div style={{ fontSize:9.5, color:'#64748b', textAlign:'center', lineHeight:1.5 }}>
+          {payUrl
+            ? <>Bezahle mit derselben E-Mail, mit der du angemeldet bist — dein Konto wird nach Zahlungseingang freigeschaltet.<br /><span dir="rtl">ادفع بنفس الإيميل اللي مسجّل بيه — هيتفعّل حسابك بعد ما يوصل الدفع.</span></>
+            : <>Zahlung wird in Kürze verfügbar sein.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span></>}
         </div>
       </div>
 
-      <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', cursor:'pointer',
+      {payUrl && (
+        <>
+          <button onClick={refresh} disabled={checking} style={{ width:'100%', marginTop:10, padding:'12px', minHeight:44, cursor:'pointer',
+            fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.08em', borderRadius:8,
+            border:'1px solid #34d399', background:'rgba(52,211,153,0.08)', color:'#34d399', opacity: checking ? 0.6 : 1 }}>
+            {checking ? '…' : 'ICH HABE BEZAHLT · دفعت — تحديث'}
+          </button>
+          {msg && <div style={{ fontSize:10, color:'#fbbf24', textAlign:'center', marginTop:6, lineHeight:1.5 }}>{msg.de}<br /><span dir="rtl">{msg.ar}</span></div>}
+        </>
+      )}
+
+      <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:'pointer',
         fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8,
         border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
         ZURÜCK

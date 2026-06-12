@@ -233,7 +233,21 @@ authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccou
 export const billingRouter = express.Router();
 
 billingRouter.get('/status', requireAuth, (req, res) =>
-  res.json({ tiers: TIERS, account: publicAccount(req.account) }));
+  res.json({ tiers: TIERS, account: publicAccount(req.account), paymentUrl: process.env.PAYMENT_URL || null }));
+
+// Owner-only: grant a paid tier to a user by email — used to fulfill a payment made
+// through the external checkout link (PAYMENT_URL). Gated to ADMIN_EMAIL accounts.
+billingRouter.post('/admin/grant', requireAuth, async (req, res) => {
+  if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const { email, tier } = req.body || {};
+    const target = await getAccountByEmail(email);
+    if (!target) return res.status(404).json({ error: 'user_not_found' });
+    await upgrade(target, tier || 'pro');
+    console.log(`[billing] ADMIN GRANT ${tier || 'pro'} -> ${target.email}  by ${req.account.email}`);
+    res.json({ ok: true, email: target.email, tier: target.subscription.tier });
+  } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
+});
 
 billingRouter.post('/upgrade', requireAuth, async (req, res) => {
   // Mock upgrade has NO payment verification, so anyone could self-grant Pro. Keep it
