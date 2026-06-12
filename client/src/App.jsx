@@ -50,6 +50,9 @@ const WS_ERROR_TEXT = {
   fight_start_failed:   { de: 'Der Kampf konnte nicht gestartet werden. Bitte versuche es erneut.', ar: 'مقدرناش نبدأ الجولة. من فضلك جرّب تاني.' },
   fight_already_active: { de: 'Es läuft bereits ein Kampf.', ar: 'في جولة شغّالة بالفعل.' },
   auth_required:        { de: 'Bitte melde dich erneut an.', ar: 'من فضلك سجّل دخول تاني.' },
+  mic_denied:           { de: 'Mikrofon-Zugriff wurde blockiert. Erlaube das Mikrofon in den Browser-Einstellungen (Schloss-Symbol neben der Adresse) und starte neu.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
+  mic_not_found:        { de: 'Kein Mikrofon gefunden. Schließe ein Mikrofon an oder erlaube es und starte neu.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
+  mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Der Kampf wurde beendet — bitte starte neu.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
 };
 function wsErrorText(code, lang) {
   const e = WS_ERROR_TEXT[code];
@@ -1787,7 +1790,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       onVolume: (v) => { volRef.current = v; },   // ref write only — no re-render
       onError:  (err) => {
         console.error('[recorder]', err);
-        setError(err.message);
+        // Map the recorder's coded errors to translatable keys (wsErrorText handles them);
+        // anything else falls through as its raw message.
+        const code = err.code === 'MIC_DENIED'    ? 'mic_denied'
+                   : err.code === 'MIC_NOT_FOUND' ? 'mic_not_found'
+                   : err.code === 'MIC_ENDED'     ? 'mic_lost'
+                   : err.message;
+        // If the mic dies MID-fight (revoked/unplugged), end the session so the server stops
+        // billing the Realtime stream — then surface the error.
+        if (phaseRef.current === 'active') {
+          try { wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT })); } catch {}
+        }
+        setError(code);
         setPhaseSync('error');
       },
     });
@@ -1817,7 +1831,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     ws.onclose = (ev) => {
       clearInterval(pingRef.current);
       if (phaseRef.current !== 'stopping' && phaseRef.current !== 'idle') {
-        setError(`Verbindung getrennt (${ev.code}). Bitte neu starten.`);
+        // Don't overwrite a more specific error already set (e.g. a mic failure).
+        setError((prev) => prev || `Verbindung getrennt (${ev.code}). Bitte neu starten.`);
         setPhaseSync('error');
         recorderRef.current?.stop().catch(() => {});
         playerRef.current?.flush();
@@ -2332,6 +2347,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
           {isActive && !bossSpeak && (
             <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Kein Push-to-Talk — sprich einfach Deutsch</div>
+          )}
+          {isConnecting && (
+            <div style={{ fontSize:9.5, color:'#f59e0b', marginTop:4, lineHeight:1.4 }}>
+              {feedbackLang === 'ar'
+                ? '⏳ بنحضّر المحاوِر… أول مرة ممكن تاخد لحد ٣٠ ثانية. استنى من فضلك.'
+                : '⏳ Der Interviewer wird vorbereitet… der erste Start kann bis zu 30 Sek. dauern. Bitte warten.'}
+            </div>
           )}
         </div>
 

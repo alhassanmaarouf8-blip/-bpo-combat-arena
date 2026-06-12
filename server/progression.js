@@ -3,7 +3,10 @@
  * Light leveling: XP per session, a level curve, and a boss ladder
  * (warm-up → standard → final boss) that unlocks with level.
  */
+import { dayKey, dayKeyNoonMs } from './time.js';
+
 export const XP_PER_LEVEL = 120;
+const DAY = 24 * 60 * 60 * 1000;
 
 // Ordered easiest → hardest. bossId must exist in realtimeClient BOSS_CONFIGS.
 export const BOSS_LADDER = [
@@ -110,16 +113,18 @@ export function computeRank(sessions) {
  */
 export function computeStreak(sessions) {
   if (!Array.isArray(sessions) || sessions.length === 0) return 0;
-  const days = new Set(sessions.map((s) => new Date(s.date).toDateString()));
-  const d = new Date();
-  if (!days.has(d.toDateString())) {
-    d.setDate(d.getDate() - 1);             // allow yesterday as the anchor (today not trained yet)
-    if (!days.has(d.toDateString())) return 0;
+  // Bucket sessions by their Cairo calendar day, then walk back day-by-day. Stepping via
+  // dayKeyNoonMs keeps each hop anchored near noon, so DST transitions can't skip/double a day.
+  const days = new Set(sessions.map((s) => dayKey(new Date(s.date).getTime())));
+  let key = dayKey();                           // today (Cairo)
+  if (!days.has(key)) {
+    key = dayKey(dayKeyNoonMs(key) - DAY);      // allow yesterday as the anchor (today not trained yet)
+    if (!days.has(key)) return 0;
   }
   let streak = 0;
-  while (days.has(d.toDateString())) {
+  while (days.has(key)) {
     streak++;
-    d.setDate(d.getDate() - 1);
+    key = dayKey(dayKeyNoonMs(key) - DAY);
   }
   return streak;
 }

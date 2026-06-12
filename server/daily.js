@@ -15,15 +15,13 @@ import { loadUser, saveUser } from './store.js';
 import { requireAuth }        from './auth.js';
 import { dueItems, grade, checkAnswer } from './srs.js';
 import { BPO_PHRASES }        from './scenarios.js';
+import { dayKey }             from './time.js';
 
 export const dailyRouter = express.Router();
 const DAY = 24 * 60 * 60 * 1000;
 
-// Local-time day key (YYYY-MM-DD), so "today/yesterday" match the user's calendar day.
-function dayKey(ts = Date.now()) {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// dayKey() (YYYY-MM-DD) is anchored to the audience's timezone (Cairo) via time.js,
+// so "today/yesterday" match the learner's calendar day — not the UTC server clock.
 
 // Level-appropriate BPO fallback drills when the user has no tracked mistakes yet.
 // All "fix the sentence" style → a single correct answer, so grading is unambiguous.

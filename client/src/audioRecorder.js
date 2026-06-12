@@ -79,6 +79,15 @@ export class AudioRecorder {
         video: false,
       });
 
+      // Detect the mic being revoked / unplugged MID-session: the track fires 'ended'.
+      // Surface it as a coded error so the app can end the fight and stop billing.
+      for (const track of this._stream.getAudioTracks()) {
+        track.addEventListener('ended', () => {
+          if (this._state !== 'recording') return;
+          this._onError(Object.assign(new Error('Microphone disconnected'), { code: 'MIC_ENDED' }));
+        });
+      }
+
       // 2. AudioContext locked to 24 kHz
       this._ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
       if (this._ctx.state === 'suspended') await this._ctx.resume();

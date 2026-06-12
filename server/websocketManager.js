@@ -395,6 +395,33 @@ export class WebSocketManager {
       const p   = await loadUser(ctx.userId);
       const now = Date.now();
 
+      // ── Anti-farm gate ──────────────────────────────────────────────────────────
+      // Only a session with REAL speech counts toward XP / level / streak / rank. Without
+      // this, a user could start a fight, stay silent (or say one word), end it, and still
+      // bank XP and a streak day — farming progress with no learning (and burning API cost).
+      // Below the floor we persist NOTHING progression-wise; the debrief is still shown.
+      const MIN_ANSWERS = 1, MIN_WORDS = 8;
+      const meaningful = (metrics.answers || 0) >= MIN_ANSWERS && (metrics.words || 0) >= MIN_WORDS;
+      if (!meaningful) {
+        console.log(`[wsManager] session NOT counted (insufficient speech) answers=${metrics.answers} words=${metrics.words} session=${ctx.sessionId}`);
+        const flAll = p.sessions.map((s) => s.fluency ?? 0);
+        const fiAll = p.sessions.map((s) => s.fillers ?? 0);
+        return {
+          xpGained: 0, level: p.level, leveledUp: false,
+          levelProgress: levelProgress(p.xp),
+          dueReviews:    dueCount(p),
+          nextBoss:      nextBoss(p.level),
+          bossId:        ctx.bossId,
+          sessionCount:  p.sessions.length,
+          streak:        computeStreak(p.sessions),
+          rank:          computeRank(p.sessions),
+          trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
+          personalBest:  false,
+          bestFluency:   flAll.length ? Math.max(...flAll) : 0,
+          notCounted:    true,   // client may show "session too short to count"
+        };
+      }
+
       // Vocab growth — record the strong words the user actually produced.
       for (const w of (metrics.c1WordsUsed || [])) {
         if (!p.vocabLearned.includes(w)) p.vocabLearned.push(w);
