@@ -132,6 +132,10 @@ export async function authenticate(email, password) {
 // ── Subscription / entitlement ───────────────────────────────────────────────
 export function entitlement(account) {
   const s = account?.subscription || {};
+  // Owner/admin accounts always have full access (so you can test the paid flow freely).
+  if (isAdminEmail(account?.email)) {
+    return { allowed: true, tier: 'admin', unlimited: true };
+  }
   if (s.tier === 'pro' || s.tier === 'team') {
     return { allowed: true, tier: s.tier, unlimited: true };
   }
