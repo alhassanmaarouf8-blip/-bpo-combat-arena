@@ -23,14 +23,17 @@ const SKIP_CATEGORIES = new Set([
   'STYLE', 'REDUNDANCY', 'COLLOQUIALISMS', 'PLAIN_ENGLISH',
 ]);
 
-// LanguageTool tags each match with an issueType. We only trust the ones it can correct
-// with high confidence (real grammar, agreement, word order, spelling, doubled words).
-// The types below are stylistic / low-confidence and are the usual source of "corrections"
-// that are wrong or pointless on a speech transcript — drop them outright. The rule is:
-// better to show FEWER corrections than a wrong one.
+// LanguageTool tags each match with an issueType. We drop the purely stylistic / cosmetic
+// types — they are the usual source of "corrections" that are wrong or pointless on a
+// speech transcript. The rule is: better to show FEWER corrections than a wrong one.
+// NOTE: 'uncategorized' is deliberately NOT skipped. LanguageTool tags many GENUINE German
+// fixes (e.g. preposition+article like "zum" → "zur", der/die/das agreement) as
+// 'uncategorized'; skipping them silently dropped real corrections and made the coach look
+// like it couldn't teach. The SKIP_CATEGORIES filter (casing/typography/style) plus the
+// identical-correction guards below still protect against noise.
 const SKIP_ISSUE_TYPES = new Set([
   'style', 'register', 'typographical', 'whitespace', 'characters',
-  'uncategorized', 'non-conformance', 'locale-violation',
+  'non-conformance', 'locale-violation',
 ]);
 
 // Canonicalize for the identical-correction guard: collapse whitespace + drop a trailing

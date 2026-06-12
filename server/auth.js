@@ -174,9 +174,35 @@ export async function requireAuth(req, res, next) {
   next();
 }
 
+// ── Brute-force / spam guard: in-memory sliding-window rate limiter ───────────
+// A public URL means /login and /signup must not be brute-forceable. Keyed by client IP
+// (read from X-Forwarded-For since Render runs behind a proxy). In-memory is sufficient for
+// a single instance and simply resets on restart — an acceptable trade-off here.
+const _rl = new Map(); // key -> [timestamps]
+function rateLimit({ windowMs, max, tag }) {
+  return (req, res, next) => {
+    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+            || req.socket?.remoteAddress || 'unknown';
+    const key = `${tag}:${ip}`;
+    const now = Date.now();
+    const hits = (_rl.get(key) || []).filter((t) => now - t < windowMs);
+    if (hits.length >= max) {
+      const retry = Math.ceil((windowMs - (now - hits[0])) / 1000);
+      res.set('Retry-After', String(retry));
+      return res.status(429).json({ error: 'too_many_attempts', retryAfter: retry });
+    }
+    hits.push(now);
+    _rl.set(key, hits);
+    if (_rl.size > 5000) { // opportunistic cleanup to bound memory
+      for (const [k, v] of _rl) if (!v.some((t) => now - t < windowMs)) _rl.delete(k);
+    }
+    next();
+  };
+}
+
 export const authRouter = express.Router();
 
-authRouter.post('/signup', async (req, res) => {
+authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8, tag: 'signup' }), async (req, res) => {
   try {
     const { email, password } = req.body || {};
     const acct = await createAccount(email, password);
@@ -184,7 +210,7 @@ authRouter.post('/signup', async (req, res) => {
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
 
-authRouter.post('/login', async (req, res) => {
+authRouter.post('/login', rateLimit({ windowMs: 10 * 60 * 1000, max: 10, tag: 'login' }), async (req, res) => {
   const { email, password } = req.body || {};
   const acct = await authenticate(email, password);
   if (!acct) return res.status(401).json({ error: 'invalid_credentials' });

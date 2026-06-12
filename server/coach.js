@@ -58,7 +58,7 @@ HARTE REGELN:
 - "vocabTargets": 3–6 konkrete deutsche Wörter/Wendungen, die der Kandidat NICHT oder falsch benutzt hat und üben sollte (für Vokabel-Drills). Jeweils mit klarer englischer Bedeutung.
 - "upgrades": 2–4 Vorschläge, wie der Kandidat etwas, das er WIRKLICH gesagt hat, STÄRKER formulieren könnte (gehobener Wortschatz, bessere Struktur, mehr Variation zum SELBEN Thema). Das ist KEINE Fehlerkorrektur — "original" war NICHT falsch, sondern wird nur aufgewertet. "original" MUSS wörtlich aus den echten Äußerungen stammen; erfinde NICHTS. Gibt es nichts Sinnvolles oder war die Sitzung sehr kurz, gib "upgrades": [] zurück.
 - Höchstens 5 Grammatik-Regeln, höchstens 4 Stärken, höchstens 4 Study-Next-Einträge — die wichtigsten zuerst, nicht-repetitiv.
-- ZWEISPRACHIG (Pflicht): Liefere zu JEDER Erklärung zusätzlich die arabische Übersetzung in den Feldern mit Suffix "_ar" (explanation_ar, strengths_ar, title_ar, detail_ar, note_ar) — natürliches, klares Hocharabisch für ägyptische Lernende. ÜBERSETZE NUR die Erklärtexte. Deutsche Zielwörter, Regelnamen, Vokabeln ("de") und die Beispielsätze (wrong/right) bleiben IMMER auf Deutsch. "strengths_ar" hat exakt dieselbe Länge und Reihenfolge wie "strengths".`;
+- ZWEISPRACHIG (Pflicht): Liefere zu JEDER Erklärung zusätzlich die arabische Übersetzung in den Feldern mit Suffix "_ar" (explanation_ar, strengths_ar, title_ar, detail_ar, note_ar). Schreibe EINFACHES, modernes, alltagsnahes Arabisch, das ein ägyptischer Lernender mühelos versteht — KEIN steifes, formelles Hocharabisch. Freundlich und direkt, wie ein ägyptischer Trainer es sagen würde (leichte ägyptische Färbung ist erwünscht, aber verständlich für alle). ÜBERSETZE NUR die Erklärtexte. Deutsche Zielwörter, Regelnamen, Vokabeln ("de") und die Beispielsätze (wrong/right) bleiben IMMER auf Deutsch. "strengths_ar" hat exakt dieselbe Länge und Reihenfolge wie "strengths".`;
 
 export async function generateDebrief({ utterances, metrics, level, csScenarioId }) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -125,7 +125,10 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     // rather show nothing than invent a correction). The model is used only for the
     // forward-looking enrichment (strengths / study-next / vocab / upgrades).
     const grammar = ltGrammar || [];
-    return { ...norm, grammar, metrics, generated: true, grammarSource: ltGrammar ? 'languagetool' : 'none' };
+    // Deterministic lesson built from the candidate's real utterances + metrics + the
+    // authoritative grammar (NOT from the model) — always factual, never hallucinated.
+    const lesson  = buildLesson(utterances, metrics, grammar);
+    return { ...norm, grammar, lesson, metrics, generated: true, grammarSource: ltGrammar ? 'languagetool' : 'none' };
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
     const fb = fallbackDebrief(metrics, utterances);
@@ -158,8 +161,14 @@ function _isRealCorrection(e) {
 }
 
 // ── Shape-guard the model output ────────────────────────────────────────────────
+// PURE function of the model's parsed JSON `d` only. It produces the forward-looking
+// ENRICHMENT (strengths / studyNext / vocab / upgrades + their Arabic). Grammar and the
+// deterministic lesson are attached by the caller (generateDebrief), which has access to
+// the authoritative LanguageTool grammar and the candidate's utterances/metrics.
 export function normalize(d) {
   const arr = (x) => (Array.isArray(x) ? x : []);
+  // The model's own grammar is shaped here for safety, but generateDebrief OVERRIDES it
+  // with the authoritative LanguageTool grammar — the model never decides corrections.
   const grammar = arr(d.grammar)
     .map((g) => {
       // Hard filter: discard every example whose "correction" equals the original.
@@ -180,18 +189,35 @@ export function normalize(d) {
     // Drop any rule that has no genuine correction left after filtering.
     .filter((g) => g.summaryExamples.length > 0)
     .slice(0, 5);
+
   const strengths    = arr(d.strengths).slice(0, 4).map(String);
   const strengths_ar = arr(d.strengths_ar).slice(0, 4).map(String);
-  const strongers = (arr(d.upgrades) || [])
+
+  const studyNext = arr(d.studyNext).slice(0, 4)
+    .map((s) => ({
+      title:     String(s?.title ?? ''),
+      title_ar:  String(s?.title_ar ?? ''),
+      detail:    String(s?.detail ?? ''),
+      detail_ar: String(s?.detail_ar ?? ''),
+    }))
+    .filter((s) => s.title);
+
+  const vocabTargets = arr(d.vocabTargets).slice(0, 6)
+    .map((v) => ({
+      de:      String(v?.de ?? ''),
+      en:      String(v?.en ?? ''),
+      note:    String(v?.note ?? ''),
+      note_ar: String(v?.note_ar ?? ''),
+    }))
+    .filter((v) => v.de);
+
+  // "upgrades" reword something the candidate REALLY said; keep only when it actually changes.
+  const upgrades = arr(d.upgrades)
     .filter((u) => u && u.original && u.better && _canon(u.original) !== _canon(u.better))
     .slice(0, 4)
     .map((u) => ({ original: String(u.original), better: String(u.better), why: String(u.why ?? ''), why_ar: String(u.why_ar ?? '') }));
 
-  // Deterministic lesson when there are few/no real grammar findings.
-  // Built only from the candidate's actual utterances + metrics.
-  // Zero language-model content here, so it's factual and seasonable/answerable.
-  const lesson = buildLesson(utterances, metrics, ltGrammar);
-  return { grammar, strengths, strengths_ar, studyNext, vocabTargets, upgrades: strongers, lesson, grammarSource: ltGrammar ? 'languagetool' : 'none' };
+  return { grammar, strengths, strengths_ar, studyNext, vocabTargets, upgrades };
 }
 
 function buildLesson(utterances, metrics, grammar) {
@@ -264,6 +290,8 @@ function fallbackDebrief(metrics, utterances) {
     strengths_ar,
     studyNext,
     vocabTargets: [],
+    upgrades: [],
+    lesson: buildLesson(utterances, metrics, []),
     metrics,
     generated: false,
     note: 'Detaillierte Grammatik-Analyse war nicht verfügbar — hier die objektiven Kennzahlen und Lernhinweise.',

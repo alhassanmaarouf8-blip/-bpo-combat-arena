@@ -1050,6 +1050,15 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {data?.sessionCount === 1 && token && (
             <FirstFightCard token={token} apiUrl={API_URL} />
           )}
+
+          {/* Honesty disclaimer: this is training feedback, NOT a recognized German certificate. */}
+          <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, ...rtl,
+            background:'rgba(148,163,184,0.06)', border:'1px solid rgba(148,163,184,0.16)',
+            fontSize:9.5, color:'#64748b', lineHeight:1.5 }}>
+            {ar
+              ? 'ℹ️ ده تدريب وتقييم لمستواك للتمرين بس — مش شهادة ألمانية رسمية ولا معتمدة (زي Goethe / telc).'
+              : 'ℹ️ Trainings-Feedback zur Übung — KEIN offizielles oder anerkanntes deutsches Sprachzertifikat (z. B. Goethe / telc).'}
+          </div>
         </div>
       )}
 
