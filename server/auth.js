@@ -32,11 +32,11 @@ const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DAY = 24 * 60 * 60 * 1000;
 
 // ── Trial + tier config ──────────────────────────────────────────────────────
-const TRIAL_SESSIONS = 3;
+const TRIAL_SESSIONS = 1;   // one free trial fight, then upgrade required
 const TRIAL_DAYS     = 7;
 
 export const TIERS = {
-  trial: { id: 'trial', label: 'Testphase', priceEur: 0,  blurb: `${TRIAL_SESSIONS} Sitzungen gratis (${TRIAL_DAYS} Tage)` },
+  trial: { id: 'trial', label: 'Testphase', priceEur: 0,  blurb: `${TRIAL_SESSIONS} Gratis-Sitzung${TRIAL_SESSIONS === 1 ? '' : 'en'} zum Ausprobieren` },
   pro:   { id: 'pro',   label: 'Pro',       priceEur: 19, blurb: 'Unbegrenzte Sitzungen, alle Bosse, volle Wiederholung' },
   team:  { id: 'team',  label: 'Team',      priceEur: 49, blurb: 'Pro für bis zu 5 Lernende + Fortschrittsberichte' },
 };

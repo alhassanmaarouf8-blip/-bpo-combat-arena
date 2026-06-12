@@ -1395,8 +1395,8 @@ function AuthScreen({ onAuth }) {
           {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
         </button>
         <div style={{ fontSize:9.5, color:'#475569', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
-          Kostenlose Testphase: 3 Sitzungen gratis.
-          <br /><span dir="rtl">تجربة مجانية: ٣ جولات ببلاش.</span>
+          Kostenlose Testphase: 1 Sitzung gratis.
+          <br /><span dir="rtl">تجربة مجانية: جولة واحدة ببلاش.</span>
         </div>
       </div>
     </div>
@@ -1436,7 +1436,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose }) {
           color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>TESTPHASE BEENDET</div>
         <div style={{ fontSize:11, color:'#94a3b8', marginTop:6, lineHeight:1.5 }}>
           {info?.sessionsLeft === 0
-            ? 'Du hast deine 3 kostenlosen Sitzungen genutzt.'
+            ? 'Du hast deine kostenlose Sitzung genutzt.'
             : 'Deine Testphase ist abgelaufen.'} Schalte unbegrenztes Training frei.
         </div>
       </div>

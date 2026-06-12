@@ -243,8 +243,6 @@ export class WebSocketManager {
     this._activeFightUsers.add(account.id);
     ctx.accountLocked = account.id;
 
-    if (ent.tier === 'trial') await consumeTrialSession(account);
-
     ctx.userId   = account.id;
     const level  = msg.level === 'b2' ? 'b2' : 'a2-b1';
 
@@ -298,6 +296,10 @@ export class WebSocketManager {
 
       await ctx.realtimeClient.connect();
       console.log(`[wsManager] RealtimeClient connected  session=${ctx.sessionId}`);
+
+      // Consume the trial ONLY after a successful connect — a failed/cold-start connection
+      // streams no audio (no cost) and must not burn the user's single free session.
+      if (ent.tier === 'trial') await consumeTrialSession(account);
 
       // Billing starts now: stamp the start time and arm the hard wall-clock cap.
       ctx.fightStartedAt = Date.now();
