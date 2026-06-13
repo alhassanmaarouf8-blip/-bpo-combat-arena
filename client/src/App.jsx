@@ -1435,8 +1435,8 @@ function AuthScreen({ onAuth }) {
           {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
         </button>
         <div style={{ fontSize:9.5, color:'#475569', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
-          Kostenlose Testphase: 1 Sitzung gratis.
-          <br /><span dir="rtl">تجربة مجانية: جولة واحدة ببلاش.</span>
+          Kostenlos: deine Niveau-Einstufung. Live-Interview im Plan.
+          <br /><span dir="rtl">مجانًا: تقييم مستواك. الإنترفيو المباشر في الخطة.</span>
         </div>
       </div>
     </div>
@@ -1490,11 +1490,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose }) {
       <div style={{ textAlign:'center', marginBottom:8 }}>
         <div style={{ fontSize:40 }}>🔒</div>
         <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, letterSpacing:2,
-          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>TESTPHASE BEENDET</div>
-        <div style={{ fontSize:11, color:'#94a3b8', marginTop:6, lineHeight:1.5 }}>
-          {info?.sessionsLeft === 0
-            ? 'Du hast deine kostenlose Sitzung genutzt.'
-            : 'Deine Testphase ist abgelaufen.'} Schalte unbegrenztes Training frei.
+          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>LIVE-INTERVIEW · PLAN WÄHLEN</div>
+        <div style={{ fontSize:11, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>
+          Live-Interviews sind in den Plänen Basic & Elite enthalten. Deine kostenlose Einstufung kannst du jederzeit machen.
+          <br /><span dir="rtl">الإنترفيو المباشر موجود في خطتَي Basic و Elite. تقييم مستواك المجاني متاح في أي وقت.</span>
         </div>
       </div>
 

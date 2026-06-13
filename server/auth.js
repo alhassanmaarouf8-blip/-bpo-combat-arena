@@ -32,11 +32,15 @@ const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DAY = 24 * 60 * 60 * 1000;
 
 // ── Trial + tier config ──────────────────────────────────────────────────────
-const TRIAL_SESSIONS = 1;   // one free trial fight, then upgrade required
+// Free tier gets the CHEAP assessment only — ZERO live Realtime fights. A live fight costs
+// real money, so it is reserved for paid plans (Basic/Elite, see plans.config.js). The
+// server gate in websocketManager._handleStartFight blocks any free user before a Realtime
+// session can open. (Phase C replaces this session counter with daily live-minute limits.)
+const TRIAL_SESSIONS = 0;   // free = 0 live fights (assessment only)
 const TRIAL_DAYS     = 7;
 
 export const TIERS = {
-  trial: { id: 'trial', label: 'Testphase', priceEur: 0,  blurb: `${TRIAL_SESSIONS} Gratis-Sitzung${TRIAL_SESSIONS === 1 ? '' : 'en'} zum Ausprobieren` },
+  trial: { id: 'trial', label: 'Gratis', priceEur: 0,  blurb: 'Kostenlose Niveau-Einstufung. Live-Interviews im Plan.' },
   pro:   { id: 'pro',   label: 'Pro',       priceEur: 19, blurb: 'Unbegrenzte Sitzungen, alle Bosse, volle Wiederholung' },
   team:  { id: 'team',  label: 'Team',      priceEur: 49, blurb: 'Pro für bis zu 5 Lernende + Fortschrittsberichte' },
 };
