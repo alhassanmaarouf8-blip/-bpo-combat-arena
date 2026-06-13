@@ -2111,8 +2111,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Trainingslager game-map route (study mode — never a Realtime session) */}
       {trainingslagerOpen && (
         <Trainingslager token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setTrainingslagerOpen(false)}
-          onOpenLesson={(ruleId) => { /* Phase 4: open the lesson screen */ }} />
+          onClose={() => setTrainingslagerOpen(false)} />
       )}
 
       {/* Result screen: ONLY when the server has ended the session, and only once the

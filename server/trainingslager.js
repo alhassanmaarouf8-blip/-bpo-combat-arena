@@ -103,3 +103,47 @@ trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'trainingslager_failed' });
   }
 });
+
+// ── GET one lesson (video + quiz) ────────────────────────────────────────────────
+trainingslagerRouter.get('/trainingslager/lesson/:ruleId', requireAuth, async (req, res) => {
+  try {
+    const lesson = getLesson(req.params.ruleId);
+    if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
+    const p = await loadUser(req.account.id);
+    const done = (Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : []).includes(lesson.ruleId);
+    res.json({ lesson, done });
+  } catch (err) {
+    console.error('[trainingslager] lesson read error:', err.message);
+    res.status(500).json({ error: 'lesson_failed' });
+  }
+});
+
+// ── POST quiz answers → server grades (source of truth) → marks lesson DONE on pass ──
+// Pass = at least 2 of 3 correct. Idempotent: re-passing an already-done lesson is harmless.
+trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth, async (req, res) => {
+  try {
+    const lesson = getLesson(req.params.ruleId);
+    if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
+
+    const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
+    let score = 0;
+    lesson.quiz.forEach((q, i) => { if (Number(answers[i]) === q.correctIndex) score++; });
+    const passed = score >= 2;
+
+    const p = await loadUser(req.account.id);
+    p.lessonsCompleted = Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : [];
+    let newlyCompleted = false;
+    if (passed && !p.lessonsCompleted.includes(lesson.ruleId)) {
+      p.lessonsCompleted.push(lesson.ruleId);
+      newlyCompleted = true;
+      // (Phase 5 will award XP + streak credit here, once, on newlyCompleted.)
+      await saveUser(p);
+    }
+
+    console.log(`[trainingslager] lesson=${lesson.ruleId} user=${p.userId} score=${score}/${lesson.quiz.length} passed=${passed} newlyCompleted=${newlyCompleted}`);
+    res.json({ passed, score, total: lesson.quiz.length, done: passed || p.lessonsCompleted.includes(lesson.ruleId), newlyCompleted });
+  } catch (err) {
+    console.error('[trainingslager] complete error:', err.message);
+    res.status(500).json({ error: 'complete_failed' });
+  }
+});

@@ -12,7 +12,7 @@
  * Performance: SVG path + a handful of absolutely-positioned nodes; the only animation is one
  * cheap CSS ring pulse on the single AVAILABLE node. Respects prefers-reduced-motion.
  */
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
@@ -55,19 +55,34 @@ function deriveStates(lessons) {
   return { nodes, bossState: allDone ? 'available' : 'locked' };
 }
 
-// ── data hook (shared by both views) ──
+// ── data hook (shared by both views); reload() re-fetches after a lesson completes ──
 function useRecommendations(token, apiUrl) {
   const [lessons, setLessons] = useState(null);
-  useEffect(() => {
-    injectStyleOnce();
-    let cancel = false;
+  const reload = useCallback(() => {
     fetch(`${apiUrl}/api/trainingslager`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { if (!cancel) setLessons(Array.isArray(d.lessons) ? d.lessons : []); })
-      .catch(() => { if (!cancel) setLessons([]); });
-    return () => { cancel = true; };
+      .then((d) => setLessons(Array.isArray(d.lessons) ? d.lessons : []))
+      .catch(() => setLessons([]));
   }, [token, apiUrl]);
-  return lessons;
+  useEffect(() => { injectStyleOnce(); reload(); }, [reload]);
+  return { lessons, reload };
+}
+
+// Valid YouTube IDs are exactly 11 chars of [A-Za-z0-9_-]; anything else (incl. PLACEHOLDER) → no embed.
+function isValidYtId(id) { return typeof id === 'string' && /^[A-Za-z0-9_-]{11}$/.test(id); }
+
+// Deterministic option shuffle so the correct answer isn't always in the same position,
+// but stays stable across re-renders (seeded by ruleId+question index).
+function seededOrder(seed, n) {
+  let s = 0;
+  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+  const arr = [...Array(n).keys()];
+  for (let i = n - 1; i > 0; i--) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 // ═══════════════════════════ FULL MEANDERING MAP (route) ═══════════════════════════
@@ -85,8 +100,9 @@ function buildPath(pts) {
   return d;
 }
 
-export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onOpenLesson }) {
-  const lessons = useRecommendations(token, apiUrl);
+export function Trainingslager({ token, apiUrl, lang = 'de', onClose }) {
+  const { lessons, reload } = useRecommendations(token, apiUrl);
+  const [openId, setOpenId] = useState(null);   // ruleId of the lesson modal, or null
 
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 250, overflowY: 'auto',
@@ -143,12 +159,174 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onOpenLess
 
       {nodes.map((n, i) => (
         <MapNode key={n.ruleId} node={n} x={pts[i].x} y={pts[i].y} lang={lang}
-          onOpen={() => n.state === 'available' && onOpenLesson?.(n.ruleId)} />
+          onOpen={() => n.state === 'available' && setOpenId(n.ruleId)} />
       ))}
       <BossNode x={bossPt.x} y={bossPt.y} state={bossState} lang={lang} />
     </div>
+
+    {/* Lesson modal — blurs the map behind it (backdrop-filter); never ejects to YouTube */}
+    {openId && (
+      <LessonScreen token={token} apiUrl={apiUrl} lang={lang} ruleId={openId}
+        onClose={() => setOpenId(null)}
+        onPassed={() => { reload(); }} />
+    )}
   </>);
 }
+
+// ═══════════════════════════ THE LESSON SCREEN (video + quiz) ═══════════════════════════
+function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed }) {
+  const [lesson, setLesson] = useState(null);
+  const [answers, setAnswers] = useState({});   // qIndex -> chosen ORIGINAL option index
+  const [phase, setPhase] = useState('quiz');    // quiz | passed | failed
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    fetch(`${apiUrl}/api/trainingslager/lesson/${encodeURIComponent(ruleId)}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => { if (!cancel) setLesson(d.lesson || null); })
+      .catch(() => { if (!cancel) setLesson(null); });
+    return () => { cancel = true; };
+  }, [ruleId, token, apiUrl]);
+
+  const overlay = (children) => (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, display: 'flex', justifyContent: 'center',
+      alignItems: 'flex-start', overflowY: 'auto', padding: '16px 12px 36px',
+      background: 'rgba(3,7,10,0.72)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 440, borderRadius: 16,
+        background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))',
+        border: '1px solid rgba(251,191,36,0.3)', boxShadow: '0 0 40px rgba(0,0,0,0.6)', padding: 16, animation: 'flash-in 0.25s ease' }}>
+        {children}
+      </div>
+    </div>
+  );
+
+  if (!lesson) return overlay(<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div>);
+
+  const ytId = lang === 'ar' ? (lesson.youtubeId_ar) : (lesson.youtubeId_de);
+  const ytIdFallback = isValidYtId(ytId) ? ytId : (isValidYtId(lesson.youtubeId_de) ? lesson.youtubeId_de : lesson.youtubeId_ar);
+  const playable = isValidYtId(ytIdFallback);
+
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
+    const ordered = lesson.quiz.map((_, i) => (i in answers ? answers[i] : -1));
+    try {
+      const r = await fetch(`${apiUrl}/api/trainingslager/lesson/${encodeURIComponent(ruleId)}/complete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ answers: ordered }),
+      });
+      const d = await r.json();
+      if (r.ok && d.passed) { setPhase('passed'); onPassed?.(); }
+      else setPhase('failed');
+    } catch { setPhase('failed'); }
+    setBusy(false);
+  };
+
+  const retry = () => { setAnswers({}); setPhase('quiz'); };
+  const answeredAll = lesson.quiz.every((_, i) => i in answers);
+
+  return overlay(<>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 10 }}>
+      <div>
+        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 13, fontWeight: 800, color: '#fbbf24', lineHeight: 1.3 }}>{lesson.title_de}</div>
+        <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{lesson.title_ar}</div>
+      </div>
+      <button onClick={onClose} style={ghost}>✕</button>
+    </div>
+
+    {/* video (responsive 16:9) or a friendly placeholder until a real ID is pasted */}
+    {playable ? (
+      <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', borderRadius: 10, overflow: 'hidden', background: '#000' }}>
+        <iframe style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+          src={`https://www.youtube-nocookie.com/embed/${ytIdFallback}`} title={lesson.title_de}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+      </div>
+    ) : (
+      <div style={{ width: '100%', paddingBottom: '56.25%', position: 'relative', borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px dashed rgba(148,163,184,0.3)' }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center', color: '#64748b', fontSize: 12, padding: 12 }}>
+          {T(lang, '🎬 Video kommt bald — der Kurs-Quiz funktioniert schon.', '🎬 الفيديو هييجي قريب — الكويز شغّال خلاص.')}
+        </div>
+      </div>
+    )}
+
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7, fontSize: 10 }}>
+      {playable
+        ? <a href={`https://www.youtube.com/watch?v=${ytIdFallback}`} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa' }}>{T(lang, 'auf YouTube öffnen ↗', 'افتح على يوتيوب ↗')}</a>
+        : <span />}
+      {lesson.teacherName ? (
+        <a href={lesson.teacherChannelUrl || '#'} target="_blank" rel="noopener noreferrer" style={{ color: '#94a3b8' }}>
+          {T(lang, 'mit ', 'مع ')}<b style={{ color: '#cbd5e1' }}>{lesson.teacherName}</b>
+        </a>
+      ) : <span />}
+    </div>
+
+    {/* Schlüssel-Quiz */}
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 10, letterSpacing: '0.12em', color: '#fbbf24', marginBottom: 10 }}>
+        🔑 {T(lang, 'SCHLÜSSEL-QUIZ', 'كويز المفتاح')} · {T(lang, '2 von 3 zum Bestehen', '٢ من ٣ عشان تعدّي')}
+      </div>
+
+      {lesson.quiz.map((q, qi) => {
+        const order = seededOrder(`${ruleId}:${qi}`, q.options.length);
+        const chosen = answers[qi]; // original index chosen (or undefined)
+        const locked = qi in answers;
+        return (
+          <div key={qi} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 2 }}>{qi + 1}. {q.question_de}</div>
+            <div dir="rtl" style={{ fontSize: 11, color: '#94a3b8', marginBottom: 7 }}>{q.question_ar_hint}</div>
+            <div style={{ display: 'grid', gap: 6 }}>
+              {order.map((origIdx, pos) => {
+                const isChosen = chosen === origIdx;
+                const isCorrect = origIdx === q.correctIndex;
+                let bg = 'rgba(255,255,255,0.04)', border = 'rgba(148,163,184,0.25)', col = '#e2e8f0';
+                if (locked && isCorrect) { bg = 'rgba(16,185,129,0.18)'; border = '#10b981'; col = '#d1fae5'; }
+                else if (locked && isChosen && !isCorrect) { bg = 'rgba(239,68,68,0.16)'; border = '#ef4444'; col = '#fecaca'; }
+                return (
+                  <button key={pos} disabled={locked}
+                    onClick={() => !locked && setAnswers((a) => ({ ...a, [qi]: origIdx }))}
+                    style={{ textAlign: 'left', padding: '10px 12px', minHeight: 42, borderRadius: 9, cursor: locked ? 'default' : 'pointer',
+                      border: `1px solid ${border}`, background: bg, color: col, fontSize: 12.5, lineHeight: 1.35,
+                      transition: 'background 0.15s, border-color 0.15s' }}>
+                    {locked && isCorrect ? '✓ ' : locked && isChosen && !isCorrect ? '✗ ' : ''}{q.options[origIdx]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {phase === 'quiz' && (
+        <button onClick={submit} disabled={!answeredAll || busy}
+          style={{ ...primaryBtn, opacity: (!answeredAll || busy) ? 0.5 : 1 }}>
+          {busy ? '…' : answeredAll ? T(lang, 'Ergebnis ansehen', 'شوف النتيجة') : T(lang, 'Alle 3 beantworten', 'جاوب الـ٣ كلهم')}
+        </button>
+      )}
+
+      {phase === 'passed' && (
+        <div style={{ textAlign: 'center', marginTop: 6 }}>
+          <div style={{ fontSize: 30 }}>✅</div>
+          <div style={{ fontSize: 14, color: '#34d399', fontWeight: 700, marginTop: 4 }}>{T(lang, 'Bestanden! Station erledigt.', 'نجحت! المحطة اتخلّصت.')}</div>
+          <button onClick={onClose} style={{ ...primaryBtn, marginTop: 12 }}>{T(lang, 'Zur Karte', 'للخريطة')} ▸</button>
+        </div>
+      )}
+
+      {phase === 'failed' && (
+        <div style={{ textAlign: 'center', marginTop: 6 }}>
+          <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6 }}>
+            {T(lang, 'Noch nicht bestanden — schau dir das Video nochmal an und versuch es erneut.', 'لسه ماعديتش — اتفرّج على الفيديو تاني وجرّب كمان مرة.')}
+          </div>
+          <button onClick={retry} style={{ ...primaryBtn, marginTop: 12 }}>{T(lang, 'Nochmal versuchen', 'حاول تاني')}</button>
+        </div>
+      )}
+    </div>
+  </>);
+}
+
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace',
+  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #fbbf24', color: '#04070d',
+  background: 'linear-gradient(135deg,#fcd34d,#fbbf24)' };
 
 function Legend({ dot, label }) {
   return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9.5, color: '#94a3b8' }}>{dot}{label}</span>;
@@ -225,7 +403,7 @@ function BossNode({ x, y, state, lang }) {
 
 // ═══════════════════════════ COMPACT HORIZONTAL TEASER ═══════════════════════════
 export function GameMapCompact({ token, apiUrl, lang = 'de', onOpen }) {
-  const lessons = useRecommendations(token, apiUrl);
+  const { lessons } = useRecommendations(token, apiUrl);
   if (!lessons || lessons.length === 0) return null;
 
   const { nodes, bossState } = deriveStates(lessons);
