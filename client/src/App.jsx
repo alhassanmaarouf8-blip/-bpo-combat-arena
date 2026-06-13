@@ -4,6 +4,7 @@ import { AudioPlayer } from './audioPlayer.js';
 import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
+import { Assessment } from './Assessment.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -1361,6 +1362,10 @@ function AuthScreen({ onAuth }) {
         <div dir="rtl" style={{ fontSize:12.5, color:'#94a3b8', marginTop:7, lineHeight:1.6, maxWidth:360, marginInline:'auto' }}>
           درّب نفسك على إنترفيو شغل ألماني بالصوت قدّام مدير موارد بشرية صعب — وخُد تقييم وتصحيح فوري بعد كل جولة.
         </div>
+        <div style={{ fontSize:10.5, color:'#fbbf24', marginTop:10, lineHeight:1.5, maxWidth:360, marginInline:'auto' }}>
+          🎯 Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
+          <br /><span dir="rtl">🎯 بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
+        </div>
       </div>
 
       <div style={{ borderRadius:14, padding:20,
@@ -1565,6 +1570,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
   const [review, setReview]       = useState(null);        // { items, then:'fight'|'close' } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
+  const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
 
   const phaseRef       = useRef('idle');
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
@@ -2089,6 +2095,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
       )}
 
+      {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session) */}
+      {assessmentOpen && (
+        <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          onClose={() => setAssessmentOpen(false)} />
+      )}
+
       {/* Result screen: ONLY when the server has ended the session, and only once the
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && (
@@ -2433,6 +2445,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           }}>
           {isConnecting ? '⠋ VERBINDE…' : canStart ? '▶  INTERVIEW STARTEN' : '■  INTERVIEW BEENDEN'}
         </button>
+
+        {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
+        {canStart && (
+          <button onClick={() => setAssessmentOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #fbbf24', color:'#04070d', fontWeight:700,
+            background:'linear-gradient(135deg,#fcd34d,#fbbf24)', boxShadow:'0 0 16px rgba(251,191,36,0.25)' }}>
+            🎯  EINSTUFUNG · تقييم مستواك (gratis)
+          </button>
+        )}
 
         {/* Progress dashboard access (idle only) */}
         {canStart && (

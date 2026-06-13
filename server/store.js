@@ -29,6 +29,8 @@ export function defaultProfile(userId) {
     vocabLearned:   [],   // distinct strong vocab the user has actually produced
     masteredRules:  [],   // grammar rules cleared through the SRS schedule
     bossesDefeated: [],
+    assessmentUsed:   false, // free intelligent assessment is once-per-account ever
+    assessmentResult: null,  // the stored verdict (level/blockers/strengths/focus)
   };
 }
 

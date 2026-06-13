@@ -8,6 +8,7 @@ import { authRouter, billingRouter } from './auth.js';
 import { planRouter }        from './plans.js';
 import { dailyRouter }       from './daily.js';
 import { feedbackRouter }    from './feedback.js';
+import { assessmentRouter }  from './assessment.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
@@ -51,6 +52,7 @@ app.use('/api', progressRouter);
 app.use('/api', planRouter);
 app.use('/api', dailyRouter);
 app.use('/api', feedbackRouter);
+app.use('/api', assessmentRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 
