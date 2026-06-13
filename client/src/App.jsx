@@ -1724,6 +1724,36 @@ function saveFeedbackLang(l) {
 function loadStreakCache() { try { return parseInt(localStorage.getItem('omni_streak') || '0', 10) || 0; } catch { return 0; } }
 function saveStreakCache(n) { try { localStorage.setItem('omni_streak', String(n)); } catch { /* ignore */ } }
 
+// Home reassurance badge while a payment is being verified (tap to reveal code + WhatsApp).
+function PendingBadge({ pending, whatsapp, lang }) {
+  const [open, setOpen] = useState(false);
+  const ar = lang === 'ar';
+  const code = pending?.referenceCode || '------';
+  const waDigits = whatsapp ? String(whatsapp).replace(/\D/g, '') : '';
+  const waLink = waDigits ? `https://wa.me/${waDigits}?text=${encodeURIComponent((ar ? 'كود الدفع: ' : 'Zahlungs-Code: ') + code)}` : null;
+  return (
+    <div onClick={() => setOpen((o) => !o)} style={{ marginBottom: 8, padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
+      background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.4)' }}>
+      <div style={{ fontSize: 10.5, color: '#fbbf24', lineHeight: 1.5, textAlign: 'center' }}>
+        {ar ? 'اشتراكك قيد التأكيد ⏳ — هيتفعّل خلال ٣٠ دقيقة' : 'Zahlung wird geprüft — Aktivierung in ~30 Min'}
+        <span style={{ color: '#94a3b8' }}> {open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div style={{ marginTop: 8, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ fontSize: 9.5, color: '#94a3b8' }}>{ar ? 'الكود بتاعك (لازم يبقى في التحويل)' : 'Dein Code (muss in der Überweisung stehen)'}</div>
+          <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 18, fontWeight: 900, color: '#fbbf24', letterSpacing: '0.15em' }}>{code}</div>
+          {waLink && (
+            <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 10.5,
+              color: '#04130c', background: '#25D366', borderRadius: 7, padding: '7px 12px', fontWeight: 700, textDecoration: 'none' }}>
+              {ar ? '📤 ابعت الإيصال على واتساب' : '📤 Beleg per WhatsApp senden'}
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Arena({ auth, onLogout, onAccountUpdate }) {
   // (Global CSS is injected once at the app root so the cold-start + auth screens share it.)
 
@@ -1767,6 +1797,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
   const [review, setReview]       = useState(null);        // { items, then:'fight'|'close' } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
+  const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [trainingslagerOpen, setTrainingslagerOpen] = useState(false); // study game-map route
 
@@ -2147,6 +2178,20 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token]);
 
+  // Home billing state: daily minutes left, pending payment, one-time activation notice.
+  const loadBilling = useCallback(() => {
+    fetch(`${API_URL}/api/billing/state`, { headers: authHeaders() })
+      .then((r) => r.json()).then((d) => setBilling(d || null)).catch(() => {});
+  }, [authHeaders]);
+  // Refresh whenever we're on the idle home (on mount + after every fight).
+  useEffect(() => { if (phase === 'idle') loadBilling(); }, [phase, loadBilling]);
+
+  // Dismiss the one-time "plan activated" celebration (acknowledge server-side so it shows once).
+  const ackActivation = useCallback(() => {
+    setBilling((b) => (b ? { ...b, justActivated: false } : b));
+    fetch(`${API_URL}/api/billing/ack-activation`, { method: 'POST', headers: authHeaders() }).catch(() => {});
+  }, [authHeaders]);
+
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
   const beginSession = useCallback(async (mode) => {
     fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
@@ -2307,6 +2352,31 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onClose={() => setTrainingslagerOpen(false)}
           onChallengeBoss={() => { setTrainingslagerOpen(false); beginSession('bosstor'); }}
           onGoPricing={() => { setTrainingslagerOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+      )}
+
+      {/* One-time "plan activated 🎉" celebration after the owner activates the payment */}
+      {billing?.justActivated && (
+        <div onClick={ackActivation} style={{ position:'absolute', inset:0, zIndex:240, display:'grid', placeItems:'center', padding:20,
+          background:'rgba(2,4,9,0.92)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
+            background:'linear-gradient(180deg, rgba(12,28,20,0.98), rgba(4,12,8,0.99))', border:'1px solid rgba(52,211,153,0.5)', boxShadow:'0 0 40px rgba(52,211,153,0.2)' }}>
+            <div style={{ fontSize:52 }}>🎉</div>
+            <div style={{ fontFamily:'Orbitron,monospace', fontSize:17, fontWeight:900, color:'#34d399', marginTop:6 }}>
+              {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
+            </div>
+            <div style={{ fontSize:13, color:'#cbd5e1', marginTop:8, lineHeight:1.6 }}>
+              {feedbackLang === 'ar' ? 'ابدأ التمرين 🥊' : 'Leg los 🥊'}
+              <br /><span dir={feedbackLang === 'ar' ? 'ltr' : 'rtl'} style={{ color:'#94a3b8', fontSize:11 }}>
+                {feedbackLang === 'ar' ? 'Dein Plan ist aktiv!' : 'تم تفعيل اشتراكك!'}
+              </span>
+            </div>
+            <button onClick={ackActivation} style={{ width:'100%', marginTop:18, padding:'13px', minHeight:48, cursor:'pointer',
+              fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700,
+              border:'1px solid #34d399', color:'#04130c', background:'linear-gradient(135deg,#34d399,#10b981)' }}>
+              {feedbackLang === 'ar' ? 'يلا نبدأ ▸' : 'Los geht’s ▸'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Result screen: ONLY when the server has ended the session, and only once the
@@ -2635,24 +2705,45 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           )}
         </div>
 
-        {/* Start / Stop toggle */}
-        <button
-          onClick={canStart ? beginSession : finishSession}
-          disabled={isConnecting}
-          style={{
-            width:'100%', padding:'14px 20px', cursor: isConnecting ? 'wait' : 'pointer',
-            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.15em',
-            borderRadius:8, border:`1px solid ${canStart ? '#00e5ff' : '#ef4444'}`,
-            color:       canStart ? '#00e5ff' : '#ef4444',
-            background:  canStart
-              ? 'linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.02))'
-              : 'linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02))',
-            boxShadow: isActive ? '0 0 22px rgba(239,68,68,0.2)' : '0 0 14px rgba(0,229,255,0.12)',
-            transition:'all 0.25s',
-            opacity: isConnecting ? 0.55 : 1,
-          }}>
-          {isConnecting ? '⠋ VERBINDE…' : canStart ? '▶  INTERVIEW STARTEN' : '■  INTERVIEW BEENDEN'}
-        </button>
+        {/* Pending-payment reassurance badge — persists through the wait, no gate needed */}
+        {canStart && billing?.pendingPayment && (
+          <PendingBadge pending={billing.pendingPayment} whatsapp={billing.whatsappNumber} lang={feedbackLang} />
+        )}
+
+        {/* Daily live-minutes remaining (active paid plan, before they start) */}
+        {canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining > 0 && (
+          <div style={{ fontSize:10.5, color:'#34d399', textAlign:'center', marginBottom:7, fontFamily:'Orbitron,monospace', letterSpacing:'0.05em' }}>
+            ⏱ {feedbackLang === 'ar' ? `متبقي ${billing.minutesRemaining} دقيقة النهاردة` : `${billing.minutesRemaining} Min heute übrig`}
+          </div>
+        )}
+
+        {/* Start / Stop toggle — replaced by an honest "come back tomorrow" note at the daily cap */}
+        {canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
+          <div style={{ padding:'13px', borderRadius:8, border:'1px solid rgba(245,158,11,0.4)', background:'rgba(245,158,11,0.08)',
+            textAlign:'center', fontSize:11, color:'#fbbf24', lineHeight:1.6 }}>
+            {feedbackLang === 'ar'
+              ? 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.'
+              : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
+          </div>
+        ) : (
+          <button
+            onClick={canStart ? beginSession : finishSession}
+            disabled={isConnecting}
+            style={{
+              width:'100%', padding:'14px 20px', cursor: isConnecting ? 'wait' : 'pointer',
+              fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.15em',
+              borderRadius:8, border:`1px solid ${canStart ? '#00e5ff' : '#ef4444'}`,
+              color:       canStart ? '#00e5ff' : '#ef4444',
+              background:  canStart
+                ? 'linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.02))'
+                : 'linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02))',
+              boxShadow: isActive ? '0 0 22px rgba(239,68,68,0.2)' : '0 0 14px rgba(0,229,255,0.12)',
+              transition:'all 0.25s',
+              opacity: isConnecting ? 0.55 : 1,
+            }}>
+            {isConnecting ? '⠋ VERBINDE…' : canStart ? '▶  INTERVIEW STARTEN' : '■  INTERVIEW BEENDEN'}
+          </button>
+        )}
 
         {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
         {canStart && (

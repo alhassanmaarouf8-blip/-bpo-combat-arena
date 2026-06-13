@@ -19,6 +19,8 @@ import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
 import { dbEnabled, kvGet, kvSet }    from './db.js';
 import { PLANS }                       from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
+import { loadUser }                    from './store.js';
+import { dayKey }                      from './time.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -195,7 +197,8 @@ export async function activatePlan(account, plan, billingPeriod) {
   if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
   const now = Date.now();
   const periodMs = billingPeriod === 'yearly' ? 365 * DAY : 30 * DAY;
-  account.subscription = { ...account.subscription, plan, planSetAt: now, billingPeriodEnd: now + periodMs };
+  // activatedNoticePending → the user sees a one-time "your plan is active 🎉" message.
+  account.subscription = { ...account.subscription, plan, planSetAt: now, billingPeriodEnd: now + periodMs, activatedNoticePending: true };
   await persist();
   return account;
 }
@@ -288,6 +291,48 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
     paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
   });
+});
+
+// Lightweight live state for the HOME screen: daily minutes left, pending payment, and a
+// one-time "just activated" flag. All server-side truth.
+billingRouter.get('/state', requireAuth, async (req, res) => {
+  const account = req.account;
+  const plan    = planOf(account);
+  const minutes = dailyMinutesFor(account);
+
+  let usedSec = 0;
+  try {
+    const p = await loadUser(account.id);
+    if (p.liveUsage?.day === dayKey()) usedSec = p.liveUsage.sec || 0;
+  } catch (e) { console.error('[billing] state usage lookup failed:', e.message); }
+  const remainingSec = Math.max(0, minutes * 60 - usedSec);
+
+  let pending = null, justActivated = false;
+  try {
+    const st = await paymentStatusFor(account.id);
+    if (st.pending) pending = { referenceCode: st.pending.referenceCode, plan: st.pending.plan, billingPeriod: st.pending.billingPeriod };
+  } catch { /* ignore */ }
+  justActivated = !!(account.subscription?.activatedNoticePending) && minutes > 0;
+
+  res.json({
+    plan, dailyLiveMinutes: minutes,
+    minutesUsedToday: Math.floor(usedSec / 60),
+    minutesRemaining: Math.ceil(remainingSec / 60),   // whole minutes; server enforces the exact cap
+    secondsRemaining: remainingSec,
+    pendingPayment: pending,
+    justActivated,
+    vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
+    whatsappNumber: process.env.WHATSAPP_NUMBER || null,
+  });
+});
+
+// Acknowledge the one-time activation message so it never shows again.
+billingRouter.post('/ack-activation', requireAuth, async (req, res) => {
+  try {
+    const s = req.account.subscription;
+    if (s && s.activatedNoticePending) { s.activatedNoticePending = false; await persist(); }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'ack_failed' }); }
 });
 
 // Owner-only: set a learner's PLAN (free/basic/elite) by email — used to fulfil a manual
