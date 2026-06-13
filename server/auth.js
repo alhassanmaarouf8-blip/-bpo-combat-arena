@@ -18,6 +18,7 @@ import express                        from 'express';
 import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
 import { dbEnabled, kvGet, kvSet }    from './db.js';
 import { PLANS }                       from './plans.config.js';
+import { paymentStatusFor }            from './paymentsStore.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -253,7 +254,15 @@ authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccou
 
 export const billingRouter = express.Router();
 
-billingRouter.get('/status', requireAuth, (req, res) =>
+billingRouter.get('/status', requireAuth, async (req, res) => {
+  // Pending-payment state is the source of truth for "we're verifying" (vs the normal paywall).
+  let pending = null, paymentRejected = false;
+  try {
+    const st = await paymentStatusFor(req.account.id);
+    if (st.pending) pending = { referenceCode: st.pending.referenceCode, plan: st.pending.plan, billingPeriod: st.pending.billingPeriod, createdAt: st.pending.createdAt };
+    paymentRejected = st.lastRejected;
+  } catch (e) { console.error('[billing] status payment lookup failed:', e.message); }
+
   res.json({
     account:    publicAccount(req.account),
     // The paid plans straight from plans.config.js (EGP prices + daily minutes — ONE source).
@@ -261,7 +270,10 @@ billingRouter.get('/status', requireAuth, (req, res) =>
     // Manual Vodafone Cash payment details — ONLY from env (never hardcoded). null if unset.
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
     whatsappNumber: process.env.WHATSAPP_NUMBER || null,
-  }));
+    pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
+    paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
+  });
+});
 
 // Owner-only: set a learner's PLAN (free/basic/elite) by email — used to fulfil a manual
 // payment, and to flip your own account for testing. Gated to ADMIN_EMAIL accounts.

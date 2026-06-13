@@ -1472,6 +1472,8 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
+  const [pendingPayment, setPendingPayment] = useState(null); // server source of truth
+  const [paymentRejected, setPaymentRejected] = useState(false);
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
@@ -1479,6 +1481,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         setEmail(d.account?.email || ''); setAccountId(d.account?.id || '');
         if (Array.isArray(d.plans)) setPlans(d.plans);
         setVodafone(d.vodafoneNumber || null); setWhatsapp(d.whatsappNumber || null);
+        setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
       })
       .catch(() => {});
   }, [token]);
@@ -1592,6 +1595,29 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     </>);
   }
 
+  // ── PENDING-PAYMENT VIEW — the source-of-truth "we're verifying" state (any paid gate) ──
+  if (pendingPayment) {
+    const code = pendingPayment.referenceCode || refCode;
+    return shell(<>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
+        <div style={{ fontSize:46 }}>⏳</div>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:14, fontWeight:800, color:'#34d399', marginTop:8 }}>
+          {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
+        </div>
+        <div dir="rtl" style={{ fontSize:13.5, color:'#cbd5e1', marginTop:12, lineHeight:1.85 }}>
+          طلبك وصلنا ✅ وبنتأكد من الدفع دلوقتي — اشتراكك هيتفعّل خلال ٣٠ دقيقة. الكود بتاعك: <b style={{ color:'#fbbf24' }}>{code}</b>. لو عايز تتأكد إنك كتبته في التحويل، ده هو.
+        </div>
+        <div style={{ fontSize:12.5, color:'#94a3b8', marginTop:14, lineHeight:1.65 }}>
+          Deine Anfrage ist da ✅ — wir prüfen gerade die Zahlung. Dein Plan wird innerhalb von 30 Minuten aktiviert. Dein Code: <b style={{ color:'#fbbf24' }}>{code}</b>.
+        </div>
+      </div>
+      <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
+        fontFamily:'Orbitron,monospace', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
+        {ar ? 'تمام' : 'OK'}
+      </button>
+    </>);
+  }
+
   // ── PLAN CARDS VIEW ──
   const toggleBtn = (on, label, sub) => (
     <button onClick={() => setYearly(on)} style={{ flex:1, padding:'8px 6px', cursor:'pointer', borderRadius:8,
@@ -1612,6 +1638,14 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
         </div>
       </div>
+
+      {paymentRejected && (
+        <div style={{ fontSize:10.5, color:'#fca5a5', textAlign:'center', lineHeight:1.6, marginBottom:10,
+          background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'8px 10px' }}>
+          Zahlung konnte nicht bestätigt werden — bitte versuche es erneut.
+          <br /><span dir="rtl">لم نتمكن من تأكيد الدفع — حاول مرة أخرى.</span>
+        </div>
+      )}
 
       {/* monthly / yearly toggle */}
       <div style={{ display:'flex', gap:6, marginBottom:12 }}>

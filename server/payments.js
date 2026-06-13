@@ -14,24 +14,9 @@ import express from 'express';
 import { randomBytes } from 'crypto';
 import { requireAuth } from './auth.js';
 import { PLANS }       from './plans.config.js';
-import { dbEnabled, kvGet, kvSet } from './db.js';
+import { loadPayments, savePayments, refCodeFor } from './paymentsStore.js';
 
 export const paymentsRouter = express.Router();
-
-const NS = 'payments';
-let _mem = []; // dev-only fallback when there's no database
-
-export async function loadPayments() {
-  if (dbEnabled()) return (await kvGet(NS, 'all')) ?? [];
-  return _mem;
-}
-export async function savePayments(all) {
-  if (dbEnabled()) { await kvSet(NS, 'all', all); return; }
-  _mem = all;
-}
-
-// Reference code the user writes in the Vodafone transfer note (last 6 of the userId).
-export function refCodeFor(userId) { return String(userId || '').slice(-6).toUpperCase(); }
 
 // ── POST /billing/pay : record a PENDING payment. Grants NO access. ──
 paymentsRouter.post('/billing/pay', requireAuth, async (req, res) => {
