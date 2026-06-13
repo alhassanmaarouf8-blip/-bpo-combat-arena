@@ -5,6 +5,7 @@ import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { Assessment } from './Assessment.jsx';
+import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -751,7 +752,7 @@ function RankLadder({ rank }) {
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
-function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token }) {
+function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager }) {
   const [showAll, setShowAll] = useState(false);
   const [copied, setCopied]   = useState(false);
   const m = data?.metrics ?? {};
@@ -1056,6 +1057,11 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {/* One-time feedback prompt, only after the user's first-ever fight. Skippable; never blocks restart. */}
           {data?.sessionCount === 1 && token && (
             <FirstFightCard token={token} apiUrl={API_URL} />
+          )}
+
+          {/* Trainingslager next-step teaser on the results screen */}
+          {token && apiUrl && (
+            <GameMapCompact token={token} apiUrl={apiUrl} lang={lang} onOpen={onOpenTrainingslager} />
           )}
 
           {/* Honesty disclaimer: this is training feedback, NOT a recognized German certificate. */}
@@ -1571,6 +1577,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [review, setReview]       = useState(null);        // { items, then:'fight'|'close' } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
+  const [trainingslagerOpen, setTrainingslagerOpen] = useState(false); // study game-map route
 
   const phaseRef       = useRef('idle');
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
@@ -2101,12 +2108,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onClose={() => setAssessmentOpen(false)} />
       )}
 
+      {/* Trainingslager game-map route (study mode — never a Realtime session) */}
+      {trainingslagerOpen && (
+        <Trainingslager token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          onClose={() => setTrainingslagerOpen(false)}
+          onOpenLesson={(ruleId) => { /* Phase 4: open the lesson screen */ }} />
+      )}
+
       {/* Result screen: ONLY when the server has ended the session, and only once the
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && (
         <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
-          token={auth.token} />
+          token={auth.token} apiUrl={API_URL} onOpenTrainingslager={() => setTrainingslagerOpen(true)} />
       )}
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
@@ -2454,6 +2468,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'linear-gradient(135deg,#fcd34d,#fbbf24)', boxShadow:'0 0 16px rgba(251,191,36,0.25)' }}>
             🎯  EINSTUFUNG · تقييم مستواك (gratis)
           </button>
+        )}
+
+        {/* Trainingslager study-map teaser (idle only) → opens the full game-map route */}
+        {canStart && (
+          <GameMapCompact token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            onOpen={() => setTrainingslagerOpen(true)} />
         )}
 
         {/* Progress dashboard access (idle only) */}
