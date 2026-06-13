@@ -256,9 +256,11 @@ export const billingRouter = express.Router();
 billingRouter.get('/status', requireAuth, (req, res) =>
   res.json({
     account:    publicAccount(req.account),
-    paymentUrl: process.env.PAYMENT_URL || null,
     // The paid plans straight from plans.config.js (EGP prices + daily minutes — ONE source).
     plans: [PLANS.basic, PLANS.elite],
+    // Manual Vodafone Cash payment details — ONLY from env (never hardcoded). null if unset.
+    vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
+    whatsappNumber: process.env.WHATSAPP_NUMBER || null,
   }));
 
 // Owner-only: set a learner's PLAN (free/basic/elite) by email — used to fulfil a manual

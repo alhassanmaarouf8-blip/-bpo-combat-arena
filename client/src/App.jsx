@@ -1463,38 +1463,101 @@ const SUB_AR = {
 };
 
 function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
-  const [payUrl, setPayUrl] = useState(null);
   const [email, setEmail]   = useState('');
-  const [checking, setChecking] = useState(false);
-  const [msg, setMsg]           = useState(null);
-  const [plans, setPlans]       = useState(null);
-  const [yearly, setYearly]     = useState(false);
+  const [accountId, setAccountId] = useState('');
+  const [plans, setPlans]   = useState(null);
+  const [yearly, setYearly] = useState(false);
+  const [vodafone, setVodafone] = useState(null);
+  const [whatsapp, setWhatsapp] = useState(null);
+  const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { setPayUrl(d.paymentUrl || null); setEmail(d.account?.email || ''); if (Array.isArray(d.plans)) setPlans(d.plans); })
+      .then((d) => {
+        setEmail(d.account?.email || ''); setAccountId(d.account?.id || '');
+        if (Array.isArray(d.plans)) setPlans(d.plans);
+        setVodafone(d.vodafoneNumber || null); setWhatsapp(d.whatsappNumber || null);
+      })
       .catch(() => {});
   }, [token]);
 
   const ar  = lang === 'ar';
   const fmt = (n) => Number(n || 0).toLocaleString('de-DE');   // 1299 → "1.299"
+  // Short reference code the user writes in their Vodafone Cash transfer note (last 6 of id).
+  const refCode = accountId ? accountId.slice(-6).toUpperCase() : '------';
 
-  const goPay = (planId) => {
-    if (!payUrl) return;
-    const sep = payUrl.includes('?') ? '&' : '?';
-    window.open(`${payUrl}${sep}ref=${encodeURIComponent(email)}&plan=${planId}&period=${yearly ? 'year' : 'month'}`, '_blank', 'noopener');
-  };
-  const refresh = async () => {
-    setChecking(true); setMsg(null);
-    try {
-      const r = await fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-      const d = await r.json();
-      if (r.ok && d.account?.entitlement?.allowed) onUpgraded(d.account);
-      else setMsg({ de: 'Noch nicht freigeschaltet — nach der Zahlung kann es kurz dauern.', ar: 'لسه ماتفعّلش — بعد الدفع ممكن ياخد شوية. جرّب تاني بعد دقيقة.' });
-    } catch { setMsg({ de: 'Netzwerkfehler.', ar: 'مشكلة في الشبكة.' }); }
-    setChecking(false);
-  };
+  const shell = (children) => (
+    <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
+      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
+      {children}
+    </div>
+  );
 
+  // ── PAYMENT-INSTRUCTIONS VIEW (Phase 1) ──
+  if (pay) {
+    return shell(<>
+      <div style={{ textAlign:'center', marginBottom:12 }}>
+        <div style={{ fontSize:30 }}>📲</div>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:15, fontWeight:900, letterSpacing:1.5, color:'#22d3ee' }}>VODAFONE CASH</div>
+        <div style={{ fontSize:11, color:'#cbd5e1', marginTop:4 }}>
+          {pay.label?.toUpperCase()} — <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
+        </div>
+      </div>
+
+      {vodafone ? (
+        <div style={{ flex:1 }}>
+          {/* Step 1 — send the money */}
+          <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(0,0,0,0.4)', border:'1px solid rgba(34,211,238,0.3)' }}>
+            <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
+              <b style={{ color:'#22d3ee' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
+            </div>
+            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
+            <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700, color:'#fff',
+              background:'rgba(34,211,238,0.12)', border:'1px solid rgba(34,211,238,0.4)', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.04em' }}>
+              {vodafone}
+            </div>
+          </div>
+
+          {/* Step 2 — the reference code */}
+          <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(251,191,36,0.07)', border:'1px solid rgba(251,191,36,0.4)' }}>
+            <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
+              <b style={{ color:'#fbbf24' }}>2)</b> Schreibe diesen Code in die Notiz der Überweisung:
+            </div>
+            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>اكتب الكود ده في ملاحظة التحويل (مهم عشان نعرف إنك إنت):</div>
+            <div style={{ textAlign:'center', fontFamily:'Orbitron,monospace', fontSize:26, fontWeight:900, color:'#fbbf24',
+              background:'rgba(0,0,0,0.4)', border:'1px dashed #fbbf24', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.2em', textShadow:'0 0 12px rgba(251,191,36,0.5)' }}>
+              {refCode}
+            </div>
+          </div>
+
+          {/* Step 3 */}
+          <div style={{ fontSize:11.5, color:'#cbd5e1', lineHeight:1.6, marginBottom:6 }}>
+            <b style={{ color:'#34d399' }}>3)</b> Tippe danach unten auf «Ich habe bezahlt».
+            <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
+          </div>
+
+          {/* "I paid" — wired in Phase 2 */}
+          <button onClick={() => { /* Phase 2: create pending payment record */ }}
+            style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor:'pointer', fontFamily:'Orbitron,monospace',
+              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid #34d399', color:'#04130c',
+              background:'linear-gradient(135deg,#34d399,#10b981)' }}>
+            دفعت · ICH HABE BEZAHLT
+          </button>
+        </div>
+      ) : (
+        <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'#94a3b8', fontSize:12, padding:20 }}>
+          Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span>
+        </div>
+      )}
+
+      <button onClick={() => setPay(null)} style={{ width:'100%', marginTop:12, padding:'11px', minHeight:44, cursor:'pointer',
+        fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
+        {ar ? '‹ رجوع للخطط' : '‹ ZURÜCK ZU DEN PLÄNEN'}
+      </button>
+    </>);
+  }
+
+  // ── PLAN CARDS VIEW ──
   const toggleBtn = (on, label, sub) => (
     <button onClick={() => setYearly(on)} style={{ flex:1, padding:'8px 6px', cursor:'pointer', borderRadius:8,
       fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.06em', lineHeight:1.3,
@@ -1504,9 +1567,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     </button>
   );
 
-  return (
-    <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
-      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
+  return shell(<>
       <div style={{ textAlign:'center', marginBottom:10 }}>
         <div style={{ fontSize:34 }}>🥊</div>
         <div style={{ fontFamily:'Orbitron,monospace', fontSize:17, fontWeight:900, letterSpacing:2,
@@ -1553,11 +1614,11 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
                 <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
-              <button onClick={() => goPay(p.id)} disabled={!payUrl}
-                style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor: payUrl ? 'pointer' : 'not-allowed',
+              <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: yearly ? p.yearlyEGP : p.priceEGP, period: yearly ? 'yearly' : 'monthly' })}
+                style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:'pointer',
                   fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
-                  border:`1px solid ${accent}`, color:'#04070d', background:accent, opacity: payUrl ? 1 : 0.55 }}>
-                {payUrl ? `${p.label?.toUpperCase()} ${ar ? 'افتح' : 'WÄHLEN'} ↗` : (ar ? 'الدفع قريب' : 'BALD VERFÜGBAR')}
+                  border:`1px solid ${accent}`, color:'#04070d', background:accent }}>
+                {p.label?.toUpperCase()} {ar ? 'اختار' : 'WÄHLEN'} ▸
               </button>
             </div>
           );
@@ -1565,30 +1626,17 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         {!plans && <div style={{ textAlign:'center', color:'#64748b', fontSize:11, padding:20 }}>…</div>}
 
         <div style={{ fontSize:9.5, color:'#64748b', textAlign:'center', lineHeight:1.5 }}>
-          {payUrl
-            ? <>Bezahle mit derselben E-Mail, mit der du angemeldet bist — dein Konto wird nach Zahlungseingang freigeschaltet.<br /><span dir="rtl">ادفع بنفس الإيميل اللي مسجّل بيه — هيتفعّل حسابك بعد ما يوصل الدفع.</span></>
-            : <>Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span></>}
+          Zahlung manuell per Vodafone Cash während der Early-Access-Phase.
+          <br /><span dir="rtl">الدفع يدوي عن طريق فودافون كاش في مرحلة الإطلاق المبكر.</span>
         </div>
       </div>
-
-      {payUrl && (
-        <>
-          <button onClick={refresh} disabled={checking} style={{ width:'100%', marginTop:10, padding:'12px', minHeight:44, cursor:'pointer',
-            fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.08em', borderRadius:8,
-            border:'1px solid #34d399', background:'rgba(52,211,153,0.08)', color:'#34d399', opacity: checking ? 0.6 : 1 }}>
-            {checking ? '…' : 'ICH HABE BEZAHLT · دفعت — تحديث'}
-          </button>
-          {msg && <div style={{ fontSize:10, color:'#fbbf24', textAlign:'center', marginTop:6, lineHeight:1.5 }}>{msg.de}<br /><span dir="rtl">{msg.ar}</span></div>}
-        </>
-      )}
 
       <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:'pointer',
         fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8,
         border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
         {ar ? 'رجوع' : 'ZURÜCK'}
       </button>
-    </div>
-  );
+  </>);
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
