@@ -25,7 +25,7 @@ function buildDashboard(p) {
     userId:        p.userId,
     level:         p.level,
     xp:            p.xp,
-    streak:        computeStreak(sessions),
+    streak:        computeStreak(sessions, p.lessonDays),
     daily:         dailyStatus(p),   // { streak, completedToday, best } — the daily-training loop
     rank:          computeRank(sessions),  // interview-readiness rank ladder
     levelProgress: lp,

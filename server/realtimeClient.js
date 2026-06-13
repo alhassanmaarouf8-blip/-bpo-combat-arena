@@ -139,6 +139,7 @@ export class RealtimeClient {
       greeting:    this._boss.greeting,
       levelId:     opts.level,
       dossier:     opts.dossier,   // recurring weak rule, so the boss can reference past struggles
+      focusTitle:  opts.focusTitle, // Trainingslager: lesson title to weave into this fight
     });
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).

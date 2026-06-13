@@ -118,7 +118,7 @@ function pick(arr) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   const behavioral = pick(BEHAVIORAL_QUESTIONS);
   const cs         = pick(CS_SCENARIOS);
@@ -129,6 +129,10 @@ export function buildSessionScript({ persona, displayName, greeting, levelId, do
     ? `\nDOSSIER (aus früheren Gesprächen): Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
       `Erwähne das GENAU EINMAL beiläufig und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat.") und achte heute gezielt darauf. Übertreibe es nicht.\n`
     : '';
+
+  // Trainingslager focus: after the candidate finishes a lesson, the next fight weaves in
+  // two situations that naturally test exactly that lesson. EXACTLY one injected line.
+  const focusLine = focusTitle ? `\nBaue zwei Situationen ein, die ${focusTitle} natürlich testen.\n` : '';
 
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
@@ -146,7 +150,7 @@ Sei lebendig und unvorhersehbar: variiere Tonfall, Formulierungen, Nachfragen un
 Korrigiere den Kandidaten NICHT, solange du ihn verstehst — bleib im Gespräch und erhalte die Immersion.
 Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz und natürlich im Gesprächsfluss.
 ${level.speechStyle}
-${dossierLine}
+${dossierLine}${focusLine}
 
 TEIL 1 — SELBSTVORSTELLUNG (ca. 1–2 Wortwechsel):
 Bitte den Kandidaten, sich kurz vorzustellen (Name, Berufserfahrung, Motivation). Hake einmal kurz nach. Gehe dann weiter.

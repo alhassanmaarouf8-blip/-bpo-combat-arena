@@ -33,6 +33,10 @@ export function defaultProfile(userId) {
     assessmentResult: null,  // the stored verdict (level/blockers/strengths/focus)
     recommendations:  [],    // Trainingslager: ordered lesson recommendations (refreshed per fight)
     lessonsCompleted: [],    // Trainingslager: ruleIds of lessons whose quiz has been passed
+    lessonDays:       [],    // Trainingslager: Cairo day-keys with a lesson done (streak credit)
+    lastCompletedLesson: null, // Trainingslager: ruleId of the most recent lesson (fight focus)
+    recommendedCounted:  [], // Trainingslager: ruleIds already counted in the global recommend stat
+    neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
   };
 }
 

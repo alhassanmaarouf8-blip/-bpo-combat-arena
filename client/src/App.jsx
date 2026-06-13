@@ -55,6 +55,8 @@ const WS_ERROR_TEXT = {
   mic_denied:           { de: 'Mikrofon-Zugriff wurde blockiert. Erlaube das Mikrofon in den Browser-Einstellungen (Schloss-Symbol neben der Adresse) und starte neu.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
   mic_not_found:        { de: 'Kein Mikrofon gefunden. Schließe ein Mikrofon an oder erlaube es und starte neu.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
   mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Der Kampf wurde beendet — bitte starte neu.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
+  lessons_incomplete:   { de: 'Schließe zuerst deine Trainingslager-Stationen ab, um das Boss-Tor zu öffnen.', ar: 'خلّص محطات الـTrainingslager الأول عشان تفتح بوابة التحدي.' },
+  plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
 };
 function wsErrorText(code, lang) {
   const e = WS_ERROR_TEXT[code];
@@ -921,6 +923,13 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   Nächster Gegner ab Level {data.progress.nextBoss.minLevel}: {data.progress.nextBoss.name}
                 </div>
               )}
+              {data.progress.trainingDelta && (
+                <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                  <b style={{ color:'#fbbf24' }}>{ar ? data.progress.trainingDelta.title_ar : data.progress.trainingDelta.title_de}</b>:{' '}
+                  {ar ? 'الجولة اللي فاتت' : 'letzter Kampf'} {data.progress.trainingDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
+                  <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? '#34d399' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
+                </div>
+              )}
             </div>
           )}
 
@@ -1582,6 +1591,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const phaseRef       = useRef('idle');
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
   const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
+  const fightModeRef   = useRef('daily');   // 'daily' | 'bosstor' — read when sending START_FIGHT
   const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
   const wsRef          = useRef(null);
   const recorderRef    = useRef(null);
@@ -1635,7 +1645,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setBossHp(msg.bossHp ?? 100);
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
-        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current }));
+        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current }));
         break;
 
       case S.LIVE_STATS:
@@ -1956,7 +1966,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token]);
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
-  const beginSession = useCallback(async () => {
+  const beginSession = useCallback(async (mode) => {
+    fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
@@ -2111,7 +2122,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Trainingslager game-map route (study mode — never a Realtime session) */}
       {trainingslagerOpen && (
         <Trainingslager token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setTrainingslagerOpen(false)} />
+          onClose={() => setTrainingslagerOpen(false)}
+          onChallengeBoss={() => { setTrainingslagerOpen(false); beginSession('bosstor'); }}
+          onGoPricing={() => { setTrainingslagerOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* Result screen: ONLY when the server has ended the session, and only once the

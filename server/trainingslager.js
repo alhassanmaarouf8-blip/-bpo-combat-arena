@@ -15,14 +15,40 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth }        from './auth.js';
+import { requireAuth, isAdminEmail, entitlement } from './auth.js';
 import { getLesson, STARTER_PATH } from './lessons.config.js';
+import { LESSON_XP, levelFor }     from './progression.js';
+import { dayKey }                  from './time.js';
+import { dbEnabled, kvGet, kvSet } from './db.js';
 
 export const trainingslagerRouter = express.Router();
 
 const LAST_N_FIGHTS = 3;
 const MAX_RECS      = 6;
 const STARTER_REASON = { de: 'Empfohlener Startpunkt für den Einstieg.', ar: 'نقطة بداية موصى بها للبداية.' };
+
+// ── Plan gate (feature-flagged; DEFAULTS TO OPEN so nothing breaks pre-payment) ──
+// Only when TRAININGSLAGER_REQUIRE_PLAN=true does tapping a lesson/quiz/Boss-Tor require a
+// paid plan. "Paid" reuses the existing entitlement (pro/team/admin = unlimited).
+export function trainingslagerRequiresPlan() { return process.env.TRAININGSLAGER_REQUIRE_PLAN === 'true'; }
+export function hasActivePlan(account) { return !!entitlement(account)?.unlimited; }
+function planBlocked(account) { return trainingslagerRequiresPlan() && !hasActivePlan(account); }
+
+// Boss-Tor is unlocked only when EVERY recommended lesson is done (server-side truth).
+export function allRecommendedDone(profile) {
+  const recs = Array.isArray(profile?.recommendations) ? profile.recommendations : [];
+  if (recs.length === 0) return false;
+  const done = new Set(Array.isArray(profile?.lessonsCompleted) ? profile.lessonsCompleted : []);
+  return recs.every((r) => done.has(r.ruleId));
+}
+
+// ── Global, PII-free counters (admin analytics): per-ruleId recommended/completed ──
+async function loadStats() { if (!dbEnabled()) return {}; try { return (await kvGet('tl_stats', 'counts')) ?? {}; } catch { return {}; } }
+async function bumpStat(ruleId, field) {
+  if (!dbEnabled()) return;
+  try { const s = await loadStats(); s[ruleId] = s[ruleId] || { recommended: 0, completed: 0 }; s[ruleId][field] = (s[ruleId][field] || 0) + 1; await kvSet('tl_stats', 'counts', s); }
+  catch (e) { console.error('[trainingslager] stat bump failed:', e.message); }
+}
 
 // Count error tags across the last N fights and rank lessons most-failed first.
 export function computeRecommendations(profile) {
@@ -97,7 +123,24 @@ trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
       };
     });
 
-    res.json({ lessons, source });
+    // Global recommend-stat: count each (user, lesson) the first time it's recommended.
+    p.recommendedCounted = Array.isArray(p.recommendedCounted) ? p.recommendedCounted : [];
+    let dirty = false;
+    for (const r of recs) {
+      if (!p.recommendedCounted.includes(r.ruleId)) { p.recommendedCounted.push(r.ruleId); bumpStat(r.ruleId, 'recommended'); dirty = true; }
+    }
+
+    // One-time "monthly re-assessment" suggestion once the whole path is done.
+    const allDone = allRecommendedDone(p);
+    const suggestReassessment = allDone && !p.neuEinstufungPrompted;
+    if (suggestReassessment) { p.neuEinstufungPrompted = true; dirty = true; }
+    if (dirty) await saveUser(p);
+
+    res.json({
+      lessons, source, allDone, suggestReassessment,
+      requiresPlan: trainingslagerRequiresPlan(),
+      hasPlan:      hasActivePlan(req.account),
+    });
   } catch (err) {
     console.error('[trainingslager] read error:', err.message);
     res.status(500).json({ error: 'trainingslager_failed' });
@@ -107,6 +150,7 @@ trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
 // ── GET one lesson (video + quiz) ────────────────────────────────────────────────
 trainingslagerRouter.get('/trainingslager/lesson/:ruleId', requireAuth, async (req, res) => {
   try {
+    if (planBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
     const lesson = getLesson(req.params.ruleId);
     if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
     const p = await loadUser(req.account.id);
@@ -122,6 +166,7 @@ trainingslagerRouter.get('/trainingslager/lesson/:ruleId', requireAuth, async (r
 // Pass = at least 2 of 3 correct. Idempotent: re-passing an already-done lesson is harmless.
 trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth, async (req, res) => {
   try {
+    if (planBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
     const lesson = getLesson(req.params.ruleId);
     if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
 
@@ -132,18 +177,39 @@ trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth
 
     const p = await loadUser(req.account.id);
     p.lessonsCompleted = Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : [];
-    let newlyCompleted = false;
+    let newlyCompleted = false, xpAwarded = 0;
     if (passed && !p.lessonsCompleted.includes(lesson.ruleId)) {
       p.lessonsCompleted.push(lesson.ruleId);
       newlyCompleted = true;
-      // (Phase 5 will award XP + streak credit here, once, on newlyCompleted.)
+
+      // Award (once) ~50% of a fight's XP, recompute level.
+      p.xp = (p.xp || 0) + LESSON_XP; xpAwarded = LESSON_XP; p.level = levelFor(p.xp);
+      // Streak credit: today (Cairo) counts as an active day even without a fight.
+      const today = dayKey();
+      p.lessonDays = Array.isArray(p.lessonDays) ? p.lessonDays : [];
+      if (!p.lessonDays.includes(today)) p.lessonDays.push(today);
+      // Fight focus: the next fight weaves in situations that test this lesson.
+      p.lastCompletedLesson = lesson.ruleId;
+
       await saveUser(p);
+      bumpStat(lesson.ruleId, 'completed');
     }
 
-    console.log(`[trainingslager] lesson=${lesson.ruleId} user=${p.userId} score=${score}/${lesson.quiz.length} passed=${passed} newlyCompleted=${newlyCompleted}`);
-    res.json({ passed, score, total: lesson.quiz.length, done: passed || p.lessonsCompleted.includes(lesson.ruleId), newlyCompleted });
+    console.log(`[trainingslager] lesson=${lesson.ruleId} user=${p.userId} score=${score}/${lesson.quiz.length} passed=${passed} newlyCompleted=${newlyCompleted} xp+=${xpAwarded}`);
+    res.json({ passed, score, total: lesson.quiz.length, done: passed || p.lessonsCompleted.includes(lesson.ruleId), newlyCompleted, xpAwarded });
   } catch (err) {
     console.error('[trainingslager] complete error:', err.message);
     res.status(500).json({ error: 'complete_failed' });
   }
+});
+
+// ── Admin-only: global PII-free counts (recommended/completed per lesson) ─────────
+trainingslagerRouter.get('/trainingslager/admin/stats', requireAuth, async (req, res) => {
+  if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
+  const stats = await loadStats();
+  const rows = Object.entries(stats).map(([ruleId, c]) => {
+    const l = getLesson(ruleId);
+    return { ruleId, title_de: l?.title_de || ruleId, recommended: c.recommended || 0, completed: c.completed || 0 };
+  }).sort((a, b) => b.recommended - a.recommended);
+  res.json({ stats: rows });
 });

@@ -111,11 +111,15 @@ export function computeRank(sessions) {
  * Consecutive-day training streak ("Trainingsserie") from session timestamps.
  * Counts back from today (or yesterday, if no session yet today) over unbroken days.
  */
-export function computeStreak(sessions) {
-  if (!Array.isArray(sessions) || sessions.length === 0) return 0;
-  // Bucket sessions by their Cairo calendar day, then walk back day-by-day. Stepping via
-  // dayKeyNoonMs keeps each hop anchored near noon, so DST transitions can't skip/double a day.
-  const days = new Set(sessions.map((s) => dayKey(new Date(s.date).getTime())));
+export function computeStreak(sessions, extraDayKeys = []) {
+  // Bucket sessions (and any extra active days, e.g. Trainingslager lesson days) by their Cairo
+  // calendar day, then walk back day-by-day. Stepping via dayKeyNoonMs keeps each hop anchored
+  // near noon, so DST transitions can't skip/double a day.
+  const days = new Set();
+  for (const s of (Array.isArray(sessions) ? sessions : [])) days.add(dayKey(new Date(s.date).getTime()));
+  for (const k of (Array.isArray(extraDayKeys) ? extraDayKeys : [])) if (k) days.add(k);
+  if (days.size === 0) return 0;
+
   let key = dayKey();                           // today (Cairo)
   if (!days.has(key)) {
     key = dayKey(dayKeyNoonMs(key) - DAY);      // allow yesterday as the anchor (today not trained yet)
@@ -128,3 +132,6 @@ export function computeStreak(sessions) {
   }
   return streak;
 }
+
+// XP for completing a Trainingslager lesson (quiz passed) — ~50% of a typical fight's XP.
+export const LESSON_XP = 18;

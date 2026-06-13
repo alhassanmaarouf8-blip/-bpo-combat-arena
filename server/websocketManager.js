@@ -7,7 +7,8 @@ import { addItem, dueCount }  from './srs.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank } from './progression.js';
 import { verifyToken, getAccountById, entitlement, consumeTrialSession } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
-import { refreshRecommendations } from './trainingslager.js';
+import { refreshRecommendations, allRecommendedDone, trainingslagerRequiresPlan, hasActivePlan } from './trainingslager.js';
+import { getLesson }              from './lessons.config.js';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -247,17 +248,30 @@ export class WebSocketManager {
 
     ctx.userId   = account.id;
     const level  = msg.level === 'b2' ? 'b2' : 'a2-b1';
+    const viaBossTor = msg.mode === 'bosstor';
 
     // Boss is chosen by the user's progression (warm-up → standard → final boss).
     let bossId = 'herr-tariq';
     let dossier = null;
+    let focusTitle = null;
+    let prof = null;
     try {
-      const prof = await loadUser(ctx.userId);
+      prof = await loadUser(ctx.userId);
       bossId  = bossForLevel(prof.level).id;
       dossier = topWeakRule(prof);   // recurring weak grammar rule → boss memory dossier
+      focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
     } catch {}
+
+    // Boss-Tor gate: challenging the next boss requires the recommended lessons done (and,
+    // only when the plan flag is on, a paid plan). The normal daily fight (no mode) is NEVER gated.
+    if (viaBossTor) {
+      if (trainingslagerRequiresPlan() && !hasActivePlan(account)) { this._releaseFight(ctx); this._sendError(ctx, 'plan_required'); return; }
+      if (!allRecommendedDone(prof))                               { this._releaseFight(ctx); this._sendError(ctx, 'lessons_incomplete'); return; }
+    }
+
     ctx.bossId = bossId;
-    console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  dossier=${dossier ?? '—'}  session=${ctx.sessionId}`);
+    if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
+    console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  mode=${viaBossTor ? 'bosstor' : 'daily'}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
     try {
       ctx.realtimeClient = new RealtimeClient({
@@ -265,6 +279,7 @@ export class WebSocketManager {
         bossId,
         level,
         dossier,
+        focusTitle,
         onAudioDelta:      (chunk)  => { ctx.audioOutBytes += this._b64Bytes(chunk); this._send(ctx, { type: S.AUDIO_DELTA, audio: chunk }); },
         onTranscriptDelta: (text)   => this._send(ctx, { type: S.TRANSCRIPT_DELTA, text }),
         onTranscriptDone:  (data)   => this._onTranscriptDone(ctx, data),
@@ -417,7 +432,7 @@ export class WebSocketManager {
           nextBoss:      nextBoss(p.level),
           bossId:        ctx.bossId,
           sessionCount:  p.sessions.length,
-          streak:        computeStreak(p.sessions),
+          streak:        computeStreak(p.sessions, p.lessonDays),
           rank:          computeRank(p.sessions),
           trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
           personalBest:  false,
@@ -482,6 +497,20 @@ export class WebSocketManager {
       const prevFl = flAll.slice(0, -1);                       // sessions before this one
       const personalBest = prevFl.length > 0 && (metrics.fluency ?? 0) > Math.max(...prevFl);
 
+      // Trainingslager delta: the focus rule's error count last fight → this fight.
+      let trainingDelta = null;
+      const focusRule = p.lastCompletedLesson;
+      if (focusRule) {
+        const cnt = (s) => (Array.isArray(s?.errorTags) ? s.errorTags.filter((t) => t === focusRule).length : 0);
+        const cur  = p.sessions[p.sessions.length - 1];
+        const prev = p.sessions[p.sessions.length - 2];
+        const before = prev ? cnt(prev) : null, after = cnt(cur);
+        if (before !== null && (before > 0 || after > 0)) {
+          const l = getLesson(focusRule);
+          trainingDelta = { ruleId: focusRule, title_de: l?.title_de || focusRule, title_ar: l?.title_ar || focusRule, before, after };
+        }
+      }
+
       return {
         xpGained, level: p.level, leveledUp,
         levelProgress: levelProgress(p.xp),
@@ -489,8 +518,9 @@ export class WebSocketManager {
         nextBoss:      nextBoss(p.level),
         bossId:        ctx.bossId,
         sessionCount:  p.sessions.length,   // = 1 on the user's first-ever fight
-        streak:        computeStreak(p.sessions),
+        streak:        computeStreak(p.sessions, p.lessonDays),
         rank:          computeRank(p.sessions),
+        trainingDelta,
         trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
         personalBest,
         bestFluency:   Math.max(...flAll),

@@ -57,15 +57,15 @@ function deriveStates(lessons) {
 
 // ── data hook (shared by both views); reload() re-fetches after a lesson completes ──
 function useRecommendations(token, apiUrl) {
-  const [lessons, setLessons] = useState(null);
+  const [data, setData] = useState(null);  // { lessons, allDone, suggestReassessment, requiresPlan, hasPlan }
   const reload = useCallback(() => {
     fetch(`${apiUrl}/api/trainingslager`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => setLessons(Array.isArray(d.lessons) ? d.lessons : []))
-      .catch(() => setLessons([]));
+      .then((d) => setData(d && Array.isArray(d.lessons) ? d : { lessons: [] }))
+      .catch(() => setData({ lessons: [] }));
   }, [token, apiUrl]);
   useEffect(() => { injectStyleOnce(); reload(); }, [reload]);
-  return { lessons, reload };
+  return { data, reload };
 }
 
 // Valid YouTube IDs are exactly 11 chars of [A-Za-z0-9_-]; anything else (incl. PLACEHOLDER) → no embed.
@@ -100,9 +100,15 @@ function buildPath(pts) {
   return d;
 }
 
-export function Trainingslager({ token, apiUrl, lang = 'de', onClose }) {
-  const { lessons, reload } = useRecommendations(token, apiUrl);
+export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChallengeBoss, onGoPricing }) {
+  const { data, reload } = useRecommendations(token, apiUrl);
+  const lessons = data?.lessons || null;
+  const planBlocked = !!(data?.requiresPlan && !data?.hasPlan);
   const [openId, setOpenId] = useState(null);   // ruleId of the lesson modal, or null
+  const [upsell, setUpsell] = useState(false);
+
+  const tapNode = (ruleId) => { if (planBlocked) setUpsell(true); else setOpenId(ruleId); };
+  const tapBoss = () => { if (planBlocked) setUpsell(true); else onChallengeBoss?.(); };
 
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 250, overflowY: 'auto',
@@ -159,22 +165,50 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose }) {
 
       {nodes.map((n, i) => (
         <MapNode key={n.ruleId} node={n} x={pts[i].x} y={pts[i].y} lang={lang}
-          onOpen={() => n.state === 'available' && setOpenId(n.ruleId)} />
+          onOpen={() => n.state === 'available' && tapNode(n.ruleId)} />
       ))}
-      <BossNode x={bossPt.x} y={bossPt.y} state={bossState} lang={lang} />
+      <BossNode x={bossPt.x} y={bossPt.y} state={bossState} lang={lang} onChallenge={tapBoss} />
     </div>
+
+    {/* One-time suggestion to do the monthly re-assessment, once the whole path is done */}
+    {data?.suggestReassessment && (
+      <div style={{ marginTop: 16, padding: '11px 13px', borderRadius: 10, background: 'rgba(0,229,255,0.07)', border: '1px solid rgba(0,229,255,0.3)' }}>
+        <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.6 }}>
+          {T(lang, '🎉 Pfad abgeschlossen! Zeit für eine neue Einstufung, um deinen Fortschritt zu sehen (monatlich im Elite-Plan).',
+                   '🎉 خلّصت المسار! وقت تعمل تقييم جديد تشوف تقدّمك (شهريًا في خطة Elite).')}
+        </div>
+      </div>
+    )}
 
     {/* Lesson modal — blurs the map behind it (backdrop-filter); never ejects to YouTube */}
     {openId && (
       <LessonScreen token={token} apiUrl={apiUrl} lang={lang} ruleId={openId}
         onClose={() => setOpenId(null)}
-        onPassed={() => { reload(); }} />
+        onPassed={() => { reload(); }}
+        onPlanRequired={() => { setOpenId(null); setUpsell(true); }} />
+    )}
+
+    {/* Free-user upsell (only when the plan flag is ON). Honest, no dark patterns. */}
+    {upsell && (
+      <div onClick={() => setUpsell(false)} style={{ position: 'absolute', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
+        padding: 20, background: 'rgba(3,7,10,0.72)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: '100%', borderRadius: 16, padding: 20, textAlign: 'center',
+          background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))', border: '1px solid rgba(251,191,36,0.35)' }}>
+          <div style={{ fontSize: 34 }}>🗺️</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24', marginTop: 6 }}>{T(lang, 'Dein Trainingsplan ist fertig', 'خطتك جاهزة')}</div>
+          <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 6 }}>
+            {T(lang, 'Schalte ihn frei und fang an zu trainieren.', 'افتحها وابدأ التمرين.')}
+          </div>
+          <button onClick={() => { setUpsell(false); onGoPricing?.(); }} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Plan wählen', 'اختار خطة')} ▸</button>
+          <button onClick={() => setUpsell(false)} style={{ ...ghost, marginTop: 10, width: '100%' }}>{T(lang, 'Später', 'بعدين')}</button>
+        </div>
+      </div>
     )}
   </>);
 }
 
 // ═══════════════════════════ THE LESSON SCREEN (video + quiz) ═══════════════════════════
-function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed }) {
+function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRequired }) {
   const [lesson, setLesson] = useState(null);
   const [answers, setAnswers] = useState({});   // qIndex -> chosen ORIGINAL option index
   const [phase, setPhase] = useState('quiz');    // quiz | passed | failed
@@ -183,11 +217,11 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed }) {
   useEffect(() => {
     let cancel = false;
     fetch(`${apiUrl}/api/trainingslager/lesson/${encodeURIComponent(ruleId)}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => { if (!cancel) setLesson(d.lesson || null); })
+      .then(async (r) => { if (r.status === 402) { onPlanRequired?.(); return null; } return r.json(); })
+      .then((d) => { if (!cancel && d) setLesson(d.lesson || null); })
       .catch(() => { if (!cancel) setLesson(null); });
     return () => { cancel = true; };
-  }, [ruleId, token, apiUrl]);
+  }, [ruleId, token, apiUrl, onPlanRequired]);
 
   const overlay = (children) => (
     <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 60, display: 'flex', justifyContent: 'center',
@@ -381,21 +415,23 @@ function MapNode({ node, x, y, lang, onOpen }) {
   );
 }
 
-function BossNode({ x, y, state, lang }) {
+function BossNode({ x, y, state, lang, onChallenge }) {
   const unlocked = state === 'available';
   const size = 76;
   return (
     <div style={{ position: 'absolute', left: `${x}%`, top: y, width: size, height: size, transform: 'translate(-50%,-50%)' }}>
       {unlocked && <span className="tl-ring-el" style={{ position: 'absolute', left: '50%', top: '50%', width: size, height: size, borderRadius: '50%', border: '2px solid #f59e0b', pointerEvents: 'none' }} />}
-      <div style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center',
-        fontSize: 32, border: `3px solid ${unlocked ? '#f59e0b' : '#475569'}`,
-        background: unlocked ? 'radial-gradient(circle, rgba(245,158,11,0.25), rgba(245,158,11,0.05))' : 'rgba(255,255,255,0.03)',
-        boxShadow: unlocked ? '0 0 26px rgba(245,158,11,0.5)' : 'none', opacity: unlocked ? 1 : 0.55, filter: unlocked ? 'none' : 'grayscale(1)' }}>
+      <button className={unlocked ? 'tl-avail' : undefined} onClick={() => unlocked && onChallenge?.()} disabled={!unlocked}
+        style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: unlocked ? 'pointer' : 'default',
+          fontSize: 32, border: `3px solid ${unlocked ? '#f59e0b' : '#475569'}`, color: '#fff',
+          background: unlocked ? 'radial-gradient(circle, rgba(245,158,11,0.25), rgba(245,158,11,0.05))' : 'rgba(255,255,255,0.03)',
+          boxShadow: unlocked ? '0 0 26px rgba(245,158,11,0.5)' : 'none', opacity: unlocked ? 1 : 0.55, filter: unlocked ? 'none' : 'grayscale(1)' }}>
         {unlocked ? '🏰' : '🔒'}
-      </div>
-      <div style={{ position: 'absolute', top: size + 6, left: '50%', transform: 'translateX(-50%)', width: 170, textAlign: 'center' }}>
+      </button>
+      <div style={{ position: 'absolute', top: size + 6, left: '50%', transform: 'translateX(-50%)', width: 180, textAlign: 'center' }}>
         <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 11, fontWeight: 900, letterSpacing: 1, color: unlocked ? '#fbbf24' : '#64748b' }}>BOSS-TOR</div>
         <div dir="rtl" style={{ fontSize: 10, color: unlocked ? '#94a3b8' : '#475569' }}>بوابة التحدي</div>
+        {unlocked && <div style={{ fontSize: 9.5, color: '#fbbf24', marginTop: 3 }}>{T(lang, 'Tippen zum Kämpfen', 'دوس عشان تتحدّى')}</div>}
       </div>
     </div>
   );
@@ -403,7 +439,8 @@ function BossNode({ x, y, state, lang }) {
 
 // ═══════════════════════════ COMPACT HORIZONTAL TEASER ═══════════════════════════
 export function GameMapCompact({ token, apiUrl, lang = 'de', onOpen }) {
-  const { lessons } = useRecommendations(token, apiUrl);
+  const { data } = useRecommendations(token, apiUrl);
+  const lessons = data?.lessons;
   if (!lessons || lessons.length === 0) return null;
 
   const { nodes, bossState } = deriveStates(lessons);
