@@ -1449,32 +1449,41 @@ const inputStyle = {
   background:'rgba(255,255,255,0.04)', color:'#e2e8f0', border:'1px solid rgba(0,229,255,0.25)', outline:'none',
 };
 
-// ── Component: PaywallScreen (trial → paid tiers; processor not wired) ─────────
-function PaywallScreen({ token, info, onUpgraded, onClose }) {
+// ── Component: PaywallScreen = the EGP pricing page (Basic / Elite, daily minutes) ─────
+// Prices + minutes come from plans.config.js via /api/billing/status (single source).
+const PERKS_DE = {
+  basic: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'Arabisch-Feedback', 'alle Bosse',
+                 'unbegrenzte Drills, Shadowing & Wiederholung', 'Trainingslager-Karte sichtbar'],
+  elite: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'volles Trainingslager freigeschaltet',
+                 'monatliche Neu-Einstufung', 'rollen-spezifischer Gegner', 'alles aus Basic'],
+};
+const SUB_AR = {
+  basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + خريطة Trainingslager + تمارين بلا حدود.`,
+  elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + Trainingslager كامل + إعادة تقييم شهرية.`,
+};
+
+function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [payUrl, setPayUrl] = useState(null);
   const [email, setEmail]   = useState('');
   const [checking, setChecking] = useState(false);
   const [msg, setMsg]           = useState(null);
-  const [prices, setPrices]     = useState({ pro: '19 €/Mon.', team: '49 €/Mon.' });
+  const [plans, setPlans]       = useState(null);
+  const [yearly, setYearly]     = useState(false);
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { setPayUrl(d.paymentUrl || null); setEmail(d.account?.email || ''); if (d.prices) setPrices(d.prices); })
+      .then((d) => { setPayUrl(d.paymentUrl || null); setEmail(d.account?.email || ''); if (Array.isArray(d.plans)) setPlans(d.plans); })
       .catch(() => {});
   }, [token]);
 
-  const TIERS = [
-    { id:'pro',  label:'PRO',  price:prices.pro,  perks:['Unbegrenzte Sitzungen','Alle Bosse','Volle Wiederholung'] },
-    { id:'team', label:'TEAM', price:prices.team, perks:['Pro für bis zu 5 Lernende','Fortschrittsberichte'] },
-  ];
-  // Send the user to the real checkout link (configured server-side via PAYMENT_URL).
-  // Their email is passed as a hint so the payment can be matched to their account.
-  const goPay = (tier) => {
+  const ar  = lang === 'ar';
+  const fmt = (n) => Number(n || 0).toLocaleString('de-DE');   // 1299 → "1.299"
+
+  const goPay = (planId) => {
     if (!payUrl) return;
     const sep = payUrl.includes('?') ? '&' : '?';
-    window.open(`${payUrl}${sep}ref=${encodeURIComponent(email)}&tier=${tier}`, '_blank', 'noopener');
+    window.open(`${payUrl}${sep}ref=${encodeURIComponent(email)}&plan=${planId}&period=${yearly ? 'year' : 'month'}`, '_blank', 'noopener');
   };
-  // After paying, the user taps this to re-check entitlement; unlocks only once granted.
   const refresh = async () => {
     setChecking(true); setMsg(null);
     try {
@@ -1486,42 +1495,79 @@ function PaywallScreen({ token, info, onUpgraded, onClose }) {
     setChecking(false);
   };
 
+  const toggleBtn = (on, label, sub) => (
+    <button onClick={() => setYearly(on)} style={{ flex:1, padding:'8px 6px', cursor:'pointer', borderRadius:8,
+      fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.06em', lineHeight:1.3,
+      border:`1px solid ${yearly===on ? '#fbbf24' : 'rgba(148,163,184,0.3)'}`,
+      background: yearly===on ? 'rgba(251,191,36,0.14)' : 'transparent', color: yearly===on ? '#fbbf24' : '#94a3b8' }}>
+      {label}{sub && <div style={{ fontSize:8, color:'#34d399', marginTop:2 }}>{sub}</div>}
+    </button>
+  );
+
   return (
     <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
-      <div style={{ textAlign:'center', marginBottom:8 }}>
-        <div style={{ fontSize:40 }}>🔒</div>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, letterSpacing:2,
-          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>LIVE-INTERVIEW · PLAN WÄHLEN</div>
-        <div style={{ fontSize:11, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>
-          Live-Interviews sind in den Plänen Basic & Elite enthalten. Deine kostenlose Einstufung kannst du jederzeit machen.
-          <br /><span dir="rtl">الإنترفيو المباشر موجود في خطتَي Basic و Elite. تقييم مستواك المجاني متاح في أي وقت.</span>
+      <div style={{ textAlign:'center', marginBottom:10 }}>
+        <div style={{ fontSize:34 }}>🥊</div>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:17, fontWeight:900, letterSpacing:2,
+          color:'#fbbf24', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
+        <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:5, lineHeight:1.6 }}>
+          Beide Pläne: Live-Interview JEDEN TAG. Die kostenlose Einstufung bleibt immer frei.
+          <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
         </div>
       </div>
 
-      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10, justifyContent:'center' }}>
-        {TIERS.map((t) => (
-          <div key={t.id} style={{ borderRadius:12, padding:14,
-            background:'rgba(0,0,0,0.4)', border:'1px solid rgba(0,229,255,0.25)' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
-              <span style={{ fontFamily:'Orbitron,monospace', fontSize:15, fontWeight:900, color:'#00e5ff' }}>{t.label}</span>
-              <span style={{ fontSize:13, color:'#e2e8f0' }}>{t.price}</span>
+      {/* monthly / yearly toggle */}
+      <div style={{ display:'flex', gap:6, marginBottom:12 }}>
+        {toggleBtn(false, ar ? 'شهري' : 'MONATLICH')}
+        {toggleBtn(true, ar ? 'سنوي' : 'JÄHRLICH', ar ? 'شهرين هدية' : '2 Monate geschenkt')}
+      </div>
+
+      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:11 }}>
+        {(plans || []).map((p) => {
+          const price  = yearly ? p.yearlyEGP : p.priceEGP;
+          const period = yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
+          const saving = (p.priceEGP * 12) - p.yearlyEGP;
+          const elite  = p.id === 'elite';
+          const accent = elite ? '#fbbf24' : '#22d3ee';
+          return (
+            <div key={p.id} style={{ borderRadius:12, padding:14, position:'relative',
+              background:'rgba(0,0,0,0.4)', border:`1px solid ${elite ? 'rgba(251,191,36,0.5)' : 'rgba(34,211,238,0.3)'}`,
+              boxShadow: elite ? '0 0 20px rgba(251,191,36,0.12)' : 'none' }}>
+              {elite && (
+                <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em',
+                  background:'#fbbf24', color:'#04070d', padding:'2px 8px', borderRadius:99, fontWeight:700 }}>
+                  {ar ? 'الأنسب للإنترفيو' : 'Beliebt für Interview-Prep'}
+                </div>
+              )}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+                <span style={{ fontFamily:'Orbitron,monospace', fontSize:16, fontWeight:900, color:accent }}>{p.label?.toUpperCase()}</span>
+                <span style={{ fontSize:14, color:'#e2e8f0', fontWeight:700 }}>{fmt(price)} EGP<span style={{ fontSize:10, color:'#94a3b8' }}>{period}</span></span>
+              </div>
+              {yearly && (
+                <div style={{ fontSize:9.5, color:'#34d399', marginBottom:7 }}>
+                  {ar ? `شهرين هدية · وفّر ${fmt(saving)} جنيه` : `2 Monate geschenkt · spare ${fmt(saving)} EGP`}
+                </div>
+              )}
+              {(PERKS_DE[p.id]?.(p.dailyLiveMinutes) || []).map((perk) => (
+                <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
+              ))}
+              <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
+              <button onClick={() => goPay(p.id)} disabled={!payUrl}
+                style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor: payUrl ? 'pointer' : 'not-allowed',
+                  fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
+                  border:`1px solid ${accent}`, color:'#04070d', background:accent, opacity: payUrl ? 1 : 0.55 }}>
+                {payUrl ? `${p.label?.toUpperCase()} ${ar ? 'افتح' : 'WÄHLEN'} ↗` : (ar ? 'الدفع قريب' : 'BALD VERFÜGBAR')}
+              </button>
             </div>
-            {t.perks.map((p) => (
-              <div key={p} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {p}</div>
-            ))}
-            <button onClick={() => goPay(t.id)} disabled={!payUrl}
-              style={{ width:'100%', marginTop:10, padding:'12px', minHeight:44, cursor: payUrl ? 'pointer' : 'not-allowed',
-                fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em', borderRadius:8,
-                border:'1px solid #00e5ff', color:'#020409', background:'#00e5ff', opacity: payUrl ? 1 : 0.5 }}>
-              {payUrl ? `${t.label} FREISCHALTEN ↗` : 'BALD VERFÜGBAR'}
-            </button>
-          </div>
-        ))}
+          );
+        })}
+        {!plans && <div style={{ textAlign:'center', color:'#64748b', fontSize:11, padding:20 }}>…</div>}
+
         <div style={{ fontSize:9.5, color:'#64748b', textAlign:'center', lineHeight:1.5 }}>
           {payUrl
             ? <>Bezahle mit derselben E-Mail, mit der du angemeldet bist — dein Konto wird nach Zahlungseingang freigeschaltet.<br /><span dir="rtl">ادفع بنفس الإيميل اللي مسجّل بيه — هيتفعّل حسابك بعد ما يوصل الدفع.</span></>
-            : <>Zahlung wird in Kürze verfügbar sein.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span></>}
+            : <>Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span></>}
         </div>
       </div>
 
@@ -1539,7 +1585,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose }) {
       <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:'pointer',
         fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8,
         border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
-        ZURÜCK
+        {ar ? 'رجوع' : 'ZURÜCK'}
       </button>
     </div>
   );
@@ -2103,7 +2149,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Subscription paywall (trial exhausted) */}
       {paywall && (
-        <PaywallScreen token={auth.token} info={paywall}
+        <PaywallScreen token={auth.token} info={paywall} lang={feedbackLang}
           onUpgraded={handleUpgraded} onClose={() => setPaywall(null)} />
       )}
 

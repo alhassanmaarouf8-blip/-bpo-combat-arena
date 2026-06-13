@@ -255,11 +255,10 @@ export const billingRouter = express.Router();
 
 billingRouter.get('/status', requireAuth, (req, res) =>
   res.json({
-    tiers: TIERS,
-    account: publicAccount(req.account),
+    account:    publicAccount(req.account),
     paymentUrl: process.env.PAYMENT_URL || null,
-    // Displayed price labels — override via env once you set your EGP price (no code change).
-    prices: { pro: process.env.PRICE_PRO || '19 €/Mon.', team: process.env.PRICE_TEAM || '49 €/Mon.' },
+    // The paid plans straight from plans.config.js (EGP prices + daily minutes — ONE source).
+    plans: [PLANS.basic, PLANS.elite],
   }));
 
 // Owner-only: set a learner's PLAN (free/basic/elite) by email — used to fulfil a manual
