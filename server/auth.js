@@ -141,7 +141,11 @@ export async function authenticate(email, password) {
 export function planOf(account) {
   if (isAdminEmail(account?.email)) return 'elite';
   const s = account?.subscription || {};
-  if (s.plan && PLANS[s.plan]) return s.plan;
+  if (s.plan && PLANS[s.plan]) {
+    // A paid plan with a billing end-date reverts to free once it expires.
+    if (s.billingPeriodEnd && Date.now() > s.billingPeriodEnd) return 'free';
+    return s.plan;
+  }
   if (s.tier === 'pro' || s.tier === 'team') return 'elite'; // legacy paid grants keep access
   return 'free';
 }
@@ -181,6 +185,17 @@ export async function upgrade(account, tier) {
 export async function setPlan(account, plan) {
   if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
   account.subscription = { ...account.subscription, plan, planSetAt: Date.now() };
+  await persist();
+  return account;
+}
+
+// Activate a paid plan with a billing end-date (1 month or 1 year) — used by the admin panel
+// when a Vodafone Cash payment is confirmed. The daily-minute gating takes effect immediately.
+export async function activatePlan(account, plan, billingPeriod) {
+  if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
+  const now = Date.now();
+  const periodMs = billingPeriod === 'yearly' ? 365 * DAY : 30 * DAY;
+  account.subscription = { ...account.subscription, plan, planSetAt: now, billingPeriodEnd: now + periodMs };
   await persist();
   return account;
 }
