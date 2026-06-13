@@ -15,31 +15,61 @@
 const LT_URL     = process.env.LANGUAGETOOL_URL ?? 'https://api.languagetool.org/v2/check';
 const LT_TIMEOUT = 12_000;
 
-// LanguageTool categories that are noise on a SPEECH transcript (the punctuation and
-// casing come from the speech-to-text layer, not the learner) — never blame the user for
-// those. We keep genuine grammar, agreement, word-order and spelling errors.
+// LanguageTool categories that are noise on a SPEECH transcript. Punctuation, casing AND
+// SPELLING (TYPOS) come from the speech-to-text layer, not the learner — the candidate spoke,
+// they never typed, so orthography is the STT's choice, not theirs. TYPOS is the German
+// spell-checker (GERMAN_SPELLER_RULE); on an STT transcript it "corrects" mis-heard non-words
+// (e.g. splitting "überbeantragt" → "über beantragt"), which is wrong and pointless. We keep
+// genuine GRAMMAR (agreement, case, word-order, verb forms).
 const SKIP_CATEGORIES = new Set([
-  'TYPOGRAPHY', 'WHITESPACE', 'PUNCTUATION', 'CASING',
+  'TYPOGRAPHY', 'WHITESPACE', 'PUNCTUATION', 'CASING', 'TYPOS',
   'STYLE', 'REDUNDANCY', 'COLLOQUIALISMS', 'PLAIN_ENGLISH',
 ]);
 
 // LanguageTool tags each match with an issueType. We drop the purely stylistic / cosmetic
-// types — they are the usual source of "corrections" that are wrong or pointless on a
-// speech transcript. The rule is: better to show FEWER corrections than a wrong one.
+// types, plus 'misspelling' (orthography — see TYPOS above; the learner spoke, didn't spell).
+// The rule is: better to show FEWER corrections than a wrong one.
 // NOTE: 'uncategorized' is deliberately NOT skipped. LanguageTool tags many GENUINE German
-// fixes (e.g. preposition+article like "zum" → "zur", der/die/das agreement) as
-// 'uncategorized'; skipping them silently dropped real corrections and made the coach look
-// like it couldn't teach. The SKIP_CATEGORIES filter (casing/typography/style) plus the
-// identical-correction guards below still protect against noise.
+// fixes (e.g. "drei Jahre" → "drei Jahren", "zum" → "zur") as 'uncategorized'; skipping them
+// silently dropped real corrections and made the coach look like it couldn't teach.
 const SKIP_ISSUE_TYPES = new Set([
   'style', 'register', 'typographical', 'whitespace', 'characters',
-  'non-conformance', 'locale-violation',
+  'non-conformance', 'locale-violation', 'misspelling',
 ]);
 
 // Canonicalize for the identical-correction guard: collapse whitespace + drop a trailing
 // sentence mark. Case is preserved (a real capitalization fix still counts).
 function canon(s) {
   return String(s ?? '').replace(/\s+/g, ' ').replace(/[.!?…]+\s*$/u, '').trim();
+}
+
+// Same letters, only spacing/case differs → an orthography artifact of the speech-to-text
+// (compound splits/joins like "überbeantragt" ⇄ "über beantragt"), NOT a grammar error.
+function spacingOrCaseOnly(a, b) {
+  const strip = (s) => String(s ?? '').replace(/\s+/g, '').toLowerCase();
+  return strip(a) === strip(b);
+}
+
+// Build a SHORT context fragment centred on the change (≈4 words each side) so the UI can
+// show what actually changed instead of re-printing a whole ~40-word sentence twice.
+function makeFragment(sentence, local, length, repl) {
+  const WORDS = 4;
+  const before = sentence.slice(0, local);
+  const after  = sentence.slice(local + length);
+  const matched = sentence.slice(local, local + length);
+  const preAll  = before.split(/\s+/).filter(Boolean);
+  const postAll = after.split(/\s+/).filter(Boolean);
+  const pre  = preAll.slice(-WORDS).join(' ');
+  const post = postAll.slice(0, WORDS).join(' ');
+  const lead = preAll.length  > WORDS ? '… ' : '';
+  const tail = postAll.length > WORDS ? ' …' : '';
+  const clean = (s) => s.replace(/\s+/g, ' ').trim();
+  return {
+    wrongWord:     matched.trim(),
+    rightWord:     String(repl).trim(),
+    wrongFragment: clean(`${lead}${pre} ${matched} ${post}${tail}`),
+    rightFragment: clean(`${lead}${pre} ${repl} ${post}${tail}`),
+  };
 }
 
 async function callLanguageTool(text) {
@@ -99,6 +129,7 @@ export async function buildGrammar(utterances) {
     const local   = mt.offset - seg.start;
     const matched = seg.text.slice(local, local + mt.length);     // exact text LT wants to replace
     if (canon(matched) === canon(repl)) continue;                 // replacement == original span → no real change
+    if (spacingOrCaseOnly(matched, repl)) continue;               // STT orthography artifact → skip
     const wrong   = seg.text;
     const right   = seg.text.slice(0, local) + repl + seg.text.slice(local + mt.length);
     if (canon(wrong) === canon(right)) continue;                  // identical sentence → NOT an error
@@ -115,7 +146,8 @@ export async function buildGrammar(utterances) {
         examples:       [],
       });
     }
-    byRule.get(key).examples.push({ wrong, right });
+    // Keep the full sentence (wrong/right) for SRS drills; add the focused fragment for display.
+    byRule.get(key).examples.push({ wrong, right, ...makeFragment(seg.text, local, mt.length, repl) });
   }
 
   // Shape into the debrief grammar contract; cap to keep the screen scannable.

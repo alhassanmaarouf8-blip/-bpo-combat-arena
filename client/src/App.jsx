@@ -982,12 +982,30 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                           {ar && g.explanation_ar ? g.explanation_ar : g.explanation}
                         </div>
                       : null}
-                    {ex.map((e, j) => (
-                      <div key={j} style={{ marginBottom:4, fontSize:11, lineHeight:1.4, overflowWrap:'anywhere' }}>
-                        <span style={{ color:'#ef4444' }}>✗ {e.wrong}</span><br />
-                        <span style={{ color:'#34d399' }}>✓ {e.right}</span>
-                      </div>
-                    ))}
+                    {ex.map((e, j) => {
+                      const hasFrag = e.wrongWord && e.rightWord;
+                      return (
+                        <div key={j} style={{ marginBottom:7, fontSize:11.5, lineHeight:1.45, overflowWrap:'anywhere' }}>
+                          {hasFrag ? (
+                            <>
+                              <div>
+                                <span style={{ color:'#ef4444', textDecoration:'line-through' }}>{e.wrongWord}</span>
+                                <span style={{ color:'#64748b' }}> → </span>
+                                <b style={{ color:'#34d399' }}>{e.rightWord}</b>
+                              </div>
+                              {e.wrongFragment && (
+                                <div style={{ fontSize:10, color:'#64748b', marginTop:2, fontStyle:'italic' }}>{e.wrongFragment}</div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ color:'#ef4444' }}>✗ {e.wrong}</span><br />
+                              <span style={{ color:'#34d399' }}>✓ {e.right}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
