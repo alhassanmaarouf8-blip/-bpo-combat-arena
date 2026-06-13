@@ -1523,13 +1523,7 @@ function loadStreakCache() { try { return parseInt(localStorage.getItem('omni_st
 function saveStreakCache(n) { try { localStorage.setItem('omni_streak', String(n)); } catch { /* ignore */ } }
 
 function Arena({ auth, onLogout, onAccountUpdate }) {
-  // Inject global CSS once
-  useEffect(() => {
-    const el = document.createElement('style');
-    el.textContent = GLOBAL_CSS;
-    document.head.prepend(el);
-    return () => el.remove();
-  }, []);
+  // (Global CSS is injected once at the app root so the cold-start + auth screens share it.)
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [phase, setPhase]         = useState('idle');
@@ -2486,12 +2480,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 }
 
 // ── Root: authentication gate around the arena ────────────────────────────────
-export default function App() {
+function AuthedApp() {
   const [auth, setAuth] = useState(loadStoredAuth);
-
-  // Pre-warm the backend on load: Render's free tier cold-starts (~50s) after idle, so
-  // fire a cheap /health ping immediately to wake it before the user logs in or fights.
-  useEffect(() => { fetch(`${API_URL}/health`).catch(() => {}); }, []);
 
   // Validate / refresh the stored token on mount; drop it if the server rejects.
   useEffect(() => {
@@ -2512,4 +2502,137 @@ export default function App() {
 
   if (!auth) return <AuthScreen onAuth={handleAuth} />;
   return <Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} />;
+}
+
+// ── Cold-start gate ───────────────────────────────────────────────────────────
+// Render's free tier sleeps after ~15 min idle, so the FIRST request can take up to
+// ~50s to wake the server. This gate pings /health before revealing the app: warm starts
+// pass through invisibly (<700ms); cold starts get a branded, animated, bilingual
+// "waking up" screen with live progress + a retry path — never a frozen/dead screen.
+function ColdStartScreen({ phase, elapsed, onRetry }) {
+  const failed = phase === 'error';
+  // Simulated progress that always moves but never claims "done" before the server answers:
+  // eases from 6% toward 92% over ~50s.
+  const pct = Math.min(92, 6 + (elapsed / 50) * 86);
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:9000, display:'flex', flexDirection:'column',
+      alignItems:'center', justifyContent:'center', gap:18, padding:'28px 22px', textAlign:'center',
+      boxSizing:'border-box', overflow:'hidden',
+      background:'radial-gradient(120% 90% at 50% 16%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      color:'#e2e8f0', animation:'flash-in 0.4s ease' }}>
+
+      <div style={{ fontFamily:'Orbitron, monospace', fontSize:20, fontWeight:900, letterSpacing:3,
+        color:'#00e5ff', textShadow:'0 0 24px rgba(0,229,255,0.55)' }}>OMNI-PERFORM</div>
+
+      {!failed ? (
+        <>
+          {/* spinner ring + boxing glove */}
+          <div style={{ position:'relative', width:74, height:74, display:'grid', placeItems:'center' }}>
+            <div style={{ position:'absolute', inset:0, borderRadius:'50%',
+              border:'3px solid rgba(0,229,255,0.16)', borderTopColor:'#00e5ff',
+              animation:'spin 0.9s linear infinite' }} />
+            <div style={{ fontSize:30, animation:'pulse 1.4s ease-in-out infinite' }}>🥊</div>
+          </div>
+
+          {/* bilingual status (Arabic prominent, German below) */}
+          <div style={{ display:'flex', flexDirection:'column', gap:6, maxWidth:340 }}>
+            <div dir="rtl" style={{ fontSize:15, fontWeight:700, color:'#f8fafc' }}>السيرفر بيصحى… جهّز نفسك 🥊</div>
+            <div style={{ fontSize:13, color:'#cbd5e1' }}>Server wird gestartet…</div>
+          </div>
+
+          {/* progress bar + elapsed */}
+          <div style={{ width:'100%', maxWidth:300 }}>
+            <div style={{ height:8, borderRadius:99, overflow:'hidden', background:'rgba(255,255,255,0.07)',
+              border:'1px solid rgba(0,229,255,0.2)' }}>
+              <div style={{ height:'100%', width:`${pct}%`, borderRadius:99,
+                background:'linear-gradient(90deg,#22d3ee,#00e5ff)', boxShadow:'0 0 10px rgba(0,229,255,0.5)',
+                transition:'width 0.5s ease' }} />
+            </div>
+            <div style={{ fontSize:10, color:'#64748b', marginTop:6, fontVariantNumeric:'tabular-nums' }}>~{elapsed}s</div>
+          </div>
+
+          {/* reassurance: this is normal */}
+          <div style={{ maxWidth:330, fontSize:11, color:'#94a3b8', lineHeight:1.6 }}>
+            Der erste Start kann bis zu einer Minute dauern — das ist ganz normal.
+            <br /><span dir="rtl">أول تشغيل ممكن ياخد لحد دقيقة، وده طبيعي تمامًا — استنى شوية.</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize:42 }}>⏳</div>
+          <div style={{ maxWidth:330, fontSize:13, color:'#fca5a5', lineHeight:1.6 }}>
+            Der Server braucht länger als erwartet. Bitte erneut versuchen.
+            <br /><span dir="rtl">السيرفر بياخد وقت أطول من المعتاد. من فضلك حاول تاني.</span>
+          </div>
+          <button onClick={onRetry} style={{ marginTop:4, padding:'14px 24px', minHeight:48, cursor:'pointer',
+            fontFamily:'Orbitron, monospace', fontSize:12, letterSpacing:'0.1em', borderRadius:10, fontWeight:700,
+            border:'1px solid #00e5ff', color:'#020409', background:'#00e5ff', boxShadow:'0 0 18px rgba(0,229,255,0.35)' }}>
+            ERNEUT VERSUCHEN · حاول تاني
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BackendGate({ children }) {
+  const [phase, setPhase]     = useState('checking'); // checking | waking | ready | error
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(0);
+  const runRef   = useRef(0);
+
+  const wake = useCallback(async () => {
+    const runId = ++runRef.current;
+    setPhase('checking'); setElapsed(0);
+    const start = Date.now(); startRef.current = start;
+    // Reveal the waking screen only if it's actually slow → no flash on warm starts.
+    const reveal = setTimeout(() => {
+      if (runRef.current === runId) setPhase((p) => (p === 'checking' ? 'waking' : p));
+    }, 700);
+
+    const DEADLINE = 60000;
+    let ok = false;
+    while (Date.now() - start < DEADLINE) {
+      if (runRef.current !== runId) { clearTimeout(reveal); return; } // superseded by a retry
+      try {
+        const ctrl = new AbortController();
+        const remaining = DEADLINE - (Date.now() - start);
+        // One attempt can ride Render's held connection for the whole wake (~50s).
+        const to = setTimeout(() => ctrl.abort(), Math.max(8000, remaining));
+        const r = await fetch(`${API_URL}/health`, { signal: ctrl.signal, cache: 'no-store' });
+        clearTimeout(to);
+        if (r.ok) { ok = true; break; }
+      } catch { /* server still waking / transient — retry */ }
+      if (runRef.current !== runId) { clearTimeout(reveal); return; }
+      await new Promise((res) => setTimeout(res, 1500));
+    }
+    clearTimeout(reveal);
+    if (runRef.current === runId) setPhase(ok ? 'ready' : 'error');
+  }, []);
+
+  useEffect(() => { wake(); return () => { runRef.current++; }; }, [wake]);
+
+  // Tick the elapsed-seconds counter while the waking screen is visible.
+  useEffect(() => {
+    if (phase !== 'waking') return;
+    const id = setInterval(() => setElapsed(Math.max(0, Math.round((Date.now() - startRef.current) / 1000))), 250);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  if (phase === 'ready')    return children;
+  if (phase === 'checking') return null; // brief & invisible on warm starts
+  return <ColdStartScreen phase={phase} elapsed={elapsed} onRetry={wake} />;
+}
+
+// ── Root: cold-start gate → auth gate → arena ─────────────────────────────────
+export default function App() {
+  // Inject the global CSS once, app-wide, so the cold-start + auth screens are styled too.
+  useEffect(() => {
+    const el = document.createElement('style');
+    el.textContent = GLOBAL_CSS;
+    document.head.prepend(el);
+    return () => el.remove();
+  }, []);
+  return <BackendGate><AuthedApp /></BackendGate>;
 }
