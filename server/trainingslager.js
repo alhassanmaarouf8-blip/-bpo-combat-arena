@@ -27,12 +27,13 @@ const LAST_N_FIGHTS = 3;
 const MAX_RECS      = 6;
 const STARTER_REASON = { de: 'Empfohlener Startpunkt für den Einstieg.', ar: 'نقطة بداية موصى بها للبداية.' };
 
-// ── Plan gate (feature-flagged; DEFAULTS TO OPEN so nothing breaks pre-payment) ──
-// Only when TRAININGSLAGER_REQUIRE_PLAN=true does tapping a lesson/quiz/Boss-Tor require a
-// paid plan. "Paid" reuses the existing entitlement (pro/team/admin = unlimited).
-export function trainingslagerRequiresPlan() { return process.env.TRAININGSLAGER_REQUIRE_PLAN === 'true'; }
-export function hasActivePlan(account) { return !!entitlement(account)?.unlimited; }
-function planBlocked(account) { return trainingslagerRequiresPlan() && !hasActivePlan(account); }
+// ── Lesson gate ──────────────────────────────────────────────────────────────
+// The game MAP (diagnosis + path) is visible to everyone — the hook. OPENING a lesson/quiz
+// requires the Trainingslager to be unlocked, which only the Elite plan grants
+// (PLANS.elite.trainingslagerUnlocked; admin counts as elite). Free/Basic see the map and get
+// an honest upsell.
+export function lessonsUnlocked(account) { return !!entitlement(account)?.trainingslagerUnlocked; }
+function lessonBlocked(account) { return !lessonsUnlocked(account); }
 
 // Boss-Tor is unlocked only when EVERY recommended lesson is done (server-side truth).
 export function allRecommendedDone(profile) {
@@ -138,8 +139,7 @@ trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
 
     res.json({
       lessons, source, allDone, suggestReassessment,
-      requiresPlan: trainingslagerRequiresPlan(),
-      hasPlan:      hasActivePlan(req.account),
+      lessonsUnlocked: lessonsUnlocked(req.account),
     });
   } catch (err) {
     console.error('[trainingslager] read error:', err.message);
@@ -150,7 +150,7 @@ trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
 // ── GET one lesson (video + quiz) ────────────────────────────────────────────────
 trainingslagerRouter.get('/trainingslager/lesson/:ruleId', requireAuth, async (req, res) => {
   try {
-    if (planBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
+    if (lessonBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
     const lesson = getLesson(req.params.ruleId);
     if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
     const p = await loadUser(req.account.id);
@@ -166,7 +166,7 @@ trainingslagerRouter.get('/trainingslager/lesson/:ruleId', requireAuth, async (r
 // Pass = at least 2 of 3 correct. Idempotent: re-passing an already-done lesson is harmless.
 trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth, async (req, res) => {
   try {
-    if (planBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
+    if (lessonBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
     const lesson = getLesson(req.params.ruleId);
     if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
 

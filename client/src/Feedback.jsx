@@ -143,33 +143,40 @@ function GrantPro({ token, apiUrl }) {
   const [msg, setMsg]     = useState(null);
   const [busy, setBusy]   = useState(false);
 
-  const grant = async () => {
+  const grant = async (plan) => {
     if (busy || !email.trim()) return;
     setBusy(true); setMsg(null);
     try {
       const r = await fetch(`${apiUrl}/api/billing/admin/grant`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ email: email.trim(), tier: 'pro' }),
+        body: JSON.stringify({ email: email.trim(), plan }),
       });
       const d = await r.json();
-      if (r.ok) { setMsg({ ok: true, t: `✓ Pro freigeschaltet: ${d.email}` }); setEmail(''); }
+      if (r.ok) { setMsg({ ok: true, t: `✓ ${d.email} → Plan: ${d.plan}` }); }
       else setMsg({ ok: false, t: d.error === 'user_not_found' ? 'Kein Konto mit dieser E-Mail.' : `Fehler: ${d.error}` });
     } catch { setMsg({ ok: false, t: 'Netzwerkfehler.' }); }
     setBusy(false);
   };
 
+  const btn = (plan, label, color) => (
+    <button onClick={() => grant(plan)} disabled={busy || !email.trim()}
+      style={{ flex: 1, padding: '9px 6px', minHeight: 40, borderRadius: 7, cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 9.5,
+        border: `1px solid ${color}`, color: '#04070d', background: color, opacity: (busy || !email.trim()) ? 0.5 : 1 }}>
+      {label}
+    </button>
+  );
+
   return (
     <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.3)' }}>
-      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 9.5, letterSpacing: '0.1em', color: '#a78bfa', marginBottom: 7 }}>ZAHLUNG ERFÜLLEN · PRO FREISCHALTEN</div>
+      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 9.5, letterSpacing: '0.1em', color: '#a78bfa', marginBottom: 7 }}>PLAN SETZEN · ZAHLUNG ERFÜLLEN / TEST</div>
+      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kunde@email.com" type="email"
+        style={{ width: '100%', boxSizing: 'border-box', padding: '9px', borderRadius: 7, fontSize: 12, background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid var(--line)', outline: 'none', marginBottom: 7 }} />
       <div style={{ display: 'flex', gap: 6 }}>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kunde@email.com" type="email"
-          style={{ flex: 1, padding: '9px', borderRadius: 7, fontSize: 12, background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid var(--line)', outline: 'none' }} />
-        <button onClick={grant} disabled={busy || !email.trim()}
-          style={{ padding: '9px 14px', minHeight: 40, borderRadius: 7, cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 10,
-            border: '1px solid #a78bfa', color: '#04070d', background: '#a78bfa', opacity: (busy || !email.trim()) ? 0.5 : 1 }}>
-          {busy ? '…' : 'PRO'}
-        </button>
+        {btn('basic', 'BASIC', '#22d3ee')}
+        {btn('elite', 'ELITE', '#fbbf24')}
+        {btn('free', 'FREE', '#94a3b8')}
       </div>
+      {busy && <div style={{ fontSize: 10, marginTop: 6, color: '#94a3b8' }}>…</div>}
       {msg && <div style={{ fontSize: 10.5, marginTop: 6, color: msg.ok ? '#34d399' : '#f87171' }}>{msg.t}</div>}
     </div>
   );

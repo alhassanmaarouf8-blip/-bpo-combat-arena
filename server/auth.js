@@ -17,6 +17,7 @@ import { fileURLToPath }              from 'url';
 import express                        from 'express';
 import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
 import { dbEnabled, kvGet, kvSet }    from './db.js';
+import { PLANS }                       from './plans.config.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -133,22 +134,30 @@ export async function authenticate(email, password) {
   return acct;
 }
 
-// ── Subscription / entitlement ───────────────────────────────────────────────
-export function entitlement(account) {
+// ── Plans (the single source of truth: server/plans.config.js) ───────────────
+// Which plan does this account have? Admin → elite; legacy pro/team grants → elite;
+// an explicit subscription.plan wins; everyone else is free.
+export function planOf(account) {
+  if (isAdminEmail(account?.email)) return 'elite';
   const s = account?.subscription || {};
-  // Owner/admin accounts always have full access (so you can test the paid flow freely).
-  if (isAdminEmail(account?.email)) {
-    return { allowed: true, tier: 'admin', unlimited: true };
-  }
-  if (s.tier === 'pro' || s.tier === 'team') {
-    return { allowed: true, tier: s.tier, unlimited: true };
-  }
-  const used         = s.trialSessionsUsed || 0;
-  const sessionsLeft = Math.max(0, TRIAL_SESSIONS - used);
-  const daysLeft     = Math.max(0, TRIAL_DAYS - Math.floor((Date.now() - (s.trialStartedAt || Date.now())) / DAY));
+  if (s.plan && PLANS[s.plan]) return s.plan;
+  if (s.tier === 'pro' || s.tier === 'team') return 'elite'; // legacy paid grants keep access
+  return 'free';
+}
+export function dailyMinutesFor(account) { return PLANS[planOf(account)]?.dailyLiveMinutes || 0; }
+
+// Entitlement = the plan's capabilities. `allowed` means "has a plan with live minutes" — the
+// per-day minutes-remaining check is enforced server-side at fight start (websocketManager).
+export function entitlement(account) {
+  const plan = planOf(account);
+  const feat = PLANS[plan] || PLANS.free;
   return {
-    allowed: sessionsLeft > 0 && daysLeft > 0,
-    tier: 'trial', sessionsLeft, daysLeft, trialSessions: TRIAL_SESSIONS,
+    allowed:               (feat.dailyLiveMinutes || 0) > 0,
+    tier:                  plan,
+    plan,
+    dailyLiveMinutes:      feat.dailyLiveMinutes || 0,
+    trainingslagerUnlocked: !!feat.trainingslagerUnlocked,
+    unlimited:             isAdminEmail(account?.email),
   };
 }
 
@@ -163,6 +172,14 @@ export async function upgrade(account, tier) {
   if (!TIERS[tier] || tier === 'trial') throw Object.assign(new Error('invalid_tier'), { code: 400 });
   // ── Stripe checkout would go HERE; for now we simply flip the tier (mock). ──
   account.subscription = { ...account.subscription, tier, upgradedAt: Date.now(), mock: true };
+  await persist();
+  return account;
+}
+
+// Set a learner's PLAN (free/basic/elite) — used by the admin grant route to fulfil a payment.
+export async function setPlan(account, plan) {
+  if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
+  account.subscription = { ...account.subscription, plan, planSetAt: Date.now() };
   await persist();
   return account;
 }
@@ -245,17 +262,20 @@ billingRouter.get('/status', requireAuth, (req, res) =>
     prices: { pro: process.env.PRICE_PRO || '19 €/Mon.', team: process.env.PRICE_TEAM || '49 €/Mon.' },
   }));
 
-// Owner-only: grant a paid tier to a user by email — used to fulfill a payment made
-// through the external checkout link (PAYMENT_URL). Gated to ADMIN_EMAIL accounts.
+// Owner-only: set a learner's PLAN (free/basic/elite) by email — used to fulfil a manual
+// payment, and to flip your own account for testing. Gated to ADMIN_EMAIL accounts.
 billingRouter.post('/admin/grant', requireAuth, async (req, res) => {
   if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
   try {
-    const { email, tier } = req.body || {};
-    const target = await getAccountByEmail(email);
+    const body = req.body || {};
+    // Accept {plan} (new) or {tier} (legacy 'pro'/'team' → elite); default elite.
+    let plan = body.plan;
+    if (!plan) plan = (body.tier === 'team' || body.tier === 'pro') ? 'elite' : 'elite';
+    const target = await getAccountByEmail(body.email);
     if (!target) return res.status(404).json({ error: 'user_not_found' });
-    await upgrade(target, tier || 'pro');
-    console.log(`[billing] ADMIN GRANT ${tier || 'pro'} -> ${target.email}  by ${req.account.email}`);
-    res.json({ ok: true, email: target.email, tier: target.subscription.tier });
+    await setPlan(target, plan);
+    console.log(`[billing] ADMIN SET PLAN ${plan} -> ${target.email}  by ${req.account.email}`);
+    res.json({ ok: true, email: target.email, plan: target.subscription.plan });
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
 

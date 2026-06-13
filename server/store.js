@@ -37,6 +37,7 @@ export function defaultProfile(userId) {
     lastCompletedLesson: null, // Trainingslager: ruleId of the most recent lesson (fight focus)
     recommendedCounted:  [], // Trainingslager: ruleIds already counted in the global recommend stat
     neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
+    liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
   };
 }
 

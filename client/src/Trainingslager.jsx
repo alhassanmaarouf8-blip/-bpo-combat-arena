@@ -103,7 +103,8 @@ function buildPath(pts) {
 export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChallengeBoss, onGoPricing }) {
   const { data, reload } = useRecommendations(token, apiUrl);
   const lessons = data?.lessons || null;
-  const planBlocked = !!(data?.requiresPlan && !data?.hasPlan);
+  // Map is visible to all; opening a lesson/Boss-Tor needs the Trainingslager unlocked (Elite).
+  const planBlocked = !!(data && data.lessonsUnlocked === false);
   const [openId, setOpenId] = useState(null);   // ruleId of the lesson modal, or null
   const [upsell, setUpsell] = useState(false);
 

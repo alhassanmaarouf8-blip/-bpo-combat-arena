@@ -5,10 +5,11 @@ import { generateDebrief } from './coach.js';
 import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount }  from './srs.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank } from './progression.js';
-import { verifyToken, getAccountById, entitlement, consumeTrialSession } from './auth.js';
+import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
-import { refreshRecommendations, allRecommendedDone, trainingslagerRequiresPlan, hasActivePlan } from './trainingslager.js';
+import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
+import { dayKey }                 from './time.js';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -17,6 +18,9 @@ const MAX_MESSAGE_BYTES  = 65_536;
 // than this, no matter how active the mic is. (The idle timeout above never fires
 // while audio is streaming.) 8 minutes is well past a complete 3-part interview.
 const MAX_FIGHT_MS = 8 * 60_000;
+// When the daily-minute (or global) cap is hit we end GRACEFULLY: the boss finishes its
+// current turn (no mid-sentence cut). This is the hard backstop if it never wraps.
+const GRACE_CLOSE_MS = 30_000;
 // PCM16 mono @ 24 kHz = 48000 bytes per second of audio — used to convert the billed
 // audio byte counts into seconds for the per-fight cost log.
 const PCM16_BYTES_PER_SEC = 48_000;
@@ -229,10 +233,11 @@ export class WebSocketManager {
     const account = payload ? await getAccountById(payload.uid) : null;
     if (!account) { this._sendError(ctx, 'auth_required'); return; }
 
-    const ent = entitlement(account);
-    if (!ent.allowed) {
-      console.log(`[wsManager] Paywall hit  user=${account.id}  session=${ctx.sessionId}`);
-      this._send(ctx, { type: S.PAYWALL, ...ent });
+    // ── Plan gate: a free account has 0 live minutes → upsell BEFORE any Realtime opens ──
+    const minutes = dailyMinutesFor(account);   // free 0 / basic 7 / elite 15
+    if (minutes <= 0) {
+      console.log(`[wsManager] Paywall (free, no live plan)  user=${account.id}  session=${ctx.sessionId}`);
+      this._send(ctx, { type: S.PAYWALL, ...entitlement(account) });
       return;
     }
 
@@ -262,11 +267,22 @@ export class WebSocketManager {
       focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
     } catch {}
 
-    // Boss-Tor gate: challenging the next boss requires the recommended lessons done (and,
-    // only when the plan flag is on, a paid plan). The normal daily fight (no mode) is NEVER gated.
-    if (viaBossTor) {
-      if (trainingslagerRequiresPlan() && !hasActivePlan(account)) { this._releaseFight(ctx); this._sendError(ctx, 'plan_required'); return; }
-      if (!allRecommendedDone(prof))                               { this._releaseFight(ctx); this._sendError(ctx, 'lessons_incomplete'); return; }
+    // ── Daily live-minute remaining (reset midnight Africa/Cairo) — hard-cap this fight ──
+    const today      = dayKey();
+    const usedSec    = (prof?.liveUsage?.day === today) ? (prof.liveUsage.sec || 0) : 0;
+    const remainingSec = minutes * 60 - usedSec;
+    if (remainingSec <= 0) {
+      console.log(`[wsManager] Daily limit reached  user=${ctx.userId}  plan=${planOf(account)}  usedSec=${usedSec}/${minutes * 60}  session=${ctx.sessionId}`);
+      this._releaseFight(ctx);
+      this._sendError(ctx, 'daily_limit');
+      return;
+    }
+    ctx.dailyCapSec = remainingSec;
+
+    // Boss-Tor gate: challenging the next boss requires the recommended lessons done. The
+    // normal daily fight (no mode) is NEVER gated by lessons. (Payment is the minute gate above.)
+    if (viaBossTor && !allRecommendedDone(prof)) {
+      this._releaseFight(ctx); this._sendError(ctx, 'lessons_incomplete'); return;
     }
 
     ctx.bossId = bossId;
@@ -314,16 +330,18 @@ export class WebSocketManager {
       await ctx.realtimeClient.connect();
       console.log(`[wsManager] RealtimeClient connected  session=${ctx.sessionId}`);
 
-      // Consume the trial ONLY after a successful connect — a failed/cold-start connection
-      // streams no audio (no cost) and must not burn the user's single free session.
-      if (ent.tier === 'trial') await consumeTrialSession(account);
-
-      // Billing starts now: stamp the start time and arm the hard wall-clock cap.
+      // Billing starts now: stamp the start time and arm the cap at the SMALLER of the global
+      // max and the user's remaining daily minutes.
       ctx.fightStartedAt = Date.now();
+      const capMs = Math.min(MAX_FIGHT_MS, (ctx.dailyCapSec || MAX_FIGHT_MS / 1000) * 1000);
       ctx.maxTimer = setTimeout(() => {
-        console.warn(`[wsManager] MAX_FIGHT_MS reached (${MAX_FIGHT_MS}ms) — force-ending  session=${ctx.sessionId}`);
-        this._endSession(ctx, 'time_limit');
-      }, MAX_FIGHT_MS);
+        // GRACEFUL end: stop after the boss finishes its current turn (no mid-sentence cut)…
+        console.log(`[wsManager] live-minute/cap soft-limit (${Math.round(capMs / 1000)}s) — graceful close  session=${ctx.sessionId}`);
+        ctx.completePending = true;
+        // …with a hard backstop if the boss never wraps (e.g. the user keeps talking).
+        ctx.hardCapTimer = setTimeout(() => { if (!ctx.closed) this._endSession(ctx, 'time_limit'); }, GRACE_CLOSE_MS);
+        ctx.hardCapTimer.unref?.();
+      }, capMs);
       ctx.maxTimer.unref?.();
 
       // Tell the browser which level + funnel + scenario it's facing, and open on Teil 1.
@@ -342,10 +360,23 @@ export class WebSocketManager {
     }
   }
 
-  // Release the per-user single-flight lock and the hard-cap timer for this session.
+  // Release the per-user single-flight lock and the cap timers for this session.
   _releaseFight(ctx) {
-    if (ctx.maxTimer) { clearTimeout(ctx.maxTimer); ctx.maxTimer = null; }
+    if (ctx.maxTimer)     { clearTimeout(ctx.maxTimer); ctx.maxTimer = null; }
+    if (ctx.hardCapTimer) { clearTimeout(ctx.hardCapTimer); ctx.hardCapTimer = null; }
     if (ctx.accountLocked) { this._activeFightUsers.delete(ctx.accountLocked); ctx.accountLocked = null; }
+  }
+
+  // Add this fight's wall-seconds to the user's daily live-minute usage (Cairo day, persisted).
+  async _recordLiveUsage(ctx, wallSec) {
+    if (!ctx.userId || !(wallSec > 0)) return;
+    try {
+      const p = await loadUser(ctx.userId);
+      const today = dayKey();
+      if (!p.liveUsage || p.liveUsage.day !== today) p.liveUsage = { day: today, sec: 0 };
+      p.liveUsage.sec += Math.round(wallSec);
+      await saveUser(p);
+    } catch (e) { console.error('[wsManager] live usage record failed:', e.message); }
   }
 
   // base64 → decoded byte count (for the audio-seconds cost log; padding-approximate).
@@ -371,6 +402,9 @@ export class WebSocketManager {
     const inSec   = Math.round(ctx.audioInBytes  / PCM16_BYTES_PER_SEC);
     const outSec  = Math.round(ctx.audioOutBytes / PCM16_BYTES_PER_SEC);
     console.log(`[wsManager] FIGHT COST  user=${ctx.userId}  reason=${reason}  wallSec=${wallSec}  audioInSec=${inSec}  audioOutSec=${outSec}  session=${ctx.sessionId}`);
+
+    // Charge the wall time against the user's daily live-minute allowance (persisted).
+    await this._recordLiveUsage(ctx, wallSec);
 
     console.log(`[wsManager] Ending session  reason=${reason}  session=${ctx.sessionId}`);
     await ctx.realtimeClient?.close().catch(() => {});

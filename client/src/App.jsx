@@ -57,6 +57,7 @@ const WS_ERROR_TEXT = {
   mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Der Kampf wurde beendet — bitte starte neu.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
   lessons_incomplete:   { de: 'Schließe zuerst deine Trainingslager-Stationen ab, um das Boss-Tor zu öffnen.', ar: 'خلّص محطات الـTrainingslager الأول عشان تفتح بوابة التحدي.' },
   plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
+  daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
 };
 function wsErrorText(code, lang) {
   const e = WS_ERROR_TEXT[code];
@@ -1163,8 +1164,9 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
   const acc = data?.account ?? account;
   const sub = acc?.subscription ?? {};
   const ent = acc?.entitlement ?? {};
-  const tierLabel = sub.tier === 'pro' ? 'PRO' : sub.tier === 'team' ? 'TEAM'
-                  : `TESTPHASE${Number.isFinite(ent.sessionsLeft) ? ` · ${ent.sessionsLeft} übrig` : ''}`;
+  const planName = (ent.plan || 'free').toUpperCase();
+  const tierLabel = ent.dailyLiveMinutes > 0 ? `${planName} · ${ent.dailyLiveMinutes} Min/Tag` : 'GRATIS · Einstufung';
+  const isFreePlan = (ent.plan || 'free') === 'free';
   return (
     <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
@@ -1190,7 +1192,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
               padding:'8px 12px', borderRadius:8, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(0,229,255,0.18)' }}>
               <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:11, color:'#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
-                <div style={{ fontSize:9, color: sub.tier==='trial' ? '#f59e0b' : '#10b981', fontFamily:'Orbitron,monospace', letterSpacing:'0.08em', marginTop:2 }}>
+                <div style={{ fontSize:9, color: isFreePlan ? '#f59e0b' : '#10b981', fontFamily:'Orbitron,monospace', letterSpacing:'0.08em', marginTop:2 }}>
                   {tierLabel}
                 </div>
               </div>
