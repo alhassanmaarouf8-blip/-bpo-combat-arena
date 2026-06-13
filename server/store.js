@@ -31,6 +31,8 @@ export function defaultProfile(userId) {
     bossesDefeated: [],
     assessmentUsed:   false, // free intelligent assessment is once-per-account ever
     assessmentResult: null,  // the stored verdict (level/blockers/strengths/focus)
+    recommendations:  [],    // Trainingslager: ordered lesson recommendations (refreshed per fight)
+    lessonsCompleted: [],    // Trainingslager: ruleIds of lessons whose quiz has been passed
   };
 }
 

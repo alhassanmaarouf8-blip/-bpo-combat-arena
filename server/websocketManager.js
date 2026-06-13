@@ -6,6 +6,8 @@ import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount }  from './srs.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank } from './progression.js';
 import { verifyToken, getAccountById, entitlement, consumeTrialSession } from './auth.js';
+import { classifyGrammar }       from './errorTags.js';
+import { refreshRecommendations } from './trainingslager.js';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -464,7 +466,11 @@ export class WebSocketManager {
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
+        errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
       });
+
+      // Trainingslager: refresh study recommendations from the last 3 fights (rule-based, no AI).
+      refreshRecommendations(p);
 
       await saveUser(p);
 

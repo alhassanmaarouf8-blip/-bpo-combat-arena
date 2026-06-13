@@ -110,6 +110,8 @@ export async function buildGrammar(utterances) {
         rule:           ruleName,
         explanation:    (mt.message || mt.rule?.description || '').trim(),
         explanation_ar: '',                                       // LT messages are German; client falls back to German
+        ltRuleId:       mt.rule?.id || '',                        // stable LanguageTool ids (for Trainingslager tagging)
+        ltCategoryId:   catId || '',
         examples:       [],
       });
     }
@@ -129,6 +131,8 @@ export async function buildGrammar(utterances) {
       count:           examples.length,
       explanation:     g.explanation,
       explanation_ar:  g.explanation_ar,
+      ltRuleId:        g.ltRuleId,
+      ltCategoryId:    g.ltCategoryId,
       summaryExamples: examples.slice(0, 2),
       allExamples:     examples,
     };
