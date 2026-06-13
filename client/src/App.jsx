@@ -1470,6 +1470,8 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [vodafone, setVodafone] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
@@ -1486,6 +1488,20 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   // Short reference code the user writes in their Vodafone Cash transfer note (last 6 of id).
   const refCode = accountId ? accountId.slice(-6).toUpperCase() : '------';
 
+  // Tap "I paid": record a PENDING request. Grants NO access — the owner verifies & activates.
+  const onPaid = async () => {
+    if (submitting || !pay) return;
+    setSubmitting(true);
+    try {
+      const r = await fetch(`${API_URL}/api/billing/pay`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: pay.planId, billingPeriod: pay.period }),
+      });
+      if (r.ok) setSubmitted(true);
+    } catch { /* user can re-tap */ }
+    setSubmitting(false);
+  };
+
   const shell = (children) => (
     <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
@@ -1493,7 +1509,26 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     </div>
   );
 
-  // ── PAYMENT-INSTRUCTIONS VIEW (Phase 1) ──
+  // ── "REQUEST RECEIVED" VIEW (after tapping I paid) — verify-first, NO access yet ──
+  if (pay && submitted) {
+    return shell(<>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
+        <div style={{ fontSize:48 }}>✅</div>
+        <div dir="rtl" style={{ fontSize:14, color:'#34d399', fontWeight:700, marginTop:10, lineHeight:1.8 }}>
+          تم استلام طلبك ✅ — اشتراكك هيتفعّل خلال ٣٠ دقيقة بعد ما نتأكد من الدفع. تأكد إنك كتبت الكود <b style={{ color:'#fbbf24' }}>{refCode}</b> في التحويل.
+        </div>
+        <div style={{ fontSize:12.5, color:'#cbd5e1', marginTop:14, lineHeight:1.65 }}>
+          Anfrage erhalten! Dein Plan wird innerhalb von 30 Minuten nach Zahlungsbestätigung aktiviert. Stelle sicher, dass du den Code <b style={{ color:'#fbbf24' }}>{refCode}</b> in der Überweisung angegeben hast.
+        </div>
+      </div>
+      <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
+        fontFamily:'Orbitron,monospace', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
+        {ar ? 'تمام' : 'OK'}
+      </button>
+    </>);
+  }
+
+  // ── PAYMENT-INSTRUCTIONS VIEW ──
   if (pay) {
     return shell(<>
       <div style={{ textAlign:'center', marginBottom:12 }}>
@@ -1536,12 +1571,12 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
             <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
           </div>
 
-          {/* "I paid" — wired in Phase 2 */}
-          <button onClick={() => { /* Phase 2: create pending payment record */ }}
-            style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor:'pointer', fontFamily:'Orbitron,monospace',
+          {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
+          <button onClick={onPaid} disabled={submitting}
+            style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'Orbitron,monospace',
               fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid #34d399', color:'#04130c',
-              background:'linear-gradient(135deg,#34d399,#10b981)' }}>
-            دفعت · ICH HABE BEZAHLT
+              background:'linear-gradient(135deg,#34d399,#10b981)', opacity: submitting ? 0.6 : 1 }}>
+            {submitting ? '…' : 'دفعت · ICH HABE BEZAHLT'}
           </button>
         </div>
       ) : (
