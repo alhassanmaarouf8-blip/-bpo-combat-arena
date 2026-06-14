@@ -102,6 +102,22 @@ adminRouter.post('/admin/deactivate', async (req, res) => {
   } catch (e) { console.error('[admin] deactivate error:', e.message); res.status(500).json({ error: 'deactivate_failed' }); }
 });
 
+// Read-only: look up an account's CURRENT plan by email — so you can verify a deactivation
+// actually took (returns 'free' once revoked). Does NOT change anything. Note: deactivation
+// revokes the PLAN; the login account intentionally remains (the person can re-subscribe).
+adminRouter.get('/admin/account', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const acc = await getAccountByEmail(String(req.query.email || '').trim());
+    if (!acc) return res.json({ found: false });
+    const s = acc.subscription || {};
+    res.json({
+      found: true, email: acc.email, id: acc.id, plan: planOf(acc),
+      billingPeriodEnd: s.billingPeriodEnd || null, deactivatedAt: s.deactivatedAt || null,
+    });
+  } catch (e) { console.error('[admin] account lookup error:', e.message); res.status(500).json({ error: 'lookup_failed' }); }
+});
+
 // Self-contained panel. Reads the key from its own URL; values rendered via textContent (no XSS).
 const PANEL_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OMNI-PERFORM · Zahlungen</title><style>
@@ -116,9 +132,12 @@ button{cursor:pointer;border:none;border-radius:6px;padding:7px 12px;font-weight
 <h1>💳 Zahlungen — Aktivierung</h1>
 <div class="muted" style="font-size:11px">Verify-first: aktiviere erst, nachdem du das Geld per Vodafone Cash bestätigt hast (Referenz-Code abgleichen).</div>
 <div id="err" style="color:#fca5a5;font-size:12px;margin-top:8px"></div>
+<div id="ok" style="color:#34d399;font-size:12.5px;margin-top:8px;font-weight:700"></div>
 <div style="margin-top:12px;padding:10px 12px;border:1px solid #ef4444;border-radius:8px;background:rgba(239,68,68,0.06)">
-  <div style="font-size:11px;color:#fca5a5;margin-bottom:6px">Plan manuell deaktivieren (per E-Mail) — entzieht den bezahlten Zugang sofort.</div>
-  <input id="deacEmail" type="email" placeholder="email@beispiel.com" style="padding:7px 9px;border-radius:6px;border:1px solid #334155;background:#0a0f1a;color:#e2e8f0;font-size:12px;width:58%;max-width:260px">
+  <div style="font-size:11px;color:#fca5a5;margin-bottom:2px">Plan manuell deaktivieren (per E-Mail) — entzieht den bezahlten Zugang sofort.</div>
+  <div style="font-size:10px;color:#64748b;margin-bottom:6px">Hinweis: Das entzieht nur den bezahlten Plan (→ FREE). Das Login-Konto bleibt bestehen — die Person kann erneut abonnieren. Mit „Status prüfen" siehst du den aktuellen Plan.</div>
+  <input id="deacEmail" type="email" placeholder="email@beispiel.com" style="padding:7px 9px;border-radius:6px;border:1px solid #334155;background:#0a0f1a;color:#e2e8f0;font-size:12px;width:48%;max-width:230px">
+  <button id="statBtn" class="act" style="background:#334155;color:#e2e8f0" onclick="checkStatus()">Status prüfen</button>
   <button id="deacBtn" class="rej" onclick="deactivateByEmail()">Deaktivieren</button>
 </div>
 <h2>OFFEN / PENDING</h2><div id="pending"></div>
@@ -129,6 +148,8 @@ var KEY=new URLSearchParams(location.search).get('key')||'';
 function fmtMoney(n){return Number(n||0).toLocaleString('de-DE')+' EGP';}
 function fmtTime(t){try{return new Date(t).toLocaleString('de-DE');}catch(e){return '';}}
 function cell(txt){var td=document.createElement('td');td.textContent=txt;return td;}
+function showOk(t){document.getElementById('ok').textContent=t;document.getElementById('err').textContent='';}
+function showErr(t){document.getElementById('err').textContent=t;document.getElementById('ok').textContent='';}
 function load(){
   fetch('/admin/payments?key='+encodeURIComponent(KEY)).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(function(d){
     document.getElementById('err').textContent='';
@@ -170,7 +191,7 @@ function renderActivated(rows){
     tr.appendChild(cell(fmtTime(p.activatedAt)));
     var act=document.createElement('td');
     var bd=document.createElement('button');bd.className='rej';bd.textContent='Deaktivieren';
-    bd.onclick=function(){if(confirm('Plan für '+(p.email||p.userId)+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))doAction('/admin/deactivate',{userId:p.userId},bd);};
+    bd.onclick=function(){if(confirm('Plan für '+(p.email||p.userId)+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))deactivate({userId:p.userId},bd);};
     act.appendChild(bd);tr.appendChild(act);
     t.appendChild(tr);
   });
@@ -196,11 +217,31 @@ function doAction(path,payload,btn){
     .then(function(r){return r.json();}).then(function(d){if(d&&d.ok){load();}else{document.getElementById('err').textContent='Aktion fehlgeschlagen: '+((d&&d.error)||'?');btn.disabled=false;btn.textContent=label;}})
     .catch(function(e){document.getElementById('err').textContent='Netzwerkfehler.';btn.disabled=false;btn.textContent=label;});
 }
+function deactivate(payload,btn){
+  var label=btn.textContent;btn.disabled=true;btn.textContent='…';
+  fetch('/admin/deactivate?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:KEY},payload))})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent=label;
+      if(d&&d.ok){showOk('✅ '+(d.email||'')+' deaktiviert → Plan jetzt: '+String(d.plan||'free').toUpperCase());load();}
+      else{showErr('Deaktivierung fehlgeschlagen: '+((d&&d.error)||'?'));}
+    }).catch(function(){btn.disabled=false;btn.textContent=label;showErr('Netzwerkfehler.');});
+}
 function deactivateByEmail(){
-  var i=document.getElementById('deacEmail');var email=(i.value||'').trim();
-  if(!email){document.getElementById('err').textContent='Bitte eine E-Mail eingeben.';return;}
+  var email=(document.getElementById('deacEmail').value||'').trim();
+  if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
   if(!confirm('Plan für '+email+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))return;
-  doAction('/admin/deactivate',{email:email},document.getElementById('deacBtn'));
+  deactivate({email:email},document.getElementById('deacBtn'));
+}
+function checkStatus(){
+  var email=(document.getElementById('deacEmail').value||'').trim();
+  if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
+  var btn=document.getElementById('statBtn');var label=btn.textContent;btn.disabled=true;btn.textContent='…';
+  fetch('/admin/account?key='+encodeURIComponent(KEY)+'&email='+encodeURIComponent(email))
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent=label;
+      if(d&&d.found){showOk('Status '+d.email+' → Plan: '+String(d.plan).toUpperCase()+(d.plan==='free'?' (kein bezahlter Zugang)':' (aktiv)'));}
+      else{showErr('Kein Konto mit dieser E-Mail.');}
+    }).catch(function(){btn.disabled=false;btn.textContent=label;showErr('Netzwerkfehler.');});
 }
 load();
 </script></body></html>`;
