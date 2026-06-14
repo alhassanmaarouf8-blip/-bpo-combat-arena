@@ -107,6 +107,7 @@ const S = {
   STAGE_UPDATE:     'stage_update',
   DEBRIEF_PENDING:  'debrief_pending',
   DEBRIEF:          'debrief',
+  NO_SESSION:       'no_session',
   PAYWALL:          'paywall',
   HP_UPDATE:        'hp_update',
   LIVE_STATS:       'live_stats',
@@ -1802,6 +1803,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
   const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
   const [debriefPending, setDebriefPending] = useState(false);
+  const [noSession, setNoSession] = useState(false);       // closed without real participation → honest message, no card
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
   const [review, setReview]       = useState(null);        // { items, then:'fight'|'close' } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
@@ -1929,6 +1931,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             body: JSON.stringify({ done: true }),
           }).catch(() => {});
         }
+        break;
+
+      case S.NO_SESSION:
+        // The user closed the interview without really participating → NO feedback card.
+        // Show an honest "you didn't start" message instead of a fake debrief with 0 WpM.
+        setDebrief(null); setDebriefPending(false); setNoSession(true);
         break;
 
       case S.PAYWALL:
@@ -2089,7 +2097,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     setBossHp(100); setPlayerHp(100);
     setBossText(''); setTranscript([]);
     setEmotion('idle'); setScoreFlash(null); setBossDmgFloat(null);
-    setFunnel(null); setDebrief(null); setDebriefPending(false);
+    setFunnel(null); setDebrief(null); setDebriefPending(false); setNoSession(false);
     partialIdRef.current = null;
     bossPartialIdRef.current = null;
 
@@ -2202,7 +2210,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [finishSession]);
 
   const handleRestart = useCallback(() => {
-    setDebrief(null); setDebriefPending(false);
+    setDebrief(null); setDebriefPending(false); setNoSession(false);
     clearInterval(pingRef.current);
     try { wsRef.current?.close(1000, 'restart'); } catch {}
     wsRef.current = null;
@@ -2433,10 +2441,34 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Result screen: ONLY when the server has ended the session, and only once the
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
-      {(debrief || debriefPending) && !bossSpeak && (
+      {(debrief || debriefPending) && !bossSpeak && !noSession && (
         <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           token={auth.token} apiUrl={API_URL} onOpenTrainingslager={() => setTrainingslagerOpen(true)} />
+      )}
+
+      {/* No-session state: user opened the interview and closed it without speaking → an honest
+          message instead of a fake feedback card with 0 WpM. No scores, no recommendations. */}
+      {noSession && !bossSpeak && (
+        <div style={{ position:'absolute', inset:0, zIndex:230, display:'flex', flexDirection:'column',
+          justifyContent:'center', alignItems:'center', textAlign:'center', padding:28,
+          background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+          <div style={{ fontSize:46 }}>🎙️</div>
+          <div style={{ fontFamily:'Orbitron,monospace', fontSize:15, fontWeight:800, color:'#fbbf24', marginTop:10 }}>
+            {feedbackLang==='ar' ? 'مفيش مقابلة نقيّمها' : 'Keine Sitzung zum Auswerten'}
+          </div>
+          <div style={{ fontSize:13, color:'#cbd5e1', marginTop:10, lineHeight:1.6, maxWidth:340 }}>
+            Keine Sitzung zum Auswerten — du hast noch nicht angefangen.
+          </div>
+          <div dir="rtl" style={{ fontSize:13, color:'#94a3b8', marginTop:8, lineHeight:1.85, maxWidth:340 }}>
+            لم تبدأ المقابلة فعليًا — مفيش حاجة نقيّمها. يلا ادخل وابدأ بجد.
+          </div>
+          <button onClick={() => setNoSession(false)} style={{ marginTop:18, padding:'12px 28px', minHeight:46, cursor:'pointer',
+            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.1em', borderRadius:8,
+            border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)' }}>
+            {feedbackLang==='ar' ? 'تمام' : 'ZURÜCK'}
+          </button>
+        </div>
       )}
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}

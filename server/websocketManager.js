@@ -57,6 +57,15 @@ function topWeakRule(profile) {
 // and only after the boss finishes its current turn — so screen and voice stay in sync.
 const ROLEPLAY_EXCHANGES = 4;
 
+// ── "Real session" floor (single source of truth) ────────────────────────────
+// A session only earns feedback/scores/recommendations if the user ACTUALLY spoke:
+// at least MIN_REAL_ANSWERS scored utterance(s) AND MIN_REAL_WORDS total words. Opening a
+// fight and closing it without speaking does NOT clear this floor → no debrief is generated
+// (see _finishSession), and nothing is persisted (see _persistProgress). An utterance is only
+// counted when it has ≥2 words (see _onTranscriptDone), so VAD blips don't fake a session.
+const MIN_REAL_ANSWERS = 1;
+const MIN_REAL_WORDS   = 8;
+
 // ── Outbound message types (server → browser) ─────────────────────────────────
 const S = {
   SESSION_READY:    'session_ready',
@@ -70,6 +79,7 @@ const S = {
   STAGE_UPDATE:     'stage_update',
   DEBRIEF_PENDING:  'debrief_pending',
   DEBRIEF:          'debrief',
+  NO_SESSION:       'no_session',   // closed without real participation → no feedback card
   PAYWALL:          'paywall',
   HP_UPDATE:        'hp_update',
   LIVE_STATS:       'live_stats',
@@ -420,6 +430,20 @@ export class WebSocketManager {
     ctx.debriefSent = true;
 
     const metrics = this._computeMetrics(ctx);
+
+    // ── No-session gate ───────────────────────────────────────────────────────────
+    // Feedback is ONLY ever generated from what the user actually did. If they opened the
+    // interview and closed it without meaningfully speaking, there is nothing to evaluate:
+    // generate NO debrief, NO scores, NO recommendations, NO lesson (and skip the costly
+    // generateDebrief call). The client shows an honest "you didn't start" message instead of
+    // a fake card with "0 WpM". A zero from no input means "no session", not "you scored zero".
+    const realSession = (metrics.answers || 0) >= MIN_REAL_ANSWERS && (metrics.words || 0) >= MIN_REAL_WORDS;
+    if (!realSession) {
+      console.log(`[wsManager] No real session — skipping debrief  answers=${metrics.answers}  words=${metrics.words}  session=${ctx.sessionId}`);
+      this._send(ctx, { type: S.NO_SESSION, reason: 'no_real_input' });
+      return;
+    }
+
     this._send(ctx, { type: S.DEBRIEF_PENDING });
 
     let debrief;
@@ -453,8 +477,7 @@ export class WebSocketManager {
       // this, a user could start a fight, stay silent (or say one word), end it, and still
       // bank XP and a streak day — farming progress with no learning (and burning API cost).
       // Below the floor we persist NOTHING progression-wise; the debrief is still shown.
-      const MIN_ANSWERS = 1, MIN_WORDS = 8;
-      const meaningful = (metrics.answers || 0) >= MIN_ANSWERS && (metrics.words || 0) >= MIN_WORDS;
+      const meaningful = (metrics.answers || 0) >= MIN_REAL_ANSWERS && (metrics.words || 0) >= MIN_REAL_WORDS;
       if (!meaningful) {
         console.log(`[wsManager] session NOT counted (insufficient speech) answers=${metrics.answers} words=${metrics.words} session=${ctx.sessionId}`);
         const flAll = p.sessions.map((s) => s.fluency ?? 0);
