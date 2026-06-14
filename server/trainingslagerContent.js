@@ -16,9 +16,12 @@
  *     - quiz : EXACTLY 3 questions, each EXACTLY 4 options + correctIndex (0–3). Pass = 2/3.
  *
  * HOW TO ADD CONTENT (no code changes):
- *   • Add a TIER:    push a new {tier:4, band:'C1', …, quiz:[…]} into a section's `tiers`.
+ *   • Add a TIER:    push a new {tier:4, band:'C1', ready:true, …, quiz:[…]} into a section's `tiers`.
  *   • Add a SECTION: add a new {id:'mein-thema', …, minTier:2, tiers:[…]} object below.
  *   • Replace every  [PLATZHALTER …]  string with real, native German. Keep the shape.
+ *   • IMPORTANT: set  ready: true  on a tier ONLY once its quiz is REAL. The engine serves ONLY
+ *     ready:true tiers to students — un-ready (placeholder) tiers are NEVER shown (no fake/"hallucinated"
+ *     lessons). Until you flip it, that station simply doesn't appear; the map shows an honest state.
  *   • youtubeId_*: leave '' until you have the 11-char id (UI shows a friendly placeholder).
  *
  * Replace the [PLATZHALTER] quizzes with your real questions — the structure already runs end-to-end.
@@ -40,7 +43,7 @@ export const LAGER_SECTIONS = [
     title_de: 'Telefonieren & Etikette', title_ar: 'آداب المكالمة الهاتفية',
     tiers: [
       {
-        tier: 1, band: 'A2-B1', title_de: 'Telefonieren — Grundlagen', title_ar: 'الأساسيات: بداية المكالمة',
+        tier: 1, band: 'A2-B1', ready: true, title_de: 'Telefonieren — Grundlagen', title_ar: 'الأساسيات: بداية المكالمة',
         youtubeId_de: '', youtubeId_ar: '',
         quiz: [
           {
@@ -79,7 +82,7 @@ export const LAGER_SECTIONS = [
         ]
       },
       {
-        tier: 2, band: 'B1-B2', title_de: 'Telefonieren — Gespräch steuern', title_ar: 'التحكم في المكالمة',
+        tier: 2, band: 'B1-B2', ready: true, title_de: 'Telefonieren — Gespräch steuern', title_ar: 'التحكم في المكالمة',
         youtubeId_de: '', youtubeId_ar: '',
         quiz: [
           {
@@ -118,7 +121,7 @@ export const LAGER_SECTIONS = [
         ]
       },
       {
-        tier: 3, band: 'B2-C1', title_de: 'Telefonieren — Profi-Niveau', title_ar: 'مستوى المحترفين',
+        tier: 3, band: 'B2-C1', ready: true, title_de: 'Telefonieren — Profi-Niveau', title_ar: 'مستوى المحترفين',
         youtubeId_de: '', youtubeId_ar: '',
         quiz: [
           {
@@ -208,6 +211,7 @@ export function getStation(stationId) {
     sectionId:         section.id,
     tier:              t.tier,
     band:              t.band,
+    ready:             t.ready === true,     // false until the founder authors real content
     title_de:          `${section.title_de} — Stufe ${t.tier} · ${t.band}`,
     title_ar:          `${section.title_ar} — مستوى ${t.tier}`,
     youtubeId_de:      t.youtubeId_de || '',
@@ -218,9 +222,17 @@ export function getStation(stationId) {
   };
 }
 
-// Highest authored tier across all sections (used to detect "ran out of content").
-export function maxAuthoredTier() {
+// Highest tier that has REAL authored content (ready:true). The engine never serves beyond this.
+export function maxReadyTier() {
   let m = 0;
-  for (const s of LAGER_SECTIONS) for (const t of s.tiers) if (t.tier > m) m = t.tier;
-  return m;
+  for (const s of LAGER_SECTIONS) for (const t of s.tiers) if (t.ready === true && t.tier > m) m = t.tier;
+  return Math.max(1, m);
+}
+
+// Stations still on placeholder content (NOT served to students). Reported so the founder knows
+// exactly what to author next.
+export function unauthoredStations() {
+  const out = [];
+  for (const s of LAGER_SECTIONS) for (const t of s.tiers) if (t.ready !== true) out.push(`${s.id}:${t.tier}`);
+  return out;
 }

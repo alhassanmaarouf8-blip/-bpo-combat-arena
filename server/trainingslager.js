@@ -22,7 +22,7 @@ import express from 'express';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, isAdminEmail, planOf } from './auth.js';
 import { getLesson }                 from './lessons.config.js';
-import { LAGER_SECTIONS, getStation, maxAuthoredTier } from './trainingslagerContent.js';
+import { LAGER_SECTIONS, getStation, maxReadyTier, unauthoredStations } from './trainingslagerContent.js';
 import { LESSON_XP, levelFor, computeRank } from './progression.js';
 import { dayKey }                    from './time.js';
 import { dbEnabled, kvGet, kvSet }   from './db.js';
@@ -36,7 +36,12 @@ export function lessonsUnlocked(account) { return planOf(account) !== 'free'; }
 function lessonBlocked(account) { return !lessonsUnlocked(account); }
 
 // Resolve a station id (new tiered) OR a legacy grammar ruleId → a lesson-shaped object.
-function resolveLesson(id) { return getStation(id) || getLesson(id) || null; }
+// Un-ready (placeholder) stations resolve to null → can NEVER be opened/served to a student.
+function resolveLesson(id) {
+  const st = getStation(id);
+  if (st) return st.ready ? st : null;
+  return getLesson(id) || null;
+}
 function isDone(profile, id) {
   return (Array.isArray(profile?.lagerDone) && profile.lagerDone.includes(id)) ||
          (Array.isArray(profile?.lessonsCompleted) && profile.lessonsCompleted.includes(id));
@@ -55,7 +60,7 @@ function studentTier(profile) {
     const lvl = profile?.assessmentResult?.estimatedLevel;
     tier = lvl === 'C1' ? 3 : lvl === 'B2' ? 2 : 1;
   }
-  return Math.min(tier, maxAuthoredTier() || 1);
+  return Math.min(tier, maxReadyTier());   // never beyond the highest tier with REAL content
 }
 
 // ── Adaptive path: undone stations at/below the student's tier, DEEPEN-first then BROADEN ──────
@@ -66,6 +71,7 @@ function buildAdaptivePath(profile) {
     if ((s.minTier || 1) > tier) continue;                       // section not unlocked at this level yet
     const started = s.tiers.some((t) => isDone(profile, `${s.id}:${t.tier}`));   // begun this section before?
     for (const t of s.tiers) {
+      if (t.ready !== true) continue;                             // ONLY real authored content — never placeholders
       if (t.tier > tier) continue;                                // tier above the student's level → locked for now
       const id = `${s.id}:${t.tier}`;
       if (isDone(profile, id)) continue;                          // NEVER REPEAT a completed station
@@ -114,11 +120,12 @@ export function allRecommendedDone(profile) {
 // "more exists but is gated behind a higher tier — beat Boss-Tor to push further").
 function outOfAuthoredContent(profile) {
   const tier = studentTier(profile);
-  // Any authored station above the current tier (deeper tiers OR higher-minTier sections)?
+  // Any REAL (ready) station above the current tier (deeper tiers OR higher-minTier sections)?
   for (const s of LAGER_SECTIONS) {
     for (const t of s.tiers) {
+      if (t.ready !== true) continue;                              // placeholders don't count as content
       if (t.tier > tier || (s.minTier || 1) > tier) {
-        if (!isDone(profile, `${s.id}:${t.tier}`)) return false;   // reachable-later content exists
+        if (!isDone(profile, `${s.id}:${t.tier}`)) return false;   // reachable-later REAL content exists
       }
     }
   }
@@ -167,7 +174,7 @@ trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
     // One-time "what's next" suggestion once the current path is cleared.
     const suggestReassessment = allDone && !p.neuEinstufungPrompted;
     if (suggestReassessment) { p.neuEinstufungPrompted = true; dirty = true; }
-    if (allDone) console.log(`[trainingslager] path cleared  user=${p.userId}  tier=${tier}  outOfAuthoredContent=${outOfContent}`);
+    if (allDone) console.log(`[trainingslager] path cleared  user=${p.userId}  tier=${tier}  outOfAuthoredContent=${outOfContent}  STILL-PLACEHOLDER(author these)=[${unauthoredStations().join(', ')}]`);
     if (dirty) await saveUser(p);
 
     res.json({ lessons, source, tier, allDone, outOfContent, suggestReassessment, lessonsUnlocked: lessonsUnlocked(req.account) });
