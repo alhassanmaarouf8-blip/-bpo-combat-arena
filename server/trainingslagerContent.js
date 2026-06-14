@@ -412,8 +412,84 @@ export const LAGER_SECTIONS = [
     id: 'schlechte-nachrichten', icon: '📋', minTier: 2,
     title_de: 'Schlechte Nachrichten überbringen', title_ar: 'إيصال الأخبار السيئة',
     tiers: [
-      { tier: 2, band: 'B1–B2', title_de: 'Schlechte Nachrichten — sachlich & freundlich', title_ar: 'بوضوح ولطف', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Schlechte Nachrichten') },
-      { tier: 3, band: 'B2–C1', title_de: 'Schlechte Nachrichten — Beschwerde & Kompensation', title_ar: 'الشكوى والتعويض', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Schlechte Nachrichten C1') },
+      {
+        tier: 2, band: 'B1-B2', ready: true, title_de: 'Schlechte Nachrichten — Positiv formulieren', title_ar: 'الأخبار السيئة: الصياغة الإيجابية',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Sie können dem Kunden den Liefertermin nicht nennen. Welche Formulierung ist besser?',
+            question_ar_hint: 'مش عارف ميعاد التسليم — بدل ما تقول "مش عارف"، صيغها بشكل إيجابي',
+            options: [
+              'Ich lasse Sie sobald wie möglich wissen, wann wir liefern können.',
+              'Wir haben keine Ahnung, wann wir liefern können.',
+              'Das kann ich Ihnen nicht sagen.',
+              'Da müssen Sie selbst nachfragen.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Bei der Suche nach einer Lösung gab es Probleme. Wie teilen Sie das positiv mit?',
+            question_ar_hint: 'لسه مفيش حل — بدل "مقدرناش نلاقي حل"، ورّيه إنكم شغّالين عليه',
+            options: [
+              'Wir arbeiten mit Hochdruck an einer Lösung für Sie.',
+              'Wir konnten trotz vieler Tests bisher keine Lösung finden.',
+              'Das Problem ist leider zu kompliziert für uns.',
+              'Da kann man nichts machen.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Es ist ein Fehler passiert. Welche Formulierung schützt das Vertrauen des Kunden am besten?',
+            question_ar_hint: 'حصل غلط — متلقّيش اللوم على زميلك؛ ركّز إنكم لقيتوا السبب',
+            options: [
+              'Wir konnten die Ursache des Fehlers feststellen und kümmern uns darum.',
+              'Mein Kollege, Herr Schmidt, trägt die Schuld an dem Fehler.',
+              'Das war nicht meine Abteilung.',
+              'So etwas passiert eben manchmal.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 3, band: 'B2-C1', ready: true, title_de: 'Schlechte Nachrichten — Absage mit Alternative', title_ar: 'الأخبار السيئة: الرفض مع تقديم بديل',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Der Wunsch des Kunden lässt sich nicht erfüllen. Was ist die professionellste Reaktion?',
+            question_ar_hint: 'مش هتقدر تنفّذ طلب العميل — أحسن حاجة: ترفض بأدب وتقدّم بديل في نفس الجملة',
+            options: [
+              'Das ist leider nicht möglich, aber ich kann Ihnen gerne eine Alternative anbieten — darf ich?',
+              'Nein, das geht nicht.',
+              'Das ist nicht mein Problem.',
+              'Da kann ich Ihnen leider nicht helfen. Auf Wiederhören.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Das gewünschte Produkt wird nicht mehr hergestellt. Welche Antwort verbindet die Absage mit einem Lösungsvorschlag?',
+            question_ar_hint: 'المنتج اللي عايزه خلص ومبيتصنّعش — اربط الرفض باقتراح بديل وسؤال',
+            options: [
+              'Diese Produktserie wird leider nicht mehr produziert. Ich kann Ihnen aber gerne unsere neuen Modelle vorstellen — welches davon gefällt Ihnen?',
+              'Das Produkt gibt es nicht mehr, tut mir leid.',
+              'Da haben Sie Pech gehabt, das ist ausverkauft.',
+              'Probieren Sie es bei einem anderen Anbieter.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der Fehler lag eindeutig bei Ihrem Unternehmen. Wie schließen Sie das Gespräch professionell ab?',
+            question_ar_hint: 'الغلط كان من شركتكم بوضوح — اعتذر باختصار من غير مبالغة، وقول الخطوة الجاية',
+            options: [
+              'Wir bedauern diesen Umstand sehr. Ich kümmere mich persönlich darum und melde mich heute bis 16 Uhr bei Ihnen zurück.',
+              'Es tut mir leid, es tut mir wirklich sehr leid, bitte entschuldigen Sie vielmals, es tut mir so leid…',
+              'Naja, Fehler passieren eben.',
+              'Das war nicht meine Schuld, aber okay, tut mir leid.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
     ],
   },
   {
