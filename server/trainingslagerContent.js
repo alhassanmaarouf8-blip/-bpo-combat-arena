@@ -165,9 +165,123 @@ export const LAGER_SECTIONS = [
     id: 'deeskalation', icon: '🧯', minTier: 1,
     title_de: 'Den wütenden Kunden beruhigen', title_ar: 'نزع فتيل العميل الغاضب',
     tiers: [
-      { tier: 1, band: 'A2–B1', title_de: 'De-Eskalation — Grundlagen', title_ar: 'أساسيات التهدئة', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Deeskalation Grundlagen') },
-      { tier: 2, band: 'B1–B2', title_de: 'De-Eskalation — Empathie & Lösung', title_ar: 'التعاطف والحل', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Deeskalation Empathie') },
-      { tier: 3, band: 'B2–C1', title_de: 'De-Eskalation — der eskalierende Kunde', title_ar: 'العميل المتصاعد', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Deeskalation hart') },
+      {
+        tier: 1, band: 'A2-B1', ready: true, title_de: 'Deeskalation — Verständnis zeigen', title_ar: 'تهدئة العميل: إظهار التفهّم',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Ein Kunde ruft wütend an und beschwert sich. Was ist Ihre allererste Reaktion?',
+            question_ar_hint: 'العميل بيتكلم بعصبية — أول حاجة تعملها: تسمعه لحد ما يخلص من غير ما تقاطعه',
+            options: [
+              'Sie lassen ihn ausreden, ohne ihn zu unterbrechen, und hören aktiv zu.',
+              'Sie unterbrechen ihn und erklären sofort, warum er sich irrt.',
+              'Sie sagen ihm, er soll sich erst beruhigen.',
+              'Sie stellen ihn sofort zu einem Kollegen durch.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der Kunde hat sein Problem geschildert. Welche Formulierung zeigt ihm Verständnis?',
+            question_ar_hint: 'إزاي توري العميل إنك فاهم وحاسس بيه؟ الجملة الصح',
+            options: [
+              'Ich kann verstehen, dass Sie verärgert sind, und es tut mir leid, dass Sie diese Erfahrung machen mussten.',
+              'Das ist doch nicht so schlimm.',
+              'Da kann ich leider nichts machen.',
+              'Das ist nicht mein Fehler.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Sie hören dem Kunden am Telefon zu. Da er Sie nicht sehen kann, wie zeigen Sie, dass Sie aufmerksam zuhören?',
+            question_ar_hint: 'العميل مش شايفك في التليفون — لازم تسمّعه إنك بتسمع، بكلمات صغيرة',
+            options: [
+              'Mit kurzen verbalen Bestätigungen wie "Ich verstehe." oder "Ja.".',
+              'Indem Sie ganz still bleiben und nichts sagen.',
+              'Indem Sie mit einer anderen Aufgabe weitermachen.',
+              'Indem Sie ihn bitten, schneller zu sprechen.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 2, band: 'B1-B2', ready: true, title_de: 'Deeskalation — Fehler vermeiden', title_ar: 'تهدئة العميل: تجنّب الأخطاء',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Der Kunde ist verärgert. Welcher Satz ist ein typischer FEHLER, der die Situation verschlimmert?',
+            question_ar_hint: 'إيه الجملة الغلط اللي بتزوّد غضب العميل؟ (الـ "بس..." اللي بعدها تبرير)',
+            options: [
+              'Da kann ich Sie gut verstehen, aber von unserer Seite ist alles richtig gemacht worden.',
+              'Ich verstehe, dass Sie verärgert sind. Lassen Sie uns gemeinsam eine Lösung finden.',
+              'Es tut mir leid, dass Sie diese Erfahrung gemacht haben.',
+              'Ich kümmere mich jetzt persönlich darum.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Warum sollten Sie einem verärgerten Kunden nicht sofort erklären, warum etwas schiefgelaufen ist?',
+            question_ar_hint: 'ليه ميصحّش تبدأ تشرح للعميل الغاضب سبب المشكلة على طول؟',
+            options: [
+              'Weil ein verärgerter Kunde die Erklärung als Rechtfertigung auffasst und sich nicht ernst genommen fühlt.',
+              'Weil Erklärungen am Telefon verboten sind.',
+              'Weil der Kunde die Erklärung sowieso nicht versteht.',
+              'Weil man dafür keine Zeit hat.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Nachdem Sie Verständnis gezeigt haben, wie leiten Sie zur Lösung über?',
+            question_ar_hint: 'بعد ما وريته إنك فاهم، إزاي تنقله لمرحلة الحل؟ (بصيغة "إحنا مع بعض")',
+            options: [
+              'Lassen Sie uns zusammenarbeiten und eine Lösung für die Situation finden.',
+              'Sie müssen sich erst beruhigen, dann reden wir.',
+              'Ich habe jetzt leider keine Zeit dafür.',
+              'Das müssen Sie selbst klären.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 3, band: 'B2-C1', ready: true, title_de: 'Deeskalation — Profi-Niveau', title_ar: 'تهدئة العميل: مستوى المحترفين',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Der Kunde hat lange auf eine Rückmeldung gewartet und ist frustriert. Welche Formulierung fasst Anliegen UND Emotion zusammen (aktives Zuhören)?',
+            question_ar_hint: 'أعلى مستوى: تلخّص المشكلة والإحساس مع بعض في جملة واحدة — ده اللي المحترف بيعمله',
+            options: [
+              'Ich verstehe, dass die lange Wartezeit ärgerlich ist. Sie möchten wissen, wann Sie mit einer Rückmeldung rechnen können.',
+              'Tut mir leid, aber wir sind im Rückstand, weil so viele anrufen.',
+              'Sie sind nicht der Einzige, der warten muss.',
+              'Da müssen Sie sich noch etwas gedulden.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Sie können dem Kunden nicht sofort eine Lösung anbieten. Was ist die professionellste Reaktion?',
+            question_ar_hint: 'مش قادر تحل دلوقتي حالاً؟ متعملش وعود فاضية — قول الحقيقة وحدّد ميعاد رجوع',
+            options: [
+              'Ich kann das jetzt nicht sofort lösen, aber ich melde mich heute bis 16 Uhr verbindlich bei Ihnen zurück.',
+              'Ich rufe Sie irgendwann zurück.',
+              'Das wird schon wieder, keine Sorge.',
+              'Versprochen, das ist morgen erledigt. (ohne es zu wissen)'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der Kunde hatte recht mit seiner Beschwerde. Worauf sollten Sie sich konzentrieren, statt einen Schuldigen zu suchen?',
+            question_ar_hint: 'العميل كان معاه حق — ركّز على إيه بدل ما تدوّر على مين غلط؟',
+            options: [
+              'Auf die Lösung — Schuldzuweisungen vermeiden und gemeinsam die nächsten Schritte vereinbaren.',
+              'Darauf, zu beweisen, dass ein Kollege schuld war.',
+              'Darauf, dem Kunden eine Teilschuld zu geben.',
+              'Darauf, das Gespräch schnell zu beenden.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
     ],
   },
   {
