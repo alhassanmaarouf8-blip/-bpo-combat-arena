@@ -497,7 +497,45 @@ export const LAGER_SECTIONS = [
     id: 'eskalation-vorgesetzter', icon: '⬆️', minTier: 3,
     title_de: 'Eskalation an den Vorgesetzten', title_ar: 'التصعيد للمشرف',
     tiers: [
-      { tier: 3, band: 'B2–C1', title_de: 'Eskalation — sauber übergeben', title_ar: 'تسليم نظيف', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Eskalation Vorgesetzter') },
+      {
+        tier: 3, band: 'B2-C1', ready: true, title_de: 'Eskalation — "Ich will Ihren Vorgesetzten sprechen"', title_ar: 'التصعيد: "عايز أكلّم مديرك"',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Der Kunde verlangt sofort Ihren Vorgesetzten, ohne zu sagen, worum es geht. Was tun Sie zuerst?',
+            question_ar_hint: 'العميل عايز مديرك على طول من غير ما يقول السبب — أول حاجة: حاول تفهم المشكلة وتحلها بنفسك بأدب',
+            options: [
+              'Ich versuche höflich zu verstehen, worum es geht: "Damit ich Sie richtig weiterleiten kann — worum geht es denn genau? Vielleicht kann ich Ihnen direkt helfen."',
+              'Ich stelle ihn sofort wortlos durch.',
+              'Ich sage ihm, mein Chef sei nicht erreichbar, und lege auf.',
+              'Ich sage: "Dafür bin ich nicht zuständig."'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Sie müssen den Kunden tatsächlich weiterverbinden. Welche Formulierung ist professionell und positiv?',
+            question_ar_hint: 'محتاج تحوّله فعلاً — صيغة إيجابية بتسمّي الزميل المختص بدل "أنا مش مسؤول"',
+            options: [
+              'Da kann Ihnen Frau Müller am besten weiterhelfen. Einen Augenblick bitte, ich verbinde Sie weiter.',
+              'Tut mir leid, dafür bin ich nicht zuständig.',
+              'Moment, ich gebe Sie irgendwie weiter.',
+              'Warten Sie, ich weiß nicht, wer das macht.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der Kunde wird beleidigend und beschimpft Sie weiter persönlich. Wie reagieren Sie korrekt?',
+            question_ar_hint: 'العميل بقى بيشتمك شخصياً — تشرحله إنك هتجيب الدعم، ولو فضل بيشتم تنهي المكالمة بأدب',
+            options: [
+              'Ich hole meinen Vorgesetzten hinzu und erkläre dem Kunden, dass ich Unterstützung einhole und warum. Beruhigt er sich weiterhin nicht, beende ich das Gespräch höflich.',
+              'Ich beschimpfe ihn zurück, damit er aufhört.',
+              'Ich lege sofort wortlos auf.',
+              'Ich lasse mich beschimpfen und sage gar nichts.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
     ],
   },
 ];
