@@ -32,7 +32,8 @@ export function defaultProfile(userId) {
     assessmentUsed:   false, // free intelligent assessment is once-per-account ever
     assessmentResult: null,  // the stored verdict (level/blockers/strengths/focus)
     recommendations:  [],    // Trainingslager: ordered lesson recommendations (refreshed per fight)
-    lessonsCompleted: [],    // Trainingslager: ruleIds of lessons whose quiz has been passed
+    lessonsCompleted: [],    // Trainingslager (legacy grammar lessons): ruleIds passed
+    lagerDone:        [],    // Trainingslager (tiered): station ids "section:tier" completed (never-repeat)
     lessonDays:       [],    // Trainingslager: Cairo day-keys with a lesson done (streak credit)
     lastCompletedLesson: null, // Trainingslager: ruleId of the most recent lesson (fight focus)
     recommendedCounted:  [], // Trainingslager: ruleIds already counted in the global recommend stat

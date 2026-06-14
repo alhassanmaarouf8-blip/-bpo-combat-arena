@@ -1,94 +1,101 @@
 /**
- * trainingslager.js — the intelligent recommendation engine (rule-based, ZERO AI cost).
+ * trainingslager.js — ADAPTIVE, never-repeating Trainingslager engine (rule-based, ZERO AI cost).
  *
- * After each fight, the fight's grammar errors are classified into lesson ruleIds (errorTags.js)
- * and stored on the session. Here we read the user's LAST 3 fights, count exact frequency per
- * ruleId, and rank the lessons most-failed first. Pure counting — no LLM, no Realtime, nothing
- * to hallucinate.
+ * Content lives in trainingslagerContent.js (tiered banks, founder-editable). This engine only
+ * DECIDES which stations to serve next, based on the student's interview performance:
+ *   - studentTier(): derived from real fight scores (computeRank over stored sessions) — higher
+ *     interview scores raise the tier and unlock HARDER tiers + NEW sections; struggling stays low.
+ *   - buildAdaptivePath(): the undone stations at/below the student's tier, DEEPEN-first (continue
+ *     started sections to a higher tier) then BROADEN (new sections at this level). Completed
+ *     stations (profile.lagerDone) are NEVER served again.
+ *   - allRecommendedDone(): Boss-Tor opens when the current path is cleared; beating it / scoring
+ *     higher raises the tier → the next pass reveals new content. The Lager+interview form a LOOP.
  *
- * Edge cases (bulletproof):
- *   - brand-new user / no errors yet  → hardcoded STARTER_PATH (never an empty list)
- *   - a failed rule has no lesson      → classifier never emits it, so it's skipped silently
+ * Routes + response shapes are UNCHANGED from the previous version, so the client and the fight
+ * engine (websocketManager) need no changes. ZERO new paid service.
  *
- *   GET /api/trainingslager → { lessons: [{ ruleId, title_de, title_ar, reason_de, reason_ar,
- *                                           count, done }], source }
+ *   GET  /api/trainingslager                         → { lessons:[{ruleId,title_de,title_ar,reason_de,reason_ar,tier,band,done}], source, allDone, suggestReassessment, lessonsUnlocked, tier }
+ *   GET  /api/trainingslager/lesson/:ruleId          → { lesson, done }
+ *   POST /api/trainingslager/lesson/:ruleId/complete → { passed, score, total, done, newlyCompleted, xpAwarded }
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, isAdminEmail, planOf } from './auth.js';
-import { getLesson, STARTER_PATH } from './lessons.config.js';
-import { LESSON_XP, levelFor }     from './progression.js';
-import { dayKey }                  from './time.js';
-import { dbEnabled, kvGet, kvSet } from './db.js';
+import { getLesson }                 from './lessons.config.js';
+import { LAGER_SECTIONS, getStation, maxAuthoredTier } from './trainingslagerContent.js';
+import { LESSON_XP, levelFor, computeRank } from './progression.js';
+import { dayKey }                    from './time.js';
+import { dbEnabled, kvGet, kvSet }   from './db.js';
 
 export const trainingslagerRouter = express.Router();
 
-const LAST_N_FIGHTS = 3;
-const MAX_RECS      = 6;
-const STARTER_REASON = { de: 'Empfohlener Startpunkt für den Einstieg.', ar: 'نقطة بداية موصى بها للبداية.' };
+const MAX_STATIONS = 5;   // how many stations to surface per pass
 
-// ── Lesson gate ──────────────────────────────────────────────────────────────
-// The game MAP (diagnosis + path) is visible to everyone — the hook. OPENING a lesson/quiz
-// requires an ACTIVE PAID plan (Basic OR Elite; admin counts as paid). planOf() already
-// reverts an expired plan to 'free', so an expired subscriber is locked out automatically.
-// Only free/expired users see the map + an upgrade prompt. The recommended lessons & videos
-// are tailored to each user's own interview errors (computeRecommendations) regardless of plan.
+// ── Lesson gate (unchanged): map visible to all; OPENING requires an active paid plan ─────────
 export function lessonsUnlocked(account) { return planOf(account) !== 'free'; }
 function lessonBlocked(account) { return !lessonsUnlocked(account); }
 
-// Boss-Tor is unlocked only when EVERY recommended lesson is done (server-side truth).
-export function allRecommendedDone(profile) {
-  const recs = Array.isArray(profile?.recommendations) ? profile.recommendations : [];
-  if (recs.length === 0) return false;
-  const done = new Set(Array.isArray(profile?.lessonsCompleted) ? profile.lessonsCompleted : []);
-  return recs.every((r) => done.has(r.ruleId));
+// Resolve a station id (new tiered) OR a legacy grammar ruleId → a lesson-shaped object.
+function resolveLesson(id) { return getStation(id) || getLesson(id) || null; }
+function isDone(profile, id) {
+  return (Array.isArray(profile?.lagerDone) && profile.lagerDone.includes(id)) ||
+         (Array.isArray(profile?.lessonsCompleted) && profile.lessonsCompleted.includes(id));
 }
 
-// ── Global, PII-free counters (admin analytics): per-ruleId recommended/completed ──
-async function loadStats() { if (!dbEnabled()) return {}; try { return (await kvGet('tl_stats', 'counts')) ?? {}; } catch { return {}; } }
-async function bumpStat(ruleId, field) {
-  if (!dbEnabled()) return;
-  try { const s = await loadStats(); s[ruleId] = s[ruleId] || { recommended: 0, completed: 0 }; s[ruleId][field] = (s[ruleId][field] || 0) + 1; await kvSet('tl_stats', 'counts', s); }
-  catch (e) { console.error('[trainingslager] stat bump failed:', e.message); }
-}
-
-// Count error tags across the last N fights and rank lessons most-failed first.
-export function computeRecommendations(profile) {
+// ── The student's current tier, from REAL interview performance ───────────────────────────────
+// Higher interview score → higher tier (harder content unlocks). New users with no fights fall
+// back to their assessment level. Capped at the highest authored tier.
+function studentTier(profile) {
   const sessions = Array.isArray(profile?.sessions) ? profile.sessions : [];
-  const recent   = sessions.slice(-LAST_N_FIGHTS);
+  let tier;
+  if (sessions.length) {
+    const score = computeRank(sessions)?.score ?? 0;   // 0–100 interview readiness
+    tier = score >= 75 ? 3 : score >= 55 ? 2 : 1;
+  } else {
+    const lvl = profile?.assessmentResult?.estimatedLevel;
+    tier = lvl === 'C1' ? 3 : lvl === 'B2' ? 2 : 1;
+  }
+  return Math.min(tier, maxAuthoredTier() || 1);
+}
 
-  const counts = new Map(); // ruleId -> exact frequency
-  for (const s of recent) {
-    for (const tag of (Array.isArray(s?.errorTags) ? s.errorTags : [])) {
-      if (getLesson(tag)) counts.set(tag, (counts.get(tag) || 0) + 1);
+// ── Adaptive path: undone stations at/below the student's tier, DEEPEN-first then BROADEN ──────
+function buildAdaptivePath(profile) {
+  const tier = studentTier(profile);
+  const deepen = [], fresh = [];
+  for (const s of LAGER_SECTIONS) {
+    if ((s.minTier || 1) > tier) continue;                       // section not unlocked at this level yet
+    const started = s.tiers.some((t) => isDone(profile, `${s.id}:${t.tier}`));   // begun this section before?
+    for (const t of s.tiers) {
+      if (t.tier > tier) continue;                                // tier above the student's level → locked for now
+      const id = `${s.id}:${t.tier}`;
+      if (isDone(profile, id)) continue;                          // NEVER REPEAT a completed station
+      const node = { ruleId: id, section: s, t, started };
+      (started ? deepen : fresh).push(node);
     }
   }
-
-  // Most-failed first (stable: ties keep insertion order via the map).
-  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, MAX_RECS);
-
-  let recs = ranked.map(([ruleId, count]) => {
-    const l = getLesson(ruleId);
-    return {
-      ruleId, count,
-      reason_de: `Empfohlen, weil: du hattest ${count} Fehler bei ${l.title_de}.`,
-      reason_ar: `موصى به لأنك غلطت ${count} مرات في ${l.title_ar}.`,
-    };
-  });
-
-  let source = 'errors';
-  // Edge case: nothing failed (new user / clean fights) → hardcoded starter path. Never empty.
-  if (recs.length === 0) {
-    source = 'starter';
-    recs = STARTER_PATH
-      .map((ruleId) => getLesson(ruleId) && ({ ruleId, count: 0, reason_de: STARTER_REASON.de, reason_ar: STARTER_REASON.ar }))
-      .filter(Boolean);
-  }
-
-  return { recommendations: recs, source };
+  deepen.sort((a, b) => a.t.tier - b.t.tier);                                          // continue started sections, lowest undone tier first
+  fresh.sort((a, b) => (a.section.minTier || 1) - (b.section.minTier || 1) || a.t.tier - b.t.tier);
+  return { stations: [...deepen, ...fresh].slice(0, MAX_STATIONS), tier };
 }
 
-// Recompute and store on the user record. Called after every fight (and lazily on read).
+function reasonFor(node) {
+  const band = node.t.band || '';
+  return node.started
+    ? { de: `Vertiefung — nächste Stufe (${band}).`, ar: `تعميق — المستوى الأعلى (${band}).` }
+    : { de: `Neue Station für dein Niveau (${band}).`, ar: `محطة جديدة على مستواك (${band}).` };
+}
+
+// Same name + return shape as before, now adaptive. (Used by GET + refreshRecommendations.)
+export function computeRecommendations(profile) {
+  const { stations, tier } = buildAdaptivePath(profile);
+  const recommendations = stations.map((n) => {
+    const r = reasonFor(n);
+    return { ruleId: n.ruleId, count: 0, tier: n.t.tier, band: n.t.band, reason_de: r.de, reason_ar: r.ar };
+  });
+  return { recommendations, source: 'adaptive', tier };
+}
+
+// Recompute + store on the user record. Called after every fight (the LOOP) and lazily on read.
 export function refreshRecommendations(profile) {
   const { recommendations, source } = computeRecommendations(profile);
   profile.recommendations       = recommendations;
@@ -96,79 +103,99 @@ export function refreshRecommendations(profile) {
   return recommendations;
 }
 
-// ── GET the game-map data: ordered lessons + reasons + done state ────────────────
+// Boss-Tor opens when the current path is cleared (all stations at/below the student's tier done).
+// A brand-new user has undone stations → false (locked) until they finish them.
+export function allRecommendedDone(profile) {
+  const { stations } = buildAdaptivePath(profile);
+  return stations.length === 0 && LAGER_SECTIONS.length > 0;
+}
+
+// True when there is genuinely no further authored content the student could ever reach (vs.
+// "more exists but is gated behind a higher tier — beat Boss-Tor to push further").
+function outOfAuthoredContent(profile) {
+  const tier = studentTier(profile);
+  // Any authored station above the current tier (deeper tiers OR higher-minTier sections)?
+  for (const s of LAGER_SECTIONS) {
+    for (const t of s.tiers) {
+      if (t.tier > tier || (s.minTier || 1) > tier) {
+        if (!isDone(profile, `${s.id}:${t.tier}`)) return false;   // reachable-later content exists
+      }
+    }
+  }
+  return true;
+}
+
+// ── Global PII-free counters (admin analytics) ───────────────────────────────────────────────
+async function loadStats() { if (!dbEnabled()) return {}; try { return (await kvGet('tl_stats', 'counts')) ?? {}; } catch { return {}; } }
+async function bumpStat(id, field) {
+  if (!dbEnabled()) return;
+  try { const s = await loadStats(); s[id] = s[id] || { recommended: 0, completed: 0 }; s[id][field] = (s[id][field] || 0) + 1; await kvSet('tl_stats', 'counts', s); }
+  catch (e) { console.error('[trainingslager] stat bump failed:', e.message); }
+}
+
+// ── GET the game-map: the adaptive path + done state ──────────────────────────────────────────
 trainingslagerRouter.get('/trainingslager', requireAuth, async (req, res) => {
   try {
     const p = await loadUser(req.account.id);
+    const { recommendations: recs, source, tier } = computeRecommendations(p);
+    p.recommendations = recs; p.recommendationsSource = source;
 
-    // Lazily compute for users who existed before this feature (no stored recs yet).
-    let recs = Array.isArray(p.recommendations) ? p.recommendations : [];
-    let source = p.recommendationsSource || 'errors';
-    if (recs.length === 0) {
-      const fresh = computeRecommendations(p);
-      recs = fresh.recommendations; source = fresh.source;
-      p.recommendations = recs; p.recommendationsSource = source;
-      await saveUser(p);
-    }
-
-    const done = new Set(Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : []);
     const lessons = recs.map((r) => {
-      const l = getLesson(r.ruleId);
+      const l = getStation(r.ruleId);
       return {
         ruleId:    r.ruleId,
         title_de:  l?.title_de || r.ruleId,
         title_ar:  l?.title_ar || r.ruleId,
         reason_de: r.reason_de,
         reason_ar: r.reason_ar,
-        count:     r.count,
-        done:      done.has(r.ruleId),
+        tier:      r.tier,
+        band:      r.band,
+        count:     0,
+        done:      false,        // the path only ever contains UNDONE stations (never-repeat)
       };
     });
 
-    // Global recommend-stat: count each (user, lesson) the first time it's recommended.
+    // Global recommend-stat: count each (user, station) the first time it's surfaced.
     p.recommendedCounted = Array.isArray(p.recommendedCounted) ? p.recommendedCounted : [];
     let dirty = false;
     for (const r of recs) {
       if (!p.recommendedCounted.includes(r.ruleId)) { p.recommendedCounted.push(r.ruleId); bumpStat(r.ruleId, 'recommended'); dirty = true; }
     }
 
-    // One-time "monthly re-assessment" suggestion once the whole path is done.
     const allDone = allRecommendedDone(p);
+    const outOfContent = allDone && outOfAuthoredContent(p);
+    // One-time "what's next" suggestion once the current path is cleared.
     const suggestReassessment = allDone && !p.neuEinstufungPrompted;
     if (suggestReassessment) { p.neuEinstufungPrompted = true; dirty = true; }
+    if (allDone) console.log(`[trainingslager] path cleared  user=${p.userId}  tier=${tier}  outOfAuthoredContent=${outOfContent}`);
     if (dirty) await saveUser(p);
 
-    res.json({
-      lessons, source, allDone, suggestReassessment,
-      lessonsUnlocked: lessonsUnlocked(req.account),
-    });
+    res.json({ lessons, source, tier, allDone, outOfContent, suggestReassessment, lessonsUnlocked: lessonsUnlocked(req.account) });
   } catch (err) {
     console.error('[trainingslager] read error:', err.message);
     res.status(500).json({ error: 'trainingslager_failed' });
   }
 });
 
-// ── GET one lesson (video + quiz) ────────────────────────────────────────────────
+// ── GET one station (video + quiz) ────────────────────────────────────────────────────────────
 trainingslagerRouter.get('/trainingslager/lesson/:ruleId', requireAuth, async (req, res) => {
   try {
     if (lessonBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
-    const lesson = getLesson(req.params.ruleId);
+    const lesson = resolveLesson(req.params.ruleId);
     if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
     const p = await loadUser(req.account.id);
-    const done = (Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : []).includes(lesson.ruleId);
-    res.json({ lesson, done });
+    res.json({ lesson, done: isDone(p, lesson.ruleId) });
   } catch (err) {
     console.error('[trainingslager] lesson read error:', err.message);
     res.status(500).json({ error: 'lesson_failed' });
   }
 });
 
-// ── POST quiz answers → server grades (source of truth) → marks lesson DONE on pass ──
-// Pass = at least 2 of 3 correct. Idempotent: re-passing an already-done lesson is harmless.
+// ── POST quiz answers → grade → mark station DONE (never-repeat). Pass = 2/3. Idempotent. ──────
 trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth, async (req, res) => {
   try {
     if (lessonBlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
-    const lesson = getLesson(req.params.ruleId);
+    const lesson = resolveLesson(req.params.ruleId);
     if (!lesson) return res.status(404).json({ error: 'lesson_not_found' });
 
     const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
@@ -177,40 +204,41 @@ trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth
     const passed = score >= 2;
 
     const p = await loadUser(req.account.id);
-    p.lessonsCompleted = Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : [];
+    p.lagerDone = Array.isArray(p.lagerDone) ? p.lagerDone : [];
+    const isStation = !!getStation(lesson.ruleId);
     let newlyCompleted = false, xpAwarded = 0;
-    if (passed && !p.lessonsCompleted.includes(lesson.ruleId)) {
-      p.lessonsCompleted.push(lesson.ruleId);
+
+    if (passed && !isDone(p, lesson.ruleId)) {
+      if (isStation) p.lagerDone.push(lesson.ruleId);
+      else { p.lessonsCompleted = Array.isArray(p.lessonsCompleted) ? p.lessonsCompleted : []; p.lessonsCompleted.push(lesson.ruleId); }
       newlyCompleted = true;
 
-      // Award (once) ~50% of a fight's XP, recompute level.
       p.xp = (p.xp || 0) + LESSON_XP; xpAwarded = LESSON_XP; p.level = levelFor(p.xp);
-      // Streak credit: today (Cairo) counts as an active day even without a fight.
       const today = dayKey();
       p.lessonDays = Array.isArray(p.lessonDays) ? p.lessonDays : [];
       if (!p.lessonDays.includes(today)) p.lessonDays.push(today);
-      // Fight focus: the next fight weaves in situations that test this lesson.
-      p.lastCompletedLesson = lesson.ruleId;
+      p.lastCompletedLesson = lesson.ruleId;   // (fight-focus lookup degrades gracefully for station ids)
 
+      refreshRecommendations(p);               // recompute the path immediately so the next one is fresh
       await saveUser(p);
       bumpStat(lesson.ruleId, 'completed');
     }
 
-    console.log(`[trainingslager] lesson=${lesson.ruleId} user=${p.userId} score=${score}/${lesson.quiz.length} passed=${passed} newlyCompleted=${newlyCompleted} xp+=${xpAwarded}`);
-    res.json({ passed, score, total: lesson.quiz.length, done: passed || p.lessonsCompleted.includes(lesson.ruleId), newlyCompleted, xpAwarded });
+    console.log(`[trainingslager] station=${lesson.ruleId} user=${p.userId} score=${score}/${lesson.quiz.length} passed=${passed} new=${newlyCompleted} xp+=${xpAwarded}`);
+    res.json({ passed, score, total: lesson.quiz.length, done: passed || isDone(p, lesson.ruleId), newlyCompleted, xpAwarded });
   } catch (err) {
     console.error('[trainingslager] complete error:', err.message);
     res.status(500).json({ error: 'complete_failed' });
   }
 });
 
-// ── Admin-only: global PII-free counts (recommended/completed per lesson) ─────────
+// ── Admin-only: global PII-free counts ────────────────────────────────────────────────────────
 trainingslagerRouter.get('/trainingslager/admin/stats', requireAuth, async (req, res) => {
   if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
   const stats = await loadStats();
-  const rows = Object.entries(stats).map(([ruleId, c]) => {
-    const l = getLesson(ruleId);
-    return { ruleId, title_de: l?.title_de || ruleId, recommended: c.recommended || 0, completed: c.completed || 0 };
+  const rows = Object.entries(stats).map(([id, c]) => {
+    const l = getStation(id) || getLesson(id);
+    return { ruleId: id, title_de: l?.title_de || id, recommended: c.recommended || 0, completed: c.completed || 0 };
   }).sort((a, b) => b.recommended - a.recommended);
   res.json({ stats: rows });
 });
