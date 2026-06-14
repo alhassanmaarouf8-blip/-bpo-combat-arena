@@ -963,6 +963,28 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             </Section>
           )}
 
+          {/* Answer architecture (structure & framing) — additive coaching dimension */}
+          {data?.answerArchitecture && (data.answerArchitecture.ar || data.answerArchitecture.de) && (
+            <Section title={ar ? 'بنية الإجابة · ANTWORT-AUFBAU' : 'ANTWORT-AUFBAU · STRUKTUR'} color="#22d3ee"
+              right={<span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
+                borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'#22d3ee' }}>{String(data.answerArchitecture.label || '').toUpperCase()}</span>}>
+              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl }}>
+                {ar && data.answerArchitecture.ar ? data.answerArchitecture.ar : data.answerArchitecture.de}
+              </div>
+            </Section>
+          )}
+
+          {/* Delivery confidence — additive coaching dimension (separate from filler/fluency) */}
+          {data?.deliveryConfidence && (data.deliveryConfidence.ar || data.deliveryConfidence.de) && (
+            <Section title={ar ? 'ثقة الإلقاء · AUFTRETEN' : 'AUFTRETEN · SICHERHEIT'} color="#a78bfa"
+              right={<span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
+                borderRadius:99, border:'1px solid rgba(167,139,250,0.45)', color:'#a78bfa' }}>{String(data.deliveryConfidence.label || '').toUpperCase()}</span>}>
+              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl }}>
+                {ar && data.deliveryConfidence.ar ? data.deliveryConfidence.ar : data.deliveryConfidence.de}
+              </div>
+            </Section>
+          )}
+
           {/* Grammar grouped by rule */}
           {!!data?.grammar?.length && (
             <Section title="GRAMMATIK · NACH REGEL" color="#f87171"
