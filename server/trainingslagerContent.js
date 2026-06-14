@@ -288,9 +288,123 @@ export const LAGER_SECTIONS = [
     id: 'vorstellungsgespraech', icon: '💼', minTier: 1,
     title_de: 'Das Vorstellungsgespräch', title_ar: 'مقابلة العمل',
     tiers: [
-      { tier: 1, band: 'A2–B1', title_de: 'Interview — sich vorstellen', title_ar: 'التعريف بنفسك', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Interview Vorstellung') },
-      { tier: 2, band: 'B1–B2', title_de: 'Interview — Stärken & Beispiele', title_ar: 'نقاط القوة بأمثلة', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Interview Staerken') },
-      { tier: 3, band: 'B2–C1', title_de: 'Interview — schwierige Fragen', title_ar: 'الأسئلة الصعبة', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Interview schwer') },
+      {
+        tier: 1, band: 'A2-B1', ready: true, title_de: 'Vorstellungsgespräch — Einstieg & Motivation', title_ar: 'المقابلة: البداية والدافع',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Die Interviewerin sagt: "Erzählen Sie etwas über sich." Was ist die beste Antwort?',
+            question_ar_hint: 'سؤال "احكيلي عن نفسك" — مش وقت الهوايات ولا إعادة الـ CV؛ ركّز على خبرتك المهنية المتعلقة بالشغل',
+            options: [
+              'Ich habe drei Jahre Erfahrung im Kundenservice. Besonders gut bin ich darin, auch schwierige Kunden ruhig und lösungsorientiert zu betreuen.',
+              'Ich bin 26 Jahre alt, verheiratet und reise gerne in meiner Freizeit.',
+              'Das steht doch alles schon in meinen Unterlagen.',
+              'Ich weiß nicht genau, wo ich anfangen soll, vielleicht bei meiner Schulzeit?'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: '"Warum wollen Sie für uns arbeiten?" — Welche Antwort überzeugt den Personaler?',
+            question_ar_hint: 'سؤال "ليه عايز تشتغل معانا" — اتكلم من وجهة نظر الشركة: هي هتستفيد منك بإيه',
+            options: [
+              'Ihr Unternehmen ist für seinen guten Kundenservice bekannt, und ich möchte mit meiner Erfahrung dazu beitragen.',
+              'Weil ich dringend einen Job brauche.',
+              'Weil Sie die erste Firma sind, die mich eingeladen hat.',
+              'Das ist mir eigentlich egal, Hauptsache Arbeit.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Worauf wird im telefonischen Bewerbungsgespräch für einen Call-Center-Job besonders geachtet?',
+            question_ar_hint: 'في إنترفيو شغل الكول سنتر بالتليفون — بيركزوا على إيه فيك؟',
+            options: [
+              'Auf Ihre Stimme: Klarheit, Freundlichkeit und Überzeugungskraft.',
+              'Nur auf Ihren schriftlichen Lebenslauf.',
+              'Auf Ihr äußeres Erscheinungsbild.',
+              'Nur darauf, wie schnell Sie sprechen.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 2, band: 'B1-B2', ready: true, title_de: 'Vorstellungsgespräch — Stärken, Schwächen & Druck', title_ar: 'المقابلة: نقاط القوة والضعف والضغط',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: '"Was ist Ihre größte Schwäche?" — Welche Antwort macht den besten Eindruck?',
+            question_ar_hint: 'سؤال نقطة الضعف — بلاش الكليشيهات زي "أنا perfektionist"؛ اذكر ضعف حقيقي وبتشتغل عليه',
+            options: [
+              'Ich hatte früher Lampenfieber beim Telefonieren. Deshalb habe ich gezielt geübt und fühle mich heute deutlich sicherer.',
+              'Ich bin einfach zu perfektionistisch.',
+              'Ich arbeite zu viel und zu hart.',
+              'Ich habe eigentlich keine Schwächen.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: '"Wie gehen Sie mit Kritik um?" — Was will der Personaler hören?',
+            question_ar_hint: 'سؤال "بتتعامل مع النقد إزاي" — وريه إنك بتاخد النقد كفرصة تتطور، مش بتتجاهله',
+            options: [
+              'Ich sehe Kritik als Chance, mich weiterzuentwickeln, und nehme Ratschläge ernst.',
+              'Kritik nehme ich mir nicht zu Herzen, ich mache es einfach wie immer.',
+              'Ich mag keine Kritik, weil ich meistens recht habe.',
+              'Das kommt darauf an, wer mich kritisiert.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: '"Wie arbeiten Sie unter Druck?" — Welche Antwort zeigt die richtige Einstellung für den Kundenservice?',
+            question_ar_hint: 'سؤال الشغل تحت ضغط — الضغط جزء من الشغل؛ وريه إنك بتهدّي وبتحل بشكل منظّم',
+            options: [
+              'Druck gehört zum Kundenservice dazu. In stressigen Situationen atme ich erst tief durch und löse das Problem dann ruhig und strukturiert.',
+              'Unter Druck werde ich nervös und mache Fehler.',
+              'Ich vermeide Stress, indem ich schwierige Anrufe weitergebe.',
+              'Druck mag ich gar nicht, ich brauche immer viel Zeit.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 3, band: 'B2-C1', ready: true, title_de: 'Vorstellungsgespräch — STAR-Methode & Rollenspiel', title_ar: 'المقابلة: طريقة STAR والـ Rollenspiel',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Sie beantworten eine Verhaltensfrage mit der STAR-Methode. Wofür stehen die vier Buchstaben?',
+            question_ar_hint: 'طريقة STAR لإجابة أسئلة المواقف — الأربع حروف معناها إيه بالترتيب؟',
+            options: [
+              'Situation, Task (Aufgabe), Action (Handlung), Result (Ergebnis)',
+              'Stärke, Talent, Antwort, Resultat',
+              'Situation, Thema, Anfang, Rückblick',
+              'Start, Test, Aktion, Reaktion'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: '"Beschreiben Sie eine Situation, in der Sie einen schwierigen Kunden betreut haben." Was fehlt der meisten Antworten — und ist am wichtigsten?',
+            question_ar_hint: 'في إجابة موقف العميل الصعب — أهم حاجة ناس كتير بتنساها: النتيجة في الآخر',
+            options: [
+              'Das konkrete Ergebnis am Ende — was durch Ihr Handeln erreicht wurde.',
+              'Eine lange Beschreibung der Firma.',
+              'Wie lange das Gespräch gedauert hat.',
+              'Die Namen aller beteiligten Kollegen.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Die Interviewerin spielt plötzlich einen wütenden Kunden, der sein Geld zurückverlangt (Rollenspiel). Wie reagieren Sie am besten?',
+            question_ar_hint: 'الـ HR فجأة بتمثّل عميل غاضب عايز فلوسه — ده اختبار؛ فضل مؤدب وركّز على الحل',
+            options: [
+              'Ich bleibe ruhig und höflich, zeige Verständnis und konzentriere mich auf eine Lösung für den Kunden.',
+              'Ich erkläre dem Kunden sofort, dass er im Unrecht ist.',
+              'Ich werde laut, um mich durchzusetzen.',
+              'Ich sage, dass ich dafür nicht zuständig bin.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
     ],
   },
   {
