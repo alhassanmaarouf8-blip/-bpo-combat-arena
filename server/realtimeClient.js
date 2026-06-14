@@ -318,7 +318,9 @@ export class RealtimeClient {
             // language:'de' LOCKS the transcriber to German — without it, quiet/unclear
             // audio gets auto-detected as the wrong language and returns garbage (e.g.
             // Japanese „はい。" for a spoken „ja, hallo"). ISO-639-1 code.
-            transcription: { model: 'gpt-4o-mini-transcribe', language: 'de' },
+            // language:'de' + a German prompt BOTH bias the transcriber to German so quiet/unclear
+            // audio isn't auto-detected as another script (e.g. Japanese for a spoken „ja, hallo").
+            transcription: { model: 'gpt-4o-mini-transcribe', language: 'de', prompt: 'Deutsches Bewerbungsgespräch im Call-Center. Transkribiere ausschließlich auf Deutsch.' },
             turn_detection: {
               type:                'server_vad',
               // The boss must WAIT through a real thinking pause before answering, so a
