@@ -315,7 +315,10 @@ export class RealtimeClient {
             // Streaming STT: gpt-4o-mini-transcribe emits incremental
             // transcription.delta events so the user's words appear live as they
             // speak. (whisper-1 only returns one completed transcript at the end.)
-            transcription: { model: 'gpt-4o-mini-transcribe' },
+            // language:'de' LOCKS the transcriber to German — without it, quiet/unclear
+            // audio gets auto-detected as the wrong language and returns garbage (e.g.
+            // Japanese „はい。" for a spoken „ja, hallo"). ISO-639-1 code.
+            transcription: { model: 'gpt-4o-mini-transcribe', language: 'de' },
             turn_detection: {
               type:                'server_vad',
               // The boss must WAIT through a real thinking pause before answering, so a
