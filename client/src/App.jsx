@@ -61,6 +61,8 @@ const WS_ERROR_TEXT = {
   lessons_incomplete:   { de: 'Schließe zuerst deine Trainingslager-Stationen ab, um das Boss-Tor zu öffnen.', ar: 'خلّص محطات الـTrainingslager الأول عشان تفتح بوابة التحدي.' },
   plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
   daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
+  ws_connect_failed:    { de: 'Keine Verbindung zum Server. Prüfe dein Internet und starte neu.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
+  connection_lost:      { de: 'Verbindung unterbrochen. Bitte starte den Kampf neu.', ar: 'الاتصال اتقطع. من فضلك ابدأ الجولة من جديد.' },
 };
 function wsErrorText(code, lang) {
   const e = WS_ERROR_TEXT[code];
@@ -1042,8 +1044,8 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                 const why = ar && u.why_ar ? u.why_ar : u.why;
                 return (
                   <div key={i} style={{ marginBottom:9, fontSize:11.5, lineHeight:1.45, overflowWrap:'anywhere' }}>
-                    <div style={{ color:'#94a3b8' }}>Du: „{u.original}“</div>
-                    <div style={{ color:'#c4b5fd' }}>Stärker: <b style={{ color:'#ede9fe' }}>{u.better}</b></div>
+                    <div style={{ color:'#94a3b8' }}>{ar ? 'إنت قلت' : 'Du'}: „{u.original}“</div>
+                    <div style={{ color:'#c4b5fd' }}>{ar ? 'أقوى' : 'Stärker'}: <b style={{ color:'#ede9fe' }}>{u.better}</b></div>
                     {why && <div style={{ color:'#64748b', fontSize:10, marginTop:1, ...rtl }}>{why}</div>}
                   </div>
                 );
@@ -1371,7 +1373,8 @@ function AuthScreen({ onAuth }) {
   const [busy, setBusy]   = useState(false);
 
   const submit = async () => {
-    if (busy || !email || !pw) return;
+    if (busy) return;
+    if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
     setErr(''); setBusy(true);
     try {
       const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
@@ -1380,8 +1383,10 @@ function AuthScreen({ onAuth }) {
       });
       const data = await r.json();
       if (!r.ok) { setErr(authErrText(data.error)); setBusy(false); return; }
+      // Honor the landing promise: open the free assessment right after a fresh signup.
+      if (mode === 'signup') { try { localStorage.setItem('bpo_pending_assessment', '1'); } catch {} }
       onAuth({ token: data.token, account: data.account });
-    } catch { setErr({ de: 'Server nicht erreichbar. Läuft der Server?', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); setBusy(false); }
+    } catch { setErr({ de: 'Server nicht erreichbar. Bitte versuche es gleich erneut.', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); setBusy(false); }
   };
 
   return (
@@ -1803,6 +1808,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
+
+  // Honor the landing promise ("kostenlose Einstufung direkt nach der Anmeldung"): if the user
+  // just signed up, auto-open the free assessment ONCE (flag set in AuthScreen on signup).
+  useEffect(() => {
+    let pending = false;
+    try { pending = localStorage.getItem('bpo_pending_assessment') === '1'; } catch {}
+    if (!pending) return;
+    try { localStorage.removeItem('bpo_pending_assessment'); } catch {}
+    fetch(`${API_URL}/api/assessment/status`, { headers: { Authorization: `Bearer ${auth.token}` } })
+      .then((r) => r.json()).then((d) => { if (d && !d.used) setAssessmentOpen(true); }).catch(() => {});
+  }, []);   // once, on first mount after signup
   const [trainingslagerOpen, setTrainingslagerOpen] = useState(false); // study game-map route
 
   const phaseRef       = useRef('idle');
@@ -2137,7 +2153,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       clearInterval(pingRef.current);
       if (phaseRef.current !== 'stopping' && phaseRef.current !== 'idle') {
         // Don't overwrite a more specific error already set (e.g. a mic failure).
-        setError((prev) => prev || `Verbindung getrennt (${ev.code}). Bitte neu starten.`);
+        setError((prev) => prev || 'connection_lost');
         setPhaseSync('error');
         recorderRef.current?.stop().catch(() => {});
         playerRef.current?.flush();
@@ -2149,7 +2165,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     };
 
     ws.onerror = () => {
-      setError('WebSocket-Verbindungsfehler. Läuft der Server?');
+      setError('ws_connect_failed');   // bilingual via wsErrorText
     };
 
   }, [handleMsg, setPhaseSync]);

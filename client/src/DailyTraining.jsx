@@ -60,6 +60,20 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     setDone(true);
   };
 
+  // "Unbegrenzte Drills": paid users can pull a FRESH set after finishing the current one.
+  // Free/expired users get 402 → a clear, localized note (no dead-end).
+  const loadMore = async () => {
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch(`${apiUrl}/api/daily/next`, { method: 'POST', headers: headers(), body: '{}' });
+      if (r.status === 402) { setErr(lang === 'ar' ? 'الجولات الإضافية متاحة في الخطة المدفوعة.' : 'Weitere Runden gibt es im bezahlten Plan.'); setBusy(false); return; }
+      const d = await r.json();
+      if (!r.ok || !Array.isArray(d.questions) || !d.questions.length) throw new Error('no_set');
+      setData(d); setIdx(0); setAnswer(''); setResult(null); setFinalStreak(null); setDone(false);
+    } catch { setErr(lang === 'ar' ? 'مقدرناش نجيب جولة جديدة.' : 'Konnte keine neue Runde laden.'); }
+    setBusy(false);
+  };
+
   return (
     <div style={ov}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
@@ -83,7 +97,10 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
             Trainingsserie: {finalStreak} {finalStreak === 1 ? 'Tag' : 'Tage'}
           </div>
           <div style={{ fontSize: 13, color: '#a7f3d0' }}>Erledigt für heute. Komm morgen wieder, um die Serie zu halten.</div>
-          <button onClick={onClose} style={{ ...primary, marginTop: 8 }}>FERTIG</button>
+          <button onClick={loadMore} disabled={busy} style={{ ...primary, marginTop: 8, opacity: busy ? 0.5 : 1 }}>
+            {busy ? '…' : (lang === 'ar' ? 'جولة تانية ↻' : 'NOCH EINE RUNDE ↻')}
+          </button>
+          <button onClick={onClose} style={{ ...ghost, padding: '11px 16px' }}>{lang === 'ar' ? 'تمام' : 'FERTIG'}</button>
         </div>
       )}
 

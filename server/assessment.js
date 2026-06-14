@@ -16,7 +16,7 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth }        from './auth.js';
+import { requireAuth, planOf }  from './auth.js';
 import { transcribeAudio }    from './planGuide.js';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
 
@@ -24,6 +24,17 @@ export const assessmentRouter = express.Router();
 
 const ANALYSIS_MODEL = process.env.OAI_PLAN_MODEL ?? 'gpt-4o-mini';
 const OAI_CHAT       = 'https://api.openai.com/v1/chat/completions';
+
+// Re-assessment: an ACTIVE PAID plan gets a fresh assessment roughly every month (this is the
+// Elite "monatliche Neu-Einstufung"); the free tier stays one-per-account-ever. planOf() already
+// reverts an expired plan to free, so an expired user can't re-assess.
+const REASSESS_DAYS = 28;
+function canStartAssessment(profile, account) {
+  if (!profile.assessmentUsed) return true;                 // never taken → allowed
+  if (planOf(account) === 'free') return false;             // free: one ever
+  const at = profile.assessmentResult?.at || 0;             // paid: monthly
+  return (Date.now() - at) >= REASSESS_DAYS * 24 * 60 * 60 * 1000;
+}
 
 const SYSTEM_PROMPT =
 `Du bist ein erfahrener, fairer Deutsch-Prüfer für ägyptische Bewerber (Zielmarkt: deutsche
@@ -61,7 +72,8 @@ HARTE REGELN:
 assessmentRouter.get('/assessment/status', requireAuth, async (req, res) => {
   try {
     const p = await loadUser(req.account.id);
-    res.json({ used: !!p.assessmentUsed, result: p.assessmentResult || null, limit: FREE_ASSESSMENTS });
+    const eligible = canStartAssessment(p, req.account);
+    res.json({ used: !eligible, result: p.assessmentResult || null, limit: FREE_ASSESSMENTS, canReassess: eligible && !!p.assessmentUsed });
   } catch (err) {
     console.error('[assessment] status error:', err.message);
     res.status(500).json({ error: 'status_failed' });
@@ -75,7 +87,7 @@ assessmentRouter.post('/assessment/transcribe',
   async (req, res) => {
     try {
       const p = await loadUser(req.account.id);
-      if (p.assessmentUsed) return res.status(403).json({ error: 'assessment_used' });
+      if (!canStartAssessment(p, req.account)) return res.status(403).json({ error: 'assessment_used' });
 
       const audio = req.body;
       if (!Buffer.isBuffer(audio) || audio.length < 1000) return res.status(400).json({ error: 'empty_audio' });
@@ -94,7 +106,7 @@ assessmentRouter.post('/assessment/analyze', requireAuth, async (req, res) => {
   try {
     const p = await loadUser(req.account.id);
     // Idempotent: if already used, return the stored verdict (never re-charge / re-run).
-    if (p.assessmentUsed && p.assessmentResult) return res.json({ result: p.assessmentResult, alreadyUsed: true });
+    if (!canStartAssessment(p, req.account) && p.assessmentResult) return res.json({ result: p.assessmentResult, alreadyUsed: true });
 
     const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
     const clean = answers
