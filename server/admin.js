@@ -13,7 +13,7 @@
  */
 import express from 'express';
 import { timingSafeEqual } from 'crypto';
-import { getAccountById, activatePlan } from './auth.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, planOf } from './auth.js';
 import { loadPayments, savePayments }   from './paymentsStore.js';
 
 export const adminRouter = express.Router();
@@ -42,7 +42,8 @@ adminRouter.get('/admin/payments', async (req, res) => {
   const all = await loadPayments();
   const pending   = all.filter((p) => p.status === 'pending').sort((a, b) => a.createdAt - b.createdAt);
   const activated = all.filter((p) => p.status === 'activated').sort((a, b) => (b.activatedAt || 0) - (a.activatedAt || 0)).slice(0, 20);
-  res.json({ pending, activated });
+  const deactivated = all.filter((p) => p.status === 'deactivated').sort((a, b) => (b.deactivatedAt || 0) - (a.deactivatedAt || 0)).slice(0, 10);
+  res.json({ pending, activated, deactivated });
 });
 
 adminRouter.post('/admin/activate', async (req, res) => {
@@ -74,6 +75,33 @@ adminRouter.post('/admin/reject', async (req, res) => {
   } catch (e) { console.error('[admin] reject error:', e.message); res.status(500).json({ error: 'reject_failed' }); }
 });
 
+// Manually DEACTIVATE a paid user's plan (revoke access). Target by { userId } (from a row)
+// or { email } (free-text box). Reverts the account to free immediately and marks that user's
+// activated payment(s) as 'deactivated' so they move to the "deaktiviert" list.
+adminRouter.post('/admin/deactivate', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const body = req.body || {};
+    let acc = null;
+    if (body.userId)     acc = await getAccountById(body.userId);
+    else if (body.email) acc = await getAccountByEmail(String(body.email).trim());
+    if (!acc) return res.status(404).json({ error: 'account_not_found' });
+
+    await deactivatePlan(acc);   // subscription → free; planOf() returns 'free' on next request
+
+    // Move this user's activated payment(s) into the deactivated list (history + clears the row).
+    const all = await loadPayments();
+    let changed = false;
+    for (const p of all) {
+      if (p.userId === acc.id && p.status === 'activated') { p.status = 'deactivated'; p.deactivatedAt = Date.now(); changed = true; }
+    }
+    if (changed) await savePayments(all);
+
+    console.log(`[admin] DEACTIVATED  user=${acc.id}  email=${acc.email ?? '—'}  plan_now=${planOf(acc)}`);
+    res.json({ ok: true, email: acc.email, plan: planOf(acc) });
+  } catch (e) { console.error('[admin] deactivate error:', e.message); res.status(500).json({ error: 'deactivate_failed' }); }
+});
+
 // Self-contained panel. Reads the key from its own URL; values rendered via textContent (no XSS).
 const PANEL_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OMNI-PERFORM · Zahlungen</title><style>
@@ -88,8 +116,14 @@ button{cursor:pointer;border:none;border-radius:6px;padding:7px 12px;font-weight
 <h1>💳 Zahlungen — Aktivierung</h1>
 <div class="muted" style="font-size:11px">Verify-first: aktiviere erst, nachdem du das Geld per Vodafone Cash bestätigt hast (Referenz-Code abgleichen).</div>
 <div id="err" style="color:#fca5a5;font-size:12px;margin-top:8px"></div>
+<div style="margin-top:12px;padding:10px 12px;border:1px solid #ef4444;border-radius:8px;background:rgba(239,68,68,0.06)">
+  <div style="font-size:11px;color:#fca5a5;margin-bottom:6px">Plan manuell deaktivieren (per E-Mail) — entzieht den bezahlten Zugang sofort.</div>
+  <input id="deacEmail" type="email" placeholder="email@beispiel.com" style="padding:7px 9px;border-radius:6px;border:1px solid #334155;background:#0a0f1a;color:#e2e8f0;font-size:12px;width:58%;max-width:260px">
+  <button id="deacBtn" class="rej" onclick="deactivateByEmail()">Deaktivieren</button>
+</div>
 <h2>OFFEN / PENDING</h2><div id="pending"></div>
 <h2>ZULETZT AKTIVIERT (20)</h2><div id="activated"></div>
+<h2>ZULETZT DEAKTIVIERT (10)</h2><div id="deactivated"></div>
 <script>
 var KEY=new URLSearchParams(location.search).get('key')||'';
 function fmtMoney(n){return Number(n||0).toLocaleString('de-DE')+' EGP';}
@@ -98,7 +132,7 @@ function cell(txt){var td=document.createElement('td');td.textContent=txt;return
 function load(){
   fetch('/admin/payments?key='+encodeURIComponent(KEY)).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(function(d){
     document.getElementById('err').textContent='';
-    renderPending(d.pending||[]); renderActivated(d.activated||[]);
+    renderPending(d.pending||[]); renderActivated(d.activated||[]); renderDeactivated(d.deactivated||[]);
   }).catch(function(e){document.getElementById('err').textContent='Fehler beim Laden ('+e.message+') — Key korrekt?';});
 }
 function renderPending(rows){
@@ -115,8 +149,8 @@ function renderPending(rows){
     tr.appendChild(cell(fmtMoney(p.amountEGP)));
     tr.appendChild(cell(fmtTime(p.createdAt)));
     var act=document.createElement('td');
-    var b1=document.createElement('button');b1.className='act';b1.textContent='Aktivieren';b1.onclick=function(){doAction('/admin/activate',p.id,b1);};
-    var b2=document.createElement('button');b2.className='rej';b2.textContent='Ablehnen';b2.onclick=function(){doAction('/admin/reject',p.id,b2);};
+    var b1=document.createElement('button');b1.className='act';b1.textContent='Aktivieren';b1.onclick=function(){doAction('/admin/activate',{id:p.id},b1);};
+    var b2=document.createElement('button');b2.className='rej';b2.textContent='Ablehnen';b2.onclick=function(){doAction('/admin/reject',{id:p.id},b2);};
     act.appendChild(b1);act.appendChild(b2);tr.appendChild(act);
     t.appendChild(tr);
   });
@@ -126,7 +160,7 @@ function renderActivated(rows){
   var box=document.getElementById('activated');box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="empty">Noch keine.</div>';return;}
   var t=document.createElement('table');
-  t.innerHTML='<tr><th>Code</th><th>User</th><th>Plan</th><th>Betrag</th><th>Aktiviert am</th></tr>';
+  t.innerHTML='<tr><th>Code</th><th>User</th><th>Plan</th><th>Betrag</th><th>Aktiviert am</th><th></th></tr>';
   rows.forEach(function(p){
     var tr=document.createElement('tr');
     tr.appendChild(cell(p.referenceCode));
@@ -134,15 +168,39 @@ function renderActivated(rows){
     tr.appendChild(cell((p.plan||'').toUpperCase()+' / '+(p.billingPeriod==='yearly'?'Jahr':'Monat')));
     tr.appendChild(cell(fmtMoney(p.amountEGP)));
     tr.appendChild(cell(fmtTime(p.activatedAt)));
+    var act=document.createElement('td');
+    var bd=document.createElement('button');bd.className='rej';bd.textContent='Deaktivieren';
+    bd.onclick=function(){if(confirm('Plan für '+(p.email||p.userId)+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))doAction('/admin/deactivate',{userId:p.userId},bd);};
+    act.appendChild(bd);tr.appendChild(act);
     t.appendChild(tr);
   });
   box.appendChild(t);
 }
-function doAction(path,id,btn){
-  btn.disabled=true;btn.textContent='…';
-  fetch(path+'?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,key:KEY})})
-    .then(function(r){return r.json();}).then(function(d){if(d&&d.ok){load();}else{document.getElementById('err').textContent='Aktion fehlgeschlagen: '+((d&&d.error)||'?');btn.disabled=false;}})
-    .catch(function(e){document.getElementById('err').textContent='Netzwerkfehler.';btn.disabled=false;});
+function renderDeactivated(rows){
+  var box=document.getElementById('deactivated');box.innerHTML='';
+  if(!rows.length){box.innerHTML='<div class="empty">Keine.</div>';return;}
+  var t=document.createElement('table');
+  t.innerHTML='<tr><th>User</th><th>Plan</th><th>Deaktiviert am</th></tr>';
+  rows.forEach(function(p){
+    var tr=document.createElement('tr');
+    tr.appendChild(cell(p.email||p.userId));
+    tr.appendChild(cell((p.plan||'').toUpperCase()));
+    tr.appendChild(cell(fmtTime(p.deactivatedAt)));
+    t.appendChild(tr);
+  });
+  box.appendChild(t);
+}
+function doAction(path,payload,btn){
+  var label=btn.textContent;btn.disabled=true;btn.textContent='…';
+  fetch(path+'?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:KEY},payload))})
+    .then(function(r){return r.json();}).then(function(d){if(d&&d.ok){load();}else{document.getElementById('err').textContent='Aktion fehlgeschlagen: '+((d&&d.error)||'?');btn.disabled=false;btn.textContent=label;}})
+    .catch(function(e){document.getElementById('err').textContent='Netzwerkfehler.';btn.disabled=false;btn.textContent=label;});
+}
+function deactivateByEmail(){
+  var i=document.getElementById('deacEmail');var email=(i.value||'').trim();
+  if(!email){document.getElementById('err').textContent='Bitte eine E-Mail eingeben.';return;}
+  if(!confirm('Plan für '+email+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))return;
+  doAction('/admin/deactivate',{email:email},document.getElementById('deacBtn'));
 }
 load();
 </script></body></html>`;

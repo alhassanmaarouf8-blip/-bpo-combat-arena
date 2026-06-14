@@ -105,7 +105,7 @@ export function verifyToken(token) {
 export async function getAccountById(id) {
   return (await load()).accounts[id] || null;
 }
-async function getAccountByEmail(email) {
+export async function getAccountByEmail(email) {
   const s = await load();
   const id = s.emailIndex[String(email).toLowerCase()];
   return id ? s.accounts[id] : null;
@@ -203,6 +203,24 @@ export async function activatePlan(account, plan, billingPeriod) {
   return account;
 }
 
+// Manually REVOKE a paid plan (admin action). Reverts the account to free immediately:
+// clears the explicit plan, drops any legacy pro/team grant (tier→trial), and expires the
+// billing window so planOf() returns 'free' on the very next request. Note: an ADMIN_EMAIL
+// account always resolves to elite (owner override) and is unaffected by this.
+export async function deactivatePlan(account) {
+  const now = Date.now();
+  account.subscription = {
+    ...account.subscription,
+    plan: null,
+    tier: 'trial',
+    billingPeriodEnd: now,        // expired now (planOf falls back to free)
+    deactivatedAt: now,
+    activatedNoticePending: false,
+  };
+  await persist();
+  return account;
+}
+
 // Owner/admin recognition: ADMIN_EMAIL is a comma-separated allowlist set on the server.
 // Used to gate the feedback dashboard so only you can read willingness-to-pay data.
 export function isAdminEmail(email) {
@@ -285,8 +303,10 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     account:    publicAccount(req.account),
     // The paid plans straight from plans.config.js (EGP prices + daily minutes — ONE source).
     plans: [PLANS.basic, PLANS.elite],
-    // Manual Vodafone Cash payment details — ONLY from env (never hardcoded). null if unset.
+    // Manual payment details — ONLY from env (never hardcoded). Each is null/hidden if unset.
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
+    instapayAddress: process.env.INSTAPAY_ADDRESS || null,
+    bankInfo:       process.env.BANK_ACCOUNT_INFO || null,
     whatsappNumber: process.env.WHATSAPP_NUMBER || null,
     pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
     paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
