@@ -8,6 +8,7 @@ import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
+import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
@@ -1867,6 +1868,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
+  const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
 
   // Honor the landing promise ("kostenlose Einstufung direkt nach der Anmeldung"): if the user
   // just signed up, auto-open the free assessment ONCE (flag set in AuthScreen on signup).
@@ -2463,6 +2465,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onGoPricing={() => { setShadowingOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
+      {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}
+      {guideOpen && (
+        <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)} />
+      )}
+
       {/* Trainingslager game-map route (study mode — never a Realtime session) */}
       {trainingslagerOpen && (
         <Trainingslager token={auth.token} apiUrl={API_URL} lang={feedbackLang}
@@ -2909,6 +2916,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             borderRadius:8, border:'1px solid #22d3ee', color:'#22d3ee',
             background:'rgba(34,211,238,0.06)' }}>
             🗣️  SHADOWING · تمرين الترديد
+          </button>
+        )}
+
+        {/* Alhassan mentor chat (idle only) — free guide with total recall */}
+        {canStart && (
+          <button onClick={() => setGuideOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #34d399', color:'#34d399',
+            background:'rgba(52,211,153,0.06)' }}>
+            🧭  الحسن · اسأل دليلك
           </button>
         )}
 
