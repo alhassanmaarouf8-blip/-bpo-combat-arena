@@ -1483,6 +1483,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [submitted, setSubmitted]   = useState(false);
   const [pendingPayment, setPendingPayment] = useState(null); // server source of truth
   const [paymentRejected, setPaymentRejected] = useState(false);
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
@@ -1499,6 +1500,38 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const fmt = (n) => Number(n || 0).toLocaleString('de-DE');   // 1299 → "1.299"
   // Short reference code the user writes in their Vodafone Cash transfer note (last 6 of id).
   const refCode = accountId ? accountId.slice(-6).toUpperCase() : '------';
+
+  // Post-payment "send proof" actions: copy the reference code, and (if a WhatsApp number is
+  // configured) one-tap open WhatsApp prefilled with the code so the customer isn't stranded
+  // during the manual-activation wait. Copy works always; the WhatsApp button appears once
+  // WHATSAPP_NUMBER is set on the server. Reduces the post-payment black-box anxiety.
+  const copyCode = (code) => { try { navigator.clipboard?.writeText(String(code)); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } };
+  const waLink = (code) => {
+    const digits = whatsapp ? String(whatsapp).replace(/\D/g, '') : '';
+    if (!digits) return null;
+    const planLabel = pay?.label || (pendingPayment?.plan ? pendingPayment.plan.toUpperCase() : '');
+    const msg = ar
+      ? `أهلاً، دفعت اشتراك OMNI-PERFORM ${planLabel}. كود التحويل بتاعي: ${code}`
+      : `Hallo, ich habe für OMNI-PERFORM ${planLabel} bezahlt. Mein Überweisungs-Code: ${code}`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+  };
+  const proofActions = (code) => (
+    <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:9 }}>
+      {waLink(code) && (
+        <a href={waLink(code)} target="_blank" rel="noopener noreferrer"
+          style={{ display:'block', textAlign:'center', textDecoration:'none', padding:'13px', minHeight:48, lineHeight:'22px',
+            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.06em', borderRadius:9, fontWeight:700,
+            color:'#04130c', background:'linear-gradient(135deg,#34d399,#10b981)', border:'1px solid #34d399' }}>
+          💬 {ar ? 'ابعت إثبات الدفع على واتساب' : 'Zahlungsbeleg per WhatsApp senden'}
+        </a>
+      )}
+      <button onClick={() => copyCode(code)}
+        style={{ width:'100%', padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:11,
+          borderRadius:8, border:'1px dashed #fbbf24', background:'rgba(251,191,36,0.08)', color:'#fbbf24' }}>
+        {copied ? (ar ? 'تم نسخ الكود ✓' : 'Code kopiert ✓') : (ar ? `انسخ الكود · ${code}` : `Code kopieren · ${code}`)}
+      </button>
+    </div>
+  );
 
   // Tap "I paid": record a PENDING request. Grants NO access — the owner verifies & activates.
   const onPaid = async () => {
@@ -1532,6 +1565,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         <div style={{ fontSize:12.5, color:'#cbd5e1', marginTop:14, lineHeight:1.65 }}>
           Anfrage erhalten! Dein Plan wird innerhalb von 30 Minuten nach Zahlungsbestätigung aktiviert. Stelle sicher, dass du den Code <b style={{ color:'#fbbf24' }}>{refCode}</b> in der Überweisung angegeben hast.
         </div>
+        {proofActions(refCode)}
       </div>
       <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
         fontFamily:'Orbitron,monospace', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
@@ -1619,6 +1653,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         <div style={{ fontSize:12.5, color:'#94a3b8', marginTop:14, lineHeight:1.65 }}>
           Deine Anfrage ist da ✅ — wir prüfen gerade die Zahlung. Dein Plan wird innerhalb von 30 Minuten aktiviert. Dein Code: <b style={{ color:'#fbbf24' }}>{code}</b>.
         </div>
+        {proofActions(code)}
       </div>
       <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
         fontFamily:'Orbitron,monospace', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
