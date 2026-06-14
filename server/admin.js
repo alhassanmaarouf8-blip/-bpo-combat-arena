@@ -13,8 +13,9 @@
  */
 import express from 'express';
 import { timingSafeEqual } from 'crypto';
-import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, planOf } from './auth.js';
-import { loadPayments, savePayments }   from './paymentsStore.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf } from './auth.js';
+import { loadPayments, savePayments, deletePaymentsFor } from './paymentsStore.js';
+import { deleteUser }                    from './store.js';
 
 export const adminRouter = express.Router();
 
@@ -118,6 +119,29 @@ adminRouter.get('/admin/account', async (req, res) => {
   } catch (e) { console.error('[admin] account lookup error:', e.message); res.status(500).json({ error: 'lookup_failed' }); }
 });
 
+// PERMANENTLY delete an account (admin action) — separate from deactivate. Removes the login
+// record + frees the email (auth store), the progress profile (store), and all payment records
+// (paymentsStore) for this user id only. Idempotent/graceful: a missing email → 404, never a
+// crash. After this the email can sign up again from scratch and the old login cannot sign in.
+adminRouter.post('/admin/delete-account', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const body = req.body || {};
+    let acc = null;
+    if (body.userId)     acc = await getAccountById(body.userId);
+    else if (body.email) acc = await getAccountByEmail(String(body.email).trim());
+    if (!acc) return res.status(404).json({ error: 'account_not_found' });
+
+    const id = acc.id, email = acc.email;
+    await deleteAccount(acc);            // 1) login + emailIndex (so signup sees it as brand-new)
+    await deleteUser(id);               // 2) progress/assessment profile keyed by user id
+    const paymentsRemoved = await deletePaymentsFor(id);  // 3) all payment records for this user
+
+    console.log(`[admin] DELETED ACCOUNT  user=${id}  email=${email ?? '—'}  paymentsRemoved=${paymentsRemoved}`);
+    res.json({ ok: true, email, deleted: true, paymentsRemoved });
+  } catch (e) { console.error('[admin] delete-account error:', e.message); res.status(500).json({ error: 'delete_failed' }); }
+});
+
 // Self-contained panel. Reads the key from its own URL; values rendered via textContent (no XSS).
 const PANEL_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OMNI-PERFORM · Zahlungen</title><style>
@@ -127,6 +151,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px} th,td{text-align:lef
 th{color:#64748b;font-weight:600;font-size:10.5px;letter-spacing:.05em} code{color:#fbbf24;font-weight:700;font-size:13px}
 button{cursor:pointer;border:none;border-radius:6px;padding:7px 12px;font-weight:700;font-size:11px;margin-right:6px}
 .act{background:#10b981;color:#04130c} .rej{background:#1e293b;color:#fca5a5;border:1px solid #ef4444}
+.del{background:#dc2626;color:#fff;border:1px solid #fecaca;font-weight:800}
 .muted{color:#64748b} .empty{color:#64748b;font-style:italic;padding:12px 6px}
 </style></head><body>
 <h1>💳 Zahlungen — Aktivierung</h1>
@@ -139,6 +164,8 @@ button{cursor:pointer;border:none;border-radius:6px;padding:7px 12px;font-weight
   <input id="deacEmail" type="email" placeholder="email@beispiel.com" style="padding:7px 9px;border-radius:6px;border:1px solid #334155;background:#0a0f1a;color:#e2e8f0;font-size:12px;width:48%;max-width:230px">
   <button id="statBtn" class="act" style="background:#334155;color:#e2e8f0" onclick="checkStatus()">Status prüfen</button>
   <button id="deacBtn" class="rej" onclick="deactivateByEmail()">Deaktivieren</button>
+  <button id="delBtn" class="del" onclick="delByEmail()">Konto löschen</button>
+  <div style="font-size:10px;color:#fca5a5;margin-top:6px"><b>Deaktivieren</b> = Plan → FREE, Login bleibt. &nbsp;|&nbsp; <b style="color:#fff;background:#dc2626;padding:0 4px;border-radius:3px">Konto löschen</b> = alles weg, E-Mail wird frei (unwiderruflich).</div>
 </div>
 <h2>OFFEN / PENDING</h2><div id="pending"></div>
 <h2>ZULETZT AKTIVIERT (20)</h2><div id="activated"></div>
@@ -192,7 +219,9 @@ function renderActivated(rows){
     var act=document.createElement('td');
     var bd=document.createElement('button');bd.className='rej';bd.textContent='Deaktivieren';
     bd.onclick=function(){if(confirm('Plan für '+(p.email||p.userId)+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))deactivate({userId:p.userId},bd);};
-    act.appendChild(bd);tr.appendChild(act);
+    var dl=document.createElement('button');dl.className='del';dl.textContent='Konto löschen';
+    dl.onclick=function(){delAccount({userId:p.userId},(p.email||p.userId),dl);};
+    act.appendChild(bd);act.appendChild(dl);tr.appendChild(act);
     t.appendChild(tr);
   });
   box.appendChild(t);
@@ -232,6 +261,25 @@ function deactivateByEmail(){
   if(!confirm('Plan für '+email+' wirklich deaktivieren? Der Zugang wird sofort entzogen.'))return;
   deactivate({email:email},document.getElementById('deacBtn'));
 }
+function delAccount(payload,email,btn){
+  if(!confirm('KONTO PERMANENT LÖSCHEN: '+email+'  —  löscht das Login UND alle Daten und gibt die E-Mail wieder frei. Unwiderruflich. Fortfahren?'))return;
+  var typed=prompt('Letzte Bestätigung — zum endgültigen Löschen die E-Mail eintippen ('+email+'):');
+  if(typed===null)return;
+  if(typed.trim().toLowerCase()!==String(email).trim().toLowerCase()){showErr('E-Mail stimmt nicht überein — Löschen abgebrochen.');return;}
+  var label=btn.textContent;btn.disabled=true;btn.textContent='…';
+  fetch('/admin/delete-account?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:KEY},payload))})
+    .then(function(r){return r.json();}).then(function(d){
+      btn.disabled=false;btn.textContent=label;
+      if(d&&d.ok){showOk('🗑️ '+(d.email||email)+' PERMANENT gelöscht — E-Mail ist jetzt frei. Diese Person muss sich neu registrieren.');load();}
+      else if(d&&d.error==='account_not_found'){showErr('Kein Konto mit dieser E-Mail (evtl. schon gelöscht).');}
+      else{showErr('Löschen fehlgeschlagen: '+((d&&d.error)||'?'));}
+    }).catch(function(){btn.disabled=false;btn.textContent=label;showErr('Netzwerkfehler.');});
+}
+function delByEmail(){
+  var email=(document.getElementById('deacEmail').value||'').trim();
+  if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
+  delAccount({email:email},email,document.getElementById('delBtn'));
+}
 function checkStatus(){
   var email=(document.getElementById('deacEmail').value||'').trim();
   if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
@@ -239,8 +287,8 @@ function checkStatus(){
   fetch('/admin/account?key='+encodeURIComponent(KEY)+'&email='+encodeURIComponent(email))
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent=label;
-      if(d&&d.found){showOk('Status '+d.email+' → Plan: '+String(d.plan).toUpperCase()+(d.plan==='free'?' (kein bezahlter Zugang)':' (aktiv)'));}
-      else{showErr('Kein Konto mit dieser E-Mail.');}
+      if(d&&d.found){showOk('Status '+d.email+' → REGISTRIERT · Plan: '+String(d.plan).toUpperCase()+(d.plan==='free'?' (kein bezahlter Zugang)':' (aktiv)'));}
+      else{showOk('Status '+email+' → NICHT REGISTRIERT (kein Konto — E-Mail ist frei).');}
     }).catch(function(){btn.disabled=false;btn.textContent=label;showErr('Netzwerkfehler.');});
 }
 load();

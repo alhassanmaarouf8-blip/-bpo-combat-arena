@@ -4,11 +4,11 @@
  * This is the single seam Phase 6 will swap for a real multi-tenant DB — the rest of
  * the app only touches loadUser()/saveUser(), never the storage details.
  */
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { existsSync }                 from 'fs';
 import path                           from 'path';
 import { fileURLToPath }              from 'url';
-import { dbEnabled, kvGet, kvSet }    from './db.js';
+import { dbEnabled, kvGet, kvSet, kvDel } from './db.js';
 
 const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'users');
 const cache    = new Map();
@@ -70,4 +70,13 @@ export async function saveUser(profile) {
     await writeFile(path.join(DATA_DIR, `${id}.json`), JSON.stringify(profile, null, 2), 'utf8');
   }
   return profile;
+}
+
+// Hard-delete a user's progress profile (cache + DB row / file). Used by admin account
+// deletion. Missing data is fine — deletion is idempotent and never throws on absence.
+export async function deleteUser(userId) {
+  const id = safeId(userId);
+  cache.delete(id);
+  if (dbEnabled()) { await kvDel(NS, id); return; }
+  try { await rm(path.join(DATA_DIR, `${id}.json`), { force: true }); } catch { /* already gone */ }
 }

@@ -80,3 +80,10 @@ export async function kvSet(namespace, key, value) {
     [namespace, key, JSON.stringify(value)],
   );
 }
+
+// Hard-delete one row (used by admin account deletion to remove a user's profile).
+export async function kvDel(namespace, key) {
+  await ensureReady();
+  const pool = await getPool();
+  await pool.query('DELETE FROM kv_store WHERE namespace = $1 AND key = $2', [namespace, key]);
+}

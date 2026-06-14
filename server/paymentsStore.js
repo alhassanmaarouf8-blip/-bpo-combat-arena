@@ -22,6 +22,15 @@ export async function savePayments(all) {
 // Reference code the user writes in the Vodafone transfer note (last 6 of the userId).
 export function refCodeFor(userId) { return String(userId || '').slice(-6).toUpperCase(); }
 
+// Hard-delete ALL payment records for one user (admin account deletion). Returns how many
+// were removed. Only rewrites the store if something actually matched.
+export async function deletePaymentsFor(userId) {
+  const all  = await loadPayments();
+  const kept = all.filter((p) => p.userId !== userId);
+  if (kept.length !== all.length) await savePayments(kept);
+  return all.length - kept.length;
+}
+
 // The user's current pending payment (if any), and whether their most recent one was rejected.
 export async function paymentStatusFor(userId) {
   const all  = await loadPayments();

@@ -221,6 +221,21 @@ export async function deactivatePlan(account) {
   return account;
 }
 
+// Hard-delete the login record AND free the email (admin action). After this, getAccountById
+// returns null (cannot sign in) and createAccount sees the email as brand-new (can sign up
+// again). Only touches THIS account's two entries — never any other account. Returns false if
+// the account no longer exists (already deleted), so the caller can report it gracefully.
+export async function deleteAccount(account) {
+  const s = await load();
+  const id = account?.id;
+  if (!id || !s.accounts[id]) return false;
+  const email = String(account.email || '').toLowerCase();
+  delete s.accounts[id];
+  if (email && s.emailIndex[email] === id) delete s.emailIndex[email];
+  await persist();
+  return true;
+}
+
 // Owner/admin recognition: ADMIN_EMAIL is a comma-separated allowlist set on the server.
 // Used to gate the feedback dashboard so only you can read willingness-to-pay data.
 export function isAdminEmail(email) {
