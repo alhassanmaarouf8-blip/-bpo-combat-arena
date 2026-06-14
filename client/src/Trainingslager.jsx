@@ -168,7 +168,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
         <MapNode key={n.ruleId} node={n} x={pts[i].x} y={pts[i].y} lang={lang}
           onOpen={() => n.state === 'available' && tapNode(n.ruleId)} />
       ))}
-      <BossNode x={bossPt.x} y={bossPt.y} state={bossState} lang={lang} onChallenge={tapBoss} />
+      <BossNode x={bossPt.x} y={bossPt.y} state={bossState} planBlocked={planBlocked} lang={lang} onChallenge={tapBoss} />
     </div>
 
     {/* One-time suggestion to do the monthly re-assessment, once the whole path is done */}
@@ -189,16 +189,17 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
         onPlanRequired={() => { setOpenId(null); setUpsell(true); }} />
     )}
 
-    {/* Free-user upsell (only when the plan flag is ON). Honest, no dark patterns. */}
+    {/* Upsell for free/expired users only (paid plans unlock everything). Honest, no dark patterns. */}
     {upsell && (
       <div onClick={() => setUpsell(false)} style={{ position: 'absolute', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
         padding: 20, background: 'rgba(3,7,10,0.72)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: '100%', borderRadius: 16, padding: 20, textAlign: 'center',
           background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))', border: '1px solid rgba(251,191,36,0.35)' }}>
-          <div style={{ fontSize: 34 }}>🗺️</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24', marginTop: 6 }}>{T(lang, 'Dein Trainingsplan ist fertig', 'خطتك جاهزة')}</div>
+          <div style={{ fontSize: 34 }}>🏕️</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24', marginTop: 6 }}>{T(lang, 'Trainingslager freischalten', 'افتح الـTrainingslager')}</div>
           <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 6 }}>
-            {T(lang, 'Schalte ihn frei und fang an zu trainieren.', 'افتحها وابدأ التمرين.')}
+            {T(lang, 'Jeder bezahlte Plan (Basic oder Elite) öffnet das volle Trainingslager und das Boss-Tor — Lektionen und Videos, die auf deine eigenen Interview-Fehler zugeschnitten sind.',
+                     'أي خطة مدفوعة (Basic أو Elite) بتفتح الـTrainingslager كامل وبوابة التحدي — دروس وفيديوهات متفصّلة على أخطائك في الإنترفيو.')}
           </div>
           <button onClick={() => { setUpsell(false); onGoPricing?.(); }} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Plan wählen', 'اختار خطة')} ▸</button>
           <button onClick={() => setUpsell(false)} style={{ ...ghost, marginTop: 10, width: '100%' }}>{T(lang, 'Später', 'بعدين')}</button>
@@ -416,23 +417,44 @@ function MapNode({ node, x, y, lang, onOpen }) {
   );
 }
 
-function BossNode({ x, y, state, lang, onChallenge }) {
-  const unlocked = state === 'available';
+// Three boss states:
+//   • AVAILABLE     (paid, path finished)    → amber castle, tap to FIGHT.
+//   • PLAN-LOCKED   (free/expired)           → amber lock, tap to UPGRADE (not a dead-end).
+//   • PROGRESS-LOCK (paid, path unfinished)  → slate padlock, passive + "finish stations".
+// Plan-locked and available are both TAPPABLE; only the progress lock is passive.
+function BossNode({ x, y, state, planBlocked, lang, onChallenge }) {
+  const unlocked   = state === 'available';
+  const planLocked = !unlocked && planBlocked;     // free/expired only
+  const tappable   = unlocked || planLocked;       // upgrading is an action too
   const size = 76;
+  const ring = unlocked ? '#f59e0b' : planLocked ? '#fbbf24' : '#475569';
   return (
     <div style={{ position: 'absolute', left: `${x}%`, top: y, width: size, height: size, transform: 'translate(-50%,-50%)' }}>
-      {unlocked && <span className="tl-ring-el" style={{ position: 'absolute', left: '50%', top: '50%', width: size, height: size, borderRadius: '50%', border: '2px solid #f59e0b', pointerEvents: 'none' }} />}
-      <button className={unlocked ? 'tl-avail' : undefined} onClick={() => unlocked && onChallenge?.()} disabled={!unlocked}
-        style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: unlocked ? 'pointer' : 'default',
-          fontSize: 32, border: `3px solid ${unlocked ? '#f59e0b' : '#475569'}`, color: '#fff',
-          background: unlocked ? 'radial-gradient(circle, rgba(245,158,11,0.25), rgba(245,158,11,0.05))' : 'rgba(255,255,255,0.03)',
-          boxShadow: unlocked ? '0 0 26px rgba(245,158,11,0.5)' : 'none', opacity: unlocked ? 1 : 0.55, filter: unlocked ? 'none' : 'grayscale(1)' }}>
+      {tappable && <span className="tl-ring-el" style={{ position: 'absolute', left: '50%', top: '50%', width: size, height: size, borderRadius: '50%', border: `2px solid ${ring}`, pointerEvents: 'none' }} />}
+      <button className={tappable ? 'tl-avail' : undefined} onClick={() => tappable && onChallenge?.()} disabled={!tappable}
+        aria-label={planLocked ? T(lang, 'Boss-Tor — bezahlter Plan nötig, tippen zum Freischalten', 'بوابة التحدي — محتاج خطة مدفوعة، دوس للفتح')
+                  : unlocked ? T(lang, 'Boss-Tor — tippen zum Kämpfen', 'بوابة التحدي — دوس للتحدي')
+                  : T(lang, 'Boss-Tor — erst alle Stationen abschließen', 'بوابة التحدي — خلّص المحطات الأول')}
+        style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: tappable ? 'pointer' : 'default',
+          fontSize: 32, border: `3px solid ${ring}`, color: '#fff',
+          background: unlocked ? 'radial-gradient(circle, rgba(245,158,11,0.25), rgba(245,158,11,0.05))'
+                    : planLocked ? 'radial-gradient(circle, rgba(251,191,36,0.18), rgba(251,191,36,0.04))'
+                    : 'rgba(255,255,255,0.03)',
+          boxShadow: unlocked ? '0 0 26px rgba(245,158,11,0.5)' : planLocked ? '0 0 20px rgba(251,191,36,0.3)' : 'none',
+          opacity: unlocked ? 1 : planLocked ? 0.95 : 0.55, filter: tappable ? 'none' : 'grayscale(1)' }}>
         {unlocked ? '🏰' : '🔒'}
       </button>
-      <div style={{ position: 'absolute', top: size + 6, left: '50%', transform: 'translateX(-50%)', width: 180, textAlign: 'center' }}>
-        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 11, fontWeight: 900, letterSpacing: 1, color: unlocked ? '#fbbf24' : '#64748b' }}>BOSS-TOR</div>
-        <div dir="rtl" style={{ fontSize: 10, color: unlocked ? '#94a3b8' : '#475569' }}>بوابة التحدي</div>
+      <div style={{ position: 'absolute', top: size + 6, left: '50%', transform: 'translateX(-50%)', width: 184, textAlign: 'center' }}>
+        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 11, fontWeight: 900, letterSpacing: 1, color: tappable ? '#fbbf24' : '#64748b' }}>BOSS-TOR</div>
+        <div dir="rtl" style={{ fontSize: 10, color: tappable ? '#94a3b8' : '#475569' }}>بوابة التحدي</div>
         {unlocked && <div style={{ fontSize: 9.5, color: '#fbbf24', marginTop: 3 }}>{T(lang, 'Tippen zum Kämpfen', 'دوس عشان تتحدّى')}</div>}
+        {planLocked && (<>
+          <div style={{ fontSize: 9.5, color: '#fbbf24', marginTop: 3, fontWeight: 700 }}>{T(lang, '🔒 Bezahlter Plan', '🔒 خطة مدفوعة')}</div>
+          <div style={{ fontSize: 9, color: '#cbd5e1', marginTop: 1 }}>{T(lang, 'Tippen zum Freischalten ▸', 'دوس للفتح ▸')}</div>
+        </>)}
+        {!unlocked && !planLocked && (
+          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>{T(lang, 'Erst alle Stationen abschließen', 'خلّص كل المحطات الأول')}</div>
+        )}
       </div>
     </div>
   );

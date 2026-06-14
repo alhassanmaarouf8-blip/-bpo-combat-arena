@@ -15,7 +15,7 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth, isAdminEmail, entitlement } from './auth.js';
+import { requireAuth, isAdminEmail, planOf } from './auth.js';
 import { getLesson, STARTER_PATH } from './lessons.config.js';
 import { LESSON_XP, levelFor }     from './progression.js';
 import { dayKey }                  from './time.js';
@@ -29,10 +29,11 @@ const STARTER_REASON = { de: 'Empfohlener Startpunkt für den Einstieg.', ar: '�
 
 // ── Lesson gate ──────────────────────────────────────────────────────────────
 // The game MAP (diagnosis + path) is visible to everyone — the hook. OPENING a lesson/quiz
-// requires the Trainingslager to be unlocked, which only the Elite plan grants
-// (PLANS.elite.trainingslagerUnlocked; admin counts as elite). Free/Basic see the map and get
-// an honest upsell.
-export function lessonsUnlocked(account) { return !!entitlement(account)?.trainingslagerUnlocked; }
+// requires an ACTIVE PAID plan (Basic OR Elite; admin counts as paid). planOf() already
+// reverts an expired plan to 'free', so an expired subscriber is locked out automatically.
+// Only free/expired users see the map + an upgrade prompt. The recommended lessons & videos
+// are tailored to each user's own interview errors (computeRecommendations) regardless of plan.
+export function lessonsUnlocked(account) { return planOf(account) !== 'free'; }
 function lessonBlocked(account) { return !lessonsUnlocked(account); }
 
 // Boss-Tor is unlocked only when EVERY recommended lesson is done (server-side truth).
