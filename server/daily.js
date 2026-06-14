@@ -12,10 +12,11 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth }        from './auth.js';
+import { requireAuth, planOf } from './auth.js';
 import { dueItems, grade, checkAnswer } from './srs.js';
 import { BPO_PHRASES }        from './scenarios.js';
 import { dayKey }             from './time.js';
+import { generateDrillSet }   from './planGuide.js';
 
 export const dailyRouter = express.Router();
 const DAY = 24 * 60 * 60 * 1000;
@@ -79,13 +80,66 @@ function buildDaily(profile) {
   return { date: dayKey(), ...dailyStatus(profile), source, phrase, questions };
 }
 
-// Grade ONE answer. SRS items advance the schedule; fallback drills just grade.
+// How many generated-drill answers we retain on the profile so /daily/grade can resolve
+// them. Bounded so unlimited sets never grow the record without limit (~3 recent sets).
+const GEN_KEEP = 12;
+
+// Build a FRESH drill set on demand (paid users → unlimited). Tries the cheap gpt-4o-mini
+// path for genuinely new items; on ANY failure falls back to a ROTATING slice of the
+// built-in drills so the endpoint always returns a non-empty set. Generated answers are
+// stored on profile.dailyGen so grading stays deterministic (the model never grades).
+// Does NOT advance the daily streak — pulling extra sets must not let a user farm streaks.
+async function buildFreshSet(profile) {
+  const level = profile.sessions?.slice(-1)[0]?.level === 'b2' ? 'b2' : 'a2-b1';
+  const avoid = (profile.dailyGen || []).map((d) => d.prompt).filter(Boolean);
+
+  let questions = [];
+  let source = 'generated';
+  try {
+    const drills = await generateDrillSet({ count: 4, level, avoid });
+    if (drills.length) {
+      profile.dailyGen = Array.isArray(profile.dailyGen) ? profile.dailyGen : [];
+      const stamp = Date.now().toString(36);
+      questions = drills.map((d, i) => {
+        const id = `gen:${stamp}:${i}`;
+        profile.dailyGen.push({ id, prompt: d.prompt, answer: d.answer, hint: d.hint || null });
+        return { id, kind: 'fix', prompt: d.prompt, hint: d.hint || null, source: 'generated' };
+      });
+      if (profile.dailyGen.length > GEN_KEEP) profile.dailyGen = profile.dailyGen.slice(-GEN_KEEP);
+    }
+  } catch (e) {
+    console.error('[daily] fresh-set generation failed:', e.message);
+  }
+
+  // Fallback (no AI / failure): rotate through the built-in drills — never an empty set.
+  if (!questions.length) {
+    source = 'fallback';
+    const rot   = Number.isInteger(profile.dailyRot) ? profile.dailyRot : 0;
+    const start = rot % FALLBACK_DRILLS.length;
+    for (let k = 0; k < 4; k++) {
+      const fb = FALLBACK_DRILLS[(start + k) % FALLBACK_DRILLS.length];
+      questions.push({ id: fb.id, kind: fb.kind, prompt: fb.prompt, hint: fb.hint, source: 'drill' });
+    }
+    profile.dailyRot = (start + 4) % FALLBACK_DRILLS.length;
+  }
+
+  const phrase = pickByDay(BPO_PHRASES, profile.dailyRot || 0) ?? BPO_PHRASES[0];
+  return { date: dayKey(), ...dailyStatus(profile), source, fresh: true, phrase, questions };
+}
+
+// Grade ONE answer. SRS items advance the schedule; fallback + generated drills just grade.
 function gradeDailyItem(profile, id, answer) {
   if (String(id).startsWith('fb:')) {
     const fb = FALLBACK_DRILLS.find((d) => d.id === id);
     if (!fb) return { error: 'unknown_item' };
     const { correct, note, note_ar } = checkAnswer(answer, fb.answer);
     return { correct, note, note_ar, expected: fb.answer };
+  }
+  if (String(id).startsWith('gen:')) {
+    const g = (profile.dailyGen || []).find((d) => d.id === id);
+    if (!g) return { error: 'unknown_item' };
+    const { correct, note, note_ar } = checkAnswer(answer, g.answer);
+    return { correct, note, note_ar, expected: g.answer };
   }
   const item = (profile.srs || []).find((i) => i.id === id);
   if (!item) return { error: 'unknown_item' };
@@ -111,6 +165,23 @@ dailyRouter.get('/daily', requireAuth, async (req, res) => {
     const p = await loadUser(req.account.id);
     res.json(buildDaily(p));
   } catch (err) { console.error('[daily] get error:', err.message); res.status(500).json({ error: 'daily_failed' }); }
+});
+
+// Request ANOTHER drill set after finishing the current one. Active paid users (basic/elite,
+// not expired) get a FRESH set every call — genuinely unlimited, no one-per-day cap. A
+// free/expired user is held to the normal single daily set (GET /daily) → 402. planOf()
+// already reverts an expired plan to 'free', so expiry is handled here automatically. This
+// touches ONLY text drills; the 7-minute live-voice cap (websocketManager) is untouched.
+dailyRouter.post('/daily/next', requireAuth, async (req, res) => {
+  try {
+    if (planOf(req.account) === 'free') {
+      return res.status(402).json({ error: 'plan_required', reason: 'unlimited_drills_are_paid' });
+    }
+    const p   = await loadUser(req.account.id);
+    const set = await buildFreshSet(p);
+    await saveUser(p);   // persist generated answers + rotation cursor so grading can resolve them
+    res.json(set);
+  } catch (err) { console.error('[daily] next error:', err.message); res.status(500).json({ error: 'daily_failed' }); }
 });
 
 dailyRouter.post('/daily/grade', requireAuth, async (req, res) => {

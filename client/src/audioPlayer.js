@@ -26,11 +26,14 @@ export class AudioPlayer {
    *   volume?:          number,
    * }} opts
    */
-  constructor({ onPlaybackStart, onPlaybackEnd, onError, volume = 1.0 } = {}) {
+  constructor({ onPlaybackStart, onPlaybackEnd, onError, volume = 1.0, realism = null } = {}) {
     this._onStart  = onPlaybackStart ?? (() => {});
     this._onEnd    = onPlaybackEnd   ?? (() => {});
     this._onError  = onError         ?? console.error;
     this._volume   = Math.max(0, Math.min(1, volume));
+    // OUTPUT-ONLY realism processor (telephone/ambience). Optional + fail-safe: if it errors,
+    // the boss voice routes straight to the speakers (clean) so playback can never break.
+    this._realism  = realism;
 
     this._ctx          = null;
     this._gain         = null;
@@ -122,10 +125,27 @@ export class AudioPlayer {
     }
   }
 
+  // ── Attach/replace the OUTPUT-ONLY realism processor (safe before OR during a session) ──
+  setRealism(realism) {
+    try { this._realism?.detach?.(); } catch {}
+    this._realism = realism;
+    // If the context already exists (e.g. a second fight without a dispose), wire it live and
+    // reroute the voice bus. Any failure falls back to the clean direct path.
+    if (this._ctx && this._gain && realism) {
+      try {
+        const input = realism.attach(this._ctx);
+        try { this._gain.disconnect(); } catch {}
+        this._gain.connect(input || this._ctx.destination);
+        if (input) realism.onReconnect?.((ni) => { try { this._gain.disconnect(); } catch {} this._gain.connect(ni || this._ctx.destination); });
+      } catch (err) { try { this._gain.connect(this._ctx.destination); } catch {} this._onError(err); }
+    }
+  }
+
   // ── Release AudioContext ──────────────────────────────────────────────────
 
   async dispose() {
     this.flush();
+    try { this._realism?.detach(); } catch {}   // stop hiss/ambience timers cleanly (no leaks)
     if (this._ctx && this._ctx.state !== 'closed') {
       await this._ctx.close().catch(() => {});
     }
@@ -139,7 +159,24 @@ export class AudioPlayer {
       this._ctx  = new AudioContext({ sampleRate: SAMPLE_RATE });
       this._gain = this._ctx.createGain();
       this._gain.gain.setValueAtTime(this._volume, this._ctx.currentTime);
-      this._gain.connect(this._ctx.destination);
+
+      // Route the voice through the realism processor if present; otherwise straight to output.
+      // Any failure falls back to the clean direct path (intelligibility/playback never breaks).
+      let routed = false;
+      if (this._realism) {
+        try {
+          const input = this._realism.attach(this._ctx);
+          if (input) {
+            this._gain.connect(input);
+            routed = true;
+            this._realism.onReconnect?.((newInput) => {
+              try { this._gain.disconnect(); } catch {}
+              this._gain.connect(newInput || this._ctx.destination);
+            });
+          }
+        } catch (err) { this._onError(err); }
+      }
+      if (!routed) this._gain.connect(this._ctx.destination);
     }
     if (this._ctx.state === 'suspended') await this._ctx.resume();
   }

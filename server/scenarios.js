@@ -112,16 +112,62 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// ── Phase 1: realism delivery block (prosody, native disfluencies, seeded mood) ──────
+// Pure INSTRUCTION TEXT — it never affects the audio pipeline, VAD, scoring, or gates.
+// REALISM SCALES WITH LEVEL: beginners get patient, clearly-enunciated, encouraging delivery;
+// advanced get faster, terser, more impatient. CRITICAL: delivery softens for beginners, the
+// JUDGEMENT does not — the evaluator stays exactly as strict. Disfluencies (ähm, also, ja,
+// Moment, gut, genau, mhm) are NATIVE FILLERS, never grammar errors; German stays correct.
+// `mood` is chosen ONCE per session (seeded, in realtimeClient) and must stay consistent.
+const MOODS = {
+  'sharp-monday': `STIMMUNG (ganze Sitzung gleich): hellwach und fokussiert — knapp, präzise, zügig, aber korrekt.`,
+  'tired-friday': `STIMMUNG (ganze Sitzung gleich): leicht erschöpft, Freitagnachmittag — etwas knapper, schnelleres Tempo, spürbar weniger Geduld. Trotzdem höflich in der Sie-Form. Die BEWERTUNG bleibt unverändert streng.`,
+  'neutral':      `STIMMUNG (ganze Sitzung gleich): sachlich und gefasst, gleichmäßiges Tempo.`,
+};
+
+function deliveryBlock(levelId, mood, clarificationRate = 0) {
+  const beginner = levelId !== 'b2';
+  const moodLine = MOODS[mood] || MOODS.neutral;
+
+  const common =
+    `SPRECHWEISE — klinge wie ein ECHTER, leicht gestresster deutscher HR-Mensch am Telefon, nicht wie ein Vorleser:\n` +
+    `- Streue natürliche Verzögerungslaute sparsam ein: „ähm", „also", „ja", „Moment", „gut", „genau" — das sind ` +
+    `  MUTTERSPRACHLICHE Füllwörter, KEINE Fehler. Dein Deutsch bleibt grammatikalisch korrekt und nativ.\n` +
+    `- Kurze Selbstkorrekturen und Mikro-Pausen sind erlaubt („Ich meine… also konkret:"). Nutze „…" für kurze Pausen.\n` +
+    `- Gib WÄHREND und NACH der Antwort des Kandidaten kurze Hörersignale (Backchannels): „mhm", „ja", „verstehe", ` +
+    `  „genau" — kurz, nie ganze Sätze, und unterbrich damit NICHT.\n` +
+    `- Gelegentlich ein nonverbales Signal: ein kurzer Seufzer oder „hmm" — selten, dezent.\n` +
+    `- Benutze natürliche Kontraktionen („haben Sie's", „gibt's") wie im echten Sprechdeutsch.`;
+
+  const scaled = beginner
+    ? `TEMPO/TON für dieses Niveau (A2–B1): ruhig, GEDULDIG und deutlich artikuliert, ermutigender Grundton. ` +
+      `Wenige Füllwörter, klare Pausen, damit der Kandidat folgen kann. Geduld in der LIEFERUNG — die strenge ` +
+      `Bewertung bleibt davon UNBERÜHRT.`
+    : `TEMPO/TON für dieses Niveau (B2): natürliches bis zügiges Tempo, knapper und spürbar ungeduldiger, ` +
+      `dichtere Nachfragen. Echte Büro-Hektik darf durchklingen.`;
+
+  // Clarification (Phase 5c): occasionally ask the candidate to repeat — realistic AND it
+  // trains recovery. Rare/never for beginners, more frequent for advanced.
+  const clar = clarificationRate > 0
+    ? `\nRÜCKFRAGE: Bitte den Kandidaten GANZ GELEGENTLICH (etwa bei jeder ${Math.max(2, Math.round(1 / clarificationRate))}. Antwort, ` +
+      `nie zweimal hintereinander), etwas zu wiederholen — als hättest du es am Telefon nicht ganz verstanden: ` +
+      `„Entschuldigung, könnten Sie das bitte noch einmal wiederholen?" Danach normal weiter.`
+    : '';
+
+  return `\n${moodLine}\n${common}\n${scaled}${clar}\n`;
+}
+
 /**
  * Build the full per-session script.
  * @param {{ persona:string, displayName:string, greeting:string, levelId?:string }} opts
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle, mood = 'neutral', clarificationRate = 0 }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   const behavioral = pick(BEHAVIORAL_QUESTIONS);
   const cs         = pick(CS_SCENARIOS);
+  const delivery   = deliveryBlock(level.id, mood, clarificationRate);  // Phase 1 prosody/mood
 
   // Memory dossier: a recurring weak rule from past sessions, so the boss can reference
   // the candidate's history once — making it feel like a returning, watchful interviewer.
@@ -150,7 +196,7 @@ Sei lebendig und unvorhersehbar: variiere Tonfall, Formulierungen, Nachfragen un
 Korrigiere den Kandidaten NICHT, solange du ihn verstehst — bleib im Gespräch und erhalte die Immersion.
 Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz und natürlich im Gesprächsfluss.
 ${level.speechStyle}
-${dossierLine}${focusLine}
+${delivery}${dossierLine}${focusLine}
 
 TEIL 1 — SELBSTVORSTELLUNG (ca. 1–2 Wortwechsel):
 Bitte den Kandidaten, sich kurz vorzustellen (Name, Berufserfahrung, Motivation). Hake einmal kurz nach. Gehe dann weiter.

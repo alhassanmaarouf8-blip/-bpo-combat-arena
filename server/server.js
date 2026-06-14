@@ -12,6 +12,7 @@ import { assessmentRouter }  from './assessment.js';
 import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
 import { adminRouter }        from './admin.js';
+import { shadowingRouter }    from './shadowing.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
@@ -57,6 +58,7 @@ app.use('/api', dailyRouter);
 app.use('/api', feedbackRouter);
 app.use('/api', assessmentRouter);
 app.use('/api', trainingslagerRouter);
+app.use('/api', shadowingRouter);
 app.use('/api', paymentsRouter);
 app.use(adminRouter);   // /admin (HTML panel + actions), gated by ADMIN_KEY — not under /api
 

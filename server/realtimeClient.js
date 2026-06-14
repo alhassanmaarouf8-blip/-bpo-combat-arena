@@ -4,7 +4,10 @@ import { buildSessionScript } from './scenarios.js';
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ OpenAI Realtime API config Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const OAI_URL   = 'wss://api.openai.com/v1/realtime';
-const OAI_MODEL = process.env.OAI_MODEL ?? 'gpt-realtime';
+// Newest GA speech-to-speech model (GPT-5-class reasoning). Same audio price as gpt-realtime
+// ($32/$64 per 1M audio in/out). Env-overridable: if a key lacks gpt-realtime-2 access and the
+// session errors model_not_found, set OAI_MODEL=gpt-realtime (no code change, instant fallback).
+const OAI_MODEL = process.env.OAI_MODEL ?? 'gpt-realtime-2';
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ OAI server event types we handle Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const OAI = {
@@ -40,7 +43,7 @@ const BOSS_CONFIGS = {
                  `Sichtbare Verärgerung zeigst du NUR, wenn der Kandidat wirklich unhöflich wird oder komplett ` +
                  `versagt — und auch dann kühl und kontrolliert, nie schreiend. ` +
                  `Du sprichst ausschließlich Deutsch und akzeptierst kein Englisch. Bleibe durchgehend in der Rolle.`,
-    voice:       'alloy',
+    voice:       'cedar',   // newest, most natural OpenAI Realtime voice (was 'alloy')
     aggression:  0.85,
     patienceMs:  2500,
     systemPrompt: `Du bist Herr Tariq, ein ÃƒÂ¤gyptischer HR-Manager in einem deutschen BPO-Unternehmen.
@@ -66,7 +69,7 @@ Beginne das GesprÃƒÂ¤ch mit: "Gut, fangen wir an. Warum sollten wir ausgerec
                  `und reagierst erst danach. ` +
                  `Sichtbare Verärgerung zeigst du NUR bei echter Unhöflichkeit oder komplettem Versagen — kühl, ` +
                  `nie schreiend. Du sprichst ausschließlich Deutsch. Bleibe durchgehend in der Rolle.`,
-    voice:       'alloy',
+    voice:       'marin',   // newest, most natural OpenAI Realtime voice (was 'alloy')
     aggression:  0.5,
     patienceMs:  4000,
     systemPrompt: `Du bist Frau MÃƒÂ¼ller, eine erfahrene Berliner Compliance-Managerin.
@@ -92,7 +95,7 @@ Beginne mit: "Guten Tag. Bitte schildern Sie kurz Ihren beruflichen Werdegang."`
                  `setzt erst danach an; deine Pausen sind Teil der Einschüchterung, nicht das Wort-Abschneiden. ` +
                  `Sichtbare Verärgerung zeigst du NUR bei echter Unhöflichkeit oder totalem Versagen — und dann ` +
                  `eisig kontrolliert, niemals schreiend. Du sprichst ausschließlich Deutsch. Bleibe durchgehend in der Rolle.`,
-    voice:       'alloy',
+    voice:       'cedar',   // newest, most natural OpenAI Realtime voice (was 'alloy')
     aggression:  0.95,
     patienceMs:  1800,
   },
@@ -107,6 +110,17 @@ const DEFAULT_BOSS = 'herr-tariq';
 // Set RESCUE_ENABLED = false to disable instantly if it ever misbehaves.
 const RESCUE_ENABLED    = true;
 const RESCUE_SILENCE_MS = 6000;
+
+// ── Phase 1/5: seeded per-session mood + a deliberate "thinking" pause ───────────────
+// Mood is chosen ONCE per session from a seed derived from the sessionId, so a session is
+// consistent and repeatable, and it NEVER flips mid-interview. It only shapes instruction
+// text (delivery), never the audio/VAD/scoring. RESPONSE_DELAY_MS is an intentional pause
+// before the boss's OPENING/rescue line (Phase 5b); per-turn pacing stays governed by the
+// patient server_vad silence_duration_ms — that is NOT touched here.
+const MOOD_POOL = ['sharp-monday', 'neutral', 'tired-friday'];
+const RESPONSE_DELAY_MS = 450;
+function _seedFrom(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function _seededPick(arr, seed) { const x = Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0; return arr[x % arr.length]; }
 
 // Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
@@ -131,6 +145,12 @@ export class RealtimeClient {
     this._boss       = BOSS_CONFIGS[bossId] ?? BOSS_CONFIGS[DEFAULT_BOSS];
     this._cb         = opts;
 
+    // Phase 1: seeded per-session mood (consistent + repeatable, never flips mid-session).
+    // Clarification ("could you repeat that?") is LEVEL-SCALED: never for beginners (a2-b1),
+    // occasional for advanced (b2). Delivery realism softens for beginners; judgement does not.
+    this._mood = _seededPick(MOOD_POOL, _seedFrom(this._sessionId));
+    const clarificationRate = opts.level === 'b2' ? 0.12 : 0;
+
     // Build the 3-part assessment funnel (intro → behavioral → CS roleplay), scaled
     // to the chosen CEFR level. Voice / aggression / interruption stay on this._boss.
     this._session = buildSessionScript({
@@ -140,6 +160,8 @@ export class RealtimeClient {
       levelId:     opts.level,
       dossier:     opts.dossier,   // recurring weak rule, so the boss can reference past struggles
       focusTitle:  opts.focusTitle, // Trainingslager: lesson title to weave into this fight
+      mood:        this._mood,        // Phase 1: seeded delivery mood
+      clarificationRate,              // Phase 5c: level-scaled repeat requests
     });
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).
@@ -320,13 +342,18 @@ export class RealtimeClient {
       },
     });
 
-    // Trigger boss opening line
-    this._sendEvent('response.create', {
-      response: {
-        instructions:      `Beginne das Interview sofort mit genau diesem Satz: "${this._session.openingLine}"`,
-        output_modalities: ['audio'],
-      },
-    });
+    // Trigger boss opening line — after a short, deliberate "thinking" pause (Phase 5b).
+    // Per-turn pacing remains governed by the patient server_vad pause (unchanged).
+    console.log(`[realtimeClient] mood=${this._mood}  openingDelayMs=${RESPONSE_DELAY_MS}  session=${this._sessionId}`);
+    setTimeout(() => {
+      if (this._closing) return;
+      this._sendEvent('response.create', {
+        response: {
+          instructions:      `Beginne das Interview sofort mit genau diesem Satz: "${this._session.openingLine}"`,
+          output_modalities: ['audio'],
+        },
+      });
+    }, RESPONSE_DELAY_MS);
   }
 
   // Ã¢â€â‚¬Ã¢â€â‚¬ Speech VAD events Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬

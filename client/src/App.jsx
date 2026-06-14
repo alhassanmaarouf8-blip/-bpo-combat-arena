@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { AudioPlayer } from './audioPlayer.js';
+import { RealismAudio } from './realismAudio.js';
+import { buildRealismConfig, installRealismConsole } from './realismConfig.js';
 import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { Assessment } from './Assessment.jsx';
+import { Shadowing } from './Shadowing.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
@@ -1453,13 +1456,13 @@ const inputStyle = {
 // Prices + minutes come from plans.config.js via /api/billing/status (single source).
 const PERKS_DE = {
   basic: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'Arabisch-Feedback', 'alle Bosse',
-                 'unbegrenzte Drills, Shadowing & Wiederholung', 'Trainingslager-Karte sichtbar'],
-  elite: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'volles Trainingslager freigeschaltet',
-                 'monatliche Neu-Einstufung', 'rollen-spezifischer Gegner', 'alles aus Basic'],
+                 'unbegrenzte Drills, Shadowing & Wiederholung', 'volles Trainingslager — auf deine Fehler zugeschnitten'],
+  elite: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'monatliche Neu-Einstufung',
+                 'rollen-spezifischer Gegner', 'alles aus Basic (inkl. volles Trainingslager)'],
 };
 const SUB_AR = {
-  basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + خريطة Trainingslager + تمارين بلا حدود.`,
-  elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + Trainingslager كامل + إعادة تقييم شهرية.`,
+  basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + Trainingslager كامل متفصّل على أخطائك + تمارين بلا حدود.`,
+  elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
 };
 
 function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
@@ -1799,6 +1802,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
+  const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [trainingslagerOpen, setTrainingslagerOpen] = useState(false); // study game-map route
 
   const phaseRef       = useRef('idle');
@@ -1812,6 +1816,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const pingRef        = useRef(null);
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
+  const realismRef       = useRef(null);   // OUTPUT-ONLY interview realism engine (Phases 2–4)
+  const bossLineRef      = useRef('');     // accumulates the current boss line for diegetic keywords
   const prevBossHpRef  = useRef(100);
   const prevPlayerHpRef = useRef(100);
   const prevIdxRef     = useRef(0);   // tracks the round index to detect advances
@@ -1858,6 +1864,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setBossHp(msg.bossHp ?? 100);
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
+        // OUTPUT-ONLY realism: intensity DERIVES from the user's level; seeded by the session id
+        // so a session is consistent + repeatable. Fail-safe — if it errors, voice plays clean.
+        try {
+          const cfg = buildRealismConfig(levelRef.current, msg.sessionId);
+          realismRef.current = new RealismAudio(cfg);
+          bossLineRef.current = '';
+          playerRef.current?.setRealism(realismRef.current);
+          installRealismConsole(() => realismRef.current);   // window.realism.* live A/B harness
+        } catch (e) { console.error('[realism] init skipped:', e); }
         wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current }));
         break;
 
@@ -1951,10 +1966,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (bossPartialIdRef.current === null) {
           const id = ++_lineId;
           bossPartialIdRef.current = id;
+          bossLineRef.current = msg.text;
           setBossText(msg.text);
           setTranscript(prev => [...prev.slice(-39), { id, speaker:'boss', text:msg.text, partial:true }]);
         } else {
           const id = bossPartialIdRef.current;
+          bossLineRef.current += msg.text;
           setBossText(t => t + msg.text);
           setTranscript(prev => prev.map(l => l.id === id ? { ...l, text: l.text + msg.text } : l));
         }
@@ -1965,6 +1982,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setTranscript(prev =>
           prev.map(l => l.id === bossPartialIdRef.current ? { ...l, partial:false } : l)
         );
+        // Phase 3: if the interviewer just referenced checking the CV/notes, play a faint
+        // diegetic typing/paper sound (OUTPUT-ONLY; seeded rate-gated inside triggerDiegetic).
+        try {
+          const line = (bossLineRef.current || '').toLowerCase();
+          const paper  = /(lebenslauf|unterlagen|akte|notiz|cv|hier steht|laut ihren|ihren angaben)/.test(line);
+          const typing = /(moment|sekunde|ich sehe|ich schaue|ich prüfe|ich notiere|kurz nach)/.test(line);
+          if (paper)       realismRef.current?.triggerDiegetic('paper');
+          else if (typing) realismRef.current?.triggerDiegetic('typing');
+        } catch {}
+        bossLineRef.current = '';
         bossPartialIdRef.current = null;
         break;
 
@@ -2114,6 +2141,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setPhaseSync('error');
         recorderRef.current?.stop().catch(() => {});
         playerRef.current?.flush();
+        try { realismRef.current?.detach(); } catch {}
         volRef.current = 0; setUserSpeak(false); setBossSpeak(false);
       } else {
         setPhaseSync('idle');
@@ -2137,6 +2165,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     await recorderRef.current?.stop().catch(() => {});
     recorderRef.current = null;
     playerRef.current?.flush();
+    try { realismRef.current?.detach(); } catch {}
     volRef.current = 0; setUserSpeak(false); setBossSpeak(false);
 
     setDebriefPending(true);
@@ -2344,6 +2373,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {assessmentOpen && (
         <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
           onClose={() => setAssessmentOpen(false)} />
+      )}
+
+      {/* Shadowing pronunciation practice (PAID — cheap models + browser TTS, never Realtime) */}
+      {shadowingOpen && (
+        <Shadowing token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          onClose={() => setShadowingOpen(false)}
+          onGoPricing={() => { setShadowingOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* Trainingslager game-map route (study mode — never a Realtime session) */}
@@ -2759,6 +2795,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {canStart && (
           <GameMapCompact token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onOpen={() => setTrainingslagerOpen(true)} />
+        )}
+
+        {/* Shadowing pronunciation practice (idle only) — paid; server returns 402 → paywall */}
+        {canStart && (
+          <button onClick={() => setShadowingOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #22d3ee', color:'#22d3ee',
+            background:'rgba(34,211,238,0.06)' }}>
+            🗣️  SHADOWING · تمرين الترديد
+          </button>
         )}
 
         {/* Progress dashboard access (idle only) */}

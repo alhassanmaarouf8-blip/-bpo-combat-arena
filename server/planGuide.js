@@ -126,6 +126,43 @@ export async function generateTask({ type, topic, level }) {
   );
 }
 
+// ── Generate a FRESH set of short, auto-gradable German drills (text-only, cheap) ──
+// Powers the daily-drill flow's UNLIMITED sets for paid users. Each item is a single
+// "Korrigiere den Satz" task with ONE canonical answer, so the SERVER grades it
+// deterministically with checkAnswer() — the model never grades. Returns [] on any
+// failure (no key / timeout / bad JSON) so the caller can fall back and always keep
+// serving. One gpt-4o-mini call per set ⇒ negligible cost; never opens a Realtime session.
+export async function generateDrillSet({ count = 4, level, avoid = [] } = {}) {
+  const lvl = levelLabel(level);
+  const n   = Math.max(1, Math.min(6, Math.round(count) || 4));
+  const sys =
+    `Du bist ein Deutsch-Übungsautor für ägyptische BPO-/Call-Center-Bewerber. ` +
+    `Erzeuge kurze "Korrigiere den Satz"-Aufgaben mit GENAU EINER eindeutigen Musterlösung. ` +
+    `Gib AUSSCHLIESSLICH gültiges JSON zurück: {"drills":[{"prompt":"…","answer":"…","hint":"…"}]}. ` +
+    `"prompt": beginnt mit 'Korrigiere: „' und enthält EINEN klaren Grammatikfehler ` +
+    `(Niveau ${lvl}, Kundenservice-Kontext). "answer": der EINE korrekte Satz, eindeutig — ` +
+    `keine Varianten. "hint": kurzer deutscher Tipp mit benannter Regel. Keine Lösung im prompt.`;
+  const usr =
+    `Erzeuge ${n} VERSCHIEDENE Aufgaben, jede mit anderem Grammatikthema ` +
+    `(Verbstellung im Nebensatz, Perfekt mit sein/haben, Inversion an Position 2, ` +
+    `Konjunktiv II / Höflichkeit, Präpositionen, Subjekt-Verb-Kongruenz, Adjektivendungen).` +
+    (avoid.length ? ` Vermeide diese bereits genutzten Sätze: ${avoid.slice(0, 8).join(' | ')}` : '');
+
+  const raw = await chat(sys, usr, 700, { json: true, purpose: 'daily-drill generation' });
+  try {
+    const o = JSON.parse(raw);
+    const arr = Array.isArray(o.drills) ? o.drills : [];
+    return arr
+      .map((d) => ({
+        prompt: String(d?.prompt ?? '').trim(),
+        answer: String(d?.answer ?? '').trim(),
+        hint:   String(d?.hint ?? '').trim(),
+      }))
+      .filter((d) => d.prompt && d.answer)
+      .slice(0, n);
+  } catch { return []; }
+}
+
 // ── Feedback on the learner's response — bilingual {de, ar} so the Arabic toggle works.
 export async function giveFeedback({ type, topic, task, input, level }) {
   const t   = (topic || '').trim() || 'das Thema';
