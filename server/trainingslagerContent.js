@@ -39,9 +39,123 @@ export const LAGER_SECTIONS = [
     id: 'telefonieren', icon: '📞', minTier: 1,
     title_de: 'Telefonieren & Etikette', title_ar: 'آداب المكالمة الهاتفية',
     tiers: [
-      { tier: 1, band: 'A2–B1', title_de: 'Telefonieren — Grundlagen', title_ar: 'الأساسيات', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Telefon Grundlagen') },
-      { tier: 2, band: 'B1–B2', title_de: 'Telefonieren — souverän führen', title_ar: 'إدارة المكالمة بثقة', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Telefon souverän') },
-      { tier: 3, band: 'B2–C1', title_de: 'Telefonieren — komplexe Fälle', title_ar: 'حالات معقّدة', youtubeId_de: '', youtubeId_ar: '', quiz: phQuiz('Telefon komplex') },
+      {
+        tier: 1, band: 'A2-B1', title_de: 'Telefonieren — Grundlagen', title_ar: 'الأساسيات: بداية المكالمة',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Sie nehmen einen eingehenden Anruf im Kundenservice an. Wie melden Sie sich korrekt?',
+            question_ar_hint: 'الرد الصحيح أول ما ترفع السماعة: التحية + اسم الشركة + اسمك',
+            options: [
+              'Guten Tag, Firma Schmidt GmbH, mein Name ist Ali Hassan.',
+              'Ja, hallo?',
+              'Wer spricht da bitte?',
+              'Was kann ich tun?'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'In welcher Reihenfolge bauen Sie eine professionelle Meldeformel auf?',
+            question_ar_hint: 'الترتيب الصح للجملة الافتتاحية، والاسم بييجي في الآخر عشان العميل يفتكره',
+            options: [
+              'Tagesgruß — Firmenname — Ihr Name',
+              'Ihr Name — Firmenname — Tagesgruß',
+              'Firmenname — Ihr Name — Tagesgruß',
+              'Ihr Name — Tagesgruß — Firmenname'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Das Gespräch ist beendet. Wie verabschieden Sie sich am Telefon korrekt?',
+            question_ar_hint: 'إزاي تقفل المكالمة صح؟ في التليفون بنقول "Auf Wiederhören" مش "Auf Wiedersehen"',
+            options: [
+              'Vielen Dank für Ihren Anruf. Auf Wiederhören!',
+              'Auf Wiedersehen!',
+              'Tschüss, bis dann!',
+              'Okay, ciao!'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 2, band: 'B1-B2', title_de: 'Telefonieren — Gespräch steuern', title_ar: 'التحكم في المكالمة',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Sie müssen den Kunden weiterverbinden. Was sagen Sie?',
+            question_ar_hint: 'إزاي تحوّل العميل لقسم تاني بأدب؟',
+            options: [
+              'Einen Moment bitte, ich verbinde Sie mit der zuständigen Abteilung. Bleiben Sie bitte in der Leitung.',
+              'Warten Sie.',
+              'Das ist nicht meine Abteilung.',
+              'Ich gebe Sie weiter, Moment.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Sie haben den Kunden akustisch nicht verstanden. Wie fragen Sie höflich nach?',
+            question_ar_hint: 'مفهمتش العميل كويس — أأدب جملة تستخدمها (وبتلقي اللوم على الصوت مش عليه)',
+            options: [
+              'Entschuldigung, das habe ich akustisch nicht verstanden. Könnten Sie das bitte wiederholen?',
+              'Was? Nochmal.',
+              'Ich verstehe Sie nicht.',
+              'Sprechen Sie lauter.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der Kunde hat Ihnen sein Anliegen geschildert. Wie bestätigen Sie, dass Sie alles richtig verstanden haben?',
+            question_ar_hint: 'إزاي تتأكد إنك فهمت طلب العميل صح؟ بتعيد بصياغتك — ده بيوريه إنك محترف',
+            options: [
+              'Also, wenn ich Sie richtig verstanden habe, …',
+              'Ja, ja, ich weiß.',
+              'Das ist klar.',
+              'Kein Problem, weiter.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 3, band: 'B2-C1', title_de: 'Telefonieren — Profi-Niveau', title_ar: 'مستوى المحترفين',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Der Kunde nennt den Namen "Bauer". Sie sind unsicher, ob es B oder P ist. Wie fragen Sie nach?',
+            question_ar_hint: 'مش متأكد B ولا P؟ استخدم أبجدية الهاتف عشان تتأكد',
+            options: [
+              'Mit B wie Berlin oder P wie Potsdam?',
+              'B oder P?',
+              'Wie war das nochmal?',
+              'Können Sie das aufschreiben?'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Sie buchstabieren den Namen "Adam" mit der Buchstabiertafel. Welche Reihenfolge ist korrekt?',
+            question_ar_hint: 'هجّي اسم "Adam" بأبجدية الهاتف الكلاسيكية',
+            options: [
+              'Anton — Dora — Anton — Martha',
+              'Aachen — Dora — Aachen — Martha',
+              'Anton — David — Anton — Maria',
+              'Alfa — Delta — Alfa — Mike'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Sie haben einen Rückruf vereinbart. Wie beenden Sie das Gespräch am professionellsten?',
+            question_ar_hint: 'اتفقت على مكالمة رجوع — أحسن طريقة تقفل بيها: تلخّص وتأكد الميعاد',
+            options: [
+              'Gut, dann fasse ich kurz zusammen: Ich rufe Sie morgen bis 14 Uhr zurück. Habe ich noch etwas vergessen? — Vielen Dank, auf Wiederhören!',
+              'Okay, ich rufe an. Tschüss.',
+              'Wir telefonieren später nochmal.',
+              'Alles klar, bis dann.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
     ],
   },
   {
