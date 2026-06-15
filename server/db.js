@@ -18,6 +18,10 @@
  *   - namespace 'feedback'/ key='all'        → the feedback array
  */
 
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 export function dbEnabled() {
   return !!process.env.DATABASE_URL;
 }
@@ -57,6 +61,18 @@ function ensureReady() {
           PRIMARY KEY (namespace, key)
         )`);
       console.log('[db] Connected — durable storage active (kv_store ready)');
+
+      // Additive: ensure the optional weakness-DB schema (NEW tables only — every statement is
+      // CREATE TABLE/INDEX IF NOT EXISTS, wrapped in BEGIN/COMMIT). Fully ISOLATED in its own
+      // try/catch so a failure here can NEVER break kv_store readiness or the live app. The
+      // schema is idempotent, so it is safe to re-run on every boot.
+      try {
+        const sqlPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'weakness_db_schema.sql');
+        await pool.query(await readFile(sqlPath, 'utf8'));
+        console.log('[db] weakness schema ensured (weakness_taxonomy / error_events / weakness_profile)');
+      } catch (e) {
+        console.warn('[db] weakness schema NOT applied (non-fatal, app unaffected):', e.message);
+      }
     })().catch((err) => { _ready = null; throw err; });
   }
   return _ready;
