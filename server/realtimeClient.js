@@ -325,15 +325,17 @@ export class RealtimeClient {
               type:                'server_vad',
               // The boss must WAIT through a real thinking pause before answering, so a
               // hesitant A2-B1 speaker can formulate a reply after a question.
-              //   threshold (0.72): only clear, deliberate speech ends the turn —
-              //     breathing, room noise and quiet mid-thought sounds are ignored.
+              //   threshold (0.80): only clear, deliberate speech ends the turn — breathing, room
+              //     noise and very quiet input (a near-silent „hallo") are ignored, so they can't
+              //     trigger a garbage-transcribed turn that makes the boss re-ask. The candidate
+              //     simply speaks up; the persona asks once to repeat if it still can't hear.
               //   silence_duration_ms (2000): a full 2.0s of real silence is required
               //     after the user stops before the boss is allowed to respond, so a
               //     hesitant speaker can pause mid-thought without being cut off.
               // TUNE HERE: lower toward 1500 if the boss feels too slow, or raise toward
               //   2500 if it still jumps in; raise threshold toward 0.8 if background
               //   noise triggers it.
-              threshold:           0.72,
+              threshold:           0.80,
               prefix_padding_ms:   300,
               silence_duration_ms: 2000,
               create_response:     true,
