@@ -44,9 +44,10 @@ CREATE TABLE IF NOT EXISTS weakness_taxonomy (
 CREATE TABLE IF NOT EXISTS error_events (
     id            BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    -- ADAPT: user_id type must match your existing users PK (int / bigint / uuid / text).
-    -- Confirm the real type before applying; change BIGINT below if needed.
-    user_id       BIGINT      NOT NULL,
+    -- ADAPTED: the app stores accounts as JSONB in kv_store (no relational users table), and the
+    -- account id is a TEXT string like "a_3253e2d7bed1393a". So user_id is TEXT, with NO users FK
+    -- (there is no users table to reference). Confirmed by inspection of db.js / auth.js.
+    user_id       TEXT        NOT NULL,
 
     session_id    TEXT,                                     -- group by practice session, if you have one
     phase         TEXT        NOT NULL,                     -- drill|shadow|chaos|live|interview
@@ -74,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_error_events_user_key
 --    This is what the interview generator reads.
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS weakness_profile (
-    user_id         BIGINT      NOT NULL,                   -- ADAPT: same type as above
+    user_id         TEXT        NOT NULL,                   -- app account id "a_..." (TEXT); no users FK
     error_key       TEXT        NOT NULL REFERENCES weakness_taxonomy(error_key),
     occurrences     INTEGER     NOT NULL DEFAULT 0,         -- times missed
     weighted_score  REAL        NOT NULL DEFAULT 0,         -- sum(severity * confidence), decayed on clean passes
