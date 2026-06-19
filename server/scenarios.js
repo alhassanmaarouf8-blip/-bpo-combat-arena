@@ -33,6 +33,20 @@ export const LEVELS = {
       `für Höflichkeit ("könnten Sie", "ich würde vorschlagen"). Hake nach, wenn der Kandidat nur ` +
       `einfache Hauptsätze aneinanderreiht, und fordere präzisere, strukturiertere Antworten.`,
   },
+  'c1': {
+    id:    'c1',
+    label: 'C1',
+    lenient: false,
+    speechStyle:
+      `Sprich im gehobenen, akademisch-professionellen Register — das Niveau Schweizer BPO-Auftraggeber. ` +
+      `Erwarte vollständiges C1-Deutsch: Nominalisierungen und Funktionsverbgefüge ` +
+      `("eine Entscheidung treffen", "zur Verfügung stellen", "in Betracht ziehen"), ` +
+      `Passiversatzformen ("lässt sich lösen", "ist zu klären"), präzise Relativsätze mit Präpositionen ` +
+      `("der Kunde, mit dem ich gesprochen habe"), und konsequenten Konjunktiv II für jede Bitte und jeden Vorschlag. ` +
+      `Erwarte die STAR-Methode in Verhaltensfragen (Situation → Aufgabe → Aktion → konkretes Ergebnis). ` +
+      `Hake sofort nach, wenn Antworten vage bleiben, Ergebnisse fehlen oder das Register zu niedrig ist. ` +
+      `Lobe SPARSAM und nur für tatsächlich gehobene Formulierungen.`,
+  },
 };
 
 // ── Behavioral / HR questions (Teil 2) ──────────────────────────────────────────
@@ -41,6 +55,14 @@ export const BEHAVIORAL_QUESTIONS = [
   'Erzählen Sie von Ihrer letzten Reise — das Hotel, die Strände, die Menschen, und was Sie dort gelernt haben.',
   'Warum sollten wir ausgerechnet SIE einstellen?',
   'Beschreiben Sie einen Konflikt und wie Sie ihn gelöst haben.',
+];
+
+// ── C1 Behavioral questions — Swiss/formal BPO register, STAR-method expected ──
+export const C1_BEHAVIORAL_QUESTIONS = [
+  'Beschreiben Sie eine komplexe Situation, in der Sie mehrere Stakeholder mit widersprüchlichen Erwartungen koordinieren mussten — und welches konkrete Ergebnis Sie erzielt haben.',
+  'Erzählen Sie von einer Entscheidung, die Sie unter Zeitdruck und mit unvollständigen Informationen treffen mussten. Welche Abwägungen haben Sie getroffen und welches Ergebnis hatte das?',
+  'Beschreiben Sie einen Fall, in dem Sie konstruktiv Kritik an einer Entscheidung Ihres Vorgesetzten geäußert haben — wie sind Sie vorgegangen und was war das Ergebnis?',
+  'Schildern Sie eine Situation, in der Sie eine eskalierte Kundenbeschwerde langfristig in eine positive Kundenbeziehung verwandelt haben.',
 ];
 
 // ── Customer-service roleplay scenarios (Teil 3) — the boss PLAYS the customer ──
@@ -143,7 +165,8 @@ const MOODS = {
 };
 
 function deliveryBlock(levelId, mood, clarificationRate = 0) {
-  const beginner = levelId !== 'b2';
+  const beginner = levelId === 'a2-b1';
+  const c1       = levelId === 'c1';
   const moodLine = MOODS[mood] || MOODS.neutral;
 
   const common =
@@ -156,7 +179,12 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
     `- Gelegentlich ein nonverbales Signal: ein kurzer Seufzer oder „hmm" — selten, dezent.\n` +
     `- Benutze natürliche Kontraktionen („haben Sie's", „gibt's") wie im echten Sprechdeutsch.`;
 
-  const scaled = beginner
+  const scaled = c1
+    ? `TEMPO/TON für dieses Niveau (C1): gehobenes, professionelles Register, zügig und präzise. ` +
+      `Spürbar anspruchsvoller als B2 — erwarte STAR-Antworten (Situation, Aufgabe, Aktion, Ergebnis). ` +
+      `Hake bei vagen Antworten sofort nach: "Und welches konkrete Ergebnis hatten Ihre Maßnahmen?". ` +
+      `Lob nur für tatsächlich gehobene Formulierungen; bewusstes Schweigen nach Antworten signalisiert Erwartung von mehr.`
+    : beginner
     ? `TEMPO/TON für dieses Niveau (A2–B1): ruhig, GEDULDIG und deutlich artikuliert, ermutigender Grundton. ` +
       `Wenige Füllwörter, klare Pausen, damit der Kandidat folgen kann. Geduld in der LIEFERUNG — die strenge ` +
       `Bewertung bleibt davon UNBERÜHRT.`
@@ -182,7 +210,7 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
  */
 export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle, mood = 'neutral', clarificationRate = 0 }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
-  const behavioral = pick(BEHAVIORAL_QUESTIONS);
+  const behavioral = pick(levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS);
   const cs         = pick(CS_SCENARIOS);
   const delivery   = deliveryBlock(level.id, mood, clarificationRate);  // Phase 1 prosody/mood
 

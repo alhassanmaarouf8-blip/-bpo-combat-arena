@@ -2637,8 +2637,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               WÄHLE DEIN NIVEAU
             </div>
             <div style={{ display:'flex', gap:10 }}>
-              {[['a2-b1','A2–B1','Langsamer · einfacher · verzeiht Fehler'],
-                ['b2','B2','Natürliches Tempo · komplexe Strukturen']].map(([id, lbl, desc]) => {
+              {[['a2-b1','A2–B1','Langsamer · verzeiht Fehler'],
+                ['b2','B2','Natürliches Tempo · komplex'],
+                ['c1','C1','Schweizer Niveau · formell']].map(([id, lbl, desc]) => {
                 const sel = level === id;
                 return (
                   <button key={id} onClick={() => chooseLevel(id)} disabled={!canStart}
@@ -2749,7 +2750,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </div>
             {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interview-Gegner wartet.</div>}
             <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:7 }}>
-              {[['◆','HOCHDRUCK'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
+              {[['◆','HOCHDRUCK'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
                 <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 9px',
                   borderRadius:'var(--r-pill)', letterSpacing:'0.1em', display:'inline-flex', alignItems:'center', gap:5,
                   background:`${boss.color}12`, border:`1px solid ${boss.color}55`, color:'#e2e8f0', boxShadow:`0 0 10px ${boss.color}22` }}>

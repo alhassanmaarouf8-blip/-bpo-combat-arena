@@ -149,7 +149,7 @@ export class RealtimeClient {
     // Clarification ("could you repeat that?") is LEVEL-SCALED: never for beginners (a2-b1),
     // occasional for advanced (b2). Delivery realism softens for beginners; judgement does not.
     this._mood = _seededPick(MOOD_POOL, _seedFrom(this._sessionId));
-    const clarificationRate = opts.level === 'b2' ? 0.12 : 0;
+    const clarificationRate = opts.level === 'c1' ? 0.20 : opts.level === 'b2' ? 0.12 : 0;
 
     // Build the 3-part assessment funnel (intro → behavioral → CS roleplay), scaled
     // to the chosen CEFR level. Voice / aggression / interruption stay on this._boss.

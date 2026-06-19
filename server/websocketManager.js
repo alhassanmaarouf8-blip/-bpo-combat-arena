@@ -262,7 +262,7 @@ export class WebSocketManager {
     ctx.accountLocked = account.id;
 
     ctx.userId   = account.id;
-    const level  = msg.level === 'b2' ? 'b2' : 'a2-b1';
+    const level  = ['b2', 'c1'].includes(msg.level) ? msg.level : 'a2-b1';
     const viaBossTor = msg.mode === 'bosstor';
 
     // Boss is chosen by the user's progression (warm-up → standard → final boss).
@@ -836,7 +836,8 @@ export class WebSocketManager {
       return { score: 0, factors: [{ side: 'player', label: 'keine Antwort', hp: 4 }] };
     }
 
-    const lenient = opts.levelId !== 'b2';   // A2-B1 forgives; B2 demands range
+    const lenient = opts.levelId === 'a2-b1'; // A2-B1 forgives; B2 and C1 both demand range
+    const strict  = opts.levelId === 'c1';   // C1: highest bar — formal register required
     const stage   = opts.stage ?? 0;         // 2 = customer-service roleplay
     const text    = ' ' + transcript.toLowerCase() + ' ';
 
@@ -917,13 +918,23 @@ export class WebSocketManager {
       if (c1Deesc.some(w => text.includes(w))) { score += 6; add('boss', 'C1-Deeskalation', 4); }
     }
 
+    // C1 formal register bonuses: Nominalisierung, Funktionsverbgefüge, Passiversatzformen
+    if (strict) {
+      const fvg = ['eine entscheidung treffen','zur verfügung stellen','in anspruch nehmen','in betracht ziehen','einen schritt unternehmen','in frage stellen'];
+      const passErsatz = ['lässt sich','ist zu klären','ist zu beachten','ist zu bearbeiten','ist zu lösen'];
+      if (fvg.some(w => text.includes(w)))       { score += 8; add('boss', 'Nominalisierung', 5); }
+      if (passErsatz.some(w => text.includes(w))) { score += 8; add('boss', 'Passiversatz',   5); }
+      // C1 penalizes short answers — no STAR structure possible under 25 words
+      if (wordCount < 25 && wordCount >= MIN_SCORED_WORDS) { score -= 10; add('player', 'zu kurz für C1', 7); }
+    }
+
     return { score: Math.max(0, Math.min(100, Math.round(score))), factors };
   }
 
   _quickScore(transcript, durationMs, wordCount, opts = {}) {
     if (!transcript || wordCount < 2) return 0;
 
-    const lenient = opts.levelId !== 'b2';   // A2-B1 forgives; B2 demands range
+    const lenient = opts.levelId === 'a2-b1'; // A2-B1 forgives; B2/C1 both demand range
     const stage   = opts.stage ?? 0;         // 2 = customer-service roleplay
     const text    = ' ' + transcript.toLowerCase() + ' ';
 
