@@ -255,7 +255,7 @@ function buildLesson(utterances, metrics, grammar) {
   const text = (utterances || []).map((u) => (u?.text || '').trim()).filter(Boolean).join('\n').toLowerCase();
   const picks = [];
 
-  const add = (de, ar) => { picks.push(de); };
+  const add = (de, ar) => { picks.push({ de, ar: ar || de }); };
 
   // 1) If few real grammar blocks: give a concrete next-rule focus based on their miss set.
   const realRules = (grammar || []).filter((g) => Array.isArray(g.summaryExamples) && g.summaryExamples.length > 0)

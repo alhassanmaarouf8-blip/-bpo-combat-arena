@@ -69,6 +69,18 @@ export const CS_SCENARIOS = [
     opening:   'Ich verlange eine volle Erstattung, und zwar JETZT! Mir ist völlig egal, was in Ihren Regeln steht!',
     situation: 'Der Kunde verlangt etwas, das der Agent höflich ablehnen muss — danach die Eskalation auffangen.',
   },
+  {
+    id:        'tech-support',
+    customer:  'ein frustrierter Kunde, der mit einem Gerät nicht zurechtkommt',
+    opening:   'Ich verstehe das nicht! Ich habe alles versucht und es funktioniert immer noch nicht! Erklären Sie mir das bitte Schritt für Schritt!',
+    situation: 'Technisches Problem: der Kunde braucht geduldige Anleitung — Geduld, Empathie und klare Schritte sind entscheidend.',
+  },
+  {
+    id:        'cancellation-retention',
+    customer:  'ein Kunde, der seinen Vertrag kündigen möchte',
+    opening:   'Ich möchte meinen Vertrag kündigen. Ich bin mit dem Service nicht zufrieden und ich habe mich bereits entschieden.',
+    situation: 'Kundenbindung: Ziel ist, den Kündigungsgrund zu verstehen und ggf. eine Alternative anzubieten — ohne Druck oder Überredung.',
+  },
 ];
 
 // ── The winning behavior the roleplay rewards ───────────────────────────────────
@@ -77,7 +89,12 @@ export const CS_RUBRIC =
   `dann VERANTWORTUNG übernehmen, dann gezielt FAKTEN erfragen, und schließlich einen KLAREN NÄCHSTEN ` +
   `SCHRITT anbieten — in korrektem, höflichem Deutsch (Sie-Form, Konjunktiv II: "Könnten Sie mir bitte…", ` +
   `"Ich würde vorschlagen…"). Bleib hart, wenn der Kandidat Schuld zuweist, Ausreden bringt, unhöflich ` +
-  `oder unklar antwortet oder ins Englische wechselt.`;
+  `oder unklar antwortet oder ins Englische wechselt. ` +
+  `Starke C1-Sprache, die du erkennst und extra belohnst: ` +
+  `"Ich kann Ihren Ärger sehr gut nachvollziehen", "Darf ich kurz zusammenfassen?", ` +
+  `"Ich nehme Ihr Anliegen sehr ernst", "Was ich konkret für Sie tun kann, ist Folgendes:", ` +
+  `"Ich kann zwar das Geschehene nicht rückgängig machen, aber…", "Bleiben wir bitte sachlich", ` +
+  `"Ich verspreche Ihnen, dass ich persönlich dranbleibe".`;
 
 // ── BPO "phrase of the day" pool (for the daily micro-session) ──────────────────
 // Real, high-value call-center German. One is surfaced per day (deterministically),

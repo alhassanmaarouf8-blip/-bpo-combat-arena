@@ -1055,9 +1055,12 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {/* Lesson when there are few/no corrections */}
           {!!data?.lesson?.length && (
             <Section title={ar ? 'الدرس · LESSON' : 'LESSON'} color="#f59e0b">
-              {data.lesson.map((line, i) => (
-                <div key={i} style={{ fontSize:11.5, color:'#fde68a', lineHeight:1.5, marginBottom:4 }}>{line}</div>
-              ))}
+              {data.lesson.map((line, i) => {
+                const text = line && typeof line === 'object'
+                  ? (ar && line.ar ? line.ar : line.de)
+                  : String(line ?? '');
+                return <div key={i} style={{ fontSize:11.5, color:'#fde68a', lineHeight:1.5, marginBottom:4 }}>{text}</div>;
+              })}
             </Section>
           )}
 

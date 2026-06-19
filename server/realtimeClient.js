@@ -445,6 +445,9 @@ export class RealtimeClient {
       return;
     }
 
+    if (code === 'model_not_found') {
+      console.error(`[realtimeClient] model_not_found: OAI key lacks access to "${OAI_MODEL}". Set OAI_MODEL=gpt-realtime on Render to fall back to the previous GA model  session=${this._sessionId}`);
+    }
     console.error(`[realtimeClient] OAI error  code=${code}  message=${msg}  session=${this._sessionId}`);
     this._cb.onError(Object.assign(new Error(msg), { code }));
 

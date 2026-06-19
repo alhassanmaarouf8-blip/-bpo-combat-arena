@@ -912,6 +912,9 @@ export class WebSocketManager {
       if (ownership.some(w => text.includes(w))) { score += 8;  add('boss', 'Verantwortung', 5); }
       if (nextStep.some(w => text.includes(w)))  { score += 8;  add('boss', 'klare Lösung', 5); }
       if (text.includes('könnten sie') || text.includes('würden sie') || text.includes('dürfte ich')) { score += 4; add('boss', 'höfliche Rückfrage', 3); }
+      // C1 BPO register: reward sophisticated de-escalation phrases from the playbook
+      const c1Deesc = ['zusammenfassen','ihr anliegen','zuständige stelle','sachlich bleiben','umgehend darum','konkret für sie','nicht rückgängig machen'];
+      if (c1Deesc.some(w => text.includes(w))) { score += 6; add('boss', 'C1-Deeskalation', 4); }
     }
 
     return { score: Math.max(0, Math.min(100, Math.round(score))), factors };
@@ -991,6 +994,19 @@ export class WebSocketManager {
     const reasonStr = reason?.toString('utf8') ?? '';
     console.log(`[wsManager] Connection closed  session=${ctx.sessionId}  code=${code}  reason=${reasonStr}`);
     this._releaseFight(ctx);   // free the per-user lock + cap timer even on an abrupt drop
+
+    // Bill any live minutes when the tab was killed mid-fight (abrupt disconnect).
+    // The normal path (_endSession) already sets ctx.closed = true before recording;
+    // if it's still false here, _endSession never ran → record now to prevent a bypass.
+    if (!ctx.closed && ctx.fightStartedAt) {
+      ctx.closed = true;
+      const wallSec = Math.round((Date.now() - ctx.fightStartedAt) / 1000);
+      const inSec   = Math.round(ctx.audioInBytes  / PCM16_BYTES_PER_SEC);
+      const outSec  = Math.round(ctx.audioOutBytes / PCM16_BYTES_PER_SEC);
+      console.log(`[wsManager] FIGHT COST (abrupt close)  user=${ctx.userId}  wallSec=${wallSec}  audioInSec=${inSec}  audioOutSec=${outSec}  session=${ctx.sessionId}`);
+      await this._recordLiveUsage(ctx, wallSec);
+    }
+
     await ctx.realtimeClient?.close().catch(() => {});
     this._sessions.delete(ctx.sessionId);
   }

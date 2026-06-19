@@ -10,6 +10,10 @@ import { dbEnabled, kvGet, kvSet } from './db.js';
 const NS = 'payments';
 let _mem = []; // dev-only fallback when there's no database
 
+if (!dbEnabled()) {
+  console.warn('[paymentsStore] WARNING: DATABASE_URL not set — payments are stored in MEMORY ONLY and will be LOST on restart. Set DATABASE_URL on Render to persist payments.');
+}
+
 export async function loadPayments() {
   if (dbEnabled()) return (await kvGet(NS, 'all')) ?? [];
   return _mem;
