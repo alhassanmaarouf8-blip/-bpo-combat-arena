@@ -126,6 +126,40 @@ const C = {
   PING:        'ping',
 };
 
+// ── Boss voice: browser Web Speech API (German) — OpenAI-free, zero cost ─────────
+// The boss line is text; we read it aloud with the user's on-device de-DE voice.
+// No API, no spend. (A cloned neural voice can replace this later without touching
+// the protocol — it's purely a client-side render of the same boss_speech text.)
+let _deVoice = null;
+function _pickGermanVoice() {
+  try {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return null;
+    if (_deVoice) return _deVoice;
+    const vs = window.speechSynthesis.getVoices() || [];
+    _deVoice = vs.find(v => /^de[-_]DE/i.test(v.lang)) || vs.find(v => /^de/i.test(v.lang)) || null;
+    return _deVoice;
+  } catch { return null; }
+}
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  try { window.speechSynthesis.onvoiceschanged = () => { _deVoice = null; _pickGermanVoice(); }; } catch {}
+}
+function cancelSpeech() { try { window.speechSynthesis?.cancel(); } catch {} }
+function speakGerman(text, onStart, onEnd) {
+  try {
+    if (!text || typeof window === 'undefined' || !window.speechSynthesis) { onEnd?.(); return; }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'de-DE';
+    const v = _pickGermanVoice();
+    if (v) u.voice = v;
+    u.rate = 1.0; u.pitch = 1.0;
+    u.onstart = () => { try { onStart?.(); } catch {} };
+    u.onend   = () => { try { onEnd?.(); }   catch {} };
+    u.onerror = () => { try { onEnd?.(); }   catch {} };
+    window.speechSynthesis.speak(u);
+  } catch { onEnd?.(); }
+}
+
 // ── Boss emotional states → drives the SVG interviewer's expression ───────────
 const EMOTIONS = {
   // Pre-fight default + the FOUR backend-driven reaction states. Each carries the SVG
@@ -1839,6 +1873,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [transcript, setTranscript] = useState([]);
   const [bossSpeak, setBossSpeak] = useState(false);
   const [userSpeak, setUserSpeak] = useState(false);
+  // Boss voice (browser TTS) on/off — persisted; default ON so the boss speaks.
+  const [ttsMuted, setTtsMuted] = useState(() => {
+    try { return localStorage.getItem('ttsMuted') === '1'; } catch { return false; }
+  });
+  const ttsMutedRef = useRef(ttsMuted);
+  useEffect(() => { ttsMutedRef.current = ttsMuted; try { localStorage.setItem('ttsMuted', ttsMuted ? '1' : '0'); } catch {} }, [ttsMuted]);
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
@@ -2068,6 +2108,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           if (paper)       realismRef.current?.triggerDiegetic('paper');
           else if (typing) realismRef.current?.triggerDiegetic('typing');
         } catch {}
+        // Speak the boss's German line aloud (browser TTS — OpenAI-free). bossSpeak
+        // stays true while speaking, then clears on end, so the avatar animates and
+        // the debrief waits until the final line has finished being read out.
+        {
+          const spokenLine = bossLineRef.current || '';
+          if (!ttsMutedRef.current && spokenLine) {
+            speakGerman(spokenLine, () => setBossSpeak(true), () => setBossSpeak(false));
+          } else {
+            setBossSpeak(false);
+          }
+        }
         bossLineRef.current = '';
         bossPartialIdRef.current = null;
         break;
@@ -2175,7 +2226,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         recorderRef.current?.stop().catch(() => {});
         playerRef.current?.flush();
         try { realismRef.current?.detach(); } catch {}
-        volRef.current = 0; setUserSpeak(false); setBossSpeak(false);
+        volRef.current = 0; setUserSpeak(false); setBossSpeak(false); cancelSpeech();
       } else {
         setPhaseSync('idle');
       }
@@ -2197,7 +2248,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // Stop any in-progress spoken-answer recording; no streaming mic to tear down.
     try { await clipRecRef.current?.stop(); } catch {}
     clipRecRef.current = null;
-    setRecording(false); setBossThinking(false); setUserSpeak(false); setBossSpeak(false);
+    setRecording(false); setBossThinking(false); setUserSpeak(false); setBossSpeak(false); cancelSpeech();
 
     setDebriefPending(true);
     wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT }));
@@ -2858,6 +2909,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                     border:'1px solid rgba(0,229,255,0.3)', borderRadius:8, outline:'none', fontFamily:'inherit' }}
                 />
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                  <button onClick={() => { setTtsMuted(m => { const next = !m; if (next) cancelSpeech(); return next; }); }}
+                    title={ttsMuted ? 'Stimme einschalten' : 'Stimme stummschalten'}
+                    style={{ flex:'0 0 auto', padding:'10px 12px', cursor:'pointer', borderRadius:8,
+                      fontFamily:'Orbitron,monospace', fontSize:13, letterSpacing:'0.08em',
+                      border:'1px solid #475569', color:'#94a3b8', background:'rgba(148,163,184,0.06)' }}>
+                    {ttsMuted ? '🔇' : '🔊'}
+                  </button>
                   <button onClick={toggleRecord} disabled={transcribing}
                     style={{ flex:'0 0 auto', padding:'10px 14px', cursor:'pointer', borderRadius:8,
                       fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.08em',
