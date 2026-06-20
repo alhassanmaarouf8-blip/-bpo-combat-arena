@@ -18,7 +18,6 @@
  * Callbacks used: onBossSpeech(text), onBossSpeechDone(), onError(err), onClose().
  */
 
-import OpenAI from 'openai';
 import { buildSessionScript } from './scenarios.js';
 
 // ── Groq config (OpenAI-compatible chat endpoint) ───────────────────────────────
@@ -163,7 +162,7 @@ export class RealtimeClient {
   async connect() {
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) throw new Error('GROQ_API_KEY not set');
-    this._groq = new OpenAI({ apiKey, baseURL: GROQ_BASE });
+    this._apiKey = apiKey;   // Groq is called over plain fetch — no SDK, no 'openai' package.
 
     // System prompt is the full session script; seed the assistant's first turn with
     // the deterministic opening line so the model has the conversation's real start.
@@ -201,13 +200,22 @@ export class RealtimeClient {
 
     let line = '';
     try {
-      const res = await this._groq.chat.completions.create({
-        model:       GROQ_MODEL,
-        temperature: 0.7,
-        max_tokens:  MAX_TURN_TOKENS,
-        messages:    turnMsgs,
+      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${this._apiKey}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          model:       GROQ_MODEL,
+          temperature: 0.7,
+          max_tokens:  MAX_TURN_TOKENS,
+          messages:    turnMsgs,
+        }),
       });
-      line = res.choices?.[0]?.message?.content ?? '';
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw Object.assign(new Error(`Groq ${res.status} ${body.slice(0, 200)}`), { status: res.status });
+      }
+      const data = await res.json();
+      line = data.choices?.[0]?.message?.content ?? '';
     } catch (err) {
       console.error(`[interviewClient] Groq error  session=${this._sessionId}: ${err.message}`);
       this._responding = false;

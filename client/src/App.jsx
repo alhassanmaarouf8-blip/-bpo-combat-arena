@@ -2227,12 +2227,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       if (!clip || !clip.blob) return;
       setTranscribing(true);
       try {
-        const fd = new FormData();
-        fd.append('audio', clip.blob, 'answer.wav');
+        // Raw audio body (server uses express.raw — no multipart/multer).
         const r = await fetch(`${API_URL}/api/transcribe`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${auth.token}` },
-          body: fd,
+          headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': clip.blob.type || 'audio/wav' },
+          body: clip.blob,
         });
         if (!r.ok) throw new Error('transcribe_failed');
         const { text } = await r.json();
