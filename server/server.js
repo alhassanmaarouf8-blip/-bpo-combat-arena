@@ -14,6 +14,7 @@ import { paymentsRouter }     from './payments.js';
 import { adminRouter }        from './admin.js';
 import { shadowingRouter }    from './shadowing.js';
 import { guideRouter }         from './alhassan.js';
+import { transcribeRouter }    from './transcribeRouter.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
@@ -21,8 +22,12 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
 const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
-if (!process.env.OPENAI_API_KEY) {
-  console.error('[server] FATAL: OPENAI_API_KEY is not set in .env');
+// The live interview is now 100% OpenAI-free: the boss brain runs on Groq
+// (llama-3.3-70b), spoken answers transcribe on Groq Whisper / Deepgram, the
+// debrief runs on Groq. GROQ_API_KEY is therefore the one hard requirement to
+// boot. OPENAI_API_KEY is intentionally never read anywhere in the interview path.
+if (!process.env.GROQ_API_KEY) {
+  console.error('[server] FATAL: GROQ_API_KEY is not set in .env');
   process.exit(1);
 }
 
@@ -40,7 +45,14 @@ app.use(cors({
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime(), ts: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    ts: new Date().toISOString(),
+    // Provider markers — lets a deploy be verified as the OpenAI-free build.
+    interview: 'groq',
+    openai: false,
+  });
 });
 
 // Diagnostic: the browser reports runtime crashes here so they show up in THIS log.
@@ -62,6 +74,7 @@ app.use('/api', trainingslagerRouter);
 app.use('/api', shadowingRouter);
 app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
+app.use('/api', transcribeRouter);  // POST /api/transcribe — spoken-answer STT (Groq Whisper / Deepgram)
 app.use(adminRouter);   // /admin (HTML panel + actions), gated by ADMIN_KEY — not under /api
 
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));

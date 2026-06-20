@@ -14,9 +14,13 @@
 
 import { buildGrammar } from './grammarCheck.js';
 
-const COACH_MODEL  = process.env.OAI_COACH_MODEL ?? 'gpt-4o';
-const OAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
-const TIMEOUT_MS   = 30_000;
+// Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
+// stays authoritative from LanguageTool; the model only writes strengths/study-next/
+// vocab/upgrades + their Arabic. Without GROQ_API_KEY this degrades to a metrics-only
+// debrief (+ LanguageTool grammar), so the interview never depends on the model call.
+const COACH_MODEL   = process.env.GROQ_COACH_MODEL ?? 'llama-3.3-70b-versatile';
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const TIMEOUT_MS    = 30_000;
 
 const SYSTEM_PROMPT =
 `Du bist ein strenger, aber fairer und ermutigender Deutsch-Coach für ein BPO-Bewerbungstraining
@@ -70,7 +74,7 @@ HARTE REGELN:
 - NIVEAU-SKALIERUNG (beide neuen Dimensionen): Bei a2-b1 (Anfänger) LEICHT, ermutigend, nicht überfordernd — höchstens ein sanfter Tipp, nie streng, der Kandidat darf nicht einfrieren. Bei b2 (fortgeschritten) HOHER Maßstab: eine starke Antwort MUSS ein Ergebnis nennen und der Kandidat MUSS souverän klingen — benenne fehlende Ergebnisse und zögerliche Delivery klar, aber weiterhin stärken-zuerst und nur EIN Fix. Das "ar" für beide ist einfaches ägyptisches Arabisch, freundlich, niemals eine Mauer aus Kritik.`;
 
 export async function generateDebrief({ utterances, metrics, level, csScenarioId }) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!utterances || utterances.length === 0) {
     return fallbackDebrief(metrics, utterances);
   }
@@ -115,7 +119,7 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(OAI_CHAT_URL, {
+    const res = await fetch(GROQ_CHAT_URL, {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       signal:  controller.signal,

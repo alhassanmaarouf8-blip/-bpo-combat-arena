@@ -91,7 +91,10 @@ const S = {
 const C = {
   START_FIGHT:  'start_fight',
   STOP_FIGHT:   'stop_fight',
-  AUDIO_CHUNK:  'audio_chunk',
+  // Turn-based: the candidate submits ONE complete answer per turn as TEXT — either
+  // typed, or spoken then transcribed client-side via POST /api/transcribe. (The old
+  // continuous 'audio_chunk' streaming is gone; the interview is OpenAI-free + text-driven.)
+  ANSWER:       'answer',
   PING:         'ping',
 };
 
@@ -221,8 +224,8 @@ export class WebSocketManager {
         this._handleStopFight(ctx);
         break;
 
-      case C.AUDIO_CHUNK:
-        this._handleAudioChunk(ctx, msg);
+      case C.ANSWER:
+        this._handleAnswer(ctx, msg);
         break;
 
       default:
@@ -306,9 +309,7 @@ export class WebSocketManager {
         level,
         dossier,
         focusTitle,
-        onAudioDelta:      (chunk)  => { ctx.audioOutBytes += this._b64Bytes(chunk); this._send(ctx, { type: S.AUDIO_DELTA, audio: chunk }); },
-        onTranscriptDelta: (text)   => this._send(ctx, { type: S.TRANSCRIPT_DELTA, text }),
-        onTranscriptDone:  (data)   => this._onTranscriptDone(ctx, data),
+        // Boss turns are plain text (no audio). Send the full line, then mark it done.
         onBossSpeech:      (text)   => this._send(ctx, { type: S.BOSS_SPEECH,      text }),
         onBossSpeechDone:  ()       => {
           this._send(ctx, { type: S.BOSS_SPEECH_DONE });
@@ -316,8 +317,6 @@ export class WebSocketManager {
           // its turn, and only once all three parts are complete.
           if (ctx.completePending && !ctx.closed) this._endSession(ctx, 'completed');
         },
-        onSpeechSegment:   (ms)     => { if (ms > 400) ctx.totalSpeechMs += ms; },
-        onHpUpdate:        (hp)     => this._onHpUpdate(ctx, hp),
         onError:           (err)    => {
           const code = err?.code || 'realtime_error';
           console.error(`[wsManager] RealtimeClient error session=${ctx.sessionId}: ${err.message}  code=${code}`);
@@ -664,18 +663,43 @@ export class WebSocketManager {
     return { outcome, bossHp, playerHp, score, rank, jobLabel, comboBest: ctx.comboBest, categories };
   }
 
-  // ── Audio relay browser → OAI ───────────────────────────────────────────────
+  // ── Turn-based answer handler (browser → server) ────────────────────────────
+  // One complete candidate answer per turn, as TEXT (typed, or spoken+transcribed
+  // client-side). We score it (unchanged scoring), then ask the Groq boss for its
+  // single next turn. Audio never flows over the socket anymore.
 
-  _handleAudioChunk(ctx, msg) {
+  async _handleAnswer(ctx, msg) {
     if (!ctx.realtimeClient) return;
-    if (typeof msg.audio !== 'string' || msg.audio.length > 20_000) return;
-    ctx.audioInBytes += this._b64Bytes(msg.audio);   // billed input audio (for the cost log)
-    ctx.realtimeClient.sendAudio(msg.audio);
+    // Ignore an answer that arrives while the boss is still producing its turn, and
+    // ignore empties (the boss only ever speaks in response to a real answer).
+    if (ctx.realtimeClient.isResponding) return;
+    const transcript = (typeof msg.text === 'string') ? msg.text.trim().slice(0, 4000) : '';
+    if (!transcript) return;
+
+    const wordCount  = transcript.split(/\s+/).filter(Boolean).length;
+    // durationMs is supplied for spoken answers (clip length) so WPM works; typed
+    // answers omit it (WPM is simply not scored for typed turns).
+    const durationMs = Number(msg.durationMs) > 0 ? Math.min(Number(msg.durationMs), 120_000) : 0;
+    if (durationMs > 400) ctx.totalSpeechMs += durationMs;
+
+    // Score this answer + advance the funnel (may set ctx.completePending).
+    this._scoreAnswer(ctx, transcript, durationMs, wordCount);
+    if (ctx.closed) return;
+
+    // Boss replies with exactly ONE turn. onBossSpeech / onBossSpeechDone fire from
+    // inside respond(); if this was the final roleplay exchange, onBossSpeechDone
+    // ends the session AFTER the boss's closing line is delivered.
+    try {
+      await ctx.realtimeClient.respond(transcript);
+    } catch (err) {
+      console.error(`[wsManager] boss respond failed session=${ctx.sessionId}: ${err.message}`);
+      this._sendError(ctx, 'realtime_error');
+    }
   }
 
-  // ── OAI callbacks ───────────────────────────────────────────────────────────
+  // ── Score one candidate answer + advance the funnel ─────────────────────────
 
-  _onTranscriptDone(ctx, { transcript, durationMs, wordCount }) {
+  _scoreAnswer(ctx, transcript, durationMs, wordCount) {
     console.log(`[wsManager] Utterance complete  words=${wordCount}  ms=${durationMs}  session=${ctx.sessionId}`);
 
     // Always surface the transcript text (drives the live transcript panel),
@@ -804,13 +828,10 @@ export class WebSocketManager {
     }
 
     // Mark the session for completion once the roleplay (final part) has run its
-    // course. We wait for the boss to finish its current turn (onBossSpeechDone) so the
-    // voice never gets cut off mid-sentence — but if the boss is already idle, end now.
+    // course. _handleAnswer still asks the boss for ONE closing turn after this; the
+    // session then ends in onBossSpeechDone, so the boss's final line is always shown.
     if (ctx.stageIdx === 2 && (ctx.scoredAnswers - STAGE_AFTER[1]) >= ROLEPLAY_EXCHANGES) {
       ctx.completePending = true;
-      if (ctx.realtimeClient && !ctx.realtimeClient.isResponding && !ctx.closed) {
-        this._endSession(ctx, 'completed');
-      }
     }
   }
 

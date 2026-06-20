@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { AudioPlayer } from './audioPlayer.js';
+import { ClipRecorder } from './clipRecorder.js';
 import { RealismAudio } from './realismAudio.js';
 import { buildRealismConfig, installRealismConsole } from './realismConfig.js';
 import Zielplan from './Zielplan.jsx';
@@ -120,7 +121,8 @@ const S = {
 const C = {
   START_FIGHT: 'start_fight',
   STOP_FIGHT:  'stop_fight',
-  AUDIO_CHUNK: 'audio_chunk',
+  // Turn-based: one complete answer per turn, as text (typed or spoken+transcribed).
+  ANSWER:      'answer',
   PING:        'ping',
 };
 
@@ -1837,6 +1839,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [transcript, setTranscript] = useState([]);
   const [bossSpeak, setBossSpeak] = useState(false);
   const [userSpeak, setUserSpeak] = useState(false);
+  // Turn-based answer input (typed or spoken→transcribed).
+  const [answerText, setAnswerText]   = useState('');
+  const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
+  const [recording, setRecording]     = useState(false);   // mic clip in progress
+  const [transcribing, setTranscribing] = useState(false); // clip → text in flight
   const [error, setError]         = useState(null);
   const [scoreFlash, setScoreFlash] = useState(null);
   const [screenFlash, setScreenFlash] = useState(null); // 'green' | 'red' | null
@@ -1896,6 +1903,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const pingRef        = useRef(null);
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
+  const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
+  const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
   const realismRef       = useRef(null);   // OUTPUT-ONLY interview realism engine (Phases 2–4)
   const bossLineRef      = useRef('');     // accumulates the current boss line for diegetic keywords
   const prevBossHpRef  = useRef(100);
@@ -2012,40 +2021,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         break;
 
       case S.AUDIO_DELTA:
-        // Ignore any late boss audio once the user has chosen to end (phase 'stopping'),
-        // so it can't briefly un-hide the result screen. Auto-completion stays 'active'
-        // through the boss's final line, so that audio still plays normally.
-        if (phaseRef.current === 'stopping') break;
-        if (msg.audio) {
-          playerRef.current?.enqueue(msg.audio);
-          setBossSpeak(true);
-        }
+        // Boss has no audio in the OpenAI-free text interview — ignore (kept for safety).
         break;
 
       case S.TRANSCRIPT_DELTA:
-        if (!msg.text) break;
-        setUserSpeak(true);
-        setTranscript(prev => {
-          if (partialIdRef.current === null) {
-            const id = ++_lineId;
-            partialIdRef.current = id;
-            return [...prev.slice(-39), { id, speaker:'player', text:msg.text, partial:true }];
-          }
-          return prev.map(l => l.id === partialIdRef.current ? { ...l, text: l.text + msg.text } : l);
-        });
+        // No live partial transcript in turn-based mode — ignore.
         break;
 
       case S.TRANSCRIPT_DONE:
-        setUserSpeak(false);
-        setTranscript(prev =>
-          prev.map(l => l.id === partialIdRef.current ? { ...l, text: msg.transcript, partial:false } : l)
-        );
-        partialIdRef.current = null;
+        // The client already appended the candidate's answer line locally on send;
+        // the server echo is ignored here to avoid a duplicate line.
         break;
 
       case S.BOSS_SPEECH: {
         if (!msg.text) break;
         setBossSpeak(true);
+        setBossThinking(false);   // the boss's next turn has arrived
         // Stream the boss's words live. A new utterance (ref cleared by the previous
         // BOSS_SPEECH_DONE) resets the subtitle box and opens one fresh transcript
         // line; subsequent deltas append to that same line instead of spawning many.
@@ -2148,61 +2139,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (phaseRef.current !== 'idle' || startingRef.current) return;
     startingRef.current = true;
 
-    const support = checkAudioSupport();
-    if (!support.supported) {
-      setError(`Kein Browser-Support für: ${support.missing.join(', ')}`);
-      startingRef.current = false;
-      return;
-    }
-
+    // Turn-based text interview: no mic needed to START (typing works everywhere).
+    // The microphone is only requested on demand, when the user records a spoken answer.
     setError(null);
     setBossHp(100); setPlayerHp(100);
     setBossText(''); setTranscript([]);
     setEmotion('idle'); setScoreFlash(null); setBossDmgFloat(null);
     setFunnel(null); setDebrief(null); setDebriefPending(false); setNoSession(false);
+    setAnswerText(''); setBossThinking(false); setRecording(false); setTranscribing(false);
+    pendingDurationRef.current = 0;
     partialIdRef.current = null;
     bossPartialIdRef.current = null;
-
-    // Init AudioPlayer (must be in user gesture)
-    if (!playerRef.current) {
-      playerRef.current = new AudioPlayer({
-        onPlaybackStart: () => setBossSpeak(true),
-        onPlaybackEnd:   () => setBossSpeak(false),
-        onError: console.error,
-      });
-    }
-
-    // Init AudioRecorder
-    recorderRef.current = new AudioRecorder({
-      onChunk:  (b64) => {
-        if (phaseRef.current !== 'active') return;
-        wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, audio: b64 }));
-      },
-      onVolume: (v) => { volRef.current = v; },   // ref write only — no re-render
-      onError:  (err) => {
-        console.error('[recorder]', err);
-        // Map the recorder's coded errors to translatable keys (wsErrorText handles them);
-        // anything else falls through as its raw message.
-        const code = err.code === 'MIC_DENIED'    ? 'mic_denied'
-                   : err.code === 'MIC_NOT_FOUND' ? 'mic_not_found'
-                   : err.code === 'MIC_ENDED'     ? 'mic_lost'
-                   : err.message;
-        // If the mic dies MID-fight (revoked/unplugged), end the session so the server stops
-        // billing the Realtime stream — then surface the error.
-        if (phaseRef.current === 'active') {
-          try { wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT })); } catch {}
-        }
-        setError(code);
-        setPhaseSync('error');
-      },
-    });
-
-    try {
-      await recorderRef.current.start();
-    } catch {
-      startingRef.current = false;
-      return; // errors surfaced via onError above
-    }
 
     setPhaseSync('connecting');
     startingRef.current = false;   // phaseRef now guards re-entry
@@ -2247,16 +2194,71 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (phaseRef.current !== 'active') return;
     setPhaseSync('stopping');
 
-    // Stop the mic right away so the user isn't streaming during analysis.
-    await recorderRef.current?.stop().catch(() => {});
-    recorderRef.current = null;
-    playerRef.current?.flush();
-    try { realismRef.current?.detach(); } catch {}
-    volRef.current = 0; setUserSpeak(false); setBossSpeak(false);
+    // Stop any in-progress spoken-answer recording; no streaming mic to tear down.
+    try { await clipRecRef.current?.stop(); } catch {}
+    clipRecRef.current = null;
+    setRecording(false); setBossThinking(false); setUserSpeak(false); setBossSpeak(false);
 
     setDebriefPending(true);
     wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT }));
   }, [setPhaseSync]);
+
+  // ── Submit ONE answer (typed, or transcribed from a clip) ────────────────────
+  const sendAnswer = useCallback(() => {
+    const text = answerText.trim();
+    if (!text || phaseRef.current !== 'active' || bossThinking) return;
+    const id = ++_lineId;
+    setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text, partial: false }]);
+    const durationMs = pendingDurationRef.current || 0;
+    pendingDurationRef.current = 0;
+    wsRef.current?.send(JSON.stringify({ type: C.ANSWER, text, durationMs }));
+    setAnswerText('');
+    setBossThinking(true);
+  }, [answerText, bossThinking]);
+
+  // ── Spoken answer: record a clip → POST /api/transcribe → fill the textarea ───
+  const toggleRecord = useCallback(async () => {
+    if (transcribing) return;
+    if (recording) {
+      setRecording(false);
+      let clip = null;
+      try { clip = await clipRecRef.current?.stop(); } catch {}
+      clipRecRef.current = null;
+      if (!clip || !clip.blob) return;
+      setTranscribing(true);
+      try {
+        const fd = new FormData();
+        fd.append('audio', clip.blob, 'answer.wav');
+        const r = await fetch(`${API_URL}/api/transcribe`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${auth.token}` },
+          body: fd,
+        });
+        if (!r.ok) throw new Error('transcribe_failed');
+        const { text } = await r.json();
+        if (text && text.trim()) {
+          setAnswerText(prev => (prev ? prev.trim() + ' ' : '') + text.trim());
+          pendingDurationRef.current = clip.durationMs || 0;
+        } else {
+          setError('Nichts verstanden — bitte erneut sprechen oder tippen.');
+        }
+      } catch {
+        setError('Spracherkennung fehlgeschlagen — bitte tippen.');
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+    // start recording
+    try {
+      clipRecRef.current = new ClipRecorder({ onVolume: (v) => { volRef.current = v; } });
+      await clipRecRef.current.start();
+      setRecording(true);
+    } catch {
+      clipRecRef.current = null;
+      setError('mic_denied');
+    }
+  }, [recording, transcribing, auth.token]);
 
   // Cost guard: if the user locks the phone or switches apps mid-fight, the Realtime
   // session would keep billing in the background. End it cleanly (the debrief still
@@ -2833,7 +2835,58 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         )}
 
-        <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />
+        {/* ── Answer input (turn-based) ─────────────────────────────────────── */}
+        {isActive && (
+          <div style={{ marginBottom:12, textAlign:'left' }}>
+            {bossThinking ? (
+              <div style={{ padding:'14px', textAlign:'center', fontFamily:'Orbitron,monospace',
+                fontSize:11, letterSpacing:'0.1em', color:'#00e5ff',
+                border:'1px solid rgba(0,229,255,0.25)', borderRadius:8,
+                background:'rgba(0,229,255,0.05)', animation:'pulse 1.2s infinite' }}>
+                {funnel?.displayName ?? 'Der Chef'} denkt nach…
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={answerText}
+                  onChange={(e) => { setAnswerText(e.target.value); pendingDurationRef.current = 0; }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAnswer(); } }}
+                  placeholder="Ihre Antwort auf Deutsch… (Enter zum Senden)"
+                  rows={3}
+                  disabled={transcribing}
+                  style={{ width:'100%', boxSizing:'border-box', resize:'vertical', padding:'10px 12px',
+                    fontSize:14, lineHeight:1.5, color:'#e2e8f0', background:'rgba(2,6,16,0.7)',
+                    border:'1px solid rgba(0,229,255,0.3)', borderRadius:8, outline:'none', fontFamily:'inherit' }}
+                />
+                <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                  <button onClick={toggleRecord} disabled={transcribing}
+                    style={{ flex:'0 0 auto', padding:'10px 14px', cursor:'pointer', borderRadius:8,
+                      fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.08em',
+                      border:`1px solid ${recording ? '#ef4444' : '#475569'}`,
+                      color: recording ? '#fca5a5' : '#94a3b8',
+                      background: recording ? 'rgba(239,68,68,0.1)' : 'rgba(148,163,184,0.06)' }}>
+                    {transcribing ? '⏳…' : recording ? '■ STOPP' : '🎤 SPRECHEN'}
+                  </button>
+                  <button onClick={sendAnswer} disabled={!answerText.trim() || transcribing}
+                    style={{ flex:1, padding:'10px 14px', cursor: answerText.trim() ? 'pointer' : 'not-allowed',
+                      borderRadius:8, fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.12em',
+                      border:'1px solid #00e5ff', color:'#04070d', fontWeight:700,
+                      background: answerText.trim() ? 'linear-gradient(135deg,#67e8f9,#00e5ff)' : 'rgba(0,229,255,0.15)',
+                      opacity: answerText.trim() ? 1 : 0.5 }}>
+                    SENDEN ▶
+                  </button>
+                </div>
+                {recording && (
+                  <div style={{ fontSize:10, color:'#fca5a5', marginTop:4, textAlign:'center' }}>
+                    Aufnahme läuft — auf STOPP drücken, dann wird transkribiert.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {!isActive && <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />}
 
         <div style={{ margin:'6px 0 12px' }}>
           <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.18em',
@@ -2841,12 +2894,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             color: bossSpeak ? boss.color : isActive ? 'var(--accent)' : isConnecting ? 'var(--warn)' : '#475569',
             textShadow: (isActive && !bossSpeak) ? '0 0 16px rgba(0,229,255,0.6)' : bossSpeak ? `0 0 12px ${boss.color}` : 'none',
             transition:'all 0.3s' }}>
-            {bossSpeak ? 'GEGNER SPRICHT…'
-              : isActive ? (userSpeak ? 'DU SPRICHST…' : 'SPRICH')
+            {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : 'DU BIST DRAN')
               : isConnecting ? 'VERBINDE…' : 'BEREIT ZUM KAMPF'}
           </div>
-          {isActive && !bossSpeak && (
-            <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Kein Push-to-Talk — sprich einfach Deutsch</div>
+          {isActive && !bossThinking && (
+            <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Tippe deine Antwort auf Deutsch — oder nimm sie per 🎤 auf</div>
           )}
           {isConnecting && (
             <div style={{ fontSize:9.5, color:'#f59e0b', marginTop:4, lineHeight:1.4 }}>
