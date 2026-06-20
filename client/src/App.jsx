@@ -160,6 +160,44 @@ function speakGerman(text, onStart, onEnd) {
   } catch { onEnd?.(); }
 }
 
+// Preferred boss voice: Deepgram Aura-2 German (neural) via our server /api/tts, which
+// holds the Deepgram key. Plays the returned MP3; on ANY failure (no key, network,
+// autoplay block) it automatically falls back to the free browser voice above.
+let _bossAudio = null;
+function stopBossVoice() {
+  try { if (_bossAudio) { _bossAudio.pause(); _bossAudio.src = ''; _bossAudio = null; } } catch {}
+  cancelSpeech();
+}
+async function playBossVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
+  if (!text) { onEnd?.(); return; }
+  stopBossVoice();
+  try {
+    const res = await fetch(`${apiUrl}/api/tts`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ text, voice }),
+    });
+    if (!res.ok) throw new Error('tts ' + res.status);
+    const blob = await res.blob();
+    if (!blob || !blob.size) throw new Error('empty audio');
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _bossAudio = audio;
+    let started = false;
+    audio.onplay  = () => { started = true; try { onStart?.(); } catch {} };
+    audio.onended = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
+    audio.onerror = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; if (started) { onEnd?.(); } else { speakGerman(text, onStart, onEnd); } };
+    await audio.play().catch(() => {           // autoplay blocked / decode fail → browser voice
+      try { URL.revokeObjectURL(url); } catch {}
+      if (_bossAudio === audio) _bossAudio = null;
+      speakGerman(text, onStart, onEnd);
+    });
+  } catch {
+    // No key / Deepgram error / network → free browser voice, no interruption to the user.
+    speakGerman(text, onStart, onEnd);
+  }
+}
+
 // ── Boss emotional states → drives the SVG interviewer's expression ───────────
 const EMOTIONS = {
   // Pre-fight default + the FOUR backend-driven reaction states. Each carries the SVG
@@ -1879,6 +1917,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   });
   const ttsMutedRef = useRef(ttsMuted);
   useEffect(() => { ttsMutedRef.current = ttsMuted; try { localStorage.setItem('ttsMuted', ttsMuted ? '1' : '0'); } catch {} }, [ttsMuted]);
+  // Fresh-value refs for the boss-voice fetch (avoids stale closures in handleMsg).
+  const tokenRef     = useRef(auth.token);
+  useEffect(() => { tokenRef.current = auth.token; }, [auth.token]);
+  const bossVoiceRef = useRef('aura-2-julius-de');   // de-DE Aura-2 voice; set per boss on scenario_info
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
@@ -2019,6 +2061,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           levelLabel:  msg.levelLabel ?? '',
           displayName: msg.displayName ?? 'HERR TARIQ',
         });
+        // Pick the Aura-2 German voice by boss gender (Frau Müller = feminine).
+        bossVoiceRef.current = (msg.bossId === 'frau-mueller') ? 'aura-2-lara-de' : 'aura-2-julius-de';
         break;
 
       case S.STAGE_UPDATE:
@@ -2114,7 +2158,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {
           const spokenLine = bossLineRef.current || '';
           if (!ttsMutedRef.current && spokenLine) {
-            speakGerman(spokenLine, () => setBossSpeak(true), () => setBossSpeak(false));
+            // Deepgram Aura-2 German (neural) → auto-fallback to free browser voice.
+            playBossVoice({
+              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, text: spokenLine,
+              onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
+            });
           } else {
             setBossSpeak(false);
           }
@@ -2226,7 +2274,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         recorderRef.current?.stop().catch(() => {});
         playerRef.current?.flush();
         try { realismRef.current?.detach(); } catch {}
-        volRef.current = 0; setUserSpeak(false); setBossSpeak(false); cancelSpeech();
+        volRef.current = 0; setUserSpeak(false); setBossSpeak(false); stopBossVoice();
       } else {
         setPhaseSync('idle');
       }
@@ -2248,7 +2296,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // Stop any in-progress spoken-answer recording; no streaming mic to tear down.
     try { await clipRecRef.current?.stop(); } catch {}
     clipRecRef.current = null;
-    setRecording(false); setBossThinking(false); setUserSpeak(false); setBossSpeak(false); cancelSpeech();
+    setRecording(false); setBossThinking(false); setUserSpeak(false); setBossSpeak(false); stopBossVoice();
 
     setDebriefPending(true);
     wsRef.current?.send(JSON.stringify({ type: C.STOP_FIGHT }));
@@ -2909,7 +2957,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                     border:'1px solid rgba(0,229,255,0.3)', borderRadius:8, outline:'none', fontFamily:'inherit' }}
                 />
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                  <button onClick={() => { setTtsMuted(m => { const next = !m; if (next) cancelSpeech(); return next; }); }}
+                  <button onClick={() => { setTtsMuted(m => { const next = !m; if (next) stopBossVoice(); return next; }); }}
                     title={ttsMuted ? 'Stimme einschalten' : 'Stimme stummschalten'}
                     style={{ flex:'0 0 auto', padding:'10px 12px', cursor:'pointer', borderRadius:8,
                       fontFamily:'Orbitron,monospace', fontSize:13, letterSpacing:'0.08em',
