@@ -18,7 +18,7 @@ const router = express.Router();
 
 const GROQ_BASE             = 'https://api.groq.com/openai/v1';
 const GROQ_TRANSCRIBE_MODEL = process.env.GROQ_TRANSCRIBE_MODEL || 'whisper-large-v3';
-const TRANSCRIBER           = (process.env.TRANSCRIBER || 'groq').toLowerCase();
+const TRANSCRIBER           = (process.env.TRANSCRIBER || 'deepgram').toLowerCase();
 
 // ── Boss voice: Deepgram Aura-2 German TTS (uses the existing DEEPGRAM_API_KEY) ──
 // Neural, natural German; no OpenAI, no new key. The client falls back to the free
@@ -31,13 +31,7 @@ const AURA_DE_VOICES = new Set([
 ]);
 const DEFAULT_VOICE = 'aura-2-julius-de';
 
-async function transcribe(buffer, mimeType) {
-  if (TRANSCRIBER === 'deepgram') {
-    const { transcribeDeepgram } = await import('./transcribeDeepgram.js');
-    // nova-3 beats Whisper on Arabic-accented German; force it regardless of the
-    // transcribeDeepgram.js default (nova-2). Activated only when TRANSCRIBER=deepgram.
-    return transcribeDeepgram(buffer, { language: 'de', model: 'nova-3' });
-  }
+async function groqTranscribe(buffer, mimeType) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY is not set');
 
@@ -59,6 +53,25 @@ async function transcribe(buffer, mimeType) {
     throw new Error(`Groq STT ${res.status}: ${body.slice(0, 200)}`);
   }
   return (await res.text()).trim();   // response_format 'text' → plain transcript
+}
+
+async function transcribe(buffer, mimeType) {
+  // Default engine: Deepgram nova-3 (de) — markedly better on Arabic-accented German
+  // than Whisper (which mangled "bereit"→"traurig" etc.). If Deepgram errors (outage/
+  // key) or returns nothing, fall back to Groq Whisper so an answer is NEVER silently
+  // lost. Override the default with TRANSCRIBER=groq.
+  if (TRANSCRIBER !== 'groq') {
+    try {
+      const { transcribeDeepgram } = await import('./transcribeDeepgram.js');
+      const text = await transcribeDeepgram(buffer, { language: 'de', model: 'nova-3' });
+      if (text && text.trim()) return text.trim();
+      throw new Error('deepgram returned empty transcript');
+    } catch (err) {
+      console.error(`[transcribeRouter] Deepgram nova-3 failed → Groq Whisper fallback: ${err.message}`);
+      return groqTranscribe(buffer, mimeType);
+    }
+  }
+  return groqTranscribe(buffer, mimeType);
 }
 
 // Raw audio body (no multer): the client POSTs the clip bytes with an audio/* type.
