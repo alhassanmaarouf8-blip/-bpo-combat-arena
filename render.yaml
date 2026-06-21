@@ -1,0 +1,16 @@
+# Render Blueprint for the OMNI-PERFORM server (the client is deployed separately on Vercel).
+# The repo has no root package.json — the server lives in server/. If the Render service's
+# build runs at the repo root it fails and the old build keeps serving. This pins the correct
+# config. If the service is Blueprint-linked, Render applies this on sync; otherwise set the
+# same values by hand in the dashboard (Root Directory = server, Auto-Deploy = Yes, Branch = main).
+services:
+  - type: web
+    name: bpo-combat-arena
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: true
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
