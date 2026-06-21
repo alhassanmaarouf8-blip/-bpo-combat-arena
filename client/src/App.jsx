@@ -681,7 +681,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
 // ── Component: TranscriptPanel ────────────────────────────────────────────────
 const FILLER_RE = /\b(äh+|ehm+|um+|also\s|halt\s|irgendwie|quasi|sozusagen)\b/gi;
 
-function TranscriptPanel({ lines, userSpeak }) {
+function TranscriptPanel({ lines, userSpeak, bossName }) {
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior:'smooth' }); }, [lines]);
 
@@ -700,7 +700,7 @@ function TranscriptPanel({ lines, userSpeak }) {
           opacity: line.partial ? 0.65 : 1 }}>
           <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, letterSpacing:'0.14em', marginRight:8,
             color: line.speaker === 'boss' ? 'var(--accent-dim)' : 'rgba(16,185,129,0.6)' }}>
-            {line.speaker === 'boss' ? 'TARIQ' : 'DU'}
+            {line.speaker === 'boss' ? (bossName || 'GEGNER') : 'DU'}
           </span>
           {_highlight(line.text)}
           {line.partial && <span style={{ color:'#475569', animation:'pulse 1s infinite' }}> ▋</span>}
@@ -2152,25 +2152,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // Stream the boss's words live. A new utterance (ref cleared by the previous
         // BOSS_SPEECH_DONE) resets the subtitle box and opens one fresh transcript
         // line; subsequent deltas append to that same line instead of spawning many.
+        // The boss's line lives in ONE place — the prominent subtitle (bossText), whose
+        // header shows the active character's name. It is NOT mirrored into the transcript
+        // log below; that double-render was the duplicate-text bug.
         if (bossPartialIdRef.current === null) {
-          const id = ++_lineId;
-          bossPartialIdRef.current = id;
+          bossPartialIdRef.current = ++_lineId;
           bossLineRef.current = msg.text;
           setBossText(msg.text);
-          setTranscript(prev => [...prev.slice(-39), { id, speaker:'boss', text:msg.text, partial:true }]);
         } else {
-          const id = bossPartialIdRef.current;
           bossLineRef.current += msg.text;
           setBossText(t => t + msg.text);
-          setTranscript(prev => prev.map(l => l.id === id ? { ...l, text: l.text + msg.text } : l));
         }
         break;
       }
 
       case S.BOSS_SPEECH_DONE:
-        setTranscript(prev =>
-          prev.map(l => l.id === bossPartialIdRef.current ? { ...l, partial:false } : l)
-        );
+        // Boss line is not in the transcript log (single-place render) — nothing to finalize there.
         // Phase 3: if the interviewer just referenced checking the CV/notes, play a faint
         // diegetic typing/paper sound (OUTPUT-ONLY; seeded rate-gated inside triggerDiegetic).
         try {
@@ -2927,7 +2924,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
           {/* transcript log */}
           <div style={{ flex:1, minHeight:0, padding:'0 6px 6px' }}>
-            <TranscriptPanel lines={transcript} userSpeak={userSpeak} />
+            <TranscriptPanel lines={transcript} userSpeak={userSpeak} bossName={(funnel?.displayName || '').toUpperCase()} />
           </div>
         </div>
       </div>

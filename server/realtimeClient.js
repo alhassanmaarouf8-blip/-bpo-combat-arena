@@ -127,7 +127,7 @@ try {
 
 // ── Per-session seeded mood + a short "thinking" pause before the opening line ──
 const MOOD_POOL = ['sharp-monday', 'neutral', 'tired-friday'];
-const RESPONSE_DELAY_MS = 450;
+const RESPONSE_DELAY_MS = 120;
 function _seedFrom(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function _seededPick(arr, seed) { const x = Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0; return arr[x % arr.length]; }
 
