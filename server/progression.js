@@ -9,10 +9,13 @@ export const XP_PER_LEVEL = 120;
 const DAY = 24 * 60 * 60 * 1000;
 
 // Ordered easiest → hardest. bossId must exist in realtimeClient BOSS_CONFIGS.
+// 5-character ladder — ids MUST match interviewer-characters.json / BOSS_CONFIGS.
 export const BOSS_LADDER = [
-  { id: 'frau-mueller',   name: 'FRAU MÜLLER',    tier: 'Aufwärm-Boss',  minLevel: 1 },
-  { id: 'herr-tariq',     name: 'HERR TARIQ',     tier: 'Standard-Boss', minLevel: 3 },
-  { id: 'direktor-vogel', name: 'DIREKTOR VOGEL', tier: 'Endgegner',     minLevel: 6 },
+  { id: 'yasmin',         name: 'YASMIN',         tier: 'Junior-Recruiterin', minLevel: 1 },
+  { id: 'karim',          name: 'KARIM',          tier: 'Teamleiter',         minLevel: 2 },
+  { id: 'hana',           name: 'HANA',           tier: 'Hiring Managerin',   minLevel: 4 },
+  { id: 'tarek',          name: 'TAREK',          tier: 'Eskalations-Boss',   minLevel: 6 },
+  { id: 'frau-mona-adel', name: 'FRAU MONA ADEL', tier: 'Geschäftsführerin',  minLevel: 8 },
 ];
 
 export function levelFor(xp) {

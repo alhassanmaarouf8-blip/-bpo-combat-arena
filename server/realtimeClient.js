@@ -18,6 +18,9 @@
  * Callbacks used: onBossSpeech(text), onBossSpeechDone(), onError(err), onClose().
  */
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
 
 // ── Groq config (OpenAI-compatible chat endpoint) ───────────────────────────────
@@ -74,7 +77,43 @@ const BOSS_CONFIGS = {
   },
 };
 
-const DEFAULT_BOSS = 'herr-tariq';
+const DEFAULT_BOSS = 'yasmin';
+
+// ── 5-character interviewer ladder (interviewer-characters.json, level 1→5) ──────
+// Each character's system_prompt already carries identity, formal Sie, the
+// assess-then-react loop and the 5 hard rules; we enrich it with backstory +
+// speaking style so the persona fed to buildSessionScript is the FULL character.
+// Merged into BOSS_CONFIGS by id — this is what the boss ladder now uses. The three
+// legacy bosses above are retained (harmless) but no longer referenced by the ladder.
+// Text/config only: reads a local JSON at boot, makes NO API call and costs nothing.
+const GREETINGS = {
+  'yasmin':         'Schön, dass Sie da sind. Wir fangen ganz in Ruhe an.',
+  'karim':          'Guten Tag. Fangen wir direkt an.',
+  'hana':           'Guten Tag. Ich habe ein paar Fragen an Sie.',
+  'tarek':          'Guten Tag. Wir haben wenig Zeit — los geht’s.',
+  'frau-mona-adel': 'Setzen Sie sich. Ich höre.',
+};
+try {
+  const _charsPath  = path.join(path.dirname(fileURLToPath(import.meta.url)), 'interviewer-characters.json');
+  const _characters = JSON.parse(fs.readFileSync(_charsPath, 'utf8')).characters || [];
+  for (const c of _characters) {
+    const phrases = (c.speaking_style?.signature_phrases || []).map((p) => `„${p}“`).join(' ');
+    const persona = [
+      c.system_prompt,
+      `\n\nHintergrund (nur für deine innere Haltung — erwähne ihn dem Kandidaten gegenüber NIEMALS): ${c.backstory}`,
+      `\n\nSprechstil: ${c.speaking_style?.rhythm || ''}${phrases ? ` Typische Wendungen: ${phrases}` : ''}`,
+      `\n\nEmotionale Grundhaltung: ${c.emotional_default || ''}`,
+    ].join('');
+    BOSS_CONFIGS[c.id] = {
+      displayName: String(c.name || c.id).toUpperCase(),
+      greeting:    GREETINGS[c.id] || 'Guten Tag.',
+      persona,
+      interrupts:  !!c.speaking_style?.interrupts,
+    };
+  }
+} catch (err) {
+  console.error('[realtimeClient] could not load interviewer-characters.json:', err.message);
+}
 
 // ── Per-session seeded mood + a short "thinking" pause before the opening line ──
 const MOOD_POOL = ['sharp-monday', 'neutral', 'tired-friday'];
@@ -103,7 +142,7 @@ function sanitizeOneTurn(text) {
   const m = t.match(markers);
   if (m && m.index > 0) t = t.slice(0, m.index).trim();
   // Drop a leading boss self-label if present ("Herr Tariq:", "Interviewer:").
-  t = t.replace(/^\s*(Herr\s+Tariq|Frau\s+Müller|Direktor\s+Vogel|Interviewer|HR)\s*[:：]\s*/i, '').trim();
+  t = t.replace(/^\s*(Yasmin|Karim|Hana|Tarek|Frau\s+Mona\s+Adel|Frau\s+Adel|Herr\s+Tariq|Frau\s+Müller|Direktor\s+Vogel|Interviewer|HR)\s*[:：]\s*/i, '').trim();
   return t;
 }
 

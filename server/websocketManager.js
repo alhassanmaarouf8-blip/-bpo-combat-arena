@@ -168,7 +168,7 @@ export class WebSocketManager {
       closed:         false,   // guards _endSession against double-firing
       completePending: false,  // all 3 parts done; end after the boss finishes talking
       userId:         'anon',
-      bossId:         'herr-tariq',
+      bossId:         'yasmin',
       scoreSum:       0,
       scoreCount:     0,
       fillerTotal:    0,       // cumulative filler words this session (for the live counter)
@@ -270,7 +270,7 @@ export class WebSocketManager {
     const viaBossTor = msg.mode === 'bosstor';
 
     // Boss is chosen by the user's progression (warm-up → standard → final boss).
-    let bossId = 'herr-tariq';
+    let bossId = 'yasmin';
     let dossier = null;
     let focusTitle = null;
     let prof = null;
