@@ -52,6 +52,11 @@ app.get('/health', (_req, res) => {
     // Provider markers — lets a deploy be verified as the OpenAI-free build.
     interview: 'groq',
     openai: false,
+    // Is the Deepgram key actually loaded on this instance? Drives neural voice (TTS)
+    // AND nova-3 STT — if false, voice goes robotic and STT falls back. (Boolean only;
+    // never exposes the key.)
+    deepgram: !!process.env.DEEPGRAM_API_KEY,
+    stt: (process.env.TRANSCRIBER || 'deepgram').toLowerCase(),
     // Deploy marker: the live git commit (Render sets RENDER_GIT_COMMIT). Lets us
     // confirm which build is ACTUALLY serving instead of guessing from uptime.
     build: (process.env.RENDER_GIT_COMMIT || 'dev').slice(0, 7),

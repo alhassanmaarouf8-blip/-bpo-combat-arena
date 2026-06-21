@@ -63,7 +63,7 @@ async function transcribe(buffer, mimeType) {
   if (TRANSCRIBER !== 'groq') {
     try {
       const { transcribeDeepgram } = await import('./transcribeDeepgram.js');
-      const text = await transcribeDeepgram(buffer, { language: 'de', model: 'nova-3' });
+      const text = await transcribeDeepgram(buffer, { language: 'de', model: 'nova-3', contentType: mimeType });
       if (text && text.trim()) return text.trim();
       throw new Error('deepgram returned empty transcript');
     } catch (err) {

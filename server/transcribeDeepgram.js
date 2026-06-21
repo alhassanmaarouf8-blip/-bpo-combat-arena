@@ -26,6 +26,10 @@ export async function transcribeDeepgram(audioBuffer, metadata = {}) {
   const key = process.env.DEEPGRAM_API_KEY;
   if (!key) throw new Error('DEEPGRAM_API_KEY is not set');
 
+  // contentType is a HEADER, not a query option — pull it out before building params
+  // so the browser's real format (e.g. audio/webm;codecs=opus) is sent to Deepgram.
+  const { contentType = 'audio/wav', ...query } = metadata;
+
   // Option precedence: built-in defaults < env vars < per-call metadata.
   const options = {
     model:        process.env.DEEPGRAM_MODEL    || 'nova-2',
@@ -33,7 +37,7 @@ export async function transcribeDeepgram(audioBuffer, metadata = {}) {
     smart_format: true,
     punctuate:    true,
     diarize:      false,
-    ...metadata,
+    ...query,
   };
 
   const params = new URLSearchParams();
@@ -45,7 +49,7 @@ export async function transcribeDeepgram(audioBuffer, metadata = {}) {
   try {
     res = await fetch(`${DEEPGRAM_URL}?${params.toString()}`, {
       method: 'POST',
-      headers: { Authorization: `Token ${key}`, 'Content-Type': 'audio/wav' },
+      headers: { Authorization: `Token ${key}`, 'Content-Type': contentType },
       body: audioBuffer,
     });
   } catch (err) {
