@@ -34,7 +34,9 @@ const DEFAULT_VOICE = 'aura-2-julius-de';
 async function transcribe(buffer, mimeType) {
   if (TRANSCRIBER === 'deepgram') {
     const { transcribeDeepgram } = await import('./transcribeDeepgram.js');
-    return transcribeDeepgram(buffer, { language: 'de' });
+    // nova-3 beats Whisper on Arabic-accented German; force it regardless of the
+    // transcribeDeepgram.js default (nova-2). Activated only when TRANSCRIBER=deepgram.
+    return transcribeDeepgram(buffer, { language: 'de', model: 'nova-3' });
   }
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY is not set');
