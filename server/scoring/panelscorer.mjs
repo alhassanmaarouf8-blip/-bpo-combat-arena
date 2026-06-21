@@ -68,16 +68,31 @@ export async function scoreAnswer(audioBuffer, opts = {}) {
     throw new Error(`transcription_failed: ${message}`);
   }
 
-  if (!transcriptText.trim()) {
+  // Judge from the transcript we just produced. Delegates to the transcript-only
+  // path so the audio flow and the live turn-based interview (which already holds
+  // transcripts) share ONE judge implementation.
+  return gradeTranscript({ transcript: transcriptText, level, scenarioId, userId });
+}
+
+/**
+ * Judge-only scoring from an already-produced transcript (no audio / no STT).
+ * This is what the live turn-based interview calls for the end-screen grade and
+ * the debrief — it already holds the candidate's transcripts. Same return shape
+ * as scoreAnswer, plus cefrLevel. Groq only — never OpenAI.
+ */
+export async function gradeTranscript({ transcript = '', level = 'a2-b1', scenarioId = 'general', userId = 'anon' } = {}) {
+  const text = String(transcript || '').trim();
+  if (!text) {
     return {
       ok: true,
       verdict: 'no_speech',
+      cefrLevel: null,
       transcript: '',
       metrics: { wordCount: 0, fluencyScore: 0, fillerCount: 0, wpm: 0, strengths: [], studyNext: [], grammar: [] },
     };
   }
 
-  const prompt = buildScoringPrompt({ level, scenarioId, transcript: transcriptText });
+  const prompt = buildScoringPrompt({ level, scenarioId, transcript: text });
 
   let completion;
   try {
@@ -93,11 +108,12 @@ export async function scoreAnswer(audioBuffer, opts = {}) {
     throw new Error(`scoring_failed: ${message}`);
   }
 
-  const scored = parseScoredCompletion(completion, transcriptText);
+  const scored = parseScoredCompletion(completion, text);
 
   return {
     ok: scored.ok,
     verdict: scored.verdict,
+    cefrLevel: scored.cefrLevel,
     transcript: scored.transcript,
     metrics: {
       wordCount: scored.wordCount,
@@ -126,6 +142,7 @@ Return a compact JSON object with this exact shape:
 {
   "ok": true,
   "verdict": "pass" | "weak" | "fail",
+  "cefrLevel": "A1" | "A2" | "B1" | "B2" | "C1",
   "transcript": "the candidate transcript",
   "wordCount": 0,
   "fluencyScore": 0,
@@ -140,6 +157,7 @@ Return a compact JSON object with this exact shape:
 
 Rules:
 - "verdict" must be derived from concrete evidence in the transcript.
+- "cefrLevel" is the candidate's CEFR level judged ONLY from grammar accuracy, vocabulary range, and content actually present in the transcript. Be conservative; when in doubt, grade LOWER. Broken or error-filled German must NEVER receive B2 or C1.
 - fluencyScore is 0-100 integer.
 - wpm is your best estimate from the word count.
 - tokensIn/tokensOut are integers representing usage; if not measurable, set 0.`,
@@ -164,6 +182,9 @@ function parseScoredCompletion(completion, echoTranscript) {
   return {
     ok: true,
     verdict: typeof parsed.verdict === 'string' ? parsed.verdict : 'weak',
+    cefrLevel: ['A1', 'A2', 'B1', 'B2', 'C1'].includes(String(parsed.cefrLevel || '').toUpperCase())
+      ? String(parsed.cefrLevel).toUpperCase()
+      : null,
     transcript: typeof parsed.transcript === 'string' ? parsed.transcript : echoTranscript,
     wordCount: Number(parsed.wordCount || 0),
     fluencyScore: Number(parsed.fluencyScore || 0),
