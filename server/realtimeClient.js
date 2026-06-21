@@ -93,6 +93,15 @@ const GREETINGS = {
   'tarek':          'Guten Tag. Wir haben wenig Zeit — los geht’s.',
   'frau-mona-adel': 'Setzen Sie sich. Ich höre.',
 };
+// Gender-correct Deepgram Aura-2 German voice per character (the women must NOT be
+// voiced by the male default). All ids exist in transcribeRouter AURA_DE_VOICES.
+const VOICES = {
+  'yasmin':         'aura-2-lara-de',     // female, warm
+  'karim':          'aura-2-fabian-de',   // male
+  'hana':           'aura-2-viktoria-de', // female, mature
+  'tarek':          'aura-2-julius-de',   // male, hard
+  'frau-mona-adel': 'aura-2-aurelia-de',  // female, authoritative
+};
 try {
   const _charsPath  = path.join(path.dirname(fileURLToPath(import.meta.url)), 'interviewer-characters.json');
   const _characters = JSON.parse(fs.readFileSync(_charsPath, 'utf8')).characters || [];
@@ -108,6 +117,7 @@ try {
       displayName: String(c.name || c.id).toUpperCase(),
       greeting:    GREETINGS[c.id] || 'Guten Tag.',
       persona,
+      voice:       VOICES[c.id] || 'aura-2-julius-de',
       interrupts:  !!c.speaking_style?.interrupts,
     };
   }
@@ -180,6 +190,7 @@ export class RealtimeClient {
     this.sessionInfo = {
       bossId,
       displayName: this._boss.displayName,
+      voice:       this._boss.voice ?? 'aura-2-julius-de',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
