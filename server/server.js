@@ -57,6 +57,8 @@ app.get('/health', (_req, res) => {
     // never exposes the key.)
     deepgram: !!process.env.DEEPGRAM_API_KEY,
     stt: (process.env.TRANSCRIBER || 'deepgram').toLowerCase(),
+    // Is the keep-alive self-ping armed? (warms the free dyno so "begin" isn't a cold start)
+    keepAlive: !!(process.env.RENDER_EXTERNAL_URL || process.env.RENDER),
     // Deploy marker: the live git commit (Render sets RENDER_GIT_COMMIT). Lets us
     // confirm which build is ACTUALLY serving instead of guessing from uptime.
     build: (process.env.RENDER_GIT_COMMIT || 'dev').slice(0, 7),
@@ -98,11 +100,14 @@ httpServer.listen(PORT, () => {
   // ── Keep-alive: ping our own public URL every 10 min so Render's free tier never
   // reaches the 15-min idle spin-down. This removes the multi-second cold-start the
   // user hits when clicking "Interview starten" on a slept dyno. Free; no new service.
-  const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+  const SELF_URL = process.env.RENDER_EXTERNAL_URL
+    || (process.env.RENDER ? 'https://bpo-combat-arena.onrender.com' : null);
   if (SELF_URL) {
     const ping = () => fetch(`${SELF_URL}/health`).catch(() => {});
-    setInterval(ping, 10 * 60 * 1000);
+    setInterval(ping, 10 * 60 * 1000).unref?.();
     console.log(`[server] keep-alive self-ping armed → ${SELF_URL}/health every 10 min`);
+  } else {
+    console.log('[server] keep-alive NOT armed (no RENDER env) — local/dev only');
   }
 });
 
