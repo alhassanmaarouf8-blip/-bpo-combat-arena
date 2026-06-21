@@ -1,0 +1,15 @@
+{
+  "name": "bpo-combat-arena-root",
+  "private": true,
+  "scripts": {
+    "lint": "eslint server/ client/src",
+    "lint:fix": "eslint server/ client/src --fix",
+    "typecheck": "node --check server/*.js",
+    "test:watch": "cd client && npm run test:watch",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
