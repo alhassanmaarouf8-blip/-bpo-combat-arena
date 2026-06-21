@@ -56,6 +56,15 @@ try {
       </RootBoundary>
     </StrictMode>,
   );
+  // Tiny build stamp (bottom-right) so the LIVE Vercel deploy is visually verifiable —
+  // mirrors the server /health "build". Commit is injected at build time by Vite.
+  try {
+    const bid = (typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
+    const tag = document.createElement('div');
+    tag.textContent = 'build ' + bid;
+    tag.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:2147483647;font:10px/1 monospace;color:#334155;opacity:0.55;pointer-events:none;user-select:none';
+    document.body.appendChild(tag);
+  } catch { /* ignore */ }
 } catch (err) {
   paintError('App konnte nicht starten', err?.stack || err?.message || err);
 }

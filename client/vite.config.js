@@ -15,8 +15,20 @@ export default defineConfig(({ mode }) => {
   const WS_URL  = process.env.VITE_WS_URL  ?? (isProd ? PROD_WS  : 'ws://localhost:3001');
   const API_URL = process.env.VITE_API_URL ?? (isProd ? PROD_API : 'http://localhost:3001');
 
+  const BUILD_ID = (process.env.VERCEL_GIT_COMMIT_SHA || 'dev').slice(0, 7);
+
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // Stamp the live commit into index.html as <meta name="build"> so the Vercel
+        // deploy is verifiable by fetching the page (mirrors the server /health build).
+        name: 'build-stamp',
+        transformIndexHtml(html) {
+          return html.replace('</head>', `  <meta name="build" content="${BUILD_ID}">\n  </head>`);
+        },
+      },
+    ],
     server: {
       port: 5173,
       proxy: {
@@ -42,6 +54,7 @@ export default defineConfig(({ mode }) => {
     define: {
       __WS_URL__:  JSON.stringify(WS_URL),
       __API_URL__: JSON.stringify(API_URL),
+      __BUILD_ID__: JSON.stringify(BUILD_ID),
     },
   };
 });
