@@ -2,6 +2,7 @@ import { WebSocketServer } from 'ws';
 import { randomUUID }      from 'crypto';
 import { RealtimeClient }  from './realtimeClient.js';
 import { generateDebrief } from './coach.js';
+import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount }  from './srs.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank } from './progression.js';
@@ -459,7 +460,7 @@ export class WebSocketManager {
     }
 
     const progress = await this._persistProgress(ctx, metrics, debrief);
-    const result   = this._computeResult(ctx, metrics);
+    const result   = await this._computeResult(ctx, metrics);
 
     console.log(`[wsManager] Debrief ready  generated=${debrief.generated}  outcome=${result.outcome}  rank=${result.rank}  bossHp=${result.bossHp}  answers=${metrics.answers}  session=${ctx.sessionId}`);
     this._send(ctx, { type: S.DEBRIEF, ...debrief, result, progress });
@@ -636,14 +637,14 @@ export class WebSocketManager {
 
   // End-of-fight result: outcome, rank, headline score, and per-skill "damage" — all
   // derived from the SAME metric signals so the cinematic results screen is display-only.
-  _computeResult(ctx, metrics) {
+  async _computeResult(ctx, metrics) {
     const bossHp   = Math.max(0, Math.round(ctx.bossHp));
     const playerHp = Math.max(0, Math.round(ctx.playerHp));
     const outcome  = (bossHp <= 0 || bossHp <= playerHp) ? 'win' : 'loss';
     const score    = metrics.avgScore ?? 0;
     const clamp    = (n) => Math.max(0, Math.min(100, Math.round(n)));
 
-    // Per-skill damage 0–100 (higher = harder hit on the boss in that category).
+    // Per-skill damage 0–100 — DISPLAY BARS ONLY. These do NOT decide the grade.
     const categories = {
       fluency:      clamp(metrics.fluency),
       grammar:      clamp(38 + metrics.connectorHits * 15 - metrics.fillers * 3),
@@ -651,16 +652,42 @@ export class WebSocketManager {
       deescalation: clamp(34 + metrics.politenessHits * 15 + metrics.konjunktivHits * 6),
     };
 
-    const s = score;
-    const rank = s >= 90 ? 'C1' : s >= 80 ? 'B2+' : s >= 70 ? 'B2'
-               : s >= 60 ? 'B1+' : s >= 48 ? 'B1' : s >= 35 ? 'A2+' : 'A2';
-    const jobLabel = s >= 90 ? 'Sehr gute Bewerbungsrede'
-                 : s >= 80 ? 'Gut — fast berufsreif'
-                 : s >= 70 ? 'Grundsolide'
-                 : s >= 60 ? 'Ausbaufähig mit Potenzial'
-                 :            'Weiter üben — Du schaffst das';
+    // ── Headline CEFR grade — from the validated transcript scorer, NOT a fluency
+    // heuristic. The old `score → band` ladder handed out fake B2s on broken German
+    // (fluent + low-filler + connectors scored ~70 → "B2" with the grammar ignored).
+    // Now the grade reflects grammar/vocab/content. FAIL LOUD: if the scorer is
+    // unreachable or returns no level, mark the grade unavailable — never invent one.
+    const fullTranscript = (ctx.utterances || []).map((u) => u.text).filter(Boolean).join('\n');
+    let rank = null;
+    let gradeUnavailable = false;
+    let verdict = null;
+    try {
+      const graded = await gradeTranscript({
+        transcript: fullTranscript,
+        level:      ctx.level,
+        scenarioId: ctx.csScenario || 'general',
+        userId:     ctx.userId,
+      });
+      verdict = graded?.verdict ?? null;
+      rank    = graded?.cefrLevel ?? null;
+      if (!rank) gradeUnavailable = true;
+    } catch (err) {
+      console.error(`[wsManager] grade (panelscorer) failed session=${ctx.sessionId}: ${err.message}`);
+      gradeUnavailable = true;
+    }
 
-    return { outcome, bossHp, playerHp, score, rank, jobLabel, comboBest: ctx.comboBest, categories };
+    const jobLabel = gradeUnavailable ? 'Bewertung nicht verfügbar'
+                 : rank === 'C1' ? 'Sehr gute Bewerbungsrede'
+                 : rank === 'B2' ? 'Gut — fast berufsreif'
+                 : rank === 'B1' ? 'Grundsolide'
+                 : rank === 'A2' ? 'Ausbaufähig mit Potenzial'
+                 :                 'Weiter üben — Du schaffst das';
+
+    return {
+      outcome, bossHp, playerHp, score,
+      rank, gradeUnavailable, verdict, gradeSource: 'panelscorer',
+      jobLabel, comboBest: ctx.comboBest, categories,
+    };
   }
 
   // ── Turn-based answer handler (browser → server) ────────────────────────────
