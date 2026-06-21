@@ -1,4 +1,3 @@
-import OpenAI, { toFile } from 'openai';
 import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
@@ -6,31 +5,38 @@ import { pathToFileURL, fileURLToPath } from 'url';
 // ── New architecture: Groq + Deepgram, NO OpenAI ────────────────────────────
 // Transcription: Groq whisper-large-v3 (default) or Deepgram nova-3 (TRANSCRIBER=deepgram).
 // Judge: Groq llama-3.3-70b-versatile (OpenAI-compatible chat API via Groq base URL).
-// The OpenAI SDK is reused only as an OpenAI-compatible HTTP client pointed at Groq.
+// All calls go over plain fetch to Groq's OpenAI-compatible endpoints — NO SDK.
 const GROQ_BASE             = 'https://api.groq.com/openai/v1';
 const TRANSCRIBER           = (process.env.TRANSCRIBER || 'groq').toLowerCase();
 const GROQ_TRANSCRIBE_MODEL = 'whisper-large-v3';
 const GROQ_JUDGE_MODEL      = 'llama-3.3-70b-versatile';
 const DEEPGRAM_MODEL        = process.env.DEEPGRAM_MODEL || 'nova-3';
 
-// Lazy init so importing this module never throws at load time (the router
-// imports it; a missing key should surface on use, not crash module resolution).
-let _groq = null;
-function groqClient() {
-  if (_groq) return _groq;
+// Groq over plain fetch — no SDK, no 'openai' dependency (the server dropped it).
+// A missing key surfaces on use, not at import time, so importing never crashes boot.
+function groqKey() {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY is not set');
-  _groq = new OpenAI({ apiKey, baseURL: GROQ_BASE });
-  return _groq;
+  return apiKey;
+}
+
+// One Groq chat completion (OpenAI-compatible response shape) over fetch.
+async function groqChat({ model, messages, response_format, temperature }) {
+  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method:  'POST',
+    headers: { Authorization: `Bearer ${groqKey()}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ model, messages, response_format, temperature }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`groq_chat ${res.status}: ${body.slice(0, 200)}`);
+  }
+  return res.json();
 }
 
 export function makeNodeFileLike(buffer, mimeType = 'audio/wav') {
   const base64 = buffer.toString('base64url');
   return { buffer, name: `audio.${mimeType.split('/')[1] || 'wav'}`, contentType: mimeType, base64 };
-}
-
-async function maybeAsync(obj) {
-  return obj && typeof obj.then === 'function' ? obj : Promise.resolve(obj);
 }
 
 /**
@@ -50,17 +56,21 @@ export async function scoreAnswer(audioBuffer, opts = {}) {
       const { transcribeDeepgram } = await import('../transcribeDeepgram.js');
       transcriptText = await transcribeDeepgram(audioBuffer, { model: DEEPGRAM_MODEL, language: 'de' });
     } else {
-      // Filename extension derived from the real mimeType so browser webm/opus
-      // ("audio/webm;codecs=opus") is accepted, not just clean wav.
+      // Groq STT over fetch (native FormData/Blob, Node 20+) — no SDK. Filename ext
+      // derived from the real mimeType so browser webm/opus is accepted, not just wav.
       const ext = (mimeType.split('/')[1] || 'wav').split(';')[0].trim() || 'wav';
-      const audioFile = await toFile(audioBuffer, `audio.${ext}`, { type: mimeType });
-      const transcription = await groqClient().audio.transcriptions.create({
-        model: GROQ_TRANSCRIBE_MODEL,
-        file: audioFile,
-        response_format: 'text',
-        language: 'de',
+      const fd = new FormData();
+      fd.append('file', new Blob([audioBuffer], { type: mimeType }), `audio.${ext}`);
+      fd.append('model', GROQ_TRANSCRIBE_MODEL);
+      fd.append('response_format', 'text');
+      fd.append('language', 'de');
+      const r = await fetch(`${GROQ_BASE}/audio/transcriptions`, {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${groqKey()}` },
+        body:    fd,
       });
-      transcriptText = typeof transcription === 'string' ? transcription : (transcription.text || '');
+      if (!r.ok) throw new Error(`groq_stt ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
+      transcriptText = (await r.text()).trim();
     }
   } catch (error) {
     const message = error?.message || 'Unknown transcription error';
@@ -96,7 +106,7 @@ export async function gradeTranscript({ transcript = '', level = 'a2-b1', scenar
 
   let completion;
   try {
-    completion = await groqClient().chat.completions.create({
+    completion = await groqChat({
       model: GROQ_JUDGE_MODEL,
       messages: prompt.messages,
       response_format: { type: 'json_object' },
