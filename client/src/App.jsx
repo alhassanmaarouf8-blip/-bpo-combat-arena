@@ -851,6 +851,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
   const score = Number.isFinite(r.score) ? r.score : (m.avgScore ?? 0);
   const shownScore = useAnimatedNumber(score, 900);
   const rank  = r.rank ?? '–';
+  const gradeUnavailable = !!r.gradeUnavailable;
   const cats  = r.categories ?? {};
   const accent = win ? '#34d399' : '#f59e0b';
 
@@ -897,18 +898,27 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               color:accent, textShadow:`0 0 16px ${accent}88`, animation:'result-rise 0.4s var(--ease-out)' }}>
               {win ? 'SIEG' : 'NIEDERLAGE'}
             </div>
-            <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:54, lineHeight:1, color:'#fff',
-              margin:'6px 0 2px', textShadow:`0 0 30px ${accent}aa, 0 2px 12px rgba(0,0,0,0.8)`,
-              animation:'rank-pop 0.7s var(--ease-spring)' }}>
-              {rank}
-            </div>
-            <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:11, letterSpacing:'0.14em', color:'#94a3b8' }}>
-              RANG · {shownScore}<span style={{ opacity:0.5 }}> / 100</span>
-            </div>
-            {r.jobLabel && (
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'#fbbf24', textShadow:'0 0 10px rgba(251,191,36,0.35)', marginTop:4 }}>
-                {r.jobLabel.toUpperCase()}
+            {gradeUnavailable ? (
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:20, lineHeight:1.25, color:'#fbbf24',
+                margin:'12px 0 2px', textShadow:'0 0 18px rgba(251,191,36,0.4)' }}>
+                Bewertung nicht verfügbar
               </div>
+            ) : (
+              <>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:54, lineHeight:1, color:'#fff',
+                  margin:'6px 0 2px', textShadow:`0 0 30px ${accent}aa, 0 2px 12px rgba(0,0,0,0.8)`,
+                  animation:'rank-pop 0.7s var(--ease-spring)' }}>
+                  {rank}
+                </div>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:11, letterSpacing:'0.14em', color:'#94a3b8' }}>
+                  RANG · {shownScore}<span style={{ opacity:0.5 }}> / 100</span>
+                </div>
+                {r.jobLabel && (
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'#fbbf24', textShadow:'0 0 10px rgba(251,191,36,0.35)', marginTop:4 }}>
+                    {r.jobLabel.toUpperCase()}
+                  </div>
+                )}
+              </>
             )}
             {/* Motivating loss / win line */}
             <div style={{ marginTop:8, fontSize:12, color: win ? '#a7f3d0' : '#fcd34d', lineHeight:1.5,
@@ -1117,7 +1127,17 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           )}
 
           {/* No real grammar errors → celebrate, then pivot to lesson/enrichment */}
-          {!data?.grammar?.length && (m.answers > 0) && (
+          {/* Grammar check FAILED (LanguageTool unreachable) → honest "couldn't check", NEVER "clean". */}
+          {data?.grammarUnavailable && (m.answers > 0) && (
+            <div style={{ padding:'10px 12px', borderRadius:10, ...rtl,
+              background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.35)',
+              fontSize:11.5, color:'#fcd34d', lineHeight:1.5 }}>
+              {ar ? '⚠ فحص القواعد غير متاح حاليًا — لم نتمكن من التحقق من الأخطاء النحوية هذه المرة.'
+                  : '⚠ Grammatikprüfung nicht verfügbar — die Grammatik konnte diesmal nicht geprüft werden.'}
+            </div>
+          )}
+
+          {!data?.grammar?.length && (m.answers > 0) && !data?.grammarUnavailable && (
             <div style={{ padding:'10px 12px', borderRadius:10, ...rtl,
               background:'rgba(16,185,129,0.10)', border:'1px solid rgba(16,185,129,0.3)',
               fontSize:11.5, color:'#a7f3d0', lineHeight:1.5 }}>

@@ -93,6 +93,7 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     const fb = fallbackDebrief(metrics, utterances);
     if (ltGrammar) fb.grammar = ltGrammar;
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
+    fb.grammarUnavailable = !ltGrammar;
     return fb;
   }
 
@@ -150,12 +151,16 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     // Deterministic lesson built from the candidate's real utterances + metrics + the
     // authoritative grammar (NOT from the model) — always factual, never hallucinated.
     const lesson  = buildLesson(utterances, metrics, grammar);
-    return { ...norm, grammar, lesson, metrics, generated: true, grammarSource: ltGrammar ? 'languagetool' : 'none' };
+    // FAIL LOUD: if LanguageTool was unreachable (ltGrammar is null, not an empty
+    // array), the client must show "Grammatikprüfung nicht verfügbar" — NEVER a
+    // false "clean / no errors", which is worse than an honest "couldn't check".
+    return { ...norm, grammar, lesson, metrics, generated: true, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
     const fb = fallbackDebrief(metrics, utterances);
     if (ltGrammar) fb.grammar = ltGrammar;           // keep authoritative grammar even if the model call failed
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
+    fb.grammarUnavailable = !ltGrammar;
     return fb;
   } finally {
     clearTimeout(timer);
