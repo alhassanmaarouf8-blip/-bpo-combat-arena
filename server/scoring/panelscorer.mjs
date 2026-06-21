@@ -167,7 +167,12 @@ Return a compact JSON object with this exact shape:
 
 Rules:
 - "verdict" must be derived from concrete evidence in the transcript.
-- "cefrLevel" is the candidate's CEFR level judged ONLY from grammar accuracy, vocabulary range, and content actually present in the transcript. Be conservative; when in doubt, grade LOWER. Broken or error-filled German must NEVER receive B2 or C1.
+- "cefrLevel" is the candidate's CEFR level, judged ONLY from the German actually present (grammar control, vocabulary range, sentence complexity, coherence). Apply these anchors HONESTLY — do not deflate a genuinely strong answer to B1, and never inflate a weak one:
+    A1/A2: simple words and memorized phrases; frequent basic errors (case, gender, word order); only very familiar topics.
+    B1: connected speech on familiar topics; manages the interview but with noticeable, recurring errors and limited range.
+    B2: clear, detailed answers; complex sentences (subordinate clauses, connectors); good grammatical control with only occasional errors; argues a point and uses professional vocabulary.
+    C1: fluent, spontaneous, precise; broad/idiomatic vocabulary; complex structures used accurately; errors rare and minor.
+  Broken or error-filled German must NOT reach B2/C1 — but accurate, complex, professional German MUST be graded B2 or C1. Do NOT default everything to B1.
 - fluencyScore is 0-100 integer.
 - wpm is your best estimate from the word count.
 - tokensIn/tokensOut are integers representing usage; if not measurable, set 0.`,
