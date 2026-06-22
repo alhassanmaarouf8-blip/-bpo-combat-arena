@@ -10,10 +10,13 @@ import { AudioRecorder } from './audioRecorder.js';
 const SAMPLE_RATE = 24_000;
 
 export class ClipRecorder {
-  constructor({ onVolume } = {}) {
+  constructor({ onVolume, onChunk } = {}) {
     this._chunks = [];
     this._rec = new AudioRecorder({
-      onChunk:  (b64) => { this._chunks.push(b64ToInt16(b64)); },
+      onChunk:  (b64) => {
+        this._chunks.push(b64ToInt16(b64));
+        onChunk?.(b64);   // forward raw b64 PCM for streaming path
+      },
       onVolume: onVolume || (() => {}),
       onError:  () => {},
     });

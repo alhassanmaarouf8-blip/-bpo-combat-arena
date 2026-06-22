@@ -99,32 +99,36 @@ function authErrText(code) {
 
 // ── Server message types ──────────────────────────────────────────────────────
 const S = {
-  SESSION_READY:    'session_ready',
-  SESSION_CLOSED:   'session_closed',
-  AUDIO_DELTA:      'audio_delta',
-  TRANSCRIPT_DELTA: 'transcript_delta',
-  TRANSCRIPT_DONE:  'transcript_done',
-  BOSS_SPEECH:      'boss_speech',
-  BOSS_SPEECH_DONE: 'boss_speech_done',
-  SCENARIO_INFO:    'scenario_info',
-  STAGE_UPDATE:     'stage_update',
-  DEBRIEF_PENDING:  'debrief_pending',
-  DEBRIEF:          'debrief',
-  NO_SESSION:       'no_session',
-  PAYWALL:          'paywall',
-  HP_UPDATE:        'hp_update',
-  LIVE_STATS:       'live_stats',
-  ERROR:            'error',
-  PONG:             'pong',
+  SESSION_READY:      'session_ready',
+  SESSION_CLOSED:     'session_closed',
+  AUDIO_DELTA:        'audio_delta',
+  TRANSCRIPT_DELTA:   'transcript_delta',
+  TRANSCRIPT_DONE:    'transcript_done',
+  TRANSCRIPT_PARTIAL: 'transcript_partial',   // Deepgram streaming interim result
+  BOSS_SPEECH:        'boss_speech',
+  BOSS_SPEECH_DONE:   'boss_speech_done',
+  SCENARIO_INFO:      'scenario_info',
+  STAGE_UPDATE:       'stage_update',
+  DEBRIEF_PENDING:    'debrief_pending',
+  DEBRIEF:            'debrief',
+  NO_SESSION:         'no_session',
+  PAYWALL:            'paywall',
+  HP_UPDATE:          'hp_update',
+  LIVE_STATS:         'live_stats',
+  ERROR:              'error',
+  PONG:               'pong',
 };
 
 // ── Client message types ──────────────────────────────────────────────────────
 const C = {
-  START_FIGHT: 'start_fight',
-  STOP_FIGHT:  'stop_fight',
-  // Turn-based: one complete answer per turn, as text (typed or spoken+transcribed).
-  ANSWER:      'answer',
-  PING:        'ping',
+  START_FIGHT:  'start_fight',
+  STOP_FIGHT:   'stop_fight',
+  // Turn-based: one complete answer per turn. TEXT path: typed or REST-transcribed.
+  // STREAMING path: AUDIO_CHUNK + AUDIO_END → server-side Deepgram LiveTranscription.
+  ANSWER:       'answer',
+  AUDIO_CHUNK:  'audio_chunk',   // b64 linear16 PCM chunk (hands-free streaming)
+  AUDIO_END:    'audio_end',     // VAD silence — finalize the Deepgram stream
+  PING:         'ping',
 };
 
 // ── Boss voice: ElevenLabs Flash v2.5 (neural, streamed) → Deepgram neural fallback ──
@@ -2082,7 +2086,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
-  const [handsFree, setHandsFree] = useState(false);       // Freisprech: auto start/stop/send (opt-in)
+  const [handsFree, setHandsFree] = useState(true);        // Freisprech: auto start/stop/send — ON by default
+  const [liveTranscript, setLiveTranscript] = useState(''); // Deepgram streaming partial (cleared on transcript_done)
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
   const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
   const [debriefPending, setDebriefPending] = useState(false);
@@ -2257,10 +2262,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // No live partial transcript in turn-based mode — ignore.
         break;
 
-      case S.TRANSCRIPT_DONE:
-        // The client already appended the candidate's answer line locally on send;
-        // the server echo is ignored here to avoid a duplicate line.
+      case S.TRANSCRIPT_PARTIAL:
+        // Deepgram streaming interim result — show as live text while the user speaks.
+        setLiveTranscript(msg.text || '');
         break;
+
+      case S.TRANSCRIPT_DONE: {
+        // Streaming path: server sends the committed transcript text after Deepgram speech_final.
+        // We add it as a full line here (no client-side duplicate, since audio_chunk flow
+        // never called sendAnswerText locally).
+        setLiveTranscript('');
+        setTranscribing(false);
+        if (msg.transcript) {
+          const id = ++_lineId;
+          setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false }]);
+        }
+        break;
+      }
 
       case S.BOSS_SPEECH: {
         if (!msg.text) break;
@@ -2515,13 +2533,20 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (hfActiveRef.current || recording || transcribing) return;
     hfActiveRef.current = true;
     try {
-      clipRecRef.current = new ClipRecorder({ onVolume: (v) => { volRef.current = v; } });
+      clipRecRef.current = new ClipRecorder({
+        onVolume: (v) => { volRef.current = v; },
+        // Stream each PCM chunk live to the server → Deepgram LiveTranscription.
+        // This eliminates the ~750ms REST round-trip latency of the old upload path.
+        onChunk: (b64) => {
+          wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 }));
+        },
+      });
       await clipRecRef.current.start();
       setRecording(true);
     } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
 
     let spoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
-    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 250, END_SILENCE_MS = 1100, MAX_MS = 60000;
+    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, END_SILENCE_MS = 700, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
       const v = volRef.current || 0;
@@ -2531,32 +2556,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       else if (spoke) { silenceMs += STEP; }
       if (!((spoke && silenceMs >= END_SILENCE_MS) || elapsed >= MAX_MS)) return;
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
-      let clip = null;
-      try { clip = await clipRecRef.current?.stop(); } catch {}
+      try { await clipRecRef.current?.stop(); } catch {}
       clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;
-      if (!spoke || !clip || !clip.blob) return;            // said nothing → wait for next turn
-      setTranscribing(true);
-      try {
-        const r = await fetch(`${API_URL}/api/transcribe`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': clip.blob.type || 'audio/wav' },
-          body: clip.blob,
-        });
-        if (!r.ok) throw new Error('transcribe_failed');
-        const { text } = await r.json();
-        if (text && text.trim()) sendAnswerText(text, clip.durationMs || 0);
-        else setError('Nichts verstanden — bitte erneut sprechen.');
-      } catch { setError('Spracherkennung fehlgeschlagen — bitte tippen.'); }
-      finally { setTranscribing(false); }
+      if (!spoke) return;   // said nothing → wait for next turn
+      // Signal end-of-speech: server's Deepgram streamer flushes remaining audio → speech_final
+      // fires → server calls _handleAnswer internally. No REST upload needed.
+      wsRef.current?.send(JSON.stringify({ type: C.AUDIO_END }));
+      setTranscribing(true);   // clears in TRANSCRIPT_DONE handler
     }, STEP);
-  }, [recording, transcribing, auth.token, sendAnswerText]);
+  }, [recording, transcribing]);
 
   // Drive hands-free: when it's your idle turn (boss finished, nothing in flight), auto-begin
   // capturing after a short settle. Does nothing while handsFree is off.
   useEffect(() => {
     if (!handsFree || phase !== 'active') return;
     if (recording || transcribing || bossThinking || bossSpeak || hfActiveRef.current) return;
-    const t = setTimeout(() => startHandsFreeTurn(), 300);
+    const t = setTimeout(() => startHandsFreeTurn(), 150);
     return () => clearTimeout(t);
   }, [handsFree, phase, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
 
@@ -3049,7 +3064,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <input type="checkbox" checked={handsFree} disabled={!canStart}
                 onChange={(e) => setHandsFree(e.target.checked)} />
               <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : '#94a3b8', letterSpacing:'0.04em' }}>
-                🎙️ Freisprech-Modus (Beta) · بدون أزرار — اتكلم وسيب الباقي
+                🎙 Freisprech-Modus · بدون أزرار — تكلم وهو يتفهم
               </span>
             </label>
 
@@ -3192,7 +3207,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
           {/* transcript log */}
           <div style={{ flex:1, minHeight:0, padding:'0 6px 6px' }}>
-            <TranscriptPanel lines={transcript} userSpeak={userSpeak} bossName={(funnel?.displayName || '').toUpperCase()} />
+            <TranscriptPanel
+              lines={liveTranscript
+                ? [...transcript, { id: 'live', speaker: 'player', text: liveTranscript, partial: true }]
+                : transcript}
+              userSpeak={userSpeak}
+              bossName={(funnel?.displayName || '').toUpperCase()}
+            />
           </div>
         </div>
       </div>

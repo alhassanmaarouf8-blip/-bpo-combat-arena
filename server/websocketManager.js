@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID }      from 'crypto';
 import { RealtimeClient }  from './realtimeClient.js';
+import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { loadUser, saveUser } from './store.js';
@@ -69,33 +70,36 @@ const MIN_REAL_WORDS   = 8;
 
 // ── Outbound message types (server → browser) ─────────────────────────────────
 const S = {
-  SESSION_READY:    'session_ready',
-  SESSION_CLOSED:   'session_closed',
-  AUDIO_DELTA:      'audio_delta',
-  TRANSCRIPT_DELTA: 'transcript_delta',
-  TRANSCRIPT_DONE:  'transcript_done',
-  BOSS_SPEECH:      'boss_speech',
-  BOSS_SPEECH_DONE: 'boss_speech_done',
-  SCENARIO_INFO:    'scenario_info',
-  STAGE_UPDATE:     'stage_update',
-  DEBRIEF_PENDING:  'debrief_pending',
-  DEBRIEF:          'debrief',
-  NO_SESSION:       'no_session',   // closed without real participation → no feedback card
-  PAYWALL:          'paywall',
-  HP_UPDATE:        'hp_update',
-  LIVE_STATS:       'live_stats',
-  ERROR:            'error',
-  PONG:             'pong',
+  SESSION_READY:      'session_ready',
+  SESSION_CLOSED:     'session_closed',
+  AUDIO_DELTA:        'audio_delta',
+  TRANSCRIPT_DELTA:   'transcript_delta',
+  TRANSCRIPT_DONE:    'transcript_done',
+  TRANSCRIPT_PARTIAL: 'transcript_partial',   // Deepgram streaming interim result
+  BOSS_SPEECH:        'boss_speech',
+  BOSS_SPEECH_DONE:   'boss_speech_done',
+  SCENARIO_INFO:      'scenario_info',
+  STAGE_UPDATE:       'stage_update',
+  DEBRIEF_PENDING:    'debrief_pending',
+  DEBRIEF:            'debrief',
+  NO_SESSION:         'no_session',   // closed without real participation → no feedback card
+  PAYWALL:            'paywall',
+  HP_UPDATE:          'hp_update',
+  LIVE_STATS:         'live_stats',
+  ERROR:              'error',
+  PONG:               'pong',
 };
 
 // ── Inbound message types (browser → server) ──────────────────────────────────
 const C = {
   START_FIGHT:  'start_fight',
   STOP_FIGHT:   'stop_fight',
-  // Turn-based: the candidate submits ONE complete answer per turn as TEXT — either
-  // typed, or spoken then transcribed client-side via POST /api/transcribe. (The old
-  // continuous 'audio_chunk' streaming is gone; the interview is OpenAI-free + text-driven.)
+  // Turn-based: ONE answer per turn. Can arrive as TEXT (typed/transcribed client-side)
+  // or via streaming PCM audio: AUDIO_CHUNK streams raw b64 PCM to the server, which
+  // pipes it to Deepgram LiveTranscription and fires ANSWER internally on speech_final.
   ANSWER:       'answer',
+  AUDIO_CHUNK:  'audio_chunk',   // b64-encoded linear16 PCM chunk (hands-free streaming)
+  AUDIO_END:    'audio_end',     // client: VAD silence detected — finalize the stream
   PING:         'ping',
 };
 
@@ -175,6 +179,7 @@ export class WebSocketManager {
       combo:          0,       // consecutive strong answers (for the combo multiplier)
       comboBest:      0,       // best combo reached this session
       weakStreak:     0,       // consecutive broken answers (triggers the rescue move)
+      dgStreamer:     null,    // DeepgramStreamer for hands-free streaming STT (one per turn)
     };
 
     this._sessions.set(sessionId, ctx);
@@ -227,6 +232,14 @@ export class WebSocketManager {
 
       case C.ANSWER:
         this._handleAnswer(ctx, msg);
+        break;
+
+      case C.AUDIO_CHUNK:
+        this._handleAudioChunk(ctx, msg);
+        break;
+
+      case C.AUDIO_END:
+        this._handleAudioEnd(ctx);
         break;
 
       default:
@@ -399,6 +412,55 @@ export class WebSocketManager {
   // base64 → decoded byte count (for the audio-seconds cost log; padding-approximate).
   _b64Bytes(s) { return typeof s === 'string' ? Math.floor((s.length * 3) / 4) : 0; }
 
+  // ── Streaming STT: Deepgram LiveTranscription ─────────────────────────────────
+  // Audio arrives as base64 PCM16 chunks from the client's ClipRecorder. We open ONE
+  // DeepgramStreamer per user turn, pipe each chunk into it, and fire _handleAnswer when
+  // Deepgram returns speech_final. This removes the ~750ms REST round-trip latency that
+  // existed with the old prerecorded path (POST /api/transcribe after silence).
+
+  _handleAudioChunk(ctx, msg) {
+    if (!ctx.realtimeClient || ctx.closed) return;
+    if (!msg.data) return;
+
+    // Create the streamer lazily on the first chunk of each turn.
+    if (!ctx.dgStreamer) {
+      ctx.dgStreamer = new DeepgramStreamer({
+        onPartial: (text) => {
+          this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text });
+        },
+        onFinal: (text) => {
+          const streamer = ctx.dgStreamer;
+          ctx.dgStreamer = null;
+          streamer?.close();
+          if (!text?.trim()) return;
+          this._handleAnswer(ctx, { text });
+        },
+        onError: (err) => {
+          console.error(`[wsManager] DeepgramStreamer error session=${ctx.sessionId}:`, err?.message);
+          ctx.dgStreamer = null;
+        },
+      });
+      ctx.dgStreamer.start();
+    }
+
+    const buf = Buffer.from(msg.data, 'base64');
+    ctx.dgStreamer.sendChunk(buf);
+  }
+
+  _handleAudioEnd(ctx) {
+    if (!ctx.dgStreamer) return;
+    // Sending CloseStream signals Deepgram to flush any remaining audio and return
+    // a final is_final event. The onFinal callback above handles the rest.
+    const streamer = ctx.dgStreamer;
+    // Don't null it yet — onFinal cleans up once the transcript arrives (within ~300ms).
+    // Safety: if Deepgram never returns (network issue), null it after 3s.
+    const fallback = setTimeout(() => {
+      if (ctx.dgStreamer === streamer) { ctx.dgStreamer = null; streamer.close(); }
+    }, 3000);
+    fallback.unref?.();
+    streamer.close();
+  }
+
   async _handleStopFight(ctx) {
     // User pressed "end". This is one of only TWO ways a session ends — the other is
     // the server confirming all three parts complete (_endSession 'completed').
@@ -422,6 +484,9 @@ export class WebSocketManager {
 
     // Charge the wall time against the user's daily live-minute allowance (persisted).
     await this._recordLiveUsage(ctx, wallSec);
+
+    // Close any in-flight Deepgram streaming connection (hands-free turn interrupted).
+    if (ctx.dgStreamer) { try { ctx.dgStreamer.close(); } catch {} ctx.dgStreamer = null; }
 
     console.log(`[wsManager] Ending session  reason=${reason}  session=${ctx.sessionId}`);
     await ctx.realtimeClient?.close().catch(() => {});
