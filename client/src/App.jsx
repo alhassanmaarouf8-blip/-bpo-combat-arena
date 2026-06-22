@@ -1963,6 +1963,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
+  const [handsFree, setHandsFree] = useState(false);       // Freisprech: auto start/stop/send (opt-in)
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
   const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
   const [debriefPending, setDebriefPending] = useState(false);
@@ -2324,17 +2325,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [setPhaseSync]);
 
   // ── Submit ONE answer (typed, or transcribed from a clip) ────────────────────
-  const sendAnswer = useCallback(() => {
-    const text = answerText.trim();
-    if (!text || phaseRef.current !== 'active' || bossThinking) return;
+  // Core send — takes text directly so hands-free auto-send doesn't race the textarea state.
+  const sendAnswerText = useCallback((raw, durationMs = 0) => {
+    const text = (raw || '').trim();
+    if (!text || phaseRef.current !== 'active') return;
     const id = ++_lineId;
     setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text, partial: false }]);
-    const durationMs = pendingDurationRef.current || 0;
-    pendingDurationRef.current = 0;
-    wsRef.current?.send(JSON.stringify({ type: C.ANSWER, text, durationMs }));
+    wsRef.current?.send(JSON.stringify({ type: C.ANSWER, text, durationMs: durationMs || 0 }));
     setAnswerText('');
+    pendingDurationRef.current = 0;
     setBossThinking(true);
-  }, [answerText, bossThinking]);
+  }, []);
+  const sendAnswer = useCallback(() => {
+    if (bossThinking) return;
+    sendAnswerText(answerText, pendingDurationRef.current || 0);
+  }, [answerText, bossThinking, sendAnswerText]);
 
   // ── Spoken answer: record a clip → POST /api/transcribe → fill the textarea ───
   const toggleRecord = useCallback(async () => {
@@ -2378,6 +2383,64 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       setError('mic_denied');
     }
   }, [recording, transcribing, auth.token]);
+
+  // ── Hands-free (Freisprech): opt-in. Auto-start on your turn, auto-stop + auto-send on
+  // end-of-utterance (~1.1s silence). Uses the mic volume (volRef) as the VAD signal with a
+  // conservative end-silence so a mid-thought pause doesn't cut you off. Manual record/SEND
+  // stay fully functional when this is off (default). Boss-voice can't self-trigger because
+  // a turn only auto-starts once the boss has finished speaking (gated below on !bossSpeak).
+  const hfTimerRef  = useRef(null);
+  const hfActiveRef = useRef(false);
+  const startHandsFreeTurn = useCallback(async () => {
+    if (hfActiveRef.current || recording || transcribing) return;
+    hfActiveRef.current = true;
+    try {
+      clipRecRef.current = new ClipRecorder({ onVolume: (v) => { volRef.current = v; } });
+      await clipRecRef.current.start();
+      setRecording(true);
+    } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
+
+    let spoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
+    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 250, END_SILENCE_MS = 1100, MAX_MS = 60000;
+    hfTimerRef.current = setInterval(async () => {
+      elapsed += STEP;
+      const v = volRef.current || 0;
+      if (!spoke) floor = floor * 0.92 + v * 0.08;          // adapt to room noise until speech
+      const thresh = Math.max(0.04, floor * K);
+      if (v > thresh) { if (elapsed > MIN_SPEAK_MS) spoke = true; silenceMs = 0; }
+      else if (spoke) { silenceMs += STEP; }
+      if (!((spoke && silenceMs >= END_SILENCE_MS) || elapsed >= MAX_MS)) return;
+      clearInterval(hfTimerRef.current); hfTimerRef.current = null;
+      let clip = null;
+      try { clip = await clipRecRef.current?.stop(); } catch {}
+      clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;
+      if (!spoke || !clip || !clip.blob) return;            // said nothing → wait for next turn
+      setTranscribing(true);
+      try {
+        const r = await fetch(`${API_URL}/api/transcribe`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${auth.token}`, 'Content-Type': clip.blob.type || 'audio/wav' },
+          body: clip.blob,
+        });
+        if (!r.ok) throw new Error('transcribe_failed');
+        const { text } = await r.json();
+        if (text && text.trim()) sendAnswerText(text, clip.durationMs || 0);
+        else setError('Nichts verstanden — bitte erneut sprechen.');
+      } catch { setError('Spracherkennung fehlgeschlagen — bitte tippen.'); }
+      finally { setTranscribing(false); }
+    }, STEP);
+  }, [recording, transcribing, auth.token, sendAnswerText]);
+
+  // Drive hands-free: when it's your idle turn (boss finished, nothing in flight), auto-begin
+  // capturing after a short settle. Does nothing while handsFree is off.
+  useEffect(() => {
+    if (!handsFree || phase !== 'active') return;
+    if (recording || transcribing || bossThinking || bossSpeak || hfActiveRef.current) return;
+    const t = setTimeout(() => startHandsFreeTurn(), 300);
+    return () => clearTimeout(t);
+  }, [handsFree, phase, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
+
+  useEffect(() => () => { if (hfTimerRef.current) clearInterval(hfTimerRef.current); }, []);
 
   // Cost guard: if the user locks the phone or switches apps mid-fight, the Realtime
   // session would keep billing in the background. End it cleanly (the debrief still
@@ -2795,6 +2858,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 <option value="frau-mona-adel">Frau Mona Adel — streng (L5)</option>
               </select>
             </div>
+
+            {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}
+            <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,
+              cursor: canStart ? 'pointer' : 'default', userSelect:'none' }}>
+              <input type="checkbox" checked={handsFree} disabled={!canStart}
+                onChange={(e) => setHandsFree(e.target.checked)} />
+              <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : '#94a3b8', letterSpacing:'0.04em' }}>
+                🎙️ Freisprech-Modus (Beta) · بدون أزرار — اتكلم وسيب الباقي
+              </span>
+            </label>
 
             {/* Feedback explanation language (also switchable on the results screen) */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginTop:10 }}>
