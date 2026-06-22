@@ -95,3 +95,42 @@ Whenever I explicitly initialize learning mode by typing `/teach [topic]`, pivot
 *   **One Stable Identity:** For interview characters/scenarios, maintain a single source of truth per entity. No name/identity switching mid-session.
 *   **No Blind Automation:** Never await between a check and a set for flight/lock semantics (atomic operations only).
 *   **Echo/Mic Safety:** Audio gating logic lives in `client/src/audioRecorder.js`. Treat changes there as sensitive; verify with live mic test.
+
+---
+
+## 8. Project Context Reference Card — bpo-combat-arena (OMNI-PERFORM)
+*Last verified: 2026-06-21T19:01Z via live health check + git inspection.*
+
+*   **What it is:** German BPO interview trainer for Arabic speakers (Egyptian job seekers targeting German BPO roles). Success KPI = students actually get hired.
+*   **Business model:** Unlimited daily spoken German practice (premium tier at **2999 EGP/month**). Free lead magnet: one-shot pre-recorded assessment (A2→C1).
+*   **Confirmed live engine (VERIFIED via `https://bpo-combat-arena.onrender.com/health`):**
+    *   `interview: groq`
+    *   `openai: false`
+    *   `deepgram: true`
+    *   `stt: deepgram`
+    *   `build: a86b14a`
+*   **Stack:**
+    *   Server: Node.js >=20, ESM, Express 4, `ws`
+    *   Database: PostgreSQL via `pg`
+    *   Client: React 18 + Vite 5
+    *   AI: Groq (interview runtime), Deepgram (STT), OpenAI SDK v6.x only if key is present
+*   **Key file inventory:**
+    *   `server/scenarios.js` — 3-part interview funnel builder
+    *   `server/realtimeClient.js` — Realtime API client + boss personality loader (loads `interviewer-characters.json`)
+    *   `server/websocketManager.js` — WS gateway, message types `S` (server→client) and `C` (client→server), daily caps
+    *   `server/progression.js` — XP, level ladder, boss ladder, rank compute
+    *   `server/interviewer-characters.json` — Character pool (L1 Yasmin … L5 Frau Mona Adel)
+    *   `client/src/audioRecorder.js` — mic capture (echo fix confirmed)
+    *   `panel-scorer.mjs` (project root) — CEFR grading source of truth
+*   **Hard rules:**
+    *   Broken German must never receive a B2/C1 score. Panic/hesitation fillers (`also`, `halt`, `äh`) must not be mistaken for C1 register.
+    *   `interviewer-characters.json` is now the single source of truth for character persona/voice/aggression/openingLine. `realtimeClient.js` prefers it over static `BOSS_CONFIGS`.
+    *   Never score a session with < `MIN_REAL_ANSWERS` or < `MIN_REAL_WORDS` — no debrief, no persistence.
+*   **Git:**
+    *   Current branch: `feat/groq-deepgram-scorer`
+    *   Remote: `https://github.com/alhassanmaarouf8-blip/-bpo-combat-arena.git`
+    *   `panel-scorer.mjs` confirmed on Desktop at `C:\Users\lenovo\OneDrive\Desktop\panel-scorer.mjs`
+*   **Triggering / development entry points:**
+    *   `npm run dev` (root) — starts server + client together via `concurrently`
+    *   `npm run dev:server` / `npm run dev:client` — individual
+    *   Claude Code can start fights automatically by connecting to the local WS and sending `START_FIGHT` with a valid token.

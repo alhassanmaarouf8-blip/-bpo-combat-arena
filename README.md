@@ -1,65 +1,65 @@
-# German BPO Combat Arena
+# BPO Combat Arena — OMNI-PERFORM
 
-Full-stack AI-powered German interview trainer.
+German interview trainer for Egyptian BPO job seekers. Live voice fights, grammar coaching, and adaptive drills — built on OpenAI Realtime.
 
-## Project structure
+## Quick Start
 
-```
-project/
-├── server/
-│   ├── package.json
-│   ├── server.js
-│   ├── websocketManager.js
-│   ├── realtimeClient.js
-│   └── .env.example
-└── client/
-    ├── package.json
-    ├── vite.config.js
-    ├── index.html
-    └── src/
-        ├── main.jsx
-        ├── App.jsx
-        ├── audioRecorder.js
-        └── audioPlayer.js
-```
+### Prereqs
+- Node.js 18+
+- npm or yarn
+- (optional) Render free Postgres — leave `DATABASE_URL` unset to use local JSON storage
+- (optional) Vercel account for frontend hosting
 
-## Setup
+### 1. Clone
+`git clone <repo>`; `cd bpo-combat-arena`
 
-### 1. Server
-
+### 2. Server
 ```bash
-cd server
-cp .env.example .env
-# Edit .env — add your OPENAI_API_KEY
-npm install
-npm run dev
+# copy env and fill in at least OPENAI_API_KEY + AUTH_SECRET + CLIENT_ORIGIN
+cp server/.env.example server/.env
+# edit server/.env
+
+cd server && npm install
+npm run dev           # or node server.js
 ```
 
-Server runs on http://localhost:3001
-
-### 2. Client
-
+### 3. Client
 ```bash
-cd client
-npm install
-npm run dev
+cd client && npm install
+# set VITE_WS_URL in Vercel project Environment Variables, or
+# create client/.env.local for dev:
+echo "VITE_WS_URL=ws://localhost:3001" > .env.local
+npm run dev           # starts on :5173
 ```
 
-Client runs on http://localhost:5173
+### 4. Verify
+- Web UI: http://localhost:5173
+- API health: http://localhost:3001/health
+- Dev Router: http://localhost:3001/dev-router (mapping)
 
-Open http://localhost:5173, click **INTERVIEW STARTEN**, allow microphone, and fight.
+## Env Variables
+See `ENV_VARS.md` for the full server + client reference.
 
-## Requirements
+Key ones:
+- `OPENAI_API_KEY` — required
+- `AUTH_SECRET` — required in production
+- `CLIENT_ORIGIN` — required in production (Vercel URL)
+- `DATABASE_URL` — optional (Postgres for durable storage)
+- `VITE_WS_URL` — client-side (Vercel), set to `wss://bpo-combat-arena.onrender.com`
 
-- Node.js >= 20
-- OpenAI account with Realtime API access
-- Chrome, Edge, or Safari 16+ (AudioWorklet required)
-- Microphone
+## Architecture
+- `server/server.js` — Express app + WebSocket
+- `server/websocketManager.js` — live Realtime sessions
+- `server/scoring/` — panel scorer + router
+- `server/trainingslagerContent.js` — quiz content (edit freely)
+- `client/src/App.jsx` — main SPA
+- `client/vite.config.js` — VITE_WS_URL injected at build
 
-## How it works
+## Deployment
+- **Frontend**: Vercel (set `VITE_WS_URL` env var and redeploy)
+- **Backend**: Render (set env vars, connect Postgres, port auto-injected)
 
-1. Browser opens WebSocket to `ws://localhost:3001`
-2. Server spawns an OpenAI Realtime API connection per session
-3. Mic audio streams continuously at 24 kHz PCM16 (no push-to-talk)
-4. OpenAI handles VAD, STT, and boss TTS — server relays audio back
-5. HP scores update live based on fluency, filler words, and C1 vocabulary
+## Observability
+- `/api/clienterror` crashes are posted by the browser
+- Use `server/logger.js` (`safeHandler`) to wrap routes; logs go to Render stdout.
+- `/health` returns `{ status: 'ok', uptime, ts }`.

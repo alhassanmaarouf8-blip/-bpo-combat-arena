@@ -12,12 +12,12 @@ import { assessmentRouter }  from './assessment.js';
 import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
 import { adminRouter }        from './admin.js';
-import { shadowingRouter }    from './shadowing.js';
-import { guideRouter }         from './alhassan.js';
+import { shadowingRouter } from './shadowing.js';
+import { guideRouter }     from './alhassan.js';
+import { scoreRouter }     from './scoring/router.mjs';
+import { runMigrations }   from './migrate.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
-// CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
-// plus http://localhost:5173 for local dev). Only these origins are allowed by CORS.
 const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -30,9 +30,6 @@ const app = express();
 
 app.use(cors({
   origin(origin, cb) {
-    // No Origin header = same-origin / health checks / curl → allow.
-    // Allowed origin → allow with CORS headers. Anything else → no CORS headers
-    // (the browser then blocks it) without throwing a 500 or spamming the log.
     cb(null, !origin || CLIENT_ORIGINS.includes(origin));
   },
   credentials: true,
@@ -43,7 +40,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), ts: new Date().toISOString() });
 });
 
-// Diagnostic: the browser reports runtime crashes here so they show up in THIS log.
 app.post('/api/clienterror', (req, res) => {
   console.error('═══════════ [CLIENT ERROR] ═══════════\n' +
     JSON.stringify(req.body, null, 2).slice(0, 4000) +
@@ -62,12 +58,15 @@ app.use('/api', trainingslagerRouter);
 app.use('/api', shadowingRouter);
 app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
-app.use(adminRouter);   // /admin (HTML panel + actions), gated by ADMIN_KEY — not under /api
+app.use('/api', scoreRouter);
+app.use(adminRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 
 const httpServer = http.createServer(app);
 const wsManager  = new WebSocketManager(httpServer);
+
+await runMigrations();
 
 httpServer.listen(PORT, () => {
   console.log(`[server] Listening on http://localhost:${PORT}`);

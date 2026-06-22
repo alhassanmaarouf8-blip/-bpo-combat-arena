@@ -1,6 +1,22 @@
 ﻿import WebSocket from 'ws';
-import { createHash, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import { buildSessionScript } from './scenarios.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+let _CHARACTERS_ARR = [];
+try {
+  _CHARACTERS_ARR = JSON.parse(readFileSync(join(__dirname, 'interviewer-characters.json'), 'utf8')).characters ?? [];
+} catch { _CHARACTERS_ARR = []; }
+
+// Make characters addressable by id/name for bossId matching
+const CHARACTERS_BY_ID = Object.fromEntries(_CHARACTERS_ARR.map(c => [c.id, c]));
+const CHARACTERS_BY_NAME = Object.fromEntries(_CHARACTERS_ARR.map(c => [c.name, c]))
+
+let _ULTRA_PROMPT = '';
+try { _ULTRA_PROMPT = readFileSync(join(__dirname, 'ultra-interviewer-execution-prompt.md'), 'utf8'); } catch { _ULTRA_PROMPT = '' };
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ OpenAI Realtime API config Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const OAI_URL   = 'wss://api.openai.com/v1/realtime';
@@ -72,12 +88,6 @@ Beginne das GesprÃƒÂ¤ch mit: "Gut, fangen wir an. Warum sollten wir ausgerec
     voice:       'marin',   // newest, most natural OpenAI Realtime voice (was 'alloy')
     aggression:  0.5,
     patienceMs:  4000,
-    systemPrompt: `Du bist Frau MÃƒÂ¼ller, eine erfahrene Berliner Compliance-Managerin.
-Du fÃƒÂ¼hrst ein strukturiertes VorstellungsgesprÃƒÂ¤ch auf Deutsch durch.
-Dein Stil: prÃƒÂ¤zise, methodisch, kÃƒÂ¼hl aber fair.
-Du bewertest Genauigkeit, Regelkenntnis und professionelle Ausdrucksweise.
-Antworte IMMER auf Deutsch. Stelle immer genau eine Frage am Ende.
-Beginne mit: "Guten Tag. Bitte schildern Sie kurz Ihren beruflichen Werdegang."`,
     openingLine: 'Guten Tag. Bitte schildern Sie kurz Ihren beruflichen Werdegang.',
   },
   'direktor-vogel': {
@@ -98,6 +108,7 @@ Beginne mit: "Guten Tag. Bitte schildern Sie kurz Ihren beruflichen Werdegang."`
     voice:       'cedar',   // newest, most natural OpenAI Realtime voice (was 'alloy')
     aggression:  0.95,
     patienceMs:  1800,
+    openingLine: 'Setzen Sie sich. Wir haben wenig Zeit — warum ausgerechnet Sie?',
   },
 };
 
@@ -141,8 +152,28 @@ export class RealtimeClient {
    */
   constructor(opts) {
     this._sessionId  = opts.sessionId;
-    const bossId     = opts.bossId ?? DEFAULT_BOSS;
-    this._boss       = BOSS_CONFIGS[bossId] ?? BOSS_CONFIGS[DEFAULT_BOSS];
+    let bossId = opts.bossId ?? DEFAULT_BOSS;
+    let char   = CHARACTERS_BY_ID[bossId] ?? CHARACTERS_BY_NAME[bossId] ?? null;
+
+    // If a character from interviewer-characters.json matches, prefer it over static BOSS_CONFIGS
+    if (char) {
+      const firstExchange = (char.example_exchanges && char.example_exchanges[0]) || null;
+      const rawBossLine = firstExchange?.boss || '';
+      const derivedOpening = rawBossLine.includes(':') ? rawBossLine.split(':').slice(1).join(':').trim() : char.name;
+      this._boss = {
+        displayName:  char.name,
+        greeting:     char.greeting ?? derivedOpening,
+        persona:      char.persona ?? char.system_prompt,
+        voice:        char.voice ?? 'cedar',
+        aggression:   char.aggression ?? 0.5,
+        patienceMs:   char.patienceMs ?? 2500,
+        openingLine:  char.openingLine ?? derivedOpening,
+        systemPrompt: char.system_prompt,
+        _charLevel:   char.level ?? null,
+      };
+    } else {
+      this._boss = BOSS_CONFIGS[bossId] ?? BOSS_CONFIGS[DEFAULT_BOSS];
+    }
     this._cb         = opts;
 
     // Phase 1: seeded per-session mood (consistent + repeatable, never flips mid-session).
@@ -163,6 +194,22 @@ export class RealtimeClient {
       mood:        this._mood,        // Phase 1: seeded delivery mood
       clarificationRate,              // Phase 5c: level-scaled repeat requests
     });
+
+    // Ultra mode: when a character from interviewer-characters.json is active, override
+    // the generated instructions with the ultra execution prompt (C1, compounding recall,
+    // multi-signal fusion feedback, god-level verification) while keeping the roleplay
+    // scenario content from buildSessionScript.
+    if (char && _ULTRA_PROMPT) {
+      const identityLine = char.system_prompt.split('\n').find(l => l.startsWith('Du bist')) || `Du bist ${char.name}, ${char.role}.`;
+      const ultraWithIdentity = _ULTRA_PROMPT.replace(
+        /## ROLLE & IDENTITÄT \(unveränderlich\)\n\nDu bist[^\n]+/m,
+        `## ROLLE & IDENTITÄT (unveränderlich)\n\n${identityLine}`
+      );
+      // Keep the ultra rules, but inject the actual opening line + level label from the session
+      const scenarioTail = `\n\n---\n\nKontext für DIESE Sitzung:\nLevel: ${this._session.level.label}\nHeutiges Szenario: ${this._session.csScenario.situation}`;
+      this._session.instructions = ultraWithIdentity + scenarioTail;
+      this._session.openingLine  = char.openingLine;
+    }
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).
     this.sessionInfo = {
@@ -266,11 +313,23 @@ export class RealtimeClient {
 
     switch (event.type) {
       case OAI.SESSION_CREATED:        this._onSessionCreated(event); break;
-      case OAI.SESSION_UPDATED:        break; // no-op Ã¢â‚¬â€ we log for debug
-      case OAI.SPEECH_STARTED:         this._onSpeechStarted();       break;
-      case OAI.SPEECH_STOPPED:         this._onSpeechStopped();       break;
-      case OAI.TRANSCRIPT_DELTA:       this._onTranscriptDelta(event); break;
-      case OAI.TRANSCRIPT_DONE:        this._onTranscriptDone(event);  break;
+      case OAI.SESSION_UPDATED:        break; // no-op — we log for debug
+      // Ignore candidate speech events while the boss is mid-turn (prevents echo/self-talk
+      // being captured as user input — especially important on Windows where software AEC
+      // can't fully block headphone leakage).
+      case OAI.SPEECH_STARTED:
+        if (this._activeResponseId !== null) break;
+        this._onSpeechStarted();
+        break;
+      case OAI.SPEECH_STOPPED:
+        if (this._activeResponseId !== null) break;
+        this._onSpeechStopped();
+        break;
+      case OAI.TRANSCRIPT_DELTA:
+        if (this._activeResponseId !== null) break;
+        this._onTranscriptDelta(event);
+        break;
+      case OAI.TRANSCRIPT_DONE:       this._onTranscriptDone(event);  break;
       case OAI.RESPONSE_AUDIO_DELTA:   this._onAudioDelta(event);      break;
       case OAI.RESPONSE_TEXT_DELTA:    this._onBossSpeechDelta(event); break;
       case OAI.RESPONSE_CREATED:       this._activeResponseId = event.response?.id ?? null; break;
@@ -356,7 +415,7 @@ export class RealtimeClient {
       if (this._closing) return;
       this._sendEvent('response.create', {
         response: {
-          instructions:      `Beginne das Interview sofort mit genau diesem Satz: "${this._session.openingLine}"`,
+          instructions:      `Sage JETZT AUSSCHLIESSLICH diesen EINEN Satz wortwörtlich und SONST NICHTS. Danach höre SOFORT auf zu sprechen und warte auf den Kandidaten. Beantworte deine Frage NICHT selbst, sprich NICHT für den Kandidaten und führe das Gespräch NICHT allein weiter. Der eine Satz lautet exakt: "${this._session.openingLine}"`,
           output_modalities: ['audio'],
         },
       });

@@ -8,11 +8,17 @@ import { dayKey, dayKeyNoonMs } from './time.js';
 export const XP_PER_LEVEL = 120;
 const DAY = 24 * 60 * 60 * 1000;
 
-// Ordered easiest → hardest. bossId must exist in realtimeClient BOSS_CONFIGS.
+// Ordered easiest → hardest. bossId must exist in realtimeClient BOSS_CONFIGS OR
+// the interviewer-characters.json pool loaded there.
 export const BOSS_LADDER = [
-  { id: 'frau-mueller',   name: 'FRAU MÜLLER',    tier: 'Aufwärm-Boss',  minLevel: 1 },
-  { id: 'herr-tariq',     name: 'HERR TARIQ',     tier: 'Standard-Boss', minLevel: 3 },
-  { id: 'direktor-vogel', name: 'DIREKTOR VOGEL', tier: 'Endgegner',     minLevel: 6 },
+  { id: 'yasmin',           name: 'YASMIN',           tier: 'Warm-up · Junior',     minLevel: 1 },
+  { id: 'frau-mueller',     name: 'FRAU MÜLLER',       tier: 'Aufwärm-Boss',         minLevel: 2 },
+  { id: 'karim',            name: 'KARIM',             tier: 'Standard · Teamlead',  minLevel: 3 },
+  { id: 'herr-tariq',       name: 'HERR TARIQ',        tier: 'Standard',             minLevel: 5 },
+  { id: 'hana',             name: 'HANA',              tier: 'Hiring Manager',       minLevel: 7 },
+  { id: 'direktor-vogel',   name: 'DIREKTOR VOGEL',    tier: 'Standortleiter',       minLevel: 9 },
+  { id: 'tarek',            name: 'TAREK',             tier: 'Eskalation · Senior',  minLevel: 11 },
+  { id: 'frau-mona-adel',   name: 'FRAU MONA ADEL',    tier: 'Endgegner · GF',       minLevel: 14 },
 ];
 
 export function levelFor(xp) {

@@ -56,10 +56,12 @@ export class AudioRecorder {
     this._analyserBuf  = null;
     this._blobUrl      = null;
     this._rafId        = null;
-    this._state        = 'idle'; // idle | recording | stopped
+    this._state        = 'idle'; // idle | recording | stopped | paused
+    this._paused       = false;
   }
 
   get isRecording() { return this._state === 'recording'; }
+  get isPaused()    { return this._paused;               }
 
   // ── Start continuous streaming ─────────────────────────────────────────────
 
@@ -119,7 +121,7 @@ export class AudioRecorder {
       });
 
       this._worklet.port.onmessage = ({ data }) => {
-        if (this._state !== 'recording') return;
+        if (this._state !== 'recording' || this._paused) return;
         this._onChunk(_int16ToBase64(data.pcm16));
       };
 
@@ -154,11 +156,26 @@ export class AudioRecorder {
     }
   }
 
+  // ── Gate mic without tearing down the AudioContext ─────────────────────────
+
+  pause() {
+    if (this._state !== 'recording') return;
+    this._paused = true;
+    console.log('[audioRecorder] Paused (boss speaking)');
+  }
+
+  resume() {
+    if (this._state !== 'recording') return;
+    this._paused = false;
+    console.log('[audioRecorder] Resumed (user turn)');
+  }
+
   // ── Stop and release all resources ────────────────────────────────────────
 
   async stop() {
     if (this._state === 'stopped' || this._state === 'idle') return;
     this._state = 'stopped';
+    this._paused = false;
 
     this._stopVolumePoll();
 

@@ -9,7 +9,20 @@
       "Glob(*)",
       "Bash(npx esbuild *)",
       "Bash(echo \"---FRONTEND BUNDLE EXIT: $?---\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(node *)",
+      "Bash(npx vite *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Read(//tmp/**)",
+      "Bash(git commit -m ' *)",
+      "Bash(RENDER=true node -e \"import\\('./auth.js'\\).then\\(\\(\\)=>console.log\\('NO EXIT — BUG'\\)\\).catch\\(\\(\\)=>{}\\)\")",
+      "Bash(echo \"exit code: $?\")",
+      "Bash(curl *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\('RULE:',m['rule']['id'],'| CAT:',m['rule']['category']['id'],'| issueType:',m['rule'].get\\('issueType'\\),'| matched:[',m['context']['text'][m['context']['offset']:m['context']['offset']+m['length']],'] -> repl:',[r['value'] for r in m['replacements'][:3]]\\) for m in d.get\\('matches',[]\\)]\")",
+      "Bash(git grep *)"
     ]
   }
 }

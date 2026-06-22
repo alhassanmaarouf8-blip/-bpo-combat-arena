@@ -746,10 +746,18 @@ function RankLadder({ rank }) {
               background:`linear-gradient(90deg, ${cur}, var(--accent))`, boxShadow:`0 0 8px ${cur}66`,
               transition:'width 0.7s var(--ease-out)' }} />
           </div>
-          <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:3 }}>
+          <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:3, display:'flex', alignItems:'center', gap:5 }}>
             {rank.nextBy === 'sessions'
               ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
               : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
+            {/* Near-miss psychology (prospect theory): "SO NAH!" when within 15% of next rank */}
+            {rank.toNextPct >= 85 && rank.nextBy !== 'sessions' && (
+              <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:8, color:'#f59e0b',
+                padding:'2px 6px', borderRadius:'var(--r-pill)', background:'rgba(245,158,11,0.12)',
+                border:'1px solid rgba(245,158,11,0.35)', animation:'pulse 2s ease-in-out infinite' }}>
+                SO NAH!
+              </span>
+            )}
           </div>
         </div>
       ) : (
@@ -1855,7 +1863,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [showHowto, setShowHowto] = useState(() => { try { return !localStorage.getItem('bpo_howto_seen'); } catch { return false; } });
   const dismissHowto = () => { try { localStorage.setItem('bpo_howto_seen', '1'); } catch {} setShowHowto(false); };
   const [streak, setStreak] = useState(loadStreakCache); // (legacy fight streak, kept)
-  const [daily, setDaily]   = useState({ streak: 0, completedToday: false }); // daily-training loop
+  const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
@@ -1896,6 +1904,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const pingRef        = useRef(null);
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
+  const micPausedByBossRef = useRef(false); // mic gated closed during boss turns to prevent echo
   const realismRef       = useRef(null);   // OUTPUT-ONLY interview realism engine (Phases 2–4)
   const bossLineRef      = useRef('');     // accumulates the current boss line for diegetic keywords
   const prevBossHpRef  = useRef(100);
@@ -2017,6 +2026,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // through the boss's final line, so that audio still plays normally.
         if (phaseRef.current === 'stopping') break;
         if (msg.audio) {
+          // Gate the mic closed while the boss is speaking so his TTS through the speakers
+          // is not captured and transcribed as the user's answer.
+          if (recorderRef.current?.isRecording && !micPausedByBossRef.current) {
+            recorderRef.current.pause();
+            micPausedByBossRef.current = true;
+          }
           playerRef.current?.enqueue(msg.audio);
           setBossSpeak(true);
         }
@@ -2045,6 +2060,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.BOSS_SPEECH: {
         if (!msg.text) break;
+        if (recorderRef.current?.isRecording && !micPausedByBossRef.current) {
+          recorderRef.current.pause();
+          micPausedByBossRef.current = true;
+        }
         setBossSpeak(true);
         // Stream the boss's words live. A new utterance (ref cleared by the previous
         // BOSS_SPEECH_DONE) resets the subtitle box and opens one fresh transcript
@@ -2079,6 +2098,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         } catch {}
         bossLineRef.current = '';
         bossPartialIdRef.current = null;
+        // Resume mic after boss turn — only if we actually paused it for this turn.
+        if (micPausedByBossRef.current && phaseRef.current === 'active') {
+          (async () => {
+            try { await recorderRef.current?.resume(); } catch {}
+            micPausedByBossRef.current = false;
+          })();
+        }
         break;
 
       case S.HP_UPDATE:
@@ -2381,7 +2407,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         const data = await r.json();
         if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
         if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);
-        if (!cancelled && data.daily) setDaily(data.daily);   // daily-training streak + completedToday
+        if (!cancelled && data.daily) setDaily({ streak: 0, completedToday: false, streakShield: false, best: 0, ...data.daily });   // daily-training streak + shield + completedToday
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
       } catch { /* keep cached value */ }
     })();
@@ -2442,7 +2468,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <OverlayBoundary onClose={() => setDailyOpen(false)}>
           <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onClose={() => setDailyOpen(false)}
-            onComplete={(s) => setDaily({ streak: s.streak ?? 0, completedToday: true })} />
+            onComplete={(s) => setDaily(prev => ({ ...prev, streak: s.streak ?? 0, completedToday: true, streakShield: s.streakShield ?? prev.streakShield, best: Math.max(prev.best, s.streak ?? 0) }))} />
         </OverlayBoundary>
       )}
 
@@ -2611,13 +2637,24 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 filter: daily.streak > 0 ? 'none' : 'grayscale(1)', opacity: daily.streak > 0 ? 1 : 0.5,
                 animation: daily.streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
-                  color: daily.streak > 0 ? '#fbbf24' : '#94a3b8',
-                  textShadow: daily.streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
-                  Trainingsserie: {daily.streak} {daily.streak === 1 ? 'Tag' : 'Tage'}
+                <div style={{ display:'flex', alignItems:'center', gap:5, lineHeight:1.05 }}>
+                  <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em',
+                    color: daily.streak > 0 ? '#fbbf24' : '#94a3b8',
+                    textShadow: daily.streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
+                    Trainingsserie: {daily.streak} {daily.streak === 1 ? 'Tag' : 'Tage'}
+                  </span>
+                  {/* Streak shield (Kahneman loss aversion): visible badge creates attachment to the shield */}
+                  {daily.streakShield && (
+                    <span title="Schutzschild aktiv — ein verpasster Tag wird vergeben"
+                      style={{ fontSize:13, lineHeight:1, animation:'pulse 3s ease-in-out infinite' }}>🛡️</span>
+                  )}
                 </div>
                 <div style={{ fontSize:9, color:'#94a3b8', marginTop:2, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {daily.completedToday ? '✓ Heute erledigt — nochmal üben?' : 'Tägliches Training · 3–5 Min'}
+                  {daily.completedToday
+                    ? '✓ Heute erledigt — nochmal üben?'
+                    : daily.streak === 0 && daily.best > 2
+                    ? `Dein Rekord: ${daily.best} Tage — starte jetzt neu! 💪`
+                    : 'Tägliches Training · 3–5 Min'}
                 </div>
               </div>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.06em', whiteSpace:'nowrap',
