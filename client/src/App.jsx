@@ -811,10 +811,19 @@ function RankLadder({ rank }) {
               background:`linear-gradient(90deg, ${cur}, var(--accent))`, boxShadow:`0 0 8px ${cur}66`,
               transition:'width 0.7s var(--ease-out)' }} />
           </div>
-          <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:3 }}>
-            {rank.nextBy === 'sessions'
-              ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
-              : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:3 }}>
+            <span style={{ fontSize:9, color:'var(--text-faint)' }}>
+              {rank.nextBy === 'sessions'
+                ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
+                : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
+            </span>
+            {/* Near-miss psychology (Griffiths 1991): within 15% of next tier activates reward circuits */}
+            {rank.nextBy !== 'sessions' && rank.toNextPct >= 85 && (
+              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:9, letterSpacing:'0.1em',
+                color:'#fbbf24', textShadow:'0 0 8px rgba(245,158,11,0.6)', animation:'pulse 1.8s ease-in-out infinite' }}>
+                SO NAH! 🔥
+              </span>
+            )}
           </div>
         </div>
       ) : (
@@ -1956,7 +1965,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [showHowto, setShowHowto] = useState(() => { try { return !localStorage.getItem('bpo_howto_seen'); } catch { return false; } });
   const dismissHowto = () => { try { localStorage.setItem('bpo_howto_seen', '1'); } catch {} setShowHowto(false); };
   const [streak, setStreak] = useState(loadStreakCache); // (legacy fight streak, kept)
-  const [daily, setDaily]   = useState({ streak: 0, completedToday: false }); // daily-training loop
+  const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
@@ -2567,7 +2576,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         const data = await r.json();
         if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
         if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);
-        if (!cancelled && data.daily) setDaily(data.daily);   // daily-training streak + completedToday
+        if (!cancelled && data.daily) setDaily(prev => ({ streak: 0, completedToday: false, streakShield: false, best: 0, ...prev, ...data.daily }));
         if (!cancelled && typeof data.trainedToday === 'boolean') setTrainedToday(data.trainedToday);
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
       } catch { /* keep cached value */ }
@@ -2629,7 +2638,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <OverlayBoundary onClose={() => setDailyOpen(false)}>
           <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onClose={() => setDailyOpen(false)}
-            onComplete={(s) => setDaily({ streak: s.streak ?? 0, completedToday: true })} />
+            onComplete={(s) => setDaily(prev => ({ ...prev, streak: s.streak ?? 0, completedToday: true, streakShield: s.streakShield ?? prev.streakShield, best: Math.max(prev.best ?? 0, s.streak ?? 0) }))} />
         </OverlayBoundary>
       )}
 
@@ -2798,10 +2807,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 filter: streak > 0 ? 'none' : 'grayscale(1)', opacity: streak > 0 ? 1 : 0.5,
                 animation: streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
-                  color: streak > 0 ? '#fbbf24' : '#94a3b8',
-                  textShadow: streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
-                  Trainingsserie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
+                    color: streak > 0 ? '#fbbf24' : '#94a3b8',
+                    textShadow: streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
+                    Trainingsserie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
+                  </span>
+                  {daily.streakShield && (
+                    <span title="Schutzschild aktiv — ein verpasster Tag wird vergeben" style={{ fontSize:13, lineHeight:1, cursor:'default' }}>🛡</span>
+                  )}
                 </div>
                 <div style={{ fontSize:9, color:'#94a3b8', marginTop:2, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {daily.completedToday ? '✓ Heute erledigt — nochmal üben?' : 'Tägliches Training · 3–5 Min'}

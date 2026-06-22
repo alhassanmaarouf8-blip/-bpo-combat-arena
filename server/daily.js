@@ -24,6 +24,31 @@ const DAY = 24 * 60 * 60 * 1000;
 // dayKey() (YYYY-MM-DD) is anchored to the audience's timezone (Cairo) via time.js,
 // so "today/yesterday" match the learner's calendar day — not the UTC server clock.
 
+// ── Science-backed learning engine helpers ─────────────────────────────────────
+
+// Generation effect (Slamecka & Graf 1978): first-letter scaffold forces students to
+// GENERATE the answer rather than recognize it — 30-40% better long-term retention.
+function firstLetterCue(answer) {
+  if (!answer) return '';
+  return String(answer).normalize('NFC').trim().split(/\s+/)
+    .map(w => w.length <= 2 ? w : w[0] + '_'.repeat(Math.min(w.length - 1, 4)))
+    .join(' ');
+}
+
+// Contextual interference (Shea & Morgan 1979): interleaving different item sources
+// is harder during practice but produces 40-60% better long-term transfer.
+function interleaveBySource(arr) {
+  const mistakes = arr.filter(q => q.source === 'mistake');
+  const drills   = arr.filter(q => q.source !== 'mistake');
+  const out = [];
+  let m = 0, d = 0;
+  while (m < mistakes.length || d < drills.length) {
+    if (m < mistakes.length) out.push(mistakes[m++]);
+    if (d < drills.length)   out.push(drills[d++]);
+  }
+  return out;
+}
+
 // Level-appropriate BPO fallback drills when the user has no tracked mistakes yet.
 // All "fix the sentence" style → a single correct answer, so grading is unambiguous.
 const FALLBACK_DRILLS = [
@@ -49,7 +74,11 @@ export function dailyStatus(profile) {
   const yest  = dayKey(Date.now() - DAY);
   const streak = (profile.lastDailyDate === today || profile.lastDailyDate === yest)
     ? (profile.dailyStreak || 0) : 0;
-  return { streak, completedToday: profile.lastDailyDate === today, best: profile.dailyBest || 0 };
+  return {
+    streak, completedToday: profile.lastDailyDate === today, best: profile.dailyBest || 0,
+    // Streak shield (Kahneman loss aversion): earned at 7 days, absorbs one missed day.
+    streakShield: !!profile.streakShield,
+  };
 }
 
 // Build today's session: the user's due mistakes (topped up with fallback drills to ≥3),
@@ -76,8 +105,20 @@ function buildDaily(profile) {
     }
   }
 
+  // Contextual interference: interleave mistake items with drill items — context-switching
+  // between types is harder in the moment but produces 40-60% better long-term transfer.
+  questions = interleaveBySource(questions);
+
+  // Generation effect: attach first-letter cue so students can request it when stuck.
+  // Requesting a cue forces generation rather than recognition — 30-40% better retention.
+  const withCues = questions.map((q) => {
+    const srsItem = (profile.srs || []).find((i) => i.id === q.id);
+    const ans     = srsItem?.answer ?? (FALLBACK_DRILLS.find(f => f.id === q.id)?.answer);
+    return { ...q, cue: ans ? firstLetterCue(ans) : null };
+  });
+
   const phrase = pickByDay(BPO_PHRASES) ?? BPO_PHRASES[0];
-  return { date: dayKey(), ...dailyStatus(profile), source, phrase, questions };
+  return { date: dayKey(), ...dailyStatus(profile), source, phrase, questions: withCues };
 }
 
 // How many generated-drill answers we retain on the profile so /daily/grade can resolve
@@ -149,19 +190,42 @@ function gradeDailyItem(profile, id, answer) {
 }
 
 // Mark today complete and advance the streak (idempotent within a day).
+// Streak shield (Kahneman & Tversky prospect theory): earned at 7 consecutive days,
+// absorbs one missed day — losses feel 2× worse than gains, so protecting the streak
+// is more motivating than gaining a new one.
 function completeDaily(profile) {
   const today = dayKey();
+  let shieldUsed = false;
+  let shieldEarned = false;
+
   if (profile.lastDailyDate !== today) {
     const yest = dayKey(Date.now() - DAY);
-    profile.dailyStreak  = (profile.lastDailyDate === yest) ? (profile.dailyStreak || 0) + 1 : 1;
+    const continuous = profile.lastDailyDate === yest;
+
+    if (!continuous && profile.streakShield) {
+      // Shield absorbs the gap — treat as if yesterday was active
+      profile.streakShield = false;
+      profile.dailyStreak  = (profile.dailyStreak || 0) + 1;
+      shieldUsed = true;
+    } else {
+      profile.dailyStreak = continuous ? (profile.dailyStreak || 0) + 1 : 1;
+    }
+
     profile.lastDailyDate = today;
     if (profile.dailyStreak > (profile.dailyBest || 0)) profile.dailyBest = profile.dailyStreak;
+
+    // Earn a shield at every 7th consecutive day (if not already held)
+    if (profile.dailyStreak >= 7 && profile.dailyStreak % 7 === 0 && !profile.streakShield) {
+      profile.streakShield = true;
+      shieldEarned = true;
+    }
+
     // Record today for the UNIFIED practice streak (any practice keeps the flame alive).
     profile.dailyDays = Array.isArray(profile.dailyDays) ? profile.dailyDays : [];
     if (!profile.dailyDays.includes(today)) profile.dailyDays.push(today);
     if (profile.dailyDays.length > 120) profile.dailyDays = profile.dailyDays.slice(-120);
   }
-  return dailyStatus(profile);
+  return { ...dailyStatus(profile), shieldUsed, shieldEarned };
 }
 
 dailyRouter.get('/daily', requireAuth, async (req, res) => {
