@@ -2781,9 +2781,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               })}
             </div>
 
-            {/* Boss-picker (test): hear all 5 voices/personas directly; default = auto by level */}
+            {/* Interviewer picker: choose your interviewer/persona; default = auto by level */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10 }}>
-              <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Interviewer · للاختبار</span>
+              <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Interviewer wählen · اختر المُحاوِر</span>
               <select value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
                 style={{ fontSize:11, padding:'5px 8px', borderRadius:6, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
