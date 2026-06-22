@@ -834,6 +834,89 @@ function RankLadder({ rank }) {
   );
 }
 
+// ── Component: WeeklyLeaderboard ─────────────────────────────────────────────
+// Social accountability (Duolingo leagues research): ranking peers in a weekly
+// cohort drives daily return rate without requiring chat or social features.
+function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (data) return;
+    (async () => {
+      try {
+        const r = await fetch(`${apiUrl}/api/leaderboard`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) throw new Error('failed');
+        onLoad(await r.json());
+      } catch { setErr('Tabelle konnte nicht geladen werden.'); }
+    })();
+  }, [apiUrl, token, data, onLoad]);
+
+  const entries = data?.entries ?? [];
+  const me = entries.find(e => e.id === (data?.myId ?? myId));
+
+  return (
+    <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
+      background:'rgba(2,4,9,0.98)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 10px' }}>
+        <div>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:17, letterSpacing:'0.1em',
+            color:'#fbbf24', textShadow:'0 0 14px rgba(245,158,11,0.5)' }}>🏆 DIESE WOCHE</div>
+          <div style={{ fontSize:9, color:'var(--text-faint)', letterSpacing:'0.08em' }}>TOP 15 · ÜBUNGEN + TÄGLICHE TRAININGS</div>
+        </div>
+        <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:12, padding:'7px 11px',
+          borderRadius:'var(--r-sm)', cursor:'pointer', border:'1px solid var(--line)', background:'transparent', color:'var(--text-dim)' }}>✕</button>
+      </div>
+
+      <div style={{ flex:1, overflowY:'auto', padding:'0 16px 18px', display:'flex', flexDirection:'column', gap:6 }}>
+        {err && <div style={{ fontSize:12, color:'#fca5a5', textAlign:'center', marginTop:20 }}>⚠ {err}</div>}
+        {!data && !err && (
+          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-dim)', fontSize:12 }}>Lade…</div>
+        )}
+
+        {me && (
+          <div style={{ padding:'8px 12px', borderRadius:'var(--r-sm)', marginBottom:4,
+            background:'rgba(0,229,255,0.08)', border:'1px solid rgba(0,229,255,0.3)',
+            fontSize:11, color:'var(--accent)', fontFamily:'var(--font-display)', fontWeight:700, textAlign:'center' }}>
+            DU · RANG #{me.rank} · {me.liveSessions} Kämpfe + {me.dailyDays} Tage Training
+          </div>
+        )}
+
+        {entries.map((e) => {
+          const isMe = e.id === (data?.myId ?? myId);
+          return (
+            <div key={e.rank} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px',
+              borderRadius:'var(--r-sm)',
+              background: isMe ? 'rgba(0,229,255,0.07)' : e.rank === 1 ? 'rgba(251,191,36,0.08)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${isMe ? 'rgba(0,229,255,0.35)' : e.rank === 1 ? 'rgba(251,191,36,0.35)' : 'var(--line)'}` }}>
+              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13,
+                color: e.rank === 1 ? '#fbbf24' : e.rank === 2 ? '#94a3b8' : e.rank === 3 ? '#cd7f32' : 'var(--text-dim)',
+                minWidth:24, textAlign:'center' }}>
+                {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : `#${e.rank}`}
+              </span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:11,
+                  color: isMe ? 'var(--accent)' : '#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {e.masked}{isMe ? ' 👈' : ''}
+                </div>
+                <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:1 }}>
+                  {e.liveSessions} Kämpfe · {e.dailyDays} Tage · {e.streak > 0 ? `${e.streak}🔥` : ''}
+                </div>
+              </div>
+              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:12, color:'#fbbf24' }}>{e.score}</span>
+            </div>
+          );
+        })}
+
+        {data && !entries.length && (
+          <div style={{ textAlign:'center', marginTop:30, fontSize:12, color:'var(--text-dim)', lineHeight:1.6 }}>
+            Noch keine Aktivität diese Woche.<br />
+            <span dir="rtl">مفيش نشاط الأسبوع ده لسه — كن أول واحد!</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
@@ -937,6 +1020,27 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               </div>
             )}
           </div>
+
+          {/* ── Hiring decision — maps the score to a real-world outcome ────────── */}
+          {!gradeUnavailable && (() => {
+            const d = score >= 85
+              ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'Wir würden Sie gerne im Team willkommen heißen.', ar:'احنا هنرحب بيك في الفريق.', color:'#34d399', bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.4)' }
+              : score >= 70
+              ? { icon:'📋', label:'ZWEITES GESPRÄCH', de:'Wir würden Sie zu einem zweiten Gespräch einladen.', ar:'هنكلمك عشان نحدد موعد تاني مقابلة.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
+              : score >= 55
+              ? { icon:'⏸', label:'WIRD GEPRÜFT', de:'Wir melden uns bei Ihnen — wir brauchen noch etwas Zeit.', ar:'هنتواصل معاك، محتاجين بس وقت أكتر.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+              : { icon:'✗', label:'DIESMAL NICHT', de:'Wir haben uns für andere Kandidaten entschieden.', ar:'الحين اتقرر نختار حد تاني، بس تمرّن أكتر.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' };
+            return (
+              <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
+                animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:d.color, marginBottom:6 }}>
+                  {d.icon} ENTSCHEIDUNG · {d.label}
+                </div>
+                <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{d.de}</div>
+                <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{d.ar}</div>
+              </div>
+            );
+          })()}
 
           {/* Language toggle (Arabic explanations) */}
           {LangToggle && (
@@ -1969,6 +2073,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [leaderboard, setLeaderboard]         = useState(null); // { entries, myId }
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
@@ -2659,6 +2765,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         </OverlayBoundary>
       )}
 
+      {/* Weekly leaderboard overlay */}
+      {leaderboardOpen && (
+        <OverlayBoundary onClose={() => setLeaderboardOpen(false)}>
+          <WeeklyLeaderboard
+            token={auth.token} apiUrl={API_URL}
+            myId={auth.account?.id}
+            data={leaderboard} onLoad={setLeaderboard}
+            onClose={() => setLeaderboardOpen(false)} />
+        </OverlayBoundary>
+      )}
+
       {/* Spaced-repetition recall drill (before a fight or from the dashboard) */}
       {review && <RecallDrill items={review.items} token={auth.token} onDone={handleDrillDone} lang={feedbackLang} />}
 
@@ -2860,7 +2977,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
             {/* Trainingsnachweis — printable progress certificate */}
             <button onClick={() => setNachweisOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:10, marginBottom:13, padding:'8px 12px', borderRadius:'var(--r-md)',
+              display:'flex', alignItems:'center', gap:10, marginBottom:9, padding:'8px 12px', borderRadius:'var(--r-md)',
               background:'rgba(167,139,250,0.07)', border:'1px solid rgba(167,139,250,0.25)', transition:'all var(--dur-slow)' }}>
               <div style={{ fontSize:20 }}>📄</div>
               <div style={{ flex:1 }}>
@@ -2868,6 +2985,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Fortschritt als PDF drucken · اطبع تقدمك كـPDF</div>
               </div>
               <div style={{ fontSize:10, color:'#a78bfa' }}>▸</div>
+            </button>
+
+            {/* Weekly leaderboard — social accountability (Duolingo leagues effect) */}
+            <button onClick={() => { setLeaderboardOpen(true); setLeaderboard(null); }}
+              style={{ width:'100%', textAlign:'left', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:10, marginBottom:13, padding:'8px 12px', borderRadius:'var(--r-md)',
+              background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.25)', transition:'all var(--dur-slow)' }}>
+              <div style={{ fontSize:20 }}>🏆</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'#fbbf24' }}>DIESE WOCHE</div>
+                <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Wochentabelle — wer trainiert am meisten? · مين بيتدرب أكتر الأسبوع ده؟</div>
+              </div>
+              <div style={{ fontSize:10, color:'#fbbf24' }}>▸</div>
             </button>
 
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',

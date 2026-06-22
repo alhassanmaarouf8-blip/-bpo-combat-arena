@@ -11,7 +11,7 @@ import { dueItems, dueCount, grade, checkAnswer } from './srs.js';
 import { levelProgress, bossForLevel, nextBoss, computeStreak, computeRank } from './progression.js';
 import { dailyStatus } from './daily.js';
 import { dayKey } from './time.js';
-import { requireAuth, publicAccount }          from './auth.js';
+import { requireAuth, publicAccount, listAllAccounts } from './auth.js';
 
 export const progressRouter = express.Router();
 
@@ -110,5 +110,54 @@ progressRouter.post('/review/grade', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[progress] grade error:', err.message);
     res.status(500).json({ error: 'grade_failed' });
+  }
+});
+
+// ── Weekly leaderboard ────────────────────────────────────────────────────────
+// Ranks active students by weekly practice volume (live sessions + daily drill days).
+// Emails are masked client-side — server sends a short alias derived from the email
+// so the requesting user can identify themselves without exposing others' addresses.
+// Cached for 5 minutes to avoid hammering the store on every open.
+let _lbCache = null;
+let _lbCacheAt = 0;
+const LB_TTL = 5 * 60 * 1000;
+
+function maskEmail(email) {
+  const [user, domain] = String(email || '').split('@');
+  const u = user.slice(0, 3) + '***';
+  const d = domain ? domain.split('.')[0].slice(0, 2) + '***' : '***';
+  return `${u}@${d}`;
+}
+
+progressRouter.get('/leaderboard', requireAuth, async (req, res) => {
+  try {
+    if (_lbCache && Date.now() - _lbCacheAt < LB_TTL) {
+      return res.json({ ..._lbCache, myId: req.account.id });
+    }
+    const accounts = await listAllAccounts();
+    const now    = Date.now();
+    const week   = now - 7 * 24 * 60 * 60 * 1000;
+
+    const rows = (await Promise.all(
+      accounts.map(async (acct) => {
+        try {
+          const p = await loadUser(acct.id);
+          const liveSessions   = (p.sessions   || []).filter(s => new Date(s.date).getTime() > week).length;
+          const dailyDaysWeek  = (p.dailyDays  || []).filter(d => new Date(d + 'T12:00:00').getTime() > week).length;
+          const score = liveSessions * 3 + dailyDaysWeek;
+          if (score === 0) return null;
+          return { id: acct.id, masked: maskEmail(acct.email), liveSessions, dailyDaysWeek, score, streak: p.dailyStreak || 0 };
+        } catch { return null; }
+      })
+    )).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 15);
+
+    // Add rank
+    const entries = rows.map((r, i) => ({ rank: i + 1, ...r }));
+    _lbCache = { entries };
+    _lbCacheAt = Date.now();
+    res.json({ entries, myId: req.account.id });
+  } catch (err) {
+    console.error('[leaderboard] error:', err.message);
+    res.status(500).json({ error: 'leaderboard_failed' });
   }
 });

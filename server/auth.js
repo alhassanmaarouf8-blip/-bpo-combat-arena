@@ -105,6 +105,12 @@ export function verifyToken(token) {
 export async function getAccountById(id) {
   return (await load()).accounts[id] || null;
 }
+// Returns all account objects — used by the leaderboard to compute weekly rankings.
+// Capped at 500 to prevent runaway load in the unlikely scenario of a large user base.
+export async function listAllAccounts() {
+  const s = await load();
+  return Object.values(s.accounts || {}).slice(0, 500);
+}
 export async function getAccountByEmail(email) {
   const s = await load();
   const id = s.emailIndex[String(email).toLowerCase()];
