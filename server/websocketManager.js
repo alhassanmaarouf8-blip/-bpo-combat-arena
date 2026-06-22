@@ -428,11 +428,12 @@ export class WebSocketManager {
         onPartial: (text) => {
           this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text });
         },
-        onFinal: (text) => {
+        onFinal: (text, words) => {
           const streamer = ctx.dgStreamer;
           ctx.dgStreamer = null;
           streamer?.close();
           if (!text?.trim()) return;
+          ctx._lastWords = words ?? [];   // threaded to TRANSCRIPT_DONE for confidence heat-map
           this._handleAnswer(ctx, { text });
         },
         onError: (err) => {
@@ -781,8 +782,12 @@ export class WebSocketManager {
     const durationMs = Number(msg.durationMs) > 0 ? Math.min(Number(msg.durationMs), 120_000) : 0;
     if (durationMs > 400) ctx.totalSpeechMs += durationMs;
 
+    // Pick up word-level confidence scores set by the streaming STT handler.
+    const words = ctx._lastWords ?? [];
+    ctx._lastWords = null;
+
     // Score this answer + advance the funnel (may set ctx.completePending).
-    this._scoreAnswer(ctx, transcript, durationMs, wordCount);
+    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
     if (ctx.closed) return;
 
     // Boss replies with exactly ONE turn. onBossSpeech / onBossSpeechDone fire from
@@ -798,7 +803,7 @@ export class WebSocketManager {
 
   // ── Score one candidate answer + advance the funnel ─────────────────────────
 
-  _scoreAnswer(ctx, transcript, durationMs, wordCount) {
+  _scoreAnswer(ctx, transcript, durationMs, wordCount, words = []) {
     console.log(`[wsManager] Utterance complete  words=${wordCount}  ms=${durationMs}  session=${ctx.sessionId}`);
 
     // Always surface the transcript text (drives the live transcript panel),
@@ -808,6 +813,7 @@ export class WebSocketManager {
       transcript,
       durationMs,
       wordCount,
+      words,   // Deepgram word-level confidence — [{word, confidence}] — for client heat-map
     });
 
     // Keep the candidate's real sentences for the end-of-session debrief.

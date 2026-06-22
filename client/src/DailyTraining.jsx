@@ -38,9 +38,47 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const [retypeOk, setRetypeOk] = useState(false);
   const [shadowState, setShadowState] = useState(null); // null | 'speaking' | 'listening' | 'ok' | 'fail'
 
+  const [speaking, setSpeaking] = useState(null);   // which text id is being spoken
   const bonusTimer = useRef(null);
   const recogRef = useRef(null);
+  const audioRef = useRef(null);
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
+
+  // TTS: tries Deepgram Aura (auth required) then falls back to browser SpeechSynthesis.
+  const speakCard = useCallback(async (text, id) => {
+    if (!text) return;
+    window.speechSynthesis?.cancel?.();
+    audioRef.current?.pause?.();
+    setSpeaking(id);
+    let usedBrowser = false;
+    try {
+      const r = await fetch(`${apiUrl}/api/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: text.slice(0, 500), voice: 'aura-2-lara-de' }),
+      });
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => { URL.revokeObjectURL(url); setSpeaking(null); };
+        audio.onerror = () => { URL.revokeObjectURL(url); usedBrowser = true; };
+        await audio.play().catch(() => { usedBrowser = true; });
+        if (!usedBrowser) return;
+      }
+    } catch {}
+    // Fallback: browser SpeechSynthesis — free, instant, works offline
+    if (window.speechSynthesis) {
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = 'de-DE'; utt.rate = 0.85;
+      utt.onend = () => setSpeaking(null);
+      utt.onerror = () => setSpeaking(null);
+      window.speechSynthesis.speak(utt);
+    } else {
+      setSpeaking(null);
+    }
+  }, [apiUrl, token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +93,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   }, [apiUrl, headers]);
 
   useEffect(() => () => { clearTimeout(bonusTimer.current); }, []);
-  useEffect(() => () => { recogRef.current?.abort?.(); window.speechSynthesis?.cancel?.(); }, []);
+  useEffect(() => () => { recogRef.current?.abort?.(); window.speechSynthesis?.cancel?.(); audioRef.current?.pause?.(); }, []);
 
   const questions = data?.questions || [];
   const q = questions[idx];
@@ -237,7 +275,12 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
           {data.phrase && (
             <div style={{ ...card, borderColor: 'rgba(0,229,255,0.3)' }}>
               <div style={{ ...secTitle, color: 'var(--accent)' }}>PHRASE DES TAGES</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#e2e8f0', lineHeight: 1.4 }}>{data.phrase.de}</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#e2e8f0', lineHeight: 1.4 }}>{data.phrase.de}</div>
+                <button onClick={() => speakCard(data.phrase.de, 'phrase')} style={speakBtnSt} title="Anhören">
+                  {speaking === 'phrase' ? '🔊' : '🔈'}
+                </button>
+              </div>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 3 }}>{data.phrase.en}</div>
               {data.phrase.drill && <div style={{ fontSize: 11, color: 'var(--accent-dim)', marginTop: 6, lineHeight: 1.4 }}>▸ {data.phrase.drill}</div>}
             </div>
@@ -252,7 +295,12 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                 </span>
                 <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>Frage {idx + 1}/{questions.length}</span>
               </div>
-              <div style={{ fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>{q.prompt}</div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ flex: 1, fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>{q.prompt}</div>
+                <button onClick={() => speakCard(q.prompt, 'prompt')} style={speakBtnSt} title="Frage vorlesen">
+                  {speaking === 'prompt' ? '🔊' : '🔈'}
+                </button>
+              </div>
               {q.hint && <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 5, fontStyle: 'italic' }}>{q.hint}</div>}
 
               <input autoFocus value={answer} disabled={!!result}
@@ -280,7 +328,12 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                     {result.correct ? '✓ Richtig' : '✗ Nochmal üben'}
                   </div>
                   {!result.correct && result.expected && (
-                    <div style={{ fontSize: 12, color: '#cbd5e1', marginTop: 3 }}>Lösung: <b style={{ color: '#e2e8f0' }}>{result.expected}</b></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                      <div style={{ fontSize: 12, color: '#cbd5e1' }}>Lösung: <b style={{ color: '#e2e8f0' }}>{result.expected}</b></div>
+                      <button onClick={() => speakCard(result.expected, 'answer')} style={speakBtnSt} title="Lösung anhören">
+                        {speaking === 'answer' ? '🔊' : '🔈'}
+                      </button>
+                    </div>
                   )}
                   {(result.note || result.note_ar) && (
                     <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4,
@@ -350,3 +403,4 @@ const shadowBtn = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize
 const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, #fbbf24, var(--warn))' };
 const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
 const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' };
+const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(0,229,255,0.25)', background: 'rgba(0,229,255,0.06)', color: 'var(--accent-dim)', lineHeight: 1 };

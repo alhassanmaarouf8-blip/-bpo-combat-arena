@@ -698,7 +698,7 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
             color: line.speaker === 'boss' ? 'var(--accent-dim)' : 'rgba(16,185,129,0.6)' }}>
             {line.speaker === 'boss' ? (bossName || 'GEGNER') : 'DU'}
           </span>
-          {_highlight(line.text)}
+          {_renderLine(line)}
           {line.partial && <span style={{ color:'#475569', animation:'pulse 1s infinite' }}> ▋</span>}
         </div>
       ))}
@@ -708,6 +708,31 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
       <div ref={endRef} />
     </div>
   );
+}
+
+// Renders a transcript line: applies Deepgram word-confidence heat-map for player
+// spoken lines (orange ≥65%, red <55%, rest normal), plus filler-word highlights.
+function _renderLine(line) {
+  if (line.speaker !== 'player' || line.partial || !line.words?.length) {
+    return _highlight(line.text);
+  }
+  const parts = (line.text ?? '').split(/(\s+)/);
+  let wi = 0;
+  return parts.map((tok, i) => {
+    if (!tok || /^\s+$/.test(tok)) return tok;
+    const conf = line.words[wi]?.confidence ?? 1;
+    wi++;
+    if (conf < 0.55) return (
+      <mark key={i} title={`${Math.round(conf * 100)}% sicher`}
+        style={{ background:'rgba(239,68,68,0.2)', color:'#fca5a5', borderRadius:2, padding:'0 1px',
+          textDecoration:'underline dotted', textUnderlineOffset:3 }}>{tok}</mark>
+    );
+    if (conf < 0.75) return (
+      <span key={i} title={`${Math.round(conf * 100)}% sicher`}
+        style={{ color:'#f59e0b' }}>{tok}</span>
+    );
+    return tok;
+  });
 }
 
 function _highlight(text) {
@@ -944,8 +969,17 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
   const accent = win ? '#34d399' : '#f59e0b';
 
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://bpo-combat-arena.vercel.app';
-  const shareText = `⚔️ OMNI-PERFORM — RANG ${rank} · ${score}/100 gegen ${bossName || 'den Interviewer'}!\n`
-    + `Übe deutsche Job-Interviews per Sprache. جرّب إنترفيو الشغل الألماني بالصوت وشوف هتجيب كام:\n${shareUrl}`;
+  const shareText = [
+    `🎯 OMNI-PERFORM — Deutsches BPO-Interview`,
+    `Rang: ${rank} · Score: ${score}/100`,
+    m.c1Hits  > 0 ? `✅ C1-Vokabular: ${m.c1Hits} ${m.c1Hits === 1 ? 'Wort' : 'Wörter'}` : '',
+    m.connectorHits > 0 ? `✅ Satzbau: ${m.connectorHits} ${m.connectorHits === 1 ? 'Konnektor' : 'Konnektoren'}` : '',
+    m.wpm > 0  ? `🎙 ${m.wpm} Wörter/min` : '',
+    r.jobLabel ? `💼 ${r.jobLabel}` : '',
+    ``,
+    `أتدرب على مقابلات الشغل بالألماني — جرّب كمان:`,
+    shareUrl,
+  ].filter((l, i) => i < 2 || l !== '').join('\n');
   const onShare = async () => {
     try {
       if (navigator.share) { await navigator.share({ title:'OMNI-PERFORM', text: shareText, url: shareUrl }); }
@@ -2275,7 +2309,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setTranscribing(false);
         if (msg.transcript) {
           const id = ++_lineId;
-          setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false }]);
+          setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] }]);
         }
         break;
       }

@@ -53,10 +53,12 @@ export class DeepgramStreamer {
 
     this._ws.on('message', (raw) => {
       try {
-        const msg  = JSON.parse(raw);
-        const text = msg?.channel?.alternatives?.[0]?.transcript ?? '';
+        const msg   = JSON.parse(raw);
+        const alt   = msg?.channel?.alternatives?.[0] ?? {};
+        const text  = alt.transcript ?? '';
+        const words = alt.words ?? [];   // [{word, confidence, start, end, punctuated_word}]
         if (!text.trim()) return;
-        if (msg.speech_final || msg.is_final) this._onFinal(text);
+        if (msg.speech_final || msg.is_final) this._onFinal(text, words);
         else this._onPartial(text);
       } catch {}
     });
