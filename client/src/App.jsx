@@ -1957,6 +1957,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const dismissHowto = () => { try { localStorage.setItem('bpo_howto_seen', '1'); } catch {} setShowHowto(false); };
   const [streak, setStreak] = useState(loadStreakCache); // (legacy fight streak, kept)
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false }); // daily-training loop
+  const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
@@ -2102,6 +2103,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setDebrief(msg);
         setDebriefPending(false);
         if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
+        if (typeof msg.progress?.trainedToday === 'boolean') setTrainedToday(msg.progress.trainedToday);
         // If this fight was launched from a Zielplan Mock-Kampf step, mark that step done.
         if (pendingFightRef.current) {
           const { planId, stepId } = pendingFightRef.current;
@@ -2566,6 +2568,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
         if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);
         if (!cancelled && data.daily) setDaily(data.daily);   // daily-training streak + completedToday
+        if (!cancelled && typeof data.trainedToday === 'boolean') setTrainedToday(data.trainedToday);
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
       } catch { /* keep cached value */ }
     })();
@@ -2785,20 +2788,20 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             {/* Tägliches Training — big streak + the daily habit entry point */}
             <button onClick={() => setDailyOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
               display:'flex', alignItems:'center', gap:10, marginBottom:9, padding:'8px 12px', borderRadius:'var(--r-md)',
-              background: daily.streak > 0
+              background: streak > 0
                 ? 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(239,68,68,0.10))'
                 : 'rgba(255,255,255,0.03)',
-              border:`1px solid ${daily.completedToday ? 'rgba(16,185,129,0.45)' : daily.streak > 0 ? 'rgba(245,158,11,0.5)' : 'var(--line)'}`,
-              boxShadow: daily.streak > 0 ? '0 0 20px rgba(245,158,11,0.15)' : 'none',
+              border:`1px solid ${daily.completedToday ? 'rgba(16,185,129,0.45)' : streak > 0 ? 'rgba(245,158,11,0.5)' : 'var(--line)'}`,
+              boxShadow: streak > 0 ? '0 0 20px rgba(245,158,11,0.15)' : 'none',
               transition:'all var(--dur-slow)' }}>
               <div style={{ fontSize:22, lineHeight:1,
-                filter: daily.streak > 0 ? 'none' : 'grayscale(1)', opacity: daily.streak > 0 ? 1 : 0.5,
-                animation: daily.streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
+                filter: streak > 0 ? 'none' : 'grayscale(1)', opacity: streak > 0 ? 1 : 0.5,
+                animation: streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
-                  color: daily.streak > 0 ? '#fbbf24' : '#94a3b8',
-                  textShadow: daily.streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
-                  Trainingsserie: {daily.streak} {daily.streak === 1 ? 'Tag' : 'Tage'}
+                  color: streak > 0 ? '#fbbf24' : '#94a3b8',
+                  textShadow: streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
+                  Trainingsserie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
                 </div>
                 <div style={{ fontSize:9, color:'#94a3b8', marginTop:2, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {daily.completedToday ? '✓ Heute erledigt — nochmal üben?' : 'Tägliches Training · 3–5 Min'}
@@ -2812,6 +2815,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 {daily.completedToday ? '✓ ERLEDIGT' : 'START ▸'}
               </div>
             </button>
+            {/* Loss-aversion (evidence-based retention): the pending LOSS, framed gently, drives return. */}
+            {streak > 0 && !trainedToday && (
+              <div style={{ marginTop:-3, marginBottom:8, padding:'5px 10px', borderRadius:8,
+                background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.35)',
+                fontSize:10.5, color:'#fcd34d', textAlign:'center', lineHeight:1.4 }}>
+                🔥 Heute üben, sonst endet deine {streak}-Tage-Serie · درّب النهاردة عشان متخسرش سلسلتك
+              </div>
+            )}
 
             {/* Interview-readiness rank ladder (visible progress on the home screen) */}
             {rank && <div style={{ marginBottom:13 }}><RankLadder rank={rank} /></div>}

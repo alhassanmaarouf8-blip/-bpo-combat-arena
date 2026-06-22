@@ -10,6 +10,7 @@ import { loadUser, saveUser }                 from './store.js';
 import { dueItems, dueCount, grade, checkAnswer } from './srs.js';
 import { levelProgress, bossForLevel, nextBoss, computeStreak, computeRank } from './progression.js';
 import { dailyStatus } from './daily.js';
+import { dayKey } from './time.js';
 import { requireAuth, publicAccount }          from './auth.js';
 
 export const progressRouter = express.Router();
@@ -25,7 +26,11 @@ function buildDashboard(p) {
     userId:        p.userId,
     level:         p.level,
     xp:            p.xp,
-    streak:        computeStreak(sessions, p.lessonDays),
+    // UNIFIED practice streak: a fight, a Trainingslager lesson, OR a daily drill all count —
+    // so real practice never shows a dead grey flame (loss-aversion is the strongest retention lever).
+    streak:        computeStreak(sessions, [...(p.lessonDays || []), ...(p.dailyDays || [])]),
+    trainedToday:  [...(p.lessonDays || []), ...(p.dailyDays || [])].includes(dayKey())
+                     || sessions.some((s) => dayKey(s.date) === dayKey()),
     daily:         dailyStatus(p),   // { streak, completedToday, best } — the daily-training loop
     rank:          computeRank(sessions),  // interview-readiness rank ladder
     levelProgress: lp,

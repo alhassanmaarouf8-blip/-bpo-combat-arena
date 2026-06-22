@@ -156,6 +156,10 @@ function completeDaily(profile) {
     profile.dailyStreak  = (profile.lastDailyDate === yest) ? (profile.dailyStreak || 0) + 1 : 1;
     profile.lastDailyDate = today;
     if (profile.dailyStreak > (profile.dailyBest || 0)) profile.dailyBest = profile.dailyStreak;
+    // Record today for the UNIFIED practice streak (any practice keeps the flame alive).
+    profile.dailyDays = Array.isArray(profile.dailyDays) ? profile.dailyDays : [];
+    if (!profile.dailyDays.includes(today)) profile.dailyDays.push(today);
+    if (profile.dailyDays.length > 120) profile.dailyDays = profile.dailyDays.slice(-120);
   }
   return dailyStatus(profile);
 }
