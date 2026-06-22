@@ -56,6 +56,7 @@ app.get('/health', (_req, res) => {
     // AND nova-3 STT — if false, voice goes robotic and STT falls back. (Boolean only;
     // never exposes the key.)
     deepgram: !!process.env.DEEPGRAM_API_KEY,
+    elevenlabs: !!process.env.ELEVENLABS_API_KEY,
     stt: (process.env.TRANSCRIBER || 'deepgram').toLowerCase(),
     // Is the keep-alive self-ping armed? (warms the free dyno so "begin" isn't a cold start)
     keepAlive: !!(process.env.RENDER_EXTERNAL_URL || process.env.RENDER),

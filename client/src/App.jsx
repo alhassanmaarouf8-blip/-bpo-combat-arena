@@ -126,51 +126,18 @@ const C = {
   PING:        'ping',
 };
 
-// ── Boss voice: browser Web Speech API (German) — OpenAI-free, zero cost ─────────
-// The boss line is text; we read it aloud with the user's on-device de-DE voice.
-// No API, no spend. (A cloned neural voice can replace this later without touching
-// the protocol — it's purely a client-side render of the same boss_speech text.)
-let _deVoice = null;
-function _pickGermanVoice() {
-  try {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return null;
-    if (_deVoice) return _deVoice;
-    const vs = window.speechSynthesis.getVoices() || [];
-    _deVoice = vs.find(v => /^de[-_]DE/i.test(v.lang)) || vs.find(v => /^de/i.test(v.lang)) || null;
-    return _deVoice;
-  } catch { return null; }
-}
-if (typeof window !== 'undefined' && window.speechSynthesis) {
-  try { window.speechSynthesis.onvoiceschanged = () => { _deVoice = null; _pickGermanVoice(); }; } catch {}
-}
-function cancelSpeech() { try { window.speechSynthesis?.cancel(); } catch {} }
-function speakGerman(text, onStart, onEnd) {
-  try {
-    if (!text || typeof window === 'undefined' || !window.speechSynthesis) { onEnd?.(); return; }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'de-DE';
-    const v = _pickGermanVoice();
-    if (v) u.voice = v;
-    u.rate = 1.0; u.pitch = 1.0;
-    u.onstart = () => { try { onStart?.(); } catch {} };
-    u.onend   = () => { try { onEnd?.(); }   catch {} };
-    u.onerror = () => { try { onEnd?.(); }   catch {} };
-    window.speechSynthesis.speak(u);
-  } catch { onEnd?.(); }
-}
-
-// Preferred boss voice: Deepgram Aura-2 German (neural) via our server /api/tts, which
-// holds the Deepgram key. Plays the returned MP3; on ANY failure (no key, network,
-// autoplay block) it automatically falls back to the free browser voice above.
+// ── Boss voice: ElevenLabs Flash v2.5 (neural, streamed) → Deepgram neural fallback ──
+// PRIMARY: ElevenLabs Flash v2.5, streamed server-side and played progressively via a
+// GET <audio> source (sound starts before the full clip is ready). FALLBACK: the existing
+// Deepgram Aura neural voice. The robotic browser Web Speech API has been REMOVED — on a
+// total failure the line is shown on screen with no audio, but never the robotic voice.
 let _bossAudio = null;
 function stopBossVoice() {
   try { if (_bossAudio) { _bossAudio.pause(); _bossAudio.src = ''; _bossAudio = null; } } catch {}
-  cancelSpeech();
 }
-async function playBossVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
-  if (!text) { onEnd?.(); return; }
-  stopBossVoice();
+
+// Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
+async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
   try {
     const res = await fetch(`${apiUrl}/api/tts`, {
       method:  'POST',
@@ -183,19 +150,43 @@ async function playBossVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     _bossAudio = audio;
-    let started = false;
-    audio.onplay  = () => { started = true; try { onStart?.(); } catch {} };
+    audio.onplay  = () => { try { onStart?.(); } catch {} };
     audio.onended = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
-    audio.onerror = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; if (started) { onEnd?.(); } else { speakGerman(text, onStart, onEnd); } };
-    await audio.play().catch(() => {           // autoplay blocked / decode fail → browser voice
+    audio.onerror = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
+    await audio.play().catch(() => {            // autoplay/decode fail → no audio (text is on screen)
       try { URL.revokeObjectURL(url); } catch {}
       if (_bossAudio === audio) _bossAudio = null;
-      speakGerman(text, onStart, onEnd);
+      onEnd?.();
     });
   } catch {
-    // No key / Deepgram error / network → free browser voice, no interruption to the user.
-    speakGerman(text, onStart, onEnd);
+    onEnd?.();   // no key / error → show text, no audio (never the robotic voice)
   }
+}
+
+async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart, onEnd }) {
+  if (!text) { onEnd?.(); return; }
+  stopBossVoice();
+  // PRIMARY: ElevenLabs Flash v2.5, streamed via a GET <audio> source (progressive playback).
+  if (elevenVoice) {
+    const url = `${apiUrl}/api/voice?voice=${encodeURIComponent(elevenVoice)}`
+              + `&token=${encodeURIComponent(token)}&text=${encodeURIComponent(text)}`;
+    const fellBack = await new Promise((resolve) => {
+      const audio = new Audio(url);
+      _bossAudio = audio;
+      let started = false;
+      audio.onplay  = () => { started = true; try { onStart?.(); } catch {} };
+      audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} resolve(false); };
+      audio.onerror = () => {
+        if (_bossAudio === audio) _bossAudio = null;
+        if (started) { try { onEnd?.(); } catch {} resolve(false); }  // started then died → just end
+        else resolve(true);                                           // never started → fall back
+      };
+      audio.play().catch(() => { if (!started) { if (_bossAudio === audio) _bossAudio = null; resolve(true); } });
+    });
+    if (!fellBack) return;   // ElevenLabs played (or started then ended) — done.
+  }
+  // FALLBACK: Deepgram neural (never the robotic browser voice).
+  await playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd });
 }
 
 // ── Boss emotional states → drives the SVG interviewer's expression ───────────
@@ -1940,7 +1931,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // Fresh-value refs for the boss-voice fetch (avoids stale closures in handleMsg).
   const tokenRef     = useRef(auth.token);
   useEffect(() => { tokenRef.current = auth.token; }, [auth.token]);
-  const bossVoiceRef = useRef('aura-2-julius-de');   // de-DE Aura-2 voice; set per boss on scenario_info
+  const bossVoiceRef = useRef('aura-2-julius-de');   // Deepgram fallback voice; set per boss on scenario_info
+  const bossElevenVoiceRef = useRef('');             // ElevenLabs primary voice id (per character)
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
@@ -2090,6 +2082,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             'frau-mueller': 'aura-2-lara-de', 'herr-tariq': 'aura-2-julius-de', 'direktor-vogel': 'aura-2-fabian-de',
           };
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
+          bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
         }
         break;
 
@@ -2185,7 +2178,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           if (!ttsMutedRef.current && spokenLine) {
             // Deepgram Aura-2 German (neural) → auto-fallback to free browser voice.
             playBossVoice({
-              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, text: spokenLine,
+              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
               onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
             });
           } else {

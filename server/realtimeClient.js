@@ -117,7 +117,8 @@ try {
       displayName: String(c.name || c.id).toUpperCase(),
       greeting:    GREETINGS[c.id] || 'Guten Tag.',
       persona,
-      voice:       VOICES[c.id] || 'aura-2-julius-de',
+      voice:       VOICES[c.id] || 'aura-2-julius-de',   // Deepgram fallback voice
+      elevenVoice: c.elevenVoiceId || '',                 // ElevenLabs primary voice
       interrupts:  !!c.speaking_style?.interrupts,
     };
   }
@@ -191,6 +192,7 @@ export class RealtimeClient {
       bossId,
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',
+      elevenVoice: this._boss.elevenVoice ?? '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
