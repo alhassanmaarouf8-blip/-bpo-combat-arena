@@ -5,7 +5,7 @@ import { generateDebrief } from './coach.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount }  from './srs.js';
-import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank } from './progression.js';
+import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
 import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
@@ -280,6 +280,13 @@ export class WebSocketManager {
       dossier = topWeakRule(prof);   // recurring weak grammar rule → boss memory dossier
       focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
     } catch {}
+
+    // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
+    // can be tested directly (otherwise the boss is gated by level). Validated against the ladder.
+    if (msg.bossId && BOSS_LADDER.some(b => b.id === msg.bossId)) {
+      bossId = msg.bossId;
+      console.log(`[wsManager] boss-picker override → ${bossId}  session=${ctx.sessionId}`);
+    }
 
     // ── Daily live-minute remaining (reset midnight Africa/Cairo) — hard-cap this fight ──
     const today      = dayKey();

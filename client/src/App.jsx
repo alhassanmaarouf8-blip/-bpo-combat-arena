@@ -1962,6 +1962,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
+  const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
   const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
   const [debriefPending, setDebriefPending] = useState(false);
@@ -1989,6 +1990,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const phaseRef       = useRef('idle');
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
   const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
+  const bossPickRef    = useRef('');         // boss-picker selection, read when sending START_FIGHT
   const fightModeRef   = useRef('daily');   // 'daily' | 'bosstor' — read when sending START_FIGHT
   const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
   const wsRef          = useRef(null);
@@ -2008,6 +2010,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   const setPhaseSync = useCallback((p) => { phaseRef.current = p; setPhase(p); }, []);
   const chooseLevel  = useCallback((l) => { levelRef.current = l; setLevel(l); }, []);
+  const chooseBoss   = useCallback((b) => { bossPickRef.current = b; setBossPick(b); }, []);
 
   // The SERVER is the single source of truth for whether the session is over.
   // HP is purely a visual stake — it NEVER ends the session. The result screen only
@@ -2056,7 +2059,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           playerRef.current?.setRealism(realismRef.current);
           installRealismConsole(() => realismRef.current);   // window.realism.* live A/B harness
         } catch (e) { console.error('[realism] init skipped:', e); }
-        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current }));
+        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
         break;
 
       case S.LIVE_STATS:
@@ -2776,6 +2779,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Boss-picker (test): hear all 5 voices/personas directly; default = auto by level */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10 }}>
+              <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Interviewer · للاختبار</span>
+              <select value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
+                style={{ fontSize:11, padding:'5px 8px', borderRadius:6, background:'rgba(2,6,16,0.7)',
+                  color:'#e2e8f0', border:'1px solid var(--line)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
+                <option value="">Auto (nach Niveau)</option>
+                <option value="yasmin">Yasmin — warm (L1)</option>
+                <option value="karim">Karim — sachlich (L2)</option>
+                <option value="hana">Hana — skeptisch (L3)</option>
+                <option value="tarek">Tarek — Hochdruck (L4)</option>
+                <option value="frau-mona-adel">Frau Mona Adel — streng (L5)</option>
+              </select>
             </div>
 
             {/* Feedback explanation language (also switchable on the results screen) */}
