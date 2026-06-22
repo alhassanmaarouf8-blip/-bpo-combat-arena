@@ -105,8 +105,8 @@ httpServer.listen(PORT, () => {
     || (process.env.RENDER ? 'https://bpo-combat-arena.onrender.com' : null);
   if (SELF_URL) {
     const ping = () => fetch(`${SELF_URL}/health`).catch(() => {});
-    setInterval(ping, 10 * 60 * 1000).unref?.();
-    console.log(`[server] keep-alive self-ping armed → ${SELF_URL}/health every 10 min`);
+    setInterval(ping, 4 * 60 * 1000).unref?.();
+    console.log(`[server] keep-alive self-ping armed → ${SELF_URL}/health every 4 min`);
   } else {
     console.log('[server] keep-alive NOT armed (no RENDER env) — local/dev only');
   }

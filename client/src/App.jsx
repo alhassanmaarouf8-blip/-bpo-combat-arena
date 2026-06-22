@@ -11,6 +11,7 @@ import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
+import Trainingsnachweis from './Trainingsnachweis.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -1520,11 +1521,12 @@ function AuthScreen({ onAuth }) {
         <div style={{ fontSize:10, color:'#64748b', marginTop:4, letterSpacing:'0.12em' }}>
           DE BPO COMBAT · SPRACHTRAINING
         </div>
-        <div style={{ fontSize:11.5, color:'#cbd5e1', marginTop:14, lineHeight:1.55, maxWidth:360, marginInline:'auto' }}>
-          Trainiere deutsche Job-Interviews per Sprache gegen einen harten HR-Boss — mit sofortigem Feedback.
+        {/* Arabic-first positioning — our biggest moat: no other German trainer serves Arabic speakers */}
+        <div dir="rtl" style={{ fontSize:14, fontWeight:700, color:'#f8fafc', marginTop:14, lineHeight:1.6, maxWidth:360, marginInline:'auto' }}>
+          أول تدريب إنترفيو ألماني مصمم خصيصًا للعرب — علشان توصل للشغل في كول سنتر ألماني.
         </div>
-        <div dir="rtl" style={{ fontSize:12.5, color:'#94a3b8', marginTop:7, lineHeight:1.6, maxWidth:360, marginInline:'auto' }}>
-          درّب نفسك على إنترفيو شغل ألماني بالصوت قدّام مدير موارد بشرية صعب — وخُد تقييم وتصحيح فوري بعد كل جولة.
+        <div style={{ fontSize:11, color:'#94a3b8', marginTop:8, lineHeight:1.55, maxWidth:360, marginInline:'auto' }}>
+          Das erste deutsche Interview-Trainer für Arabisch-Sprechende — optimiert für den ägyptischen BPO-Markt.
         </div>
         <div style={{ fontSize:10.5, color:'#fbbf24', marginTop:10, lineHeight:1.5, maxWidth:360, marginInline:'auto' }}>
           🎯 Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
@@ -1566,8 +1568,7 @@ function AuthScreen({ onAuth }) {
           {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
         </button>
         <div style={{ fontSize:9.5, color:'#475569', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
-          Kostenlos: deine Niveau-Einstufung. Live-Interview im Plan.
-          <br /><span dir="rtl">مجانًا: تقييم مستواك. الإنترفيو المباشر في الخطة.</span>
+          Kostenlos starten: Niveau-Einstufung · كل ده بالعربي · مجاني للبداية
         </div>
       </div>
     </div>
@@ -1971,6 +1972,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
+  const [nachweisOpen, setNachweisOpen] = useState(false); // Trainingsnachweis (progress cert)
+  const [totals, setTotals] = useState({});                // from /api/progress totals
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
   const [handsFree, setHandsFree] = useState(false);       // Freisprech: auto start/stop/send (opt-in)
@@ -2576,6 +2579,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         const data = await r.json();
         if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
         if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);
+        if (!cancelled && data.totals) setTotals(data.totals);
         if (!cancelled && data.daily) setDaily(prev => ({ streak: 0, completedToday: false, streakShield: false, best: 0, ...prev, ...data.daily }));
         if (!cancelled && typeof data.trainedToday === 'boolean') setTrainedToday(data.trainedToday);
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
@@ -2639,6 +2643,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onClose={() => setDailyOpen(false)}
             onComplete={(s) => setDaily(prev => ({ ...prev, streak: s.streak ?? 0, completedToday: true, streakShield: s.streakShield ?? prev.streakShield, best: Math.max(prev.best ?? 0, s.streak ?? 0) }))} />
+        </OverlayBoundary>
+      )}
+
+      {/* Trainingsnachweis — printable progress certificate */}
+      {nachweisOpen && (
+        <OverlayBoundary onClose={() => setNachweisOpen(false)}>
+          <Trainingsnachweis
+            email={auth.account?.email ?? ''}
+            sessions={rank?.sessions ?? 0}
+            rank={rank}
+            daily={daily}
+            totals={totals}
+            onClose={() => setNachweisOpen(false)} />
         </OverlayBoundary>
       )}
 
@@ -2839,7 +2856,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             )}
 
             {/* Interview-readiness rank ladder (visible progress on the home screen) */}
-            {rank && <div style={{ marginBottom:13 }}><RankLadder rank={rank} /></div>}
+            {rank && <div style={{ marginBottom:9 }}><RankLadder rank={rank} /></div>}
+
+            {/* Trainingsnachweis — printable progress certificate */}
+            <button onClick={() => setNachweisOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:10, marginBottom:13, padding:'8px 12px', borderRadius:'var(--r-md)',
+              background:'rgba(167,139,250,0.07)', border:'1px solid rgba(167,139,250,0.25)', transition:'all var(--dur-slow)' }}>
+              <div style={{ fontSize:20 }}>📄</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'#a78bfa' }}>TRAININGSNACHWEIS</div>
+                <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Fortschritt als PDF drucken · اطبع تقدمك كـPDF</div>
+              </div>
+              <div style={{ fontSize:10, color:'#a78bfa' }}>▸</div>
+            </button>
 
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',
               color:'var(--accent-dim)', textAlign:'center', marginBottom:9 }}>
@@ -3342,10 +3371,16 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
             <div style={{ fontSize:10, color:'#64748b', marginTop:6, fontVariantNumeric:'tabular-nums' }}>~{elapsed}s</div>
           </div>
 
-          {/* reassurance: this is normal */}
+          {/* reassurance + German vocab tip so the wait feels productive */}
           <div style={{ maxWidth:330, fontSize:11, color:'#94a3b8', lineHeight:1.6 }}>
             Der erste Start kann bis zu einer Minute dauern — das ist ganz normal.
             <br /><span dir="rtl">أول تشغيل ممكن ياخد لحد دقيقة، وده طبيعي تمامًا — استنى شوية.</span>
+            <div style={{ marginTop:10, padding:'8px 12px', borderRadius:8,
+              background:'rgba(0,229,255,0.06)', border:'1px solid rgba(0,229,255,0.15)',
+              fontSize:11.5, color:'#cbd5e1', textAlign:'left' }}>
+              💡 <b style={{ color:'#00e5ff' }}>Tipp:</b> „Einen Moment, ich schaue kurz nach." — immer höflich, wenn du Zeit brauchst.
+              <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:3 }}>تقدر تقول دي دايمًا لو محتاج وقت تفكر</div>
+            </div>
           </div>
         </>
       ) : (
