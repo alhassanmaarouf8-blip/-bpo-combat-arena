@@ -87,11 +87,12 @@ const DEFAULT_BOSS = 'yasmin';
 // legacy bosses above are retained (harmless) but no longer referenced by the ladder.
 // Text/config only: reads a local JSON at boot, makes NO API call and costs nothing.
 const GREETINGS = {
-  'yasmin':         'Schön, dass Sie da sind. Wir fangen ganz in Ruhe an.',
-  'karim':          'Guten Tag. Fangen wir direkt an.',
-  'hana':           'Guten Tag. Ich habe ein paar Fragen an Sie.',
-  'tarek':          'Guten Tag. Wir haben wenig Zeit — los geht’s.',
-  'frau-mona-adel': 'Setzen Sie sich. Ich höre.',
+  ‘yasmin’:         ‘Schön, dass Sie da sind. Wir fangen ganz in Ruhe an.’,
+  ‘karim’:          ‘Guten Tag. Fangen wir direkt an.’,
+  ‘hana’:           ‘Guten Tag. Ich habe ein paar Fragen an Sie.’,
+  ‘tarek’:          ‘Guten Tag. Wir haben wenig Zeit — los geht’s.’,
+  ‘frau-mona-adel’: ‘Setzen Sie sich. Ich höre.’,
+  ‘lukas’:          ‘Hey, komm rein. Ich bin Lukas — wir machen das hier locker, kein Stress.’,
 };
 // Gender-correct Deepgram Aura-2 German voice per character (the women must NOT be
 // voiced by the male default). All ids exist in transcribeRouter AURA_DE_VOICES.
@@ -101,6 +102,7 @@ const VOICES = {
   'hana':           'aura-2-viktoria-de', // female, mature
   'tarek':          'aura-2-julius-de',   // male, hard
   'frau-mona-adel': 'aura-2-aurelia-de',  // female, authoritative
+  'lukas':          'aura-2-fabian-de',   // male, casual (Deepgram fallback)
 };
 try {
   const _charsPath  = path.join(path.dirname(fileURLToPath(import.meta.url)), 'interviewer-characters.json');
