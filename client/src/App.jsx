@@ -144,11 +144,17 @@ function stopBossVoice() {
 // Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
 async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
   try {
-    const res = await fetch(`${apiUrl}/api/tts`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body:    JSON.stringify({ text, voice }),
-    });
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 12000); // 12s max — Deepgram is fast; hang = network issue
+    let res;
+    try {
+      res = await fetch(`${apiUrl}/api/tts`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ text, voice }),
+        signal:  ctrl.signal,
+      });
+    } finally { clearTimeout(tid); }
     if (!res.ok) throw new Error('tts ' + res.status);
     const blob = await res.blob();
     if (!blob || !blob.size) throw new Error('empty audio');
@@ -158,13 +164,13 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd })
     audio.onplay  = () => { try { onStart?.(); } catch {} };
     audio.onended = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
     audio.onerror = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
-    await audio.play().catch(() => {            // autoplay/decode fail → no audio (text is on screen)
+    await audio.play().catch(() => {
       try { URL.revokeObjectURL(url); } catch {}
       if (_bossAudio === audio) _bossAudio = null;
       onEnd?.();
     });
   } catch {
-    onEnd?.();   // no key / error → show text, no audio (never the robotic voice)
+    onEnd?.();
   }
 }
 
@@ -178,17 +184,43 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
     const fellBack = await new Promise((resolve) => {
       const audio = new Audio(url);
       _bossAudio = audio;
-      let started = false;
-      audio.onplay  = () => { started = true; try { onStart?.(); } catch {} };
-      audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} resolve(false); };
-      audio.onerror = () => {
+      let started = false, resolved = false;
+      const finish = (fallback) => { if (resolved) return; resolved = true; clearTimeout(guard); resolve(fallback); };
+      // Safety: if audio starts but the HTTP stream stalls and never ends (server-side hang),
+      // onstalled fires instead of onerror. Force-end after 3s of stalling so bossSpeak clears.
+      // Overall 40s hard cap in case neither stall nor error ever fires (browser quirk).
+      let stallTimer = null;
+      const guard = setTimeout(() => { if (started) { try { onEnd?.(); } catch {} } finish(false); }, 40000);
+      audio.onplay    = () => { started = true; try { onStart?.(); } catch {} };
+      audio.onended   = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
+      audio.onerror   = () => {
+        clearTimeout(stallTimer);
         if (_bossAudio === audio) _bossAudio = null;
-        if (started) { try { onEnd?.(); } catch {} resolve(false); }  // started then died → just end
-        else resolve(true);                                           // never started → fall back
+        if (started) { try { onEnd?.(); } catch {} finish(false); }
+        else finish(true);
       };
-      audio.play().catch(() => { if (!started) { if (_bossAudio === audio) _bossAudio = null; resolve(true); } });
+      audio.onstalled = () => {
+        // Audio stalled (server stream hanging mid-transfer). Give it 3s to recover; if not,
+        // treat as done-enough (audio played what it had) rather than leaving bossSpeak stuck.
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => {
+          if (_bossAudio === audio) _bossAudio = null;
+          if (started) { try { onEnd?.(); } catch {} finish(false); }
+          else finish(true);
+        }, 3000);
+      };
+      audio.onwaiting = () => {
+        // Same safety for 'waiting' (buffering pause mid-play) — short recovery window.
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => {
+          if (_bossAudio === audio) _bossAudio = null;
+          if (started) { try { onEnd?.(); } catch {} finish(false); }
+          else finish(true);
+        }, 5000);
+      };
+      audio.play().catch(() => { if (!started) { if (_bossAudio === audio) _bossAudio = null; finish(true); } });
     });
-    if (!fellBack) return;   // ElevenLabs played (or started then ended) — done.
+    if (!fellBack) return;
   }
   // FALLBACK: Deepgram neural (never the robotic browser voice).
   await playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd });
@@ -2712,6 +2744,27 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       return () => clearTimeout(t);
     }
   }, [debrief, debriefPending, bossSpeak]);
+
+  // Watchdog: if bossSpeak or bossThinking get stuck during an active turn (TTS stream hangs,
+  // Groq timeout, network drop), force-clear them so the conversation can continue.
+  // bossThinking: Groq call takes ~1-3s; 12s is generous. bossSpeak: audio should finish
+  // within ~30s for any reasonable line (40s cap in playBossVoice already handles most cases,
+  // but this is a second layer in case the audio resolve path itself fails silently).
+  useEffect(() => {
+    if (phase !== 'active' || debrief || debriefPending) return;
+    if (bossThinking) {
+      const t = setTimeout(() => setBossThinking(false), 12000);
+      return () => clearTimeout(t);
+    }
+  }, [phase, debrief, debriefPending, bossThinking]);
+
+  useEffect(() => {
+    if (phase !== 'active' || debrief || debriefPending) return;
+    if (bossSpeak) {
+      const t = setTimeout(() => setBossSpeak(false), 45000);
+      return () => clearTimeout(t);
+    }
+  }, [phase, debrief, debriefPending, bossSpeak]);
 
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token]);
 
