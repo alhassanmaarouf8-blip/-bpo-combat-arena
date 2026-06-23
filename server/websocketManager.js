@@ -5,7 +5,8 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { loadUser, saveUser } from './store.js';
-import { addItem, dueCount }  from './srs.js';
+import { addItem, dueCount, seedBPOPhrases } from './srs.js';
+import { BPO_PHRASES } from './scenarios.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
 import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
@@ -611,6 +612,9 @@ export class WebSocketManager {
           answer:  v.de,
         }, now);
       }
+
+      // Seed BPO call-center phrases as SRS production tasks (won't duplicate already-tracked ones).
+      seedBPOPhrases(p, BPO_PHRASES);
 
       // XP + level (light progression).
       const beforeLevel = levelFor(p.xp);

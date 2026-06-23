@@ -46,7 +46,8 @@ Gib AUSSCHLIESSLICH gültiges JSON in GENAU diesem Schema zurück (alle Texte au
   "vocabTargets": [ { "de": "deutsches Wort/Wendung, das der Kandidat üben sollte", "en": "englische Bedeutung", "note": "kurzer Hinweis (DEUTSCH)", "note_ar": "derselbe Hinweis auf ARABISCH" } ],
   "upgrades": [ { "original": "kurzer ECHTER Ausschnitt aus einer Äußerung des Kandidaten (Originalwortlaut, DEUTSCH)", "better": "stärkere, elegantere deutsche Formulierung DESSELBEN Inhalts", "why": "ein kurzer Satz DEUTSCH: warum stärker (gehobener Wortschatz/Struktur)", "why_ar": "derselbe Grund auf ARABISCH" } ],
   "answerArchitecture": { "label": "stark|solide|ausbaufähig", "de": "EIN konkreter Struktur-Tipp (DEUTSCH), stärken-zuerst", "ar": "derselbe Tipp auf ÄGYPTISCH-ARABISCH, stärken-zuerst" },
-  "deliveryConfidence": { "label": "selbstbewusst|solide|zögerlich", "de": "EIN konkreter Delivery-Tipp (DEUTSCH), stärken-zuerst", "ar": "derselbe Tipp auf ÄGYPTISCH-ARABISCH, stärken-zuerst" }
+  "deliveryConfidence": { "label": "selbstbewusst|solide|zögerlich", "de": "EIN konkreter Delivery-Tipp (DEUTSCH), stärken-zuerst", "ar": "derselbe Tipp auf ÄGYPTISCH-ARABISCH, stärken-zuerst" },
+  "priorityFix": { "de": "EIN SATZ auf DEUTSCH: die allerwichtigste Sache, die der Kandidat JETZT üben soll — konkret und handlungsorientiert (z.B. 'Übe heute Abend drei Sätze mit Konjunktiv II: Ich würde … / Ich könnte … / Es wäre besser, wenn …'). Nicht mehr als einen Satz.", "ar": "GENAU DASSELBE auf ägyptischem Arabisch — kurz, direkt, ermutigend." }
 }
 
 HARTE REGELN:
@@ -259,8 +260,11 @@ export function normalize(d) {
   };
   const answerArchitecture = dim(d.answerArchitecture, ['stark', 'solide', 'ausbaufähig'], 'solide');
   const deliveryConfidence = dim(d.deliveryConfidence, ['selbstbewusst', 'solide', 'zögerlich'], 'solide');
+  const priorityFix = (d.priorityFix?.de || d.priorityFix?.ar)
+    ? { de: String(d.priorityFix?.de ?? '').trim(), ar: String(d.priorityFix?.ar ?? '').trim() }
+    : null;
 
-  return { grammar, strengths, strengths_ar, studyNext, vocabTargets, upgrades, answerArchitecture, deliveryConfidence };
+  return { grammar, strengths, strengths_ar, studyNext, vocabTargets, upgrades, answerArchitecture, deliveryConfidence, priorityFix };
 }
 
 function buildLesson(utterances, metrics, grammar) {

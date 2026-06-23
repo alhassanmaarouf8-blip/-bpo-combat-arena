@@ -1081,6 +1081,36 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             );
           })()}
 
+          {/* ── PRIORITÄTS-FIX — "Your #1 coaching task today" ──────────────── */}
+          {data?.priorityFix && (data.priorityFix.de || data.priorityFix.ar) && (
+            <div style={{ padding:'14px 16px', borderRadius:14, animation:'result-rise 0.5s var(--ease-out)',
+              background:'linear-gradient(135deg, rgba(0,188,212,0.12) 0%, rgba(0,188,212,0.05) 100%)',
+              border:'1.5px solid rgba(0,188,212,0.5)',
+              boxShadow:'0 0 28px rgba(0,188,212,0.12)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
+                <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(0,188,212,0.2)',
+                  border:'1.5px solid rgba(0,188,212,0.5)', display:'flex', alignItems:'center',
+                  justifyContent:'center', fontSize:14, flexShrink:0 }}>🎯</div>
+                <div>
+                  <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'Orbitron,monospace', color:'#00bcd4' }}>
+                    PRIORITÄT #1 · DEIN WICHTIGSTER FIX HEUTE
+                  </div>
+                  <div style={{ fontSize:8, color:'rgba(255,255,255,0.3)', letterSpacing:'0.08em', fontFamily:'Orbitron,monospace' }}>
+                    أهم حاجة تتدرب عليها النهارده
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.65, fontWeight:500 }}>
+                {ar && data.priorityFix.ar ? data.priorityFix.ar : data.priorityFix.de}
+              </div>
+              {!ar && data.priorityFix.ar && (
+                <div dir="rtl" style={{ marginTop:7, fontSize:11.5, color:'#94a3b8', lineHeight:1.55 }}>
+                  {data.priorityFix.ar}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Language toggle (Arabic explanations) */}
           {LangToggle && (
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -2155,6 +2185,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
+  const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
+  const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
 
   // Honor the landing promise ("kostenlose Einstufung direkt nach der Anmeldung"): if the user
   // just signed up, auto-open the free assessment ONCE (flag set in AuthScreen on signup).
@@ -2257,6 +2289,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           levelLabel:  msg.levelLabel ?? '',
           displayName: msg.displayName ?? 'HERR TARIQ',
         });
+        // Pre-fight scenario briefing (shown while boss is loading, dismissed on first BOSS_SPEECH)
+        if (msg.csBriefing?.keyPhrases?.length) {
+          setCsBriefing(msg.csBriefing);
+          setShowBriefing(true);
+          // Auto-dismiss after 12s so even non-tap users see the fight start
+          setTimeout(() => setShowBriefing(false), 12_000);
+        }
         // Aura-2 German voice: prefer the server-sent per-character voice; fall back to a
         // gender-correct map so a female boss is NEVER voiced by the male default.
         {
@@ -2344,6 +2383,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!msg.text) break;
         setBossSpeak(true);
         setBossThinking(false);   // the boss's next turn has arrived
+        setShowBriefing(false);   // dismiss pre-fight briefing when boss starts speaking
         // Stream the boss's words live. A new utterance (ref cleared by the previous
         // BOSS_SPEECH_DONE) resets the subtitle box and opens one fresh transcript
         // line; subsequent deltas append to that same line instead of spawning many.
@@ -3154,6 +3194,49 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Phase 2: live performance HUD (appears once a fight is in progress) */}
         {funnel && <PerformanceHud wpm={liveWpm} fillers={fillerCount} combo={combo} />}
       </div>
+
+      {/* ── PRE-FIGHT BRIEFING CARD — scenario context + key phrases (dismissed when boss speaks) ── */}
+      {showBriefing && csBriefing && (
+        <div onClick={() => setShowBriefing(false)} style={{
+          position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
+          background:'rgba(0,0,0,0.82)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width:'min(92vw,440px)', background:'#0d1828', borderRadius:18,
+            border:'1.5px solid rgba(0,188,212,0.45)', boxShadow:'0 0 60px rgba(0,188,212,0.18)',
+            padding:'22px 22px 18px', userSelect:'none' }}>
+            {/* Header */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:9, letterSpacing:'0.15em', fontFamily:'Orbitron,monospace', color:'#00bcd4', marginBottom:3 }}>TEIL 3 · SZENARIO-BRIEFING</div>
+                <div style={{ fontSize:13, fontWeight:700, color:'#e2e8f0' }}>{csBriefing.skill}</div>
+              </div>
+              <div style={{ fontSize:9, color:'rgba(255,255,255,0.35)', textAlign:'right', lineHeight:1.4 }}>
+                Antippen<br/>um zu starten
+              </div>
+            </div>
+            {/* Situation */}
+            <div style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.55, marginBottom:14,
+              padding:'10px 12px', background:'rgba(0,188,212,0.06)', borderRadius:10,
+              borderLeft:'3px solid rgba(0,188,212,0.4)' }}>
+              {csBriefing.situation}
+            </div>
+            {/* Key phrases */}
+            <div style={{ fontSize:9.5, letterSpacing:'0.1em', color:'#00bcd4', fontFamily:'Orbitron,monospace', marginBottom:8 }}>SCHLÜSSELPHRASEN</div>
+            {csBriefing.keyPhrases.map((phrase, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:7 }}>
+                <div style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,188,212,0.15)',
+                  border:'1px solid rgba(0,188,212,0.4)', display:'flex', alignItems:'center', justifyContent:'center',
+                  flexShrink:0, fontSize:9, color:'#00bcd4', fontFamily:'Orbitron,monospace' }}>{i+1}</div>
+                <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5, fontStyle:'italic' }}>„{phrase}"</div>
+              </div>
+            ))}
+            {/* Dismiss hint */}
+            <div style={{ marginTop:14, textAlign:'center', fontSize:10, color:'rgba(255,255,255,0.3)' }}>
+              Verschwindet automatisch · Tippe zum sofortigen Schließen
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── STAGE — the opponent fills the stage, framed by cinematic HP bars ── */}
       <div style={{ padding:'4px 14px 0' }}>

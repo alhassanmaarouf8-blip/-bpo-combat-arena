@@ -55,6 +55,12 @@ export const BEHAVIORAL_QUESTIONS = [
   'Erzählen Sie von Ihrer letzten Reise — das Hotel, die Strände, die Menschen, und was Sie dort gelernt haben.',
   'Warum sollten wir ausgerechnet SIE einstellen?',
   'Beschreiben Sie einen Konflikt und wie Sie ihn gelöst haben.',
+  'Beschreiben Sie eine Situation, in der Sie mit einem schwierigen Teammitglied zusammenarbeiten mussten.',
+  'Erzählen Sie von einem Moment, in dem Sie unter großem Zeitdruck eine wichtige Entscheidung treffen mussten.',
+  'Wie haben Sie einmal einen Fehler gemacht — und wie sind Sie damit umgegangen?',
+  'Erzählen Sie von einer Situation, in der Sie proaktiv Verbesserungen vorgeschlagen haben.',
+  'Beschreiben Sie eine Erfahrung, bei der Sie einem Kunden geholfen haben, der zunächst sehr unzufrieden war.',
+  'Wie sind Sie vorgegangen, als Sie mit einer unklaren Arbeitsanweisung konfrontiert wurden?',
 ];
 
 // ── C1 Behavioral questions — Swiss/formal BPO register, STAR-method expected ──
@@ -63,6 +69,10 @@ export const C1_BEHAVIORAL_QUESTIONS = [
   'Erzählen Sie von einer Entscheidung, die Sie unter Zeitdruck und mit unvollständigen Informationen treffen mussten. Welche Abwägungen haben Sie getroffen und welches Ergebnis hatte das?',
   'Beschreiben Sie einen Fall, in dem Sie konstruktiv Kritik an einer Entscheidung Ihres Vorgesetzten geäußert haben — wie sind Sie vorgegangen und was war das Ergebnis?',
   'Schildern Sie eine Situation, in der Sie eine eskalierte Kundenbeschwerde langfristig in eine positive Kundenbeziehung verwandelt haben.',
+  'Beschreiben Sie eine Situation, in der Sie eine kundenseitige Eskalation deeskalieren mussten, ohne dabei Unternehmensvorgaben zu verletzen — und welches Ergebnis erzielte Ihre Intervention?',
+  'Erzählen Sie von einem Fall, in dem Sie das Vertrauen eines Kunden nach einem schwerwiegenden Servicefehler langfristig zurückgewinnen konnten. Welche konkreten Schritte haben Sie unternommen?',
+  'Beschreiben Sie eine Situation, in der Sie interne Prozesse verbessert haben, um die Kundenzufriedenheit messbar zu steigern.',
+  'Schildern Sie eine Entscheidungssituation mit ethisch problematischen Aspekten im Berufsalltag — wie haben Sie abgewogen, entschieden und kommuniziert?',
 ];
 
 // ── Customer-service roleplay scenarios (Teil 3) — the boss PLAYS the customer ──
@@ -72,36 +82,72 @@ export const CS_SCENARIOS = [
     customer:  'ein wütender Kunde, dessen Bestellung für Freitag versprochen wurde und immer noch nicht angekommen ist',
     opening:   'Wo bleibt meine Bestellung?! Sie wurde mir für FREITAG zugesagt und ich habe immer noch NICHTS bekommen! Wenn das so läuft, kündige ich auf der Stelle!',
     situation: 'Lieferung war für Freitag zugesagt, ist nicht angekommen — der Kunde droht zu kündigen.',
+    skill:     'De-Eskalation + klarer nächster Schritt',
+    keyPhrases: [
+      'Ich kann Ihren Ärger vollkommen nachvollziehen.',
+      'Ich prüfe das sofort für Sie — könnten Sie mir bitte Ihre Bestellnummer nennen?',
+      'Ich kümmere mich umgehend darum und melde mich innerhalb von 24 Stunden bei Ihnen.',
+    ],
   },
   {
     id:        'billing-error',
     customer:  'ein empörter Kunde, dem ein falscher Betrag berechnet wurde',
     opening:   'Sie haben mir den Betrag doppelt abgebucht! Das ist doch Betrug! Ich will mein Geld sofort zurück — sofort!',
     situation: 'Abrechnungsfehler: dem Kunden wurde zu viel berechnet.',
+    skill:     'Verantwortung übernehmen + Lösung anbieten',
+    keyPhrases: [
+      'Das tut mir aufrichtig leid — das hätte nicht passieren dürfen.',
+      'Ich leite die Rückerstattung sofort ein.',
+      'Darf ich kurz zusammenfassen, damit ich Sie richtig verstanden habe?',
+    ],
   },
   {
     id:        'service-outage',
     customer:  'ein gestresster Kunde, dessen Service seit Stunden ausgefallen ist',
     opening:   'Mein Internet ist seit DREI Stunden tot! Ich arbeite von zu Hause — das kostet mich bares Geld! Was unternehmen Sie jetzt dagegen?!',
     situation: 'Serviceausfall betrifft den Kunden seit Stunden und verursacht ihm Schaden.',
+    skill:     'Empathie + schnelle Handlungsbereitschaft',
+    keyPhrases: [
+      'Ich verstehe, dass das für Sie sehr ärgerlich ist — ich nehme das sehr ernst.',
+      'Was ich konkret für Sie tun kann, ist Folgendes: Ich eskaliere das sofort an unser technisches Team.',
+      'Ich verspreche Ihnen, dass ich dranbleibe, bis das Problem gelöst ist.',
+    ],
   },
   {
     id:        'must-decline',
     customer:  'ein fordernder Kunde, der eine Erstattung außerhalb der Richtlinien verlangt',
     opening:   'Ich verlange eine volle Erstattung, und zwar JETZT! Mir ist völlig egal, was in Ihren Regeln steht!',
     situation: 'Der Kunde verlangt etwas, das der Agent höflich ablehnen muss — danach die Eskalation auffangen.',
+    skill:     'Höfliche Ablehnung + alternative Lösung',
+    keyPhrases: [
+      'Ich kann zwar das Geschehene nicht rückgängig machen, aber ich möchte Ihnen eine Alternative anbieten.',
+      'Bleiben wir bitte sachlich, dann finden wir gemeinsam eine Lösung.',
+      'Ich würde Ihnen vorschlagen, dass …',
+    ],
   },
   {
     id:        'tech-support',
     customer:  'ein frustrierter Kunde, der mit einem Gerät nicht zurechtkommt',
     opening:   'Ich verstehe das nicht! Ich habe alles versucht und es funktioniert immer noch nicht! Erklären Sie mir das bitte Schritt für Schritt!',
     situation: 'Technisches Problem: der Kunde braucht geduldige Anleitung — Geduld, Empathie und klare Schritte sind entscheidend.',
+    skill:     'Geduldige Anleitung + klare Schritte',
+    keyPhrases: [
+      'Selbstverständlich helfe ich Ihnen — nehmen wir es Schritt für Schritt.',
+      'Habe ich Sie richtig verstanden, dass …?',
+      'Damit ich Ihnen schneller helfen kann, brauche ich kurz Ihre Gerätenummer.',
+    ],
   },
   {
     id:        'cancellation-retention',
     customer:  'ein Kunde, der seinen Vertrag kündigen möchte',
     opening:   'Ich möchte meinen Vertrag kündigen. Ich bin mit dem Service nicht zufrieden und ich habe mich bereits entschieden.',
     situation: 'Kundenbindung: Ziel ist, den Kündigungsgrund zu verstehen und ggf. eine Alternative anzubieten — ohne Druck oder Überredung.',
+    skill:     'Aktives Zuhören + sanfte Retention',
+    keyPhrases: [
+      'Das tut mir leid zu hören — darf ich fragen, was Sie enttäuscht hat?',
+      'Ich nehme Ihr Anliegen sehr ernst und möchte verstehen, was passiert ist.',
+      'Ich würde Ihnen gern eine Alternative zeigen, bevor Sie endgültig entscheiden.',
+    ],
   },
 ];
 
@@ -117,6 +163,23 @@ export const CS_RUBRIC =
   `"Ich nehme Ihr Anliegen sehr ernst", "Was ich konkret für Sie tun kann, ist Folgendes:", ` +
   `"Ich kann zwar das Geschehene nicht rückgängig machen, aber…", "Bleiben wir bitte sachlich", ` +
   `"Ich verspreche Ihnen, dass ich persönlich dranbleibe".`;
+
+// ── Multi-turn CS lifecycle rubric ───────────────────────────────────────────────
+// Real BPO calls rarely end after one complaint. This rubric governs Phase 3b: once
+// the candidate has successfully de-escalated the opening complaint (customer softens),
+// introduce a SECOND concern or test the wrap-up/ticket step.
+export const CS_LIFECYCLE_RUBRIC =
+  `ZWEI-PHASEN-ROLLENSPIEL (wichtig für Realismus): ` +
+  `Wenn der Kandidat die erste Beschwerde erfolgreich deeskaliert hat (Empathie gezeigt, Lösung angeboten, ` +
+  `Kunde ist deutlich ruhiger geworden), wechsle in Phase 2: ` +
+  `Bringe EINE weitere realistische Anforderung ins Spiel — entweder ` +
+  `(a) eine zweite, kleinere Beschwerde ("Übrigens, ich hatte letzte Woche auch noch ein Problem mit der Rechnung"), ` +
+  `(b) eine Frage nach Kompensation ("Bekommen wir dafür irgendeine Entschädigung?"), oder ` +
+  `(c) eine Bitte um Bestätigung/Ticket ("Bekomme ich das schriftlich?"). ` +
+  `Wähle GENAU EINE dieser drei — die, die am natürlichsten zur Situation passt. ` +
+  `Belohne den Kandidaten, der auch die zweite Phase professionell abwickelt (Verständnis, Klärung, Zusage). ` +
+  `Überfordere nicht: wenn die erste Phase sehr lange gedauert hat oder der Kandidat sichtlich erschöpft ist, ` +
+  `lasse Phase 2 weg und schließe stattdessen mit einem kurzen "Danke, ich warte auf Ihre Rückmeldung." ab.`;
 
 // ── BPO "phrase of the day" pool (for the daily micro-session) ──────────────────
 // Real, high-value call-center German. One is surfaced per day (deterministically),
@@ -270,6 +333,7 @@ Du bist NUR der Kunde — niemals der Agent/Kandidat. Stelle deine Forderung ode
 Eröffne das Rollenspiel mit: "${cs.opening}"
 Bleibe durchgehend in der Rolle dieses wütenden Kunden und reagiere jedes Mal anders und unvorhersehbar auf das, was der Kandidat tatsächlich sagt.
 ${CS_RUBRIC}
+${CS_LIFECYCLE_RUBRIC}
 
 Kündige jeden Teil mit einem kurzen Satz an ("Teil eins …", "Teil zwei …", "Nun ein kleines Rollenspiel …").
 Beginne JETZT mit Teil eins.`;

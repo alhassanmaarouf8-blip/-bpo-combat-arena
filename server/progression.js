@@ -37,9 +37,11 @@ export function nextBoss(level) {
 export function xpForSession(metrics = {}) {
   const fluency = metrics.fluency ?? metrics.avgScore ?? 0;
   return 15
-    + Math.round(fluency / 5)                       // up to ~20 for a strong session
-    + Math.min(15, (metrics.c1Hits || 0) * 3)       // vocab range
-    + Math.min(10, (metrics.konjunktivHits || 0) * 2); // politeness register
+    + Math.round(fluency / 5)                            // up to ~20 for a strong session
+    + Math.min(15, (metrics.c1Hits || 0) * 3)            // C1 vocab/register range
+    + Math.min(10, (metrics.konjunktivHits || 0) * 2)    // politeness register
+    + Math.min(10, (metrics.bpoPhraseHits || 0) * 2)     // BPO de-escalation phrases (gap 6 fix)
+    + Math.min(5,  (metrics.empathyHits || 0) * 1);      // empathy markers in CS roleplay
 }
 
 export function levelProgress(xp) {

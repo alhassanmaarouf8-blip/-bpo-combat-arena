@@ -138,3 +138,37 @@ export function checkAnswer(answer, expected) {
 export function isCorrect(answer, expected) {
   return checkAnswer(answer, expected).correct;
 }
+
+/**
+ * Seed BPO call-center phrases into SRS as production tasks.
+ * Safe to call multiple times — won't duplicate already-tracked items.
+ * Called at session-end (after debrief) so candidates get phrase drills
+ * between sessions rather than only grammar-rule drills.
+ *
+ * @param {object} profile  - the user's stored profile (has profile.srs array)
+ * @param {Array}  phrases  - BPO_PHRASES array from scenarios.js
+ */
+export function seedBPOPhrases(profile, phrases) {
+  if (!Array.isArray(profile?.srs)) profile.srs = [];
+  if (!Array.isArray(phrases)) return;
+  for (const p of phrases) {
+    const id = srsKey('phrase', p.de);
+    const already = profile.srs.find((i) => i.id === id);
+    if (already) continue;  // already tracked — don't overwrite progress
+    profile.srs.push({
+      id,
+      type:      'phrase',
+      content:   p.de,
+      prompt:    p.en,          // shown to the candidate: "produce the German for..."
+      answer:    p.de,
+      example:   p.drill ?? null,
+      stage:     0,
+      due:       Date.now(),    // due immediately in next session
+      reps:      0,
+      lapses:    0,
+      mastered:  false,
+      createdAt: Date.now(),
+      lastResult: null,
+    });
+  }
+}

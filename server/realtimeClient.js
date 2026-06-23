@@ -145,7 +145,14 @@ const TURN_RULE =
   `oder "Bewerber:". Bleibe auf Deutsch. ` +
   `Sprich wie ein echter Mensch im Gespräch: variiere Satzlänge (kurze Einwürfe wechseln mit längeren Fragen), ` +
   `nutze natürliche Gesprächspartikel ("Also,", "Gut,", "Na,", "Ich sehe."), setze bewusste kurze Pausen mit "—" oder "...", ` +
-  `und reagiere konkret auf das, was der Kandidat gerade gesagt hat (kein generisches Weiterfragen).`;
+  `und reagiere konkret auf das, was der Kandidat gerade gesagt hat (kein generisches Weiterfragen). ` +
+  `IMPLIZITES RECAST (wichtige Lernhilfe — sparsam einsetzen): Wenn der Kandidat einen offensichtlichen ` +
+  `Grammatikfehler macht, flechte die korrekte Form UNAUFFÄLLIG in deinen eigenen Satz ein — OHNE ` +
+  `die Korrektur zu benennen oder den Kandidaten zu unterbrechen. ` +
+  `Beispiel: Kandidat sagt "weil ich bin gegangen" → du antwortest "Ah, Sie sind also gegangen — interessant. Und dann?" ` +
+  `Der Kandidat hört die richtige Form, ohne das Gefühl zu bekommen, korrigiert zu werden. ` +
+  `Tue das HÖCHSTENS EINMAL pro Sitzungsteil und NUR bei eindeutigen Fehlern (Wortstellung, falsches Hilfsverb, ` +
+  `Kasus bei bekannten Präpositionen). Bei Unklarheit: lieber schweigen und inhaltlich weitermachen.`;
 
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
@@ -193,6 +200,7 @@ export class RealtimeClient {
     });
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).
+    const cs = this._session.csScenario;
     this.sessionInfo = {
       bossId,
       displayName: this._boss.displayName,
@@ -201,7 +209,8 @@ export class RealtimeClient {
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
-      csScenario:  this._session.csScenario.id,
+      csScenario:  cs.id,
+      csBriefing:  { situation: cs.situation ?? '', skill: cs.skill ?? '', keyPhrases: cs.keyPhrases ?? [] },
       stages:      this._session.stages,
     };
 
