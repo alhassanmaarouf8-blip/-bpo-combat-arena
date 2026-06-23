@@ -138,7 +138,17 @@ const C = {
 // total failure the line is shown on screen with no audio, but never the robotic voice.
 let _bossAudio = null;
 function stopBossVoice() {
-  try { if (_bossAudio) { _bossAudio.pause(); _bossAudio.src = ''; _bossAudio = null; } } catch {}
+  // Null handlers BEFORE clearing src. Clearing src causes the browser to fire onerror/onemptied
+  // on the element; if handlers are still attached they call onEnd() → setBossSpeak(false) on
+  // the OLD audio, which races with a newly-started audio and clears bossSpeak prematurely.
+  try {
+    if (_bossAudio) {
+      const a = _bossAudio;
+      _bossAudio = null;
+      a.onplay = null; a.onended = null; a.onerror = null; a.onstalled = null; a.onwaiting = null;
+      a.pause(); a.src = '';
+    }
+  } catch {}
 }
 
 // Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
@@ -186,37 +196,17 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
       _bossAudio = audio;
       let started = false, resolved = false;
       const finish = (fallback) => { if (resolved) return; resolved = true; clearTimeout(guard); resolve(fallback); };
-      // Safety: if audio starts but the HTTP stream stalls and never ends (server-side hang),
-      // onstalled fires instead of onerror. Force-end after 3s of stalling so bossSpeak clears.
-      // Overall 40s hard cap in case neither stall nor error ever fires (browser quirk).
-      let stallTimer = null;
+      // 40s hard cap: server-side abort (25s) + network delivery covers most cases; this is the
+      // final backstop for any browser quirk where neither onended nor onerror ever fires.
+      // Do NOT add onstalled/onwaiting handlers — they fire constantly during normal streaming
+      // buffering and would prematurely kill audio that is buffering-then-playing correctly.
       const guard = setTimeout(() => { if (started) { try { onEnd?.(); } catch {} } finish(false); }, 40000);
-      audio.onplay    = () => { started = true; try { onStart?.(); } catch {} };
-      audio.onended   = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
-      audio.onerror   = () => {
-        clearTimeout(stallTimer);
+      audio.onplay  = () => { started = true; try { onStart?.(); } catch {} };
+      audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
+      audio.onerror = () => {
         if (_bossAudio === audio) _bossAudio = null;
         if (started) { try { onEnd?.(); } catch {} finish(false); }
         else finish(true);
-      };
-      audio.onstalled = () => {
-        // Audio stalled (server stream hanging mid-transfer). Give it 3s to recover; if not,
-        // treat as done-enough (audio played what it had) rather than leaving bossSpeak stuck.
-        clearTimeout(stallTimer);
-        stallTimer = setTimeout(() => {
-          if (_bossAudio === audio) _bossAudio = null;
-          if (started) { try { onEnd?.(); } catch {} finish(false); }
-          else finish(true);
-        }, 3000);
-      };
-      audio.onwaiting = () => {
-        // Same safety for 'waiting' (buffering pause mid-play) — short recovery window.
-        clearTimeout(stallTimer);
-        stallTimer = setTimeout(() => {
-          if (_bossAudio === audio) _bossAudio = null;
-          if (started) { try { onEnd?.(); } catch {} finish(false); }
-          else finish(true);
-        }, 5000);
       };
       audio.play().catch(() => { if (!started) { if (_bossAudio === audio) _bossAudio = null; finish(true); } });
     });
@@ -2753,7 +2743,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   useEffect(() => {
     if (phase !== 'active' || debrief || debriefPending) return;
     if (bossThinking) {
-      const t = setTimeout(() => setBossThinking(false), 12000);
+      const t = setTimeout(() => setBossThinking(false), 22000);
       return () => clearTimeout(t);
     }
   }, [phase, debrief, debriefPending, bossThinking]);
