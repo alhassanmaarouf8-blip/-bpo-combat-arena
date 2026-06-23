@@ -131,6 +131,47 @@ const C = {
   PING:         'ping',
 };
 
+// ── Semantic end-of-turn classification (research-backed: LiveKit/Deepgram/OpenAI model) ──
+// We never end a German turn on a fixed timer. The latest live transcript is inspected for
+// continuation cues — a trailing conjunction / preposition / article / filler means the
+// speaker is MID-THOUGHT, so we wait much longer before yielding the floor. A trailing
+// sentence punctuation or a short complete formula ("Gerne.") means we may take the turn
+// sooner. Combined with cancel-on-resume (silence resets the instant the user speaks again),
+// this is what stops the boss cutting in during a thinking pause between sentences.
+const _CONT_CUES = new Set([
+  // coordinating + subordinating conjunctions (a clause must still follow → incomplete)
+  'und','oder','aber','sondern','denn','sowie','weil','dass','ob','wenn','als','während',
+  'obwohl','damit','indem','nachdem','bevor','bis','seit','seitdem','sobald','solange',
+  'sodass','sofern','falls','da','ehe','wie','wodurch','womit',
+  // relative / interrogative pronouns mid-utterance
+  'der','die','das','dem','den','dessen','deren','welcher','welche','welches','wer','wen',
+  'wem','was','wo','wohin','woher','warum','weshalb','wieso','wann',
+  // prepositions (a noun phrase must follow)
+  'in','an','auf','unter','über','vor','hinter','neben','zwischen','mit','nach','bei',
+  'von','zu','aus','durch','für','gegen','ohne','um','trotz','wegen','statt',
+  // articles / possessives / determiners (a noun must follow)
+  'ein','eine','einen','einem','einer','eines','des','mein','meine','meinen','meinem',
+  'sein','seine','ihr','ihre','unser','kein','keine','dieser','diese','dieses','jeder',
+  // list / continuation adverbs + thinking fillers
+  'also','zwar','einerseits','andererseits','nämlich','ähm','äh','öhm','hm','hmm','mh',
+  'naja','halt','quasi','sozusagen','irgendwie',
+]);
+const _SHORT_VALID = new Set([
+  'ja','nein','doch','gerne','danke','genau','richtig','okay','ok','klar','natürlich',
+  'vielleicht','sicher','absolut','stimmt','korrekt','jein','nö','joa','perfekt',
+]);
+function classifyTurnDE(partial) {
+  const raw = String(partial || '').trim();
+  if (!raw) return 'ambiguous';
+  const noPunct = raw.toLowerCase().replace(/[.,!?;:"'»«…\-]+$/u, '').trim();
+  if (_SHORT_VALID.has(noPunct)) return 'complete';            // a short, valid one-word answer
+  if (/[.!?]["'»«]?\s*$/.test(raw)) return 'complete';         // finished sentence (Deepgram punctuate)
+  const toks = noPunct.split(/\s+/);
+  const last = toks[toks.length - 1] || '';
+  if (_CONT_CUES.has(last)) return 'incomplete';               // trailing cue → still mid-thought
+  return 'ambiguous';
+}
+
 // ── Boss voice: ElevenLabs Flash v2.5 (neural, streamed) → Deepgram neural fallback ──
 // PRIMARY: ElevenLabs Flash v2.5, streamed server-side and played progressively via a
 // GET <audio> source (sound starts before the full clip is ready). FALLBACK: the existing
@@ -2307,6 +2348,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
+  const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
+  const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
   const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
   const realismRef       = useRef(null);   // OUTPUT-ONLY interview realism engine (Phases 2–4)
   const bossLineRef      = useRef('');     // accumulates the current boss line for diegetic keywords
@@ -2404,6 +2447,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         break;
 
       case S.STAGE_UPDATE:
+        if (typeof msg.index === 'number') stageIdxRef.current = msg.index;  // drives VAD patience
         setFunnel(f => f ? { ...f, idx: msg.index ?? f.idx } : f);
         break;
 
@@ -2453,6 +2497,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.TRANSCRIPT_PARTIAL:
         // Deepgram streaming interim result — show as live text while the user speaks.
+        // Also feed the adaptive VAD so it can tell "mid-thought" from "finished sentence".
+        livePartialRef.current = msg.text || '';
         setLiveTranscript(msg.text || '');
         break;
 
@@ -2460,6 +2506,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // Streaming path: server sends the committed transcript text after Deepgram speech_final.
         // We add it as a full line here (no client-side duplicate, since audio_chunk flow
         // never called sendAnswerText locally).
+        livePartialRef.current = '';
         setLiveTranscript('');
         setTranscribing(false);
         if (msg.transcript) {
@@ -2742,13 +2789,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
 
     let spoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
-    // END_SILENCE_MS = how long the user must be silent before we treat the turn as finished.
-    // 700ms was far too eager: a non-native speaker pausing mid-thought ("Ich habe… [0.8s] …
-    // drei Jahre Erfahrung") got cut off, the boss grabbed the floor on a fragment, and each
-    // fragment counted as a scored answer → the funnel force-advanced (the "robotic" feel).
-    // 1500ms gives real thinking grace (a human interviewer waits ~1.8–2s for L2 speakers)
-    // while still feeling responsive. MIN_SPEAK_MS keeps a tiny cough from starting a turn.
-    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, END_SILENCE_MS = 1500, MAX_MS = 60000;
+    livePartialRef.current = '';   // fresh transcript for this turn's classification
+    // ADAPTIVE end-of-turn. Instead of one fixed silence value we pick how long to wait based
+    // on whether the live transcript looks finished (classifyTurnDE): a clearly-complete
+    // sentence yields fast, an ambiguous one gets real thinking grace, and a mid-clause
+    // utterance ("…ich habe drei Jahre bei …") waits a long time. cancel-on-resume is the
+    // load-bearing mechanic: the moment the user speaks again, silenceMs resets to 0, so a
+    // pause between sentences can NEVER end the turn. These windows already include the
+    // non-native (L2) speaker grace from the turn-taking research.
+    const SIL_COMPLETE = 900, SIL_AMBIGUOUS = 2200, SIL_INCOMPLETE = 3500;
+    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
       const v = volRef.current || 0;
@@ -2756,7 +2806,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       const thresh = Math.max(0.04, floor * K);
       if (v > thresh) { if (elapsed > MIN_SPEAK_MS) spoke = true; silenceMs = 0; }
       else if (spoke) { silenceMs += STEP; }
-      if (!((spoke && silenceMs >= END_SILENCE_MS) || elapsed >= MAX_MS)) return;
+      // How long the user must stay silent depends on whether their sentence looks finished.
+      const cls = classifyTurnDE(livePartialRef.current);
+      let needSilence = cls === 'complete'   ? SIL_COMPLETE
+                      : cls === 'incomplete' ? SIL_INCOMPLETE
+                      :                        SIL_AMBIGUOUS;
+      // Open-question patience: the self-presentation (0) and behavioral (1) stages invite
+      // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
+      // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
+      // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
+      if (stageIdxRef.current <= 1) needSilence += 1000;
+      if (!((spoke && silenceMs >= needSilence) || elapsed >= MAX_MS)) return;
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
       clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;

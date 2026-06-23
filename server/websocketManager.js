@@ -189,6 +189,13 @@ export class WebSocketManager {
       // like it interrupts "for no reason."
       correctionCooldown:    0,     // turns remaining before another probe is allowed
       correctionsUsed:       0,     // total probes this session (hard cap below)
+      // Turn accumulation — Deepgram only TRANSCRIBES; the client's adaptive VAD owns the
+      // turn boundary. We concatenate every Deepgram segment of the current turn here and
+      // commit ONCE when the client sends AUDIO_END (never on Deepgram's own speech_final —
+      // that 700ms endpoint was the real "cuts me off mid-thought" bug).
+      _turnText:   '',
+      _turnWords:  [],
+      _commitTimer: null,
     };
 
     this._sessions.set(sessionId, ctx);
@@ -437,37 +444,39 @@ export class WebSocketManager {
     if (!ctx.realtimeClient || ctx.closed) return;
     if (!msg.data) return;
 
-    // Create the streamer lazily on the first chunk of each turn.
+    // Create the streamer lazily on the first chunk of each turn. Deepgram now only
+    // TRANSCRIBES — it never ends the turn. Every finalized segment is appended to
+    // ctx._turnText; the turn is committed only when the client's adaptive VAD sends
+    // AUDIO_END (see _handleAudioEnd → _commitTurn).
     if (!ctx.dgStreamer) {
-      ctx._speechStartMs = Date.now();   // measure real speech duration for WPM scoring
-      ctx.dgStreamer = new DeepgramStreamer({
+      if (!ctx._speechStartMs) ctx._speechStartMs = Date.now();   // real speech duration for WPM
+      const streamer = new DeepgramStreamer({
         onPartial: (text) => {
-          this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text });
+          // Show accumulated committed segments + the live interim of the current segment.
+          const full = (ctx._turnText ? ctx._turnText + ' ' : '') + text;
+          this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text: full });
         },
         onFinal: (text, words) => {
-          const streamer = ctx.dgStreamer;
-          const durationMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
-          ctx.dgStreamer = null;
-          ctx._speechStartMs = null;
-          streamer?.close();
           if (ctx.closed) return;
-          if (!text?.trim()) {
-            // Nothing recognized — reset client so it can retry rather than staying stuck
-            this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
-            return;
+          if (text && text.trim()) {
+            // A Deepgram segment finalized (a pause inside the turn, or the AUDIO_END flush).
+            // Accumulate — do NOT commit, do NOT tear down. The client owns the turn end.
+            ctx._turnText = (ctx._turnText ? ctx._turnText + ' ' : '') + text.trim();
+            if (words?.length) ctx._turnWords.push(...words);
+            this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text: ctx._turnText });
+          } else if (ctx.dgStreamer === streamer) {
+            // Empty final = silence endpoint or Deepgram closed the socket. Drop the streamer
+            // so the next chunk opens a fresh one; the accumulated _turnText is preserved.
+            ctx.dgStreamer = null;
           }
-          ctx._lastWords = words ?? [];   // threaded to TRANSCRIPT_DONE for confidence heat-map
-          this._handleAnswer(ctx, { text, durationMs });
         },
         onError: (err) => {
           console.error(`[wsManager] DeepgramStreamer error session=${ctx.sessionId}:`, err?.message);
-          ctx.dgStreamer = null;
-          ctx._speechStartMs = null;
-          // Reset client transcribing state on STT error so the mic can retry
-          if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+          if (ctx.dgStreamer === streamer) ctx.dgStreamer = null;   // reconnect on next chunk; keep _turnText
         },
       });
-      ctx.dgStreamer.start();
+      ctx.dgStreamer = streamer;
+      streamer.start();
     }
 
     const buf = Buffer.from(msg.data, 'base64');
@@ -475,22 +484,35 @@ export class WebSocketManager {
   }
 
   _handleAudioEnd(ctx) {
-    if (!ctx.dgStreamer) return;
-    // Sending CloseStream signals Deepgram to flush any remaining audio and return
-    // a final is_final event. The onFinal callback above handles the rest.
+    // The client's adaptive VAD has decided the turn is over (this is now the ONLY thing
+    // that ends a turn). Flush Deepgram, give the final segment ~450ms to arrive, then
+    // commit the whole accumulated turn at once.
     const streamer = ctx.dgStreamer;
-    // Don't null it yet — onFinal cleans up once the transcript arrives (within ~300ms).
-    // Safety: if Deepgram never returns (network issue), null it after 3s.
-    const fallback = setTimeout(() => {
-      if (ctx.dgStreamer === streamer) {
-        ctx.dgStreamer = null;
-        streamer.close();
-        // Deepgram timed out — reset client so it is not stuck in transcribing=true
-        if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
-      }
-    }, 3000);
-    fallback.unref?.();
-    streamer.close();
+    ctx.dgStreamer = null;
+    try { streamer?.close(); } catch {}   // CloseStream → a trailing onFinal may still append
+    if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
+    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 450);
+    ctx._commitTimer.unref?.();
+  }
+
+  // Commit the accumulated turn as ONE answer. Called only from _handleAudioEnd's flush
+  // timer — never from Deepgram's own endpoint, so a mid-thought pause can no longer
+  // trigger the boss.
+  _commitTurn(ctx) {
+    if (ctx.closed) return;
+    const text  = (ctx._turnText || '').trim();
+    const words = ctx._turnWords || [];
+    const durationMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
+    ctx._turnText = '';
+    ctx._turnWords = [];
+    ctx._speechStartMs = null;
+    if (!text) {
+      // Nothing usable this turn — reset the client so the mic can retry (no boss line).
+      this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+      return;
+    }
+    ctx._lastWords = words;   // threaded to TRANSCRIPT_DONE for the confidence heat-map
+    this._handleAnswer(ctx, { text, durationMs });
   }
 
   async _handleStopFight(ctx) {
@@ -519,6 +541,7 @@ export class WebSocketManager {
 
     // Close any in-flight Deepgram streaming connection (hands-free turn interrupted).
     if (ctx.dgStreamer) { try { ctx.dgStreamer.close(); } catch {} ctx.dgStreamer = null; }
+    if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
 
     console.log(`[wsManager] Ending session  reason=${reason}  session=${ctx.sessionId}`);
     await ctx.realtimeClient?.close().catch(() => {});
@@ -1220,6 +1243,7 @@ export class WebSocketManager {
 
     await ctx.realtimeClient?.close().catch(() => {});
     ctx.dgStreamer?.close(); ctx.dgStreamer = null;   // prevent stale Deepgram socket after disconnect
+    if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
     this._sessions.delete(ctx.sessionId);
   }
 

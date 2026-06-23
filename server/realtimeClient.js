@@ -303,6 +303,18 @@ export class RealtimeClient {
 
     line = sanitizeOneTurn(line);
     if (!line) line = 'Bitte fahren Sie fort.';   // never emit an empty boss turn
+
+    // GUARD: the model sometimes claims it "didn't acoustically understand" even though the
+    // candidate gave a perfectly valid (often short) answer like "Gerne." or "Ja, gerne."
+    // The empty-input case never reaches here (the gateway drops empty turns before respond),
+    // so if we got real words, that line is always wrong. Replace it with a natural,
+    // in-character continuation instead of falsely blaming the speaker.
+    const saidSomething = (answer && answer !== '(keine hörbare Antwort)' &&
+                           answer.replace(/[^\p{L}\p{N}]/gu, '').length >= 1);
+    if (saidSomething && /nicht\s+(ganz\s+)?(akustisch\s+)?verstanden|akustisch\s+nicht|nicht\s+verstehen|könnten?\s+sie\s+das\s+(bitte\s+)?(noch\s*mal|wiederholen)|wiederholen\s+sie/i.test(line)) {
+      line = 'Gut. Erzählen Sie mir bitte etwas mehr dazu.';
+    }
+
     this._history.push({ role: 'assistant', content: line });
 
     this._responding = false;
