@@ -2618,10 +2618,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
       clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;
-      if (!spoke) return;   // said nothing → wait for next turn
+      // Always close the Deepgram stream so the server never leaks a stale dgStreamer.
+      // Without this, a turn where the user didn't speak leaves dgStreamer open; Deepgram
+      // eventually closes it silently (_done=true) and the next turn's audio is dropped.
+      wsRef.current?.send(JSON.stringify({ type: C.AUDIO_END }));
+      if (!spoke) return;   // said nothing → don't transcribe, just wait for next turn
       // Signal end-of-speech: server's Deepgram streamer flushes remaining audio → speech_final
       // fires → server calls _handleAnswer internally. No REST upload needed.
-      wsRef.current?.send(JSON.stringify({ type: C.AUDIO_END }));
       setTranscribing(true);   // clears in TRANSCRIPT_DONE handler
     }, STEP);
   }, [recording, transcribing]);

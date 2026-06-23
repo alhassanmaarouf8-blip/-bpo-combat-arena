@@ -57,14 +57,26 @@ export class DeepgramStreamer {
         const alt   = msg?.channel?.alternatives?.[0] ?? {};
         const text  = alt.transcript ?? '';
         const words = alt.words ?? [];   // [{word, confidence, start, end, punctuated_word}]
-        if (!text.trim()) return;
-        if (msg.speech_final || msg.is_final) this._onFinal(text, words);
-        else this._onPartial(text);
+        if (msg.speech_final || msg.is_final) {
+          // Always fire onFinal on speech_final — even with empty text (silence endpoint).
+          // Caller (websocketManager) nulls ctx.dgStreamer on every onFinal, so the next
+          // turn gets a fresh streamer instead of the now-stale one.
+          this._onFinal(text, words);
+        } else {
+          if (!text.trim()) return;
+          this._onPartial(text);
+        }
       } catch {}
     });
 
     this._ws.on('error', (err) => { if (!this._done) this._onError(err); });
-    this._ws.on('close', ()    => { this._done = true; });
+    this._ws.on('close', () => {
+      // Deepgram closed the connection without a speech_final (keepalive timeout, network drop).
+      // Fire an empty final so websocketManager nulls ctx.dgStreamer — prevents future audio
+      // chunks from going to a dead streamer that silently drops everything.
+      if (!this._done) this._onFinal('', []);
+      this._done = true;
+    });
   }
 
   sendChunk(buf) {
