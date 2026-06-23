@@ -194,14 +194,38 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
     const fellBack = await new Promise((resolve) => {
       const audio = new Audio(url);
       _bossAudio = audio;
-      let started = false, resolved = false;
-      const finish = (fallback) => { if (resolved) return; resolved = true; clearTimeout(guard); resolve(fallback); };
-      // 40s hard cap: server-side abort (25s) + network delivery covers most cases; this is the
-      // final backstop for any browser quirk where neither onended nor onerror ever fires.
-      // Do NOT add onstalled/onwaiting handlers — they fire constantly during normal streaming
-      // buffering and would prematurely kill audio that is buffering-then-playing correctly.
+      let started = false, resolved = false, stallInterval = null;
+      const finish = (fallback) => {
+        if (resolved) return;
+        resolved = true;
+        if (stallInterval) { clearInterval(stallInterval); stallInterval = null; }
+        clearTimeout(guard);
+        resolve(fallback);
+      };
+      // 40s hard cap: final backstop for cases where neither onended nor onerror fires.
+      // onstalled/onwaiting NOT used — they fire during normal initial buffering (false positive).
+      // A currentTime-based stall detector (started in onplay) catches mid-play stream hangs
+      // without triggering during the normal buffering phase before playback begins.
       const guard = setTimeout(() => { if (started) { try { onEnd?.(); } catch {} } finish(false); }, 40000);
-      audio.onplay  = () => { started = true; try { onStart?.(); } catch {} };
+      audio.onplay = () => {
+        started = true;
+        try { onStart?.(); } catch {}
+        // Detect ElevenLabs stream stall: if currentTime stops advancing for 6s after playback
+        // began, the server-side stream hung (old Render build has no 25s abort timer).
+        let lastTime = -1, stuckCount = 0;
+        stallInterval = setInterval(() => {
+          if (resolved) { clearInterval(stallInterval); stallInterval = null; return; }
+          const ct = audio.currentTime;
+          if (ct === lastTime) {
+            stuckCount++;
+            if (stuckCount >= 4) { // 4 × 1.5s = 6s frozen → stall confirmed
+              if (_bossAudio === audio) _bossAudio = null;
+              try { onEnd?.(); } catch {}
+              finish(false);
+            }
+          } else { stuckCount = 0; lastTime = ct; }
+        }, 1500);
+      };
       audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
       audio.onerror = () => {
         if (_bossAudio === audio) _bossAudio = null;
