@@ -142,7 +142,10 @@ const TURN_RULE =
   `Kundenäußerung im Rollenspiel). Höre danach SOFORT auf. Beantworte deine eigene Frage NICHT, ` +
   `sprich NICHT für den Kandidaten, erfinde KEINE Kandidatenantwort und führe das Gespräch NICHT ` +
   `allein weiter. Schreibe NUR deinen eigenen Redebeitrag — KEINE Sprecher-Labels wie "Kandidat:" ` +
-  `oder "Bewerber:". Bleibe auf Deutsch.`;
+  `oder "Bewerber:". Bleibe auf Deutsch. ` +
+  `Sprich wie ein echter Mensch im Gespräch: variiere Satzlänge (kurze Einwürfe wechseln mit längeren Fragen), ` +
+  `nutze natürliche Gesprächspartikel ("Also,", "Gut,", "Na,", "Ich sehe."), setze bewusste kurze Pausen mit "—" oder "...", ` +
+  `und reagiere konkret auf das, was der Kandidat gerade gesagt hat (kein generisches Weiterfragen).`;
 
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second

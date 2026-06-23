@@ -355,13 +355,13 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = '#22d3ee' 
           <stop offset="100%" stopColor="#000" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="ba-skin" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b4658" /><stop offset="55%" stopColor="#2a3340" /><stop offset="100%" stopColor="#1b212c" />
+          <stop offset="0%" stopColor="#c49a6c" /><stop offset="55%" stopColor="#9b6f42" /><stop offset="100%" stopColor="#7a5030" />
         </linearGradient>
         <linearGradient id="ba-hair" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#10192a" /><stop offset="100%" stopColor="#05080f" />
+          <stop offset="0%" stopColor="#120808" /><stop offset="100%" stopColor="#060202" />
         </linearGradient>
         <linearGradient id="ba-suit" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0e1623" /><stop offset="100%" stopColor="#05080d" />
+          <stop offset="0%" stopColor="#0c1218" /><stop offset="100%" stopColor="#040609" />
         </linearGradient>
         <filter id="ba-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2" /></filter>
       </defs>
@@ -398,22 +398,23 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = '#22d3ee' 
 
       {/* brows */}
       <g fill={color}>
-        <rect x="73"  y={browY-3} width="34" height="7" rx="3.5" transform={`rotate(${p.browTilt} 90 ${browY})`} />
-        <rect x="113" y={browY-3} width="34" height="7" rx="3.5" transform={`rotate(${-p.browTilt} 130 ${browY})`} />
+        <rect x="73"  y={browY-4} width="34" height="9" rx="4" transform={`rotate(${p.browTilt} 90 ${browY})`} />
+        <rect x="113" y={browY-4} width="34" height="9" rx="4" transform={`rotate(${-p.browTilt} 130 ${browY})`} />
       </g>
 
       {/* eyes — wrapped so they blink occasionally */}
       <g className="boss-blink">
         <path d={_eyePath(90, eyeCY, p.eyeOpen)}  fill="#e6edf5" />
         <path d={_eyePath(130, eyeCY, p.eyeOpen)} fill="#e6edf5" />
-        <circle cx="90"  cy={eyeCY} r="5" fill="#0a0f16" />
-        <circle cx="130" cy={eyeCY} r="5" fill="#0a0f16" />
+        <circle cx="90"  cy={eyeCY} r="5" fill="#1a0c05" />
+        <circle cx="130" cy={eyeCY} r="5" fill="#1a0c05" />
         <circle cx="88.5"  cy={eyeCY-1.5} r="1.5" fill={color} />
         <circle cx="128.5" cy={eyeCY-1.5} r="1.5" fill={color} />
       </g>
 
       {/* nose */}
-      <path d="M 110 110 L 103 133 Q 110 138 117 133 Z" fill="#10161f" opacity="0.5" />
+      <path d="M 110 110 L 103 133 Q 110 138 117 133 Z" fill="#10161f" opacity="0.65" />
+      <ellipse cx="110" cy="163" rx="13" ry="4" fill="#0a0605" opacity="0.35" />
 
       {/* mouth (lip-syncs while the boss speaks) */}
       <g className={speaking ? 'boss-talk' : ''}>
@@ -1095,6 +1096,27 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             <CatBar label="Wortschatz"    value={cats.vocab}        color="#a78bfa" />
             <CatBar label="De-Eskalation" value={cats.deescalation} color="#f59e0b" />
           </Section>
+
+          {/* ── Natürlichkeit (language naturalness score) ─────────────────── */}
+          {data?.naturalness && (
+            <Section title={ar ? 'طبيعية الكلام · NATÜRLICHKEIT' : 'NATÜRLICHKEIT · KLANG'} color="#22d3ee"
+              right={
+                <span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
+                  borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'#22d3ee' }}>
+                  {data.naturalness.score}/100
+                </span>
+              }>
+              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl, marginBottom:8 }}>
+                {ar && data.naturalness.ar ? data.naturalness.ar : data.naturalness.de}
+              </div>
+              {data.naturalness.tips?.map((t, i) => (
+                <div key={i} style={{ fontSize:11, color:'var(--text-dim)', marginBottom:5, paddingLeft:10,
+                  borderLeft:'2px solid rgba(34,211,238,0.4)', ...rtl }}>
+                  {ar && t.ar ? t.ar : t.de}
+                </div>
+              ))}
+            </Section>
+          )}
 
           {/* ── Dein Fortschritt: readiness rank + one improvement trend line ── */}
           {(data?.progress?.rank || data?.progress?.trend?.fluency?.length > 1) && (
@@ -3093,6 +3115,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 <option value="hana">Hana — skeptisch (L3)</option>
                 <option value="tarek">Tarek — Hochdruck (L4)</option>
                 <option value="frau-mona-adel">Frau Mona Adel — streng (L5)</option>
+                <option value="lukas">Lukas — casual Berlin 🆕 (L6)</option>
               </select>
             </div>
 

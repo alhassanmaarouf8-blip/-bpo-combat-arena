@@ -13,6 +13,7 @@
  */
 
 import { buildGrammar } from './grammarCheck.js';
+import { evaluateNaturalness } from './naturalness.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
 // stays authoritative from LanguageTool; the model only writes strengths/study-next/
@@ -119,51 +120,53 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  try {
-    const res = await fetch(GROQ_CHAT_URL, {
-      method:  'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal:  controller.signal,
-      body: JSON.stringify({
-        model:           COACH_MODEL,
-        temperature:     0.2,
-        max_tokens:      2000,   // hard output cap (debrief JSON fits well under this)
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: userMsg },
-        ],
-      }),
-    });
+  const coachFetch = fetch(GROQ_CHAT_URL, {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    signal:  controller.signal,
+    body: JSON.stringify({
+      model:           COACH_MODEL,
+      temperature:     0.2,
+      max_tokens:      2000,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user',   content: userMsg },
+      ],
+    }),
+  });
 
+  // Run naturalness evaluator in parallel — zero added latency.
+  const [coachResult, naturalResult] = await Promise.allSettled([
+    coachFetch,
+    evaluateNaturalness({ utterances, level, csScenarioId }),
+  ]);
+
+  clearTimeout(timer);
+
+  const naturalness = naturalResult.status === 'fulfilled' ? naturalResult.value?.naturalness ?? null : null;
+
+  try {
+    if (coachResult.status === 'rejected') throw coachResult.reason;
+    const res = coachResult.value;
     if (!res.ok) throw new Error(`coach API ${res.status} ${await res.text().catch(() => '')}`);
 
     const data   = await res.json();
     const txt    = data.choices?.[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(txt);
     const norm   = normalize(parsed);
-    // GRAMMAR: ONLY from LanguageTool — NEVER the model. A correction can therefore never
-    // be hallucinated: each "wrong" is the candidate's real sentence and each "right" is a
-    // deterministic LanguageTool fix. If LT was unreachable, show NO grammar at all (we'd
-    // rather show nothing than invent a correction). The model is used only for the
-    // forward-looking enrichment (strengths / study-next / vocab / upgrades).
+    // GRAMMAR: ONLY from LanguageTool — NEVER the model.
     const grammar = ltGrammar || [];
-    // Deterministic lesson built from the candidate's real utterances + metrics + the
-    // authoritative grammar (NOT from the model) — always factual, never hallucinated.
     const lesson  = buildLesson(utterances, metrics, grammar);
-    // FAIL LOUD: if LanguageTool was unreachable (ltGrammar is null, not an empty
-    // array), the client must show "Grammatikprüfung nicht verfügbar" — NEVER a
-    // false "clean / no errors", which is worse than an honest "couldn't check".
-    return { ...norm, grammar, lesson, metrics, generated: true, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
+    return { ...norm, grammar, lesson, metrics, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
     const fb = fallbackDebrief(metrics, utterances);
-    if (ltGrammar) fb.grammar = ltGrammar;           // keep authoritative grammar even if the model call failed
+    if (ltGrammar) fb.grammar = ltGrammar;
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
     fb.grammarUnavailable = !ltGrammar;
+    fb.naturalness = naturalness;
     return fb;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -334,6 +337,7 @@ function fallbackDebrief(metrics, utterances) {
     lesson: buildLesson(utterances, metrics, []),
     metrics,
     generated: false,
+    naturalness: null,
     note: 'Detaillierte Grammatik-Analyse war nicht verfügbar — hier die objektiven Kennzahlen und Lernhinweise.',
   };
 }
