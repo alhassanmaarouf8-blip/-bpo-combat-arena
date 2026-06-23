@@ -538,6 +538,92 @@ export const LAGER_SECTIONS = [
       },
     ],
   },
+  {
+    id: 'arbeitsvertrag', icon: '📄', minTier: 2,
+    title_de: 'Arbeitsvertrag & HR-Deutsch', title_ar: 'عقد العمل والمصطلحات الإدارية',
+    tiers: [
+      {
+        tier: 2, band: 'B1-B2', ready: true,
+        title_de: 'Vertragsgrundlagen — Probezeit & Kündigung', title_ar: 'أساسيات العقد: التجربة والإنهاء',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'Ihr Vertrag sieht eine "Probezeit von 6 Monaten" vor. Was bedeutet das?',
+            question_ar_hint: 'فترة التجربة — الاتنين (أنت والشركة) لهم حق الإنهاء بسهولة خلال المدة دي',
+            options: [
+              'In diesem Zeitraum kann der Vertrag von beiden Seiten mit verkürzter Frist gekündigt werden.',
+              'Sie dürfen in dieser Zeit keine Überstunden machen.',
+              'Sie werden in den ersten 6 Monaten nur halb bezahlt.',
+              'Die Probezeit ist ein eigenständiger, unbezahlter Vertrag.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der HR-Manager fragt: "Sind Sie mit einem befristeten Vertrag auf ein Jahr einverstanden?" Was ist ein befristeter Vertrag?',
+            question_ar_hint: 'عقد محدد المدة يعني إيه؟ بينتهي أوتوماتيك في التاريخ المحدد',
+            options: [
+              'Ein Vertrag, der automatisch zum vereinbarten Enddatum ausläuft, ohne Kündigung.',
+              'Ein Vertrag ohne festes Enddatum, der jederzeit gekündigt werden kann.',
+              'Ein Vertrag nur für Teilzeitarbeit.',
+              'Ein Probevertrag für Bewerber ohne Erfahrung.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Die Kündigungsfrist in Ihrem Vertrag beträgt "vier Wochen zum 15. oder zum Monatsende". Was bedeutet das genau?',
+            question_ar_hint: 'مدة إشعار الإنهاء — لازم تبلّغ قبل أربع أسابيع، وبس في التواريخ المحددة',
+            options: [
+              'Sie müssen die Kündigung so einreichen, dass zwischen Kündigung und Austritt genau vier Wochen liegen — Termin ist der 15. oder der letzte Tag des Monats.',
+              'Sie können jederzeit mit einer Woche Vorlauf kündigen.',
+              'Die Firma kann Sie ohne Vorwarnung entlassen.',
+              'Vier Wochen gelten nur, wenn die Firma kündigt — nicht wenn Sie kündigen.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+      {
+        tier: 3, band: 'B2-C1', ready: true,
+        title_de: 'Datenschutz, Überstunden & Gehaltsverhandlung', title_ar: 'حماية البيانات والأجر والوقت الإضافي',
+        youtubeId_de: '', youtubeId_ar: '',
+        quiz: [
+          {
+            question_de: 'HR bittet Sie, eine "Datenschutzerklärung" zu unterzeichnen. Wozu verpflichtet Sie das?',
+            question_ar_hint: 'إعلان الخصوصية — بتوقّع إنك ملتزم بسرية بيانات العملاء حتى بعد انتهاء الشغل',
+            options: [
+              'Sie verpflichten sich, Kundendaten vertraulich zu behandeln und nicht weiterzugeben — auch nach Ende des Arbeitsverhältnisses.',
+              'Sie erlauben der Firma, Ihre persönlichen Daten an Dritte weiterzugeben.',
+              'Sie verzichten auf Ihr Recht auf Auskunft über gespeicherte Daten.',
+              'Sie stimmen zu, keine E-Mails mehr privat zu nutzen.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Im Vertrag steht: "Überstunden bis zu 10 Stunden pro Monat sind mit dem Gehalt abgegolten." Was bedeutet das?',
+            question_ar_hint: 'الساعات الإضافية "مدموجة في الراتب" يعني إيه؟ يعني لو عملت 10 ساعات زيادة مش هتاخد حاجة تاني',
+            options: [
+              'Bis zu 10 Überstunden monatlich werden nicht extra vergütet — sie sind im vereinbarten Gehalt bereits enthalten.',
+              'Sie bekommen für jede Überstunde das Doppelte bezahlt.',
+              'Überstunden werden immer als Freizeit ausgeglichen.',
+              'Die 10 Stunden werden automatisch auf den nächsten Monat übertragen.'
+            ],
+            correctIndex: 0
+          },
+          {
+            question_de: 'Der HR-Manager nennt ein Gehalt und fragt: "Haben Sie Gehaltsvorstellungen?" Welche Antwort ist professionell und zeigt Marktkenntnisse?',
+            question_ar_hint: 'سؤال توقعات الراتب — كن محدد، استند على السوق، وابقَ مرن',
+            options: [
+              'Basierend auf meiner Erfahrung und dem Marktgehalt für diese Position würde ich mir ein Gehalt zwischen X und Y Euro vorstellen — ich bin aber offen für ein Gespräch.',
+              'Ich nehme alles, was Sie mir anbieten.',
+              'So wenig wie möglich, Hauptsache ich bekomme den Job.',
+              'Mehr als mein letzter Job, auf jeden Fall.'
+            ],
+            correctIndex: 0
+          }
+        ]
+      },
+    ],
+  },
 ];
 
 // Resolve a station id "sectionId:tier" → a lesson-shaped object the existing UI/route understands.
