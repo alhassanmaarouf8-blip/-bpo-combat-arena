@@ -1127,30 +1127,30 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             );
           })()}
 
-          {/* ── PRIORITÄTS-FIX — "Your #1 coaching task today" ──────────────── */}
+          {/* ── WOCHENFOKUS — the ONE thing to drill this week (amber anchor) ── */}
           {data?.priorityFix && (data.priorityFix.de || data.priorityFix.ar) && (
             <div style={{ padding:'14px 16px', borderRadius:14, animation:'result-rise 0.5s var(--ease-out)',
-              background:'linear-gradient(135deg, rgba(0,188,212,0.12) 0%, rgba(0,188,212,0.05) 100%)',
-              border:'1.5px solid rgba(0,188,212,0.5)',
-              boxShadow:'0 0 28px rgba(0,188,212,0.12)' }}>
+              background:'linear-gradient(135deg, rgba(245,158,11,0.16) 0%, rgba(245,158,11,0.06) 100%)',
+              border:'2px solid rgba(245,158,11,0.65)',
+              boxShadow:'0 0 28px rgba(245,158,11,0.14)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
-                <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(0,188,212,0.2)',
-                  border:'1.5px solid rgba(0,188,212,0.5)', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:14, flexShrink:0 }}>🎯</div>
+                <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(245,158,11,0.2)',
+                  border:'1.5px solid rgba(245,158,11,0.6)', display:'flex', alignItems:'center',
+                  justifyContent:'center', fontSize:14, flexShrink:0 }}>⭐</div>
                 <div>
-                  <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'Orbitron,monospace', color:'#00bcd4' }}>
-                    PRIORITÄT #1 · DEIN WICHTIGSTER FIX HEUTE
+                  <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'Orbitron,monospace', color:'#f59e0b' }}>
+                    WOCHENFOKUS · DEIN TÄGLICHES ZIEL
                   </div>
                   <div style={{ fontSize:8, color:'rgba(255,255,255,0.3)', letterSpacing:'0.08em', fontFamily:'Orbitron,monospace' }}>
-                    أهم حاجة تتدرب عليها النهارده
+                    تمرين الأسبوع · هدفك اليومي
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.65, fontWeight:500 }}>
+              <div style={{ fontSize:13.5, color:'#fde68a', lineHeight:1.65, fontWeight:600 }}>
                 {ar && data.priorityFix.ar ? data.priorityFix.ar : data.priorityFix.de}
               </div>
               {!ar && data.priorityFix.ar && (
-                <div dir="rtl" style={{ marginTop:7, fontSize:11.5, color:'#94a3b8', lineHeight:1.55 }}>
+                <div dir="rtl" style={{ marginTop:7, fontSize:11.5, color:'#fbbf24', lineHeight:1.55, opacity:0.8 }}>
                   {data.priorityFix.ar}
                 </div>
               )}
@@ -1367,6 +1367,19 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             </Section>
           )}
 
+          {/* ── KORREKTURDRILL — flip-cards built from this session's errors ──── */}
+          {!!data?.drills?.length && (
+            <Section title={ar ? 'كوّن الجملة الصح · KORREKTURDRILL' : 'KORREKTURDRILL · ÜBEN'} color="#f59e0b">
+              <div style={{ fontSize:9.5, color:'#94a3b8', marginBottom:9, fontStyle:'italic' }}>
+                {ar ? 'انقر على كل كارت عشان تشوف الإجابة الصح.'
+                    : 'Tippe auf eine Karte, um die korrekte Version aufzudecken.'}
+              </div>
+              {data.drills.map((drill, i) => (
+                <DrillCard key={i} drill={drill} ar={ar} />
+              ))}
+            </Section>
+          )}
+
           {/* No real grammar errors → celebrate, then pivot to lesson/enrichment */}
           {/* Grammar check FAILED (LanguageTool unreachable) → honest "couldn't check", NEVER "clean". */}
           {data?.grammarUnavailable && (m.answers > 0) && (
@@ -1498,6 +1511,40 @@ function Section({ title, color, right, children }) {
         {right}
       </div>
       {children}
+    </div>
+  );
+}
+
+// ── Component: DrillCard (flip-card grammar drill from session errors) ───────
+function DrillCard({ drill, ar }) {
+  const [flipped, setFlipped] = useState(false);
+  const rtl = ar ? { direction:'rtl', textAlign:'right' } : null;
+  return (
+    <div onClick={() => setFlipped(f => !f)} style={{ cursor:'pointer', marginBottom:9,
+      padding:'10px 12px', borderRadius:10, userSelect:'none',
+      border:`1px solid rgba(245,158,11,${flipped ? '0.65' : '0.3'})`,
+      background: flipped ? 'rgba(245,158,11,0.09)' : 'rgba(245,158,11,0.04)',
+      transition:'background 0.2s, border-color 0.2s' }}>
+      <div style={{ fontSize:9.5, fontFamily:'Orbitron,monospace', color:'#f59e0b', marginBottom:6, letterSpacing:'0.08em' }}>
+        {drill.rule}
+      </div>
+      <div style={{ fontSize:12, color:'#fca5a5', marginBottom: flipped ? 8 : 0, fontStyle:'italic' }}>
+        ✗ „{drill.before}"
+      </div>
+      {flipped ? (
+        <>
+          <div style={{ fontSize:12, color:'#34d399', marginBottom:6 }}>
+            ✓ „{drill.after}"
+          </div>
+          <div style={{ fontSize:11, color:'#fde68a', lineHeight:1.5, ...rtl }}>
+            {ar && drill.ar ? drill.ar : drill.de}
+          </div>
+        </>
+      ) : (
+        <div style={{ fontSize:9, color:'#64748b', textAlign:'center', marginTop:6 }}>
+          ↕ {ar ? 'انقر للحل' : 'Tippe für Lösung'}
+        </div>
+      )}
     </div>
   );
 }
@@ -2169,6 +2216,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [playerHp, setPlayerHp]   = useState(100);
   const [emotion, setEmotion]     = useState('idle');
   const [bossText, setBossText]   = useState('');
+  const [bossIsCorrection, setBossIsCorrection] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [bossSpeak, setBossSpeak] = useState(false);
   const [userSpeak, setUserSpeak] = useState(false);
@@ -2440,6 +2488,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           bossPartialIdRef.current = ++_lineId;
           bossLineRef.current = msg.text;
           setBossText(msg.text);
+          // Detect correction-drill turn: boss is asking the user to restate/fix their German
+          setBossIsCorrection(/formulieren|nochmal|wie würden sie|wie sagen sie|korrig|nochmal versuchen/i.test(msg.text));
         } else {
           bossLineRef.current += msg.text;
           setBossText(t => t + msg.text);
@@ -3412,7 +3462,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             )}
           </div>
           {/* the boss's current line — the prominent subtitle */}
-          <div style={{ padding:'9px 13px 5px', fontSize:13.5, color:'#e2e8f0', lineHeight:1.6, minHeight:34, overflowWrap:'anywhere' }}>
+          <div style={{ padding:'9px 13px 5px', fontSize:13.5, lineHeight:1.6, minHeight:34, overflowWrap:'anywhere',
+            color: bossIsCorrection ? '#fde68a' : '#e2e8f0',
+            borderLeft: bossIsCorrection ? '3px solid #f59e0b' : '3px solid transparent',
+            transition:'border-color 0.3s, color 0.3s' }}>
+            {bossIsCorrection && (
+              <div style={{ fontSize:9, fontFamily:'Orbitron,monospace', color:'#f59e0b', marginBottom:4, letterSpacing:'0.1em' }}>
+                ← SAG ES NOCHMAL RICHTIG · قول الجملة صح
+              </div>
+            )}
             {bossText
               ? bossText
               : isActive
