@@ -86,11 +86,17 @@ const DEFAULT_BOSS = 'yasmin';
 // Merged into BOSS_CONFIGS by id — this is what the boss ladder now uses. The three
 // legacy bosses above are retained (harmless) but no longer referenced by the ladder.
 // Text/config only: reads a local JSON at boot, makes NO API call and costs nothing.
+// PURE greetings only — a human hello / settling-in line. They must NOT contain any
+// "let's begin / fangen wir an / los geht's" begin-framing: the openingLine is
+// `${greeting} ${intro}`, and the intro ALREADY carries the single "Teil eins" begin
+// transition. A greeting that also says "fangen wir an" makes the boss say it twice in a
+// row (the karim "Fangen wir direkt an." + sharp-monday "Fangen wir direkt an, Teil eins"
+// collision). Keep these as welcome/atmosphere only.
 const GREETINGS = {
-  'yasmin':         "Schön, dass Sie da sind. Wir fangen ganz in Ruhe an.",
-  'karim':          "Guten Tag. Fangen wir direkt an.",
-  'hana':           "Guten Tag. Ich habe ein paar Fragen an Sie.",
-  'tarek':          "Guten Tag. Wir haben wenig Zeit — los geht's.",
+  'yasmin':         "Schön, dass Sie da sind. Setzen Sie sich, machen Sie es sich bequem.",
+  'karim':          "Guten Tag. Schön, dass es mit dem Termin geklappt hat.",
+  'hana':           "Guten Tag. Danke, dass Sie sich die Zeit nehmen.",
+  'tarek':          "Guten Tag. Setzen Sie sich — viel Zeit haben wir heute nicht.",
   'frau-mona-adel': "Setzen Sie sich. Ich höre.",
   'lukas':          "Hey, komm rein. Ich bin Lukas — wir machen das hier locker, kein Stress.",
 };
@@ -314,14 +320,14 @@ export class RealtimeClient {
   requestCorrection(label = '') { this._pendingCorrection = label; }
 
   _correctionInstruction(label) {
-    const hint = label ? ` (besonders bei Fehler: "${label}")` : '';
+    const hint = label ? ` (es geht um: "${label}")` : '';
     return (
-      `Der Kandidat hat gerade eine schwache oder vage Antwort gegeben${hint}. ` +
-      `Bleib VOLLSTÄNDIG in deiner Interviewerrolle — kein Kommentar zur Antwortqualität, kein Lob, keine Ermutigung. ` +
-      `Stelle NUR EINE gezielte Folgefrage, die Konkretheit erzwingt — z.B. "Und was genau haben Sie ` +
-      `dann gesagt?", "Können Sie mir ein konkretes Beispiel nennen?", "Was war das messbare Ergebnis?" ` +
-      `oder "Wie hat Ihr Kollege darauf reagiert?" — wähle, was am besten zur letzten Antwort passt. ` +
-      `Höchstens ein kurzer Satz.`
+      `Die letzte Antwort blieb vage${hint}. Reagiere wie ein echter, wohlwollender Interviewer — NICHT kalt. ` +
+      `Greife kurz und natürlich auf, was der Kandidat gerade gesagt hat (ein halber Satz genügt), und hake dann ` +
+      `mit GENAU EINER gezielten Frage nach, die Konkretheit erzwingt — z.B. "Verstehe — und was genau haben Sie ` +
+      `dann gesagt?", "Haben Sie dafür ein konkretes Beispiel?" oder "Was war am Ende das Ergebnis?". ` +
+      `Reagiere auf NUR EINE Sache — niemals auf mehrere Schwächen gleichzeitig, kein Korrektur-Stakkato. ` +
+      `Benenne KEINEN Sprach- oder Grammatikfehler ausdrücklich (das kommt später im Feedback). Höchstens ein kurzer Satz.`
     );
   }
 

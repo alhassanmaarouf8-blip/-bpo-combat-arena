@@ -335,15 +335,23 @@ Bleibe durchgehend in der Rolle dieses wütenden Kunden und reagiere jedes Mal a
 ${CS_RUBRIC}
 ${CS_LIFECYCLE_RUBRIC}
 
-Kündige jeden Teil mit einem kurzen Satz an ("Teil eins …", "Teil zwei …", "Nun ein kleines Rollenspiel …").
-Beginne JETZT mit Teil eins.`;
+ÜBERGÄNGE ZWISCHEN DEN TEILEN — NATÜRLICH, NICHT ROBOTERHAFT (sehr wichtig):
+Sage NIEMALS mechanisch "Teil eins", "Teil zwei", "Teil drei" oder "Frage 3 von 8" an — so spricht eine Maschine, kein Mensch. Wechsle stattdessen WEICH: Würdige zuerst kurz die letzte Antwort, dann leite mit einer natürlichen Brücke über. Knüpf wenn möglich an etwas an, das der Kandidat vorher gesagt hat, damit es sich wie EIN Gespräch anfühlt, nicht wie eine Checkliste. Beispiele für solche Brücken:
+- „Gut, das gibt mir schon ein klares Bild. Lassen Sie uns zu etwas anderem kommen …"
+- „Verstanden, danke. Ich würde gern an einem konkreten Beispiel anknüpfen …"
+- „Das passt gut zu meiner nächsten Frage."
+- „Sie hatten vorhin … erwähnt — darauf komme ich jetzt gern zurück."
+- „Lassen Sie uns das mal praktisch durchspielen — stellen Sie sich vor …" (Übergang ins Rollenspiel)
+Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
 
   // Vary the opener (seeded per session via mood) so it isn't the same sentence every
   // time; combined with the per-character greeting this gives a distinct, human start.
+  // Spoken opener — must NOT say "Teil eins" (robotic). It flows straight from the greeting
+  // into a real first question, the way a human interviewer actually opens.
   const INTRO_VARIANTS = {
-    'sharp-monday': 'Fangen wir direkt an, Teil eins: Stellen Sie sich bitte kurz vor — wer sind Sie, und warum sollten wir mit Ihnen weitermachen?',
-    'neutral':      'Beginnen wir mit Teil eins: Erzählen Sie mir kurz von sich — Ihr Hintergrund und warum Sie zu uns passen.',
-    'tired-friday': 'Gut. Teil eins: Stellen Sie sich bitte vor — wer sind Sie, und was bringen Sie mit?',
+    'sharp-monday': 'Fangen wir direkt an: Stellen Sie sich bitte kurz vor — wer sind Sie, und warum sollten wir mit Ihnen weitermachen?',
+    'neutral':      'Erzählen Sie mir zu Beginn ein wenig über sich — Ihr Hintergrund und warum Sie zu uns passen.',
+    'tired-friday': 'Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.',
   };
   const intro = INTRO_VARIANTS[mood] || INTRO_VARIANTS.neutral;
   const openingLine = `${greeting} ${intro}`;

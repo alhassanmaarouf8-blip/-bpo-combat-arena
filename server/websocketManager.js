@@ -184,6 +184,11 @@ export class WebSocketManager {
       errorCounts:           {},    // label → count of weak answers sharing that dominant error
       lastTurnWasCorrection: false, // prevents back-to-back correction probes
       errorLabels:           [],    // all dominant player-side error labels (for cross-session memory)
+      // Correction-probe budget — a real interviewer corrects RARELY (research: ≤1 per ~3 turns,
+      // ≤2 per session, never twice in a row, never a barrage). These caps stop the boss feeling
+      // like it interrupts "for no reason."
+      correctionCooldown:    0,     // turns remaining before another probe is allowed
+      correctionsUsed:       0,     // total probes this session (hard cap below)
     };
 
     this._sessions.set(sessionId, ctx);
@@ -912,21 +917,35 @@ export class WebSocketManager {
     if (score < 40) ctx.weakStreak += 1; else ctx.weakStreak = 0;
     if (ctx.weakStreak >= 2) { ctx.weakStreak = 0; ctx.realtimeClient?.requestRescue?.('weak'); }
 
-    // In-session correction loop: track the dominant player-side error and probe for
-    // specifics once the same pattern appears twice — but never on consecutive turns.
+    // In-session correction loop. A skilled interviewer corrects RARELY and only when a
+    // pattern is undeniable — never every weak turn (that's the "interrupts for no reason"
+    // feeling). Doctrine (from interruption research): react to ONE thing, only when the SAME
+    // error has now recurred ≥3 times, gated by a cooldown + a per-session cap, and never on
+    // back-to-back turns. Everything else goes silently to the post-session feedback report.
+    if (ctx.correctionCooldown > 0) ctx.correctionCooldown -= 1;
     const topPlayerFactor = factors.filter(f => f.side === 'player').sort((a, b) => b.hp - a.hp)[0];
     if (score < 45 && topPlayerFactor) {
       ctx.errorLabels.push(topPlayerFactor.label);  // for cross-session memory at end
     }
+    const CORRECTION_THRESHOLD = 3;   // same error must recur 3× before the boss reacts to it
+    const CORRECTION_SESSION_CAP = 2; // at most 2 in-character corrections per ~10-min session
     if (score >= 45) {
-      ctx.lastTurnWasCorrection = false;  // good answer clears the guard
-    } else if (topPlayerFactor && !ctx.lastTurnWasCorrection) {
+      ctx.lastTurnWasCorrection = false;  // a good answer clears the back-to-back guard
+    } else if (
+      topPlayerFactor &&
+      !ctx.lastTurnWasCorrection &&
+      ctx.correctionCooldown === 0 &&
+      ctx.correctionsUsed < CORRECTION_SESSION_CAP &&
+      ctx.scoredAnswers >= 1            // never on the very first answer — let them settle in
+    ) {
       const lbl = topPlayerFactor.label;
       ctx.errorCounts[lbl] = (ctx.errorCounts[lbl] || 0) + 1;
-      if (ctx.errorCounts[lbl] >= 2) {
+      if (ctx.errorCounts[lbl] >= CORRECTION_THRESHOLD) {
         ctx.realtimeClient?.requestCorrection?.(lbl);
         ctx.lastTurnWasCorrection = true;
-        ctx.errorCounts[lbl] = 0;  // reset so the same label can trigger again later
+        ctx.correctionsUsed     += 1;
+        ctx.correctionCooldown   = 3;   // no further probe for the next 3 turns
+        ctx.errorCounts[lbl]     = 0;   // reset so a genuinely persistent pattern can recur later
       }
     }
 

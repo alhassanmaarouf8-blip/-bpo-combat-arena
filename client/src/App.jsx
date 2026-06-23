@@ -2719,7 +2719,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [recording, transcribing, auth.token]);
 
   // ── Hands-free (Freisprech): opt-in. Auto-start on your turn, auto-stop + auto-send on
-  // end-of-utterance (~1.1s silence). Uses the mic volume (volRef) as the VAD signal with a
+  // end-of-utterance (~1.5s silence). Uses the mic volume (volRef) as the VAD signal with a
   // conservative end-silence so a mid-thought pause doesn't cut you off. Manual record/SEND
   // stay fully functional when this is off (default). Boss-voice can't self-trigger because
   // a turn only auto-starts once the boss has finished speaking (gated below on !bossSpeak).
@@ -2742,7 +2742,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
 
     let spoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
-    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, END_SILENCE_MS = 700, MAX_MS = 60000;
+    // END_SILENCE_MS = how long the user must be silent before we treat the turn as finished.
+    // 700ms was far too eager: a non-native speaker pausing mid-thought ("Ich habe… [0.8s] …
+    // drei Jahre Erfahrung") got cut off, the boss grabbed the floor on a fragment, and each
+    // fragment counted as a scored answer → the funnel force-advanced (the "robotic" feel).
+    // 1500ms gives real thinking grace (a human interviewer waits ~1.8–2s for L2 speakers)
+    // while still feeling responsive. MIN_SPEAK_MS keeps a tiny cough from starting a turn.
+    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, END_SILENCE_MS = 1500, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
       const v = volRef.current || 0;
