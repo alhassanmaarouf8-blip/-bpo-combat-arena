@@ -159,7 +159,8 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     // GRAMMAR: ONLY from LanguageTool — NEVER the model.
     const grammar = ltGrammar || [];
     const lesson  = buildLesson(utterances, metrics, grammar);
-    return { ...norm, grammar, lesson, metrics, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
+    const drills  = buildDrills(grammar);
+    return { ...norm, grammar, lesson, drills, metrics, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
     const fb = fallbackDebrief(metrics, utterances);
@@ -167,6 +168,7 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
     fb.grammarUnavailable = !ltGrammar;
     fb.naturalness = naturalness;
+    fb.drills = buildDrills(fb.grammar);
     return fb;
   }
 }
@@ -316,6 +318,25 @@ function buildLesson(utterances, metrics, grammar) {
   return picks.slice(0, 4);
 }
 
+// ── "Fix it now" drills — derived from LanguageTool grammar errors (zero API cost) ─
+// Each drill gives the user one sentence to repair: the wrong form they actually said,
+// the correct form, and a terse instruction. Max 3 drills, one per top grammar rule.
+function buildDrills(grammar) {
+  const drills = [];
+  for (const g of (Array.isArray(grammar) ? grammar : []).slice(0, 3)) {
+    const ex = (g.summaryExamples || [])[0] || (g.allExamples || [])[0];
+    if (!ex || !ex.wrong || !ex.right) continue;
+    drills.push({
+      rule:   String(g.rule ?? ''),
+      before: String(ex.wrong),
+      after:  String(ex.right),
+      de:     `Sag es richtig: „${ex.wrong}"`,
+      ar:     `قوله صح: „${ex.wrong}"`,
+    });
+  }
+  return drills;
+}
+
 // ── Metrics-only fallback (no key / API error / no speech) ───────────────────────
 function fallbackDebrief(metrics, utterances) {
   const strengths = [], strengths_ar = [];
@@ -338,6 +359,7 @@ function fallbackDebrief(metrics, utterances) {
     studyNext,
     vocabTargets: [],
     upgrades: [],
+    drills: [],
     lesson: buildLesson(utterances, metrics, []),
     metrics,
     generated: false,

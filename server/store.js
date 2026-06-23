@@ -40,6 +40,7 @@ export function defaultProfile(userId) {
     recommendedCounted:  [], // Trainingslager: ruleIds already counted in the global recommend stat
     neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
     liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
+    recentErrors:     [],  // top error labels from the last session (cross-session boss memory)
   };
 }
 

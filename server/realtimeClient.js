@@ -87,12 +87,12 @@ const DEFAULT_BOSS = 'yasmin';
 // legacy bosses above are retained (harmless) but no longer referenced by the ladder.
 // Text/config only: reads a local JSON at boot, makes NO API call and costs nothing.
 const GREETINGS = {
-  ‘yasmin’:         ‘Schön, dass Sie da sind. Wir fangen ganz in Ruhe an.’,
-  ‘karim’:          ‘Guten Tag. Fangen wir direkt an.’,
-  ‘hana’:           ‘Guten Tag. Ich habe ein paar Fragen an Sie.’,
-  ‘tarek’:          ‘Guten Tag. Wir haben wenig Zeit — los geht’s.’,
-  ‘frau-mona-adel’: ‘Setzen Sie sich. Ich höre.’,
-  ‘lukas’:          ‘Hey, komm rein. Ich bin Lukas — wir machen das hier locker, kein Stress.’,
+  'yasmin':         "Schön, dass Sie da sind. Wir fangen ganz in Ruhe an.",
+  'karim':          "Guten Tag. Fangen wir direkt an.",
+  'hana':           "Guten Tag. Ich habe ein paar Fragen an Sie.",
+  'tarek':          "Guten Tag. Wir haben wenig Zeit — los geht's.",
+  'frau-mona-adel': "Setzen Sie sich. Ich höre.",
+  'lukas':          "Hey, komm rein. Ich bin Lukas — wir machen das hier locker, kein Stress.",
 };
 // Gender-correct Deepgram Aura-2 German voice per character (the women must NOT be
 // voiced by the male default). All ids exist in transcribeRouter AURA_DE_VOICES.
@@ -214,11 +214,12 @@ export class RealtimeClient {
       stages:      this._session.stages,
     };
 
-    this._groq          = null;
-    this._history       = [];     // chat messages: system + alternating assistant/user
-    this._responding    = false;
-    this._closed        = false;
-    this._pendingRescue = null;
+    this._groq               = null;
+    this._history            = [];     // chat messages: system + alternating assistant/user
+    this._responding         = false;
+    this._closed             = false;
+    this._pendingRescue      = null;
+    this._pendingCorrection  = null;   // label → probe for specifics on next turn
   }
 
   // True while a boss turn is being generated (gateway waits for completed turns).
@@ -257,11 +258,15 @@ export class RealtimeClient {
     const answer = (userText && userText.trim()) ? userText.trim() : '(keine hörbare Antwort)';
     this._history.push({ role: 'user', content: answer });
 
-    // Per-turn instruction: the one-turn rule, plus an optional rescue softener.
+    // Per-turn instruction: the one-turn rule, plus optional rescue softener or correction probe.
     const turnMsgs = [...this._history, { role: 'system', content: TURN_RULE }];
     if (this._pendingRescue) {
       turnMsgs.push({ role: 'system', content: this._rescueInstruction(this._pendingRescue) });
       this._pendingRescue = null;
+    }
+    if (this._pendingCorrection !== null) {
+      turnMsgs.push({ role: 'system', content: this._correctionInstruction(this._pendingCorrection) });
+      this._pendingCorrection = null;
     }
 
     let line = '';
@@ -303,6 +308,22 @@ export class RealtimeClient {
 
   // The gateway calls this after two broken answers → soften the NEXT boss turn.
   requestRescue(reason = 'weak') { this._pendingRescue = reason; }
+
+  // The gateway calls this after 2 weak answers with the same error → probe for specifics.
+  // The boss stays in character: no metalinguistic comment, just a targeted follow-up question.
+  requestCorrection(label = '') { this._pendingCorrection = label; }
+
+  _correctionInstruction(label) {
+    const hint = label ? ` (besonders bei Fehler: "${label}")` : '';
+    return (
+      `Der Kandidat hat gerade eine schwache oder vage Antwort gegeben${hint}. ` +
+      `Bleib VOLLSTÄNDIG in deiner Interviewerrolle — kein Kommentar zur Antwortqualität, kein Lob, keine Ermutigung. ` +
+      `Stelle NUR EINE gezielte Folgefrage, die Konkretheit erzwingt — z.B. "Und was genau haben Sie ` +
+      `dann gesagt?", "Können Sie mir ein konkretes Beispiel nennen?", "Was war das messbare Ergebnis?" ` +
+      `oder "Wie hat Ihr Kollege darauf reagiert?" — wähle, was am besten zur letzten Antwort passt. ` +
+      `Höchstens ein kurzer Satz.`
+    );
+  }
 
   _rescueInstruction(reason) {
     return reason === 'silence'

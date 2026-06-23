@@ -181,6 +181,9 @@ export class WebSocketManager {
       comboBest:      0,       // best combo reached this session
       weakStreak:     0,       // consecutive broken answers (triggers the rescue move)
       dgStreamer:     null,    // DeepgramStreamer for hands-free streaming STT (one per turn)
+      errorCounts:           {},    // label → count of weak answers sharing that dominant error
+      lastTurnWasCorrection: false, // prevents back-to-back correction probes
+      errorLabels:           [],    // all dominant player-side error labels (for cross-session memory)
     };
 
     this._sessions.set(sessionId, ctx);
@@ -293,6 +296,12 @@ export class WebSocketManager {
       bossId  = bossForLevel(prof.level).id;
       dossier = topWeakRule(prof);   // recurring weak grammar rule → boss memory dossier
       focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
+      // Enrich dossier with recurring error labels from recent sessions
+      const recentErrs = (prof.recentErrors || []).slice(0, 2).filter(Boolean);
+      if (recentErrs.length) {
+        const errsStr = `Wiederkehrendes Muster aus der letzten Sitzung: ${recentErrs.join(', ')}`;
+        dossier = [dossier, errsStr].filter(Boolean).join('. ');
+      }
     } catch {}
 
     // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
@@ -637,6 +646,14 @@ export class WebSocketManager {
       // Trainingslager: refresh study recommendations from the last 3 fights (rule-based, no AI).
       refreshRecommendations(p);
 
+      // Cross-session error memory: save top 3 recurring error labels so the next session's
+      // boss dossier references the candidate's known weak patterns.
+      if ((ctx.errorLabels || []).length) {
+        const freq = {};
+        for (const lbl of ctx.errorLabels) freq[lbl] = (freq[lbl] || 0) + 1;
+        p.recentErrors = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([lbl]) => lbl);
+      }
+
       await saveUser(p);
 
       // ── Visible-progress signals for the end screen ──
@@ -894,6 +911,24 @@ export class WebSocketManager {
     // Rescue move: two broken answers in a row → the boss eases up on its next turn.
     if (score < 40) ctx.weakStreak += 1; else ctx.weakStreak = 0;
     if (ctx.weakStreak >= 2) { ctx.weakStreak = 0; ctx.realtimeClient?.requestRescue?.('weak'); }
+
+    // In-session correction loop: track the dominant player-side error and probe for
+    // specifics once the same pattern appears twice — but never on consecutive turns.
+    const topPlayerFactor = factors.filter(f => f.side === 'player').sort((a, b) => b.hp - a.hp)[0];
+    if (score < 45 && topPlayerFactor) {
+      ctx.errorLabels.push(topPlayerFactor.label);  // for cross-session memory at end
+    }
+    if (score >= 45) {
+      ctx.lastTurnWasCorrection = false;  // good answer clears the guard
+    } else if (topPlayerFactor && !ctx.lastTurnWasCorrection) {
+      const lbl = topPlayerFactor.label;
+      ctx.errorCounts[lbl] = (ctx.errorCounts[lbl] || 0) + 1;
+      if (ctx.errorCounts[lbl] >= 2) {
+        ctx.realtimeClient?.requestCorrection?.(lbl);
+        ctx.lastTurnWasCorrection = true;
+        ctx.errorCounts[lbl] = 0;  // reset so the same label can trigger again later
+      }
+    }
 
     // Boss emotion (display-only, backend-driven so the client never invents it):
     //   cornered (low boss HP) → WÜTEND; strong answer → BEEINDRUCKT;
