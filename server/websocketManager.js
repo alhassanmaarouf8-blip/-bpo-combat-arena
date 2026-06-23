@@ -432,13 +432,19 @@ export class WebSocketManager {
           const streamer = ctx.dgStreamer;
           ctx.dgStreamer = null;
           streamer?.close();
-          if (!text?.trim()) return;
+          if (!text?.trim()) {
+            // Nothing recognized — reset client so it can retry rather than staying stuck
+            if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+            return;
+          }
           ctx._lastWords = words ?? [];   // threaded to TRANSCRIPT_DONE for confidence heat-map
           this._handleAnswer(ctx, { text });
         },
         onError: (err) => {
           console.error(`[wsManager] DeepgramStreamer error session=${ctx.sessionId}:`, err?.message);
           ctx.dgStreamer = null;
+          // Reset client transcribing state on STT error so the mic can retry
+          if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
         },
       });
       ctx.dgStreamer.start();
@@ -456,7 +462,12 @@ export class WebSocketManager {
     // Don't null it yet — onFinal cleans up once the transcript arrives (within ~300ms).
     // Safety: if Deepgram never returns (network issue), null it after 3s.
     const fallback = setTimeout(() => {
-      if (ctx.dgStreamer === streamer) { ctx.dgStreamer = null; streamer.close(); }
+      if (ctx.dgStreamer === streamer) {
+        ctx.dgStreamer = null;
+        streamer.close();
+        // Deepgram timed out — reset client so it is not stuck in transcribing=true
+        if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+      }
     }, 3000);
     fallback.unref?.();
     streamer.close();

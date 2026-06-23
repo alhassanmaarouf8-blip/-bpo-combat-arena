@@ -2308,6 +2308,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setLiveTranscript('');
         setTranscribing(false);
         if (msg.transcript) {
+          // Boss is now generating its reply — block hands-free from re-triggering the mic
+          // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
+          // Without this, the mic restarts immediately and can get stuck in transcribing=true.
+          setBossThinking(true);
           const id = ++_lineId;
           setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] }]);
         }
