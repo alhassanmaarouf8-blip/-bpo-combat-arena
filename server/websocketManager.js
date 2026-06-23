@@ -424,25 +424,30 @@ export class WebSocketManager {
 
     // Create the streamer lazily on the first chunk of each turn.
     if (!ctx.dgStreamer) {
+      ctx._speechStartMs = Date.now();   // measure real speech duration for WPM scoring
       ctx.dgStreamer = new DeepgramStreamer({
         onPartial: (text) => {
           this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text });
         },
         onFinal: (text, words) => {
           const streamer = ctx.dgStreamer;
+          const durationMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
           ctx.dgStreamer = null;
+          ctx._speechStartMs = null;
           streamer?.close();
+          if (ctx.closed) return;
           if (!text?.trim()) {
             // Nothing recognized — reset client so it can retry rather than staying stuck
-            if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+            this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
             return;
           }
           ctx._lastWords = words ?? [];   // threaded to TRANSCRIPT_DONE for confidence heat-map
-          this._handleAnswer(ctx, { text });
+          this._handleAnswer(ctx, { text, durationMs });
         },
         onError: (err) => {
           console.error(`[wsManager] DeepgramStreamer error session=${ctx.sessionId}:`, err?.message);
           ctx.dgStreamer = null;
+          ctx._speechStartMs = null;
           // Reset client transcribing state on STT error so the mic can retry
           if (!ctx.closed) this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
         },
@@ -1156,6 +1161,7 @@ export class WebSocketManager {
     }
 
     await ctx.realtimeClient?.close().catch(() => {});
+    ctx.dgStreamer?.close(); ctx.dgStreamer = null;   // prevent stale Deepgram socket after disconnect
     this._sessions.delete(ctx.sessionId);
   }
 
