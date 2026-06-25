@@ -45,6 +45,18 @@ const ITEMS = [
     question_de: 'Welche Telefonnummer nennt der Kunde?', question_ar: 'إيه رقم التليفون اللي قاله؟', answer: '01753328041' },
   { type: 'adresse', audioText: 'Meine Adresse ist Lindenstraße siebzehn, in vierzig zwei sieben sieben Düsseldorf.',
     question_de: 'Wie lautet die Postleitzahl? (5 Ziffern)', question_ar: 'إيه الرقم البريدي؟ (5 أرقام)', answer: '40277' },
+  { type: 'nummer', audioText: 'Guten Tag, meine Vertragsnummer ist neun null drei, sieben sechs, fünf vier. Es geht um eine Kündigung.',
+    question_de: 'Wie lautet die Vertragsnummer?', question_ar: 'إيه رقم العقد؟', answer: '9037654' },
+  { type: 'betrag', audioText: 'Sie haben mir hundertvierunddreißig Euro neunzig abgebucht, aber ich habe nur achtundneunzig Euro bestellt.',
+    question_de: 'Welcher Betrag wurde abgebucht? (z. B. 134,90)', question_ar: 'إيه المبلغ اللي اتسحب؟', answer: '134,90' },
+  { type: 'name', audioText: 'Mein Name ist Schäfer — mit ä, also S, C, H, Ä, F, E, R.',
+    question_de: 'Wie wird der Nachname geschrieben?', question_ar: 'إزاي بيتكتب الاسم؟', answer: 'schäfer' },
+  { type: 'datum', audioText: 'Mein Termin war eigentlich am dritten Februar um vierzehn Uhr, aber niemand kam.',
+    question_de: 'An welchem Tag war der Termin? (z. B. 03.02)', question_ar: 'إمتى كان الموعد؟', answer: '03.02' },
+  { type: 'nummer', audioText: 'Die Sendungsnummer ist eins zwei drei, vier fünf sechs, sieben acht neun null.',
+    question_de: 'Wie lautet die Sendungsnummer?', question_ar: 'إيه رقم الشحنة؟', answer: '1234567890' },
+  { type: 'adresse', audioText: 'Bitte schicken Sie es an die Goethestraße dreiundvierzig, achtzig drei drei sieben München.',
+    question_de: 'Wie lautet die Postleitzahl? (5 Ziffern)', question_ar: 'إيه الرقم البريدي؟', answer: '80337' },
 ];
 
 function paidOnly(req, res) {

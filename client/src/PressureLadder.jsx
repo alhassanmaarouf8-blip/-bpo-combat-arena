@@ -1,39 +1,62 @@
 /**
- * PressureLadder.jsx — "DRUCK-LEITER": train HARDER than any real interview (PAID-feel, zero cost).
+ * PressureLadder.jsx — "DRUCK-LEITER" 2.0: train HARDER than any real interview (zero cost).
  *
- * Principle borrowed from elite sport / special-forces selection: rehearse under MORE pressure
- * than the real event, so the real one feels slow. The #1 reason a fluent-sounding candidate is
- * rejected is FREEZING when a German native goes fast, hostile, and interrupts. So we deliberately
- * overload: escalating speech speed (1.0→1.5×), rising hostility, shrinking answer windows, and the
- * boss talking OVER you. By the top rung, a real interview feels like slow motion.
- *
- * 100% client-side, zero cost: the boss voice is the browser's free speechSynthesis (the robotic
- * edge is FINE here — the point is pressure, not beauty). The learner speaks each round; we only
- * check they KEPT TALKING (audio captured) vs froze — the desensitization is the mechanism, not a
- * grade. No server endpoint, no API, nothing that can affect the live interview.
+ * Elite-sport / special-forces principle: rehearse under MORE pressure than the real event, so
+ * the real one feels slow. The #1 reason a fluent candidate is rejected is FREEZING when a German
+ * native goes fast, hostile, and interrupts. We overload deliberately: escalating speech speed
+ * (1.0→1.6×), rising hostility, shrinking windows, the boss talking OVER you — now with VARIED
+ * scenarios each run (never repetitive), an ENDLESS survival mode past the top rung, and a
+ * resilience debrief. 100% client-side: free browser voice + ClipRecorder. No server, no API.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
-// The ladder. Each rung: faster, more hostile, less time, more interruptions.
+// Each rung: faster, ruder, less time, more interruptions. `lines` = a POOL (one picked per run,
+// so repeats feel fresh). `barbs` = the talked-over interruptions for that rung.
 const LEVELS = [
   { n: 1, de: 'Aufwärmen', ar: 'تسخين', rate: 1.0, sec: 55, interrupts: 0,
-    line: 'Also — erzählen Sie mir kurz: warum sollten wir ausgerechnet Sie nehmen?', barbs: [] },
-  { n: 2, de: 'Tempo', ar: 'سرعة', rate: 1.15, sec: 42, interrupts: 1,
-    line: 'Gut. Und was ist Ihre größte Schwäche — und kommen Sie mir nicht mit Floskeln.',
-    barbs: ['Ja, und weiter?'] },
-  { n: 3, de: 'Ungeduldig', ar: 'نفاد صبر', rate: 1.3, sec: 32, interrupts: 2,
-    line: 'Ein Kunde schreit Sie an, sein Paket ist weg. Was sagen Sie? Schnell.',
-    barbs: ['Das reicht nicht — konkreter!', 'Ja, ja, weiter!'] },
-  { n: 4, de: 'Feindselig', ar: 'عدائي', rate: 1.4, sec: 24, interrupts: 3,
-    line: 'Ehrlich? Ihr Deutsch klingt nicht überzeugend. Überzeugen Sie mich in EINEM Satz.',
-    barbs: ['Nein. Nochmal.', 'Sie weichen aus!', 'Zu langsam.'] },
-  { n: 5, de: 'Endgegner', ar: 'الزعيم', rate: 1.5, sec: 18, interrupts: 4,
-    line: 'Warum soll ich nicht einfach auflegen? Sie haben fünf Sekunden — los.',
-    barbs: ['Schwach.', 'Weiter!', 'Das überzeugt niemanden.', 'Schneller!'] },
+    lines: [
+      'Also — erzählen Sie mir kurz: warum sollten wir ausgerechnet Sie nehmen?',
+      'Gut, stellen Sie sich vor: Wer sind Sie, und warum Kundenservice?',
+      'Fangen wir an. Was macht Sie für diesen Job geeignet?',
+    ], barbs: [] },
+  { n: 2, de: 'Tempo', ar: 'سرعة', rate: 1.18, sec: 42, interrupts: 1,
+    lines: [
+      'Und was ist Ihre größte Schwäche — und kommen Sie mir nicht mit Floskeln.',
+      'Warum haben Sie Ihren letzten Job verlassen? Ehrlich.',
+      'Beschreiben Sie eine Situation, in der Sie versagt haben. Schnell.',
+    ], barbs: ['Ja, und weiter?', 'Konkreter, bitte.'] },
+  { n: 3, de: 'Ungeduldig', ar: 'نفاد صبر', rate: 1.32, sec: 32, interrupts: 2,
+    lines: [
+      'Ein Kunde schreit Sie an, sein Paket ist weg. Was sagen Sie? Schnell.',
+      'Der Kunde will sofort den Vorgesetzten. Sie haben einen Satz. Los.',
+      'Die Rechnung ist falsch, der Kunde tobt. Reagieren Sie — jetzt.',
+    ], barbs: ['Das reicht nicht — konkreter!', 'Ja, ja, weiter!', 'Zu vage.'] },
+  { n: 4, de: 'Feindselig', ar: 'عدائي', rate: 1.45, sec: 24, interrupts: 3,
+    lines: [
+      'Ehrlich? Ihr Deutsch klingt nicht überzeugend. Überzeugen Sie mich in EINEM Satz.',
+      'Ich habe schon zehn bessere Bewerber gesehen. Warum Sie?',
+      'Sie wirken nervös. Warum sollte ich Ihnen einen Kunden anvertrauen?',
+    ], barbs: ['Nein. Nochmal.', 'Sie weichen aus!', 'Zu langsam.', 'Das überzeugt nicht.'] },
+  { n: 5, de: 'Endgegner', ar: 'الزعيم', rate: 1.6, sec: 18, interrupts: 4,
+    lines: [
+      'Warum soll ich nicht einfach auflegen? Sie haben fünf Sekunden — los.',
+      'Geben Sie mir EINEN Grund, weiterzureden. Sofort.',
+      'Sie haben es fast vermasselt. Retten Sie sich — jetzt, ein Satz.',
+    ], barbs: ['Schwach.', 'Weiter!', 'Das überzeugt niemanden.', 'Schneller!', 'Nein.'] },
 ];
+// Endless mode = rung-5 intensity, forever, with a tightening clock.
+const ENDLESS = { rate: 1.6, baseSec: 16, interrupts: 4,
+  lines: [
+    'Noch ein Kunde, noch wütender. Beruhigen Sie ihn. Los.',
+    'Der Chef hört mit. Beeindrucken Sie mich in einem Satz.',
+    'Sie haben einen Fehler gemacht. Erklären Sie sich — schnell.',
+    'Warum sind Sie besser als der letzte Bewerber? Sofort.',
+    'Der Kunde droht zu kündigen. Ihr bester Satz — jetzt.',
+  ], barbs: ['Weiter!', 'Schneller!', 'Schwach.', 'Nein, nochmal.', 'Das reicht nicht.'] };
 
 function speak(text, rate) {
   try {
@@ -48,14 +71,19 @@ function speak(text, rate) {
 const cancelSpeech = () => { try { window.speechSynthesis?.cancel(); } catch { /* ignore */ } };
 
 export function PressureLadder({ lang = 'de', onClose }) {
-  const [idx, setIdx]     = useState(0);          // current rung
-  const [phase, setPhase] = useState('intro');    // intro | ready | answering | round | done
-  const [left, setLeft]   = useState(0);          // seconds left this round
-  const [survived, setSurvived] = useState(0);    // rungs survived
-  const [froze, setFroze] = useState(false);
+  const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
+  const [phase, setPhase]   = useState('intro');    // intro | ready | answering | round | done
+  const [left, setLeft]     = useState(0);
+  const [survived, setSurvived] = useState(0);      // rungs 1..5 survived
+  const [froze, setFroze]   = useState(false);
+  const [endlessStreak, setEndlessStreak] = useState(0);
+  const [curLine, setCurLine] = useState('');
 
   const recRef = useRef(null); const tickRef = useRef(null); const barbRefs = useRef([]);
-  const L = LEVELS[idx];
+  const endless = idx >= LEVELS.length;
+  const L = endless
+    ? { n: '∞', de: 'Überleben', ar: 'بقاء', rate: ENDLESS.rate, sec: Math.max(10, ENDLESS.baseSec - endlessStreak), interrupts: ENDLESS.interrupts, lines: ENDLESS.lines, barbs: ENDLESS.barbs }
+    : LEVELS[idx];
 
   const cleanup = useCallback(() => {
     clearInterval(tickRef.current); tickRef.current = null;
@@ -68,22 +96,17 @@ export function PressureLadder({ lang = 'de', onClose }) {
 
   const beginRound = async () => {
     setFroze(false); setPhase('answering'); setLeft(L.sec);
-    // Boss fires the opening barb at native+ speed.
-    speak(L.line, L.rate);
-    // Start recording the learner immediately (mic may catch the boss — fine, it's overload).
+    const line = pick(L.lines); setCurLine(line);
+    speak(line, L.rate);
     const rec = new ClipRecorder({ onVolume: () => {} });
-    try { await rec.start(); recRef.current = rec; } catch { /* no mic → still run the timer */ }
-    // Schedule interruptions: the boss talks OVER the learner at intervals.
-    barbRefs.current = (L.barbs || []).slice(0, L.interrupts).map((b, i) => {
-      const at = Math.round((L.sec * 1000) * ((i + 1) / (L.interrupts + 1)));
-      return setTimeout(() => speak(b, Math.min(2, L.rate + 0.1)), at);
+    try { await rec.start(); recRef.current = rec; } catch { /* no mic → timer still runs */ }
+    const nBarbs = Math.min(L.interrupts, L.barbs.length);
+    barbRefs.current = Array.from({ length: nBarbs }, (_, i) => {
+      const at = Math.round((L.sec * 1000) * ((i + 1) / (nBarbs + 1)));
+      return setTimeout(() => speak(pick(L.barbs), Math.min(2, L.rate + 0.1)), at);
     });
-    // Countdown.
     tickRef.current = setInterval(() => {
-      setLeft((s) => {
-        if (s <= 1) { clearInterval(tickRef.current); endRound(); return 0; }
-        return s - 1;
-      });
+      setLeft((s) => { if (s <= 1) { clearInterval(tickRef.current); endRound(); return 0; } return s - 1; });
     }, 1000);
   };
 
@@ -92,22 +115,23 @@ export function PressureLadder({ lang = 'de', onClose }) {
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
     cancelSpeech();
     let kept = false;
-    try {
-      const rec = recRef.current; recRef.current = null;
-      if (rec) { const clip = await rec.stop(); kept = !!(clip?.blob && clip.blob.size > 4000); }
-    } catch { /* ignore */ }
+    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = !!(c?.blob && c.blob.size > 4000); } } catch { /* ignore */ }
     setFroze(!kept);
-    if (kept) setSurvived((n) => Math.max(n, idx + 1));
+    if (kept) {
+      if (endless) setEndlessStreak((n) => n + 1);
+      else setSurvived((n) => Math.max(n, idx + 1));
+    }
     setPhase('round');
   };
 
-  const nextRung = () => {
+  const advance = () => {
+    if (froze) { setPhase('ready'); return; }                  // retry same rung
+    if (endless) { setPhase('ready'); return; }                // endless: keep going
     if (idx < LEVELS.length - 1) { setIdx(idx + 1); setPhase('ready'); }
-    else setPhase('done');
+    else setPhase('done');                                     // cleared rung 5
   };
-  const retryRung = () => setPhase('ready');
+  const goEndless = () => { setIdx(LEVELS.length); setEndlessStreak(0); setPhase('ready'); };
 
-  // ── shells ──
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, #1a0a0a 0%, #0a0506 55%, #020101 100%)',
@@ -127,8 +151,9 @@ export function PressureLadder({ lang = 'de', onClose }) {
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {LEVELS.map((lv, i) => (
         <div key={i} style={{ flex: 1, height: 5, borderRadius: 99,
-          background: i < survived ? '#22c55e' : i === idx ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
+          background: i < survived ? '#22c55e' : (i === idx && !endless) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
       ))}
+      <div style={{ flex: 0.5, height: 5, borderRadius: 99, background: endless ? '#f59e0b' : 'rgba(255,255,255,0.08)' }} />
     </div>
   );
 
@@ -138,8 +163,8 @@ export function PressureLadder({ lang = 'de', onClose }) {
       <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>{T(lang, 'Härter als jedes echte Interview.', 'أصعب من أي مقابلة حقيقية.')}</div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.7 }}>
         {T(lang,
-          '5 Stufen. Jede Stufe spricht schneller, ist unhöflicher, gibt dir weniger Zeit — und redet dir rein. Dein Job: WEITERREDEN, nicht einfrieren. Wer hier besteht, für den fühlt sich das echte Gespräch wie Zeitlupe an.',
-          '5 مستويات. كل مستوى بيتكلم أسرع، أقل أدبًا، ووقتك أقل — وهيقاطعك. مهمتك: تفضل بتتكلم، متجمدش. اللي بينجح هنا، المقابلة الحقيقية بتبقى بطيئة قدامه.')}
+          '5 Stufen + Überlebensmodus. Jede Stufe: schneller, unhöflicher, weniger Zeit — und der Boss redet dir rein. Dein Job: WEITERREDEN, nicht einfrieren. Wer hier besteht, für den fühlt sich das echte Gespräch wie Zeitlupe an.',
+          '5 مستويات + وضع البقاء. كل مستوى: أسرع، أقل أدبًا، وقت أقل — والـ boss بيقاطعك. مهمتك: تفضل تتكلم، متجمدش. اللي بينجح هنا، المقابلة الحقيقية بتبقى بطيئة قدامه.')}
       </div>
     </div>
     <button onClick={() => setPhase('ready')} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Leiter besteigen ▸', 'اطلع السلّم ▸')}</button>
@@ -148,8 +173,8 @@ export function PressureLadder({ lang = 'de', onClose }) {
   if (phase === 'ready') return shell(<>
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '14px 0' }}>
-      <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'Orbitron,monospace', letterSpacing: '0.12em' }}>{T(lang, 'STUFE', 'مستوى')} {L.n} / 5</div>
-      <div style={{ fontSize: 22, color: '#ef4444', fontWeight: 800, marginTop: 4 }}>{T(lang, L.de, L.ar)}</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'Orbitron,monospace', letterSpacing: '0.12em' }}>{endless ? T(lang, 'ÜBERLEBEN', 'بقاء') : `${T(lang, 'STUFE', 'مستوى')} ${L.n} / 5`}</div>
+      <div style={{ fontSize: 22, color: endless ? '#f59e0b' : '#ef4444', fontWeight: 800, marginTop: 4 }}>{T(lang, L.de, L.ar)}{endless && endlessStreak > 0 ? ` · ${endlessStreak}` : ''}</div>
       <div style={{ fontSize: 12, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
         {T(lang, `Tempo ${Math.round(L.rate * 100)}% · ${L.sec}s · ${L.interrupts} Unterbrechungen`, `سرعة ${Math.round(L.rate * 100)}% · ${L.sec}ث · ${L.interrupts} مقاطعات`)}
       </div>
@@ -164,12 +189,10 @@ export function PressureLadder({ lang = 'de', onClose }) {
     {header}{ladder}
     <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(239,68,68,0.4)' }}>
       <div style={{ fontSize: 9, color: '#ef4444', letterSpacing: '0.12em', marginBottom: 6 }}>{T(lang, 'DER BOSS', 'الـ boss')} · {T(lang, L.de, L.ar)}</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.5 }}>{L.line}</div>
+      <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.5 }}>{curLine}</div>
     </div>
     <div style={{ textAlign: 'center', marginTop: 18 }}>
-      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 40, color: left <= 5 ? '#ef4444' : '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
-        00:{String(left).padStart(2, '0')}
-      </div>
+      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 40, color: left <= 5 ? '#ef4444' : '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>00:{String(left).padStart(2, '0')}</div>
       <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4, letterSpacing: '0.05em' }}>{T(lang, '🔴 REDE WEITER — NICHT EINFRIEREN', '🔴 اتكلم — متجمدش')}</div>
       <button onClick={endRound} style={{ ...ghostBtnWide, width: '100%', marginTop: 16 }}>{T(lang, 'Fertig', 'خلصت')}</button>
     </div>
@@ -180,37 +203,42 @@ export function PressureLadder({ lang = 'de', onClose }) {
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
       <div style={{ fontSize: 44 }}>{froze ? '🥶' : '💪'}</div>
       <div style={{ fontSize: 18, color: froze ? '#fca5a5' : '#6ee7b7', fontWeight: 800, marginTop: 8 }}>
-        {froze ? T(lang, 'Eingefroren.', 'اتجمدت.') : T(lang, 'Standgehalten!', 'صمدت!')}
+        {froze ? T(lang, 'Eingefroren.', 'اتجمدت.') : (endless ? T(lang, `Überlebt · Serie ${endlessStreak}`, `نجوت · سلسلة ${endlessStreak}`) : T(lang, 'Standgehalten!', 'صمدت!'))}
       </div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', marginTop: 8, lineHeight: 1.6, padding: '0 10px' }}>
         {froze
           ? T(lang, 'Genau das trainieren wir weg. Unter Druck schweigen kostet den Job. Nochmal — diesmal redest du einfach weiter, auch mit Fehlern.', 'ده بالظبط اللي بنتمرن نشيله. السكوت تحت الضغط بيضيّع الوظيفة. تاني — المرة دي اتكلم على طول حتى بأخطاء.')
-          : T(lang, `Stufe ${L.n} überstanden — schneller und unhöflicher als ein echtes Interview. Weiter nach oben.`, `عديت مستوى ${L.n} — أسرع وأقسى من مقابلة حقيقية. كمّل لفوق.`)}
+          : endless
+            ? T(lang, 'Schneller und härter als jedes echte Gespräch — und du redest weiter. Noch eine?', 'أسرع وأقسى من أي مقابلة — وانت لسه بتتكلم. كمان وحدة؟')
+            : T(lang, `Stufe ${L.n} überstanden — schneller und unhöflicher als ein echtes Interview. Weiter nach oben.`, `عديت مستوى ${L.n} — أسرع وأقسى من مقابلة حقيقية. كمّل لفوق.`)}
       </div>
     </div>
     <div style={{ display: 'flex', gap: 8 }}>
-      {froze && <button onClick={retryRung} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>}
-      <button onClick={froze ? retryRung : nextRung} style={{ ...primaryBtn, flex: 1 }}>
-        {froze ? T(lang, 'Diese Stufe nochmal', 'المستوى ده تاني') : (idx < LEVELS.length - 1 ? T(lang, 'Nächste Stufe ▸', 'المستوى اللي بعده ▸') : T(lang, 'Finale ▸', 'النهاية ▸'))}
+      {froze && <button onClick={() => setPhase('ready')} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>}
+      <button onClick={advance} style={{ ...primaryBtn, flex: 1 }}>
+        {froze ? T(lang, 'Diese Stufe nochmal', 'المستوى ده تاني')
+          : endless ? T(lang, 'Weiter überleben ▸', 'كمّل بقاء ▸')
+          : (idx < LEVELS.length - 1 ? T(lang, 'Nächste Stufe ▸', 'المستوى اللي بعده ▸') : T(lang, 'Finale ▸', 'النهاية ▸'))}
       </button>
     </div>
   </>);
 
-  // done
+  // done (cleared rung 5)
   return shell(<>
     {header}
-    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+    <div style={{ textAlign: 'center', padding: '22px 0' }}>
       <div style={{ fontSize: 48 }}>🏆</div>
       <div style={{ fontSize: 18, color: '#f8fafc', fontWeight: 800, marginTop: 8 }}>{T(lang, 'Leiter bestiegen.', 'طلعت السلّم.')}</div>
       <div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 10, lineHeight: 1.7, padding: '0 6px' }}>
         {T(lang,
-          `Du hast gerade Schnelleres, Unhöflicheres und Härteres überstanden als jedes echte Bewerbungsgespräch. Das echte Interview wird sich jetzt wie Zeitlupe anfühlen — ruhig, höflich, viel Zeit. Genau dafür war das.`,
-          'لسه عدّيت حاجة أسرع وأقسى وأصعب من أي مقابلة حقيقية. المقابلة الحقيقية هتبقى بطيئة دلوقتي — هادية، مؤدبة، وقت كتير. علشان كده عملناها.')}
+          'Du hast Schnelleres, Unhöflicheres und Härteres überstanden als jedes echte Bewerbungsgespräch. Das echte Interview wird sich jetzt wie Zeitlupe anfühlen — ruhig, höflich, viel Zeit.',
+          'عدّيت حاجة أسرع وأقسى وأصعب من أي مقابلة حقيقية. المقابلة الحقيقية هتبقى بطيئة دلوقتي — هادية، مؤدبة، وقت كتير.')}
       </div>
       <div style={{ fontSize: 12, color: '#6ee7b7', marginTop: 12, fontWeight: 700 }}>{T(lang, `Stufen standgehalten: ${survived}/5`, `مستويات صمدت فيها: ${survived}/5`)}</div>
     </div>
-    <button onClick={() => { setIdx(0); setSurvived(0); setPhase('intro'); }} style={{ ...primaryBtn }}>{T(lang, 'Nochmal — von unten', 'تاني — من الأول')}</button>
-    <button onClick={() => { cleanup(); onClose?.(); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 10 }}>{T(lang, 'Fertig', 'تمام')}</button>
+    <button onClick={goEndless} style={{ ...primaryBtn, background: 'linear-gradient(135deg,#f59e0b,#dc2626)', borderColor: '#f59e0b' }}>♾️ {T(lang, 'ÜBERLEBENSMODUS — endlos', 'وضع البقاء — بلا حدود')}</button>
+    <button onClick={() => { setIdx(0); setSurvived(0); setPhase('intro'); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 10 }}>{T(lang, 'Von vorne', 'من الأول')}</button>
+    <button onClick={() => { cleanup(); onClose?.(); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 8 }}>{T(lang, 'Fertig', 'تمام')}</button>
   </>);
 }
 

@@ -63,7 +63,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 
   const play = () => {
     if (!item || !canPlay) return;
-    const ok = speakDe(item.audioText);
+    // Progressive overload: each item in the session is spoken faster than the last
+    // (1.0 → ~1.5×), so you train catching a FAST native, not a slowed-down one.
+    const ok = speakDe(item.audioText, Math.min(1.55, 1.0 + idx * 0.12));
     setTtsOk(ok);
     if (ok) setPlayed((p) => p + 1);
   };

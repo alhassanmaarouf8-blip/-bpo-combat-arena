@@ -62,6 +62,14 @@ const PROMPTS = [
     ar: 'بتشوف نفسك فين مهنياً بعد سنتين، وبتعمل إيه دلوقتي علشان توصل؟', level: 'b2' },
   { de: 'Erklären Sie einem Kunden höflich, dass sein Wunsch leider nicht möglich ist, ohne ihn zu verärgern.',
     ar: 'اشرح لعميل بأدب إن طلبه مش ممكن للأسف، من غير ما تضايقه.', level: 'b2' },
+  { de: 'Erzählen Sie von einem Tag, an dem alles schiefging — und wie Sie ruhig geblieben sind.',
+    ar: 'احكِ عن يوم كله غلط — وإزاي فضلت هادي.', level: 'a2-b1' },
+  { de: 'Was machen Sie, wenn Sie die Antwort auf die Frage eines Kunden nicht kennen?',
+    ar: 'بتعمل إيه لو معرفتش إجابة سؤال العميل؟', level: 'a2-b1' },
+  { de: 'Ein Kunde besteht zu Unrecht auf einer Erstattung. Bleiben Sie höflich, aber bestimmt — was sagen Sie?',
+    ar: 'عميل مصمم على استرداد فلوس من غير حق. خليك مؤدب بس حازم — هتقول إيه؟', level: 'b2' },
+  { de: 'Überzeugen Sie mich in 60 Sekunden, dass Sie unter Druck ruhig bleiben.',
+    ar: 'اقنعني في 60 ثانية إنك بتفضل هادي تحت الضغط.', level: 'b2' },
 ];
 
 // Active-paid gate (basic/elite/admin). planOf() already reverts an expired plan to 'free'.
