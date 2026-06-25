@@ -12,6 +12,7 @@ import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
+import { PressureLadder } from './PressureLadder.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import Trainingsnachweis from './Trainingsnachweis.jsx';
@@ -2354,6 +2355,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
+  const [pressureOpen, setPressureOpen] = useState(false);         // pressure-ladder overload drill (client-only)
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
   const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
@@ -3155,6 +3157,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onGoPricing={() => { setSpokenReviewOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
+      {/* Pressure Ladder — overload training (client-only: browser voice, no server, zero cost) */}
+      {pressureOpen && (
+        <PressureLadder lang={feedbackLang} onClose={() => setPressureOpen(false)} />
+      )}
+
       {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}
       {guideOpen && (
         <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)} />
@@ -3815,6 +3822,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             borderRadius:8, border:'1px solid #a78bfa', color:'#a78bfa',
             background:'rgba(167,139,250,0.06)' }}>
             🗯️  SAG ES RICHTIG · قولها صح
+          </button>
+        )}
+
+        {/* Pressure Ladder — train harder than the real interview (idle only; client-only, free) */}
+        {canStart && (
+          <button onClick={() => setPressureOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #ef4444', color:'#ef4444',
+            background:'rgba(239,68,68,0.06)' }}>
+            🔥  DRUCK-LEITER · سُلّم الضغط
           </button>
         )}
 
