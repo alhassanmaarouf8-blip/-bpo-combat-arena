@@ -198,7 +198,7 @@ function stopBossVoice() {
 }
 
 // Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
-async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd, realism }) {
+async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
   try {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), 12000); // 12s max — Deepgram is fast; hang = network issue
@@ -215,11 +215,8 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd, r
     const blob = await res.blob();
     if (!blob || !blob.size) throw new Error('empty audio');
     const url = URL.createObjectURL(blob);
-    const audio = new Audio();
-    audio.crossOrigin = 'anonymous';           // blob is same-origin; harmless + keeps Web Audio happy
-    audio.src = url;
+    const audio = new Audio(url);
     _bossAudio = audio;
-    try { realism?.processVoiceElement(audio); } catch {}   // route through the phone line (fail-safe)
     audio.onplay  = () => { try { onStart?.(); } catch {} };
     audio.onended = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
     audio.onerror = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
@@ -233,7 +230,7 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd, r
   }
 }
 
-async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart, onEnd, realism }) {
+async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart, onEnd }) {
   if (!text) { onEnd?.(); return; }
   stopBossVoice();
   // PRIMARY: ElevenLabs Flash v2.5, streamed via a GET <audio> source (progressive playback).
@@ -241,14 +238,8 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
     const url = `${apiUrl}/api/voice?voice=${encodeURIComponent(elevenVoice)}`
               + `&token=${encodeURIComponent(token)}&text=${encodeURIComponent(text)}`;
     const fellBack = await new Promise((resolve) => {
-      // crossOrigin BEFORE src so a cross-origin voice is processable (untainted) by Web Audio.
-      // If CORS is refused the element fires onerror → existing Deepgram fallback (which routes
-      // through the same phone line via a same-origin blob). Either way: phone voice, never silent.
-      const audio = new Audio();
-      audio.crossOrigin = 'anonymous';
-      audio.src = url;
+      const audio = new Audio(url);
       _bossAudio = audio;
-      try { realism?.processVoiceElement(audio); } catch {}   // route through the phone line (fail-safe)
       let started = false, resolved = false, stallInterval = null;
       const finish = (fallback) => {
         if (resolved) return;
@@ -292,7 +283,7 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
     if (!fellBack) return;
   }
   // FALLBACK: Deepgram neural (never the robotic browser voice).
-  await playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd, realism });
+  await playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd });
 }
 
 // ── Boss emotional states → drives the SVG interviewer's expression ───────────
@@ -2454,9 +2445,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           realismRef.current = new RealismAudio(cfg);
           bossLineRef.current = '';
           playerRef.current?.setRealism(realismRef.current);
-          // Bring the engine to life on its OWN context NOW (the user just tapped START = a valid
-          // gesture), so the open line / room tone is already present before the first word lands.
-          realismRef.current.ensureContext();
           installRealismConsole(() => realismRef.current);   // window.realism.* live A/B harness
         } catch (e) { console.error('[realism] init skipped:', e); }
         wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
@@ -2615,7 +2603,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             playBossVoice({
               apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
               onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
-              realism: realismRef.current,   // route the voice through the phone line
             });
           } else {
             setBossSpeak(false);

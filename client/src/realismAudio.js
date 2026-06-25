@@ -184,48 +184,6 @@ export class RealismAudio {
     } catch { /* decorative; never throw */ }
   }
 
-  // ── Bring the engine to life on its OWN AudioContext ────────────────────────────────────
-  // The OpenAI-free build never feeds PCM chunks, so the AudioPlayer's context is never created
-  // and this processor used to attach to nothing (silent). This gives realism its own context so
-  // the phone line, room tone and typing are actually audible. Must run after a user gesture
-  // (the learner tapped START), so we resume() too. Returns the ctx, or null on failure.
-  ensureContext() {
-    if (this._attached && this._ctx) return this._ctx;
-    try {
-      const Ctx = (typeof window !== 'undefined') && (window.AudioContext || window.webkitAudioContext);
-      if (!Ctx) return null;
-      const ctx = new Ctx();
-      const input = this.attach(ctx);
-      if (!input) return null;                       // attach failed → caller routes voice clean
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      return ctx;
-    } catch (e) {
-      console.error('[realism] ensureContext failed → clean voice fallback:', e?.message || e);
-      return null;
-    }
-  }
-
-  // ── Route the boss voice through the telephone line (THE "real call" feeling) ────────────
-  // Connects an <audio> element's output INTO the telephone/compression/hiss graph so the voice
-  // sounds like a person on a phone line, not a studio narrator. HARD FAIL-SAFE: on ANY problem
-  // it returns false and the element keeps playing normally (clean) straight to the speakers —
-  // the voice can never go silent. The element must have crossOrigin set BEFORE its src so a
-  // cross-origin voice is processable (untainted); if CORS is refused the element simply errors
-  // and the caller's existing fallback chain handles it.
-  processVoiceElement(audioEl) {
-    if (!audioEl) return false;
-    const ctx = this.ensureContext();
-    if (!ctx || !this._input) return false;
-    try {
-      const src = ctx.createMediaElementSource(audioEl);   // one-time per element (fresh each turn)
-      src.connect(this._input);
-      return true;
-    } catch (e) {
-      // Already-connected / bad state → leave the element on its own clean output path.
-      return false;
-    }
-  }
-
   // ── Live A/B: re-apply a new config on the same context (FINAL console harness) ─────────
   apply(override) {
     if (!this._ctx) { if (override) Object.assign(this.cfg, override); return; }
