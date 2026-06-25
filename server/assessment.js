@@ -1,10 +1,10 @@
 /**
  * assessment.js — the FREE intelligent level assessment (the conversion hook).
  *
- * COST: this flow NEVER opens a Realtime voice session. It only makes CHEAP calls:
- *   - gpt-4o-mini-transcribe  (one per recorded answer)  → speech-to-text
- *   - gpt-4o-mini             (ONE per assessment)        → analysis of all transcripts
- * A Realtime session may only ever open for a real paid fight (elsewhere).
+ * COST: this flow NEVER opens a Realtime voice session. It only makes cheap Groq calls:
+ *   - Groq Whisper (whisper-large-v3, one per recorded answer)  → speech-to-text
+ *   - Groq llama-3.3-70b       (ONE per assessment)             → analysis of all transcripts
+ * 100% Groq — no OpenAI. A Realtime session may only ever open for a real paid fight (elsewhere).
  *
  * Server is the single source of truth: the one-per-account limit (assessmentUsed) and the
  * stored verdict (assessmentResult) live on the user profile and are enforced here — UI
@@ -22,8 +22,8 @@ import { FREE_ASSESSMENTS }   from './plans.config.js';
 
 export const assessmentRouter = express.Router();
 
-const ANALYSIS_MODEL = process.env.OAI_PLAN_MODEL ?? 'gpt-4o-mini';
-const OAI_CHAT       = 'https://api.openai.com/v1/chat/completions';
+const ANALYSIS_MODEL = process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
+const GROQ_CHAT      = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Re-assessment: an ACTIVE PAID plan gets a fresh assessment roughly every month (this is the
 // Elite "monatliche Neu-Einstufung"); the free tier stays one-per-account-ever. planOf() already
@@ -128,9 +128,9 @@ assessmentRouter.post('/assessment/analyze', requireAuth, async (req, res) => {
   }
 });
 
-// ── ONE gpt-4o-mini call analyzing all transcripts together ──────────────────────
+// ── ONE Groq llama-3.3-70b call analyzing all transcripts together ───────────────
 async function analyze(answers) {
-  const key = process.env.OPENAI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('no_api_key');
   console.log(`[ai] ${ANALYSIS_MODEL} · assessment analysis (${answers.length} answers)`); // cost audit
 
@@ -141,7 +141,7 @@ async function analyze(answers) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
   try {
-    const res = await fetch(OAI_CHAT, {
+    const res = await fetch(GROQ_CHAT, {
       method:  'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       signal:  controller.signal,

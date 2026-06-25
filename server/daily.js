@@ -125,7 +125,7 @@ function buildDaily(profile) {
 // them. Bounded so unlimited sets never grow the record without limit (~3 recent sets).
 const GEN_KEEP = 12;
 
-// Build a FRESH drill set on demand (paid users → unlimited). Tries the cheap gpt-4o-mini
+// Build a FRESH drill set on demand (paid users → unlimited). Tries the cheap Groq llama-3.3-70b
 // path for genuinely new items; on ANY failure falls back to a ROTATING slice of the
 // built-in drills so the endpoint always returns a non-empty set. Generated answers are
 // stored on profile.dailyGen so grading stays deterministic (the model never grades).

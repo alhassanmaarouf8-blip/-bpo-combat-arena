@@ -4,8 +4,9 @@
  * PART A (persona) lives in ALHASSAN_PROMPT below and is injected as the system prompt.
  * PART B (memory) reuses guideStore.js (Postgres kv_store in prod / file locally) for the COMPLETE
  * conversation history + a running journey summary, and pulls live facts (level, weaknesses,
- * streak, sessions) from the EXISTING per-user profile (store.js). Uses the SAME cheap OAI chat
- * call already used elsewhere (gpt-4o-mini, env-overridable). NO new paid service, zero added cost.
+ * streak, sessions, recent fluency/filler trend) from the EXISTING per-user profile (store.js).
+ * Runs on Groq (llama-3.3-70b-versatile) over the OpenAI-compatible chat endpoint — no OpenAI,
+ * uses the GROQ_API_KEY already required to boot. NO new paid service, negligible cost.
  *
  *   POST /api/guide/chat     (auth) → { reply }      : talk to Alhassan (reads+writes memory)
  *   GET  /api/guide/history  (auth) → { messages }   : the user's own transcript, for reopen
@@ -21,8 +22,8 @@ import { loadGuide, saveGuide } from './guideStore.js';
 
 export const guideRouter = express.Router();
 
-const GUIDE_MODEL = process.env.OAI_GUIDE_MODEL ?? 'gpt-4o-mini';
-const OAI_CHAT    = 'https://api.openai.com/v1/chat/completions';
+const GUIDE_MODEL  = process.env.GROQ_GUIDE_MODEL ?? 'llama-3.3-70b-versatile';
+const GROQ_CHAT    = 'https://api.groq.com/openai/v1/chat/completions';
 const KEEP_RECENT     = 12;   // last N messages injected verbatim
 const SUMMARIZE_EVERY = 10;   // re-fold older history into the journey summary every N new older turns
 
@@ -100,14 +101,14 @@ IRON RULES (never break):
 
 Keep replies tight and spoken — usually 2–6 short Egyptian sentences, ending on the next move.`;
 
-// ── Cheap OAI chat (same endpoint used elsewhere; no new service) ─────────────────────
+// ── Groq chat (OpenAI-compatible endpoint; the same provider the rest of the app uses) ──
 async function callModel(messages, { maxTokens = 500, temperature = 0.85 } = {}) {
-  const key = process.env.OPENAI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('no_api_key');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30_000);
   try {
-    const r = await fetch(OAI_CHAT, {
+    const r = await fetch(GROQ_CHAT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       signal: ctrl.signal,
@@ -152,6 +153,19 @@ async function buildFacts(account, g) {
       lines.push('Has NOT done a live interview yet — still at the start.');
     }
     if (typeof p.dailyStreak === 'number') lines.push(`Daily-training streak: ${p.dailyStreak} day(s).`);
+    // Recent measured performance — lets Alhassan reference REAL numbers/progress, not generic talk.
+    if (sessions.length) {
+      const last = sessions[sessions.length - 1];
+      if (Number.isFinite(last?.fluency)) lines.push(`Most recent fight: fluency ${last.fluency}${Number.isFinite(last?.fillers) ? `, fillers ${last.fillers}` : ''}.`);
+      const first = sessions[0];
+      if (sessions.length > 1 && Number.isFinite(first?.fluency) && Number.isFinite(last?.fluency)) {
+        const d = Math.round(last.fluency - first.fluency);
+        lines.push(`Fluency trend since first fight: ${d >= 0 ? '+' : ''}${d} — reference their REAL progress, never hollow praise.`);
+      }
+    }
+    if (Array.isArray(p.masteredRules) && p.masteredRules.length) {
+      lines.push(`Grammar rules they've MASTERED: ${p.masteredRules.length} (${p.masteredRules.slice(0, 3).join(', ')}) — celebrate what they beat.`);
+    }
   } catch (e) { /* facts are best-effort; never block the reply */ }
   return lines.join('\n');
 }

@@ -2,8 +2,8 @@
  * Assessment.jsx — the FREE intelligent level assessment (the conversion hook).
  *
  * Turn-based, NOT live voice: 5 fixed escalating questions, the user records each (≤60s,
- * one re-record), every clip is transcribed by the CHEAP gpt-4o-mini-transcribe, then ONE
- * gpt-4o-mini call analyzes all five. It NEVER opens a Realtime session (ClipRecorder keeps
+ * one re-record), every clip is transcribed by the CHEAP Groq Whisper, then ONE
+ * Groq llama-3.3-70b call analyzes all five. It NEVER opens a Realtime session (ClipRecorder keeps
  * the audio local until submit). One per account, enforced server-side.
  *
  * Phase 1 shows a simple but readable verdict so the AI quality can be judged. Phase 2 will

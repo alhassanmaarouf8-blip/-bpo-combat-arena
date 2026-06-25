@@ -254,13 +254,13 @@ planRouter.post('/plans/:id/steps/:stepId/speak',
       const durationMs = Math.max(0, parseInt(req.query.ms, 10) || 0);
       const level      = req.query.level === 'b2' ? 'b2' : 'a2-b1';
 
-      // 1) transcribe (gpt-4o-mini-transcribe)
+      // 1) transcribe (Groq Whisper)
       const transcript = await transcribeAudio(audio, { mime: req.headers['content-type'] || 'audio/wav' });
       // 2) compute metrics deterministically (the model never invents numbers)
       const words   = transcript.split(/\s+/).filter(Boolean).length;
       const wpm     = durationMs > 0 ? Math.round(words / (durationMs / 60000)) : 0;
       const fillers = (` ${transcript.toLowerCase()} `.match(/\b(äh+|ähm+|ehm+|also|halt|irgendwie|quasi|sozusagen)\b/g) ?? []).length;
-      // 3) named feedback on the transcript (gpt-4o-mini), German + Arabic
+      // 3) named feedback on the transcript (Groq llama-3.3-70b), German + Arabic
       let feedback = { de: '', ar: '' };
       if (words >= 2) {
         try { feedback = await speakingFeedback({ transcript, wpm, fillers, topic: found.step.topic, level }); }

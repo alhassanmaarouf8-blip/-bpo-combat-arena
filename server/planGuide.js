@@ -1,29 +1,29 @@
 /**
  * planGuide.js — cheap text-model guidance for Zielplan steps 1–3.
  *
- * COST CONTROL: these are the daily-habit steps and run on a CHEAP text model
- * (gpt-4o-mini by default, env-overridable). They are near-zero cost. The expensive
- * voice interview (step type 'fight') is rationed and lives entirely elsewhere — this
- * module never touches it.
+ * COST CONTROL: these are the daily-habit steps and run on a cheap Groq text model
+ * (llama-3.3-70b-versatile by default, env-overridable). Negligible cost. The voice
+ * interview (step type 'fight') is rationed and lives entirely elsewhere — this module
+ * never touches it. 100% Groq — no OpenAI.
  *
  *   generateTask({ type, topic, level })            → a short task/prompt for the step
  *   giveFeedback({ type, topic, task, input, level })→ concise German feedback on the answer
  */
-const PLAN_MODEL       = process.env.OAI_PLAN_MODEL ?? 'gpt-4o-mini';
-const TRANSCRIBE_MODEL = process.env.OAI_TRANSCRIBE_MODEL ?? 'gpt-4o-mini-transcribe';
-const OAI_CHAT         = 'https://api.openai.com/v1/chat/completions';
-const OAI_TRANSCRIBE   = 'https://api.openai.com/v1/audio/transcriptions';
+const PLAN_MODEL       = process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
+const TRANSCRIBE_MODEL = process.env.GROQ_TRANSCRIBE_MODEL ?? 'whisper-large-v3';
+const GROQ_CHAT        = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_TRANSCRIBE  = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const TIMEOUT_MS       = 25_000;
 
 async function chat(system, user, maxTokens = 420, { json = false, purpose = 'plan-guidance' } = {}) {
-  const key = process.env.OPENAI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('no_api_key');
   console.log(`[ai] ${PLAN_MODEL} · ${purpose}`);   // cost audit: one line per AI call
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(OAI_CHAT, {
+    const res = await fetch(GROQ_CHAT, {
       method:  'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       signal:  controller.signal,
@@ -46,9 +46,9 @@ async function chat(system, user, maxTokens = 420, { json = false, purpose = 'pl
   }
 }
 
-// ── Speech → text via the CHEAP transcription model (never a Realtime session) ──
+// ── Speech → text via Groq Whisper (never a Realtime session) ──
 export async function transcribeAudio(buffer, { mime = 'audio/wav', filename = 'clip.wav' } = {}) {
-  const key = process.env.OPENAI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('no_api_key');
   if (!buffer || !buffer.length) throw new Error('empty_audio');
   console.log(`[ai] ${TRANSCRIBE_MODEL} · speaking-step transcription (${buffer.length} bytes)`);
@@ -62,7 +62,7 @@ export async function transcribeAudio(buffer, { mime = 'audio/wav', filename = '
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
   try {
-    const res = await fetch(OAI_TRANSCRIBE, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: controller.signal });
+    const res = await fetch(GROQ_TRANSCRIBE, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: controller.signal });
     if (!res.ok) throw new Error(`transcribe ${res.status} ${await res.text().catch(() => '')}`);
     const data = await res.json();
     return (data.text || '').trim();
@@ -131,7 +131,7 @@ export async function generateTask({ type, topic, level }) {
 // "Korrigiere den Satz" task with ONE canonical answer, so the SERVER grades it
 // deterministically with checkAnswer() — the model never grades. Returns [] on any
 // failure (no key / timeout / bad JSON) so the caller can fall back and always keep
-// serving. One gpt-4o-mini call per set ⇒ negligible cost; never opens a Realtime session.
+// serving. One Groq llama-3.3-70b call per set ⇒ negligible cost; never opens a Realtime session.
 export async function generateDrillSet({ count = 4, level, avoid = [] } = {}) {
   const lvl = levelLabel(level);
   const n   = Math.max(1, Math.min(6, Math.round(count) || 4));
