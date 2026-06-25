@@ -1,0 +1,5 @@
+# OMNI-PERFORM — allow all crawlers; point them at the sitemap.
+User-agent: *
+Allow: /
+
+Sitemap: https://bpo-combat-arena.vercel.app/sitemap.xml
