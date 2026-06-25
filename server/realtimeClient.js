@@ -136,45 +136,9 @@ try {
 
 // ── Per-session seeded mood + a short "thinking" pause before the opening line ──
 const MOOD_POOL = ['sharp-monday', 'neutral', 'tired-friday'];
+const RESPONSE_DELAY_MS = 120;
 function _seedFrom(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function _seededPick(arr, seed) { const x = Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0; return arr[x % arr.length]; }
-const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// ── HUMAN TURN-TAKING: contextual, UNPREDICTABLE response timing (the anti-"tick-tack") ──
-// A real interviewer doesn't wait a fixed 100ms every time. They snap back to a throwaway
-// answer, but take a visible "considering" beat after something long, heavy or evasive — and
-// the exact gap is never the same twice. This models that as a pre-speech pause derived from
-// (a) how much the candidate just said, (b) how loaded it was, (c) the shape of the boss's own
-// reply (a quick interjection lands fast; a deliberated probe lands slow), (d) the session mood,
-// plus genuine jitter. Result: the rhythm breathes instead of ping-ponging. Free, server-side.
-function humanPauseMs({ answer = '', line = '', mood = 'neutral', interrupts = false }) {
-  let ms = 300 + Math.random() * 240;                       // human reaction floor: ~300–540ms, never instant
-  const ans = String(answer).replace(/\s+/g, ' ').trim();
-  const ln  = String(line);
-
-  // 1) Took it in: the more they said, the longer a human needs to actually process it.
-  ms += Math.min(ans.length * 2.1, 950);                    // up to ~+0.95s after a long answer
-
-  // 2) Loaded content earns an extra considering beat (reasoning, emotion, conflict, stakes).
-  if (/\b(weil|obwohl|deshalb|trotzdem|eigentlich|ehrlich|schwierig|problem|konflikt|gekündigt|wütend|stress|angst|geld)\b/i.test(ans)) ms += 280;
-
-  // 3) Evasive / empty answers: a short, slightly pointed beat (not a long ponder).
-  if (ans.length < 12) ms = Math.min(ms, 520);
-
-  // 4) Shape of the boss's OWN reply: a quick reaction is immediate; a long probe was deliberated.
-  if (ln.length < 40)       ms -= 170;                      // "Mhm. Und dann?" — snaps back
-  else if (ln.length > 150) ms += 300;                      // a longer, considered turn
-
-  // 5) Mood / persona rhythm.
-  if (mood === 'sharp-monday')      ms -= 160;              // crisp, fast Monday
-  else if (mood === 'tired-friday') ms += 220;             // wearier, slower
-  if (interrupts) ms -= 220;                                // high-pressure bosses (Tarek/Lukas) come in hot
-
-  // 6) Real unpredictability — a human gap is never the same twice.
-  ms += (Math.random() - 0.5) * 320;
-
-  return Math.max(160, Math.min(2300, Math.round(ms)));     // believable floor + ceiling
-}
 
 // The single hardest rule, repeated to the model on EVERY turn (belt-and-braces with
 // the system prompt). This is the "say one thing, then stop and wait" discipline that
@@ -282,16 +246,14 @@ export class RealtimeClient {
 
     console.log(`[interviewClient] connected  model=${GROQ_MODEL}  mood=${this._mood}  session=${this._sessionId}`);
 
-    // Deliver the opening line after a human "settling-in" beat — a person gathers themselves
-    // and picks up before they greet you; it's never an instant robotic hello.
-    const openingPause = 750 + Math.random() * 750;   // ~0.75–1.5s, varied per session
+    // Deliver the opening line after a short, deliberate "thinking" pause.
     this._responding = true;
     setTimeout(() => {
       if (this._closed) return;
       this._responding = false;
       this._cb.onBossSpeech?.(this._session.openingLine);
       this._cb.onBossSpeechDone?.();
-    }, openingPause);
+    }, RESPONSE_DELAY_MS);
   }
 
   // ── Respond: generate ONE boss turn for the candidate's answer ─────────────────
@@ -354,12 +316,6 @@ export class RealtimeClient {
     }
 
     this._history.push({ role: 'assistant', content: line });
-
-    // HUMAN TURN-TAKING: hold for a contextual, unpredictable "considering" beat before speaking,
-    // so the rhythm breathes instead of ping-ponging at a fixed latency. Stays "thinking" during
-    // the pause (the client already shows a thinking state), then lands the turn.
-    const pause = humanPauseMs({ answer, line, mood: this._mood, interrupts: !!this._boss.interrupts });
-    await _sleep(pause);
 
     this._responding = false;
     if (this._closed) return line;
