@@ -158,7 +158,13 @@ const TURN_RULE =
   `Beispiel: Kandidat sagt "weil ich bin gegangen" → du antwortest "Ah, Sie sind also gegangen — interessant. Und dann?" ` +
   `Der Kandidat hört die richtige Form, ohne das Gefühl zu bekommen, korrigiert zu werden. ` +
   `Tue das HÖCHSTENS EINMAL pro Sitzungsteil und NUR bei eindeutigen Fehlern (Wortstellung, falsches Hilfsverb, ` +
-  `Kasus bei bekannten Präpositionen). Bei Unklarheit: lieber schweigen und inhaltlich weitermachen.`;
+  `Kasus bei bekannten Präpositionen). Bei Unklarheit: lieber schweigen und inhaltlich weitermachen.\n` +
+  `SPRECHBARER TEXT (wird vorgelesen — sehr wichtig fürs Natürlichklingen): Schreibe reinen gesprochenen Text. ` +
+  `KEINE Regieanweisungen oder Tags in eckigen Klammern (NICHT "[seufzt]", "[lacht]", "[freundlich]"), ` +
+  `KEINE Sternchen/Markdown/Aufzählungen/Emojis/Symbole — das wird sonst wörtlich vorgelesen. ` +
+  `Beende JEDEN Redebeitrag mit einem Satzzeichen (. ? !), damit die Stimme natürlich ausatmet. ` +
+  `Für Pausen nutze "…" (zögerlich) oder "—" (gefasst). Höchstens ein bis zwei Füllwörter, nur am ANFANG eines ` +
+  `Redebeitrags, nie mitten im Satz und nie als abgebrochener Neustart. Zahlen/Daten als Wörter ("tausend Euro", nicht "1.000 €").`;
 
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
@@ -211,7 +217,10 @@ export class RealtimeClient {
       bossId,
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',
-      elevenVoice: this._boss.elevenVoice ?? '',
+      // DEFAULT to native-German Deepgram Aura-2 (voice above). An English ElevenLabs voice
+      // speaking German is the #1 cause of the "robotic" sound. ElevenLabs (now native-German
+      // turbo + tuned settings) is opt-in for A/B via USE_ELEVENLABS=1 — empty here = Deepgram.
+      elevenVoice: (process.env.USE_ELEVENLABS === '1') ? (this._boss.elevenVoice ?? '') : '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
