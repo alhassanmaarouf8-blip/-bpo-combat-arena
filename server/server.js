@@ -60,8 +60,6 @@ app.get('/health', (_req, res) => {
     // never exposes the key.)
     deepgram: !!process.env.DEEPGRAM_API_KEY,
     elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-    // Active boss voice: Aura-2 (cheap, default) unless USE_ELEVENLABS=1 is set.
-    tts: process.env.USE_ELEVENLABS === '1' ? 'elevenlabs' : 'aura-2',
     stt: (process.env.TRANSCRIBER || 'deepgram').toLowerCase(),
     // Is the keep-alive self-ping armed? (warms the free dyno so "begin" isn't a cold start)
     keepAlive: !!(process.env.RENDER_EXTERNAL_URL || process.env.RENDER),

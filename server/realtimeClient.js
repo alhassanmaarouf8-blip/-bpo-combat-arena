@@ -211,11 +211,7 @@ export class RealtimeClient {
       bossId,
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',
-      // COST: default boss voice is Deepgram Aura-2 (neural German, ~10× cheaper than
-      // ElevenLabs). The client uses ElevenLabs ONLY if it receives a non-empty elevenVoice,
-      // so we withhold it unless USE_ELEVENLABS=1 is set on the server. Flip that env var to
-      // restore ElevenLabs instantly — no redeploy. Aura-2 keeps the natural voice at ~$0.05/interview.
-      elevenVoice: process.env.USE_ELEVENLABS === '1' ? (this._boss.elevenVoice ?? '') : '',
+      elevenVoice: this._boss.elevenVoice ?? '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
