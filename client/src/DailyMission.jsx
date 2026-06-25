@@ -1,0 +1,129 @@
+/**
+ * DailyMission.jsx — the "Hire-Readiness + Deine Mission heute" home panel (client-only, zero cost).
+ *
+ * Turns the app into ONE coherent system pointing at "hired": a single deterministic readiness
+ * gauge built from the student's REAL signals (fluency, fillers, errors mastered, consistency)
+ * + the SINGLE best drill to do today, auto-routed to their weakest area. This is the deliberate-
+ * practice multiplier — doing the RIGHT thing, consistently, and SEEING the edge grow.
+ *
+ * 100% deterministic from the existing /api/progress data (no model, no new endpoint, no cost).
+ * The score is honestly labelled "Interview-Bereitschaft aus deinen Übungssignalen" — a practice
+ * readiness estimate, NEVER a hire guarantee.
+ */
+import { useState, useEffect } from 'react';
+
+const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+function lastAvg(arr, n = 5) {
+  const v = (arr || []).filter((x) => typeof x === 'number');
+  const s = v.slice(-n);
+  return s.length ? s.reduce((a, b) => a + b, 0) / s.length : null;
+}
+
+// Deterministic readiness 0–99 (never 100 — always room to grow). Honest composite of real signals.
+function computeReadiness(d) {
+  const t = d?.trends || {}, tot = d?.totals || {};
+  const sessions = tot.sessions || 0;
+  if (!sessions) return { score: null, sessions: 0 };
+  const fl = lastAvg(t.fluency), wp = lastAvg(t.wpm), fi = lastAvg(t.fillers);
+  const mastered = tot.rulesMastered || 0, active = tot.srsActive || 0;
+  const fluencyScore     = fl != null ? clamp(fl, 0, 100) : 50;
+  const fillerScore      = fi != null ? clamp(100 - fi * 8, 0, 100) : 60;
+  const masteryScore     = (mastered + active) > 0 ? Math.round((100 * mastered) / (mastered + active)) : 55;
+  const consistencyScore = clamp(sessions * 12 + (d.streak || 0) * 5, 0, 100);
+  const score = Math.round(0.4 * fluencyScore + 0.2 * fillerScore + 0.25 * masteryScore + 0.15 * consistencyScore);
+  return { score: clamp(score, 0, 99), fl, wp, fi, sessions, mastered, active };
+}
+
+// Pick the ONE highest-value next drill from the weakest area.
+function nextMission(d, r) {
+  const tot = d?.totals || {};
+  if ((tot.dueReviews || 0) > 0)
+    return { drill: 'spoken', de: `Sag ${tot.dueReviews} offene Fehler laut richtig`, ar: `قول ${tot.dueReviews} أخطاء مفتوحة صح بصوتك` };
+  if (!r.sessions)
+    return { drill: 'fluency', de: 'Mach deine erste Sprech-Übung', ar: 'اعمل أول تمرين كلام' };
+  if (r.wp != null && r.wp < 120)
+    return { drill: 'fluency', de: 'Sprechtempo steigern (4-3-2)', ar: 'زوّد سرعة كلامك (4-3-2)' };
+  if (r.fi != null && r.fi > 4)
+    return { drill: 'pressure', de: 'Weniger Zögern unter Druck', ar: 'قلّل التردد تحت الضغط' };
+  return { drill: 'pressure', de: 'Halte Druck aus — Druck-Leiter', ar: 'اتحمّل الضغط — سلّم الضغط' };
+}
+
+const DRILL_LABEL = {
+  fluency:  { de: '⚡ FLOW-DRILL', ar: '⚡ سرعة الكلام' },
+  spoken:   { de: '🗯️ SAG ES RICHTIG', ar: '🗯️ قولها صح' },
+  pressure: { de: '🔥 DRUCK-LEITER', ar: '🔥 سلّم الضغط' },
+  listening:{ de: '🎧 HÖR-CHECK', ar: '🎧 فهم السمع' },
+};
+
+export function DailyMission({ token, apiUrl, lang = 'de', onOpen }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`${apiUrl}/api/progress`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) throw new Error('x');
+        const j = await r.json();
+        if (alive) setD(j);
+      } catch { if (alive) setErr(true); }
+    })();
+    return () => { alive = false; };
+  }, [apiUrl, token]);
+
+  if (err || !d) return null;   // silently absent on error — never blocks the home screen
+
+  const r = computeReadiness(d);
+  const m = nextMission(d, r);
+  const pct = r.score;
+  const color = pct == null ? '#64748b' : pct >= 70 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#ef4444';
+  const ar = lang === 'ar';
+
+  return (
+    <div style={{ width: '100%', marginTop: 8, padding: '14px', borderRadius: 12,
+      background: 'linear-gradient(135deg, rgba(34,197,94,0.07), rgba(56,189,248,0.05))',
+      border: '1px solid rgba(56,189,248,0.3)', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Readiness ring */}
+        <div style={{ width: 58, height: 58, borderRadius: '50%', flexShrink: 0, position: 'relative',
+          background: pct == null ? 'rgba(255,255,255,0.05)'
+            : `conic-gradient(${color} ${pct * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#0a1320',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'Orbitron,monospace', fontSize: 15, fontWeight: 800, color }}>
+            {pct == null ? '—' : `${pct}`}
+          </div>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#38bdf8' }}>
+            {T(lang, 'INTERVIEW-BEREITSCHAFT', 'جاهزية المقابلة')}
+          </div>
+          <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 3, lineHeight: 1.4 }}>
+            {pct == null
+              ? T(lang, 'Noch keine Daten — fang heute an.', 'لسه مفيش بيانات — ابدأ النهارده.')
+              : T(lang, `aus deinen Übungssignalen · ${r.sessions} Sitzungen`, `من إشارات تدريبك · ${r.sessions} جلسات`)}
+          </div>
+        </div>
+      </div>
+
+      {/* Today's one mission */}
+      <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#fbbf24', marginBottom: 5 }}>
+          {T(lang, 'DEINE MISSION HEUTE', 'مهمتك النهارده')}
+        </div>
+        <div style={{ fontSize: 13, color: '#f1f5f9', lineHeight: 1.5, marginBottom: 9, ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
+          {T(lang, m.de, m.ar)}
+        </div>
+        <button onClick={() => onOpen?.(m.drill)} style={{ width: '100%', padding: '12px', minHeight: 46, cursor: 'pointer',
+          fontFamily: 'Orbitron,monospace', fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', borderRadius: 9,
+          border: '1px solid #38bdf8', color: '#04070d', background: 'linear-gradient(135deg,#38bdf8,#22d3ee)' }}>
+          {T(lang, DRILL_LABEL[m.drill]?.de || 'START', DRILL_LABEL[m.drill]?.ar || 'ابدأ')} ▸
+        </button>
+      </div>
+    </div>
+  );
+}

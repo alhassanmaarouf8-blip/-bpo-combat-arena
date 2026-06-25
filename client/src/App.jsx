@@ -13,6 +13,7 @@ import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
+import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import Trainingsnachweis from './Trainingsnachweis.jsx';
@@ -3767,6 +3768,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             }}>
             {isConnecting ? '⠋ VERBINDE…' : canStart ? '▶  INTERVIEW STARTEN' : '■  INTERVIEW BEENDEN'}
           </button>
+        )}
+
+        {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only) */}
+        {canStart && (
+          <DailyMission token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            onOpen={(drill) => {
+              if (drill === 'fluency') setFluencyOpen(true);
+              else if (drill === 'spoken') setSpokenReviewOpen(true);
+              else if (drill === 'pressure') setPressureOpen(true);
+              else if (drill === 'listening') setListeningOpen(true);
+            }} />
         )}
 
         {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
