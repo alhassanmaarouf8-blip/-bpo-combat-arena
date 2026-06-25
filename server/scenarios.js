@@ -63,6 +63,19 @@ export const BEHAVIORAL_QUESTIONS = [
   'Wie sind Sie vorgegangen, als Sie mit einer unklaren Arbeitsanweisung konfrontiert wurden?',
 ];
 
+// ── BPO screening questions (Teil 1b) — the real phone-screen filter ─────────────
+// EVERY real Cairo BPO German-line screen asks at least one of these before the
+// behavioral round. Shift-willingness is the #1 silent disqualifier. Asking one of
+// these deterministically makes the interview feel like an actual hiring screen AND
+// prepares the candidate for the question that most often ends real interviews.
+export const BPO_SCREENING_QUESTIONS = [
+  'Bevor wir weitermachen — der Job läuft im Schichtdienst, auch abends und am Wochenende, oft nach deutscher Zeit. Wäre das für Sie machbar?',
+  'Eine kurze organisatorische Frage: Ab wann könnten Sie anfangen, und haben Sie eine Kündigungsfrist?',
+  'Der Alltag am Telefon kann eintönig und stressig sein — viele Anrufe, oft dieselben Beschwerden. Wie halten Sie da Ihre Energie und Geduld?',
+  'Was reizt Sie konkret daran, im Kundenservice für deutsche Kunden zu arbeiten — und nicht auf Englisch oder Arabisch?',
+  'Nur damit ich es richtig einordne: Wie sieht Ihre Gehaltsvorstellung für eine Vollzeitstelle aus?',
+];
+
 // ── C1 Behavioral questions — Swiss/formal BPO register, STAR-method expected ──
 export const C1_BEHAVIORAL_QUESTIONS = [
   'Beschreiben Sie eine komplexe Situation, in der Sie mehrere Stakeholder mit widersprüchlichen Erwartungen koordinieren mussten — und welches konkrete Ergebnis Sie erzielt haben.',
@@ -163,6 +176,22 @@ export const CS_RUBRIC =
   `"Ich nehme Ihr Anliegen sehr ernst", "Was ich konkret für Sie tun kann, ist Folgendes:", ` +
   `"Ich kann zwar das Geschehene nicht rückgängig machen, aber…", "Bleiben wir bitte sachlich", ` +
   `"Ich verspreche Ihnen, dass ich persönlich dranbleibe".`;
+
+// ── Datenschutz / identity-verification rubric (GDPR realism on a German line) ───
+// On a real German customer line the agent may NOT touch account data before
+// verifying identity. The customer must therefore NOT volunteer their data, and must
+// reward the candidate who asks for it correctly. This is the single most authentic
+// compliance behavior a German BPO floor tests — and a silent day-1 failure if missed.
+export const DATA_VERIFICATION_RUBRIC =
+  `DATENSCHUTZ / IDENTITÄTSPRÜFUNG (Realismus + Compliance, sehr wichtig): ` +
+  `Gib als Kunde deine persönlichen Daten — Name, Geburtsdatum, Kunden- oder Vertragsnummer — NIEMALS von selbst preis. ` +
+  `Sobald der Kandidat anfängt, an deinem Konto zu handeln (Rückerstattung einleiten, Vertrag ändern, Kontodaten nennen), ` +
+  `OHNE vorher deine Identität bestätigt zu haben, baue einen kleinen realistischen Reibungspunkt ein: zögere kurz oder frage ` +
+  `misstrauisch „Wozu brauchen Sie das denn?". Belohne es dann deutlich (werde ruhiger, kooperativer), wenn der Kandidat ` +
+  `höflich erklärt, dass er aus Datenschutzgründen ZUERST die Identität prüfen muss ` +
+  `(„Aus Datenschutzgründen muss ich zunächst kurz Ihre Identität bestätigen — könnten Sie mir bitte Ihr Geburtsdatum nennen?"). ` +
+  `Wenn der Kandidat einfach ohne jede Prüfung Kontodaten herausgibt oder Änderungen zusagt, bleibe als Kunde zufrieden — ` +
+  `aber benenne den Fehler NIEMALS selbst; er wird später im Feedback gewertet. Erwähne diese Regel nie als Metakommentar.`;
 
 // ── Multi-turn CS lifecycle rubric ───────────────────────────────────────────────
 // Real BPO calls rarely end after one complaint. This rubric governs Phase 3b: once
@@ -274,6 +303,7 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
 export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle, mood = 'neutral', clarificationRate = 0 }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   const behavioral = pick(levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS);
+  const screening  = pick(BPO_SCREENING_QUESTIONS);
   const cs         = pick(CS_SCENARIOS);
   const delivery   = deliveryBlock(level.id, mood, clarificationRate);  // Phase 1 prosody/mood
 
@@ -320,8 +350,13 @@ Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz u
 ${level.speechStyle}
 ${delivery}${dossierLine}${focusLine}
 
+MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
+- Wenn der Kandidat seinen Namen nennt, MERKE ihn dir und sprich ihn später ein- bis zweimal natürlich an ("Gut, Herr Karim, …"). Das ist das stärkste Signal, dass du ein echter, zuhörender Mensch bist.
+- Ein kurzer menschlicher Telefon-Moment ist gelegentlich erlaubt: z.B. "Einen Moment, ich notiere mir das kurz —" und dann weiter. HÖCHSTENS einmal pro Sitzung. (Bitte NIEMALS um Wiederholung wegen "schlechter Verbindung" — gehe auf jede echte Antwort inhaltlich ein.)
+- Knüpfe an konkrete Dinge an, die der Kandidat vorher gesagt hat, statt generisch weiterzufragen.
+
 TEIL 1 — SELBSTVORSTELLUNG (ca. 1–2 Wortwechsel):
-Bitte den Kandidaten, sich kurz vorzustellen (Name, Berufserfahrung, Motivation). Hake einmal kurz nach. Gehe dann weiter.
+Bitte den Kandidaten, sich kurz vorzustellen (Name, Berufserfahrung, Motivation). Hake einmal kurz nach. Stelle danach GENAU EINE organisatorische Screening-Frage, wie sie in jedem echten BPO-Telefoninterview kommt: "${screening}" — höre die Antwort, würdige sie kurz, gehe dann weiter.
 
 TEIL 2 — VERHALTENSFRAGE (ca. 2 Wortwechsel):
 Stelle genau diese Frage: "${behavioral}"
@@ -333,6 +368,7 @@ Du bist NUR der Kunde — niemals der Agent/Kandidat. Stelle deine Forderung ode
 Eröffne das Rollenspiel mit: "${cs.opening}"
 Bleibe durchgehend in der Rolle dieses wütenden Kunden und reagiere jedes Mal anders und unvorhersehbar auf das, was der Kandidat tatsächlich sagt.
 ${CS_RUBRIC}
+${DATA_VERIFICATION_RUBRIC}
 ${CS_LIFECYCLE_RUBRIC}
 
 ÜBERGÄNGE ZWISCHEN DEN TEILEN — NATÜRLICH, NICHT ROBOTERHAFT (sehr wichtig):
