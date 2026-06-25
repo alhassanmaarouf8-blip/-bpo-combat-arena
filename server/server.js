@@ -19,6 +19,7 @@ import { spokenReviewRouter }  from './spokenReview.js';
 import { guideRouter }         from './alhassan.js';
 import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
+import { dbEnabled }            from './db.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
@@ -61,6 +62,9 @@ app.get('/health', (_req, res) => {
     // never exposes the key.)
     deepgram: !!process.env.DEEPGRAM_API_KEY,
     elevenlabs: !!process.env.ELEVENLABS_API_KEY,
+    // Durable storage: true once DATABASE_URL is set (e.g. a free Neon Postgres). false = data
+    // lives on Render's ephemeral disk and is wiped on restart. One-curl verification of durability.
+    db: dbEnabled(),
     stt: (process.env.TRANSCRIBER || 'deepgram').toLowerCase(),
     // Is the keep-alive self-ping armed? (warms the free dyno so "begin" isn't a cold start)
     keepAlive: !!(process.env.RENDER_EXTERNAL_URL || process.env.RENDER),
