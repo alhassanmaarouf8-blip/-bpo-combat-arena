@@ -11,6 +11,7 @@ import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
+import { SpokenReview } from './SpokenReview.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import Trainingsnachweis from './Trainingsnachweis.jsx';
@@ -2352,6 +2353,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
+  const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
   const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
@@ -3146,6 +3148,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onGoPricing={() => { setListeningOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
+      {/* Spoken-production SRS — say YOUR own errors correctly, spaced (PAID; Groq Whisper, deterministic) */}
+      {spokenReviewOpen && (
+        <SpokenReview token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          onClose={() => setSpokenReviewOpen(false)}
+          onGoPricing={() => { setSpokenReviewOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+      )}
+
       {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}
       {guideOpen && (
         <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)} />
@@ -3796,6 +3805,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             borderRadius:8, border:'1px solid #34d399', color:'#34d399',
             background:'rgba(52,211,153,0.06)' }}>
             🎧  HÖR-CHECK · فهم السمع
+          </button>
+        )}
+
+        {/* Spoken-production SRS (idle only) — say YOUR own errors correctly, spaced. The compounding core. */}
+        {canStart && (
+          <button onClick={() => setSpokenReviewOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #a78bfa', color:'#a78bfa',
+            background:'rgba(167,139,250,0.06)' }}>
+            🗯️  SAG ES RICHTIG · قولها صح
           </button>
         )}
 
