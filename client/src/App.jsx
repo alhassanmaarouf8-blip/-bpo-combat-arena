@@ -3773,6 +3773,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only) */}
         {canStart && (
           <DailyMission token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            name={auth.account?.name || (auth.account?.email || '').split('@')[0]}
             onOpen={(drill) => {
               if (drill === 'fluency') setFluencyOpen(true);
               else if (drill === 'spoken') setSpokenReviewOpen(true);

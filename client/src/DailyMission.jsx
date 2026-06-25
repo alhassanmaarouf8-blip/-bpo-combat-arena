@@ -57,7 +57,34 @@ const DRILL_LABEL = {
   listening:{ de: '🎧 HÖR-CHECK', ar: '🎧 فهم السمع' },
 };
 
-export function DailyMission({ token, apiUrl, lang = 'de', onOpen }) {
+// Warm, HUMAN coach line (Alhassan's voice) — built deterministically from REAL data so it feels
+// like a coach who remembers you and is here for you. Zero cost, no API. Varied so it never feels
+// like the same canned line. This is the "humanness an app can actually win": perfect memory +
+// always present + warm + zero judgment.
+function coachLine(name, d, r, ar) {
+  const first = (name || '').toString().trim().split(/\s+/)[0];
+  const nm = first ? first.charAt(0).toUpperCase() + first.slice(1) : (ar ? 'يا صديقي' : 'Freund');
+  const due = d?.totals?.dueReviews || 0, streak = d?.streak || 0, trained = d?.trainedToday;
+  let pool;
+  if (!r.sessions) pool = ar
+    ? [`أهلاً يا ${nm}! 👋 يلا نبدأ — أول خطوة وانت في السكة.`, `نوّرت يا ${nm} 👋 خلّينا نبدأ خطوة خطوة.`]
+    : [`Willkommen, ${nm}! 👋 Lass uns starten — der erste Schritt zählt.`];
+  else if (streak >= 3) pool = ar
+    ? [`يا ${nm}، ${streak} أيام ورا بعض — ده اللي بيفرق، كمّل يا وحش! 🔥`, `${nm}، ${streak} أيام على التوالي… احترامي. نكمّل؟`]
+    : [`${nm}, ${streak} Tage in Folge — genau das zählt. Weiter so! 🔥`];
+  else if (due > 0) pool = ar
+    ? [`يا ${nm}، عندك ${due} حاجات لسه عايزة تتظبط — تعالى نقفلها سوا.`, `${nm}، فاضل ${due} نقط نقفلها — يلا بينا.`]
+    : [`${nm}, du hast ${due} offene Punkte — lass sie uns schließen.`];
+  else if (!trained) pool = ar
+    ? [`وحشتنا يا ${nm} — يوم واحد بس النهاردة ونرجع للسكة. 💪`, `${nm}، رجّعنا الإيقاع — تمرين واحد دلوقتي. 💪`]
+    : [`Schön, dich zu sehen, ${nm} — ein Tag heute, und wir sind zurück. 💪`];
+  else pool = ar
+    ? [`أيوه يا ${nm}! شغّال صح — نكمّل؟`, `${nm}، ماشي تمام — خلّينا نزوّد شوية.`]
+    : [`Stark, ${nm}! Du bist dran — weiter?`];
+  return pool[(r.sessions + streak + due) % pool.length];
+}
+
+export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(false);
 
@@ -81,11 +108,16 @@ export function DailyMission({ token, apiUrl, lang = 'de', onOpen }) {
   const pct = r.score;
   const color = pct == null ? '#64748b' : pct >= 70 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#ef4444';
   const ar = lang === 'ar';
+  const greet = coachLine(name, d, r, ar);
 
   return (
     <div style={{ width: '100%', marginTop: 8, padding: '14px', borderRadius: 12,
       background: 'linear-gradient(135deg, rgba(34,197,94,0.07), rgba(56,189,248,0.05))',
       border: '1px solid rgba(56,189,248,0.3)', boxSizing: 'border-box' }}>
+      {/* Warm, personal coach line — the human "I remember you" moment */}
+      <div style={{ fontSize: 12.5, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12,
+        paddingBottom: 11, borderBottom: '1px solid rgba(255,255,255,0.07)',
+        ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>{greet}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {/* Readiness ring */}
         <div style={{ width: 58, height: 58, borderRadius: '50%', flexShrink: 0, position: 'relative',
