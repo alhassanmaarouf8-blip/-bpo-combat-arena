@@ -10,6 +10,7 @@ import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
+import { Listening } from './Listening.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import Trainingsnachweis from './Trainingsnachweis.jsx';
@@ -2350,6 +2351,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
+  const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
   const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
@@ -3137,6 +3139,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onGoPricing={() => { setFluencyOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
+      {/* Listening & live data-capture drill (PAID — browser TTS, deterministic grading, zero cost) */}
+      {listeningOpen && (
+        <Listening token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          onClose={() => setListeningOpen(false)}
+          onGoPricing={() => { setListeningOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+      )}
+
       {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}
       {guideOpen && (
         <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)} />
@@ -3777,6 +3786,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             borderRadius:8, border:'1px solid #f59e0b', color:'#f59e0b',
             background:'rgba(245,158,11,0.06)' }}>
             ⚡  FLOW-DRILL · سرعة الكلام
+          </button>
+        )}
+
+        {/* Listening & data-capture drill (idle only) — paid; trains the #1 hiring gap */}
+        {canStart && (
+          <button onClick={() => setListeningOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #34d399', color:'#34d399',
+            background:'rgba(52,211,153,0.06)' }}>
+            🎧  HÖR-CHECK · فهم السمع
           </button>
         )}
 
