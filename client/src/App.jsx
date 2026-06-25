@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
-import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
-import { AudioPlayer } from './audioPlayer.js';
+import { AudioRecorder } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
-import { RealismAudio } from './realismAudio.js';
-import { buildRealismConfig, installRealismConsole } from './realismConfig.js';
+import PlacementPrompt from './PlacementPrompt.jsx';
 import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
@@ -2381,7 +2379,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
   const wsRef          = useRef(null);
   const recorderRef    = useRef(null);
-  const playerRef      = useRef(null);
   const pingRef        = useRef(null);
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
@@ -2389,8 +2386,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
   const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
   const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
-  const realismRef       = useRef(null);   // OUTPUT-ONLY interview realism engine (Phases 2–4)
-  const bossLineRef      = useRef('');     // accumulates the current boss line for diegetic keywords
+  const bossLineRef      = useRef('');     // accumulates the current boss line
   const prevBossHpRef  = useRef(100);
   const prevPlayerHpRef = useRef(100);
   const prevIdxRef     = useRef(0);   // tracks the round index to detect advances
@@ -2438,15 +2434,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setBossHp(msg.bossHp ?? 100);
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
-        // OUTPUT-ONLY realism: intensity DERIVES from the user's level; seeded by the session id
-        // so a session is consistent + repeatable. Fail-safe — if it errors, voice plays clean.
-        try {
-          const cfg = buildRealismConfig(levelRef.current, msg.sessionId);
-          realismRef.current = new RealismAudio(cfg);
-          bossLineRef.current = '';
-          playerRef.current?.setRealism(realismRef.current);
-          installRealismConsole(() => realismRef.current);   // window.realism.* live A/B harness
-        } catch (e) { console.error('[realism] init skipped:', e); }
+        bossLineRef.current = '';
         wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
         break;
 
@@ -2584,15 +2572,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.BOSS_SPEECH_DONE:
         // Boss line is not in the transcript log (single-place render) — nothing to finalize there.
-        // Phase 3: if the interviewer just referenced checking the CV/notes, play a faint
-        // diegetic typing/paper sound (OUTPUT-ONLY; seeded rate-gated inside triggerDiegetic).
-        try {
-          const line = (bossLineRef.current || '').toLowerCase();
-          const paper  = /(lebenslauf|unterlagen|akte|notiz|cv|hier steht|laut ihren|ihren angaben)/.test(line);
-          const typing = /(moment|sekunde|ich sehe|ich schaue|ich prüfe|ich notiere|kurz nach)/.test(line);
-          if (paper)       realismRef.current?.triggerDiegetic('paper');
-          else if (typing) realismRef.current?.triggerDiegetic('typing');
-        } catch {}
         // Speak the boss's German line aloud (browser TTS — OpenAI-free). bossSpeak
         // stays true while speaking, then clears on end, so the avatar animates and
         // the debrief waits until the final line has finished being read out.
@@ -2713,8 +2692,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setError((prev) => prev || 'connection_lost');
         setPhaseSync('error');
         recorderRef.current?.stop().catch(() => {});
-        playerRef.current?.flush();
-        try { realismRef.current?.detach(); } catch {}
         volRef.current = 0; setUserSpeak(false); setBossSpeak(false); stopBossVoice();
       } else {
         setPhaseSync('idle');
@@ -3010,7 +2987,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     return () => {
       clearInterval(pingRef.current);
       recorderRef.current?.stop().catch(() => {});
-      playerRef.current?.dispose().catch(() => {});
       wsRef.current?.close(1000, 'unmount');
     };
   }, []);
@@ -3781,6 +3757,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               else if (drill === 'listening') setListeningOpen(true);
             }} />
         )}
+
+        {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
+        {canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
 
         {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
         {canStart && (

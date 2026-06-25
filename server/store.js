@@ -41,6 +41,10 @@ export function defaultProfile(userId) {
     neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
     liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
     recentErrors:     [],  // top error labels from the last session (cross-session boss memory)
+    // PLACEMENT — the ONE outcome that defines the mission: did this student get hired into a
+    // German-speaking BPO role? status: none|applying|interviewing|offer|hired|not_hired.
+    // history is the audit trail; lastPromptedAt throttles the "any job news?" nudge to weekly.
+    placement: { status: 'none', employer: '', role: '', updatedAt: null, history: [], lastPromptedAt: null },
   };
 }
 

@@ -18,6 +18,7 @@ import { listeningRouter }     from './listening.js';
 import { spokenReviewRouter }  from './spokenReview.js';
 import { guideRouter }         from './alhassan.js';
 import { transcribeRouter }    from './transcribeRouter.js';
+import { placementRouter }      from './placement.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
@@ -92,6 +93,7 @@ app.use('/api', spokenReviewRouter); // GET /api/spoken-review + POST /api/spoke
 app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', transcribeRouter);  // POST /api/transcribe — spoken-answer STT (Groq Whisper / Deepgram)
+app.use(placementRouter);   // /api/placement (user) + /admin/placements (founder KPI) — paths are absolute
 app.use(adminRouter);   // /admin (HTML panel + actions), gated by ADMIN_KEY — not under /api
 
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
