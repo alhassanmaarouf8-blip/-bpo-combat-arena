@@ -14,11 +14,14 @@
 // ── Level presets ────────────────────────────────────────────────────────────────────
 export const realismProfiles = {
   beginner: {
-    masterIntensity: 0.15,
+    // PRESENCE-ON for everyone: the phone line is what makes a voice feel like a real
+    // person on the other end, and it does NOT hurt intelligibility (every real call sounds
+    // like this). Kept gentle for beginners — light band-pass, very low room bed.
+    masterIntensity: 0.6,
     mood:            'patient',
-    ambient:   { enabled: false, volume: 0.05, activityLevel: 0.15 },
-    diegetic:  { enabled: false, rate: 0.0 },
-    telephone: { enabled: false, lowCut: 300, highCut: 3400, q: 0.7, compression: 6,  noiseFloor: 0.004 },
+    ambient:   { enabled: true,  volume: 0.04, activityLevel: 0.15 },
+    diegetic:  { enabled: true,  rate: 0.2 },
+    telephone: { enabled: true,  lowCut: 320, highCut: 3400, q: 0.7, compression: 6,  noiseFloor: 0.005 },
     clarificationRate: 0,          // mirrors the server (never for beginners)
   },
   intermediate: {                  // reserved for a future middle tier; not currently mapped
@@ -39,9 +42,10 @@ export const realismProfiles = {
   },
 };
 
-// The app exposes two CEFR tiers: 'a2-b1' (beginner) and 'b2' (advanced). Map tier → preset.
+// Map CEFR tier → preset. b2 AND c1 get the full phone presence (c1 previously fell through
+// to 'beginner' — a bug that gave your most advanced users the LEAST realistic call).
 export function profileForLevel(levelId) {
-  return levelId === 'b2' ? 'advanced' : 'beginner';
+  return (levelId === 'b2' || levelId === 'c1') ? 'advanced' : 'beginner';
 }
 
 // ── Seeded RNG (mulberry32) — deterministic per session, repeatable for tests ──────────
