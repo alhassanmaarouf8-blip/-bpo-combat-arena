@@ -229,16 +229,21 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
             <div style={{ textAlign: 'left' }}>
               <div style={{ padding: '11px 13px', borderRadius: 10, background: 'rgba(34,211,238,0.07)', border: '1px solid rgba(34,211,238,0.3)' }}>
                 <div style={{ fontSize: 9, color: '#22d3ee', letterSpacing: '0.1em', marginBottom: 5 }}>
-                  {T(lang, 'GEHÖRT', 'اللي اتسمع')} · {result.match}% {T(lang, 'Treffer', 'تطابق')}
+                  {T(lang, 'WORTGENAUIGKEIT', 'دقة الكلمات')} · {result.match}%
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{result.transcript}</div>
               </div>
-              {(result.note_ar || result.note_de) && (
-                <div style={{ padding: '11px 13px', borderRadius: 10, marginTop: 8, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(148,163,184,0.25)' }}>
-                  <div style={{ fontSize: 9, color: '#a78bfa', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'AUSSPRACHE-TIPP', 'نصيحة نطق')}</div>
-                  <div dir="rtl" style={{ fontSize: 12.5, color: '#e2e8f0', lineHeight: 1.7 }}>{result.note_ar || result.note_de}</div>
+              {Array.isArray(result.missed) && result.missed.length > 0 && (
+                <div style={{ padding: '11px 13px', borderRadius: 10, marginTop: 8, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <div style={{ fontSize: 9, color: '#f59e0b', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'NICHT ERKANNT', 'مش اتعرفت')}</div>
+                  <div style={{ fontSize: 13, color: '#fcd34d', lineHeight: 1.6 }}>{result.missed.join(' · ')}</div>
                 </div>
               )}
+              <div style={{ fontSize: 9.5, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
+                {T(lang,
+                  'Misst, welche Wörter erkannt wurden — nicht deinen Akzent. Hör den Satz an und vergleiche selbst.',
+                  'بيقيس الكلمات اللي اتعرفت — مش نطقك. اسمع الجملة وقارن بنفسك.')}
+              </div>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

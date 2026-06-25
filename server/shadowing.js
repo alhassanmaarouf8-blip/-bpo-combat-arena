@@ -1,16 +1,15 @@
 /**
- * shadowing.js — "Shadowing" pronunciation practice (PAID feature; mic + cheap text models,
- * NEVER a Realtime session).
+ * shadowing.js — "Shadowing" repeat-after-me practice (PAID feature; mic only, never streaming).
  *
  * Per item: the BROWSER speaks the model German sentence via its built-in speechSynthesis
- * (zero cost, no API), the learner records themselves repeating it, and the server:
- *   1) transcribes the clip with gpt-4o-mini-transcribe   (transcribeAudio — already in use)
- *   2) returns a short Arabic pronunciation note via gpt-4o-mini (speakingFeedback — the SAME
- *      Arabic-feedback path the Zielplan speaking step uses)
- * It adds NO new paid API and opens NO Realtime session — only the cheap calls already used.
+ * (zero cost, no API), the learner records themselves repeating it, and the server transcribes
+ * the clip and returns a DETERMINISTIC word-accuracy score + the exact target words that were
+ * not recognised. There is NO model-written "pronunciation" note: the server cannot hear the
+ * sound (the transcript erases accent), so it never claims to judge pronunciation. Honest by
+ * construction. Adds no new paid API.
  *
  *   GET  /api/shadowing            → { sentences:[{id,de,en}] }  (3–5 per session, paid only)
- *   POST /api/shadowing/score      → raw audio + ?id=&ms=&level= → { transcript, target, match, note_de, note_ar }
+ *   POST /api/shadowing/score      → raw audio + ?id=&ms= → { transcript, target, match, missed }
  *
  * Gated exactly like other paid features: requireAuth + active plan (planOf !== 'free',
  * which already reverts an expired plan to free). Sessions are unlimited.
@@ -18,7 +17,7 @@
 import express from 'express';
 import { requireAuth, planOf }                from './auth.js';
 import { BPO_PHRASES }                         from './scenarios.js';
-import { transcribeAudio, speakingFeedback }   from './planGuide.js';
+import { transcribeAudio }                     from './planGuide.js';
 
 export const shadowingRouter = express.Router();
 
@@ -46,17 +45,20 @@ function pickSentences(n) {
   return idx.slice(0, n).map((i) => ({ id: i, de: BPO_PHRASES[i].de, en: BPO_PHRASES[i].en }));
 }
 
-// Deterministic word-overlap closeness 0–100 (transcript vs target) — zero cost, no model.
-function matchScore(transcript, target) {
+// DETERMINISTIC word accuracy (transcript vs target) — zero cost, no model, no audio analysis.
+// HONEST BY CONSTRUCTION: this measures which TARGET WORDS came back in the transcript, i.e.
+// WORD ACCURACY — NOT pronunciation/accent. The server never hears the sound, so it never
+// claims to judge it. Returns the score plus the exact target words that were not recognised.
+function wordAccuracy(transcript, target) {
   const norm = (s) => String(s || '').toLowerCase().normalize('NFC')
     .replace(/[^a-zäöüß0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
   const said = new Set(norm(transcript));
   const want = norm(target);
-  if (!said.size || !want.length) return 0;
-  const wantSet = new Set(want);
-  let hit = 0;
-  for (const w of wantSet) if (said.has(w)) hit++;
-  return Math.round((hit / wantSet.size) * 100);
+  if (!said.size || !want.length) return { match: 0, missed: [...new Set(want)] };
+  const wantSet = [...new Set(want)];
+  let hit = 0; const missed = [];
+  for (const w of wantSet) { if (said.has(w)) hit++; else missed.push(w); }
+  return { match: Math.round((hit / wantSet.size) * 100), missed };
 }
 
 // ── GET a fresh session of 3–5 sentences (paid only, unlimited sessions) ──
@@ -85,31 +87,20 @@ shadowingRouter.post('/shadowing/score',
       if (!Buffer.isBuffer(audio) || audio.length < 1000) {
         return res.status(400).json({ error: 'empty_audio' });
       }
-      const durationMs = Math.max(0, parseInt(req.query.ms, 10) || 0);
-      const level      = req.query.level === 'b2' ? 'b2' : 'a2-b1';
-
       // 1) transcribe (cheap STT).
       const transcript = (await transcribeAudio(audio, { mime: req.headers['content-type'] || 'audio/wav' })).trim();
 
-      // Edge case: transcription returned nothing → ask to retry, skip the feedback call (no waste).
+      // Edge case: transcription returned nothing → ask to retry.
       if (!transcript) return res.json({ transcript: '', target, retry: true });
 
-      // 2) deterministic closeness (free) + 3) short Arabic note via the existing feedback path.
-      const match = matchScore(transcript, target);
-      let note_de = '', note_ar = '';
-      try {
-        const fb = await speakingFeedback({
-          transcript, wpm: 0, fillers: 0,
-          topic: `Nachsprechen (Shadowing) des Modellsatzes: „${target}". Bewerte NUR Aussprache und Genauigkeit beim Nachsprechen — kurz.`,
-          level,
-        });
-        note_de = fb.de; note_ar = fb.ar;
-      } catch (e) {
-        console.error('[shadowing] feedback failed:', e.message);   // transcript+match still returned
-      }
+      // DETERMINISTIC word accuracy only — NO model, NO pronunciation claim. We report which
+      // target words were recognised and which were missed. We deliberately DROPPED the old
+      // LLM "Aussprache" note: it judged a sound the server never heard (the transcript erases
+      // accent), so any pronunciation verdict it produced was invented. Honest > impressive.
+      const { match, missed } = wordAccuracy(transcript, target);
 
-      console.log(`[shadowing] user=${req.account.id} id=${id} match=${match}% words="${transcript.slice(0, 60)}"`);
-      res.json({ transcript, target, match, note_de, note_ar });
+      console.log(`[shadowing] user=${req.account.id} id=${id} accuracy=${match}% missed=${missed.length}`);
+      res.json({ transcript, target, match, missed });
     } catch (err) {
       console.error('[shadowing] score error:', err.message);
       const noKey = err.message === 'no_api_key';

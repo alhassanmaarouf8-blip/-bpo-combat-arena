@@ -9,6 +9,7 @@ import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
+import { FluencyDrill } from './FluencyDrill.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import Trainingsnachweis from './Trainingsnachweis.jsx';
@@ -1198,6 +1199,35 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             </div>
           )}
 
+          {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
+          {data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
+            <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(56,189,248,0.07)', border:'1px solid rgba(56,189,248,0.3)' }}>
+              <div style={{ fontSize:9, fontFamily:'Orbitron,monospace', letterSpacing:'0.12em', color:'#38bdf8', marginBottom:5 }}>{ar ? 'تقدّمك' : 'DEIN FORTSCHRITT'}</div>
+              <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.6, ...rtl }}>{ar && data.progressNarrative.ar ? data.progressNarrative.ar : data.progressNarrative.de}</div>
+            </div>
+          )}
+
+          {/* INTERVIEW REVIEW — per exchange: your real words → what was missing vs the question → the fix that gets you hired */}
+          {!!data?.interviewReview?.length && (
+            <Section title={ar ? 'المقابلة · سؤال بسؤال' : 'INTERVIEW · FRAGE FÜR FRAGE'} color="#fbbf24">
+              {data.interviewReview.map((r, i) => (
+                <div key={i} style={{ marginBottom:i < data.interviewReview.length-1 ? 12 : 0,
+                  paddingBottom:i < data.interviewReview.length-1 ? 12 : 0,
+                  borderBottom:i < data.interviewReview.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                  {r.frage && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4, ...rtl }}>❓ {r.frage}</div>}
+                  <div style={{ fontSize:12, color:'#e2e8f0', fontStyle:'italic', lineHeight:1.5, marginBottom:6, overflowWrap:'anywhere', ...rtl }}>„{r.deinSatz}“</div>
+                  {(ar ? r.stark_ar : r.stark) && <div style={{ fontSize:11.5, color:'#6ee7b7', lineHeight:1.5, marginBottom:4, ...rtl }}>✓ {ar && r.stark_ar ? r.stark_ar : r.stark}</div>}
+                  {(ar ? r.luecke_ar : r.luecke) && <div style={{ fontSize:11.5, color:'#fca5a5', lineHeight:1.5, marginBottom:4, ...rtl }}>✗ {ar && r.luecke_ar ? r.luecke_ar : r.luecke}</div>}
+                  {(ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt) && (
+                    <div style={{ fontSize:11.5, color:'#fcd34d', lineHeight:1.55, background:'rgba(245,158,11,0.08)', borderRadius:7, padding:'6px 9px', marginTop:4, ...rtl }}>
+                      💡 {ar && r.fixDerEinstellt_ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </Section>
+          )}
+
           {/* Language toggle (Arabic explanations) */}
           {LangToggle && (
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
@@ -2319,6 +2349,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
+  const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
   const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
@@ -3099,6 +3130,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onGoPricing={() => { setShadowingOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
+      {/* 4-3-2 spoken-fluency drill (PAID — Groq Whisper STT, deterministic feedback) */}
+      {fluencyOpen && (
+        <FluencyDrill token={auth.token} apiUrl={API_URL} lang={feedbackLang} level={level}
+          onClose={() => setFluencyOpen(false)}
+          onGoPricing={() => { setFluencyOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+      )}
+
       {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}
       {guideOpen && (
         <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)} />
@@ -3732,6 +3770,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         )}
 
+        {/* 4-3-2 spoken-fluency drill (idle only) — paid; server returns 402 → paywall */}
+        {canStart && (
+          <button onClick={() => setFluencyOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
+            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid #f59e0b', color:'#f59e0b',
+            background:'rgba(245,158,11,0.06)' }}>
+            ⚡  FLOW-DRILL · سرعة الكلام
+          </button>
+        )}
+
         {/* Alhassan mentor chat (idle only) — free guide with total recall */}
         {canStart && (
           <button onClick={() => setGuideOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
@@ -3762,8 +3810,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         )}
 
-        {/* Zielplan (goal plan) access (idle only) */}
-        {canStart && (
+        {/* Zielplan (goal plan) access — HIDDEN as low-value clutter (strategy audit): a goal-planner
+            is meta-work that forks the "what do I open today" decision. Flip `false &&`→`true &&` to
+            restore; code/route left intact so it's fully reversible. */}
+        {false && canStart && (
           <button onClick={() => setZielplanOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
             cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
             borderRadius:8, border:'1px solid rgba(0,229,255,0.4)', color:'#00e5ff',

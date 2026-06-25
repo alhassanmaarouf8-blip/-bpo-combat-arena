@@ -162,6 +162,7 @@ export class WebSocketManager {
       level:          'a2-b1',
       stages:         [],
       utterances:     [],     // candidate's real sentences, for the end-of-session debrief
+      dialogue:       [],     // FULL ordered exchange (boss question → candidate answer) for the dialogue-aware debrief
       totalSpeechMs:  0,       // summed VAD speech segments, for WPM
       fightStartedAt: 0,       // wall-clock start of the billed Realtime session
       audioInBytes:   0,       // total PCM16 audio bytes sent to OpenAI (user mic)
@@ -353,7 +354,12 @@ export class WebSocketManager {
         dossier,
         focusTitle,
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
-        onBossSpeech:      (text)   => this._send(ctx, { type: S.BOSS_SPEECH,      text }),
+        // Also RECORD it: the debrief needs the interviewer's question paired with the answer
+        // that follows, so it can judge whether the candidate actually answered what was asked.
+        onBossSpeech:      (text)   => {
+          ctx.dialogue.push({ role: 'boss', text, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
+          this._send(ctx, { type: S.BOSS_SPEECH, text });
+        },
         onBossSpeechDone:  ()       => {
           this._send(ctx, { type: S.BOSS_SPEECH_DONE });
           // Server is the single source of truth: end ONLY after the boss has finished
@@ -573,10 +579,21 @@ export class WebSocketManager {
 
     this._send(ctx, { type: S.DEBRIEF_PENDING });
 
+    // Prior sessions (this one is not persisted yet) → deterministic progress deltas in the debrief.
+    let history = [];
+    try {
+      const prior = await loadUser(ctx.userId);
+      history = (prior.sessions || []).slice(-10).map((s) => ({
+        date: s.date, fluency: s.fluency ?? null, fillers: s.fillers ?? null, level: s.level,
+      }));
+    } catch { /* history is optional — debrief still works without it */ }
+
     let debrief;
     try {
       debrief = await generateDebrief({
         utterances:   ctx.utterances,
+        dialogue:     ctx.dialogue,   // ordered boss-question → candidate-answer exchange
+        history,                      // prior sessions, for the "you progressed" narrative
         metrics,
         level:        ctx.level,
         csScenarioId: ctx.csScenario,
@@ -890,6 +907,9 @@ export class WebSocketManager {
         stage:      ctx.stageIdx,
         stageLabel: ctx.stages[ctx.stageIdx]?.label,
       });
+      // …and into the ordered dialogue, right after the boss question that prompted it,
+      // so the debrief can do per-exchange "did you answer what was asked?" analysis.
+      ctx.dialogue.push({ role: 'candidate', text: transcript, words: wordCount, durationMs, stage: ctx.stageIdx });
     }
 
     // ── Live performance HUD stats (DISPLAY-ONLY; backend stays the source of truth).

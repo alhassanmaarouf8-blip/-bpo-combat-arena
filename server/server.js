@@ -13,6 +13,7 @@ import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
 import { adminRouter }        from './admin.js';
 import { shadowingRouter }    from './shadowing.js';
+import { fluencyRouter }       from './fluencyDrill.js';
 import { guideRouter }         from './alhassan.js';
 import { transcribeRouter }    from './transcribeRouter.js';
 
@@ -83,6 +84,7 @@ app.use('/api', feedbackRouter);
 app.use('/api', assessmentRouter);
 app.use('/api', trainingslagerRouter);
 app.use('/api', shadowingRouter);
+app.use('/api', fluencyRouter);   // GET /api/fluency + POST /api/fluency/score — 4-3-2 spoken-fluency drill
 app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', transcribeRouter);  // POST /api/transcribe — spoken-answer STT (Groq Whisper / Deepgram)

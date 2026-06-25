@@ -158,24 +158,33 @@ async function analyze(answers) {
     });
     if (!res.ok) throw new Error(`assessment model ${res.status} ${await res.text().catch(() => '')}`);
     const data = await res.json();
-    return normalizeResult(JSON.parse(data.choices?.[0]?.message?.content ?? '{}'));
+    return normalizeResult(JSON.parse(data.choices?.[0]?.message?.content ?? '{}'), answers);
   } finally {
     clearTimeout(timer);
   }
 }
 
 // Shape-guard the model output so the client always gets a valid, bounded verdict.
-function normalizeResult(d) {
+// `answers` (the real transcripts) are passed so we can verify any "their own words" quote.
+function normalizeResult(d, answers = []) {
   const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'];
   const arr = (x) => (Array.isArray(x) ? x : []);
   const s = (x, n) => String(x ?? '').slice(0, n);
+  const canon = (x) => String(x ?? '').replace(/\s+/g, ' ').toLowerCase().trim();
+  const saidCanon = canon(answers.map((a) => a?.transcript || '').join(' '));
 
-  const blockers = arr(d.blockers).slice(0, 5).map((b) => ({
-    rule:                          s(b?.rule, 90),
-    explanation_de:                s(b?.explanation_de, 320),
-    explanation_ar:                s(b?.explanation_ar, 320),
-    example_from_their_own_answer: s(b?.example_from_their_own_answer, 320),
-  })).filter((b) => b.rule && b.example_from_their_own_answer);
+  const blockers = arr(d.blockers).slice(0, 5).map((b) => {
+    const ex = s(b?.example_from_their_own_answer, 320);
+    // Anti-fabrication: keep the "their own words" quote ONLY if it actually appears in a
+    // transcript. Otherwise blank it (keep the rule) — never show a paraphrased/invented quote.
+    const verifiedEx = ex && saidCanon.includes(canon(ex)) ? ex : '';
+    return {
+      rule:                          s(b?.rule, 90),
+      explanation_de:                s(b?.explanation_de, 320),
+      explanation_ar:                s(b?.explanation_ar, 320),
+      example_from_their_own_answer: verifiedEx,
+    };
+  }).filter((b) => b.rule);
 
   const strengths = arr(d.strengths).slice(0, 2)
     .map((x) => ({ de: s(x?.de ?? x, 220), ar: s(x?.ar, 220) }))

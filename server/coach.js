@@ -47,7 +47,17 @@ Gib AUSSCHLIESSLICH gültiges JSON in GENAU diesem Schema zurück (alle Texte au
   "upgrades": [ { "original": "kurzer ECHTER Ausschnitt aus einer Äußerung des Kandidaten (Originalwortlaut, DEUTSCH)", "better": "stärkere, elegantere deutsche Formulierung DESSELBEN Inhalts", "why": "ein kurzer Satz DEUTSCH: warum stärker (gehobener Wortschatz/Struktur)", "why_ar": "derselbe Grund auf ARABISCH" } ],
   "answerArchitecture": { "label": "stark|solide|ausbaufähig", "de": "EIN konkreter Struktur-Tipp (DEUTSCH), stärken-zuerst", "ar": "derselbe Tipp auf ÄGYPTISCH-ARABISCH, stärken-zuerst" },
   "deliveryConfidence": { "label": "selbstbewusst|solide|zögerlich", "de": "EIN konkreter Delivery-Tipp (DEUTSCH), stärken-zuerst", "ar": "derselbe Tipp auf ÄGYPTISCH-ARABISCH, stärken-zuerst" },
-  "priorityFix": { "de": "EIN SATZ auf DEUTSCH: die allerwichtigste Sache, die der Kandidat JETZT üben soll — konkret und handlungsorientiert (z.B. 'Übe heute Abend drei Sätze mit Konjunktiv II: Ich würde … / Ich könnte … / Es wäre besser, wenn …'). Nicht mehr als einen Satz.", "ar": "GENAU DASSELBE auf ägyptischem Arabisch — kurz, direkt, ermutigend." }
+  "priorityFix": { "de": "EIN SATZ auf DEUTSCH: die allerwichtigste Sache, die der Kandidat JETZT üben soll — konkret und handlungsorientiert (z.B. 'Übe heute Abend drei Sätze mit Konjunktiv II: Ich würde … / Ich könnte … / Es wäre besser, wenn …'). Nicht mehr als einen Satz.", "ar": "GENAU DASSELBE auf ägyptischem Arabisch — kurz, direkt, ermutigend." },
+  "interviewReview": [
+    {
+      "frage": "die Frage des Interviewers in 3–8 Wörtern (DEUTSCH)",
+      "deinSatz": "WÖRTLICHES Zitat aus der Antwort des Kandidaten (Originalwortlaut)",
+      "stark": "was an DIESER Antwort konkret gut war (DEUTSCH) — oder \\"\\" wenn nichts Konkretes",
+      "luecke": "was IN BEZUG AUF DIE FRAGE fehlte und einen Personaler stört — präzise (DEUTSCH) — oder \\"\\" wenn die Antwort gut war",
+      "fixDerEinstellt": "der EINE konkrete Zusatz/Satz, der genau diese Antwort einstellungsreif macht (DEUTSCH)",
+      "stark_ar": "…ägyptisch-arabisch", "luecke_ar": "…", "fixDerEinstellt_ar": "…"
+    }
+  ]
 }
 
 HARTE REGELN:
@@ -73,12 +83,25 @@ HARTE REGELN:
 
 - ZUSÄTZLICHE DIMENSION 2 — "deliveryConfidence" (wie SICHER der Kandidat WIRKTE): GETRENNT von Füllwörtern und Flüssigkeit bewerten — NICHT doppelt zählen. Nutze die Sprechsignale (WpM pro Antwort: sehr niedrige WpM = lange Denk-/Einfrierpausen) UND Transkript-Muster (schwache/verklingende Anfänge, viele Neuansätze, sehr kurze flache Antworten = wirkt unsicher; klare, vollständige, ruhige Sätze = souverän). Ein Kandidat kann flüssig sein und trotzdem unsicher klingen — genau das erfassen. "label": selbstbewusst|solide|zögerlich. "de"/"ar": stärken-zuerst, dann GENAU EIN konkreter Delivery-Fix — z.B. "Du hast drei Antworten sehr leise begonnen — starte jede mit einem festen Satz."
 
-- NIVEAU-SKALIERUNG (beide neuen Dimensionen): Bei a2-b1 (Anfänger) LEICHT, ermutigend, nicht überfordernd — höchstens ein sanfter Tipp, nie streng, der Kandidat darf nicht einfrieren. Bei b2 (fortgeschritten) HOHER Maßstab: eine starke Antwort MUSS ein Ergebnis nennen und der Kandidat MUSS souverän klingen — benenne fehlende Ergebnisse und zögerliche Delivery klar, aber weiterhin stärken-zuerst und nur EIN Fix. Das "ar" für beide ist einfaches ägyptisches Arabisch, freundlich, niemals eine Mauer aus Kritik.`;
+- NIVEAU-SKALIERUNG (beide neuen Dimensionen): Bei a2-b1 (Anfänger) LEICHT, ermutigend, nicht überfordernd — höchstens ein sanfter Tipp, nie streng, der Kandidat darf nicht einfrieren. Bei b2 (fortgeschritten) HOHER Maßstab: eine starke Antwort MUSS ein Ergebnis nennen und der Kandidat MUSS souverän klingen — benenne fehlende Ergebnisse und zögerliche Delivery klar, aber weiterhin stärken-zuerst und nur EIN Fix. Das "ar" für beide ist einfaches ägyptisches Arabisch, freundlich, niemals eine Mauer aus Kritik.
 
-export async function generateDebrief({ utterances, metrics, level, csScenarioId }) {
+- KERNSTÜCK — "interviewReview" (DAS WICHTIGSTE FELD): Du bekommst das ECHTE Gespräch als Abfolge von Interviewer-Fragen (B:) und Kandidaten-Antworten (K:). Bewerte die 3–4 WICHTIGSTEN Austausche (Vorstellung, Verhaltensfrage, Beschwerde-/Deeskalations-Rollenspiel) — NICHT jede Mini-Äußerung. Für jeden: zitiere die Antwort WÖRTLICH ("deinSatz"), sag was an genau dieser Antwort gut war ("stark"), und vor allem: was IN BEZUG AUF DIE GESTELLTE FRAGE fehlte ("luecke") und der EINE Zusatz, der sie einstellungsreif macht ("fixDerEinstellt"). Ziel: ein AHA-Moment — der Kandidat soll sehen "genau DAS hätte mich den Job gekostet — und SO fixe ich es".
+- EINSTELLUNGS-RUBRIK (woran du "luecke" misst — echter BPO-Maßstab):
+  • Vorstellung: WER bist du + WARUM Kundenservice + EINE konkrete Stärke mit Beleg. Lücke = nur Floskeln, kein Warum, keine belegte Stärke.
+  • Verhaltensfrage (STAR): Situation → Handlung → konkretes ERGEBNIS. Lücke = KEIN Ergebnis, nur Aufgaben aufgezählt, oder Selbstsabotage.
+  • Beschwerde/Deeskalation: Beschwerde ANERKENNEN → konkrete LÖSUNG → ZUSAGE/nächster Schritt, ruhig und höflich. Lücke = keine Lösung, defensiv, oder Schuld beim Kunden.
+- WAHRHEIT VOR ALLEM: "deinSatz" MUSS wörtlich aus den Kandidaten-Antworten stammen — erfinde NIE ein Zitat. War eine Antwort wirklich gut, lass "luecke" leer und sag es ehrlich in "stark". Erfinde keine Lücke, nur um etwas zu schreiben. Lieber 2 echte, treffende Einträge als 4 erzwungene.
+- NIVEAU für interviewReview: a2-b1 → höchstens 2–3 Einträge, sanft, ein Fix pro Eintrag, nie überfordernd. b2 → hoher Maßstab, benenne fehlende Ergebnisse/Lösungen klar, aber immer mit dem konkreten Fix.`;
+
+export async function generateDebrief({ utterances, dialogue, history, metrics, level, csScenarioId }) {
   const apiKey = process.env.GROQ_API_KEY;
+  // Deterministic, 100%-accurate "you progressed" narrative from the user's OWN past sessions
+  // (never the model's opinion). Always attached so the numbers can never be wrong.
+  const progressNarrative = buildProgress(history, metrics);
   if (!utterances || utterances.length === 0) {
-    return fallbackDebrief(metrics, utterances);
+    const fb = fallbackDebrief(metrics, utterances);
+    fb.progressNarrative = progressNarrative;
+    return fb;
   }
 
   // ── AUTHORITATIVE grammar from LanguageTool (deterministic). null if unreachable. ──
@@ -90,12 +113,13 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     console.error('[coach] LanguageTool unavailable, will backstop with model:', e.message);
   }
 
-  // No model key → metrics-only debrief, but still attach the authoritative grammar.
+  // No model key → metrics-only debrief, but still attach the authoritative grammar + progress.
   if (!apiKey) {
     const fb = fallbackDebrief(metrics, utterances);
     if (ltGrammar) fb.grammar = ltGrammar;
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
     fb.grammarUnavailable = !ltGrammar;
+    fb.progressNarrative = progressNarrative;
     return fb;
   }
 
@@ -111,11 +135,16 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     })
     .join('\n');
 
+  // The ACTUAL interview as a dialogue (B: interviewer, K: candidate) — this is what lets the
+  // debrief judge whether each answer actually answered the question. The single biggest input.
+  const transcriptBlock = formatDialogue(dialogue, utterances);
+
   const userMsg =
     `Niveau: ${level}\n` +
     `Rollenspiel-Szenario: ${csScenarioId ?? 'unbekannt'}\n` +
     `Objektive Metriken (bereits berechnet, als Kontext — nicht neu erfinden): ${JSON.stringify(metrics)}\n` +
     `Hinweis: Die (WpM, Sekunden) pro Antwort sind DELIVERY-Signale für "deliveryConfidence" — niedrige WpM = lange Pausen/Zögern. NICHT mit Füllwörtern/Flüssigkeit doppelt zählen.\n\n` +
+    `DAS ECHTE GESPRÄCH (B = Interviewer, K = Kandidat) — analysiere "interviewReview" auf DIESER Grundlage:\n${transcriptBlock}\n\n` +
     `Äußerungen des Kandidaten (chronologisch, mit Pace pro Antwort):\n${sentences}`;
 
   const controller = new AbortController();
@@ -128,7 +157,7 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     body: JSON.stringify({
       model:           COACH_MODEL,
       temperature:     0.2,
-      max_tokens:      2000,
+      max_tokens:      3200,   // larger now to fit the per-exchange interviewReview
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -156,11 +185,17 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     const txt    = data.choices?.[0]?.message?.content ?? '{}';
     const parsed = JSON.parse(txt);
     const norm   = normalize(parsed);
+    // GUARD (anti-fabrication): an "upgrade" must reword words the candidate REALLY said.
+    const saidCanon = _canon((utterances || []).map((u) => u?.text || '').join(' '));
+    norm.upgrades = (norm.upgrades || []).filter((u) => saidCanon.includes(_canon(u.original)));
+    // GUARD: every interviewReview "deinSatz" must be a real candidate quote (substring) —
+    // drop any entry the model invented, so the review can never fabricate words.
+    norm.interviewReview = (norm.interviewReview || []).filter((r) => r.deinSatz && saidCanon.includes(_canon(r.deinSatz)));
     // GRAMMAR: ONLY from LanguageTool — NEVER the model.
     const grammar = ltGrammar || [];
     const lesson  = buildLesson(utterances, metrics, grammar);
     const drills  = buildDrills(grammar);
-    return { ...norm, grammar, lesson, drills, metrics, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
+    return { ...norm, grammar, lesson, drills, metrics, progressNarrative, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
     const fb = fallbackDebrief(metrics, utterances);
@@ -169,6 +204,7 @@ export async function generateDebrief({ utterances, metrics, level, csScenarioId
     fb.grammarUnavailable = !ltGrammar;
     fb.naturalness = naturalness;
     fb.drills = buildDrills(fb.grammar);
+    fb.progressNarrative = progressNarrative;
     return fb;
   }
 }
@@ -266,7 +302,65 @@ export function normalize(d) {
     ? { de: String(d.priorityFix?.de ?? '').trim(), ar: String(d.priorityFix?.ar ?? '').trim() }
     : null;
 
-  return { grammar, strengths, strengths_ar, studyNext, vocabTargets, upgrades, answerArchitecture, deliveryConfidence, priorityFix };
+  // ── interviewReview: per-exchange, quote-grounded coaching (the "aha" field) ──────
+  // deinSatz membership in the real transcript is enforced by the caller; here we shape.
+  const str = (x) => String(x ?? '').trim();
+  const interviewReview = arr(d.interviewReview)
+    .map((r) => ({
+      frage:              str(r?.frage),
+      deinSatz:           str(r?.deinSatz),
+      stark:              str(r?.stark),
+      luecke:             str(r?.luecke),
+      fixDerEinstellt:    str(r?.fixDerEinstellt),
+      stark_ar:           str(r?.stark_ar),
+      luecke_ar:          str(r?.luecke_ar),
+      fixDerEinstellt_ar: str(r?.fixDerEinstellt_ar),
+    }))
+    .filter((r) => r.deinSatz && (r.stark || r.luecke || r.fixDerEinstellt))
+    .slice(0, 4);
+
+  return { grammar, strengths, strengths_ar, studyNext, vocabTargets, upgrades, answerArchitecture, deliveryConfidence, priorityFix, interviewReview };
+}
+
+// ── Format the real interview as a readable B:/K: transcript for the model ─────────
+// Falls back to candidate-only utterances if no paired dialogue was captured (older sessions).
+function formatDialogue(dialogue, utterances) {
+  const turns = Array.isArray(dialogue) ? dialogue.filter((t) => (t?.text || '').trim()) : [];
+  if (turns.length) {
+    let lastStage = -1, out = '';
+    for (const t of turns) {
+      if (t.stage !== lastStage && t.stageLabel) { out += `\n[${t.stageLabel}]\n`; lastStage = t.stage; }
+      out += `${t.role === 'boss' ? 'B' : 'K'}: ${String(t.text).trim()}\n`;
+    }
+    return out.trim();
+  }
+  return (utterances || []).map((u, i) => `K${i + 1}: ${(u.text || '').trim()}`).join('\n');
+}
+
+// ── DETERMINISTIC progress narrative — built from the user's OWN past sessions ─────
+// 100% factual (their real numbers), never the model's opinion. Returns null on the first
+// session (nothing to compare) or when there is not enough signal to say something true.
+function buildProgress(history, metrics) {
+  const past = Array.isArray(history) ? history.filter((h) => Number.isFinite(h?.fluency)) : [];
+  if (!past.length || !metrics) return null;
+  const firstFl = past[0].fluency;
+  const lines_de = [], lines_ar = [];
+  const sessionNo = past.length + 1;
+  lines_de.push(`Das ist deine ${sessionNo}. Sitzung.`);
+  lines_ar.push(`دي الجلسة رقم ${sessionNo} ليك.`);
+
+  if (Number.isFinite(past[0]?.fillers) && Number.isFinite(metrics.fillers)) {
+    const d0 = past[0].fillers, dn = metrics.fillers;
+    if (dn < d0)      { lines_de.push(`Füllwörter: von ${d0} (erste Sitzung) auf ${dn} heute — du zögerst weniger.`); lines_ar.push(`كلمات الحشو: من ${d0} (أول جلسة) لـ ${dn} النهاردة — بتتردد أقل.`); }
+    else if (dn > d0) { lines_de.push(`Füllwörter heute ${dn} (erste Sitzung ${d0}) — heute etwas mehr Zögern, das schwankt.`); lines_ar.push(`كلمات الحشو النهاردة ${dn} (أول جلسة ${d0}) — تردد أكتر شوية، بيتغير من جلسة للتانية.`); }
+  }
+  if (Number.isFinite(firstFl) && Number.isFinite(metrics.fluency)) {
+    const diff = Math.round(metrics.fluency - firstFl);
+    if (diff > 0) { lines_de.push(`Flüssigkeit: +${diff} Punkte seit deiner ersten Sitzung.`); lines_ar.push(`الطلاقة: +${diff} نقطة من أول جلسة.`); }
+  }
+
+  if (lines_de.length <= 1) return null;   // only the session counter → not worth showing yet
+  return { de: lines_de.join(' '), ar: lines_ar.join(' ') };
 }
 
 function buildLesson(utterances, metrics, grammar) {
@@ -360,6 +454,7 @@ function fallbackDebrief(metrics, utterances) {
     vocabTargets: [],
     upgrades: [],
     drills: [],
+    interviewReview: [],
     lesson: buildLesson(utterances, metrics, []),
     metrics,
     generated: false,
