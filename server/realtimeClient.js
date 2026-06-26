@@ -220,11 +220,12 @@ export class RealtimeClient {
     this.sessionInfo = {
       bossId,
       displayName: this._boss.displayName,
-      voice:       this._boss.voice ?? 'aura-2-julius-de',
-      // DEFAULT to native-German Deepgram Aura-2 (voice above). An English ElevenLabs voice
-      // speaking German is the #1 cause of the "robotic" sound. ElevenLabs (now native-German
-      // turbo + tuned settings) is opt-in for A/B via USE_ELEVENLABS=1 — empty here = Deepgram.
-      elevenVoice: (process.env.USE_ELEVENLABS === '1') ? (this._boss.elevenVoice ?? '') : '',
+      voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 fallback (used if ElevenLabs has no key / fails)
+      // ElevenLabs (native-German turbo voices) is now the DEFAULT for a human-sounding boss (owner
+      // opted into the cost). Set USE_ELEVENLABS=0 to force the free Aura-2 voice instead. If the
+      // ELEVENLABS_API_KEY is missing or a voice id is invalid, /api/voice falls back to Aura-2
+      // automatically — so this is safe even before the key is added.
+      elevenVoice: (process.env.USE_ELEVENLABS !== '0') ? (this._boss.elevenVoice ?? '') : '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
