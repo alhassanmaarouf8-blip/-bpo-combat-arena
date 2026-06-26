@@ -196,17 +196,6 @@ function stopBossVoice() {
 }
 
 // Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
-let _ttsCtx = null;   // reused AudioContext for the volume boost (created lazily)
-// Create + RESUME the audio context on a real user gesture (the START click). Browsers start the
-// context 'suspended'; without resuming it on a gesture the gain stage never engages and the boss
-// voice plays at the (quiet) source level. Called from beginSession so it's 'running' before the
-// boss ever speaks.
-function ensureAudioBoost() {
-  try {
-    if (!_ttsCtx && (window.AudioContext || window.webkitAudioContext)) _ttsCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (_ttsCtx && _ttsCtx.state === 'suspended') _ttsCtx.resume().catch(() => {});
-  } catch {}
-}
 async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
   // onEnd MUST fire exactly once no matter what — if it doesn't, bossSpeak stays true and the
   // hands-free loop never resumes (= the interviewer "stops responding"). Every exit path calls done().
@@ -234,21 +223,8 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd })
     let wd = null;
     const cleanup = () => { if (wd) { clearInterval(wd); wd = null; } try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; };
 
-    // VOLUME BOOST: Aura-2's output is quiet → amplify via a pure Web Audio gain stage (gain only,
-    // NO filtering, so it can never sound robotic). Fail-SAFE: only engaged when the AudioContext is
-    // already running — otherwise we leave the plain <audio> element untouched (audible at source
-    // level), so this can never produce silence. First boss line may be source-level; then it boosts.
-    try {
-      if (!_ttsCtx && (window.AudioContext || window.webkitAudioContext)) _ttsCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (_ttsCtx && _ttsCtx.state === 'suspended') _ttsCtx.resume().catch(() => {});
-      if (_ttsCtx && _ttsCtx.state === 'running') {
-        const srcNode = _ttsCtx.createMediaElementSource(audio);
-        const gain = _ttsCtx.createGain();
-        gain.gain.value = 2.4;   // boost — Aura-2 source is quiet (owner reported still-low at 1.8x)
-        srcNode.connect(gain); gain.connect(_ttsCtx.destination);
-      }
-    } catch { /* boost unavailable → plain element playback (still audible) */ }
-
+    // (Volume is now boosted SERVER-SIDE via peak-normalization in /api/tts — reliable on every
+    //  device. No client Web Audio gain, which never reliably engaged.)
     audio.onplay = () => {
       try { onStart?.(); } catch {}
       // WATCHDOG: if currentTime freezes for ~6s after playback started, the stream hung and
@@ -2945,7 +2921,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
   const beginSession = useCallback(async (mode) => {
-    ensureAudioBoost();   // resume the audio context on THIS user gesture → boss voice plays boosted, not at quiet source level
     fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
