@@ -92,6 +92,26 @@ function speak(text, rate) {
 }
 const cancelSpeech = () => { try { window.speechSynthesis?.cancel(); } catch { /* ignore */ } };
 
+// Real VOICED time (ms) from the recorded WAV (PCM16, 24 kHz, 44-byte header) — the honest "did they
+// keep talking under pressure" signal (blob size is meaningless: uncompressed silence is still huge).
+async function voicedMsFromBlob(blob) {
+  try {
+    if (!blob) return 0;
+    const buf = await blob.arrayBuffer();
+    if (buf.byteLength <= 44 + 960) return 0;
+    const view = new DataView(buf);
+    const RATE = 24000, WIN = 480, FLOOR = 0.012 * 32768;
+    const nSamples = (buf.byteLength - 44) >> 1;
+    let voiced = 0;
+    for (let i = 0; i + WIN <= nSamples; i += WIN) {
+      let sum = 0;
+      for (let j = 0; j < WIN; j++) { const s = view.getInt16(44 + ((i + j) << 1), true); sum += s * s; }
+      if (Math.sqrt(sum / WIN) >= FLOOR) voiced++;
+    }
+    return Math.round(voiced * (WIN / RATE) * 1000);
+  } catch { return 0; }
+}
+
 export function PressureLadder({ lang = 'de', onClose }) {
   const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
   const [phase, setPhase]   = useState('intro');    // intro | ready | answering | round | done
@@ -137,7 +157,9 @@ export function PressureLadder({ lang = 'de', onClose }) {
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
     cancelSpeech();
     let kept = false;
-    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = !!(c?.blob && c.blob.size > 4000); } } catch { /* ignore */ }
+    // "Survived" = they ACTUALLY kept talking. Blob SIZE is wrong (uncompressed WAV is huge even for
+    // silence → always "survived"). Measure real VOICED time from the recorded PCM instead.
+    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = (await voicedMsFromBlob(c?.blob)) >= 1500; } } catch { /* ignore */ }
     setFroze(!kept);
     if (kept) {
       if (endless) setEndlessStreak((n) => n + 1);

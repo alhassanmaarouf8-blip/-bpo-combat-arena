@@ -20,6 +20,7 @@ import express from 'express';
 import { requireAuth, planOf } from './auth.js';
 import { loadUser, saveUser }  from './store.js';
 import { dueItems, grade, normalize } from './srs.js';
+import { voicedDurationMs }            from './audioGuard.js';
 
 export const spokenReviewRouter = express.Router();
 
@@ -84,6 +85,7 @@ async function transcribeGroq(buffer, mimeType) {
 // grammar) their own wrong sentence to fix out loud.
 spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
+  res.set('Cache-Control', 'no-store');   // fresh due items every open
   try {
     const p = await loadUser(req.account.id);
     const due = dueItems(p, Date.now(), 8);
@@ -118,8 +120,11 @@ spokenReviewRouter.post('/spoken-review/grade',
       const item = (p.srs || []).find((i) => i.id === id);
       if (!item) return res.status(404).json({ error: 'item_not_found' });
 
+      // HONEST GATE: no real voiced speech → retry, never score a Whisper hallucination of silence.
+      if (voicedDurationMs(audio) < 600) return res.json({ retry: true, noSpeech: true });
+
       const transcript = (await transcribeGroq(audio, req.headers['content-type'] || 'audio/wav')).trim();
-      if (!transcript) return res.json({ retry: true });
+      if (!transcript) return res.json({ retry: true, noSpeech: true });
 
       const { correct, expected } = gradeSpoken(item, transcript);
       grade(p, id, correct);                  // advance/reset the spaced schedule

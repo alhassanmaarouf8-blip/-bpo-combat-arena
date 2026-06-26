@@ -34,6 +34,7 @@ import express from 'express';
 import { requireAuth, planOf } from './auth.js';
 import { buildGrammar }        from './grammarCheck.js';
 import { loadUser }            from './store.js';
+import { voicedDurationMs }    from './audioGuard.js';
 
 export const fluencyRouter = express.Router();
 
@@ -111,24 +112,7 @@ function measure(transcript, durationMs, voicedMs) {
   return { words, wpm, fillers, uniqueWords, durationMs, voicedMs: voicedMs || 0 };
 }
 
-// Estimate VOICED duration from the WAV bytes (24 kHz mono PCM16, 44-byte header): ~20 ms
-// windows whose RMS clears an amplitude floor count as speech. Used so words/minute reflects
-// time actually SPENT SPEAKING. DataView reads handle any buffer alignment. 0 if unparseable.
-function voicedDurationMs(buffer) {
-  try {
-    const RATE = 24000, WIN = 480, FLOOR = 0.012 * 32768;   // ~ matches the client VAD onset
-    if (!Buffer.isBuffer(buffer) || buffer.length <= 44 + WIN * 2) return 0;
-    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.length);
-    const nSamples = (buffer.length - 44) >> 1;
-    let voiced = 0;
-    for (let i = 0; i + WIN <= nSamples; i += WIN) {
-      let sum = 0;
-      for (let j = 0; j < WIN; j++) { const s = view.getInt16(44 + ((i + j) << 1), true); sum += s * s; }
-      if (Math.sqrt(sum / WIN) >= FLOOR) voiced++;
-    }
-    return Math.round(voiced * (WIN / RATE) * 1000);
-  } catch { return 0; }
-}
+// voicedDurationMs now lives in audioGuard.js (shared by every audio-scored feature).
 
 async function transcribeGroq(buffer, mimeType) {
   const apiKey = process.env.GROQ_API_KEY;
@@ -153,6 +137,7 @@ async function transcribeGroq(buffer, mimeType) {
 // ── GET a fresh drill: one prompt + the three shrinking round windows (paid only) ──
 fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
+  res.set('Cache-Control', 'no-store');   // fresh prompt + focus every open (never a cached repeat)
   const level = req.query.level === 'b2' ? 'b2' : 'a2-b1';
   const p = pickPrompt(level);
   // Weakness FOCUS: prompts can't be cleanly grammar-tagged, but we can prime the learner on their
@@ -183,10 +168,14 @@ fluencyRouter.post('/fluency/score',
         return res.status(400).json({ error: 'empty_audio' });
       }
 
-      const transcript = (await transcribeGroq(audio, req.headers['content-type'] || 'audio/wav')).trim();
-      if (!transcript) return res.json({ transcript: '', retry: true });
+      // HONEST GATE: no real voiced speech → DON'T transcribe or score. Whisper invents German from
+      // silence, which became fake metrics + a fake "correction". Tell the client to retry instead.
+      const voicedMs = voicedDurationMs(audio);
+      if (voicedMs < 600) return res.json({ transcript: '', retry: true, noSpeech: true });
 
-      const voicedMs = voicedDurationMs(audio);   // speech-only time → honest words/minute
+      const transcript = (await transcribeGroq(audio, req.headers['content-type'] || 'audio/wav')).trim();
+      if (!transcript) return res.json({ transcript: '', retry: true, noSpeech: true });
+
       const metrics = measure(transcript, durationMs, voicedMs);
 
       // Authoritative grammar (LanguageTool only) — requested on the final round so we don't

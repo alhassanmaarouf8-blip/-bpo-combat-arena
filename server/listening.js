@@ -111,6 +111,7 @@ function pickAdaptive(stats, n) {
 // a level-scaled baseRate, and items biased toward the student's weakest data-type. Answer never sent.
 listeningRouter.get('/listening', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
+  res.set('Cache-Control', 'no-store');   // fresh items every open — was cached → "same 5 every time"
   let baseRate = 1.0, stats = null;
   try {
     const p = await loadUser(req.account.id);

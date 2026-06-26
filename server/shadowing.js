@@ -64,6 +64,7 @@ function wordAccuracy(transcript, target) {
 // ── GET a fresh session of 3–5 sentences (paid only, unlimited sessions) ──
 shadowingRouter.get('/shadowing', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
+  res.set('Cache-Control', 'no-store');   // fresh phrases every open
   const span = PER_SESSION_MAX - PER_SESSION_MIN + 1;
   const n    = Math.min(PER_SESSION_MIN + Math.floor(Math.random() * span), BPO_PHRASES.length);
   res.json({ sentences: pickSentences(n) });

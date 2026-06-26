@@ -19,6 +19,7 @@ import { loadUser, saveUser } from './store.js';
 import { requireAuth, planOf }  from './auth.js';
 import { transcribeAudio }    from './planGuide.js';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
+import { voicedDurationMs }   from './audioGuard.js';
 
 export const assessmentRouter = express.Router();
 
@@ -91,6 +92,8 @@ assessmentRouter.post('/assessment/transcribe',
 
       const audio = req.body;
       if (!Buffer.isBuffer(audio) || audio.length < 1000) return res.status(400).json({ error: 'empty_audio' });
+      // HONEST GATE: no real voiced speech → empty transcript, never a hallucinated assessment answer.
+      if (voicedDurationMs(audio) < 600) return res.json({ transcript: '', noSpeech: true });
 
       const transcript = await transcribeAudio(audio, { mime: req.headers['content-type'] || 'audio/wav' });
       res.json({ transcript });
