@@ -181,7 +181,9 @@ function classifyTurnDE(partial) {
 // Deepgram Aura neural voice. The robotic browser Web Speech API has been REMOVED — on a
 // total failure the line is shown on screen with no audio, but never the robotic voice.
 let _bossAudio = null;
+let _streamSeq = 0;   // bumped to cancel an in-flight streamed (multi-sentence) boss line
 function stopBossVoice() {
+  _streamSeq++;        // cancel any sentence-stream in progress
   // Null handlers BEFORE clearing src. Clearing src causes the browser to fire onerror/onemptied
   // on the element; if handlers are still attached they call onEnd() → setBossSpeak(false) on
   // the OLD audio, which races with a newly-started audio and clears bossSpeak prematurely.
@@ -195,40 +197,37 @@ function stopBossVoice() {
   } catch {}
 }
 
-// Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
-async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
-  // onEnd MUST fire exactly once no matter what — if it doesn't, bossSpeak stays true and the
-  // hands-free loop never resumes (= the interviewer "stops responding"). Every exit path calls done().
-  let ended = false;
-  const done = () => { if (ended) return; ended = true; try { onEnd?.(); } catch {} };
+// Fetch ONE clip's audio (POST → normalized WAV blob) and return an object URL. Throws on failure.
+async function fetchTtsUrl(apiUrl, token, voice, text) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 12000); // 12s max — Deepgram is fast; hang = network issue
-    let res;
-    try {
-      res = await fetch(`${apiUrl}/api/tts`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ text, voice }),
-        signal:  ctrl.signal,
-      });
-    } finally { clearTimeout(tid); }
+    const res = await fetch(`${apiUrl}/api/tts`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ text, voice }),
+      signal:  ctrl.signal,
+    });
     if (!res.ok) throw new Error('tts ' + res.status);
     const blob = await res.blob();
     if (!blob || !blob.size) throw new Error('empty audio');
-    const url = URL.createObjectURL(blob);
+    return URL.createObjectURL(blob);
+  } finally { clearTimeout(tid); }
+}
+
+// Play ONE already-fetched clip. onEnd fires EXACTLY ONCE (watchdog + backstop) so a hung clip can
+// never leave the boss stuck silent — the same guarantee the single-shot path had.
+function playClipFromUrl(url, onStart, onEnd) {
+  let ended = false;
+  const done = () => { if (ended) return; ended = true; try { onEnd?.(); } catch {} };
+  try {
     const audio = new Audio(url);
     audio.volume = 1.0;
     _bossAudio = audio;
     let wd = null;
     const cleanup = () => { if (wd) { clearInterval(wd); wd = null; } try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; };
-
-    // (Volume is now boosted SERVER-SIDE via peak-normalization in /api/tts — reliable on every
-    //  device. No client Web Audio gain, which never reliably engaged.)
     audio.onplay = () => {
       try { onStart?.(); } catch {}
-      // WATCHDOG: if currentTime freezes for ~6s after playback started, the stream hung and
-      // onended will never fire → force-finish so the boss can't get stuck silent.
       let last = -1, stuck = 0;
       wd = setInterval(() => {
         if (ended) { clearInterval(wd); wd = null; return; }
@@ -239,12 +238,47 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd })
     };
     audio.onended = () => { cleanup(); done(); };
     audio.onerror = () => { cleanup(); done(); };
-    // Hard backstop: a boss turn may NEVER hang forever, even if onplay never fired.
     setTimeout(() => { if (!ended) { try { audio.pause(); } catch {} cleanup(); done(); } }, 45000);
-    await audio.play().catch(() => { cleanup(); done(); });
-  } catch {
-    done();
-  }
+    audio.play().catch(() => { cleanup(); done(); });
+  } catch { done(); }
+}
+
+// Deepgram Aura neural (POST → WAV blob). Single-clip path (ElevenLabs fallback + 1-sentence lines).
+async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
+  try { playClipFromUrl(await fetchTtsUrl(apiUrl, token, voice, text), onStart, onEnd); }
+  catch { onEnd?.(); }
+}
+
+// Split a German line into sentences, merging very short fragments so we never TTS a 2-word scrap.
+function splitSentencesDE(text) {
+  const raw = (String(text).match(/[^.!?…]+[.!?…]*/g) || [text]).map((s) => s.trim()).filter(Boolean);
+  const out = [];
+  for (const p of raw) { if (out.length && out[out.length - 1].length < 24) out[out.length - 1] += ' ' + p; else out.push(p); }
+  return out.length ? out : [String(text)];
+}
+
+// STREAMED boss voice: speak sentence 1 the instant its (short) clip is ready, PREFETCHING the next
+// sentence while the current plays → boss starts talking ~1s sooner with no mid-line gaps. onEnd fires
+// once after the LAST sentence; a newer line (stopBossVoice bumps _streamSeq) cancels silently so it
+// never clears bossSpeak out from under the new line.
+async function speakBossStreamed({ apiUrl, token, voice, text, onStart, onEnd }) {
+  const sentences = splitSentencesDE(text);
+  if (sentences.length <= 1) return playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd });
+  const myseq = _streamSeq;   // set by the stopBossVoice() the caller just ran
+  let started = false;
+  try {
+    let url = await fetchTtsUrl(apiUrl, token, voice, sentences[0]);
+    for (let i = 0; i < sentences.length; i++) {
+      if (myseq !== _streamSeq) return;                       // cancelled by a newer line → silent
+      const cur = url;
+      const prefetch = (i + 1 < sentences.length) ? fetchTtsUrl(apiUrl, token, voice, sentences[i + 1]).catch(() => null) : Promise.resolve(null);
+      await new Promise((resolve) => playClipFromUrl(cur, () => { if (!started) { started = true; try { onStart?.(); } catch {} } }, resolve));
+      if (myseq !== _streamSeq) return;                       // cancelled mid-line → silent
+      url = await prefetch;
+      if (!url && i + 1 < sentences.length) break;            // prefetch failed → stop cleanly
+    }
+  } catch { /* fall through to onEnd so bossSpeak always clears on a real error */ }
+  if (myseq === _streamSeq) { try { onEnd?.(); } catch {} }
 }
 
 async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart, onEnd }) {
@@ -2567,11 +2601,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {
           const spokenLine = bossLineRef.current || '';
           if (!ttsMutedRef.current && spokenLine) {
-            // Deepgram Aura-2 German (neural) → auto-fallback to free browser voice.
-            playBossVoice({
+            const opts = {
               apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
               onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
-            });
+            };
+            if (bossElevenVoiceRef.current) {
+              playBossVoice(opts);              // opt-in ElevenLabs path (its own progressive stream)
+            } else {
+              stopBossVoice();                  // bump the cancel token + stop any prior line
+              speakBossStreamed(opts);          // default: sentence-streamed Aura-2 → starts talking sooner
+            }
           } else {
             setBossSpeak(false);
           }
