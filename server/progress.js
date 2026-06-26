@@ -32,9 +32,20 @@ function buildDashboard(p) {
     if (avgXp > 0) etaSessions = Math.max(1, Math.ceil(remainingXp / avgXp));
   }
 
+  // THE SPINE — the student's #1 named weakness right now, from their REAL data (most-lapsed,
+  // still-unmastered grammar rule). Lets every surface say "this is what to fix" instead of leaving
+  // them guessing. `lapses` is the real re-lapse count (only meaningful when > 0 — honest).
+  const srsItems = Array.isArray(p.srs) ? p.srs : [];
+  const weakG = srsItems
+    .filter((i) => i.type === 'grammar' && !i.mastered && i.content)
+    .sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || (b.reps || 0) - (a.reps || 0));
+  const topWeakness = weakG.length ? { rule: weakG[0].content, lapses: weakG[0].lapses || 0 } : null;
+
   return {
     remainingXp,
     etaSessions,
+    topWeakness,
+    recentErrors:  (p.recentErrors || []).slice(0, 3),
     userId:        p.userId,
     level:         p.level,
     xp:            p.xp,

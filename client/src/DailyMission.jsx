@@ -142,7 +142,34 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
         </div>
       </div>
 
-      {/* Today's one mission */}
+      {/* THE SPINE: name the #1 weakness so the learner knows EXACTLY what to fix — never guessing */}
+      {(() => {
+        const w = d.topWeakness;
+        const re = Array.isArray(d.recentErrors) ? d.recentErrors.filter(Boolean) : [];
+        let title, body;
+        if (w && w.rule) {
+          title = T(lang, '🎯 DEINE SCHWÄCHE NR. 1 JETZT', '🎯 نقطة ضعفك رقم ١ دلوقتي');
+          body = w.lapses > 0
+            ? T(lang, `${w.rule} — ${w.lapses}× daneben. Heute fixen wir genau das.`, `${w.rule} — غلطتها ${w.lapses} مرة. النهاردة نظبطها بالظبط.`)
+            : T(lang, `${w.rule} — heute fixen wir genau das.`, `${w.rule} — النهاردة نظبطها بالظبط.`);
+        } else if (re.length) {
+          title = T(lang, '🎯 ZULETZT AUFGEFALLEN', '🎯 أنماط من آخر جلسة');
+          body  = re.join(T(lang, ', ', '، '));
+        } else {
+          title = T(lang, '🎯 SCHWÄCHE NOCH NICHT ERKANNT', '🎯 لسه محددتش نقطة ضعفك');
+          body  = T(lang, 'Mach eine Einstufung oder ein Interview — dann zeige ich dir genau, was zu fixen ist.',
+                          'اعمل تقييم أو إنترفيو — وساعتها هقولّك بالظبط تظبط إيه.');
+        }
+        return (
+          <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)',
+            ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
+            <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#f87171', marginBottom: 5 }}>{title}</div>
+            <div style={{ fontSize: 12.5, color: '#fecaca', lineHeight: 1.5 }}>{body}</div>
+          </div>
+        );
+      })()}
+
+      {/* Today's one mission — the fix for exactly the weakness named above */}
       <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#fbbf24', marginBottom: 5 }}>
           {T(lang, 'DEINE MISSION HEUTE', 'مهمتك النهارده')}
