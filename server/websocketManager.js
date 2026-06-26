@@ -686,6 +686,8 @@ export class WebSocketManager {
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
+        xpGained,   // per-session XP → honest "ETA to next level" from the student's real pace
+
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
         // Raw LanguageTool rule→count for this session. Same identifier space as topWeakRule, so the
         // debrief can prove "your weakness X: N→M" honestly. Absent rule = 0 errors of it this session.

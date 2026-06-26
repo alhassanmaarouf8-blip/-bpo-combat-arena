@@ -1721,6 +1721,10 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
                 Nächster Gegner ab Level {data.nextBoss.minLevel}: {data.nextBoss.name} ({data.nextBoss.tier})
               </div>
             )}
+            <div style={{ fontSize:10, color:'#a78bfa', marginTop:5 }}>
+              Noch {data?.remainingXp ?? Math.max(0, (lp.perLevel || 0) - (lp.intoLevel || 0))} XP bis Level {lp.level + 1}
+              {data?.etaSessions ? ` · ~${data.etaSessions} Sitzung${data.etaSessions === 1 ? '' : 'en'}` : ''}
+            </div>
           </Section>
 
           {/* Stat tiles */}
@@ -1743,6 +1747,9 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
           {/* Trends */}
           <Section title="FLÜSSIGKEIT ÜBER ZEIT" color="#10b981">
             <Sparkline data={data?.trends?.fluency} color="#10b981" />
+          </Section>
+          <Section title="SPRECHTEMPO ÜBER ZEIT (Ziel 140–160 WpM)" color="#22d3ee">
+            <Sparkline data={data?.trends?.wpm} color="#22d3ee" />
           </Section>
           <Section title="FÜLLWÖRTER-TREND (weniger = besser)" color="#f59e0b">
             <Sparkline data={data?.trends?.fillers} color="#f59e0b" />

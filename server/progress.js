@@ -22,7 +22,19 @@ function buildDashboard(p) {
   const boss      = bossForLevel(p.level);
   const upcoming  = nextBoss(p.level);
 
+  // ETA to the next level: remaining XP ÷ the student's REAL recent average XP-per-session.
+  // Honest estimate — null until ≥2 sessions actually recorded xpGained (no fabricated pace).
+  const remainingXp = Math.max(0, lp.perLevel - lp.intoLevel);
+  const withXp = recent.filter((s) => typeof s.xpGained === 'number' && s.xpGained > 0);
+  let etaSessions = null;
+  if (withXp.length >= 2) {
+    const avgXp = withXp.reduce((x, s) => x + s.xpGained, 0) / withXp.length;
+    if (avgXp > 0) etaSessions = Math.max(1, Math.ceil(remainingXp / avgXp));
+  }
+
   return {
+    remainingXp,
+    etaSessions,
     userId:        p.userId,
     level:         p.level,
     xp:            p.xp,
