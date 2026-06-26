@@ -3,6 +3,7 @@ import { randomUUID }      from 'crypto';
 import { RealtimeClient }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
+import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
@@ -50,7 +51,7 @@ function stageForAnswers(n) {
 // The candidate's most recurring grammar weakness (for the boss memory dossier):
 // the still-unmastered grammar rule they've relapsed on most.
 function topWeakRule(profile) {
-  const items = (profile?.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content);
+  const items = (profile?.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content));
   if (!items.length) return null;
   items.sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || (b.reps || 0) - (a.reps || 0));
   return items[0].content;

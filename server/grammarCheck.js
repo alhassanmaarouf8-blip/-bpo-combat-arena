@@ -50,6 +50,22 @@ function spacingOrCaseOnly(a, b) {
   return strip(a) === strip(b);
 }
 
+// Same LETTERS/digits — only punctuation/comma/spacing/case differs. A SPEAKER cannot produce a
+// comma, a capital letter, or a hyphen by voice, so this is a written artifact of the transcript,
+// NEVER a spoken error. THIS is the filter that was missing → "Komma vor 'sondern'" leaked through.
+function punctSpacingCaseOnly(a, b) {
+  const strip = (s) => String(s ?? '').toLowerCase().normalize('NFC').replace(/[^\p{L}\p{N}]/gu, '');
+  return strip(a) === strip(b);
+}
+
+// Is this grammar rule meaningful for a SPOKEN trainer? Punctuation/casing/spelling rules are not —
+// you cannot hear a comma. Used to scrub already-stored SRS items from the weakness/drills too.
+export function isSpeakableRule(content) {
+  const s = String(content || '').toLowerCase();
+  if (!s) return true;
+  return !/komma|zeichensetzung|interpunktion|anführung|bindestrich|apostroph|schreibung|getrennt.{0,8}zusammen|leerzeichen|typograf/i.test(s);
+}
+
 // Build a SHORT context fragment centred on the change (≈4 words each side) so the UI can
 // show what actually changed instead of re-printing a whole ~40-word sentence twice.
 function makeFragment(sentence, local, length, repl) {
@@ -130,6 +146,7 @@ export async function buildGrammar(utterances) {
     const matched = seg.text.slice(local, local + mt.length);     // exact text LT wants to replace
     if (canon(matched) === canon(repl)) continue;                 // replacement == original span → no real change
     if (spacingOrCaseOnly(matched, repl)) continue;               // STT orthography artifact → skip
+    if (punctSpacingCaseOnly(matched, repl)) continue;            // comma/punctuation/casing-only → NOT a spoken error
     const wrong   = seg.text;
     const right   = seg.text.slice(0, local) + repl + seg.text.slice(local + mt.length);
     if (canon(wrong) === canon(right)) continue;                  // identical sentence → NOT an error

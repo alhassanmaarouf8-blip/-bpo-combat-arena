@@ -20,6 +20,7 @@ import { requireAuth } from './auth.js';
 import { loadUser }    from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { dueCount }            from './srs.js';
+import { isSpeakableRule }     from './grammarCheck.js';
 
 export const guideRouter = express.Router();
 
@@ -182,7 +183,7 @@ async function buildFacts(account, g) {
 
     // ── LIVE learning-loop signals — the ammo that makes Alhassan specific, not generic ──
     const srs = Array.isArray(p.srs) ? p.srs : [];
-    const weakG = srs.filter((i) => i.type === 'grammar' && !i.mastered && i.content)
+    const weakG = srs.filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
                      .sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
     if (weakG.length) lines.push(`THEIR #1 RECURRING WEAKNESS RIGHT NOW: "${weakG[0].content}" — this is exactly what the live interview targets. Push them on THIS specific thing, by name.`);
     if (Array.isArray(p.recentErrors) && p.recentErrors.length) {

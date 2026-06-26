@@ -32,7 +32,7 @@
  */
 import express from 'express';
 import { requireAuth, planOf } from './auth.js';
-import { buildGrammar }        from './grammarCheck.js';
+import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { loadUser }            from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
 
@@ -145,7 +145,7 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   let focus = null;
   try {
     const u = await loadUser(req.account.id);
-    const weak = (u.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content)
+    const weak = (u.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
                               .sort((a, b) => (b.lapses || 0) - (a.lapses || 0))[0];
     if (weak) focus = weak.content;
   } catch { /* focus is optional */ }

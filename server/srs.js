@@ -9,6 +9,12 @@
 export const INTERVALS_DAYS = [1, 3, 7, 14, 30];
 const DAY = 24 * 60 * 60 * 1000;
 
+// A SPEAKER cannot produce a comma, a capital letter, or a hyphen by voice — so punctuation/casing/
+// spelling rules are NOT drillable in a spoken trainer. Scrub them from due items + the due count so
+// they never become "your weakness" or a spoken drill (also retro-fixes already-stored comma items).
+const PUNCT_RULE = /komma|zeichensetzung|interpunktion|anführung|bindestrich|apostroph|schreibung|getrennt.{0,8}zusammen|leerzeichen|typograf/i;
+const drillable = (i) => i.type !== 'grammar' || !PUNCT_RULE.test(String(i.content || ''));
+
 export function srsKey(type, content) {
   return `${type}:${String(content).toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60)}`;
 }
@@ -49,13 +55,13 @@ export function addItem(profile, { type, content, prompt, answer, example }, now
 
 export function dueItems(profile, now = Date.now(), limit = 8) {
   return (profile.srs || [])
-    .filter((i) => !i.mastered && i.due <= now)
+    .filter((i) => !i.mastered && i.due <= now && drillable(i))
     .sort((a, b) => a.due - b.due)
     .slice(0, limit);
 }
 
 export function dueCount(profile, now = Date.now()) {
-  return (profile.srs || []).filter((i) => !i.mastered && i.due <= now).length;
+  return (profile.srs || []).filter((i) => !i.mastered && i.due <= now && drillable(i)).length;
 }
 
 /** Apply a recall result and advance/reset the schedule. Returns the updated item. */

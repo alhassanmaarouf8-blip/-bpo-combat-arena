@@ -10,6 +10,7 @@ import { loadUser, saveUser }                 from './store.js';
 import { dueItems, dueCount, grade, checkAnswer } from './srs.js';
 import { levelProgress, bossForLevel, nextBoss, computeStreak, computeRank } from './progression.js';
 import { dailyStatus } from './daily.js';
+import { isSpeakableRule } from './grammarCheck.js';
 import { dayKey } from './time.js';
 import { requireAuth, publicAccount, listAllAccounts } from './auth.js';
 
@@ -37,7 +38,7 @@ function buildDashboard(p) {
   // them guessing. `lapses` is the real re-lapse count (only meaningful when > 0 — honest).
   const srsItems = Array.isArray(p.srs) ? p.srs : [];
   const weakG = srsItems
-    .filter((i) => i.type === 'grammar' && !i.mastered && i.content)
+    .filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
     .sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || (b.reps || 0) - (a.reps || 0));
   const topWeakness = weakG.length ? { rule: weakG[0].content, lapses: weakG[0].lapses || 0 } : null;
 
