@@ -24,7 +24,7 @@ const QUESTIONS = [
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
-export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
+export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, onStartInterview }) {
   const [phase, setPhase]   = useState('loading');  // loading | intro | question | analyzing | verdict | error
   const [idx, setIdx]       = useState(0);
   const [answers, setAns]   = useState(Array(QUESTIONS.length).fill(null)); // [{transcript, durationMs}]
@@ -187,7 +187,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing })
   // ── VERDICT (Phase 1 simple render — Phase 2 will polish) ──
   if (phase === 'verdict' && result) return shell(<>
     {header}
-    <Verdict result={result} lang={lang} onGoPricing={onGoPricing} onClose={onClose} />
+    <Verdict result={result} lang={lang} onGoPricing={onGoPricing} onClose={onClose} onStartInterview={onStartInterview} />
   </>);
 
   // ── QUESTION ──
@@ -261,7 +261,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing })
 }
 
 // ── Phase-1 verdict (functional; Phase 2 replaces this with the polished arena screen) ──
-function Verdict({ result, lang, onGoPricing, onClose }) {
+function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
   const lvl = result.estimatedLevel || 'A2';
   return (
     <div>
@@ -303,8 +303,10 @@ function Verdict({ result, lang, onGoPricing, onClose }) {
         </Section>
       )}
 
-      <button onClick={onGoPricing || onClose} style={{ ...primaryBtn, marginTop: 18 }}>
-        {T(lang, 'Weiter', 'تمام')} ▸
+      {/* Don't dead-end on "close" — carry the student straight into their first interview (the
+          named "Fang hier an" turned into an actual action). Falls back to close if no handler. */}
+      <button onClick={onStartInterview || onGoPricing || onClose} style={{ ...primaryBtn, marginTop: 18 }}>
+        {onStartInterview ? T(lang, 'Erstes Interview starten', 'ابدأ أول إنترفيو') : T(lang, 'Weiter', 'تمام')} ▸
       </button>
     </div>
   );

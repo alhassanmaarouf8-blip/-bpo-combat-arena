@@ -1736,7 +1736,7 @@ function Sparkline({ data, color = '#00e5ff', invert = false, height = 34 }) {
 }
 
 // ── Component: Dashboard (return-to progress view) ────────────────────────────
-function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
+function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpenGuide }) {
   const t   = data?.totals ?? {};
   const lp  = data?.levelProgress ?? { level: 1, pct: 0, intoLevel: 0, perLevel: 120 };
   const acc = data?.account ?? account;
@@ -1818,6 +1818,16 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
               letterSpacing:'0.12em', padding:'11px', borderRadius:8, cursor:'pointer',
               border:'1px solid #f59e0b', color:'#f59e0b', background:'rgba(245,158,11,0.08)' }}>
               ⚡ {t.dueReviews} WIEDERHOLUNG{(t.dueReviews) === 1 ? '' : 'EN'} JETZT ÜBEN
+            </button>
+          )}
+
+          {/* Ask the mentor — reachable from the dashboard too, where a student reviewing their numbers
+              is exactly the moment they want to ask "what do I do about this?" */}
+          {onOpenGuide && (
+            <button onClick={onOpenGuide} style={{ width:'100%', marginTop:8, fontFamily:'Orbitron,monospace', fontSize:11,
+              letterSpacing:'0.1em', padding:'11px', borderRadius:8, cursor:'pointer',
+              border:'1px solid #34d399', color:'#34d399', background:'rgba(52,211,153,0.08)' }}>
+              🧭 الحسن · اسأل دليلك
             </button>
           )}
 
@@ -3124,13 +3134,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Progress dashboard */}
       {dashboard && (
         <Dashboard data={dashboard.data} loading={dashboard.loading} account={auth.account}
-          onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
+          onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout}
+          onOpenGuide={() => { setDashboard(null); setGuideOpen(true); }} />
       )}
 
       {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session) */}
       {assessmentOpen && (
         <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setAssessmentOpen(false)} />
+          onClose={() => setAssessmentOpen(false)}
+          onStartInterview={() => { setAssessmentOpen(false); setTimeout(() => beginSession(), 60); }} />
       )}
 
       {/* Shadowing pronunciation practice (PAID — cheap models + browser TTS, never Realtime) */}
