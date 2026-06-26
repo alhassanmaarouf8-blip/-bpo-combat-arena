@@ -18,6 +18,8 @@ import express from 'express';
 import { requireAuth, planOf }                from './auth.js';
 import { BPO_PHRASES }                         from './scenarios.js';
 import { transcribeAudio }                     from './planGuide.js';
+import { loadUser, saveUser }                  from './store.js';
+import { voicedDurationMs }                    from './audioGuard.js';
 
 export const shadowingRouter = express.Router();
 
@@ -36,13 +38,19 @@ function paidOnly(req, res) {
 
 // Random subset of sentence indices → [{ id, de, en }]. id is the stable BPO_PHRASES index,
 // so /score can look the target up server-side (never trusts a client-sent sentence).
-function pickSentences(n) {
+// No-repeat: serve UNSEEN phrases first; only reset the cycle when fewer than a session remain.
+function pickSentences(n, seen) {
   const idx = BPO_PHRASES.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [idx[i], idx[j]] = [idx[j], idx[i]];
   }
-  return idx.slice(0, n).map((i) => ({ id: i, de: BPO_PHRASES[i].de, en: BPO_PHRASES[i].en }));
+  const seenSet = new Set(seen || []);
+  let unseen = idx.filter((i) => !seenSet.has(i));
+  let reset = false;
+  if (unseen.length < n) { unseen = idx; reset = true; }
+  const ids = unseen.slice(0, n);
+  return { ids, reset, sentences: ids.map((i) => ({ id: i, de: BPO_PHRASES[i].de, en: BPO_PHRASES[i].en })) };
 }
 
 // DETERMINISTIC word accuracy (transcript vs target) — zero cost, no model, no audio analysis.
@@ -64,10 +72,19 @@ function wordAccuracy(transcript, target) {
 // ── GET a fresh session of 3–5 sentences (paid only, unlimited sessions) ──
 shadowingRouter.get('/shadowing', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
-  res.set('Cache-Control', 'no-store');   // fresh phrases every open
+  res.set('Cache-Control', 'no-store');
   const span = PER_SESSION_MAX - PER_SESSION_MIN + 1;
   const n    = Math.min(PER_SESSION_MIN + Math.floor(Math.random() * span), BPO_PHRASES.length);
-  res.json({ sentences: pickSentences(n) });
+  try {
+    const u = await loadUser(req.account.id);
+    const seen = Array.isArray(u.shadowingSeen) ? u.shadowingSeen : [];
+    const r = pickSentences(n, seen);                       // UNSEEN phrases → never repeat until exhausted
+    u.shadowingSeen = r.reset ? r.ids.slice() : [...seen, ...r.ids];
+    await saveUser(u);
+    return res.json({ sentences: r.sentences });
+  } catch {
+    return res.json({ sentences: pickSentences(n, []).sentences });
+  }
 });
 
 // ── POST one recording → transcript + Arabic pronunciation note ──
@@ -88,11 +105,13 @@ shadowingRouter.post('/shadowing/score',
       if (!Buffer.isBuffer(audio) || audio.length < 1000) {
         return res.status(400).json({ error: 'empty_audio' });
       }
+      // HONEST GATE: no real voiced speech → retry, never score a Whisper hallucination of silence.
+      if (voicedDurationMs(audio) < 600) return res.json({ transcript: '', target, retry: true, noSpeech: true });
       // 1) transcribe (cheap STT).
       const transcript = (await transcribeAudio(audio, { mime: req.headers['content-type'] || 'audio/wav' })).trim();
 
       // Edge case: transcription returned nothing → ask to retry.
-      if (!transcript) return res.json({ transcript: '', target, retry: true });
+      if (!transcript) return res.json({ transcript: '', target, retry: true, noSpeech: true });
 
       // DETERMINISTIC word accuracy only — NO model, NO pronunciation claim. We report which
       // target words were recognised and which were missed. We deliberately DROPPED the old

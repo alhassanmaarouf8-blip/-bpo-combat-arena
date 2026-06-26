@@ -14,6 +14,16 @@ import { ClipRecorder } from './clipRecorder.js';
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
+// Pick a line the student hasn't heard yet this session — no repeats until the pool is exhausted.
+function pickUnseen(pool, seen) {
+  const fresh = pool.filter((x) => !seen.has(x));
+  if (!fresh.length) seen.clear();                 // pool exhausted → start a fresh cycle
+  const arr = fresh.length ? fresh : pool;
+  const choice = arr[Math.floor(Math.random() * arr.length)];
+  seen.add(choice);
+  return choice;
+}
+
 // WHY they froze — an honest inference from the ACTUAL rung they froze on: which pressure dimension
 // (speed / shrinking time / interruptions) was most extreme there. Then the exact fix for that cause,
 // so the student knows what to do instead of just "you froze".
@@ -78,7 +88,16 @@ const ENDLESS = { rate: 1.6, baseSec: 16, interrupts: 4,
     'Sie haben einen Fehler gemacht. Erklären Sie sich — schnell.',
     'Warum sind Sie besser als der letzte Bewerber? Sofort.',
     'Der Kunde droht zu kündigen. Ihr bester Satz — jetzt.',
-  ], barbs: ['Weiter!', 'Schneller!', 'Schwach.', 'Nein, nochmal.', 'Das reicht nicht.'] };
+    'Der Kunde versteht Sie nicht. Erklären Sie es einfacher — sofort.',
+    'Ihre Lösung hat nicht funktioniert. Was jetzt? Schnell.',
+    'Der Kunde will eine Entschädigung, die es nicht gibt. Was sagen Sie?',
+    'Sie haben das Falsche versprochen. Retten Sie die Situation — jetzt.',
+    'Der Kunde schreit, alle hören zu. Ihr erster Satz?',
+    'Drei Minuten Wartezeit, der Kunde rastet aus. Reagieren Sie.',
+    'Sie wissen die Antwort nicht. Was sagen Sie, ohne zu lügen? Los.',
+    'Der Kunde sagt, die Konkurrenz ist besser. Antworten Sie.',
+    'Letzte Chance, ihn zu halten. Ein Satz — jetzt.',
+  ], barbs: ['Weiter!', 'Schneller!', 'Schwach.', 'Nein, nochmal.', 'Das reicht nicht.', 'Zu langsam.', 'Konkreter!', 'Und?'] };
 
 function speak(text, rate) {
   try {
@@ -122,6 +141,7 @@ export function PressureLadder({ lang = 'de', onClose }) {
   const [curLine, setCurLine] = useState('');
 
   const recRef = useRef(null); const tickRef = useRef(null); const barbRefs = useRef([]);
+  const seenLinesRef = useRef(new Set());   // lines already shown this session → no repeats
   const endless = idx >= LEVELS.length;
   const L = endless
     ? { n: '∞', de: 'Überleben', ar: 'بقاء', rate: ENDLESS.rate, sec: Math.max(10, ENDLESS.baseSec - endlessStreak), interrupts: ENDLESS.interrupts, lines: ENDLESS.lines, barbs: ENDLESS.barbs }
@@ -138,7 +158,7 @@ export function PressureLadder({ lang = 'de', onClose }) {
 
   const beginRound = async () => {
     setFroze(false); setPhase('answering'); setLeft(L.sec);
-    const line = pick(L.lines); setCurLine(line);
+    const line = pickUnseen(L.lines, seenLinesRef.current); setCurLine(line);
     speak(line, L.rate);
     const rec = new ClipRecorder({ onVolume: () => {} });
     try { await rec.start(); recRef.current = rec; } catch { /* no mic → timer still runs */ }

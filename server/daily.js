@@ -229,6 +229,7 @@ function completeDaily(profile) {
 }
 
 dailyRouter.get('/daily', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');   // never serve a stale (yesterday's) daily set
   try {
     const p = await loadUser(req.account.id);
     res.json(buildDaily(p));

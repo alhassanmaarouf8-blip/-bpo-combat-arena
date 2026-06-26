@@ -33,7 +33,7 @@
 import express from 'express';
 import { requireAuth, planOf } from './auth.js';
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
-import { loadUser }            from './store.js';
+import { loadUser, saveUser }  from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
 
 export const fluencyRouter = express.Router();
@@ -83,11 +83,16 @@ function paidOnly(req, res) {
   return true;
 }
 
-function pickPrompt(level) {
+// Pick a prompt the student has NOT seen (no repeats until the level's pool is exhausted, then cycle).
+function pickPrompt(level, seen) {
   const pool = PROMPTS.map((p, i) => ({ ...p, id: i }));
   const matched = pool.filter((p) => p.level === level);
   const from = matched.length ? matched : pool;
-  return from[Math.floor(Math.random() * from.length)];
+  const seenSet = new Set(seen || []);
+  let unseen = from.filter((p) => !seenSet.has(p.id));
+  let reset = false;
+  if (!unseen.length) { unseen = from; reset = true; }
+  return { chosen: unseen[Math.floor(Math.random() * unseen.length)], reset };
 }
 
 // ── DETERMINISTIC measurement — the accuracy core. No model, no opinion. ──────────
@@ -139,17 +144,23 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   res.set('Cache-Control', 'no-store');   // fresh prompt + focus every open (never a cached repeat)
   const level = req.query.level === 'b2' ? 'b2' : 'a2-b1';
-  const p = pickPrompt(level);
-  // Weakness FOCUS: prompts can't be cleanly grammar-tagged, but we can prime the learner on their
-  // #1 weak rule before they speak — the LanguageTool grammar check then measures exactly that.
-  let focus = null;
+  let chosen, focus = null;
   try {
     const u = await loadUser(req.account.id);
+    // No-repeat: serve an unseen prompt and remember it for next time.
+    const seen = Array.isArray(u.fluencySeen) ? u.fluencySeen : [];
+    const r = pickPrompt(level, seen);
+    chosen = r.chosen;
+    u.fluencySeen = r.reset ? [chosen.id] : [...seen, chosen.id];
+    // Weakness FOCUS: prime the learner on their #1 weak (speakable) rule; LanguageTool then measures it.
     const weak = (u.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
                               .sort((a, b) => (b.lapses || 0) - (a.lapses || 0))[0];
     if (weak) focus = weak.content;
-  } catch { /* focus is optional */ }
-  res.json({ prompt: { id: p.id, de: p.de, ar: p.ar }, rounds: ROUND_SECONDS, focus });
+    await saveUser(u);
+  } catch {
+    chosen = pickPrompt(level, []).chosen;   // best-effort: still serve a prompt
+  }
+  res.json({ prompt: { id: chosen.id, de: chosen.de, ar: chosen.ar }, rounds: ROUND_SECONDS, focus });
 });
 
 // ── POST one round's recording → measured metrics (+ authoritative grammar on request) ──
