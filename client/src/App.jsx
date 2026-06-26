@@ -1811,9 +1811,9 @@ function RecallDrill({ items, token, onDone, lang = 'de' }) {
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18 }}>
       <div style={{ textAlign:'center', marginBottom:6 }}>
         <div style={{ fontFamily:'Orbitron,monospace', fontSize:16, fontWeight:900, letterSpacing:2,
-          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>SCHNELL-WIEDERHOLUNG</div>
+          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>AUFWÄRMEN · تسخين</div>
         <div style={{ fontSize:9, color:'#64748b', marginTop:3 }}>
-          Produziere das Deutsch laut/schnell — Automatik unter 200&nbsp;ms ist das Ziel · {idx + 1}/{items.length}
+          Tipp deine offenen Korrekturen schnell ein, bevor du ins Interview gehst · {idx + 1}/{items.length}
         </div>
       </div>
 
@@ -3013,14 +3013,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { setDashboard({ data: null, loading: false }); }
   }, [authHeaders, onAccountUpdate]);
 
-  const startReviewFromDash = useCallback(async () => {
-    try {
-      const r = await fetch(`${API_URL}/api/review`, { headers: authHeaders() });
-      const { items } = await r.json();
-      setDashboard(null);
-      if (items?.length) setReview({ items, then: 'close' });
-    } catch { /* ignore */ }
-  }, [authHeaders]);
+  // "Wiederholung fällig" → the SPOKEN review (SAG ES RICHTIG). The standalone TYPED review was a
+  // duplicate of it (same SRS items, typing vs speaking) — off-mission for a spoken trainer, so it's
+  // gone. RecallDrill now lives ONLY as the pre-fight warm-up (a distinct, complementary role).
+  const startReviewFromDash = useCallback(() => {
+    setDashboard(null);
+    setSpokenReviewOpen(true);
+  }, []);
 
   const handleUpgraded = useCallback((account) => {
     onAccountUpdate?.(account);
@@ -3892,15 +3891,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         )}
 
-        {/* Review quick-start CTA when due items exist */}
-        {canStart && dueReviews > 0 && (
-          <button onClick={startReviewFromDash} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.14em',
-            borderRadius:8, border:'1px solid rgba(245,158,11,0.45)', color:'#fbbf24',
-            background:'rgba(245,158,11,0.08)' }}>
-            ⚡  WIEDERHOLUNG STARTEN · {dueReviews} KARTE{dueReviews === 1 ? '' : 'N'} OFFEN
-          </button>
-        )}
+        {/* Standalone TYPED "Wiederholung" button removed — it drilled the same SRS items as
+            SAG ES RICHTIG above, just by typing. One review surface (spoken, on-mission) instead of
+            two that looked identical. Due-card count now shows on the SAG ES RICHTIG flow itself. */}
 
         {/* Zielplan (goal plan) access — HIDDEN as low-value clutter (strategy audit): a goal-planner
             is meta-work that forks the "what do I open today" decision. Flip `false &&`→`true &&` to
