@@ -422,8 +422,10 @@ export class WebSocketManager {
           prof.behavioralSeen = picks.behavioral.reset ? [picks.behavioral.id] : [...recent.behavioral, picks.behavioral.id];
           prof.screeningSeen  = picks.screening.reset  ? [picks.screening.id]  : [...recent.screening, picks.screening.id];
           prof.csSeen         = picks.cs.reset         ? [picks.cs.id]         : [...recent.cs, picks.cs.id];
-          await saveUser(prof);
-        } catch (e) { console.error('[wsManager] no-repeat seen-list save failed:', e.message); }
+          // FIRE-AND-FORGET: do NOT await — this DB write must not delay the boss's first line.
+          // (worst case on failure = one possible repeat, never a crash, never a slow start.)
+          saveUser(prof).catch((e) => console.error('[wsManager] no-repeat seen-list save failed:', e.message));
+        } catch (e) { console.error('[wsManager] no-repeat seen-list prep failed:', e.message); }
       }
 
       // Tell the browser which level + funnel + scenario it's facing, and open on Teil 1.

@@ -2849,6 +2849,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   useEffect(() => () => { if (hfTimerRef.current) clearInterval(hfTimerRef.current); }, []);
 
+  // KEEP-WARM: the free server sleeps after ~15 min with no inbound traffic, so the NEXT "INTERVIEW
+  // STARTEN" pays a long cold-wake. Ping /health every 4 min while the app is open so it never sleeps
+  // under the user → clicking start is fast. Tiny request, no auth, no cost.
+  useEffect(() => {
+    const ping = () => { fetch(`${API_URL}/health`, { cache: 'no-store' }).catch(() => {}); };
+    ping();
+    const iv = setInterval(ping, 240000);
+    return () => clearInterval(iv);
+  }, []);
+
   // Cost guard: if the user locks the phone or switches apps mid-fight, the Realtime
   // session would keep billing in the background. End it cleanly (the debrief still
   // generates) so a backgrounded tab never runs the meter.
