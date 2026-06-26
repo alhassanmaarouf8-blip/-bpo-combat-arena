@@ -14,6 +14,28 @@ import { ClipRecorder } from './clipRecorder.js';
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
+// WHY they froze — an honest inference from the ACTUAL rung they froze on: which pressure dimension
+// (speed / shrinking time / interruptions) was most extreme there. Then the exact fix for that cause,
+// so the student knows what to do instead of just "you froze".
+function freezeMsg(L, lang) {
+  // Map to the rung's DEFINING stressor (raw params) — matches what the rung actually is.
+  if ((L.interrupts || 0) >= 3)                 // Feindselig / Endgegner: being talked over is the killer
+    return T(lang,
+      'Die Unterbrechungen haben dich rausgebracht. Technik: WEITERREDEN, nicht stoppen — „Lassen Sie mich kurz ausreden, dann…".',
+      'المقاطعات هي اللي شتتتك. التكنيك: كمّل، ماتسكتش — «خليني أكمّل بسرعة وبعدها...».');
+  if (L.sec <= 32)                              // Ungeduldig: the shrinking clock
+    return T(lang,
+      'Die kurze Zeit hat dich blockiert. Leg dir EINEN festen Startsatz bereit, mit dem du sofort loslegst („Gute Frage — also,…") — dann denkst du nicht bei null an.',
+      'الوقت القصير لخبطك. حضّر جملة بداية واحدة جاهزة تبدأ بيها فورًا («سؤال كويس — يعني...») عشان متفكرش من الصفر.');
+  if (L.rate >= 1.15)                           // Tempo: he went fast
+    return T(lang,
+      'Das Tempo hat dich erwischt. Trainier dein Ohr auf dieses Tempo im HÖR-CHECK — dann klingt das echte Gespräch langsam.',
+      'السرعة هي اللي عرقلتك. درّب أذنك على السرعة دي في الـ HÖR-CHECK، وساعتها المقابلة الحقيقية تبقى بطيئة قدامك.');
+  return T(lang,                                // Aufwärmen: slow, no interrupts, lots of time → it was words
+    'Das war nicht der Druck — dir fehlten die Worte. Leg dir feste Antworten auf Standardfragen zu (FLOW-DRILL), dann hast du immer einen Satz parat.',
+    'مش الضغط اللي جمّدك — اتلخبطت تقول إيه. حضّر إجابات جاهزة للأسئلة المتكررة (FLOW-DRILL)، وساعتها يبقى عندك جملة دايمًا.');
+}
+
 // Each rung: faster, ruder, less time, more interruptions. `lines` = a POOL (one picked per run,
 // so repeats feel fresh). `barbs` = the talked-over interruptions for that rung.
 const LEVELS = [
@@ -207,7 +229,7 @@ export function PressureLadder({ lang = 'de', onClose }) {
       </div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', marginTop: 8, lineHeight: 1.6, padding: '0 10px' }}>
         {froze
-          ? T(lang, 'Genau das trainieren wir weg. Unter Druck schweigen kostet den Job. Nochmal — diesmal redest du einfach weiter, auch mit Fehlern.', 'ده بالظبط اللي بنتمرن نشيله. السكوت تحت الضغط بيضيّع الوظيفة. تاني — المرة دي اتكلم على طول حتى بأخطاء.')
+          ? freezeMsg(L, lang)
           : endless
             ? T(lang, 'Schneller und härter als jedes echte Gespräch — und du redest weiter. Noch eine?', 'أسرع وأقسى من أي مقابلة — وانت لسه بتتكلم. كمان وحدة؟')
             : T(lang, `Stufe ${L.n} überstanden — schneller und unhöflicher als ein echtes Interview. Weiter nach oben.`, `عديت مستوى ${L.n} — أسرع وأقسى من مقابلة حقيقية. كمّل لفوق.`)}
