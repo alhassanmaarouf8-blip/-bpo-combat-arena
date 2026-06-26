@@ -1777,101 +1777,8 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
   );
 }
 
-// ── Component: RecallDrill (production-style spaced repetition) ────────────────
-function RecallDrill({ items, token, onDone, lang = 'de' }) {
-  const [idx, setIdx]       = useState(0);
-  const [answer, setAnswer] = useState('');
-  const [result, setResult] = useState(null);   // {correct, expected, fast}
-  const [busy, setBusy]     = useState(false);
-  const startRef = useRef(Date.now());
-  const item = items[idx];
-
-  useEffect(() => { startRef.current = Date.now(); setAnswer(''); setResult(null); }, [idx]);
-
-  const submit = async () => {
-    if (!answer.trim() || busy || result) return;
-    setBusy(true);
-    const responseMs = Date.now() - startRef.current;
-    try {
-      const r = await fetch(`${API_URL}/api/review/grade`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: item.id, answer, responseMs }),
-      });
-      setResult(await r.json());
-    } catch {
-      setResult({ correct: false, expected: '—' });
-    }
-    setBusy(false);
-  };
-
-  const next = () => { idx + 1 < items.length ? setIdx(idx + 1) : onDone(); };
-
-  return (
-    <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
-      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18 }}>
-      <div style={{ textAlign:'center', marginBottom:6 }}>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:16, fontWeight:900, letterSpacing:2,
-          color:'#f59e0b', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>AUFWÄRMEN · تسخين</div>
-        <div style={{ fontSize:9, color:'#64748b', marginTop:3 }}>
-          Tipp deine offenen Korrekturen schnell ein, bevor du ins Interview gehst · {idx + 1}/{items.length}
-        </div>
-      </div>
-
-      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', gap:14 }}>
-        <div style={{ padding:'16px', borderRadius:12, background:'rgba(0,0,0,0.4)',
-          border:'1px solid rgba(245,158,11,0.3)' }}>
-          <div style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.1em', color:'#f59e0b', marginBottom:8 }}>
-            {item?.type === 'vocab' ? 'VOKABEL · PRODUZIEREN' : 'GRAMMATIK · KORRIGIEREN'}
-          </div>
-          <div style={{ fontSize:15, color:'#e2e8f0', lineHeight:1.5 }}>{item?.prompt}</div>
-        </div>
-
-        <input
-          autoFocus value={answer} disabled={!!result}
-          onChange={(e) => setAnswer(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') (result ? next() : submit()); }}
-          placeholder="Auf Deutsch tippen…"
-          style={{ width:'100%', padding:'13px', borderRadius:8, fontSize:15,
-            background:'rgba(255,255,255,0.04)', color:'#e2e8f0', fontFamily:'Share Tech Mono, monospace',
-            border:`1px solid ${result ? (result.correct ? '#10b981' : '#ef4444') : 'rgba(0,229,255,0.3)'}`,
-            outline:'none' }} />
-
-        {result && (
-          <div className="flash" style={{ padding:'10px 12px', borderRadius:8,
-            background: result.correct ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-            border:`1px solid ${result.correct ? '#10b98155' : '#ef444455'}` }}>
-            <div style={{ fontSize:13, fontWeight:700, color: result.correct ? '#34d399' : '#f87171' }}>
-              {result.correct ? (result.fast ? '✓ Schnell & richtig!' : '✓ Richtig') : '✗ Nochmal üben'}
-            </div>
-            <div style={{ fontSize:12, color:'#cbd5e1', marginTop:3 }}>
-              Lösung: <b style={{ color:'#e2e8f0' }}>{result.expected}</b>
-            </div>
-            {(result.note || result.note_ar) && (
-              <div style={{ fontSize:11, color:'#fbbf24', marginTop:5, lineHeight:1.4,
-                direction: lang === 'ar' ? 'rtl' : 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}>
-                ⚠ {lang === 'ar' && result.note_ar ? result.note_ar : result.note}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div style={{ display:'flex', gap:8 }}>
-        <button onClick={onDone} style={{ flex:1, fontFamily:'Orbitron,monospace', fontSize:10, cursor:'pointer',
-          padding:'12px', borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
-          DRILL ÜBERSPRINGEN
-        </button>
-        <button onClick={result ? next : submit} disabled={busy || (!result && !answer.trim())}
-          style={{ flex:2, fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em',
-            padding:'12px', borderRadius:8, cursor:'pointer',
-            border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)',
-            opacity: (busy || (!result && !answer.trim())) ? 0.5 : 1 }}>
-          {result ? (idx + 1 < items.length ? 'WEITER →' : 'KAMPF STARTEN →') : 'PRÜFEN'}
-        </button>
-      </div>
-    </div>
-  );
-}
+// (RecallDrill removed — the typed pre-fight warm-up duplicated SAG ES RICHTIG / Daily Training on the
+//  same SRS items. One review surface, spoken + on-mission. Server /api/review[/grade] now unused.)
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
 function AuthScreen({ onAuth }) {
@@ -2391,7 +2298,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [debriefPending, setDebriefPending] = useState(false);
   const [noSession, setNoSession] = useState(false);       // closed without real participation → honest message, no card
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
-  const [review, setReview]       = useState(null);        // { items, then:'fight'|'close' } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
@@ -2981,20 +2887,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
       setPaywall(auth.account.entitlement); return;
     }
-    try {
-      const r = await fetch(`${API_URL}/api/review?t=${Date.now()}`, { headers: authHeaders(), cache: 'no-store' });
-      const { items } = await r.json();
-      if (items && items.length) { setReview({ items, then: 'fight' }); return; }
-    } catch { /* offline → just start */ }
+    // Straight into the interview. The typed AUFWÄRMEN pre-fight warm-up was removed: it re-drilled the
+    // same SRS due-items as SAG ES RICHTIG (spoken) and Daily Training (typed) — off-mission redundancy.
     start();
-  }, [start, auth.account, authHeaders]);
-
-  const handleDrillDone = useCallback(() => {
-    setReview((rv) => {
-      if (rv?.then === 'fight') setTimeout(start, 0);
-      return null;
-    });
-  }, [start]);
+  }, [start, auth.account]);
 
   // Launch a real Mock-Kampf from a Zielplan fight step. The step is marked done once the
   // debrief arrives (see the DEBRIEF handler). Goes through the normal paywall/entitlement gate.
@@ -3135,9 +3031,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             onClose={() => setLeaderboardOpen(false)} />
         </OverlayBoundary>
       )}
-
-      {/* Spaced-repetition recall drill (before a fight or from the dashboard) */}
-      {review && <RecallDrill items={review.items} token={auth.token} onDone={handleDrillDone} lang={feedbackLang} />}
 
       {/* Progress dashboard */}
       {dashboard && (
@@ -3820,6 +3713,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {canStart && (
           <GameMapCompact token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onOpen={() => setTrainingslagerOpen(true)} />
+        )}
+
+        {/* Secondary label so the drill menu reads as EXTRAS under today's one guided mission above
+            (DailyMission), instead of competing with it as a second set of equal CTAs. */}
+        {canStart && (
+          <div style={{ marginTop:16, marginBottom:2, fontFamily:'Orbitron,monospace', fontSize:8.5,
+            letterSpacing:'0.18em', color:'rgba(148,163,184,0.65)', textAlign:'center' }}>
+            WEITERE ÜBUNGEN · تمارين إضافية
+          </div>
         )}
 
         {/* Shadowing pronunciation practice (idle only) — paid; server returns 402 → paywall */}

@@ -36,11 +36,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const [retypeMode, setRetypeMode] = useState(false);
   const [retypeValue, setRetypeValue] = useState('');
   const [retypeOk, setRetypeOk] = useState(false);
-  const [shadowState, setShadowState] = useState(null); // null | 'speaking' | 'listening' | 'ok' | 'fail'
 
   const [speaking, setSpeaking] = useState(null);   // which text id is being spoken
   const bonusTimer = useRef(null);
-  const recogRef = useRef(null);
   const audioRef = useRef(null);
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
@@ -93,15 +91,14 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   }, [apiUrl, headers]);
 
   useEffect(() => () => { clearTimeout(bonusTimer.current); }, []);
-  useEffect(() => () => { recogRef.current?.abort?.(); window.speechSynthesis?.cancel?.(); audioRef.current?.pause?.(); }, []);
+  useEffect(() => () => { audioRef.current?.pause?.(); }, []);
 
   const questions = data?.questions || [];
   const q = questions[idx];
 
   const resetItemState = () => {
     setAnswer(''); setResult(null); setRetypeMode(false);
-    setRetypeValue(''); setRetypeOk(false); setShowCue(false); setShadowState(null);
-    recogRef.current?.abort?.(); window.speechSynthesis?.cancel?.();
+    setRetypeValue(''); setRetypeOk(false); setShowCue(false);
   };
 
   const submit = async () => {
@@ -143,33 +140,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const checkRetype = (val) => {
     if (!result?.expected) return;
     setRetypeOk(normClient(val) === normClient(result.expected));
-  };
-
-  const startShadow = (text) => {
-    if (!text) return;
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-    recogRef.current?.abort?.();
-    window.speechSynthesis.cancel();
-    setShadowState('speaking');
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'de-DE'; utt.rate = 0.85;
-    utt.onend = () => {
-      setShadowState('listening');
-      const r = new SR();
-      recogRef.current = r;
-      r.lang = 'de-DE'; r.interimResults = false; r.maxAlternatives = 3;
-      r.onresult = (e) => {
-        const heard = Array.from(e.results[0]).map(a => a.transcript.toLowerCase()).join(' ');
-        const exp = text.toLowerCase().replace(/[.,!?]/g, '');
-        const wordMatch = exp.split(' ').filter(w => w.length > 3).every(w => heard.includes(w));
-        setShadowState(wordMatch ? 'ok' : 'fail');
-      };
-      r.onerror = () => setShadowState('fail');
-      r.onend = () => setShadowState(s => s === 'listening' ? 'fail' : s);
-      r.start();
-    };
-    window.speechSynthesis.speak(utt);
   };
 
   const canAdvance = result ? (result.correct || retypeOk) : false;
@@ -356,25 +326,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                 </div>
               )}
 
-              {/* Shadow pronunciation (motor-memory bridge: hear → repeat → confirm) */}
-              {result && result.expected && !retypeMode && (window.SpeechRecognition || window.webkitSpeechRecognition) && (
-                <div style={{ marginTop: 8 }}>
-                  {shadowState === null && (
-                    <button onClick={() => startShadow(result.expected)} style={shadowBtn}>
-                      🎙 AUSSPRECHEN — Wiederhole den Satz
-                    </button>
-                  )}
-                  {shadowState === 'speaking' && <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>🔊 Hör zu…</div>}
-                  {shadowState === 'listening' && <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 2 }}>🎙 Jetzt sprechen…</div>}
-                  {shadowState === 'ok' && <div style={{ fontSize: 12, fontWeight: 700, color: '#34d399', marginTop: 2 }}>✓ Gut gesagt! أحسنت!</div>}
-                  {shadowState === 'fail' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                      <span style={{ fontSize: 11, color: '#f87171' }}>Noch einmal versuchen.</span>
-                      <button onClick={() => startShadow(result.expected)} style={shadowBtn}>↺</button>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* (Daily shadow step removed — it used the browser SpeechRecognition grader, which could
+                   disagree with the standalone SHADOWING drill's reliable server Whisper grader on the
+                   same repeat. Shadowing now lives in ONE place, with the trustworthy grader.) */}
 
               <button
                 onClick={result ? (canAdvance ? next : undefined) : submit}
@@ -399,7 +353,6 @@ const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'l
 const secTitle = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-dim)', marginBottom: 6 };
 const inputSt = { width: '100%', padding: '11px', borderRadius: 'var(--r-sm)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 14, border: '1px solid var(--line)', outline: 'none', boxSizing: 'border-box' };
 const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(0,229,255,0.35)', background: 'rgba(0,229,255,0.07)', color: 'var(--accent-dim)' };
-const shadowBtn = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', padding: '5px 10px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', color: '#fbbf24' };
 const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, #fbbf24, var(--warn))' };
 const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
 const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' };
