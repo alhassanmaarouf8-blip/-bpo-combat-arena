@@ -209,7 +209,11 @@ export class RealtimeClient {
       focusTitle:  opts.focusTitle,
       mood:        this._mood,
       clarificationRate,
+      recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
     });
+
+    // Chosen content ids (+ reset flags) so the gateway can persist the no-repeat seen-lists.
+    this.picks = this._session.picks;
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).
     const cs = this._session.csScenario;

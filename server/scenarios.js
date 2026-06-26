@@ -263,6 +263,21 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// No-repeat picker: never serves an id already in `seen` until the pool is exhausted, then
+// resets the cycle (reset:true → the caller persists a fresh seen-list starting at this pick).
+// Mirrors the shadowing/fluency no-repeat contract so EVERY interview feels new — a returning
+// candidate gets a different behavioral question, screening filter and customer scenario each
+// time, never the same opening twice in a row, until the whole pool has been seen.
+function pickFresh(arr, seen, idOf) {
+  if (!arr.length) return { item: null, id: null, reset: false };
+  const seenSet = new Set(seen || []);
+  let unseen = arr.filter((x) => !seenSet.has(idOf(x)));
+  let reset = false;
+  if (!unseen.length) { unseen = arr; reset = true; }
+  const item = unseen[Math.floor(Math.random() * unseen.length)];
+  return { item, id: idOf(item), reset };
+}
+
 // ── Phase 1: realism delivery block (prosody, native disfluencies, seeded mood) ──────
 // Pure INSTRUCTION TEXT — it never affects the audio pipeline, VAD, scoring, or gates.
 // REALISM SCALES WITH LEVEL: beginners get patient, clearly-enunciated, encouraging delivery;
@@ -320,11 +335,18 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle, mood = 'neutral', clarificationRate = 0 }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
-  const behavioral = pick(levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS);
-  const screening  = pick(BPO_SCREENING_QUESTIONS);
-  const cs         = pick(CS_SCENARIOS);
+  // NO-REPEAT content: avoid every behavioral question, screening filter and customer
+  // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
+  // pool is exhausted, then cycle. This is what makes a re-played interview feel real.
+  const behPool    = levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS;
+  const behPick    = pickFresh(behPool,              recent.behavioral, (x) => x);
+  const scrPick    = pickFresh(BPO_SCREENING_QUESTIONS, recent.screening, (x) => x);
+  const csPick     = pickFresh(CS_SCENARIOS,         recent.cs,         (x) => x.id);
+  const behavioral = behPick.item;
+  const screening  = scrPick.item;
+  const cs         = csPick.item;
   const delivery   = deliveryBlock(level.id, mood, clarificationRate);  // Phase 1 prosody/mood
 
   // Memory dossier → GEZIELTER WIEDERHOLUNGSTEST (closes the learning loop): the recurring weak
@@ -423,5 +445,11 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
     behavioral,
     csScenario: cs,
     stages,
+    // The chosen ids (+ reset flags) so the caller can persist the no-repeat seen-lists.
+    picks: {
+      behavioral: { id: behPick.id, reset: behPick.reset },
+      screening:  { id: scrPick.id, reset: scrPick.reset },
+      cs:         { id: csPick.id,  reset: csPick.reset  },
+    },
   };
 }

@@ -345,6 +345,14 @@ export class WebSocketManager {
     }
 
     ctx.bossId = bossId;
+    // NO-REPEAT interview content: the seen-id lists the script builder must avoid so a returning
+    // candidate never gets the same behavioral question / screening filter / customer scenario twice
+    // until each pool is exhausted. Persisted back below once the picks are made.
+    const recent = {
+      behavioral: Array.isArray(prof?.behavioralSeen) ? prof.behavioralSeen : [],
+      screening:  Array.isArray(prof?.screeningSeen)  ? prof.screeningSeen  : [],
+      cs:         Array.isArray(prof?.csSeen)         ? prof.csSeen         : [],
+    };
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
     console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  mode=${viaBossTor ? 'bosstor' : 'daily'}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
@@ -355,6 +363,7 @@ export class WebSocketManager {
         level,
         dossier,
         focusTitle,
+        recent,
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
         // that follows, so it can judge whether the candidate actually answered what was asked.
@@ -403,6 +412,19 @@ export class WebSocketManager {
         ctx.hardCapTimer.unref?.();
       }, capMs);
       ctx.maxTimer.unref?.();
+
+      // Persist the no-repeat seen-lists with this session's picks (reset → start the cycle
+      // fresh from this pick; otherwise append). Best-effort: a save failure must not block the
+      // fight — worst case is one possible repeat, never a crash.
+      const picks = ctx.realtimeClient.picks;
+      if (picks && prof) {
+        try {
+          prof.behavioralSeen = picks.behavioral.reset ? [picks.behavioral.id] : [...recent.behavioral, picks.behavioral.id];
+          prof.screeningSeen  = picks.screening.reset  ? [picks.screening.id]  : [...recent.screening, picks.screening.id];
+          prof.csSeen         = picks.cs.reset         ? [picks.cs.id]         : [...recent.cs, picks.cs.id];
+          await saveUser(prof);
+        } catch (e) { console.error('[wsManager] no-repeat seen-list save failed:', e.message); }
+      }
 
       // Tell the browser which level + funnel + scenario it's facing, and open on Teil 1.
       const info = ctx.realtimeClient.sessionInfo;
