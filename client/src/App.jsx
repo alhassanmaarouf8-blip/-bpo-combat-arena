@@ -1254,7 +1254,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* ── Natürlichkeit (language naturalness score) ─────────────────── */}
           {data?.naturalness && (
-            <Section title={ar ? 'طبيعية الكلام · NATÜRLICHKEIT' : 'NATÜRLICHKEIT · KLANG'} color="#22d3ee"
+            <Section title={ar ? 'صياغة وكلمات · NATÜRLICHKEIT' : 'NATÜRLICHKEIT · WORTWAHL'} color="#22d3ee"
               right={
                 <span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
                   borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'#22d3ee' }}>
@@ -2617,7 +2617,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.BOSS_SPEECH_DONE:
         // Boss line is not in the transcript log (single-place render) — nothing to finalize there.
-        // Speak the boss's German line aloud (browser TTS — OpenAI-free). bossSpeak
+        // Speak the boss's German line aloud (playBossVoice → ElevenLabs if opted in, else Deepgram
+        // Aura-2 native German; never browser TTS). bossSpeak
         // stays true while speaking, then clears on end, so the avatar animates and
         // the debrief waits until the final line has finished being read out.
         {
@@ -2981,7 +2982,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       setPaywall(auth.account.entitlement); return;
     }
     try {
-      const r = await fetch(`${API_URL}/api/review`, { headers: authHeaders() });
+      const r = await fetch(`${API_URL}/api/review?t=${Date.now()}`, { headers: authHeaders(), cache: 'no-store' });
       const { items } = await r.json();
       if (items && items.length) { setReview({ items, then: 'fight' }); return; }
     } catch { /* offline → just start */ }
@@ -3006,7 +3007,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const openDashboard = useCallback(async () => {
     setDashboard({ data: null, loading: true });
     try {
-      const r = await fetch(`${API_URL}/api/progress`, { headers: authHeaders() });
+      const r = await fetch(`${API_URL}/api/progress?t=${Date.now()}`, { headers: authHeaders(), cache: 'no-store' });
       const data = await r.json();
       if (data.account) onAccountUpdate?.(data.account);
       setDashboard({ data, loading: false });
@@ -3040,7 +3041,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`${API_URL}/api/progress`, { headers: authHeaders() });
+        const r = await fetch(`${API_URL}/api/progress?t=${Date.now()}`, { headers: authHeaders(), cache: 'no-store' });
         const data = await r.json();
         if (!cancelled && Number.isFinite(data.streak)) { setStreak(data.streak); saveStreakCache(data.streak); }
         if (!cancelled && Number.isFinite(data.totals?.dueReviews)) setDueReviews(data.totals.dueReviews);

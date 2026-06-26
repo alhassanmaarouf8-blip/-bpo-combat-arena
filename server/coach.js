@@ -12,7 +12,7 @@
  * "correction" can never equal the original.
  */
 
-import { buildGrammar } from './grammarCheck.js';
+import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { evaluateNaturalness } from './naturalness.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
@@ -269,7 +269,9 @@ export function normalize(d) {
       detail:    String(s?.detail ?? ''),
       detail_ar: String(s?.detail_ar ?? ''),
     }))
-    .filter((s) => s.title);
+    // Drop any model-suggested study item about punctuation/casing/spelling — unspeakable in a
+    // voice trainer (e.g. "Kommasetzung üben"). isSpeakableRule screens both title and detail.
+    .filter((s) => s.title && isSpeakableRule(s.title) && isSpeakableRule(s.detail));
 
   const vocabTargets = arr(d.vocabTargets).slice(0, 6)
     .map((v) => ({

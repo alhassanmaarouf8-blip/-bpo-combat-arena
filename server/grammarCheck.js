@@ -185,5 +185,9 @@ export async function buildGrammar(utterances) {
       summaryExamples: examples.slice(0, 2),
       allExamples:     examples,
     };
-  }).filter((g) => g.summaryExamples.length > 0);
+  })
+  // FINAL SPOKEN GUARD at the source: even if a punctuation/casing/spelling rule slipped past the
+  // category/issue-type/letter-diff filters above, its RULE NAME is screened here — so the debrief
+  // grammar card and the "Sag es richtig" drill can never show "Komma vor 'sondern'" to a speaker.
+  .filter((g) => g.summaryExamples.length > 0 && isSpeakableRule(g.rule));
 }

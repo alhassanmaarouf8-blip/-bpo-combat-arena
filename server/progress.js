@@ -80,6 +80,7 @@ function buildDashboard(p) {
 }
 
 progressRouter.get('/progress', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');   // never serve a stale readiness/weakness snapshot
   try {
     const p = await loadUser(req.account.id);
     res.json({ ...buildDashboard(p), account: publicAccount(req.account) });
@@ -90,6 +91,7 @@ progressRouter.get('/progress', requireAuth, async (req, res) => {
 });
 
 progressRouter.get('/review', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');   // fresh due items every open — no cached warm-up set
   try {
     const p = await loadUser(req.account.id);
     const items = dueItems(p, Date.now()).map((i) => ({

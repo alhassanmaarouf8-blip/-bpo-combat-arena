@@ -19,6 +19,7 @@ import { randomUUID } from 'crypto';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth }        from './auth.js';
 import { generateTask, giveFeedback, transcribeAudio, speakingFeedback } from './planGuide.js';
+import { voicedDurationMs } from './audioGuard.js';
 
 export const planRouter = express.Router();
 
@@ -251,6 +252,9 @@ planRouter.post('/plans/:id/steps/:stepId/speak',
 
       const audio = req.body;
       if (!Buffer.isBuffer(audio) || audio.length < 1000) return res.status(400).json({ error: 'empty_audio' });
+      // HONEST GATE: no real voiced speech → retry, never let Whisper hallucinate German from silence
+      // and then have the LLM "correct" words the learner never said (the silence→fake-feedback class).
+      if (voicedDurationMs(audio) < 600) return res.json({ transcript: '', feedback: '', feedback_ar: '', noSpeech: true, retry: true });
       const durationMs = Math.max(0, parseInt(req.query.ms, 10) || 0);
       const level      = req.query.level === 'b2' ? 'b2' : 'a2-b1';
 

@@ -92,7 +92,7 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
     let alive = true;
     (async () => {
       try {
-        const r = await fetch(`${apiUrl}/api/progress`, { headers: { Authorization: `Bearer ${token}` } });
+        const r = await fetch(`${apiUrl}/api/progress?t=${Date.now()}`, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
         if (!r.ok) throw new Error('x');
         const j = await r.json();
         if (alive) setD(j);

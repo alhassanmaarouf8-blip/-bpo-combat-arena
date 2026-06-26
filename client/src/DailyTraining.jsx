@@ -84,7 +84,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`${apiUrl}/api/daily`, { headers: headers() });
+        const r = await fetch(`${apiUrl}/api/daily?t=${Date.now()}`, { headers: headers(), cache: 'no-store' });
         const d = await r.json();
         if (!cancelled) setData(d);
       } catch { if (!cancelled) setErr('Server nicht erreichbar.'); }
