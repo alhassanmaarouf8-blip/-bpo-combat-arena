@@ -3689,7 +3689,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <DailyMission token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             name={auth.account?.name || (auth.account?.email || '').split('@')[0]}
             onOpen={(drill) => {
-              if (drill === 'fluency') setFluencyOpen(true);
+              if (drill === 'interview') beginSession();   // first-timer's mission → the real interview
+              else if (drill === 'fluency') setFluencyOpen(true);
               else if (drill === 'spoken') setSpokenReviewOpen(true);
               else if (drill === 'pressure') setPressureOpen(true);
               else if (drill === 'listening') setListeningOpen(true);

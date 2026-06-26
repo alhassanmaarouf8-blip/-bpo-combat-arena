@@ -42,7 +42,9 @@ function nextMission(d, r) {
   if ((tot.dueReviews || 0) > 0)
     return { drill: 'spoken', de: `Sag ${tot.dueReviews} offene Fehler laut richtig`, ar: `قول ${tot.dueReviews} أخطاء مفتوحة صح بصوتك` };
   if (!r.sessions)
-    return { drill: 'fluency', de: 'Mach deine erste Sprech-Übung', ar: 'اعمل أول تمرين كلام' };
+    // Brand-new student → the core, free first step is the INTERVIEW itself (NOT the paid FLOW-DRILL,
+    // which dead-ended a free beginner at a paywall). I lead them straight into the real thing.
+    return { drill: 'interview', de: 'Mach dein erstes Interview — ich führe dich durch', ar: 'اعمل أول إنترفيو — أنا هوديك خطوة بخطوة' };
   if (r.wp != null && r.wp < 120)
     return { drill: 'fluency', de: 'Sprechtempo steigern (4-3-2)', ar: 'زوّد سرعة كلامك (4-3-2)' };
   if (r.fi != null && r.fi > 4)
@@ -51,6 +53,7 @@ function nextMission(d, r) {
 }
 
 const DRILL_LABEL = {
+  interview:{ de: '▶ INTERVIEW STARTEN', ar: '▶ ابدأ الإنترفيو' },
   fluency:  { de: '⚡ FLOW-DRILL', ar: '⚡ سرعة الكلام' },
   spoken:   { de: '🗯️ SAG ES RICHTIG', ar: '🗯️ قولها صح' },
   pressure: { de: '🔥 DRUCK-LEITER', ar: '🔥 سلّم الضغط' },
@@ -156,9 +159,9 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
           title = T(lang, '🎯 ZULETZT AUFGEFALLEN', '🎯 أنماط من آخر جلسة');
           body  = re.join(T(lang, ', ', '، '));
         } else {
-          title = T(lang, '🎯 SCHWÄCHE NOCH NICHT ERKANNT', '🎯 لسه محددتش نقطة ضعفك');
-          body  = T(lang, 'Mach eine Einstufung oder ein Interview — dann zeige ich dir genau, was zu fixen ist.',
-                          'اعمل تقييم أو إنترفيو — وساعتها هقولّك بالظبط تظبط إيه.');
+          title = T(lang, '🎯 DEIN ERSTER SCHRITT', '🎯 أول خطوة ليك');
+          body  = T(lang, 'Lass uns dein erstes Interview machen — danach zeige ich dir ganz genau deine Nr. 1 und wie wir sie fixen.',
+                          'يلا نعمل أول إنترفيو — وبعدها هقولّك بالظبط نقطة ضعفك رقم ١ وإزاي نظبطها سوا.');
         }
         return (
           <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)',

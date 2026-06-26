@@ -544,9 +544,12 @@ export class WebSocketManager {
     ctx._turnText = '';
     ctx._turnWords = [];
     ctx._speechStartMs = null;
-    // No usable speech — empty, OR a word-span under ~0.3s (a blip / noise hallucination, not an
-    // answer) → reset the mic to retry, never score it as if the candidate spoke.
-    if (!text || (speakingMs > 0 && speakingMs < 300)) {
+    // No usable speech → reset the mic to retry. Gate ONLY on empty text: the streaming Deepgram
+    // path already returns empty on true silence, so real text = a real answer. (The old extra
+    // `speakingMs < 300` discard was removed — it false-dropped legitimate terse replies like "Ja."
+    // / "Sofort.", which the DRUCKTEST rubric explicitly demands, making a real answer read as a
+    // freeze. Dropping a genuine short answer is worse than rarely scoring a noise word.)
+    if (!text) {
       this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
       return;
     }
