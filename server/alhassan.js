@@ -170,6 +170,13 @@ async function buildFacts(account, g) {
     // Recent measured performance — lets Alhassan reference REAL numbers/progress, not generic talk.
     if (sessions.length) {
       const last = sessions[sessions.length - 1];
+      // THE RESULT OF THEIR LAST INTERVIEW — the thing they actually ask you about ("how did I do?",
+      // "why didn't I pass?"). Speak to it directly and honestly; never pretend you don't know it.
+      if (last?.rank || last?.verdict) {
+        const vMap = { pass: 'PASS — C1 held under pressure, line-ready', weak: 'WEAK — clears the HR screen but not yet line-ready (C1 under pressure is the gap)', fail: 'FAIL — broke down / froze under pressure' };
+        lines.push(`THEIR LAST INTERVIEW RESULT: CEFR ${last.rank || '?'}, verdict ${last.verdict ? (vMap[last.verdict] || last.verdict) : '?'}${last.jobLabel ? ` ("${last.jobLabel}")` : ''}. If they ask how they did, EXPLAIN this in plain Egyptian Arabic, honestly but encouragingly — what it means for getting hired, and that the gap is closeable.`);
+      }
+      if (last?.priorityFix) lines.push(`The ONE fix we told them after that interview: "${last.priorityFix}". Reinforce exactly THIS — make them do it, don't invent a new plan.`);
       if (Number.isFinite(last?.fluency)) lines.push(`Most recent fight: fluency ${last.fluency}${Number.isFinite(last?.fillers) ? `, fillers ${last.fillers}` : ''}.`);
       const first = sessions[0];
       if (sessions.length > 1 && Number.isFinite(first?.fluency) && Number.isFinite(last?.fluency)) {

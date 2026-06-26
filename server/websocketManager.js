@@ -722,6 +722,11 @@ export class WebSocketManager {
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
         xpGained,   // per-session XP → honest "ETA to next level" from the student's real pace
+        // The HIRING RESULT of this fight — so Alhassan (and any later view) can speak to exactly
+        // how the interview went: the CEFR rank, the pass/weak/fail verdict, the one-line job label,
+        // and the single fix we told them to work on. Without these the mentor had no idea of the result.
+        rank: result.rank ?? null, verdict: result.verdict ?? null, jobLabel: result.jobLabel ?? null,
+        priorityFix: debrief.priorityFix?.de || null,
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
         // Raw LanguageTool rule→count for this session. Same identifier space as topWeakRule, so the
