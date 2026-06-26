@@ -448,11 +448,25 @@ function fallbackDebrief(metrics, utterances) {
     { title: 'Konnektoren üben',      title_ar: 'تدرّب على أدوات الربط', detail: 'weil, obwohl, damit, sodass — je einen Nebensatz pro Antwort einbauen.', detail_ar: 'weil, obwohl, damit, sodass — أدرج جملة ثانوية واحدة في كل إجابة.' },
   ];
 
+  // ALWAYS hand the student ONE concrete next step — even on the model-fallback path. Without this
+  // a 'fail'/loss debrief could show "weiter üben" with no actionable anchor (the worst, most
+  // confidence-damaging screen). Derived deterministically from the worst real signal.
+  const priorityFix =
+    (metrics?.wpm != null && metrics.wpm > 0 && metrics.wpm < 110)
+      ? { de: `Sprich heute drei Antworten bewusst etwas schneller — Ziel 140–160 WpM (zuletzt ${metrics.wpm}). Ruhig, aber ohne lange Pausen.`,
+          ar: `النهاردة قول ٣ إجابات بإيقاع أسرع شوية — الهدف ١٤٠–١٦٠ كلمة/دقيقة (آخر قياس ${metrics.wpm}). بهدوء بس من غير وقفات طويلة.` }
+    : (metrics?.fillers != null && metrics.fillers > 4)
+      ? { de: `Ersetze heute bewusst jedes "äh/ehm/also" durch eine kurze Pause — übe drei Sätze, die ruhig und ohne Füllwörter beginnen.`,
+          ar: `النهاردة استبدل كل "äh/ehm/also" بوقفة قصيرة — اتمرّن على ٣ جُمل تبدأ بهدوء من غير كلمات حشو.` }
+    : { de: `Bau heute in drei Antworten je einen Nebensatz mit "weil", "obwohl" oder "damit" ein — das hebt dein Deutsch sofort hörbar.`,
+        ar: `النهاردة أدخل في ٣ إجابات جملة ثانوية بـ "weil" أو "obwohl" أو "damit" — ده بيرفع مستوى ألمانيتك فورًا وبشكل مسموع.` };
+
   return {
     grammar: [],
     strengths,
     strengths_ar,
     studyNext,
+    priorityFix,
     vocabTargets: [],
     upgrades: [],
     drills: [],

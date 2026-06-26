@@ -1040,7 +1040,10 @@ function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
-function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager }) {
+function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager, studentName, onOpenGuide }) {
+  // The student's first name — so the most personal moment in the app actually speaks to THEM.
+  const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
+  const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
   const [showAll, setShowAll] = useState(false);
   const [copied, setCopied]   = useState(false);
   const m = data?.metrics ?? {};
@@ -1137,8 +1140,8 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             <div style={{ marginTop:8, fontSize:12, color: win ? '#a7f3d0' : '#fcd34d', lineHeight:1.5,
               animation:'result-rise 0.6s var(--ease-out)' }}>
               {win
-                ? `Stark! Du hast ${bossName || 'den Interviewer'} bezwungen — nur noch ${r.playerHp ?? '?'} HP übrig bei dir.`
-                : `So nah! ${bossName || 'Der Interviewer'} hatte nur ${r.bossHp ?? '?'} HP übrig. Beim nächsten Mal knackst du ihn.`}
+                ? `Stark${nm ? ', ' + nm : ''}! Du hast ${bossName || 'den Interviewer'} bezwungen — nur noch ${r.playerHp ?? '?'} HP übrig bei dir.`
+                : `So nah${nm ? ', ' + nm : ''}! ${bossName || 'Der Interviewer'} hatte nur ${r.bossHp ?? '?'} HP übrig. Beim nächsten Mal knackst du ihn.`}
             </div>
             {data?.progress?.personalBest && (
               <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
@@ -1573,6 +1576,18 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               ? 'ℹ️ ده تدريب وتقييم لمستواك للتمرين بس — مش شهادة ألمانية رسمية ولا معتمدة (زي Goethe / telc).'
               : 'ℹ️ Trainings-Feedback zur Übung — KEIN offizielles oder anerkanntes deutsches Sprachzertifikat (z. B. Goethe / telc).'}
           </div>
+        </div>
+      )}
+
+      {/* Reach the mentor RIGHT HERE — the debrief (esp. a loss) is the moment a student feels most
+          lost; Alhassan is warm + honest + remembers this session. Don't make them hunt for help. */}
+      {onOpenGuide && (
+        <div style={{ padding:'2px 16px 0' }}>
+          <button onClick={onOpenGuide} style={{ width:'100%', fontFamily:'var(--font-display)', fontWeight:700,
+            fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
+            border:'1px solid #34d399', color:'#34d399', background:'rgba(52,211,153,0.08)' }}>
+            🧭 {lang === 'ar' ? 'مش فاهم نتيجتك؟ اسأل الحسن' : 'Frag Alhassan — was bedeutet das für mich?'}
+          </button>
         </div>
       )}
 
@@ -3120,6 +3135,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {(debrief || debriefPending) && !bossSpeak && !noSession && (
         <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
+          studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
+          onOpenGuide={() => setGuideOpen(true)}
           token={auth.token} apiUrl={API_URL} onOpenTrainingslager={() => setTrainingslagerOpen(true)} />
       )}
 
