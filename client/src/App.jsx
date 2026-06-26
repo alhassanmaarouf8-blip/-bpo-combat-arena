@@ -197,6 +197,16 @@ function stopBossVoice() {
 
 // Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
 let _ttsCtx = null;   // reused AudioContext for the volume boost (created lazily)
+// Create + RESUME the audio context on a real user gesture (the START click). Browsers start the
+// context 'suspended'; without resuming it on a gesture the gain stage never engages and the boss
+// voice plays at the (quiet) source level. Called from beginSession so it's 'running' before the
+// boss ever speaks.
+function ensureAudioBoost() {
+  try {
+    if (!_ttsCtx && (window.AudioContext || window.webkitAudioContext)) _ttsCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ttsCtx && _ttsCtx.state === 'suspended') _ttsCtx.resume().catch(() => {});
+  } catch {}
+}
 async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
   // onEnd MUST fire exactly once no matter what — if it doesn't, bossSpeak stays true and the
   // hands-free loop never resumes (= the interviewer "stops responding"). Every exit path calls done().
@@ -234,7 +244,7 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd })
       if (_ttsCtx && _ttsCtx.state === 'running') {
         const srcNode = _ttsCtx.createMediaElementSource(audio);
         const gain = _ttsCtx.createGain();
-        gain.gain.value = 1.8;
+        gain.gain.value = 2.4;   // boost — Aura-2 source is quiet (owner reported still-low at 1.8x)
         srcNode.connect(gain); gain.connect(_ttsCtx.destination);
       }
     } catch { /* boost unavailable → plain element playback (still audible) */ }
@@ -2815,7 +2825,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // load-bearing mechanic: the moment the user speaks again, silenceMs resets to 0, so a
     // pause between sentences can NEVER end the turn. These windows already include the
     // non-native (L2) speaker grace from the turn-taking research.
-    const SIL_COMPLETE = 900, SIL_AMBIGUOUS = 2200, SIL_INCOMPLETE = 3500;
+    // Tightened for responsiveness (owner: replies felt too slow/late, and it was NOT cutting them
+    // off). cancel-on-resume still resets silence the instant they speak again, so a mid-sentence
+    // pause can't end the turn — these are just shorter "are you done?" confirmations.
+    const SIL_COMPLETE = 600, SIL_AMBIGUOUS = 1300, SIL_INCOMPLETE = 2200;
     const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -2833,7 +2846,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 1000;
+      if (stageIdxRef.current <= 1) needSilence += 600;   // open-question grace (was 1000 — trimmed for speed)
       if (!((spoke && silenceMs >= needSilence) || elapsed >= MAX_MS)) return;
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
@@ -2932,6 +2945,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
   const beginSession = useCallback(async (mode) => {
+    ensureAudioBoost();   // resume the audio context on THIS user gesture → boss voice plays boosted, not at quiet source level
     fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
