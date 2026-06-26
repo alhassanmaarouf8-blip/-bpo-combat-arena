@@ -221,11 +221,11 @@ export class RealtimeClient {
       bossId,
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 fallback (used if ElevenLabs has no key / fails)
-      // ElevenLabs (native-German turbo voices) is now the DEFAULT for a human-sounding boss (owner
-      // opted into the cost). Set USE_ELEVENLABS=0 to force the free Aura-2 voice instead. If the
-      // ELEVENLABS_API_KEY is missing or a voice id is invalid, /api/voice falls back to Aura-2
-      // automatically — so this is safe even before the key is added.
-      elevenVoice: (process.env.USE_ELEVENLABS !== '0') ? (this._boss.elevenVoice ?? '') : '',
+      // Default = free Aura-2 (voice above), spoken DIRECTLY — no ElevenLabs attempt, so no failed-call
+      // latency. ElevenLabs was added as default but it was failing → every line tried it, waited, then
+      // fell back, ADDING seconds of delay. Back to opt-in (USE_ELEVENLABS=1) until the /api/voice
+      // failure is diagnosed (a 502 = stale voice ids; 401/429 = key/quota).
+      elevenVoice: (process.env.USE_ELEVENLABS === '1') ? (this._boss.elevenVoice ?? '') : '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
