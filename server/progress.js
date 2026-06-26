@@ -40,7 +40,15 @@ function buildDashboard(p) {
   const weakG = srsItems
     .filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
     .sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || (b.reps || 0) - (a.reps || 0));
-  const topWeakness = weakG.length ? { rule: weakG[0].content, lapses: weakG[0].lapses || 0 } : null;
+  let topWeakness = weakG.length ? { rule: weakG[0].content, lapses: weakG[0].lapses || 0 } : null;
+  // CONTINUITY: a student who JUST finished the assessment has no grammar-SRS history yet — without
+  // this they'd see "weakness not detected, do an assessment" (the thing they just did). Surface the
+  // real top blocker the assessment found so the home names exactly what to fix. lapses:0 → the
+  // DailyMission copy reads "…heute fixen wir genau das" (no fake re-lapse count).
+  if (!topWeakness) {
+    const b = (p.assessmentResult?.blockers || []).find((x) => x?.rule && isSpeakableRule(x.rule));
+    if (b) topWeakness = { rule: b.rule, lapses: 0, fromAssessment: true };
+  }
 
   return {
     remainingXp,
