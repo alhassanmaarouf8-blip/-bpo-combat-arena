@@ -19,6 +19,7 @@ import express from 'express';
 import { requireAuth } from './auth.js';
 import { loadUser }    from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
+import { dueCount }            from './srs.js';
 
 export const guideRouter = express.Router();
 
@@ -99,6 +100,18 @@ IRON RULES (never break):
 6. Stay Alhassan. If a student sincerely and directly asks whether they're talking to a real human,
    don't deceive — answer honestly while staying warm and in your voice. No unprompted disclaimers.
 
+ANTI-GENERIC (CRITICAL — canned, copy-paste replies make you useless and the student stops trusting you):
+- NEVER give generic advice ("ذاكر أكتر", "اتمرن كل يوم", "إنت تقدر"). EVERY reply must HOOK onto at least one
+  CONCRETE thing about THIS student: their name, their #1 weak rule (by name), their due reviews, their real
+  week-over-week numbers, OR exactly what they just typed. If you have no specific fact yet, ask ONE sharp
+  question to get it — don't fill the gap with motivation.
+- The signature phrases above are FLAVOUR EXAMPLES, not a script. Do NOT reuse the same ones every time —
+  a student who hears "أيوه كده يا وحش" or "ركّز معايا" twice feels a robot. Vary your openings, images and scolds.
+- END on a SPECIFIC next move tied to their REAL state — e.g. "روح خلّص الـ N مراجعات المستنياك دلوقتي",
+  "ادخل fight النهاردة وركّز على [اسم نقطة الضعف]" — never a vague "روح اتمرن".
+- When you answer a German question, be a real tutor: give the rule + a correct example + their OWN likely
+  mistake, not a one-liner. Depth, not a dictionary lookup.
+
 Keep replies tight and spoken — usually 2–6 short Egyptian sentences, ending on the next move.`;
 
 // ── Groq chat (OpenAI-compatible endpoint; the same provider the rest of the app uses) ──
@@ -165,6 +178,25 @@ async function buildFacts(account, g) {
     }
     if (Array.isArray(p.masteredRules) && p.masteredRules.length) {
       lines.push(`Grammar rules they've MASTERED: ${p.masteredRules.length} (${p.masteredRules.slice(0, 3).join(', ')}) — celebrate what they beat.`);
+    }
+
+    // ── LIVE learning-loop signals — the ammo that makes Alhassan specific, not generic ──
+    const srs = Array.isArray(p.srs) ? p.srs : [];
+    const weakG = srs.filter((i) => i.type === 'grammar' && !i.mastered && i.content)
+                     .sort((a, b) => (b.lapses || 0) - (a.lapses || 0));
+    if (weakG.length) lines.push(`THEIR #1 RECURRING WEAKNESS RIGHT NOW: "${weakG[0].content}" — this is exactly what the live interview targets. Push them on THIS specific thing, by name.`);
+    if (Array.isArray(p.recentErrors) && p.recentErrors.length) {
+      lines.push(`Error patterns from their LAST session: ${p.recentErrors.slice(0, 3).join('; ')}.`);
+    }
+    const due = dueCount(p);
+    if (due > 0) lines.push(`They have ${due} spaced-review item(s) DUE RIGHT NOW — a concrete thing to send them to do this minute.`);
+    // Week-over-week fluency (real weekly change to reference, not vague "you're improving").
+    if (sessions.length >= 2) {
+      const DAY = 86400000, nowT = Date.now();
+      const win = (lo, hi) => sessions.filter((s) => s.date != null && s.date > lo && s.date <= hi);
+      const tw = win(nowT - 7 * DAY, nowT), lw = win(nowT - 14 * DAY, nowT - 7 * DAY);
+      const avg = (a) => (a.length ? Math.round(a.reduce((x, s) => x + (s.fluency || 0), 0) / a.length) : null);
+      if (tw.length && lw.length) lines.push(`This week vs last week fluency: ${avg(lw)} → ${avg(tw)} — reference this REAL weekly change.`);
     }
   } catch (e) { /* facts are best-effort; never block the reply */ }
   return lines.join('\n');
