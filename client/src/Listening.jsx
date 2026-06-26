@@ -43,7 +43,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0); setResponse(''); setPlayed(0);
     try {
-      const r = await fetch(`${apiUrl}/api/listening`, { headers: { Authorization: `Bearer ${token}` } });
+      // Unique URL + no-store so the browser can NEVER serve a cached set → fresh items every open/round.
+      const r = await fetch(`${apiUrl}/api/listening?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok || !Array.isArray(d.items) || !d.items.length) throw new Error('load_failed');

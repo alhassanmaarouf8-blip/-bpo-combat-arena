@@ -28,7 +28,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);
     try {
-      const r = await fetch(`${apiUrl}/api/spoken-review`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${apiUrl}/api/spoken-review?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error('load_failed');

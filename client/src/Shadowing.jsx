@@ -49,7 +49,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   const loadSession = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);
     try {
-      const r = await fetch(`${apiUrl}/api/shadowing`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${apiUrl}/api/shadowing?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok || !Array.isArray(d.sentences) || !d.sentences.length) throw new Error('load_failed');

@@ -38,7 +38,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setRes([]); setRound(0);
     try {
-      const r = await fetch(`${apiUrl}/api/fluency?level=${encodeURIComponent(level)}`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${apiUrl}/api/fluency?level=${encodeURIComponent(level)}&t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok || !d.prompt) throw new Error('load_failed');
