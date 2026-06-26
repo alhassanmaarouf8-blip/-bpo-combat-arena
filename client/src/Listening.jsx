@@ -28,6 +28,7 @@ function speakDe(text, rate = 1.05) {
 export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
   const [phase, setPhase] = useState('loading'); // loading | practice | done | error
   const [items, setItems] = useState([]);
+  const [baseRate, setBaseRate] = useState(1.0);  // level-scaled base speed from the server
   const [idx, setIdx]     = useState(0);
   const [played, setPlayed] = useState(0);        // how many times current item was played
   const [response, setResponse] = useState('');
@@ -46,6 +47,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok || !Array.isArray(d.items) || !d.items.length) throw new Error('load_failed');
+      if (typeof d.baseRate === 'number') setBaseRate(d.baseRate);
       setItems(d.items); setPhase('practice');
     } catch {
       setErr({ de: 'Konnte die Übung nicht laden. Bitte erneut.', ar: 'مقدرناش نحمّل التمرين. حاول تاني.' });
@@ -63,9 +65,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 
   const play = () => {
     if (!item || !canPlay) return;
-    // Progressive overload: each item in the session is spoken faster than the last
-    // (1.0 → ~1.5×), so you train catching a FAST native, not a slowed-down one.
-    const ok = speakDe(item.audioText, Math.min(1.55, 1.0 + idx * 0.12));
+    // Level-scaled base speed (beginner slower, advanced faster) + progressive overload within the
+    // session (each item faster than the last), so you train catching a native at YOUR edge.
+    const ok = speakDe(item.audioText, Math.min(1.7, baseRate + idx * 0.12));
     setTtsOk(ok);
     if (ok) setPlayed((p) => p + 1);
   };

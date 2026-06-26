@@ -21,6 +21,7 @@ const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onClose, onGoPricing }) {
   const [phase, setPhase]   = useState('loading'); // loading | ready | practice | scoring | between | done | error
   const [prompt, setPrompt] = useState(null);      // { id, de, ar }
+  const [focus, setFocus]   = useState(null);      // the student's #1 weak rule to focus on
   const [rounds, setRounds] = useState([90, 60, 45]);
   const [round, setRound]   = useState(0);          // 0-based index into rounds
   const [results, setRes]   = useState([]);         // per-round { transcript, metrics, grammar? }
@@ -42,6 +43,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       const d = await r.json();
       if (!r.ok || !d.prompt) throw new Error('load_failed');
       setPrompt(d.prompt);
+      setFocus(d.focus || null);
       setRounds(Array.isArray(d.rounds) && d.rounds.length === 3 ? d.rounds : [90, 60, 45]);
       setPhase('ready');
     } catch {
@@ -166,6 +168,14 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
         </div>
         <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{prompt?.de}</div>
         <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{prompt?.ar}</div>
+        {focus && (
+          <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(245,158,11,0.2)',
+            ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
+            <span style={{ fontSize: 11.5, color: '#fbbf24', fontWeight: 700 }}>
+              {T(lang, `🎯 Achte diesmal besonders auf: ${focus}`, `🎯 ركّز المرة دي بالذات على: ${focus}`)}
+            </span>
+          </div>
+        )}
       </div>
     </>
   );

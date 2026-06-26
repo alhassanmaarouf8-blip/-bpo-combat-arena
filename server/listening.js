@@ -20,8 +20,18 @@
  */
 import express from 'express';
 import { requireAuth, planOf } from './auth.js';
+import { loadUser, saveUser }  from './store.js';
 
 export const listeningRouter = express.Router();
+
+// Level → base playback speed. A beginner hears the SAME native line slower; an advanced learner
+// faster — genuine difficulty scaling for listening (the within-session ramp is added on top).
+function baseRateFor(level) {
+  if (level === 'C1') return 1.25;
+  if (level === 'B2') return 1.1;
+  if (level === 'A1' || level === 'A2') return 0.9;
+  return 1.0;   // B1 / unknown
+}
 
 const PER_SESSION = 5;
 const REPLAYS     = 1;   // how many times the learner may replay before answering (1 = hear it twice total)
@@ -78,25 +88,45 @@ function normalize(s, type) {
   return raw.normalize('NFC').replace(/[^a-zäöüß]/g, '');   // names: letters only
 }
 
-function pick(n) {
+// Adaptive selection: bias toward the data-TYPE the student keeps missing (e.g. they nail names but
+// miss amounts → serve more amounts). Only kicks in once a type is demonstrably weak (≥2 seen, <80%
+// accuracy) — otherwise pure variety. Honest: driven by their REAL per-type accuracy, never faked.
+function pickAdaptive(stats, n) {
   const idx = ITEMS.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  if (stats) {
+    const acc = {};
+    for (const [type, s] of Object.entries(stats)) if (s && s.seen >= 2) acc[type] = s.correct / s.seen;
+    const weakest = Object.keys(acc).sort((a, b) => acc[a] - acc[b])[0];
+    if (weakest && acc[weakest] < 0.8) {
+      const weak = idx.filter((i) => ITEMS[i].type === weakest).slice(0, 2);   // front-load up to 2 of the weak type
+      const rest = idx.filter((i) => !weak.includes(i));
+      return [...weak, ...rest].slice(0, n);
+    }
+  }
   return idx.slice(0, n);
 }
 
-// GET a fresh session — audioText included (for the browser's speech engine) but the client
-// MUST NOT display it; the answer is never sent.
-listeningRouter.get('/listening', requireAuth, (req, res) => {
+// GET a fresh session — audioText for the browser's speech engine (client MUST NOT display it),
+// a level-scaled baseRate, and items biased toward the student's weakest data-type. Answer never sent.
+listeningRouter.get('/listening', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
-  const items = pick(Math.min(PER_SESSION, ITEMS.length)).map((i) => ({
+  let baseRate = 1.0, stats = null;
+  try {
+    const p = await loadUser(req.account.id);
+    baseRate = baseRateFor(p.assessmentResult?.estimatedLevel);
+    stats = p.listeningStats || null;
+  } catch { /* best-effort: neutral rate + random variety */ }
+  const items = pickAdaptive(stats, Math.min(PER_SESSION, ITEMS.length)).map((i) => ({
     id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText,
     question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS,
   }));
-  res.json({ items });
+  res.json({ items, baseRate });
 });
 
-// POST a typed capture → deterministic correct/incorrect (no model).
-listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), requireAuth, (req, res) => {
+// POST a typed capture → deterministic correct/incorrect (no model). Records per-type accuracy so the
+// NEXT session can bias toward what this student keeps missing.
+listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   const id = parseInt(req.body?.id, 10);
   if (!Number.isInteger(id) || id < 0 || id >= ITEMS.length) return res.status(400).json({ error: 'bad_item' });
@@ -104,6 +134,15 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
   const you  = normalize(req.body?.response, item.type);
   const want = normalize(item.answer, item.type);
   const correct = you.length > 0 && you === want;
+  // Record per-type accuracy (best-effort; never block the grade response).
+  try {
+    const p = await loadUser(req.account.id);
+    p.listeningStats = p.listeningStats || {};
+    const s = p.listeningStats[item.type] || { seen: 0, correct: 0 };
+    s.seen += 1; if (correct) s.correct += 1;
+    p.listeningStats[item.type] = s;
+    await saveUser(p);
+  } catch { /* stats are best-effort */ }
   console.log(`[listening] user=${req.account.id} id=${id} type=${item.type} correct=${correct}`);
   res.json({ correct, expected: item.answer, normalizedYou: you });
 });
