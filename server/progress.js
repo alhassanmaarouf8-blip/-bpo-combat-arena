@@ -7,7 +7,7 @@
  */
 import express from 'express';
 import { loadUser, saveUser }                 from './store.js';
-import { dueItems, dueCount, grade, checkAnswer } from './srs.js';
+import { dueCount } from './srs.js';
 import { levelProgress, bossForLevel, nextBoss, computeStreak, computeRank } from './progression.js';
 import { dailyStatus } from './daily.js';
 import { isSpeakableRule } from './grammarCheck.js';
@@ -98,54 +98,9 @@ progressRouter.get('/progress', requireAuth, async (req, res) => {
   }
 });
 
-progressRouter.get('/review', requireAuth, async (req, res) => {
-  res.set('Cache-Control', 'no-store');   // fresh due items every open — no cached warm-up set
-  try {
-    const p = await loadUser(req.account.id);
-    const items = dueItems(p, Date.now()).map((i) => ({
-      id:     i.id,
-      type:   i.type,          // 'grammar' | 'vocab'
-      prompt: i.prompt,        // what the user sees (English gloss or "fix this")
-      hint:   i.example?.wrong ?? null,
-      stage:  i.stage,
-    }));
-    res.json({ items });
-  } catch (err) {
-    console.error('[progress] review error:', err.message);
-    res.status(500).json({ error: 'review_failed' });
-  }
-});
-
-progressRouter.post('/review/grade', requireAuth, async (req, res) => {
-  try {
-    const p = await loadUser(req.account.id);
-    const { id, answer, responseMs } = req.body || {};
-    const item = (p.srs || []).find((i) => i.id === id);
-    if (!item) return res.status(404).json({ error: 'not_found' });
-
-    const { correct, note, note_ar } = checkAnswer(answer, item.answer);
-    grade(p, id, correct, Date.now());
-
-    // Mastered grammar rules graduate to the dashboard list.
-    if (correct && item.mastered && item.type === 'grammar' && !p.masteredRules.includes(item.content)) {
-      p.masteredRules.push(item.content);
-    }
-    await saveUser(p);
-
-    res.json({
-      correct,
-      note,                       // gentle capitalization nudge (German nouns), or ''
-      note_ar,                    // same nudge in Arabic (for the toggle)
-      expected: item.answer,
-      mastered: !!item.mastered,
-      // Automaticity nudge: a confident live-call answer comes fast.
-      fast:     correct && Number.isFinite(responseMs) && responseMs < 4000,
-    });
-  } catch (err) {
-    console.error('[progress] grade error:', err.message);
-    res.status(500).json({ error: 'grade_failed' });
-  }
-});
+// (Removed the dead GET /review + POST /review/grade endpoints — their only consumer, the typed
+//  RecallDrill pre-fight warm-up, was deleted. SRS review now lives entirely in the SPOKEN path:
+//  /api/spoken-review (SAG ES RICHTIG) + the daily session. Nothing called these anymore.)
 
 // ── Weekly leaderboard ────────────────────────────────────────────────────────
 // Ranks active students by weekly practice volume (live sessions + daily drill days).

@@ -147,11 +147,14 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   let chosen, focus = null;
   try {
     const u = await loadUser(req.account.id);
-    // No-repeat: serve an unseen prompt and remember it for next time.
-    const seen = Array.isArray(u.fluencySeen) ? u.fluencySeen : [];
+    // No-repeat, KEYED BY LEVEL: a2-b1 and b2 keep separate seen-lists, so exhausting/resetting one
+    // level can't wipe or contaminate the other's no-repeat history. (Migrates the old flat array.)
+    const store = (u.fluencySeen && !Array.isArray(u.fluencySeen)) ? u.fluencySeen : {};
+    const seen  = Array.isArray(store[level]) ? store[level] : [];
     const r = pickPrompt(level, seen);
     chosen = r.chosen;
-    u.fluencySeen = r.reset ? [chosen.id] : [...seen, chosen.id];
+    store[level]  = r.reset ? [chosen.id] : [...seen, chosen.id];
+    u.fluencySeen = store;
     // Weakness FOCUS: prime the learner on their #1 weak (speakable) rule; LanguageTool then measures it.
     const weak = (u.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
                               .sort((a, b) => (b.lapses || 0) - (a.lapses || 0))[0];
