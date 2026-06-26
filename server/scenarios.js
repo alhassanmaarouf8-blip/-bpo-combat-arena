@@ -210,6 +210,26 @@ export const CS_LIFECYCLE_RUBRIC =
   `Überfordere nicht: wenn die erste Phase sehr lange gedauert hat oder der Kandidat sichtlich erschöpft ist, ` +
   `lasse Phase 2 weg und schließe stattdessen mit einem kurzen "Danke, ich warte auf Ihre Rückmeldung." ab.`;
 
+// ── Drucktest: the ONE deliberate pressure spike ────────────────────────────────
+// The C1-floor hiring verdict (panelscorer) turns on whether the candidate HOLDS their
+// German under pressure or collapses — but the grader can only judge that if the transcript
+// actually CONTAINS a pressure moment. This rubric makes the boss engineer exactly one,
+// in-role and fair, so "held up" vs "broke down" becomes visible evidence instead of luck.
+export const DRUCKTEST_RUBRIC =
+  `DRUCKMOMENT (genau EINMAL — der eigentliche Prüfstein, sehr wichtig): ` +
+  `Wenn das Rollenspiel in Gang ist, baue als Kunde GENAU EINEN echten Druckmoment ein — den Moment, der zeigt, ` +
+  `ob der Kandidat sein Deutsch unter Stress HÄLT oder einbricht. Eskaliere dafür kurz und scharf: erhöhe Tempo und ` +
+  `Dringlichkeit, stapele eine plötzliche Komplikation obendrauf und VERLANGE sofort eine klare, konkrete Antwort ` +
+  `(z.B. „Moment — dafür habe ich jetzt wirklich keine Zeit. Sagen Sie mir SOFORT in EINEM Satz, was Sie konkret tun, ` +
+  `sonst lasse ich mich mit Ihrem Vorgesetzten verbinden."). Wird der Kandidat vage oder ausweichend, UNTERBRICH ihn ` +
+  `dieses eine Mal („Nein — konkret bitte, keine Floskeln."). ` +
+  `DAMIT ES FAIR BLEIBT: Der Druck gilt der SITUATION (Zeitnot, Forderung, Eskalationsdrohung), NIEMALS der Person — ` +
+  `werde nie beleidigend und mach dich nie über Akzent oder Grammatikfehler lustig. Passe die Härte an das Niveau an: ` +
+  `bei niedrigem Niveau ein spürbarer, aber bewältigbarer Stups; bei C1 ein echter harter Curveball. ` +
+  `Tu dies nur EINMAL pro Sitzung und kündige es NIEMALS als Metakommentar an. ` +
+  `Hält der Kandidat ruhig, strukturiert und in klarem Deutsch stand, BELOHNE das deutlich — werde merklich ruhiger und ` +
+  `kooperativer, damit im Gesprächsverlauf sichtbar wird, dass er dem Druck gewachsen war.`;
+
 // ── BPO "phrase of the day" pool (for the daily micro-session) ──────────────────
 // Real, high-value call-center German. One is surfaced per day (deterministically),
 // with a tiny drill. No API cost — curated content.
@@ -373,6 +393,7 @@ Bleibe durchgehend in der Rolle dieses wütenden Kunden und reagiere jedes Mal a
 ${CS_RUBRIC}
 ${DATA_VERIFICATION_RUBRIC}
 ${CS_LIFECYCLE_RUBRIC}
+${DRUCKTEST_RUBRIC}
 
 ÜBERGÄNGE ZWISCHEN DEN TEILEN — NATÜRLICH, NICHT ROBOTERHAFT (sehr wichtig):
 Sage NIEMALS mechanisch "Teil eins", "Teil zwei", "Teil drei" oder "Frage 3 von 8" an — so spricht eine Maschine, kein Mensch. Wechsle stattdessen WEICH: Würdige zuerst kurz die letzte Antwort, dann leite mit einer natürlichen Brücke über. Knüpf wenn möglich an etwas an, das der Kandidat vorher gesagt hat, damit es sich wie EIN Gespräch anfühlt, nicht wie eine Checkliste. Beispiele für solche Brücken:
