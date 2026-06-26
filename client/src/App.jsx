@@ -196,7 +196,12 @@ function stopBossVoice() {
 }
 
 // Deepgram Aura neural fallback (POST → MP3 blob). Used only if ElevenLabs is unavailable.
+let _ttsCtx = null;   // reused AudioContext for the volume boost (created lazily)
 async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd }) {
+  // onEnd MUST fire exactly once no matter what — if it doesn't, bossSpeak stays true and the
+  // hands-free loop never resumes (= the interviewer "stops responding"). Every exit path calls done().
+  let ended = false;
+  const done = () => { if (ended) return; ended = true; try { onEnd?.(); } catch {} };
   try {
     const ctrl = new AbortController();
     const tid  = setTimeout(() => ctrl.abort(), 12000); // 12s max — Deepgram is fast; hang = network issue
@@ -214,17 +219,45 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd })
     if (!blob || !blob.size) throw new Error('empty audio');
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    audio.volume = 1.0;
     _bossAudio = audio;
-    audio.onplay  = () => { try { onStart?.(); } catch {} };
-    audio.onended = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
-    audio.onerror = () => { try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} };
-    await audio.play().catch(() => {
-      try { URL.revokeObjectURL(url); } catch {}
-      if (_bossAudio === audio) _bossAudio = null;
-      onEnd?.();
-    });
+    let wd = null;
+    const cleanup = () => { if (wd) { clearInterval(wd); wd = null; } try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; };
+
+    // VOLUME BOOST: Aura-2's output is quiet → amplify via a pure Web Audio gain stage (gain only,
+    // NO filtering, so it can never sound robotic). Fail-SAFE: only engaged when the AudioContext is
+    // already running — otherwise we leave the plain <audio> element untouched (audible at source
+    // level), so this can never produce silence. First boss line may be source-level; then it boosts.
+    try {
+      if (!_ttsCtx && (window.AudioContext || window.webkitAudioContext)) _ttsCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_ttsCtx && _ttsCtx.state === 'suspended') _ttsCtx.resume().catch(() => {});
+      if (_ttsCtx && _ttsCtx.state === 'running') {
+        const srcNode = _ttsCtx.createMediaElementSource(audio);
+        const gain = _ttsCtx.createGain();
+        gain.gain.value = 1.8;
+        srcNode.connect(gain); gain.connect(_ttsCtx.destination);
+      }
+    } catch { /* boost unavailable → plain element playback (still audible) */ }
+
+    audio.onplay = () => {
+      try { onStart?.(); } catch {}
+      // WATCHDOG: if currentTime freezes for ~6s after playback started, the stream hung and
+      // onended will never fire → force-finish so the boss can't get stuck silent.
+      let last = -1, stuck = 0;
+      wd = setInterval(() => {
+        if (ended) { clearInterval(wd); wd = null; return; }
+        const ct = audio.currentTime;
+        if (ct === last) { if (++stuck >= 4) { try { audio.pause(); } catch {} cleanup(); done(); } }
+        else { stuck = 0; last = ct; }
+      }, 1500);
+    };
+    audio.onended = () => { cleanup(); done(); };
+    audio.onerror = () => { cleanup(); done(); };
+    // Hard backstop: a boss turn may NEVER hang forever, even if onplay never fired.
+    setTimeout(() => { if (!ended) { try { audio.pause(); } catch {} cleanup(); done(); } }, 45000);
+    await audio.play().catch(() => { cleanup(); done(); });
   } catch {
-    onEnd?.();
+    done();
   }
 }
 
@@ -1167,7 +1200,10 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               ? { icon:'📋', label:'TELEFON-SCREEN BESTANDEN', de:'B2: Sie bestehen das HR-Screening. Für die Kundenlinie fehlt C1 unter Druck.', ar:'B2: بتعدّي فلتر الـHR. لكن الخط محتاج C1 تحت الضغط.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
               : rank === 'B1'
               ? { icon:'⏸', label:'NOCH NICHT', de:'B1: Die Grundlage steht — aber eine deutsche Linie verlangt C1.', ar:'B1: الأساس موجود — بس الخط الألماني محتاج C1.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
-              : { icon:'✗', label:'DIESMAL NICHT', de:'Die deutsche Kundenlinie verlangt C1. Der Weg dahin ist klar — weiter üben.', ar:'الخط الألماني محتاج C1. الطريق واضح — كمّل تمرين.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' };
+              : rank === 'A2'
+              ? { icon:'🌱', label:'AUFBAUSTUFE', de:'A2: Du baust dein Fundament — noch unter der Einstellungsschwelle, aber jede Sitzung bringt dich näher.', ar:'A2: بتبني الأساس — لسه تحت عتبة التوظيف، بس كل جلسة بتقرّبك أكتر.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+              // A1/unknown → match the server jobLabel's gentle tone, NOT a harsh red "DIESMAL NICHT".
+              : { icon:'🌱', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
             return (
               <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
                 animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
