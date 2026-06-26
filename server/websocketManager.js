@@ -744,6 +744,22 @@ export class WebSocketManager {
         if (before !== null) weakRuleDelta = { rule: targetRule, before, after };
       }
 
+      // Week-over-week macro signal (deterministic, honest): average fluency over the last 7 days
+      // vs the 7 days before. Fluency is the composite headline (higher = always better), so the
+      // delta is unambiguous. Only emitted when BOTH windows have a real session — no fabricated week.
+      let weekTrend = null;
+      {
+        const DAY = 86400000;
+        const win = (lo, hi) => p.sessions.filter((s) => s.date != null && s.date > lo && s.date <= hi);
+        const thisW = win(now - 7 * DAY, now);
+        const lastW = win(now - 14 * DAY, now - 7 * DAY);
+        const avgFl = (arr) => Math.round(arr.reduce((x, s) => x + (s.fluency || 0), 0) / arr.length);
+        if (thisW.length && lastW.length) {
+          const tv = avgFl(thisW), lv = avgFl(lastW);
+          weekTrend = { fluency: { this: tv, last: lv, delta: tv - lv }, thisCount: thisW.length, lastCount: lastW.length };
+        }
+      }
+
       return {
         xpGained, level: p.level, leveledUp,
         levelProgress: levelProgress(p.xp),
@@ -755,6 +771,7 @@ export class WebSocketManager {
         rank:          computeRank(p.sessions),
         trainingDelta,
         weakRuleDelta,
+        weekTrend,
         trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
         personalBest,
         bestFluency:   Math.max(...flAll),

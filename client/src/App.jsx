@@ -1343,6 +1343,13 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   <b style={{ color: data.progress.weakRuleDelta.after <= data.progress.weakRuleDelta.before ? '#34d399' : '#f87171' }}>{data.progress.weakRuleDelta.after}</b>
                 </div>
               )}
+              {data.progress.weekTrend && (
+                <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                  <b style={{ color:'#fbbf24' }}>{ar ? 'الأسبوع ده مقابل اللي فات' : 'Diese Woche vs. letzte Woche'}</b>:{' '}
+                  {ar ? 'الطلاقة' : 'Flüssigkeit'} {data.progress.weekTrend.fluency.last} → <b style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? '#34d399' : '#f87171' }}>{data.progress.weekTrend.fluency.this}</b>{' '}
+                  <span style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? '#34d399' : '#f87171' }}>({data.progress.weekTrend.fluency.delta >= 0 ? '+' : ''}{data.progress.weekTrend.fluency.delta})</span>
+                </div>
+              )}
             </div>
           )}
 
