@@ -1869,7 +1869,7 @@ function RecallDrill({ items, token, onDone, lang = 'de' }) {
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
 function AuthScreen({ onAuth }) {
-  const [mode, setMode]   = useState('login');
+  const [mode, setMode]   = useState('signup');   // cold link-clickers are NEW visitors → show signup first (conversion)
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
   const [err, setErr]     = useState('');
@@ -1913,6 +1913,24 @@ function AuthScreen({ onAuth }) {
           🎯 Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
           <br /><span dir="rtl">🎯 بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
         </div>
+      </div>
+
+      {/* Landing proof — honest, concrete (mirrors what the app actually does; no fabricated stats) */}
+      <div style={{ maxWidth:380, margin:'0 auto 18px', display:'flex', flexDirection:'column', gap:8 }}>
+        {[
+          { icon:'🎤', ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
+          { icon:'🎯', ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
+          { icon:'📈', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Sieh deinen Fortschritt Woche für Woche — bis zum Job' },
+        ].map((b, i) => (
+          <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start',
+            background:'rgba(0,229,255,0.05)', border:'1px solid rgba(0,229,255,0.15)', borderRadius:10, padding:'9px 11px' }}>
+            <span style={{ fontSize:16, lineHeight:1.3 }}>{b.icon}</span>
+            <div style={{ flex:1 }}>
+              <div dir="rtl" style={{ fontSize:12, fontWeight:700, color:'#e2e8f0' }}>{b.ar}</div>
+              <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>{b.de}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div style={{ borderRadius:14, padding:20,
