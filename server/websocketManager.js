@@ -308,6 +308,7 @@ export class WebSocketManager {
       prof = await loadUser(ctx.userId);
       bossId  = bossForLevel(prof.level).id;
       dossier = topWeakRule(prof);   // recurring weak grammar rule → boss memory dossier
+      ctx.targetWeakRule = dossier;  // the PURE weak rule we re-test this session → measure its delta at debrief
       focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
       // Enrich dossier with recurring error labels from recent sessions
       const recentErrs = (prof.recentErrors || []).slice(0, 2).filter(Boolean);
@@ -686,6 +687,9 @@ export class WebSocketManager {
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
+        // Raw LanguageTool rule→count for this session. Same identifier space as topWeakRule, so the
+        // debrief can prove "your weakness X: N→M" honestly. Absent rule = 0 errors of it this session.
+        grammarRules: (debrief.grammar || []).map((g) => ({ rule: g.rule, count: g.count || 1 })),
       });
 
       // Trainingslager: refresh study recommendations from the last 3 fights (rule-based, no AI).
@@ -723,6 +727,23 @@ export class WebSocketManager {
         }
       }
 
+      // Provable weakness delta: did the candidate improve on the SAME weak rule we targeted this
+      // session? Compare its LanguageTool error count last session → this session, from stored
+      // per-session counts. HONEST: ruleCnt returns null only when a session never tracked grammar
+      // rules (predates this feature) → no fabricated baseline; a tracked-but-absent rule = 0 (real).
+      let weakRuleDelta = null;
+      const targetRule = ctx.targetWeakRule;
+      if (targetRule) {
+        const ruleCnt = (s) => (Array.isArray(s?.grammarRules)
+          ? (s.grammarRules.find((r) => r.rule === targetRule)?.count ?? 0)
+          : null);
+        const cur  = p.sessions[p.sessions.length - 1];
+        const prev = p.sessions[p.sessions.length - 2];
+        const before = prev ? ruleCnt(prev) : null;
+        const after  = ruleCnt(cur) ?? 0;
+        if (before !== null) weakRuleDelta = { rule: targetRule, before, after };
+      }
+
       return {
         xpGained, level: p.level, leveledUp,
         levelProgress: levelProgress(p.xp),
@@ -733,6 +754,7 @@ export class WebSocketManager {
         streak:        computeStreak(p.sessions, p.lessonDays),
         rank:          computeRank(p.sessions),
         trainingDelta,
+        weakRuleDelta,
         trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
         personalBest,
         bestFluency:   Math.max(...flAll),

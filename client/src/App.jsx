@@ -1336,6 +1336,13 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? '#34d399' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
                 </div>
               )}
+              {data.progress.weakRuleDelta && (
+                <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                  <b style={{ color:'#fbbf24' }}>{ar ? 'نقطة ضعفك المستهدفة' : 'Gezielt getestete Schwäche'}</b> — {data.progress.weakRuleDelta.rule}:{' '}
+                  {ar ? 'الجولة اللي فاتت' : 'letzte Sitzung'} {data.progress.weakRuleDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
+                  <b style={{ color: data.progress.weakRuleDelta.after <= data.progress.weakRuleDelta.before ? '#34d399' : '#f87171' }}>{data.progress.weakRuleDelta.after}</b>
+                </div>
+              )}
             </div>
           )}
 
