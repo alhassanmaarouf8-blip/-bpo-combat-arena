@@ -882,12 +882,18 @@ export class WebSocketManager {
       gradeUnavailable = true;
     }
 
-    const jobLabel = gradeUnavailable ? 'Bewertung nicht verfügbar'
-                 : rank === 'C1' ? 'Sehr gute Bewerbungsrede'
-                 : rank === 'B2' ? 'Gut — fast berufsreif'
-                 : rank === 'B1' ? 'Grundsolide'
-                 : rank === 'A2' ? 'Ausbaufähig mit Potenzial'
-                 :                 'Weiter üben — Du schaffst das';
+    // Honest C1-floor verdict. The pass bar on a real Cairo German line is C1 that
+    // HELD under pressure; B2 only clears the HR phone-screen; freezing (verdict
+    // 'fail') disqualifies regardless of vocabulary, so it overrides a high CEFR.
+    const jobLabel =
+        gradeUnavailable                    ? 'Bewertung nicht verfügbar'
+      : verdict === 'fail'                  ? 'Unter Druck eingebrochen — noch nicht einstellbar'
+      : rank === 'C1' && verdict === 'pass' ? 'C1 — bereit für die Kundenlinie'
+      : rank === 'C1'                       ? 'C1-Niveau, unter Druck aber noch instabil'
+      : rank === 'B2'                       ? 'B2 — besteht das Telefon-Screening, noch nicht liniensicher'
+      : rank === 'B1'                       ? 'B1 — grundsolide, aber unter der Einstellungsschwelle'
+      : rank === 'A2'                       ? 'A2 — deutlich unter der Einstellungsschwelle'
+      :                                       'Weiter üben — Du schaffst das';
 
     return {
       outcome, bossHp, playerHp, score,

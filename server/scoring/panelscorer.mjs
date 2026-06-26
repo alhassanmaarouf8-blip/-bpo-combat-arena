@@ -166,7 +166,11 @@ Return a compact JSON object with this exact shape:
 }
 
 Rules:
-- "verdict" must be derived from concrete evidence in the transcript.
+- "verdict" encodes real Cairo-BPO hireability, not effort or politeness, and MUST be derived from concrete evidence in the transcript:
+    "pass" = would be SEATED on a live German customer line: C1-level control (fluent, precise, complex) AND it held up as the questions got harder — answers stayed coherent, complete and on-topic under pressure.
+    "weak" = would clear the HR phone-screen but is NOT yet floor-ready: solid B2 (clear, controlled, complex sentences) with the spoken-pressure gap still open. B2 is a screen pass, not a seat.
+    "fail" = below B2, OR collapsed under pressure — empty, one-word, or broken-off answers on the harder turns even if earlier German was strong. Freezing under pressure disqualifies regardless of vocabulary.
+  Judge "collapse / freeze" ONLY from the transcript itself (answers that thin out, break off, or fall silent as the questions escalate). Never infer it from audio, timing, or anything not present in the text.
 - "cefrLevel" is the candidate's CEFR level, judged ONLY from the German actually present (grammar control, vocabulary range, sentence complexity, coherence). Apply these anchors HONESTLY — do not deflate a genuinely strong answer to B1, and never inflate a weak one:
     A1/A2: simple words and memorized phrases; frequent basic errors (case, gender, word order); only very familiar topics.
     B1: connected speech on familiar topics; manages the interview but with noticeable, recurring errors and limited range.

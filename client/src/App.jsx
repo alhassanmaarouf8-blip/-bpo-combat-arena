@@ -1150,15 +1150,21 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             )}
           </div>
 
-          {/* ── Hiring decision — maps the score to a real-world outcome ────────── */}
+          {/* ── Hiring decision — maps the CEFR VERDICT (not the game score) to the real
+                Cairo bar: C1-held-under-pressure = seated; B2 = screen only; freeze = out.
+                Mirrors the server jobLabel so the screen never shows two competing verdicts. ── */}
           {!gradeUnavailable && (() => {
-            const d = score >= 85
-              ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'Wir würden Sie gerne im Team willkommen heißen.', ar:'احنا هنرحب بيك في الفريق.', color:'#34d399', bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.4)' }
-              : score >= 70
-              ? { icon:'📋', label:'ZWEITES GESPRÄCH', de:'Wir würden Sie zu einem zweiten Gespräch einladen.', ar:'هنكلمك عشان نحدد موعد تاني مقابلة.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
-              : score >= 55
-              ? { icon:'⏸', label:'WIRD GEPRÜFT', de:'Wir melden uns bei Ihnen — wir brauchen noch etwas Zeit.', ar:'هنتواصل معاك، محتاجين بس وقت أكتر.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
-              : { icon:'✗', label:'DIESMAL NICHT', de:'Wir haben uns für andere Kandidaten entschieden.', ar:'الحين اتقرر نختار حد تاني، بس تمرّن أكتر.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' };
+            const d = r.verdict === 'fail'
+              ? { icon:'✗', label:'DIESMAL NICHT', de:'Unter Druck eingebrochen — genau das entscheidet auf der Linie. Weiter trainieren, der Weg ist klar.', ar:'انهرت تحت الضغط — ده بالظبط اللي الشغل بيتقرر عليه. كمّل تدريب، الطريق واضح.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' }
+              : (rank === 'C1' && r.verdict === 'pass')
+              ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'C1 unter Druck gehalten — auf einer deutschen Kundenlinie einsetzbar.', ar:'حافظت على C1 تحت الضغط — جاهز لخط خدمة ألماني.', color:'#34d399', bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.4)' }
+              : rank === 'C1'
+              ? { icon:'📋', label:'ZWEITES GESPRÄCH', de:'C1-Niveau, aber unter Druck noch instabil — das schließt die Linie noch nicht auf.', ar:'مستوى C1 بس لسه مش ثابت تحت الضغط — لسه بدري على الخط.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
+              : rank === 'B2'
+              ? { icon:'📋', label:'TELEFON-SCREEN BESTANDEN', de:'B2: Sie bestehen das HR-Screening. Für die Kundenlinie fehlt C1 unter Druck.', ar:'B2: بتعدّي فلتر الـHR. لكن الخط محتاج C1 تحت الضغط.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
+              : rank === 'B1'
+              ? { icon:'⏸', label:'NOCH NICHT', de:'B1: Die Grundlage steht — aber eine deutsche Linie verlangt C1.', ar:'B1: الأساس موجود — بس الخط الألماني محتاج C1.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+              : { icon:'✗', label:'DIESMAL NICHT', de:'Die deutsche Kundenlinie verlangt C1. Der Weg dahin ist klar — weiter üben.', ar:'الخط الألماني محتاج C1. الطريق واضح — كمّل تمرين.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' };
             return (
               <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
                 animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
