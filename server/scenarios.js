@@ -307,11 +307,14 @@ export function buildSessionScript({ persona, displayName, greeting, levelId, do
   const cs         = pick(CS_SCENARIOS);
   const delivery   = deliveryBlock(level.id, mood, clarificationRate);  // Phase 1 prosody/mood
 
-  // Memory dossier: a recurring weak rule from past sessions, so the boss can reference
-  // the candidate's history once — making it feel like a returning, watchful interviewer.
+  // Memory dossier → GEZIELTER WIEDERHOLUNGSTEST (closes the learning loop): the recurring weak
+  // area from past sessions isn't just mentioned for atmosphere — the boss must actively ENGINEER
+  // one moment that forces the candidate to demonstrate exactly that weakness, so the interview
+  // really re-tests whether they improved instead of asking random questions.
   const dossierLine = dossier
-    ? `\nDOSSIER (aus früheren Gesprächen): Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
-      `Erwähne das GENAU EINMAL beiläufig und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat.") und achte heute gezielt darauf. Übertreibe es nicht.\n`
+    ? `\nDOSSIER (aus früheren Gesprächen) — GEZIELTER WIEDERHOLUNGSTEST: Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
+      `Erwähne das EINMAL kurz und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat."). ` +
+      `WICHTIG — belass es NICHT bei der Erwähnung: Baue im Gesprächsverlauf GEZIELT EINE natürliche Situation oder Nachfrage ein, die den Kandidaten ZWINGT, genau diese Schwäche ("${dossier}") zu zeigen — etwa eine Rückfrage, ein Beispiel oder ein Rollenspiel-Moment, der genau diese Struktur bzw. Fähigkeit erfordert. So prüfst du ECHT, ob er sich verbessert hat, statt es nur zu erwähnen. Halte es natürlich im Gesprächsfluss, tue es nur EINMAL gezielt und übertreibe es nicht.\n`
     : '';
 
   // Trainingslager focus: after the candidate finishes a lesson, the next fight weaves in
