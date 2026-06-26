@@ -510,12 +510,21 @@ export class WebSocketManager {
     if (ctx.closed) return;
     const text  = (ctx._turnText || '').trim();
     const words = ctx._turnWords || [];
-    const durationMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
+    // Real SPEAKING time from Deepgram word timestamps (start/end, seconds) — reflects PACE, not
+    // wall-clock pauses, so WpM is honest. Falls back to wall-clock only if timestamps are absent.
+    let speakingMs = 0;
+    if (words.length) {
+      const f = words[0], l = words[words.length - 1];
+      if (Number.isFinite(f?.start) && Number.isFinite(l?.end)) speakingMs = Math.round((l.end - f.start) * 1000);
+    }
+    const wallMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
+    const durationMs = speakingMs > 0 ? speakingMs : wallMs;
     ctx._turnText = '';
     ctx._turnWords = [];
     ctx._speechStartMs = null;
-    if (!text) {
-      // Nothing usable this turn — reset the client so the mic can retry (no boss line).
+    // No usable speech — empty, OR a word-span under ~0.3s (a blip / noise hallucination, not an
+    // answer) → reset the mic to retry, never score it as if the candidate spoke.
+    if (!text || (speakingMs > 0 && speakingMs < 300)) {
       this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
       return;
     }
