@@ -67,6 +67,30 @@ const ITEMS = [
     question_de: 'Wie lautet die Sendungsnummer?', question_ar: 'إيه رقم الشحنة؟', answer: '1234567890' },
   { type: 'adresse', audioText: 'Bitte schicken Sie es an die Goethestraße dreiundvierzig, achtzig drei drei sieben München.',
     question_de: 'Wie lautet die Postleitzahl? (5 Ziffern)', question_ar: 'إيه الرقم البريدي؟', answer: '80337' },
+  { type: 'nummer', audioText: 'Guten Tag, meine Kundennummer ist drei fünf acht, zwei null, neun sieben. Ich habe eine Frage zur Rechnung.',
+    question_de: 'Welche Kundennummer nennt der Anrufer?', question_ar: 'إيه رقم العميل؟', answer: '3582097' },
+  { type: 'betrag', audioText: 'Auf meiner Rechnung stehen einhundertneunundachtzig Euro fünfzig, aber das stimmt nicht.',
+    question_de: 'Welcher Betrag steht auf der Rechnung? (z. B. 189,50)', question_ar: 'إيه المبلغ على الفاتورة؟', answer: '189,50' },
+  { type: 'name', audioText: 'Mein Name ist Böttcher — also B, Ö, T, T, C, H, E, R.',
+    question_de: 'Wie wird der Nachname geschrieben?', question_ar: 'إزاي بيتكتب الاسم؟', answer: 'böttcher' },
+  { type: 'datum', audioText: 'Der Techniker sollte am siebten Mai kommen, aber er ist nicht erschienen.',
+    question_de: 'An welchem Tag sollte der Techniker kommen? (z. B. 07.05)', question_ar: 'الفني كان المفروض ييجي إمتى؟', answer: '07.05' },
+  { type: 'nummer', audioText: 'Sie erreichen mich unter null eins sechs zwei, vier vier acht, neun null drei eins.',
+    question_de: 'Welche Telefonnummer nennt der Kunde?', question_ar: 'إيه رقم التليفون؟', answer: '01624489031' },
+  { type: 'adresse', audioText: 'Ich wohne in der Hauptstraße neun, zehn vier neun sechs Berlin.',
+    question_de: 'Wie lautet die Postleitzahl? (5 Ziffern)', question_ar: 'إيه الرقم البريدي؟', answer: '10496' },
+  { type: 'betrag', audioText: 'Mir wurden zweihundertfünfzehn Euro zwanzig abgebucht, das ist zu viel.',
+    question_de: 'Welcher Betrag wurde abgebucht? (z. B. 215,20)', question_ar: 'إيه المبلغ اللي اتسحب؟', answer: '215,20' },
+  { type: 'nummer', audioText: 'Die Bestellnummer ist sieben sieben zwei, eins drei, vier acht. Es geht um eine Reklamation.',
+    question_de: 'Wie lautet die Bestellnummer?', question_ar: 'إيه رقم الطلب؟', answer: '7721348' },
+  { type: 'name', audioText: 'Ich heiße Wagner — ganz normal: W, A, G, N, E, R.',
+    question_de: 'Wie wird der Nachname geschrieben?', question_ar: 'إزاي بيتكتب الاسم؟', answer: 'wagner' },
+  { type: 'datum', audioText: 'Die Lieferung war für den neunzehnten Oktober geplant und kam nie an.',
+    question_de: 'Für welchen Tag war die Lieferung geplant? (z. B. 19.10)', question_ar: 'الشحنة كانت لأنهي يوم؟', answer: '19.10' },
+  { type: 'nummer', audioText: 'Meine Vertragsnummer lautet vier null sechs, acht eins, sieben drei.',
+    question_de: 'Wie lautet die Vertragsnummer?', question_ar: 'إيه رقم العقد؟', answer: '4068173' },
+  { type: 'betrag', audioText: 'Die Gesamtsumme beträgt dreihundertzweiundvierzig Euro neunzig.',
+    question_de: 'Wie hoch ist die Gesamtsumme? (z. B. 342,90)', question_ar: 'إيه إجمالي المبلغ؟', answer: '342,90' },
 ];
 
 function paidOnly(req, res) {
@@ -91,34 +115,47 @@ function normalize(s, type) {
 // Adaptive selection: bias toward the data-TYPE the student keeps missing (e.g. they nail names but
 // miss amounts → serve more amounts). Only kicks in once a type is demonstrably weak (≥2 seen, <80%
 // accuracy) — otherwise pure variety. Honest: driven by their REAL per-type accuracy, never faked.
-function pickAdaptive(stats, n) {
+function pickAdaptive(stats, seen, n) {
   const idx = ITEMS.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  // Demonstrably-weak data-type → bias to the front (you keep missing amounts → more amounts).
+  let weakest = null;
   if (stats) {
     const acc = {};
     for (const [type, s] of Object.entries(stats)) if (s && s.seen >= 2) acc[type] = s.correct / s.seen;
-    const weakest = Object.keys(acc).sort((a, b) => acc[a] - acc[b])[0];
-    if (weakest && acc[weakest] < 0.8) {
-      const weak = idx.filter((i) => ITEMS[i].type === weakest).slice(0, 2);   // front-load up to 2 of the weak type
-      const rest = idx.filter((i) => !weak.includes(i));
-      return [...weak, ...rest].slice(0, n);
-    }
+    const w = Object.keys(acc).sort((a, b) => acc[a] - acc[b])[0];
+    if (w && acc[w] < 0.8) weakest = w;
   }
-  return idx.slice(0, n);
+  // NEVER REPEAT until the whole pool is exhausted: serve UNSEEN items first; only when fewer than a
+  // full session remain do we reset and start a fresh cycle. `reset` tells the caller to wipe the seen list.
+  const seenSet = new Set(seen);
+  let pool = idx.filter((i) => !seenSet.has(i));
+  let reset = false;
+  if (pool.length < n) { pool = idx; reset = true; }
+  if (weakest) pool = [...pool].sort((a, b) => (ITEMS[a].type === weakest ? 0 : 1) - (ITEMS[b].type === weakest ? 0 : 1));
+  return { picks: pool.slice(0, n), reset };
 }
 
-// GET a fresh session — audioText for the browser's speech engine (client MUST NOT display it),
-// a level-scaled baseRate, and items biased toward the student's weakest data-type. Answer never sent.
+// GET a fresh session — UNSEEN items (no repeats until the pool cycles), a level-scaled baseRate, and
+// a bias toward the student's weakest data-type. audioText feeds the browser's speech engine (never
+// displayed); the answer is never sent.
 listeningRouter.get('/listening', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
-  res.set('Cache-Control', 'no-store');   // fresh items every open — was cached → "same 5 every time"
-  let baseRate = 1.0, stats = null;
+  res.set('Cache-Control', 'no-store');
+  const n = Math.min(PER_SESSION, ITEMS.length);
+  let baseRate = 1.0, picks;
   try {
     const p = await loadUser(req.account.id);
     baseRate = baseRateFor(p.assessmentResult?.estimatedLevel);
-    stats = p.listeningStats || null;
-  } catch { /* best-effort: neutral rate + random variety */ }
-  const items = pickAdaptive(stats, Math.min(PER_SESSION, ITEMS.length)).map((i) => ({
+    const seen = Array.isArray(p.listeningSeen) ? p.listeningSeen : [];
+    const r = pickAdaptive(p.listeningStats || null, seen, n);
+    picks = r.picks;
+    p.listeningSeen = r.reset ? picks.slice() : [...seen, ...picks];   // remember served → next session is NEW
+    await saveUser(p);
+  } catch {
+    picks = pickAdaptive(null, [], n).picks;
+  }
+  const items = picks.map((i) => ({
     id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText,
     question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS,
   }));

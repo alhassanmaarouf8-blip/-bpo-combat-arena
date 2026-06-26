@@ -159,7 +159,9 @@ export function PressureLadder({ lang = 'de', onClose }) {
     let kept = false;
     // "Survived" = they ACTUALLY kept talking. Blob SIZE is wrong (uncompressed WAV is huge even for
     // silence → always "survived"). Measure real VOICED time from the recorded PCM instead.
-    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = (await voicedMsFromBlob(c?.blob)) >= 1500; } } catch { /* ignore */ }
+    // Survived = SUSTAINED talking under pressure: at least 5s of real voiced speech. Two words (~1s)
+    // = froze. (Tunable single number; raise if it's too lenient, lower if too strict.)
+    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = (await voicedMsFromBlob(c?.blob)) >= 5000; } } catch { /* ignore */ }
     setFroze(!kept);
     if (kept) {
       if (endless) setEndlessStreak((n) => n + 1);
