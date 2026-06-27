@@ -54,8 +54,13 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     uptime: process.uptime(),
     ts: new Date().toISOString(),
-    // Provider markers — lets a deploy be verified as the OpenAI-free build.
-    interview: 'groq',
+    // Boss provider chain (failover order) — mirrors PROVIDERS in realtimeClient.js:
+    // a provider is listed only if its key env is set. "groq+cerebras" => failover armed.
+    // Names only; never exposes a key. Lets the Cerebras wiring be verified with one curl.
+    interview: [
+      (process.env.INTERVIEW_API_KEY || process.env.GROQ_API_KEY) ? 'groq' : null,
+      process.env.CEREBRAS_API_KEY ? 'cerebras' : null,
+    ].filter(Boolean).join('+') || 'none',
     openai: false,
     // Is the Deepgram key actually loaded on this instance? Drives neural voice (TTS)
     // AND nova-3 STT — if false, voice goes robotic and STT falls back. (Boolean only;
