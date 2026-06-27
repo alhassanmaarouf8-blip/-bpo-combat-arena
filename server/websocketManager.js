@@ -6,6 +6,7 @@ import { generateDebrief } from './coach.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { loadUser, saveUser } from './store.js';
+import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
@@ -15,6 +16,7 @@ import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
+import { GeminiLiveProxy }       from './geminiLiveProxy.js';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -81,6 +83,12 @@ const S = {
   TRANSCRIPT_PARTIAL: 'transcript_partial',   // Deepgram streaming interim result
   BOSS_SPEECH:        'boss_speech',
   BOSS_SPEECH_DONE:   'boss_speech_done',
+  // ── Gemini Live audio path (replaces TTS when USE_GEMINI_LIVE=1) ────────────
+  BOSS_AUDIO_DELTA:  'boss_audio_delta',   // b64 PCM16 @ 24 kHz — streamed boss voice
+  LIVE_USER_TRANSCRIPT_PARTIAL: 'live_user_transcript_partial',
+  LIVE_USER_TRANSCRIPT_DONE:    'live_user_transcript_done',
+  LIVE_BOSS_TRANSCRIPT:        'live_boss_transcript',  // sentinel '__TURN_COMPLETE__' ends turn
+  // ───────────────────────────────────────────────────────────────────────────
   SCENARIO_INFO:      'scenario_info',
   STAGE_UPDATE:       'stage_update',
   DEBRIEF_PENDING:    'debrief_pending',
@@ -92,6 +100,14 @@ const S = {
   ERROR:              'error',
   PONG:               'pong',
 };
+
+// ── Abuse / insult detector (deterministic, no API call) ───────────────────────
+// Explicit Arabic + German insults only. Owner must review and expand this list.
+// Tier 1 = mild (warn + continue); Tier 2 = severe (professional end-of-call).
+const ABUSE_T1 = /\b(?:حقير|حمار|وسخ|منحط|حيوان|خنزير|كلب|عبيط)\b/iu;
+const ABUSE_T2 = /\b(?:hurensohn|hure|schlampe|wichser|arschloch|drecksau|fotze|spast|spasti|vollidiot|arsch|scheiß|kacke|pisser|ficker|ficken)\b/iu;
+const ABUSE_WARN = 'Ich muss Sie darauf hinweisen: Ihre Ausdrucksweise ist nicht akzeptabel. Bitte bleiben Sie professionell.';
+const ABUSE_END  = 'Damit ist Schluss. Ich beende das Gespräch.';
 
 // ── Inbound message types (browser → server) ──────────────────────────────────
 const C = {
@@ -183,15 +199,11 @@ export class WebSocketManager {
       combo:          0,       // consecutive strong answers (for the combo multiplier)
       comboBest:      0,       // best combo reached this session
       weakStreak:     0,       // consecutive broken answers (triggers the rescue move)
+      // ── Legacy Groq text path ──────────────────────────────────────────────────
       dgStreamer:     null,    // DeepgramStreamer for hands-free streaming STT (one per turn)
-      errorCounts:           {},    // label → count of weak answers sharing that dominant error
-      lastTurnWasCorrection: false, // prevents back-to-back correction probes
-      errorLabels:           [],    // all dominant player-side error labels (for cross-session memory)
-      // Correction-probe budget — a real interviewer corrects RARELY (research: ≤1 per ~3 turns,
-      // ≤2 per session, never twice in a row, never a barrage). These caps stop the boss feeling
-      // like it interrupts "for no reason."
-      correctionCooldown:    0,     // turns remaining before another probe is allowed
-      correctionsUsed:       0,     // total probes this session (hard cap below)
+      // ── Gemini Live path (active when USE_GEMINI_LIVE=1) ──────────────────────
+      geminiLive:     null,    // GeminiLiveProxy instance (or null on Groq path)
+      geminiLiveMode: false,   // true when this session runs on native audio
       // Turn accumulation — Deepgram only TRANSCRIBES; the client's adaptive VAD owns the
       // turn boundary. We concatenate every Deepgram segment of the current turn here and
       // commit ONCE when the client sends AUDIO_END (never on Deepgram's own speech_final —
@@ -199,6 +211,23 @@ export class WebSocketManager {
       _turnText:   '',
       _turnWords:  [],
       _commitTimer: null,
+      _lastInterim:  '',
+      _speechStartMs: null,
+      _lastWords:    null,
+      // Correction-probe budget — a real interviewer corrects RARELY (research: ≤1 per ~3 turns,
+      // ≤2 per session, never twice in a row, never a barrage). These caps stop the boss feeling
+      // like it interrupts "for no reason."
+      correctionCooldown:    0,
+      correctionsUsed:       0,
+      lastTurnWasCorrection: false,
+      errorCounts:           {},
+      errorLabels:           [],
+      // ── Gemini Live audio path (USE_GEMINI_LIVE=1) ──────────────────────────────
+      geminiProxy:       null,  // GeminiLiveProxy instance for this session
+      geminiActive:      false, // true while the boss is "speaking" via Gemini audio stream (half-duplex)
+      geminiUserParts:   [],    // accumulated user-transcript parts this Gemini turn (for scoring)
+      geminiBossParts:   [],    // accumulated boss-transcript parts this Gemini turn (display + debrief)
+      _geminiTurnStartMs: 0,    // wall-clock start of the current Gemini user turn (for durationMs)
     };
 
     this._sessions.set(sessionId, ctx);
@@ -254,11 +283,29 @@ export class WebSocketManager {
         break;
 
       case C.AUDIO_CHUNK:
-        this._handleAudioChunk(ctx, msg);
+        // Gemini Live path: forward raw PCM directly to the proxy; skip Deepgram entirely.
+        if (ctx.geminiLiveMode && ctx.geminiProxy) {
+          const buf = Buffer.from(msg.data, 'base64');
+          ctx.audioInBytes += buf.length;
+          const sent = ctx.geminiProxy.sendAudioChunk(buf.toString('base64'));
+          if (!sent && !ctx._glChunkWarned) {
+            ctx._glChunkWarned = true;
+            console.warn(`[wsManager] Gemini proxy not ready — audio chunk dropped  session=${ctx.sessionId}`);
+          }
+        } else {
+          this._handleAudioChunk(ctx, msg);
+        }
         break;
 
       case C.AUDIO_END:
-        this._handleAudioEnd(ctx);
+        // In GL mode the turn boundary is owned by Gemini's native VAD — just release the
+        // half-duplex gate so the browser knows the user can start speaking again.
+        if (ctx.geminiLiveMode) {
+          ctx._glChunkWarned = false;
+          this._send(ctx, { type: S.LIVE_USER_TRANSCRIPT_DONE, transcript: ctx.geminiUserParts.join('').trim() });
+        } else {
+          this._handleAudioEnd(ctx);
+        }
         break;
 
       default:
@@ -328,6 +375,13 @@ export class WebSocketManager {
       // persistent mistakes, an absence — so the boss acts like a returning interviewer who
       // watched this candidate grow. Deterministic, never fabricated; see bossMemory.js.
       memory = buildBossMemory(prof);
+      // Name recall from the guide profile (detectName in alhassan.js stores it when the candidate
+      // says their name in chat). If we have it, the opening line will address them naturally.
+      let candidateName = null;
+      try {
+        const guide = await loadGuide(account.id);
+        candidateName = guide?.name || null;
+      } catch {}
     } catch {}
 
     // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
@@ -378,6 +432,7 @@ export class WebSocketManager {
         dossier,
         memory,
         focusTitle,
+        candidateName,
         recent,
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
@@ -413,6 +468,98 @@ export class WebSocketManager {
 
       await ctx.realtimeClient.connect();
       console.log(`[wsManager] RealtimeClient connected  session=${ctx.sessionId}`);
+
+      // ── Gemini Live (native-audio speech-to-speech) — only when USE_GEMINI_LIVE=1 ──
+      // Runs in ADDITION to the Groq path; same scoring/debrief pipeline. If it fails
+      // to connect we silently fall back to the Groq text + Deepgram TTS path (already
+      // wired). The user cannot tell the difference — they just hear the same content.
+      const geminiLiveEnabled = USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY;
+      if (geminiLiveEnabled) {
+        try {
+          const { GeminiLiveProxy } = await import('./geminiLiveProxy.js');
+          const proxy = new GeminiLiveProxy({
+            handlers: {
+              onReady: () => {
+                console.log(`[wsManager] GeminiLive ready  session=${ctx.sessionId}`);
+                ctx.geminiActive = true;
+                this._send(ctx, { type: S.SESSION_READY, useGeminiAudio: true, sessionId: ctx.sessionId, bossHp: ctx.bossHp, playerHp: ctx.playerHp });
+              },
+              onBossAudio: (buf) => {
+                // Stream boss voice PCM to the browser in small base64 chunks.
+                // The client sends `AUDIO_CHUNK` as base64; the server reconstructs
+                // audio bytes with Buffer.from(b64, 'base64'). Wave the same way back.
+                this._send(ctx, { type: S.BOSS_AUDIO_DELTA, data: buf.toString('base64') });
+                ctx.audioOutBytes += buf.length;
+              },
+              onBossText: (chunk) => {
+                if (chunk === '__TURN_COMPLETE__') {
+                  // Boss's turn just ended. Record the full boss transcript into dialogue,
+                  // score the accumulated user transcript, then release the half-duplex.
+                  const bossFull = ctx.geminiBossParts.join('').trim();
+                  const userFull = ctx.geminiUserParts.join('').trim();
+                  ctx.geminiBossParts = [];
+                  ctx.geminiUserParts = [];
+                  ctx._geminiTurnStartMs = 0;
+                  ctx.geminiProxy?.sendText?.('');
+                  // Record boss turn into dialogue for debrief
+                  if (bossFull && bossFull !== '[INTERVIEWER SPRICHT]') {
+                    ctx.dialogue.push({ role: 'boss', text: bossFull, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
+                  }
+                  ctx.geminiActive = false;
+                  this._send(ctx, { type: S.BOSS_SPEECH_DONE });
+                  // If a boss turn has text, surface it; otherwise just signal done.
+                  if (bossFull.length > 2) this._send(ctx, { type: S.LIVE_BOSS_TRANSCRIPT, text: bossFull });
+                  else this._send(ctx, { type: S.BOSS_SPEECH, text: '' });
+                  // Score the user's answer (ctx.geminiUserParts already cleared above)
+                  if (userFull.trim().length >= 2) {
+                    const durMs = ctx._geminiTurnStartMs ? 0 : 0; // already cleared; use proxy duration if available
+                    this._handleAnswer(ctx, { text: userFull.trim(), durationMs: 0 });
+                  }
+                } else {
+                  ctx.geminiBossParts.push(chunk);
+                  this._send(ctx, { type: S.LIVE_BOSS_TRANSCRIPT, text: chunk });
+                }
+              },
+              onUserText: (chunk) => {
+                ctx.geminiUserParts.push(chunk);
+                this._send(ctx, { type: S.LIVE_USER_TRANSCRIPT_PARTIAL, text: chunk });
+              },
+              onInterrupted: () => {
+                ctx.geminiActive = false;
+                this._send(ctx, { type: S.BOSS_SPEECH_DONE });
+              },
+              onClose: (code, reason) => {
+                console.log(`[wsManager] GeminiLive closed  code=${code} reason=${code}:${reason}  session=${ctx.sessionId}`);
+                ctx.geminiActive = false;
+                ctx.geminiProxy = null;
+                // If Gemini dies mid-fight the user loses voice but can still text-answer.
+                if (!ctx.closed) this._send(ctx, { type: S.BOSS_SPEECH, text: '(Die Verbindung zum Interviewer wurde unterbrochen. Bitte tippen Sie Ihre Antwort.)' });
+              },
+              onError: (e) => {
+                console.error(`[wsManager] GeminiLive error session=${ctx.sessionId}: ${e.message}`);
+                ctx.geminiActive = false;
+                ctx.geminiProxy = null;
+                if (!ctx.closed) {
+                  this._send(ctx, { type: S.BOSS_SPEECH, text: '(Es gibt ein technisches Problem — Ihre Antwort als Text.)' });
+                  this._sendError(ctx, 'service_unavailable');
+                }
+              },
+            },
+          });
+          await proxy.start({
+            apiKey: process.env.GEMINI_API_KEY,
+            model:   process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash',
+            voiceName: process.env.GEMINI_LIVE_VOICE || 'Charon',
+            systemInstruction: ctx.realtimeClient._session?.instructions ||
+              'Du bist ein deutscher HR-Manager in einem BPO-Unternehmen. Sprich nur Deutsch, Sie-Form.',
+          });
+          ctx.geminiProxy = proxy;
+          console.log(`[wsManager] GeminiLive proxy started  session=${ctx.sessionId}`);
+        } catch (e) {
+          console.warn(`[wsManager] GeminiLive failed to start — falling back to Groq text path  session=${ctx.sessionId}: ${e.message}`);
+          ctx.geminiProxy = null;
+        }
+      }
 
       // Billing starts now: stamp the start time and arm the cap at the SMALLER of the global
       // max and the user's remaining daily minutes.
@@ -464,6 +611,8 @@ export class WebSocketManager {
     if (ctx.maxTimer)     { clearTimeout(ctx.maxTimer); ctx.maxTimer = null; }
     if (ctx.hardCapTimer) { clearTimeout(ctx.hardCapTimer); ctx.hardCapTimer = null; }
     if (ctx.accountLocked) { this._activeFightUsers.delete(ctx.accountLocked); ctx.accountLocked = null; }
+    // Gracefully close Gemini Live proxy if active
+    if (ctx.geminiProxy) { try { ctx.geminiProxy.close(); } catch {} ctx.geminiProxy = null; ctx.geminiActive = false; }
   }
 
   // Add this fight's wall-seconds to the user's daily live-minute usage (Cairo day, persisted).
@@ -490,6 +639,20 @@ export class WebSocketManager {
   _handleAudioChunk(ctx, msg) {
     if (!ctx.realtimeClient || ctx.closed) return;
     if (!msg.data) return;
+
+    // ── Gemini Live path (USE_GEMINI_LIVE=1): half-duplex — only forward mic audio
+    // while the boss is NOT speaking. If the boss IS speaking (geminiActive = true),
+    // drop the chunk silently (echo protection; client is responsible for gating but
+    // this belt-and-suspenders drop prevents a race condition).
+    if (ctx.geminiProxy) {
+      if (ctx.geminiActive) return;   // boss is talking → drop user mic (anti-echo)
+      // Track the start of the user's first audio chunk this turn (for durationMs in scoring).
+      if (!ctx._geminiTurnStartMs) ctx._geminiTurnStartMs = Date.now();
+      const sent = ctx.geminiProxy.sendAudioChunk(msg.data);
+      // If send failed (e.g. proxy closed between frames), fall through to Deepgram
+      if (sent) return;
+      console.warn(`[wsManager] Gemini proxy reject chunk → fallback Deepgram  session=${ctx.sessionId}`);
+    }
 
     // Create the streamer lazily on the first chunk of each turn. Deepgram now only
     // TRANSCRIBES — it never ends the turn. Every finalized segment is appended to
@@ -597,7 +760,7 @@ export class WebSocketManager {
     if (ctx.closed) return;
     ctx.closed = true;
     ctx.ending = true;
-    this._releaseFight(ctx);   // free the per-user lock + cancel the hard-cap timer
+    this._releaseFight(ctx);   // free the per-user lock + cancel the hard-cap timer + close Gemini
 
     // Per-fight cost visibility (the founder's only window into OpenAI Realtime spend).
     const wallSec = ctx.fightStartedAt ? Math.round((Date.now() - ctx.fightStartedAt) / 1000) : 0;
@@ -974,6 +1137,41 @@ export class WebSocketManager {
     if (ctx.realtimeClient.isResponding) { this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 }); return; }
     const transcript = (typeof msg.text === 'string') ? msg.text.trim().slice(0, 4000) : '';
     if (!transcript) { this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 }); return; }
+
+    // ── Name auto-capture: if the guide profile has no name yet, try to extract one from the
+    // candidate's first self-introduction (e.g. "Ich bin Karim" / "Ich heiße …" / "Mein Name ist …").
+    // Only triggers once per account, never overwrites, never invents.
+    if (ctx.userId) {
+      try {
+        const guide = await loadGuide(ctx.userId);
+        if (guide && !guide.name) {
+          const m = transcript.match(/\b(?:ich bin|ich heiße|mein name ist)\s+([A-ZÄÖÜ][a-zäöüß]+)/i);
+          if (m && m[1]) {
+            guide.name = m[1];
+            await saveGuide(guide);
+            console.log(`[wsManager] Captured candidate name  user=${ctx.userId}  name="${guide.name}"`);
+          }
+        }
+      } catch { /* name capture is best-effort; never block the turn */ }
+    }
+
+    // Abuse detector: explicit AR/DE insults → professional warning, then end session on severe tier.
+    if (ABUSE_T2.test(transcript)) {
+      console.warn(`[wsManager] Severe abuse detected session=${ctx.sessionId}`);
+      this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript, durationMs, wordCount });
+      this._send(ctx, { type: S.BOSS_SPEECH, text: ABUSE_END });
+      this._send(ctx, { type: S.BOSS_SPEECH_DONE });
+      if (!ctx.closed) this._endSession(ctx, 'abuse');
+      return;
+    } else if (ABUSE_T1.test(transcript)) {
+      console.warn(`[wsManager] Mild abuse detected session=${ctx.sessionId}`);
+      this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript, durationMs, wordCount });
+      this._send(ctx, { type: S.BOSS_SPEECH, text: ABUSE_WARN });
+      this._send(ctx, { type: S.BOSS_SPEECH_DONE });
+      // Do not feed the insult to the boss — let the hands-free driver hand the floor
+      // back to the user for a fresh, clean turn.
+      return;
+    }
 
     const wordCount  = transcript.split(/\s+/).filter(Boolean).length;
     // durationMs is supplied for spoken answers (clip length) so WPM works; typed

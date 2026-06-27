@@ -278,6 +278,7 @@ export class RealtimeClient {
       levelId:     opts.level,
       dossier:     opts.dossier,
       memory:      opts.memory,   // growth-aware cross-session memory → boss "AKTE" block
+      candidateName: opts.candidateName, // stored guide name → addressed naturally in the opener
       focusTitle:  opts.focusTitle,
       mood:        this._mood,
       clarificationRate,

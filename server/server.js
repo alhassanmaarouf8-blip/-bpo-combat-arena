@@ -27,14 +27,18 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
 const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
   .split(',').map((s) => s.trim()).filter(Boolean);
 
-// The live interview is now 100% OpenAI-free: the boss brain runs on Groq
-// (llama-3.3-70b), spoken answers transcribe on Groq Whisper / Deepgram, the
-// debrief runs on Groq. GROQ_API_KEY is therefore the one hard requirement to
-// boot. OPENAI_API_KEY is intentionally never read anywhere in the interview path.
-if (!process.env.GROQ_API_KEY) {
-  console.error('[server] FATAL: GROQ_API_KEY is not set in .env');
+// The live interview runs on Groq (text LLM) by default.
+// At least one back-end must be configured. If USE_GEMINI_LIVE=1, the Gemini Live path
+// needs GEMINI_API_KEY; otherwise the Groq text path needs GROQ_API_KEY. Both can coexist.
+const hasGroq = !!process.env.GROQ_API_KEY;
+const hasGeminiLive = !!process.env.GEMINI_API_KEY;
+if (!hasGroq && !hasGeminiLive) {
+  console.error('[server] FATAL: set at least one of GROQ_API_KEY or GEMINI_API_KEY in .env');
   process.exit(1);
 }
+// USE_GEMINI_LIVE=1 → route live interview through Gemini Live (native audio, native VAD).
+// Falls back to Groq text path if the key lacks bidiGenerateContent access (graceful degradation).
+const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 
 const app = express();
 
@@ -54,14 +58,20 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     uptime: process.uptime(),
     ts: new Date().toISOString(),
-    // Boss provider chain (failover order) — mirrors PROVIDERS in realtimeClient.js:
+    // Existing boss provider chain (failover order) — mirrors PROVIDERS in realtimeClient.js:
     // a provider is listed only if its key env is set. "groq+cerebras" => failover armed.
-    // Names only; never exposes a key. Lets the Cerebras wiring be verified with one curl.
+    // Names only; never exposes a key.
     interview: [
       (process.env.INTERVIEW_API_KEY || process.env.GROQ_API_KEY) ? 'groq' : null,
       process.env.CEREBRAS_API_KEY ? 'cerebras' : null,
     ].filter(Boolean).join('+') || 'none',
     openai: false,
+    // Gemini Live proxy: USE_GEMINI_LIVE=1 → active; else groq text path (fallback). Boolean
+    // only. To enable: get a GEMINI_API_KEY from a billing-enabled GCP project, set
+    // USE_GEMINI_LIVE=1 in server/.env (bidiGenerateContent is NOT on the free tier).
+    geminiLive: USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY,
+    // If geminiLive is claimed but the key was rejected at session start, this will be
+    // "degraded" until a failed session proves it. Client reads this in /health on mount.
     // Is the Deepgram key actually loaded on this instance? Drives neural voice (TTS)
     // AND nova-3 STT — if false, voice goes robotic and STT falls back. (Boolean only;
     // never exposes the key.)

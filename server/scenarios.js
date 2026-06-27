@@ -331,11 +331,11 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
 
 /**
  * Build the full per-session script.
- * @param {{ persona:string, displayName:string, greeting:string, levelId?:string }} opts
+ * @param {{ persona:string, displayName:string, greeting:string, levelId?:string, candidateName?:string }} opts
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -449,7 +449,10 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
     'tired-friday': 'Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.',
   };
   const intro = INTRO_VARIANTS[mood] || INTRO_VARIANTS.neutral;
-  const openingLine = `${greeting} ${intro}`;
+  // Name recall: if we know the candidate's name (from guide chat), weave it into the opener
+  // so the boss sounds like a returning interviewer who actually knows who they're talking to.
+  const namedIntro = candidateName ? `${candidateName}, ${intro.charAt(0).toLowerCase() + intro.slice(1)}` : intro;
+  const openingLine = `${greeting} ${namedIntro}`;
 
   return {
     instructions,

@@ -10,7 +10,6 @@ import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
-import { BargeInMonitor } from './bargeInMonitor.js';
 import { PressureLadder } from './PressureLadder.jsx';
 import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
@@ -2416,7 +2415,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
-  const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss)
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
   const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
   const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
@@ -2853,13 +2851,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
     // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
     // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    const SIL_COMPLETE = 500, SIL_AMBIGUOUS = 1400, SIL_INCOMPLETE = 2200;
-    const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
+    const SIL_COMPLETE = 400, SIL_AMBIGUOUS = 1200, SIL_INCOMPLETE = 2000;
+    const STEP = 50, K = 2.6, MIN_SPEAK_MS = 180, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
       const v = volRef.current || 0;
       if (!spoke) floor = floor * 0.92 + v * 0.08;          // adapt to room noise until speech
-      const thresh = Math.max(0.04, floor * K);
+      const thresh = Math.max(0.02, floor * K);
       if (v > thresh) { if (elapsed > MIN_SPEAK_MS) spoke = true; silenceMs = 0; }
       else if (spoke) { silenceMs += STEP; }
       // SAFETY NET (fixes "my words just hang, it never sends"): if the live transcript has STOPPED
@@ -2907,25 +2905,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [handsFree, phase, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
 
   useEffect(() => () => { if (hfTimerRef.current) clearInterval(hfTimerRef.current); }, []);
-
-  // BARGE-IN: a dedicated mic monitor for the whole active hands-free phase. When the user speaks OVER
-  // the boss, cut the boss off (stopBossVoice) and flip bossSpeak false — which the hands-free driver
-  // below already turns into the user's turn. Fail-safe: if the monitor can't start, it just never fires.
-  useEffect(() => {
-    if (phase !== 'active' || !handsFree) return;
-    const mon = new BargeInMonitor({ onBargeIn: () => { console.log('[DIAG] BARGE-IN fired → boss audio cut mid-sentence. (mic heard sound while boss was speaking — likely echo of the boss itself or room noise)'); stopBossVoice(); setBossSpeak(false); } });
-    bargeRef.current = mon;
-    mon.start();
-    return () => { bargeRef.current = null; mon.stop(); };
-  }, [phase, handsFree]);
-
-  // Arm the monitor ONLY while the boss is actually speaking; disarm otherwise so it can never
-  // self-trigger during the user's own turn.
-  useEffect(() => {
-    const mon = bargeRef.current;
-    if (!mon) return;
-    if (bossSpeak) mon.arm(); else mon.disarm();
-  }, [bossSpeak]);
 
   // KEEP-WARM: the free server sleeps after ~15 min with no inbound traffic, so the NEXT "INTERVIEW
   // STARTEN" pays a long cold-wake. Ping /health every 4 min while the app is open so it never sleeps
@@ -3803,25 +3782,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               ? 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.'
               : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
           </div>
-        ) : (
+        ) : canStart ? (
           <button
-            onClick={canStart ? beginSession : finishSession}
+            onClick={beginSession}
             disabled={isConnecting}
             style={{
               width:'100%', padding:'14px 20px', cursor: isConnecting ? 'wait' : 'pointer',
               fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.15em',
-              borderRadius:8, border:`1px solid ${canStart ? '#00e5ff' : '#ef4444'}`,
-              color:       canStart ? '#00e5ff' : '#ef4444',
-              background:  canStart
-                ? 'linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.02))'
-                : 'linear-gradient(135deg,rgba(239,68,68,0.08),rgba(239,68,68,0.02))',
-              boxShadow: isActive ? '0 0 22px rgba(239,68,68,0.2)' : '0 0 14px rgba(0,229,255,0.12)',
+              borderRadius:8, border:'1px solid #00e5ff',
+              color:       '#00e5ff',
+              background:  'linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.02))',
+              boxShadow: '0 0 14px rgba(0,229,255,0.12)',
               transition:'all 0.25s',
               opacity: isConnecting ? 0.55 : 1,
             }}>
-            {isConnecting ? '⠋ VERBINDE…' : canStart ? '▶  INTERVIEW STARTEN' : '■  INTERVIEW BEENDEN'}
+            {isConnecting ? '⠋ VERBINDE…' : '▶  INTERVIEW STARTEN'}
           </button>
-        )}
+        ) : null}
 
         {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only) */}
         {canStart && (

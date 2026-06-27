@@ -40,6 +40,7 @@ export function defaultProfile(userId) {
     recommendedCounted:  [], // Trainingslager: ruleIds already counted in the global recommend stat
     neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
     liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
+    drillsSeen:       {},  // per-drill seen-id sets → never-repeat for every standalone drill
     recentErrors:     [],  // top error labels from the last session (cross-session boss memory)
     // PLACEMENT — the ONE outcome that defines the mission: did this student get hired into a
     // German-speaking BPO role? status: none|applying|interviewing|offer|hired|not_hired.
