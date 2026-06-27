@@ -23,8 +23,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
 
-// ── Groq config (OpenAI-compatible chat endpoint) ───────────────────────────────
-const GROQ_BASE  = 'https://api.groq.com/openai/v1';
+// ── Boss LLM config (OpenAI-compatible chat endpoint) ───────────────────────────
+// Provider-agnostic: any OpenAI-compatible endpoint works (Groq, Cerebras, …). Defaults
+// preserve the exact current Groq setup, so behavior is unchanged until the env vars are set.
+// To move the boss off Groq's 100K/day free cap onto Cerebras' 1M/day free tier (SAME
+// llama-3.3-70b model → identical quality), set on Render:
+//   INTERVIEW_BASE_URL=https://api.cerebras.ai/v1
+//   INTERVIEW_API_KEY=<cerebras key>
+//   GROQ_INTERVIEW_MODEL=llama-3.3-70b
+const GROQ_BASE  = process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1';
 // llama-3.3-70b-versatile: strong German, instruction-following, cheap + fast on Groq.
 const GROQ_MODEL = process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile';
 // Hard cap per boss turn. A single question is ~20–60 tokens; a Teil-3 customer
@@ -253,9 +260,11 @@ export class RealtimeClient {
 
   // ── Connect: set up Groq + emit the deterministic opening line ─────────────────
   async connect() {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error('GROQ_API_KEY not set');
-    this._apiKey = apiKey;   // Groq is called over plain fetch — no SDK, no 'openai' package.
+    // Dedicated boss key (INTERVIEW_API_KEY) lets the boss run on a different provider/quota
+    // than the helper models; falls back to GROQ_API_KEY so nothing breaks until it's set.
+    const apiKey = process.env.INTERVIEW_API_KEY || process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error('INTERVIEW_API_KEY / GROQ_API_KEY not set');
+    this._apiKey = apiKey;   // called over plain fetch — no SDK, no 'openai' package.
 
     // System prompt is the full session script; seed the assistant's first turn with
     // the deterministic opening line so the model has the conversation's real start.
