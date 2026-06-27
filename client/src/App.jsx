@@ -2569,6 +2569,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         livePartialRef.current = '';
         setLiveTranscript('');
         setTranscribing(false);
+        try { console.log(`[DIAG] EAR (server STT) heard: ${JSON.stringify(msg.transcript || '')} words=${msg.transcript ? msg.transcript.trim().split(/\s+/).filter(Boolean).length : 0}`); } catch {}
         if (msg.transcript) {
           // Boss is now generating its reply — block hands-free from re-triggering the mic
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
@@ -2612,6 +2613,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // the debrief waits until the final line has finished being read out.
         {
           const spokenLine = bossLineRef.current || '';
+          try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
           if (!ttsMutedRef.current && spokenLine) {
             // Reverted to single-shot playback (today's sentence-streaming is set aside).
             playBossVoice({
@@ -2880,6 +2882,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
       if (!((spoke && silenceMs >= needSilence) || transcriptDone || elapsed >= MAX_MS)) return;
+      try { console.log(`[DIAG] turn-END reason=${elapsed >= MAX_MS ? 'MAXCAP' : transcriptDone ? 'transcript-frozen' : 'silence'} vadClass=${cls} needSilence=${needSilence}ms silence=${Math.round(silenceMs)}ms stage=${stageIdxRef.current} heardSoFar=${JSON.stringify((livePartialRef.current || '').slice(0, 160))}`); } catch {}
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
       clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;
@@ -2910,7 +2913,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // below already turns into the user's turn. Fail-safe: if the monitor can't start, it just never fires.
   useEffect(() => {
     if (phase !== 'active' || !handsFree) return;
-    const mon = new BargeInMonitor({ onBargeIn: () => { stopBossVoice(); setBossSpeak(false); } });
+    const mon = new BargeInMonitor({ onBargeIn: () => { console.log('[DIAG] BARGE-IN fired → boss audio cut mid-sentence. (mic heard sound while boss was speaking — likely echo of the boss itself or room noise)'); stopBossVoice(); setBossSpeak(false); } });
     bargeRef.current = mon;
     mon.start();
     return () => { bargeRef.current = null; mon.stop(); };
