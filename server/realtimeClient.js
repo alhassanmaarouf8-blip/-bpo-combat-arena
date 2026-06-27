@@ -222,11 +222,10 @@ export class RealtimeClient {
       bossId,
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 fallback (used if ElevenLabs has no key / fails)
-      // Default = free Aura-2 (voice above), spoken DIRECTLY — no ElevenLabs attempt, so no failed-call
-      // latency. ElevenLabs was added as default but it was failing → every line tried it, waited, then
-      // fell back, ADDING seconds of delay. Back to opt-in (USE_ELEVENLABS=1) until the /api/voice
-      // failure is diagnosed (a 502 = stale voice ids; 401/429 = key/quota).
-      elevenVoice: (process.env.USE_ELEVENLABS === '1') ? (this._boss.elevenVoice ?? '') : '',
+      // ElevenLabs native-German is the DEFAULT boss voice. PROVEN working via /api/tts-test: the key
+      // has text_to_speech permission and the configured voice id returns HTTP 200. The "robotic" sound
+      // was simply ElevenLabs being OFF → free Aura-2 fallback. Set USE_ELEVENLABS=0 to force Aura-2.
+      elevenVoice: (process.env.USE_ELEVENLABS !== '0') ? (this._boss.elevenVoice ?? '') : '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
