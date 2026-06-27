@@ -2611,16 +2611,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {
           const spokenLine = bossLineRef.current || '';
           if (!ttsMutedRef.current && spokenLine) {
-            const opts = {
+            // Reverted to single-shot playback (today's sentence-streaming is set aside).
+            playBossVoice({
               apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
               onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
-            };
-            if (bossElevenVoiceRef.current) {
-              playBossVoice(opts);              // opt-in ElevenLabs path (its own progressive stream)
-            } else {
-              stopBossVoice();                  // bump the cancel token + stop any prior line
-              speakBossStreamed(opts);          // default: sentence-streamed Aura-2 → starts talking sooner
-            }
+            });
           } else {
             setBossSpeak(false);
           }
@@ -2850,10 +2845,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // load-bearing mechanic: the moment the user speaks again, silenceMs resets to 0, so a
     // pause between sentences can NEVER end the turn. These windows already include the
     // non-native (L2) speaker grace from the turn-taking research.
-    // Tightened for responsiveness (owner: replies felt too slow/late, and it was NOT cutting them
-    // off). cancel-on-resume still resets silence the instant they speak again, so a mid-sentence
-    // pause can't end the turn — these are just shorter "are you done?" confirmations.
-    const SIL_COMPLETE = 600, SIL_AMBIGUOUS = 1300, SIL_INCOMPLETE = 2200;
+    // Reverted to the original generous windows (today's tightening risked cutting the candidate off
+    // = "no interactivity"). cancel-on-resume resets silence the instant they speak again.
+    const SIL_COMPLETE = 900, SIL_AMBIGUOUS = 2200, SIL_INCOMPLETE = 3500;
     const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -2871,7 +2865,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 600;   // open-question grace (was 1000 — trimmed for speed)
+      if (stageIdxRef.current <= 1) needSilence += 1000;   // open-question grace (reverted to original)
       if (!((spoke && silenceMs >= needSilence) || elapsed >= MAX_MS)) return;
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}

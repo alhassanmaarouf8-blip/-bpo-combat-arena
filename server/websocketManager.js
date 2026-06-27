@@ -530,7 +530,7 @@ export class WebSocketManager {
     ctx.dgStreamer = null;
     try { streamer?.close(); } catch {}   // CloseStream → a trailing onFinal may still append
     if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
-    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 280);
+    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 450);
     ctx._commitTimer.unref?.();
   }
 
