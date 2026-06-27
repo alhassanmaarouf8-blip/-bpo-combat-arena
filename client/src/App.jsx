@@ -2417,6 +2417,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
   const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss)
+  const thinkTimerRef   = useRef(null);    // delayed "boss is deliberating" indicator (cleared on BOSS_SPEECH)
+  const startedRef      = useRef(false);   // single-flight guard: START_FIGHT sent once per session
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
   const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
   const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
@@ -2469,7 +2471,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
         bossLineRef.current = '';
-        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
+        // START_FIGHT now fires in ws.onopen (one round-trip earlier). This stays only as a
+        // belt-and-suspenders fallback: if onopen somehow didn't send it, send it now. startedRef
+        // guarantees it's sent at most once per session.
+        if (!startedRef.current) {
+          startedRef.current = true;
+          wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
+        }
         break;
 
       case S.LIVE_STATS:
@@ -2583,6 +2591,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.BOSS_SPEECH: {
         if (!msg.text) break;
         setBossSpeak(true);
+        if (thinkTimerRef.current) { clearTimeout(thinkTimerRef.current); thinkTimerRef.current = null; }
         setBossThinking(false);   // the boss's next turn has arrived
         setShowBriefing(false);   // dismiss pre-fight briefing when boss starts speaking
         // Stream the boss's words live. A new utterance (ref cleared by the previous
@@ -2707,6 +2716,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
     setPhaseSync('connecting');
     startingRef.current = false;   // phaseRef now guards re-entry
+    startedRef.current  = false;   // arm the one-shot START_FIGHT guard for this fresh session
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
@@ -2714,6 +2724,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     ws.onopen = () => {
       setPhaseSync('active');
       pingRef.current = setInterval(() => ws.send(JSON.stringify({ type: C.PING })), 25_000);
+      // Cut a round-trip: the server registers its message handler before sending SESSION_READY, so
+      // START_FIGHT can go the instant the socket opens instead of waiting for SESSION_READY to bounce
+      // back. startedRef makes it one-shot (SESSION_READY no longer re-sends it).
+      if (!startedRef.current) {
+        startedRef.current = true;
+        ws.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
+      }
     };
 
     ws.onmessage = (ev) => {
@@ -2851,8 +2868,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
     // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
     // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    const SIL_COMPLETE = 500, SIL_AMBIGUOUS = 1400, SIL_INCOMPLETE = 2200;
+    const SIL_COMPLETE = 450, SIL_AMBIGUOUS = 950, SIL_INCOMPLETE = 1700;
     const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
+    // Per-turn cadence jitter: computed ONCE here (outside the setInterval), so every VAD tick this
+    // turn reads the same value — the boss never replies on a robotic fixed beat, but it's stable
+    // within the turn so the end-of-turn threshold can't wobble tick-to-tick.
+    const turnJitter = Math.round(Math.random() * 250) - 50;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
       const v = volRef.current || 0;
@@ -2875,7 +2896,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 600;   // open-question grace (trimmed — accept the answer sooner)
+      if (stageIdxRef.current <= 1) needSilence += 300;   // open-question grace (trimmed — accept the answer sooner)
+      needSilence += turnJitter;   // per-turn cadence jitter (computed once above) — humanize the reply beat
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
@@ -2887,7 +2909,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // Without this, a turn where the user didn't speak leaves dgStreamer open; Deepgram
       // eventually closes it silently (_done=true) and the next turn's audio is dropped.
       wsRef.current?.send(JSON.stringify({ type: C.AUDIO_END }));
+      setLiveTranscript('');        // drop the lingering live line NOW, not 2-4s later
+      livePartialRef.current = '';
       if (!spoke) return;   // said nothing → don't transcribe, just wait for next turn
+      // Depth-aware deliberation cue: only after we know the user actually spoke (so a no-speech turn
+      // never sticks bossThinking=true and blocks the hands-free auto-restart). Delayed 600ms so quick
+      // server round-trips don't flash it; cleared in BOSS_SPEECH when the reply arrives.
+      const thinkTimer = setTimeout(() => setBossThinking(true), 600);
+      thinkTimerRef.current = thinkTimer;   // store so it can be cleared
       // Signal end-of-speech: server's Deepgram streamer flushes remaining audio → speech_final
       // fires → server calls _handleAnswer internally. No REST upload needed.
       setTranscribing(true);   // clears in TRANSCRIPT_DONE handler
