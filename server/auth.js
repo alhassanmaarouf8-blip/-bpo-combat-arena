@@ -159,19 +159,38 @@ export function planOf(account) {
 }
 export function dailyMinutesFor(account) { return PLANS[planOf(account)]?.dailyLiveMinutes || 0; }
 
-// Entitlement = the plan's capabilities. `allowed` means "has a plan with live minutes" — the
-// per-day minutes-remaining check is enforced server-side at fight start (websocketManager).
+// ONE free 7-minute interview for a free account, ever — the acquisition hook. Available when the plan
+// has no paid live minutes AND the free fight hasn't been spent yet (or for admins, always).
+const FREE_FIGHT_SEC = 7 * 60;
+export function freeFightAvailable(account) {
+  if (isAdminEmail(account?.email)) return true;
+  return (dailyMinutesFor(account) || 0) <= 0 && !account?.subscription?.freeFightUsed;
+}
+
+// Entitlement = the plan's capabilities. `allowed` = may start an interview: a paid plan with live
+// minutes, OR the one-time free fight is still available. Enforced again server-side at fight start.
 export function entitlement(account) {
   const plan = planOf(account);
   const feat = PLANS[plan] || PLANS.free;
+  const freeFight = freeFightAvailable(account);
   return {
-    allowed:               (feat.dailyLiveMinutes || 0) > 0,
+    allowed:               (feat.dailyLiveMinutes || 0) > 0 || freeFight,
+    freeFight,                                   // true → client shows "1 kostenloses Interview"
     tier:                  plan,
     plan,
     dailyLiveMinutes:      feat.dailyLiveMinutes || 0,
     trainingslagerUnlocked: !!feat.trainingslagerUnlocked,
     unlimited:             isAdminEmail(account?.email),
   };
+}
+
+// Mark the one-time free fight as spent (called once a free interview actually starts).
+export async function consumeFreeFight(account) {
+  if (!account?.subscription) account.subscription = {};
+  if (!account.subscription.freeFightUsed) {
+    account.subscription.freeFightUsed = true;
+    await persist();
+  }
 }
 
 export async function consumeTrialSession(account) {

@@ -9,7 +9,7 @@ import { loadUser, saveUser } from './store.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
-import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor } from './auth.js';
+import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
@@ -279,12 +279,17 @@ export class WebSocketManager {
     const account = payload ? await getAccountById(payload.uid) : null;
     if (!account) { this._sendError(ctx, 'auth_required'); return; }
 
-    // ── Plan gate: a free account has 0 live minutes → upsell BEFORE any Realtime opens ──
+    // ── Plan gate: paid plan has live minutes; a free account gets ONE free 7-min fight, then upsell ──
     const minutes = dailyMinutesFor(account);   // free 0 / basic 7 / elite 15
+    let freeFightSec = 0;
     if (minutes <= 0) {
-      console.log(`[wsManager] Paywall (free, no live plan)  user=${account.id}  session=${ctx.sessionId}`);
-      this._send(ctx, { type: S.PAYWALL, ...entitlement(account) });
-      return;
+      if (!freeFightAvailable(account)) {
+        console.log(`[wsManager] Paywall (free fight already used)  user=${account.id}  session=${ctx.sessionId}`);
+        this._send(ctx, { type: S.PAYWALL, ...entitlement(account) });
+        return;
+      }
+      freeFightSec = 7 * 60;   // grant the one-time free 7-minute interview
+      console.log(`[wsManager] Granting one-time FREE 7-min fight  user=${account.id}  session=${ctx.sessionId}`);
     }
 
     // Per-user single-flight lock (check + set are atomic: no await between them) so a
@@ -335,7 +340,8 @@ export class WebSocketManager {
     // ── Daily live-minute remaining (reset midnight Africa/Cairo) — hard-cap this fight ──
     const today      = dayKey();
     const usedSec    = (prof?.liveUsage?.day === today) ? (prof.liveUsage.sec || 0) : 0;
-    const remainingSec = minutes * 60 - usedSec;
+    // Free fight → a fixed 7-min cap; paid → the remaining daily minutes.
+    const remainingSec = freeFightSec > 0 ? freeFightSec : (minutes * 60 - usedSec);
     if (remainingSec <= 0) {
       console.log(`[wsManager] Daily limit reached  user=${ctx.userId}  plan=${planOf(account)}  usedSec=${usedSec}/${minutes * 60}  session=${ctx.sessionId}`);
       this._releaseFight(ctx);
@@ -343,6 +349,8 @@ export class WebSocketManager {
       return;
     }
     ctx.dailyCapSec = remainingSec;
+    // Spend the one-time free fight now that it's actually starting (so it's granted exactly once).
+    if (freeFightSec > 0) { try { await consumeFreeFight(account); } catch {} }
 
     // Boss-Tor gate: challenging the next boss requires the recommended lessons done. The
     // normal daily fight (no mode) is NEVER gated by lessons. (Payment is the minute gate above.)
