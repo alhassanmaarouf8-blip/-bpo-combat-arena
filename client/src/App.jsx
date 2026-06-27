@@ -10,6 +10,7 @@ import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
+import { BargeInMonitor } from './bargeInMonitor.js';
 import { PressureLadder } from './PressureLadder.jsx';
 import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
@@ -2415,6 +2416,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
+  const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss)
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
   const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
   const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
@@ -2902,6 +2904,25 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [handsFree, phase, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
 
   useEffect(() => () => { if (hfTimerRef.current) clearInterval(hfTimerRef.current); }, []);
+
+  // BARGE-IN: a dedicated mic monitor for the whole active hands-free phase. When the user speaks OVER
+  // the boss, cut the boss off (stopBossVoice) and flip bossSpeak false — which the hands-free driver
+  // below already turns into the user's turn. Fail-safe: if the monitor can't start, it just never fires.
+  useEffect(() => {
+    if (phase !== 'active' || !handsFree) return;
+    const mon = new BargeInMonitor({ onBargeIn: () => { stopBossVoice(); setBossSpeak(false); } });
+    bargeRef.current = mon;
+    mon.start();
+    return () => { bargeRef.current = null; mon.stop(); };
+  }, [phase, handsFree]);
+
+  // Arm the monitor ONLY while the boss is actually speaking; disarm otherwise so it can never
+  // self-trigger during the user's own turn.
+  useEffect(() => {
+    const mon = bargeRef.current;
+    if (!mon) return;
+    if (bossSpeak) mon.arm(); else mon.disarm();
+  }, [bossSpeak]);
 
   // KEEP-WARM: the free server sleeps after ~15 min with no inbound traffic, so the NEXT "INTERVIEW
   // STARTEN" pays a long cold-wake. Ping /health every 4 min while the app is open so it never sleeps
