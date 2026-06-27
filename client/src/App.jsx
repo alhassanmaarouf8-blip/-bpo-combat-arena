@@ -2837,6 +2837,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
 
     let spoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
+    let lastPartial = '', partialStableMs = 0;   // transcript-stopped-growing detector (noisy-mic safety net)
     livePartialRef.current = '';   // fresh transcript for this turn's classification
     // ADAPTIVE end-of-turn. Instead of one fixed silence value we pick how long to wait based
     // on whether the live transcript looks finished (classifyTurnDE): a clearly-complete
@@ -2857,6 +2858,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       const thresh = Math.max(0.04, floor * K);
       if (v > thresh) { if (elapsed > MIN_SPEAK_MS) spoke = true; silenceMs = 0; }
       else if (spoke) { silenceMs += STEP; }
+      // SAFETY NET (fixes "my words just hang, it never sends"): if the live transcript has STOPPED
+      // GROWING for a while, the candidate has clearly stopped talking — even if a noisy mic keeps the
+      // volume above the silence threshold (which would otherwise never end the turn). Grows again →
+      // resets, so it can't cut off someone who's still speaking.
+      if (livePartialRef.current !== lastPartial) { lastPartial = livePartialRef.current; partialStableMs = 0; }
+      else if (spoke) { partialStableMs += STEP; }
       // How long the user must stay silent depends on whether their sentence looks finished.
       const cls = classifyTurnDE(livePartialRef.current);
       let needSilence = cls === 'complete'   ? SIL_COMPLETE
@@ -2867,7 +2874,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
       if (stageIdxRef.current <= 1) needSilence += 1000;   // open-question grace (reverted to original)
-      if (!((spoke && silenceMs >= needSilence) || elapsed >= MAX_MS)) return;
+      // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
+      // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
+      const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 2500;
+      if (!((spoke && silenceMs >= needSilence) || transcriptDone || elapsed >= MAX_MS)) return;
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
       clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;
