@@ -2845,9 +2845,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // load-bearing mechanic: the moment the user speaks again, silenceMs resets to 0, so a
     // pause between sentences can NEVER end the turn. These windows already include the
     // non-native (L2) speaker grace from the turn-taking research.
-    // Reverted to the original generous windows (today's tightening risked cutting the candidate off
-    // = "no interactivity"). cancel-on-resume resets silence the instant they speak again.
-    const SIL_COMPLETE = 900, SIL_AMBIGUOUS = 2200, SIL_INCOMPLETE = 3500;
+    // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
+    // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
+    // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
+    const SIL_COMPLETE = 550, SIL_AMBIGUOUS = 2200, SIL_INCOMPLETE = 3500;
     const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
