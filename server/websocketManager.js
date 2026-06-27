@@ -491,6 +491,10 @@ export class WebSocketManager {
       if (!ctx._speechStartMs) ctx._speechStartMs = Date.now();   // real speech duration for WPM
       const streamer = new DeepgramStreamer({
         onPartial: (text) => {
+          // Keep the latest interim as a CAPTURE FALLBACK: if the turn ends before Deepgram emits a
+          // final segment (its trailing final can arrive after the flush), _commitTurn uses this so the
+          // answer is still captured instead of dropped → no more false "no session" on a real answer.
+          ctx._lastInterim = text || '';
           // Show accumulated committed segments + the live interim of the current segment.
           const full = (ctx._turnText ? ctx._turnText + ' ' : '') + text;
           this._send(ctx, { type: S.TRANSCRIPT_PARTIAL, text: full });
@@ -530,7 +534,10 @@ export class WebSocketManager {
     ctx.dgStreamer = null;
     try { streamer?.close(); } catch {}   // CloseStream → a trailing onFinal may still append
     if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
-    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 320);
+    // 550ms flush: Deepgram's trailing final after CloseStream typically lands in ~300–500ms. The 320ms
+    // I'd set was too short → finals missed → empty commits → answers dropped ("no session"). Capture
+    // reliability beats shaving ~200ms; the interim fallback in _commitTurn backstops the rest.
+    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 550);
     ctx._commitTimer.unref?.();
   }
 
@@ -539,8 +546,11 @@ export class WebSocketManager {
   // trigger the boss.
   _commitTurn(ctx) {
     if (ctx.closed) return;
-    const text  = (ctx._turnText || '').trim();
+    // Prefer the accumulated FINAL segments; if none arrived (final missed the flush window), fall
+    // back to the last INTERIM so a real answer is still captured rather than dropped as "no session".
+    const text  = ((ctx._turnText || '').trim()) || ((ctx._lastInterim || '').trim());
     const words = ctx._turnWords || [];
+    ctx._lastInterim = '';
     // Real SPEAKING time from Deepgram word timestamps (start/end, seconds) — reflects PACE, not
     // wall-clock pauses, so WpM is honest. Falls back to wall-clock only if timestamps are absent.
     let speakingMs = 0;
@@ -949,11 +959,13 @@ export class WebSocketManager {
 
   async _handleAnswer(ctx, msg) {
     if (!ctx.realtimeClient) return;
-    // Ignore an answer that arrives while the boss is still producing its turn, and
-    // ignore empties (the boss only ever speaks in response to a real answer).
-    if (ctx.realtimeClient.isResponding) return;
+    // Ignore an answer that arrives while the boss is still producing its turn, and ignore empties.
+    // CRITICAL: still send TRANSCRIPT_DONE on these early returns — otherwise the client's `transcribing`
+    // flag never clears, the hands-free driver stays gated, and the mic FREEZES for the rest of the
+    // session (one dropped turn killed all following turns).
+    if (ctx.realtimeClient.isResponding) { this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 }); return; }
     const transcript = (typeof msg.text === 'string') ? msg.text.trim().slice(0, 4000) : '';
-    if (!transcript) return;
+    if (!transcript) { this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 }); return; }
 
     const wordCount  = transcript.split(/\s+/).filter(Boolean).length;
     // durationMs is supplied for spoken answers (clip length) so WPM works; typed
