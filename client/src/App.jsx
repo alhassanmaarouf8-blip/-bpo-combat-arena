@@ -3723,6 +3723,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                       border:'1px solid #475569', color:'#94a3b8', background:'rgba(148,163,184,0.06)' }}>
                     {ttsMuted ? '🔇' : '🔊'}
                   </button>
+                  {/* Manual record (with STOPP) is ONLY for the typing fallback when Freisprech is OFF.
+                      In hands-free the live VAD auto-starts/stops/sends — showing a STOPP button here
+                      forced users into the no-auto-stop path and made the tool feel un-live. */}
+                  {!handsFree && (
                   <button onClick={toggleRecord} disabled={transcribing}
                     style={{ flex:'0 0 auto', padding:'10px 14px', cursor:'pointer', borderRadius:8,
                       fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.08em',
@@ -3731,6 +3735,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                       background: recording ? 'rgba(239,68,68,0.1)' : 'rgba(148,163,184,0.06)' }}>
                     {transcribing ? '⏳…' : recording ? '■ STOPP' : '🎤 SPRECHEN'}
                   </button>
+                  )}
                   <button onClick={sendAnswer} disabled={!answerText.trim() || transcribing}
                     style={{ flex:1, padding:'10px 14px', cursor: answerText.trim() ? 'pointer' : 'not-allowed',
                       borderRadius:8, fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.12em',
@@ -3741,8 +3746,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   </button>
                 </div>
                 {recording && (
-                  <div style={{ fontSize:10, color:'#fca5a5', marginTop:4, textAlign:'center' }}>
-                    Aufnahme läuft — auf STOPP drücken, dann wird transkribiert.
+                  <div style={{ fontSize:10, color: handsFree ? '#10b981' : '#fca5a5', marginTop:4, textAlign:'center' }}>
+                    {handsFree
+                      ? 'Ich höre zu — sprich einfach weiter, ich sende automatisch.'
+                      : 'Aufnahme läuft — auf STOPP drücken, dann wird transkribiert.'}
                   </div>
                 )}
               </>
