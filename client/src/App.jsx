@@ -2849,7 +2849,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
     // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
     // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    const SIL_COMPLETE = 550, SIL_AMBIGUOUS = 2200, SIL_INCOMPLETE = 3500;
+    const SIL_COMPLETE = 500, SIL_AMBIGUOUS = 1400, SIL_INCOMPLETE = 2200;
     const STEP = 50, K = 3.2, MIN_SPEAK_MS = 200, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -2873,10 +2873,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 1000;   // open-question grace (reverted to original)
+      if (stageIdxRef.current <= 1) needSilence += 600;   // open-question grace (trimmed — accept the answer sooner)
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
-      const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 2500;
+      const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
       if (!((spoke && silenceMs >= needSilence) || transcriptDone || elapsed >= MAX_MS)) return;
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
