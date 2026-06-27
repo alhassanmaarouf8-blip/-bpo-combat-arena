@@ -36,6 +36,21 @@ function baseRateFor(level) {
 const PER_SESSION = 5;
 const REPLAYS     = 1;   // how many times the learner may replay before answering (1 = hear it twice total)
 
+// ── NOVEL-ITEM GENERATION (Groq llama-3.3-70b) ───────────────────────────────────
+// WHY: a FIXED pool (~26 items) repeats once the learner finishes it — disrespectful "loops".
+// So we GENERATE fresh German listening items each round; a learner who finishes and reopens
+// gets new content. Same OpenAI-compatible Groq endpoint used everywhere else (no new service).
+const GEN_MODEL  = process.env.GROQ_LISTEN_MODEL ?? process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
+const GROQ_CHAT  = 'https://api.groq.com/openai/v1/chat/completions';
+const GEN_TTL_MS = 90_000;        // brief per-user cache → dedupes rapid re-fetches, bounds cost
+const TYPES      = ['nummer', 'betrag', 'name', 'datum', 'adresse'];
+const AVOID_KEEP = 12;            // how many recent topics we ask the model to avoid
+
+// In-memory, per-user generation cache. Keyed by account id → { ts, payload, active }.
+// Short TTL so a quick double-load (StrictMode / retry / ?t= cache-bust) doesn't double-bill,
+// while a genuine reopen later still produces NOVEL content.
+const genCache = new Map();
+
 // Authored items. `answer` is the canonical capture; it stays SERVER-SIDE (never sent in GET).
 // audioText is natural, native-speed German with the detail embedded mid-sentence.
 const ITEMS = [
@@ -136,51 +151,245 @@ function pickAdaptive(stats, seen, n) {
   return { picks: pool.slice(0, n), reset };
 }
 
+// Content-difficulty bucket from the learner's level (separate from playback speed in baseRateFor).
+function difficultyFor(level) {
+  if (level === 'C1') return 'C1 — lange, komplexe Sätze mit Nebensätzen; das Detail tief eingebettet, mit Ablenkungen und Zusatzinfos; schnelle, natürliche Umgangssprache.';
+  if (level === 'B2') return 'B2 — natürliche, mittellange Sätze; das Detail mitten im Satz, mit etwas Tempo.';
+  return 'A2–B1 — kürzere, klare Sätze; das Detail gut hörbar, aber echtes, natürliches Deutsch.';
+}
+
+// Decide the TYPE plan for a session — keeps the SAME adaptivity as the fixed pool: bias toward the
+// data-type the learner demonstrably keeps missing (≥2 seen, <80%). Otherwise variety.
+function chooseTypes(stats, n) {
+  let weakest = null;
+  if (stats) {
+    const acc = {};
+    for (const [t, s] of Object.entries(stats)) if (s && s.seen >= 2) acc[t] = s.correct / s.seen;
+    const w = Object.keys(acc).sort((a, b) => acc[a] - acc[b])[0];
+    if (w && acc[w] < 0.8) weakest = w;
+  }
+  const pool = [...TYPES];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const out = [];
+  if (weakest) { out.push(weakest, weakest); }   // serve MORE of the weak type
+  for (const t of pool) { if (out.length >= n) break; out.push(t); }
+  while (out.length < n) out.push(pool[out.length % pool.length]);
+  return out.slice(0, n);
+}
+
+// Validate a generated item: must have the full shape AND an answer whose FORMAT matches its type
+// (so the deterministic normalizer can grade it). Malformed → dropped. This also reduces the chance
+// of an audio/answer mismatch slipping through.
+function validItem(it) {
+  if (!it || typeof it !== 'object') return false;
+  if (!TYPES.includes(it.type)) return false;
+  const audio = String(it.audioText ?? '').trim();
+  const q     = String(it.question_de ?? '').trim();
+  const ans   = String(it.answer ?? '').trim();
+  if (audio.length < 12 || !q || !ans) return false;
+  const nAns = normalize(ans, it.type);
+  if (it.type === 'adresse') return nAns.length === 5;        // PLZ = exactly 5 digits
+  if (it.type === 'name')    return nAns.length >= 2;          // letters only
+  if (it.type === 'datum')   return /\d{1,2}[.,]\d{1,2}/.test(ans) || nAns.length >= 3;
+  return nAns.length >= 2;                                     // nummer / betrag: ≥2 digits
+}
+
+// ── The generator: ONE Groq call → N NOVEL items in the SAME shape as ITEMS ──────────
+// DOCTRINE (self-consistency): the model authors BOTH the question AND its OWN correct answer.
+// We store that authored answer and grade the learner deterministically against it — so a learner
+// can NEVER be told "wrong" against an answer the model didn't write.
+async function generateItems({ level, types, avoid }) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('no_api_key');
+  console.log(`[ai] ${GEN_MODEL} · listening gen (${types.length} items, level=${level || 'B1'})`); // cost audit
+
+  const sys = `Du bist Trainer für deutsche HÖRVERSTEHENS-Übungen in einem Callcenter (eingehende Kundenanrufe).
+Erzeuge realistische Anrufer-Sätze auf NATÜRLICHEM Deutsch, in denen GENAU EIN Detail eingebettet ist.
+Schwierigkeit: ${difficultyFor(level)}
+KRITISCH: Du lieferst zu jedem Satz die Frage UND die korrekte Antwort SELBST. Die "answer" MUSS exakt das sein,
+was im Satz ("audioText") gesagt wird — niemals erfunden, niemals im Widerspruch zum Satz.
+Antwort-FORMAT je Typ (genau so):
+- nummer  : nur Ziffern, z. B. "472901" (Telefon-/Kunden-/Bestell-/Vertrags-/Sendungsnummern als reine Ziffernfolge)
+- betrag  : Zahl mit Komma, z. B. "269,40"
+- datum   : "TT.MM", z. B. "21.03"
+- adresse : NUR die 5-stellige Postleitzahl als Ziffern, z. B. "40277" (die Frage fragt nach der PLZ)
+- name    : der Nachname in Kleinbuchstaben, z. B. "schäfer" (im Satz wird er natürlich buchstabiert)
+Im "audioText" dürfen Zahlen als WÖRTER oder Ziffern vorkommen, so wie ein Mensch es am Telefon sagt.
+Gib AUSSCHLIESSLICH JSON zurück.`;
+
+  const userMsg = `Erzeuge ${types.length} Items, je EINES für diese Typen in DIESER Reihenfolge: ${types.join(', ')}.
+Sei abwechslungsreich. Vermeide Themen/Sätze, die diesen schon benutzten ähneln (NICHT wiederholen):
+${avoid && avoid.length ? avoid.map((a) => `- ${a}`).join('\n') : '- (keine)'}
+Jedes Item: { "type", "audioText" (deutscher Anrufer-Satz), "question_de" (kurze Frage auf Deutsch),
+"question_ar" (DIESELBE Frage auf ägyptischem Arabisch), "answer" (im o. g. Format) }.
+Antworte als JSON: { "items": [ ... ] }`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(GROQ_CHAT, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      signal:  controller.signal,
+      body: JSON.stringify({
+        model:           GEN_MODEL,
+        temperature:     0.85,            // higher → more variety across rounds
+        max_tokens:      1600,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: userMsg }],
+      }),
+    });
+    if (!res.ok) throw new Error(`listening gen ${res.status} ${await res.text().catch(() => '')}`);
+    const data = await res.json();
+    const parsed = JSON.parse(data.choices?.[0]?.message?.content ?? '{}');
+    const raw = Array.isArray(parsed.items) ? parsed.items : [];
+    // Keep only well-formed items; coerce fields, default Arabic to the German question.
+    return raw
+      .map((it) => ({
+        type:        it?.type,
+        audioText:   String(it?.audioText ?? '').trim(),
+        question_de: String(it?.question_de ?? '').trim(),
+        question_ar: String(it?.question_ar ?? '').trim() || String(it?.question_de ?? '').trim(),
+        answer:      String(it?.answer ?? '').trim(),
+      }))
+      .filter(validItem);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // GET a fresh session — UNSEEN items (no repeats until the pool cycles), a level-scaled baseRate, and
 // a bias toward the student's weakest data-type. audioText feeds the browser's speech engine (never
 // displayed); the answer is never sent.
 listeningRouter.get('/listening', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   res.set('Cache-Control', 'no-store');
-  const n = Math.min(PER_SESSION, ITEMS.length);
-  let baseRate = 1.0, picks;
+  const uid = req.account.id;
+  const n   = PER_SESSION;
+
+  // Brief per-user cache: a rapid double-load returns the SAME set (no double Groq bill), but a real
+  // reopen later (> TTL) regenerates → NOVEL content. listeningActive was already persisted, so grade works.
+  const cached = genCache.get(uid);
+  if (cached && Date.now() - cached.ts < GEN_TTL_MS) { res.json(cached.payload); return; }
+
+  // ── Fail-safe fallback: the existing FIXED pool (never breaks the drill). Stores served items
+  // in listeningActive so grading resolves them uniformly. Used when GROQ_API_KEY is missing or
+  // generation fails/times out / returns nothing.
+  const serveFixed = async () => {
+    let baseRate = 1.0, picks, p = null;
+    try {
+      p = await loadUser(uid);
+      baseRate = baseRateFor(p.assessmentResult?.estimatedLevel);
+      const seen = Array.isArray(p.listeningSeen) ? p.listeningSeen : [];
+      const r = pickAdaptive(p.listeningStats || null, seen, Math.min(n, ITEMS.length));
+      picks = r.picks;
+      p.listeningSeen   = r.reset ? picks.slice() : [...seen, ...picks];   // no-repeat until pool cycles
+      p.listeningActive = {};
+      for (const i of picks) p.listeningActive[String(i)] = { type: ITEMS[i].type, answer: ITEMS[i].answer };
+      await saveUser(p);
+    } catch {
+      picks = pickAdaptive(null, [], Math.min(n, ITEMS.length)).picks;
+    }
+    const items = picks.map((i) => ({
+      id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText,
+      question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS,
+    }));
+    const payload = { items, baseRate };
+    genCache.set(uid, { ts: Date.now(), payload });
+    return res.json(payload);
+  };
+
+  let p;
+  try { p = await loadUser(uid); } catch { p = null; }
+  const level    = p?.assessmentResult?.estimatedLevel;
+  const baseRate = baseRateFor(level);
+  const stats    = p?.listeningStats || null;
+  const avoid    = Array.isArray(p?.listeningTopics) ? p.listeningTopics : [];
+
+  let generated;
   try {
-    const p = await loadUser(req.account.id);
-    baseRate = baseRateFor(p.assessmentResult?.estimatedLevel);
-    const seen = Array.isArray(p.listeningSeen) ? p.listeningSeen : [];
-    const r = pickAdaptive(p.listeningStats || null, seen, n);
-    picks = r.picks;
-    p.listeningSeen = r.reset ? picks.slice() : [...seen, ...picks];   // remember served → next session is NEW
-    await saveUser(p);
-  } catch {
-    picks = pickAdaptive(null, [], n).picks;
+    const types = chooseTypes(stats, n);
+    generated = await generateItems({ level, types, avoid });
+  } catch (e) {
+    console.warn(`[listening] generation failed → fixed pool: ${e?.message || e}`);
+    return serveFixed();
   }
-  const items = picks.map((i) => ({
-    id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText,
-    question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS,
-  }));
-  res.json({ items, baseRate });
+  if (!generated || !generated.length) return serveFixed();
+
+  // Build the served session. Generated items get string ids ("g<ts>-<k>"); if the model returned
+  // fewer than a full session, pad the remaining slots from the fixed pool so UX stays a full round.
+  const base   = Date.now().toString(36);
+  const active = {};
+  const items  = [];
+  generated.slice(0, n).forEach((it, k) => {
+    const id = `g${base}-${k}`;
+    active[id] = { type: it.type, answer: it.answer };
+    items.push({ id, type: it.type, audioText: it.audioText, question_de: it.question_de, question_ar: it.question_ar, replays: REPLAYS });
+  });
+  if (items.length < n) {
+    const pad = pickAdaptive(stats, [], Math.min(n - items.length, ITEMS.length)).picks;
+    for (const i of pad) {
+      active[String(i)] = { type: ITEMS[i].type, answer: ITEMS[i].answer };
+      items.push({ id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText, question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS });
+    }
+  }
+
+  // NO-REPEAT across reopens: remember recent audio topics → pass them as `avoid` next time.
+  const topics = [...generated.slice(0, n).map((it) => it.audioText.slice(0, 80)), ...avoid].slice(0, AVOID_KEEP);
+  const payload = { items, baseRate };
+  try {
+    p = p || await loadUser(uid);
+    p.listeningActive = active;       // grade resolves the model-authored answer from here
+    p.listeningTopics = topics;
+    await saveUser(p);
+  } catch { /* persistence is best-effort; in-memory cache below still lets grade resolve this session */ }
+  genCache.set(uid, { ts: Date.now(), payload, active });
+  res.json(payload);
 });
 
 // POST a typed capture → deterministic correct/incorrect (no model). Records per-type accuracy so the
 // NEXT session can bias toward what this student keeps missing.
 listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
-  const id = parseInt(req.body?.id, 10);
-  if (!Number.isInteger(id) || id < 0 || id >= ITEMS.length) return res.status(400).json({ error: 'bad_item' });
-  const item = ITEMS[id];
+  const uid = req.account.id;
+  const rawId = req.body?.id;
+  const key = String(rawId);
+
+  // Resolve the served item — generated OR fixed — and its MODEL-AUTHORED answer. Order:
+  //  1) in-memory session cache (survives a failed saveUser),
+  //  2) persisted listeningActive (survives a server restart),
+  //  3) the fixed ITEMS pool by numeric index (legacy / fallback sessions).
+  // DOCTRINE: `item.answer` here is the answer the model itself wrote for this exact question, so
+  // grading the learner against it is self-consistent — never "wrong" against an answer we invented.
+  let item = null, p = null;
+  const cached = genCache.get(uid);
+  if (cached?.active && Object.prototype.hasOwnProperty.call(cached.active, key)) item = cached.active[key];
+  if (!item) {
+    try {
+      p = await loadUser(uid);
+      const active = p?.listeningActive || {};
+      if (Object.prototype.hasOwnProperty.call(active, key)) item = active[key];
+    } catch { /* fall through to fixed */ }
+  }
+  if (!item) {
+    const idx = parseInt(rawId, 10);
+    if (Number.isInteger(idx) && idx >= 0 && idx < ITEMS.length) item = ITEMS[idx];
+  }
+  if (!item || !item.answer || !TYPES.includes(item.type)) return res.status(400).json({ error: 'bad_item' });
+
   const you  = normalize(req.body?.response, item.type);
   const want = normalize(item.answer, item.type);
-  const correct = you.length > 0 && you === want;
+  const correct = you.length > 0 && you === want;   // deterministic, against the generated answer
+
   // Record per-type accuracy (best-effort; never block the grade response).
   try {
-    const p = await loadUser(req.account.id);
+    if (!p) p = await loadUser(uid);
     p.listeningStats = p.listeningStats || {};
     const s = p.listeningStats[item.type] || { seen: 0, correct: 0 };
     s.seen += 1; if (correct) s.correct += 1;
     p.listeningStats[item.type] = s;
     await saveUser(p);
   } catch { /* stats are best-effort */ }
-  console.log(`[listening] user=${req.account.id} id=${id} type=${item.type} correct=${correct}`);
+  console.log(`[listening] user=${uid} id=${key} type=${item.type} correct=${correct}`);
   res.json({ correct, expected: item.answer, normalizedYou: you });
 });

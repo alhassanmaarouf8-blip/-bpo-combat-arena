@@ -74,6 +74,71 @@ const PROMPTS = [
     ar: 'اقنعني في 60 ثانية إنك بتفضل هادي تحت الضغط.', level: 'b2' },
 ];
 
+// ── NOVEL prompt generation (Groq chat — same pattern as realtimeClient.js) ───────
+// Fluency is measured DETERMINISTICALLY from the learner's own audio (WpM/LanguageTool);
+// the prompt is never graded against an answer, so GENERATING speaking topics is fully
+// safe — there is no "correct answer" to get wrong. We generate a fresh batch of German
+// BPO-interview speaking prompts (both levels, Arabic gloss) so reopening gives NEW topics.
+// FAIL-SAFE: no key / bad JSON / too few items → fall back to the fixed PROMPTS pool above.
+const GEN_MODEL  = process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile';
+const GEN_TTL_MS = 10 * 60 * 1000;   // cache one generated batch briefly to bound cost
+const GEN_ID_BASE = 1_000_000;        // generated-prompt ids live above the fixed indices
+let _promptSeq   = GEN_ID_BASE;
+let _promptCache = { at: 0, items: null };
+
+async function groqChatJSON(messages, { maxTokens = 1400, temperature = 1.0 } = {}) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error('no_api_key');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ model: GEN_MODEL, temperature, max_tokens: maxTokens,
+                                response_format: { type: 'json_object' }, messages }),
+      signal:  controller.signal,
+    });
+    if (!res.ok) throw new Error(`Groq ${res.status}: ${(await res.text().catch(() => '')).slice(0, 160)}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content ?? '';
+  } finally { clearTimeout(timer); }
+}
+
+async function generatePrompts() {
+  const sys =
+    'Du erstellst Sprech-Aufgaben (NUR Themen/Impulse, KEINE Musterantworten) für ein 4-3-2-Flüssigkeits-' +
+    'training angehender deutscher Callcenter-/Kundenservice-Mitarbeiter. Jede Aufgabe ist eine einzige, ' +
+    'sprechbare Aufforderung auf natürlichem, idiomatischem Deutsch (Sie-Form), die 60-90 Sekunden freies ' +
+    'Sprechen anregt — Selbstvorstellung, Verhaltensfragen (STAR/Situation-Handlung-Ergebnis), ' +
+    'Kundenservice-Szenarien, Deeskalation, Motivation. Variiere die Themen stark. Liefere zu jeder Aufgabe ' +
+    'eine knappe ägyptisch-arabische Übersetzung als Lernhilfe. "level": "a2-b1" für einfache, "b2" für ' +
+    'anspruchsvollere Aufgaben. Antworte AUSSCHLIESSLICH als JSON: ' +
+    '{"prompts":[{"de":"...","ar":"...","level":"a2-b1"|"b2"}, ...]}. KEIN weiterer Text.';
+  const user = 'Erzeuge 10 NEUE, abwechslungsreiche Sprech-Aufgaben (etwa zur Hälfte a2-b1, zur Hälfte b2). Keine Wiederholungen, keine Musterantworten.';
+  const content = await groqChatJSON([{ role: 'system', content: sys }, { role: 'user', content: user }]);
+  const parsed = JSON.parse(content);
+  const arr = Array.isArray(parsed) ? parsed : (parsed.prompts || parsed.items || parsed.aufgaben || []);
+  return (Array.isArray(arr) ? arr : [])
+    .filter((p) => p && typeof p.de === 'string' && p.de.trim().length > 12)
+    .map((p) => ({ de: String(p.de).trim(), ar: String(p.ar || '').trim(),
+                   level: p.level === 'b2' ? 'b2' : 'a2-b1', id: _promptSeq++ }));
+}
+
+// Returns a fresh-ish generated pool (with stable ids), or null to signal "use the fixed pool".
+async function getGeneratedPrompts() {
+  if (!process.env.GROQ_API_KEY) return null;                       // FAIL-SAFE: no key → fixed pool
+  if (_promptCache.items && Date.now() - _promptCache.at < GEN_TTL_MS) return _promptCache.items;
+  try {
+    const items = await generatePrompts();
+    if (items.length >= 4) { _promptCache = { at: Date.now(), items }; return items; }
+    return _promptCache.items;                                      // too few → keep last good (or null)
+  } catch (e) {
+    console.error('[fluency] prompt generation failed:', e.message);
+    return _promptCache.items;                                      // FAIL-SAFE: stale batch or null → fixed
+  }
+}
+
 // Active-paid gate (basic/elite/admin). planOf() already reverts an expired plan to 'free'.
 function paidOnly(req, res) {
   if (planOf(req.account) === 'free') {
@@ -84,8 +149,9 @@ function paidOnly(req, res) {
 }
 
 // Pick a prompt the student has NOT seen (no repeats until the level's pool is exhausted, then cycle).
-function pickPrompt(level, seen) {
-  const pool = PROMPTS.map((p, i) => ({ ...p, id: i }));
+// `pool` carries explicit ids (generated ids live above GEN_ID_BASE, fixed ids are 0..n-1), so the
+// per-level seen-list stays valid no matter which pool is active.
+function pickPrompt(pool, level, seen) {
   const matched = pool.filter((p) => p.level === level);
   const from = matched.length ? matched : pool;
   const seenSet = new Set(seen || []);
@@ -94,6 +160,7 @@ function pickPrompt(level, seen) {
   if (!unseen.length) { unseen = from; reset = true; }
   return { chosen: unseen[Math.floor(Math.random() * unseen.length)], reset };
 }
+const fixedPool = () => PROMPTS.map((p, i) => ({ ...p, id: i }));
 
 // ── DETERMINISTIC measurement — the accuracy core. No model, no opinion. ──────────
 // Only UNAMBIGUOUS hesitation sounds are counted as fillers. Discourse words that are
@@ -144,6 +211,9 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   res.set('Cache-Control', 'no-store');   // fresh prompt + focus every open (never a cached repeat)
   const level = req.query.level === 'b2' ? 'b2' : 'a2-b1';
+  // Prefer a freshly GENERATED pool (novel each open); fall back to the fixed PROMPTS pool.
+  const gen  = await getGeneratedPrompts().catch(() => null);
+  const pool = (gen && gen.length) ? gen : fixedPool();
   let chosen, focus = null;
   try {
     const u = await loadUser(req.account.id);
@@ -151,7 +221,7 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
     // level can't wipe or contaminate the other's no-repeat history. (Migrates the old flat array.)
     const store = (u.fluencySeen && !Array.isArray(u.fluencySeen)) ? u.fluencySeen : {};
     const seen  = Array.isArray(store[level]) ? store[level] : [];
-    const r = pickPrompt(level, seen);
+    const r = pickPrompt(pool, level, seen);
     chosen = r.chosen;
     store[level]  = r.reset ? [chosen.id] : [...seen, chosen.id];
     u.fluencySeen = store;
@@ -161,7 +231,7 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
     if (weak) focus = weak.content;
     await saveUser(u);
   } catch {
-    chosen = pickPrompt(level, []).chosen;   // best-effort: still serve a prompt
+    chosen = pickPrompt(pool, level, []).chosen;   // best-effort: still serve a prompt
   }
   res.json({ prompt: { id: chosen.id, de: chosen.de, ar: chosen.ar }, rounds: ROUND_SECONDS, focus });
 });
