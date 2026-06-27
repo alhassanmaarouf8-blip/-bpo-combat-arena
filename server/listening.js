@@ -40,9 +40,10 @@ const REPLAYS     = 1;   // how many times the learner may replay before answeri
 // WHY: a FIXED pool (~26 items) repeats once the learner finishes it — disrespectful "loops".
 // So we GENERATE fresh German listening items each round; a learner who finishes and reopens
 // gets new content. Same OpenAI-compatible Groq endpoint used everywhere else (no new service).
-// Use the PROVEN interview model (verified live HTTP 200) — NOT GROQ_PLAN_MODEL, which may be a
-// decommissioned Groq model that 400s and silently drops listening into the repeating fixed pool.
-const GEN_MODEL  = process.env.GROQ_INTERVIEW_MODEL ?? process.env.GROQ_LISTEN_MODEL ?? 'llama-3.3-70b-versatile';
+// Drill generation runs on the FAST/LIGHT model (llama-3.1-8b-instant) — it has its OWN per-model daily
+// token quota, so it keeps working even when the 70b interview model's quota is exhausted, and it frees
+// the 70b quota for the boss. 8b is plenty for generating simple German listening sentences. Cheaper+faster.
+const GEN_MODEL  = process.env.GROQ_DRILL_MODEL ?? 'llama-3.1-8b-instant';
 const GROQ_CHAT  = 'https://api.groq.com/openai/v1/chat/completions';
 const GEN_TTL_MS = 90_000;        // brief per-user cache → dedupes rapid re-fetches, bounds cost
 const TYPES      = ['nummer', 'betrag', 'name', 'datum', 'adresse'];
