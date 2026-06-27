@@ -23,21 +23,79 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
 
-// ── Boss LLM config (OpenAI-compatible chat endpoint) ───────────────────────────
-// Provider-agnostic: any OpenAI-compatible endpoint works (Groq, Cerebras, …). Defaults
-// preserve the exact current Groq setup, so behavior is unchanged until the env vars are set.
-// To move the boss off Groq's 100K/day free cap onto Cerebras' 1M/day free tier (SAME
-// llama-3.3-70b model → identical quality), set on Render:
-//   INTERVIEW_BASE_URL=https://api.cerebras.ai/v1
-//   INTERVIEW_API_KEY=<cerebras key>
-//   GROQ_INTERVIEW_MODEL=llama-3.3-70b
-const GROQ_BASE  = process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1';
-// llama-3.3-70b-versatile: strong German, instruction-following, cheap + fast on Groq.
-const GROQ_MODEL = process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile';
 // Hard cap per boss turn. A single question is ~20–60 tokens; a Teil-3 customer
 // complaint with scenario context is longer. 280 leaves room for a vivid customer
 // line while making it structurally impossible to run on and answer for the candidate.
 const MAX_TURN_TOKENS = 280;
+
+// ── Boss LLM providers (OpenAI-compatible) with automatic cap-failover ──────────
+// The boss tries providers in order. When one returns 429 (its daily/rate cap is hit)
+// it's parked on a short cooldown and the SAME turn retries on the next provider — so
+// the candidate never sees a dropped turn. This pools every configured provider's free
+// budget (~100K/day Groq + ~1M/day Cerebras ≈ 1.1M/day). A provider only activates if
+// its API key env is set, so adding CEREBRAS_API_KEY is all it takes to switch failover on.
+//
+//   GROQ:     GROQ_API_KEY (already set) · llama-3.3-70b-versatile (non-reasoning, fast)
+//   CEREBRAS: CEREBRAS_API_KEY · gpt-oss-120b — a REASONING model, so it gets extra token
+//             headroom + reasoning_effort:'low' (verified: clean formal German, ~0.6s).
+const PROVIDERS = [
+  {
+    name:  'groq',
+    base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
+    key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
+    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
+    maxTokens: MAX_TURN_TOKENS,
+    extra: {},
+  },
+  {
+    name:  'cerebras',
+    base:  process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
+    key:   process.env.CEREBRAS_API_KEY,
+    model: process.env.CEREBRAS_INTERVIEW_MODEL || 'gpt-oss-120b',
+    maxTokens: 400,                       // reasoning tokens eat into this → give headroom
+    extra: { reasoning_effort: 'low' },   // minimal thinking → short, clean question, fast
+  },
+].filter(p => p.key);                     // only providers whose key is configured
+
+const PROVIDER_COOLDOWN_MS = 10 * 60 * 1000;   // after a 429, skip a provider for 10 min
+const _providerCooldownUntil = Object.create(null);   // provider name → epoch ms
+
+// Try each configured provider in order; on 429/error, park it and fail over to the next.
+// Returns { content, provider }. Throws only if EVERY provider fails.
+async function callBoss(turnMsgs, sessionId) {
+  const now = Date.now();
+  const fresh = PROVIDERS.filter(p => !(_providerCooldownUntil[p.name] > now));
+  const order = fresh.length ? fresh : PROVIDERS;   // all cooling down → still try (cap may have reset)
+  let lastErr = null;
+  for (const p of order) {
+    try {
+      const res = await fetch(`${p.base}/chat/completions`, {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${p.key}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ model: p.model, temperature: 0.7, max_tokens: p.maxTokens, messages: turnMsgs, ...p.extra }),
+      });
+      if (res.status === 429) {   // cap/rate hit → park this provider, fail over
+        _providerCooldownUntil[p.name] = Date.now() + PROVIDER_COOLDOWN_MS;
+        const body = await res.text().catch(() => '');
+        lastErr = Object.assign(new Error(`${p.name} 429 ${body.slice(0, 120)}`), { status: 429 });
+        console.warn(`[interviewClient] ${p.name} capped (429) → failover  session=${sessionId}`);
+        continue;
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        lastErr = Object.assign(new Error(`${p.name} ${res.status} ${body.slice(0, 160)}`), { status: res.status });
+        console.warn(`[interviewClient] ${p.name} ${res.status} → trying next  session=${sessionId}`);
+        continue;
+      }
+      const data = await res.json();
+      return { content: data.choices?.[0]?.message?.content ?? '', provider: p.name };
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[interviewClient] ${p.name} error → trying next  session=${sessionId}: ${err.message}`);
+    }
+  }
+  throw lastErr || new Error('all boss providers failed');
+}
 
 // ── Boss personalities (persona text → system prompt via buildSessionScript) ────
 const BOSS_CONFIGS = {
@@ -248,6 +306,7 @@ export class RealtimeClient {
     };
 
     this._groq               = null;
+    this._lastProvider       = null;   // which LLM provider served the last boss turn (failover log)
     this._history            = [];     // chat messages: system + alternating assistant/user
     this._responding         = false;
     this._closed             = false;
@@ -260,11 +319,8 @@ export class RealtimeClient {
 
   // ── Connect: set up Groq + emit the deterministic opening line ─────────────────
   async connect() {
-    // Dedicated boss key (INTERVIEW_API_KEY) lets the boss run on a different provider/quota
-    // than the helper models; falls back to GROQ_API_KEY so nothing breaks until it's set.
-    const apiKey = process.env.INTERVIEW_API_KEY || process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error('INTERVIEW_API_KEY / GROQ_API_KEY not set');
-    this._apiKey = apiKey;   // called over plain fetch — no SDK, no 'openai' package.
+    // Boss runs on the configured provider chain (Groq → Cerebras failover, see PROVIDERS).
+    if (!PROVIDERS.length) throw new Error('No boss LLM key set (GROQ_API_KEY or CEREBRAS_API_KEY)');
 
     // System prompt is the full session script; seed the assistant's first turn with
     // the deterministic opening line so the model has the conversation's real start.
@@ -273,7 +329,7 @@ export class RealtimeClient {
       { role: 'assistant', content: this._session.openingLine },
     ];
 
-    console.log(`[interviewClient] connected  model=${GROQ_MODEL}  mood=${this._mood}  session=${this._sessionId}`);
+    console.log(`[interviewClient] connected  providers=${PROVIDERS.map(p => p.name).join('+')}  mood=${this._mood}  session=${this._sessionId}`);
 
     // Deliver the opening line after a short, deliberate "thinking" pause.
     this._responding = true;
@@ -306,27 +362,17 @@ export class RealtimeClient {
 
     let line = '';
     try {
-      const res = await fetch(`${GROQ_BASE}/chat/completions`, {
-        method:  'POST',
-        headers: { 'Authorization': `Bearer ${this._apiKey}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          model:       GROQ_MODEL,
-          temperature: 0.7,
-          max_tokens:  MAX_TURN_TOKENS,
-          messages:    turnMsgs,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw Object.assign(new Error(`Groq ${res.status} ${body.slice(0, 200)}`), { status: res.status });
+      const { content, provider } = await callBoss(turnMsgs, this._sessionId);
+      line = content;
+      if (provider !== this._lastProvider) {
+        this._lastProvider = provider;
+        console.log(`[interviewClient] boss on ${provider}  session=${this._sessionId}`);
       }
-      const data = await res.json();
-      line = data.choices?.[0]?.message?.content ?? '';
     } catch (err) {
-      console.error(`[interviewClient] Groq error  session=${this._sessionId}: ${err.message}`);
+      console.error(`[interviewClient] boss error (all providers)  session=${this._sessionId}: ${err.message}`);
       this._responding = false;
       const code = this._classify(err);
-      this._cb.onError?.(Object.assign(new Error(err.message || 'groq_error'), { code }));
+      this._cb.onError?.(Object.assign(new Error(err.message || 'boss_error'), { code }));
       return '';
     }
 
