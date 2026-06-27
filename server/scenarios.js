@@ -335,7 +335,7 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -357,6 +357,19 @@ export function buildSessionScript({ persona, displayName, greeting, levelId, do
     ? `\nDOSSIER (aus früheren Gesprächen) — GEZIELTER WIEDERHOLUNGSTEST: Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
       `Erwähne das EINMAL kurz und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat."). ` +
       `WICHTIG — belass es NICHT bei der Erwähnung: Baue im Gesprächsverlauf GEZIELT EINE natürliche Situation oder Nachfrage ein, die den Kandidaten ZWINGT, genau diese Schwäche ("${dossier}") zu zeigen — etwa eine Rückfrage, ein Beispiel oder ein Rollenspiel-Moment, der genau diese Struktur bzw. Fähigkeit erfordert. So prüfst du ECHT, ob er sich verbessert hat, statt es nur zu erwähnen. Halte es natürlich im Gesprächsfluss, tue es nur EINMAL gezielt und übertreibe es nicht.\n`
+    : '';
+
+  // AKTE / growth memory → "der Chef, der dich wachsen sah" (built in bossMemory.js): a returning
+  // interviewer who remembers this candidate's TRAJECTORY — real progress, a mistake that keeps
+  // recurring, an absence. This LAYERS on the weak-rule re-test above; it must merge with the file
+  // mention, not be a second cold opening. Every clause is backed by stored data — invent nothing.
+  const memoryLine = memory
+    ? `\nAKTE / ERINNERUNG an diesen Kandidaten aus früheren Gesprächen: ${memory}.\n` +
+      `Du bist ein wiederkehrender Interviewer, der diese Akte kennt — verarbeite sie wie ein Mensch, der sich erinnert, GENAU EINMAL, früh, kühl und beiläufig (am besten im selben Atemzug wie die Akten-Erwähnung oben, nicht als zweite, separate Ansage):\n` +
+      `- Echten Fortschritt würdigst du kurz und glaubwürdig (z.B. "Ihre Akte zeigt: flüssiger als beim letzten Mal. Gut — heute hebe ich die Latte.").\n` +
+      `- Auf einen Fehler, der sich durch mehrere Gespräche zieht, gehst du gezielt und härter ein (z.B. "Schon wieder dasselbe Muster — heute keine Nachsicht.").\n` +
+      `- Eine längere Abwesenheit erwähnst du knapp (z.B. "Lange nicht gesehen — mal sehen, was geblieben ist.").\n` +
+      `Erfinde dabei NICHTS, was nicht in der Akte steht. Übertreibe es nicht.\n`
     : '';
 
   // Trainingslager focus: after the candidate finishes a lesson, the next fight weaves in
@@ -393,7 +406,7 @@ Sei lebendig und unvorhersehbar: variiere Tonfall, Nachfragen und Eskalation üb
 Korrigiere den Kandidaten NICHT, solange du ihn verstehst — bleib im Gespräch und erhalte die Immersion.
 Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz und natürlich im Gesprächsfluss.
 ${level.speechStyle}
-${delivery}${dossierLine}${focusLine}
+${delivery}${dossierLine}${memoryLine}${focusLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - Wenn der Kandidat seinen Namen nennt, MERKE ihn dir und sprich ihn später ein- bis zweimal natürlich an ("Gut, Herr Karim, …"). Das ist das stärkste Signal, dass du ein echter, zuhörender Mensch bist.

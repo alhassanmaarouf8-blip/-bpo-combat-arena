@@ -11,6 +11,7 @@ import { BPO_PHRASES } from './scenarios.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
 import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
+import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
@@ -303,6 +304,7 @@ export class WebSocketManager {
     // Boss is chosen by the user's progression (warm-up → standard → final boss).
     let bossId = 'yasmin';
     let dossier = null;
+    let memory = null;
     let focusTitle = null;
     let prof = null;
     try {
@@ -317,6 +319,10 @@ export class WebSocketManager {
         const errsStr = `Wiederkehrendes Muster aus der letzten Sitzung: ${recentErrs.join(', ')}`;
         dossier = [dossier, errsStr].filter(Boolean).join('. ');
       }
+      // Growth-aware cross-session memory (separate from the weak-rule re-test): trajectory,
+      // persistent mistakes, an absence — so the boss acts like a returning interviewer who
+      // watched this candidate grow. Deterministic, never fabricated; see bossMemory.js.
+      memory = buildBossMemory(prof);
     } catch {}
 
     // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
@@ -362,6 +368,7 @@ export class WebSocketManager {
         bossId,
         level,
         dossier,
+        memory,
         focusTitle,
         recent,
         // Boss turns are plain text (no audio). Send the full line, then mark it done.

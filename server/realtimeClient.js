@@ -206,6 +206,7 @@ export class RealtimeClient {
       greeting:    this._boss.greeting,
       levelId:     opts.level,
       dossier:     opts.dossier,
+      memory:      opts.memory,   // growth-aware cross-session memory → boss "AKTE" block
       focusTitle:  opts.focusTitle,
       mood:        this._mood,
       clarificationRate,
