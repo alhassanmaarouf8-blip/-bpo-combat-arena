@@ -40,10 +40,11 @@ const REPLAYS     = 1;   // how many times the learner may replay before answeri
 // WHY: a FIXED pool (~26 items) repeats once the learner finishes it — disrespectful "loops".
 // So we GENERATE fresh German listening items each round; a learner who finishes and reopens
 // gets new content. Same OpenAI-compatible Groq endpoint used everywhere else (no new service).
-// Drill generation runs on the FAST/LIGHT model (llama-3.1-8b-instant) — it has its OWN per-model daily
-// token quota, so it keeps working even when the 70b interview model's quota is exhausted, and it frees
-// the 70b quota for the boss. 8b is plenty for generating simple German listening sentences. Cheaper+faster.
-const GEN_MODEL  = process.env.GROQ_DRILL_MODEL ?? 'llama-3.1-8b-instant';
+// Listening items need QUALITY (the audio must actually contain the answer to the question) — 8b produced
+// mismatched/unanswerable items, so we use the strong model. When its free daily quota is exhausted the
+// call 429s and we fall back to the CURATED fixed pool (correct content, may repeat) rather than show a
+// bad generated item. GROQ_DRILL_MODEL lets the owner point it at the upgraded (uncapped) model.
+const GEN_MODEL  = process.env.GROQ_DRILL_MODEL ?? process.env.GROQ_INTERVIEW_MODEL ?? 'llama-3.3-70b-versatile';
 const GROQ_CHAT  = 'https://api.groq.com/openai/v1/chat/completions';
 const GEN_TTL_MS = 90_000;        // brief per-user cache → dedupes rapid re-fetches, bounds cost
 const TYPES      = ['nummer', 'betrag', 'name', 'datum', 'adresse'];
@@ -397,12 +398,3 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
   res.json({ correct, expected: item.answer, normalizedYou: you });
 });
 
-// TEMP diagnostic: confirm listening GENERATION works live (no auth; remove after verifying).
-listeningRouter.get('/listening-gentest', async (req, res) => {
-  res.set('Cache-Control', 'no-store'); res.set('Content-Type', 'text/plain; charset=utf-8');
-  try {
-    const t0 = Date.now();
-    const items = await generateItems({ level: 'b2', types: ['nummer', 'name', 'betrag'], avoid: [] });
-    res.send(`MODEL=${GEN_MODEL}\nvalid items: ${items.length} in ${Date.now() - t0}ms\nsample: ${JSON.stringify(items[0] || null)}`);
-  } catch (e) { res.send(`MODEL=${GEN_MODEL}\nGEN ERROR: ${e.message}`); }
-});
