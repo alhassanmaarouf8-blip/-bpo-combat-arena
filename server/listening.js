@@ -40,7 +40,9 @@ const REPLAYS     = 1;   // how many times the learner may replay before answeri
 // WHY: a FIXED pool (~26 items) repeats once the learner finishes it — disrespectful "loops".
 // So we GENERATE fresh German listening items each round; a learner who finishes and reopens
 // gets new content. Same OpenAI-compatible Groq endpoint used everywhere else (no new service).
-const GEN_MODEL  = process.env.GROQ_LISTEN_MODEL ?? process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
+// Use the PROVEN interview model (verified live HTTP 200) — NOT GROQ_PLAN_MODEL, which may be a
+// decommissioned Groq model that 400s and silently drops listening into the repeating fixed pool.
+const GEN_MODEL  = process.env.GROQ_INTERVIEW_MODEL ?? process.env.GROQ_LISTEN_MODEL ?? 'llama-3.3-70b-versatile';
 const GROQ_CHAT  = 'https://api.groq.com/openai/v1/chat/completions';
 const GEN_TTL_MS = 90_000;        // brief per-user cache → dedupes rapid re-fetches, bounds cost
 const TYPES      = ['nummer', 'betrag', 'name', 'datum', 'adresse'];
@@ -392,4 +394,14 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
   } catch { /* stats are best-effort */ }
   console.log(`[listening] user=${uid} id=${key} type=${item.type} correct=${correct}`);
   res.json({ correct, expected: item.answer, normalizedYou: you });
+});
+
+// TEMP diagnostic: confirm listening GENERATION works live (no auth; remove after verifying).
+listeningRouter.get('/listening-gentest', async (req, res) => {
+  res.set('Cache-Control', 'no-store'); res.set('Content-Type', 'text/plain; charset=utf-8');
+  try {
+    const t0 = Date.now();
+    const items = await generateItems({ level: 'b2', types: ['nummer', 'name', 'betrag'], avoid: [] });
+    res.send(`MODEL=${GEN_MODEL}\nvalid items: ${items.length} in ${Date.now() - t0}ms\nsample: ${JSON.stringify(items[0] || null)}`);
+  } catch (e) { res.send(`MODEL=${GEN_MODEL}\nGEN ERROR: ${e.message}`); }
 });
