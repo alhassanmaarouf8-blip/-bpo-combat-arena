@@ -648,15 +648,16 @@ export class WebSocketManager {
       debrief = { grammar: [], strengths: [], studyNext: [], metrics, generated: false };
     }
 
-    const progress = await this._persistProgress(ctx, metrics, debrief);
+    // Compute the result (rank/verdict/jobLabel) BEFORE persisting — the session record stores it.
     const result   = await this._computeResult(ctx, metrics);
+    const progress = await this._persistProgress(ctx, metrics, debrief, result);
 
     console.log(`[wsManager] Debrief ready  generated=${debrief.generated}  outcome=${result.outcome}  rank=${result.rank}  bossHp=${result.bossHp}  answers=${metrics.answers}  session=${ctx.sessionId}`);
     this._send(ctx, { type: S.DEBRIEF, ...debrief, result, progress });
   }
 
   // Persist this session: history, vocab growth, SRS items from errors, XP/level.
-  async _persistProgress(ctx, metrics, debrief) {
+  async _persistProgress(ctx, metrics, debrief, result = {}) {
     try {
       const p   = await loadUser(ctx.userId);
       const now = Date.now();
@@ -734,8 +735,8 @@ export class WebSocketManager {
         // The HIRING RESULT of this fight — so Alhassan (and any later view) can speak to exactly
         // how the interview went: the CEFR rank, the pass/weak/fail verdict, the one-line job label,
         // and the single fix we told them to work on. Without these the mentor had no idea of the result.
-        rank: result.rank ?? null, verdict: result.verdict ?? null, jobLabel: result.jobLabel ?? null,
-        priorityFix: debrief.priorityFix?.de || null,
+        rank: result?.rank ?? null, verdict: result?.verdict ?? null, jobLabel: result?.jobLabel ?? null,
+        priorityFix: debrief?.priorityFix?.de || null,
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
         // Raw LanguageTool rule→count for this session. Same identifier space as topWeakRule, so the
