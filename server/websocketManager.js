@@ -15,7 +15,6 @@ import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
-import { classifyAbuse }          from './abuseDetector.js';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -167,8 +166,6 @@ export class WebSocketManager {
       utterances:     [],     // candidate's real sentences, for the end-of-session debrief
       dialogue:       [],     // FULL ordered exchange (boss question → candidate answer) for the dialogue-aware debrief
       totalSpeechMs:  0,       // summed VAD speech segments, for WPM
-      abuseWarnings:  0,       // in-character warnings issued for mild candidate abuse
-      terminationReason: null, // set when the interview is ended for misconduct
       fightStartedAt: 0,       // wall-clock start of the billed Realtime session
       audioInBytes:   0,       // total PCM16 audio bytes sent to OpenAI (user mic)
       audioOutBytes:  0,       // total PCM16 audio bytes received from OpenAI (boss voice)
@@ -378,7 +375,6 @@ export class WebSocketManager {
         sessionId: ctx.sessionId,
         bossId,
         level,
-        candidateName: account?.name || null,
         dossier,
         memory,
         focusTitle,
@@ -394,7 +390,7 @@ export class WebSocketManager {
           this._send(ctx, { type: S.BOSS_SPEECH_DONE });
           // Server is the single source of truth: end ONLY after the boss has finished
           // its turn, and only once all three parts are complete.
-          if (ctx.completePending && !ctx.closed) this._endSession(ctx, ctx.terminationReason || 'completed');
+          if (ctx.completePending && !ctx.closed) this._endSession(ctx, 'completed');
         },
         onError:           (err)    => {
           const code = err?.code || 'realtime_error';
@@ -992,18 +988,6 @@ export class WebSocketManager {
     // Score this answer + advance the funnel (may set ctx.completePending).
     this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
     if (ctx.closed) return;
-
-    const sev = classifyAbuse(transcript);
-    if (sev === 2 || (sev === 1 && (ctx.abuseWarnings || 0) >= 2)) {
-      ctx.terminationReason = 'terminated_misconduct';
-      ctx.completePending   = true;                       // boss says its final line, then session ends
-      try { ctx.realtimeClient.requestTermination(); } catch {}
-    } else if (sev === 1) {
-      ctx.abuseWarnings = (ctx.abuseWarnings || 0) + 1;
-      try { ctx.realtimeClient.requestWarning(ctx.abuseWarnings); } catch {}
-    } else if (ctx.completePending) {
-      try { ctx.realtimeClient.requestClosing(); } catch {}  // natural end → warm closing line
-    }
 
     // Boss replies with exactly ONE turn. onBossSpeech / onBossSpeechDone fire from
     // inside respond(); if this was the final roleplay exchange, onBossSpeechDone

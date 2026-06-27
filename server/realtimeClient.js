@@ -234,7 +234,7 @@ const TURN_RULE =
   `KEINE Regieanweisungen oder Tags in eckigen Klammern (NICHT "[seufzt]", "[lacht]", "[freundlich]"), ` +
   `KEINE Sternchen/Markdown/Aufzählungen/Emojis/Symbole — das wird sonst wörtlich vorgelesen. ` +
   `Beende JEDEN Redebeitrag mit einem Satzzeichen (. ? !), damit die Stimme natürlich ausatmet. ` +
-  `Für Pausen nutze "…" (längeres Zögern) oder ein Komma (kurze Pause). Schreibe in kurzen, eigenständigen Satzteilen mit Kommas statt in einem langen Satz ohne Pausen. Höchstens ein bis zwei Füllwörter, nur am ANFANG eines ` +
+  `Für Pausen nutze "…" (zögerlich) oder "—" (gefasst). Höchstens ein bis zwei Füllwörter, nur am ANFANG eines ` +
   `Redebeitrags, nie mitten im Satz und nie als abgebrochener Neustart. Zahlen/Daten als Wörter ("tausend Euro", nicht "1.000 €").`;
 
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
@@ -265,7 +265,6 @@ export class RealtimeClient {
     const bossId    = opts.bossId ?? DEFAULT_BOSS;
     this._boss      = BOSS_CONFIGS[bossId] ?? BOSS_CONFIGS[DEFAULT_BOSS];
     this._cb        = opts;
-    this._candidateName = opts.candidateName || null;   // forwarded into session script (must be set before buildSessionScript below)
 
     this._mood = _seededPick(MOOD_POOL, _seedFrom(this._sessionId));
     const clarificationRate = opts.level === 'c1' ? 0.20 : opts.level === 'b2' ? 0.12 : 0;
@@ -283,7 +282,6 @@ export class RealtimeClient {
       mood:        this._mood,
       clarificationRate,
       recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
-      candidateName: this._candidateName,
     });
 
     // Chosen content ids (+ reset flags) so the gateway can persist the no-repeat seen-lists.
@@ -314,9 +312,6 @@ export class RealtimeClient {
     this._closed             = false;
     this._pendingRescue      = null;
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
-    this._pendingClosing     = false;
-    this._pendingWarning     = null;   // number (warning count) or null
-    this._pendingTerminate   = false;
   }
 
   // True while a boss turn is being generated (gateway waits for completed turns).
@@ -364,9 +359,6 @@ export class RealtimeClient {
       turnMsgs.push({ role: 'system', content: this._correctionInstruction(this._pendingCorrection) });
       this._pendingCorrection = null;
     }
-    if (this._pendingTerminate) { turnMsgs.push({ role:'system', content:this._terminationInstruction() }); this._pendingTerminate = false; }
-    else if (this._pendingWarning) { turnMsgs.push({ role:'system', content:this._warningInstruction(this._pendingWarning) }); this._pendingWarning = null; }
-    if (this._pendingClosing) { turnMsgs.push({ role:'system', content:this._closingInstruction() }); this._pendingClosing = false; }
 
     let line = '';
     try {
@@ -414,26 +406,6 @@ export class RealtimeClient {
   // The gateway calls this after 2 weak answers with the same error → probe for specifics.
   // The boss stays in character: no metalinguistic comment, just a targeted follow-up question.
   requestCorrection(label = '') { this._pendingCorrection = label; }
-
-  // Conversation-control hooks the gateway calls based on candidate behavior / interview phase.
-  requestClosing()     { this._pendingClosing = true; }
-  requestWarning(count){ this._pendingWarning = count; }
-  requestTermination() { this._pendingTerminate = true; }
-
-  _warningInstruction(n) {
-    return n >= 2
-      ? `Der Kandidat ist ERNEUT respektlos. Gib ruhig und kühl, voll in der Rolle, eine LETZTE Verwarnung in EINEM Satz ("Das ist das zweite Mal — noch eine solche Bemerkung und ich beende das Gespräch.") und kehre dann mit EINER Sache zur Sache zurück. Werde NICHT selbst beleidigend, bleib in der Sie-Form.`
-      : `Der Kandidat war gerade unhöflich. Benenne das ruhig und in der Rolle, verwarne EINMAL klar ("Bleiben wir bitte sachlich und respektvoll, sonst beende ich das Gespräch.") und führe dann mit EINER Frage normal weiter. Bleib kühl, beherrscht, nie schreiend, nie selbst beleidigend.`;
-  }
-  _terminationInstruction() {
-    return `Der Kandidat hat dich SCHWER beleidigt/beschimpft. Beende das Gespräch JETZT professionell wie ein echter HR-Mensch: bleib eiskalt höflich und beherrscht, mach klar dass dieses Verhalten in einem Bewerbungsgespräch nicht tragbar ist, und VERABSCHIEDE den Kandidaten in ZWEI bis DREI Sätzen ("So kann ich das Gespräch nicht fortführen. Ich beende das Interview hier. Ich wünsche Ihnen alles Gute."). Stelle KEINE weitere Frage. Werde NICHT selbst beleidigend. Bleib in der Sie-Form, voll in der Rolle.`;
-  }
-  _closingInstruction() {
-    const who = this._candidateName ? this._candidateName : null;
-    return `Dies ist dein LETZTER Redebeitrag — das Gespräch endet jetzt. Beende es warm und menschlich: würdige kurz die Leistung` +
-      (who ? `, sprich ${who} dabei EINMAL persönlich an` : ` (sprich den Kandidaten nur mit Namen an, WENN du seinen Namen im Gespräch gehört hast; sonst neutral, erfinde keinen Namen)`) +
-      `, und verabschiede dich knapp${who ? ` (z.B. "Vielen Dank, ${who} — wir melden uns.")` : ''}. Eine, höchstens zwei kurze Sätze. KEINE neue Frage.`;
-  }
 
   _correctionInstruction(label) {
     const hint = label ? ` (es geht um: "${label}")` : '';

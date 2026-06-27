@@ -335,17 +335,7 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-// Real-HR conduct rule: how the boss reacts to candidate disrespect. The deterministic
-// abuse detector (abuseDetector.js) drives warnings/termination; this makes the boss's
-// in-character WORDING match a real, composed interviewer rather than a chatbot.
-export const CONDUCT_RUBRIC =
-  `PROFESSIONALITÄT & RESPEKT (du bist ein echter HR-Mensch, kein Chatbot — sehr wichtig): ` +
-  `Du bist im Gespräch der Vorgesetzte. Respektlosigkeit ignorierst du NIE, aber du bleibst stets ruhig, kühl und beherrscht — niemals selbst beleidigend, niemals schreiend. ` +
-  `Reagiere abgestuft: (1) LEICHTE Unhöflichkeit oder ein patziger Ton: benenne es ruhig und in der Rolle und gib EINE klare Verwarnung, dann führe das Gespräch fort. ` +
-  `(2) WIEDERHOLTE oder eskalierende Respektlosigkeit: eine letzte, deutlich kühlere Verwarnung. Ein echter Interviewer verliert dabei NICHT die Fassung; die Kälte IST der Druck. ` +
-  `Halte dich an die Sie-Form, kommentiere NICHT meta ("als KI…"), bleib vollständig in der Rolle als Mensch.`;
-
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, focusTitle, candidateName = null, mood = 'neutral', clarificationRate = 0, recent = {} }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -386,13 +376,6 @@ export function buildSessionScript({ persona, displayName, greeting, levelId, do
   // two situations that naturally test exactly that lesson. EXACTLY one injected line.
   const focusLine = focusTitle ? `\nBaue zwei Situationen ein, die ${focusTitle} natürlich testen.\n` : '';
 
-  // Candidate identity: address them by name when we know it (sparingly, like a real
-  // interviewer), otherwise stay neutral and never invent a name (honest fallback).
-  const identityLine = candidateName
-    ? `\nIDENTITÄT DES KANDIDATEN: Der Bewerber heißt ${candidateName}. Du kennst diesen Namen aus den Bewerbungsunterlagen. ` +
-      `Sprich ihn SPARSAM und natürlich an — höchstens ein- bis zweimal im ganzen Gespräch (z.B. zur Begrüßung ODER an einem markanten Moment), niemals in jedem Satz. Erfinde KEINEN anderen Namen.\n`
-    : `\nDu kennst den Namen des Kandidaten noch NICHT. Wenn er sich vorstellt, MERKE dir den Namen und sprich ihn danach ein- bis zweimal sparsam an. Erfinde NIEMALS einen Namen — solange du keinen gehört hast, bleib beim neutralen "Sie".\n`;
-
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
     { ...STAGE_META[1], prompt: behavioral },
@@ -423,8 +406,7 @@ Sei lebendig und unvorhersehbar: variiere Tonfall, Nachfragen und Eskalation üb
 Korrigiere den Kandidaten NICHT, solange du ihn verstehst — bleib im Gespräch und erhalte die Immersion.
 Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz und natürlich im Gesprächsfluss.
 ${level.speechStyle}
-${delivery}${dossierLine}${memoryLine}${focusLine}${identityLine}
-${CONDUCT_RUBRIC}
+${delivery}${dossierLine}${memoryLine}${focusLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - Wenn der Kandidat seinen Namen nennt, MERKE ihn dir und sprich ihn später ein- bis zweimal natürlich an ("Gut, Herr Karim, …"). Das ist das stärkste Signal, dass du ein echter, zuhörender Mensch bist.
