@@ -115,11 +115,17 @@ try {
   const _characters = JSON.parse(fs.readFileSync(_charsPath, 'utf8')).characters || [];
   for (const c of _characters) {
     const phrases = (c.speaking_style?.signature_phrases || []).map((p) => `„${p}“`).join(' ');
+    // Few-shot: the character's OWN voice reacting to strong/weak answers. This is the strongest lever
+    // for "react like THIS person" — without it all six bosses sound identical. Tone template, not a script.
+    const examples = (c.example_exchanges || []).slice(0, 2).map((ex) =>
+      `BEISPIEL (${ex.label || ''}):\n  Du fragst: ${ex.boss}\n  Kandidat: ${ex.candidate}\n  So reagierst DU: ${ex.reaction}`
+    ).join('\n\n');
     const persona = [
       c.system_prompt,
       `\n\nHintergrund (nur für deine innere Haltung — erwähne ihn dem Kandidaten gegenüber NIEMALS): ${c.backstory}`,
       `\n\nSprechstil: ${c.speaking_style?.rhythm || ''}${phrases ? ` Typische Wendungen: ${phrases}` : ''}`,
       `\n\nEmotionale Grundhaltung: ${c.emotional_default || ''}`,
+      examples ? `\n\nSo klingt deine REAKTION (übernimm Ton und Konkretheit, kopiere NICHT den Wortlaut):\n${examples}` : '',
     ].join('');
     BOSS_CONFIGS[c.id] = {
       displayName: String(c.name || c.id).toUpperCase(),
@@ -316,7 +322,8 @@ export class RealtimeClient {
     }
 
     line = sanitizeOneTurn(line);
-    if (!line) line = 'Bitte fahren Sie fort.';   // never emit an empty boss turn
+    // never emit an empty boss turn — and VARY the fallback so a repeat doesn't read as a robot.
+    if (!line) line = ['Bitte fahren Sie fort.', 'Erzählen Sie ruhig weiter.', 'Gut — und weiter?'][this._history.length % 3];
 
     // GUARD: the model sometimes claims it "didn't acoustically understand" even though the
     // candidate gave a perfectly valid (often short) answer like "Gerne." or "Ja, gerne."
@@ -326,7 +333,7 @@ export class RealtimeClient {
     const saidSomething = (answer && answer !== '(keine hörbare Antwort)' &&
                            answer.replace(/[^\p{L}\p{N}]/gu, '').length >= 1);
     if (saidSomething && /nicht\s+(ganz\s+)?(akustisch\s+)?verstanden|akustisch\s+nicht|nicht\s+verstehen|könnten?\s+sie\s+das\s+(bitte\s+)?(noch\s*mal|wiederholen)|wiederholen\s+sie/i.test(line)) {
-      line = 'Gut. Erzählen Sie mir bitte etwas mehr dazu.';
+      line = ['Gut. Erzählen Sie mir bitte etwas mehr dazu.', 'Verstanden. Können Sie das an einem konkreten Beispiel festmachen?', 'Okay. Und was genau haben Sie dann getan?'][this._history.length % 3];
     }
 
     this._history.push({ role: 'assistant', content: line });
