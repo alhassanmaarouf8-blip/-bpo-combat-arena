@@ -1,0 +1,110 @@
+/**
+ * geminiLive.js — server-side proxy to Google Gemini Live (speech-to-speech).
+ *
+ * This is the ROOT fix for the "dumb machine" interview: instead of stitching
+ * STT → text-LLM → TTS with a client-side silence-timer (four guessers that compound
+ * errors and cut the user off), the interview runs on ONE native-audio model that hears,
+ * understands, decides turn boundaries, handles interruptions, and speaks — natively.
+ *
+ * This module owns ONLY the server↔Gemini Live socket. The browser↔server side and the
+ * scoring loop are wired separately, behind the USE_GEMINI_LIVE flag, so the existing
+ * Groq text pipeline stays the default until the owner validates this live.
+ *
+ * Audio contract: input = PCM16 mono little-endian @16kHz (mimeType 'audio/pcm;rate=16000');
+ * output = PCM16 @24kHz. Input/output transcription are enabled so the existing
+ * scoring/coach/SRS pipeline can consume the same transcripts it does today.
+ *
+ * No new dependency: uses Node's built-in global WebSocket (Node 21+; this repo runs 24).
+ */
+
+const HOST = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest';
+
+// Decode whatever frame type the server sends (string | Buffer | ArrayBuffer | Blob) → object.
+async function frameToJson(data) {
+  if (typeof data === 'string') return JSON.parse(data);
+  if (data && typeof data.arrayBuffer === 'function') {           // Blob
+    return JSON.parse(Buffer.from(await data.arrayBuffer()).toString('utf8'));
+  }
+  if (data instanceof ArrayBuffer) return JSON.parse(Buffer.from(data).toString('utf8'));
+  if (Buffer.isBuffer(data))       return JSON.parse(data.toString('utf8'));
+  return JSON.parse(Buffer.from(data).toString('utf8'));
+}
+
+/**
+ * Open a Gemini Live session.
+ * @param {object} opts
+ * @param {string} opts.apiKey         GEMINI_API_KEY
+ * @param {string} opts.systemInstruction  the interview brief (buildSessionScript().instructions)
+ * @param {string} [opts.model]        Live model id
+ * @param {string} [opts.voiceName]    prebuilt voice (e.g. 'Charon'); omit for model default
+ * @param {object} opts.handlers       { onReady, onAudio(Buffer), onInputText(s), onOutputText(s),
+ *                                        onTurnComplete, onInterrupted, onError(e), onClose(code,reason) }
+ * @returns {Promise<{ sendAudioChunk, sendText, close, isOpen }>}
+ */
+export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODEL, voiceName, handlers = {} }) {
+  if (!apiKey) throw new Error('geminiLive: apiKey required');
+  const h = handlers;
+  const ws = new WebSocket(`${HOST}?key=${apiKey}`);
+  let ready = false;
+
+  const setup = {
+    setup: {
+      model,
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        ...(voiceName ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } : {}),
+      },
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      inputAudioTranscription: {},
+      outputAudioTranscription: {},
+    },
+  };
+
+  ws.addEventListener('open', () => { ws.send(JSON.stringify(setup)); });
+
+  ws.addEventListener('message', async (ev) => {
+    let msg;
+    try { msg = await frameToJson(ev.data); }
+    catch (e) { h.onError?.(new Error('geminiLive: bad frame: ' + e.message)); return; }
+
+    if (msg.setupComplete) { ready = true; h.onReady?.(); return; }
+
+    const sc = msg.serverContent;
+    if (sc) {
+      const parts = sc.modelTurn?.parts || [];
+      for (const p of parts) {
+        if (p.inlineData?.data && String(p.inlineData.mimeType || '').includes('audio')) {
+          h.onAudio?.(Buffer.from(p.inlineData.data, 'base64'));        // PCM16 @24kHz
+        }
+      }
+      if (sc.inputTranscription?.text)  h.onInputText?.(sc.inputTranscription.text);
+      if (sc.outputTranscription?.text) h.onOutputText?.(sc.outputTranscription.text);
+      if (sc.interrupted)               h.onInterrupted?.();
+      if (sc.turnComplete)              h.onTurnComplete?.();
+    }
+    if (msg.error) h.onError?.(new Error('geminiLive server error: ' + JSON.stringify(msg.error)));
+  });
+
+  ws.addEventListener('error', (e) => { h.onError?.(new Error('geminiLive ws error: ' + (e?.message || 'unknown'))); });
+  ws.addEventListener('close', (e) => { ready = false; h.onClose?.(e?.code, e?.reason); });
+
+  return {
+    isOpen: () => ready && ws.readyState === 1,
+    // Stream one chunk of mic audio (base64 PCM16 @16kHz).
+    sendAudioChunk(base64Pcm16k) {
+      if (ws.readyState !== 1) return false;
+      ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64Pcm16k }] } }));
+      return true;
+    },
+    // Send a text user turn (used for testing + typed fallback).
+    sendText(text) {
+      if (ws.readyState !== 1) return false;
+      ws.send(JSON.stringify({ clientContent: { turns: [{ role: 'user', parts: [{ text }] }], turnComplete: true } }));
+      return true;
+    },
+    close() { try { ws.close(); } catch {} },
+  };
+}
+
+export default { openGeminiLive };
