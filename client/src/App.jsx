@@ -2613,11 +2613,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           const spokenLine = bossLineRef.current || '';
           try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
           if (!ttsMutedRef.current && spokenLine) {
-            // Reverted to single-shot playback (today's sentence-streaming is set aside).
-            playBossVoice({
-              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
-              onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
-            });
+            // LATENCY FIX: chunked TTS — speak sentence 1 the instant its short clip is ready while
+            // prefetching the rest, so the boss starts talking ~1s sooner (kills the post-answer dead
+            // air). Deepgram (prod default) streams sentence-by-sentence; ElevenLabs opt-in stays
+            // single-shot (its API differs). speakBossStreamed falls back to single-shot for 1-sentence lines.
+            if (bossElevenVoiceRef.current) {
+              playBossVoice({
+                apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
+                onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
+              });
+            } else {
+              stopBossVoice();   // bump _streamSeq so this line owns the stream (per speakBossStreamed contract)
+              speakBossStreamed({
+                apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, text: spokenLine,
+                onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
+              });
+            }
           } else {
             setBossSpeak(false);
           }
