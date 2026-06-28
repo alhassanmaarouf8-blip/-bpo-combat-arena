@@ -615,8 +615,9 @@ export class WebSocketManager {
       ctx.stages     = info.stages;
       ctx.stageIdx   = 0;
       ctx.csScenario = info.csScenario;
-      this._send(ctx, { type: S.SCENARIO_INFO, ...info });
-      this._send(ctx, { type: S.STAGE_UPDATE, index: 0, ...info.stages[0] });
+      try { this._send(ctx, { type: S.SCENARIO_INFO, ...info }); } catch (e) { console.warn('[wsManager] send SCENARIO_INFO failed:', e.message); }
+      const firstStage = (Array.isArray(info.stages) && info.stages.length) ? info.stages[0] : { label: 'Teil 1', type: 'intro' };
+      try { this._send(ctx, { type: S.STAGE_UPDATE, index: 0, ...firstStage }); } catch (e) { console.warn('[wsManager] send STAGE_UPDATE failed:', e.message); }
     } catch (err) {
       console.error(`[wsManager] Failed to start fight session=${ctx.sessionId}:`, err.message);
       ctx.realtimeClient = null;
