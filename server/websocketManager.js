@@ -198,6 +198,11 @@ export class WebSocketManager {
       scoreCount:     0,
       csScoreSum:     0,       // de-escalation proxy: sum of CS-roleplay (stage 2) answer scores
       csScoreCount:   0,
+      confSum:        0,       // intelligibility proxy: sum of Deepgram word confidences
+      confCount:      0,
+      latSum:         0,       // composure proxy: sum of per-turn reaction latencies (s)
+      latCount:       0,
+      _bossEndedMs:   null,    // wall-clock when the boss finished speaking (for reaction latency)
       fillerTotal:    0,       // cumulative filler words this session (for the live counter)
       combo:          0,       // consecutive strong answers (for the combo multiplier)
       comboBest:      0,       // best combo reached this session
@@ -453,6 +458,7 @@ export class WebSocketManager {
         },
         onBossSpeechDone:  ()       => {
           ctx.lastBossPartialLen = 0;
+          ctx._bossEndedMs = Date.now();   // start the reaction-latency clock for the candidate's next turn
           this._send(ctx, { type: S.BOSS_SPEECH_DONE });
           // Server is the single source of truth: end ONLY after the boss has finished
           // its turn, and only once all three parts are complete.
@@ -925,6 +931,9 @@ export class WebSocketManager {
       const _giveUpRate = _candTurns.length ? _candTurns.filter((d) => (d.words || 0) < 3).length / _candTurns.length : null;
       // de-escalation proxy: average CS-roleplay (stage 2) answer score, 0..1.
       const _deescalation = ctx.csScoreCount ? Math.max(0, Math.min(1, (ctx.csScoreSum / ctx.csScoreCount) / 100)) : null;
+      // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
+      const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
+      const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
 
       p.sessions.push({
         date: now, level: ctx.level, bossId: ctx.bossId,
@@ -932,6 +941,8 @@ export class WebSocketManager {
         ...(_tf.subClauseRate != null ? { subClauseRate: _tf.subClauseRate, vocabDiversity: _tf.vocabDiversity } : {}),
         ...(_giveUpRate != null ? { giveUpRate: _giveUpRate } : {}),
         ...(_deescalation != null ? { deescalation: _deescalation } : {}),
+        ...(_intelligibility != null ? { intelligibility: _intelligibility } : {}),
+        ...(_latencyS != null ? { latencyS: _latencyS } : {}),
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
@@ -1205,6 +1216,15 @@ export class WebSocketManager {
     // Pick up word-level confidence scores set by the streaming STT handler.
     const words = ctx._lastWords ?? [];
     ctx._lastWords = null;
+
+    // FREE diagnostic signals (no API): intelligibility ≈ average Deepgram word confidence;
+    // reaction latency ≈ pause between the boss finishing and this answer landing (minus speaking time).
+    for (const w of words) { if (typeof w.confidence === 'number') { ctx.confSum += w.confidence; ctx.confCount += 1; } }
+    if (ctx._bossEndedMs) {
+      const lat = (Date.now() - ctx._bossEndedMs - (durationMs > 0 ? durationMs : 0)) / 1000;
+      if (lat >= 0 && lat < 30) { ctx.latSum += lat; ctx.latCount += 1; }
+      ctx._bossEndedMs = null;
+    }
 
     // Boss replies with exactly ONE turn. Fire the LLM request FIRST so generation
     // overlaps with scoring (saves ~100–300 ms on every answer).

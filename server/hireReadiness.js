@@ -72,7 +72,8 @@ export function featuresFromProfile(p) {
     vocabDiversity: typeof s.vocabDiversity === 'number', // computed from transcript at session end
     deescalation: typeof s.deescalation === 'number',     // CS-roleplay (stage 2) score proxy
     giveUpRate: typeof s.giveUpRate === 'number',         // empty/near-silent turn share
-    intelligibility: false, latencyS: false,              // still not measured (audio / reaction-time)
+    intelligibility: typeof s.intelligibility === 'number', // avg STT word-confidence proxy
+    latencyS: typeof s.latencyS === 'number',             // avg reaction latency (s)
   };
   const f = {
     wpm:             measured.wpm ? s.wpm : 100,
@@ -82,8 +83,8 @@ export function featuresFromProfile(p) {
     vocabDiversity:  measured.vocabDiversity ? s.vocabDiversity : 0.5,
     deescalation:    measured.deescalation ? s.deescalation : 0.6,
     giveUpRate:      measured.giveUpRate ? s.giveUpRate : 0.15,
-    intelligibility: 0.8,  // NOT measured — neutral assumption (flagged)
-    latencyS:        3,    // NOT measured
+    intelligibility: measured.intelligibility ? s.intelligibility : 0.8,
+    latencyS:        measured.latencyS ? s.latencyS : 3,
   };
   return { f, measured };
 }
@@ -112,7 +113,7 @@ export function hireReadinessFor(p) {
     totalSignals: 9,
     note: measuredCount < 9
       ? `preliminary — ${measuredCount}/9 signals measured; not yet measured: ${missing.join(', ')}`
-      : 'full',
+      : 'full (intelligibility = STT word-confidence proxy; de-escalation = CS-roleplay score proxy)',
   };
   return out;
 }
