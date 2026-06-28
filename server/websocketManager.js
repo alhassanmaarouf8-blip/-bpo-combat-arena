@@ -17,7 +17,6 @@ import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
-import { GeminiLiveProxy }       from './geminiLiveProxy.js';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
