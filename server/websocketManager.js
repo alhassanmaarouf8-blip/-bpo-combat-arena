@@ -19,6 +19,10 @@ import { refreshRecommendations, allRecommendedDone } from './trainingslager.js'
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
 
+// Gemini Live native-audio path is active only when explicitly enabled. Defined here (not just in
+// server.js) because the fight-start path references it — a bare reference would ReferenceError.
+const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
+
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
 const MAX_MESSAGE_BYTES  = 65_536;
