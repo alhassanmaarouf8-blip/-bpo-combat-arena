@@ -128,6 +128,11 @@ spokenReviewRouter.post('/spoken-review/grade',
 
       const { correct, expected } = gradeSpoken(item, transcript);
       grade(p, id, correct);                  // advance/reset the spaced schedule
+      // Permanent no-return: a correct answer in SAG ES RICHTIG is mastered forever.
+      if (correct) {
+        const it = (p.srs || []).find((i) => i.id === id);
+        if (it) { it.mastered = true; it.due = Number.MAX_SAFE_INTEGER; }
+      }
       await saveUser(p);
 
       console.log(`[spokenReview] user=${req.account.id} id=${id} type=${item.type} correct=${correct} heard="${transcript.slice(0, 50)}"`);

@@ -134,8 +134,8 @@ function normalize(s, type) {
 // Adaptive selection: bias toward the data-TYPE the student keeps missing (e.g. they nail names but
 // miss amounts → serve more amounts). Only kicks in once a type is demonstrably weak (≥2 seen, <80%
 // accuracy) — otherwise pure variety. Honest: driven by their REAL per-type accuracy, never faked.
-function pickAdaptive(stats, seen, n) {
-  const idx = ITEMS.map((_, i) => i);
+function pickAdaptive(stats, seen, correct, n) {
+  const idx = ITEMS.map((_, i) => String(i));
   for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
   // Demonstrably-weak data-type → bias to the front (you keep missing amounts → more amounts).
   let weakest = null;
@@ -145,12 +145,14 @@ function pickAdaptive(stats, seen, n) {
     const w = Object.keys(acc).sort((a, b) => acc[a] - acc[b])[0];
     if (w && acc[w] < 0.8) weakest = w;
   }
-  // NEVER REPEAT until the whole pool is exhausted: serve UNSEEN items first; only when fewer than a
-  // full session remain do we reset and start a fresh cycle. `reset` tells the caller to wipe the seen list.
-  const seenSet = new Set(seen);
-  let pool = idx.filter((i) => !seenSet.has(i));
+  // NEVER REPEAT correct answers: serve items that are neither seen (wrong) nor correct.
+  // Only when fewer than a full session remain do we reset the seen list. `reset` tells the
+  // caller to wipe the seen list; correct items are ALWAYS excluded.
+  const seenSet   = new Set(seen || []);
+  const correctSet = new Set(correct || []);
+  let pool = idx.filter((i) => !seenSet.has(i) && !correctSet.has(i));
   let reset = false;
-  if (pool.length < n) { pool = idx; reset = true; }
+  if (pool.length < n) { pool = idx.filter((i) => !correctSet.has(i)); reset = true; }
   if (weakest) pool = [...pool].sort((a, b) => (ITEMS[a].type === weakest ? 0 : 1) - (ITEMS[b].type === weakest ? 0 : 1));
   return { picks: pool.slice(0, n), reset };
 }
@@ -284,15 +286,17 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
     try {
       p = await loadUser(uid);
       baseRate = baseRateFor(p.assessmentResult?.estimatedLevel);
-      const seen = Array.isArray(p.listeningSeen) ? p.listeningSeen : [];
-      const r = pickAdaptive(p.listeningStats || null, seen, Math.min(n, ITEMS.length));
+      const seen    = (Array.isArray(p.listeningSeen)    ? p.listeningSeen    : []).map(String);
+      const correct = (Array.isArray(p.listeningCorrect)  ? p.listeningCorrect  : []).map(String);
+      const r = pickAdaptive(p.listeningStats || null, seen, correct, Math.min(n, ITEMS.length));
       picks = r.picks;
-      p.listeningSeen   = r.reset ? picks.slice() : [...seen, ...picks];   // no-repeat until pool cycles
+      p.listeningSeen   = r.reset ? picks.filter(id => !correct.includes(id)).slice() : seen.filter(id => !correct.includes(id)).concat(picks);
+      p.listeningCorrect = correct;
       p.listeningActive = {};
       for (const i of picks) p.listeningActive[String(i)] = { type: ITEMS[i].type, answer: ITEMS[i].answer };
       await saveUser(p);
     } catch {
-      picks = pickAdaptive(null, [], Math.min(n, ITEMS.length)).picks;
+      picks = pickAdaptive(null, [], [], Math.min(n, ITEMS.length)).picks;
     }
     const items = picks.map((i) => ({
       id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText,
@@ -331,7 +335,8 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
     items.push({ id, type: it.type, audioText: it.audioText, question_de: it.question_de, question_ar: it.question_ar, replays: REPLAYS });
   });
   if (items.length < n) {
-    const pad = pickAdaptive(stats, [], Math.min(n - items.length, ITEMS.length)).picks;
+    const correct = (Array.isArray(p?.listeningCorrect) ? p.listeningCorrect : []).map(String);
+    const pad = pickAdaptive(stats, [], correct, Math.min(n - items.length, ITEMS.length)).picks;
     for (const i of pad) {
       active[String(i)] = { type: ITEMS[i].type, answer: ITEMS[i].answer };
       items.push({ id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText, question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS });
@@ -392,6 +397,14 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
     const s = p.listeningStats[item.type] || { seen: 0, correct: 0 };
     s.seen += 1; if (correct) s.correct += 1;
     p.listeningStats[item.type] = s;
+    // Permanent no-return: correct answers leave the rotation forever; wrong ones stay retryable.
+    p.listeningCorrect = p.listeningCorrect || [];
+    if (correct) {
+      if (!p.listeningCorrect.includes(key)) p.listeningCorrect.push(key);
+      p.listeningSeen = (p.listeningSeen || []).filter((id) => String(id) !== key);
+    } else {
+      if (!p.listeningSeen.includes(key)) p.listeningSeen.push(key);
+    }
     await saveUser(p);
   } catch { /* stats are best-effort */ }
   console.log(`[listening] user=${uid} id=${key} type=${item.type} correct=${correct}`);

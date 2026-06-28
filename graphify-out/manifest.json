@@ -1,0 +1,462 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1782518879.8132896,
+    "ast_hash": "31fe4dde50cdae265f97b7c09e2dfd97",
+    "semantic_hash": ""
+  },
+  "client/package.json": {
+    "mtime": 1782164471.265694,
+    "ast_hash": "08b13493d7b2b27ef35fe72c5a2c66bb",
+    "semantic_hash": ""
+  },
+  "client/src/Alhassan.jsx": {
+    "mtime": 1781470966.9067912,
+    "ast_hash": "80943f165cb5864bd0e7078e5a95e17d",
+    "semantic_hash": ""
+  },
+  "client/src/App.jsx": {
+    "mtime": 1782673342.475326,
+    "ast_hash": "f747cd38581770ad27d37882f5332784",
+    "semantic_hash": ""
+  },
+  "client/src/Assessment.jsx": {
+    "mtime": 1782517933.450601,
+    "ast_hash": "e6da3b309768da38963bccb1d81cc737",
+    "semantic_hash": ""
+  },
+  "client/src/DailyMission.jsx": {
+    "mtime": 1782510998.128125,
+    "ast_hash": "31b76e261efe2b77c1c20be082895308",
+    "semantic_hash": ""
+  },
+  "client/src/DailyTraining.jsx": {
+    "mtime": 1782507515.5914648,
+    "ast_hash": "177c62f988a3044ced52f921fdd918f9",
+    "semantic_hash": ""
+  },
+  "client/src/Feedback.jsx": {
+    "mtime": 1781362914.8467283,
+    "ast_hash": "1c8eddd2e3ebb79234b32fce3f181367",
+    "semantic_hash": ""
+  },
+  "client/src/FluencyDrill.jsx": {
+    "mtime": 1782467941.0652983,
+    "ast_hash": "e5dfc7074f47a78f6016a6ee976fb9ae",
+    "semantic_hash": ""
+  },
+  "client/src/Listening.jsx": {
+    "mtime": 1782467928.369946,
+    "ast_hash": "e27fc8cf136bab0a5aa5c457bfd4e2ed",
+    "semantic_hash": ""
+  },
+  "client/src/PlacementPrompt.jsx": {
+    "mtime": 1782430320.2262096,
+    "ast_hash": "178103076f13e78b521e70a2fdc643c5",
+    "semantic_hash": ""
+  },
+  "client/src/PressureLadder.jsx": {
+    "mtime": 1782661292.239177,
+    "ast_hash": "f4e53815c55ed5d08186605b24156532",
+    "semantic_hash": ""
+  },
+  "client/src/Shadowing.jsx": {
+    "mtime": 1782467978.725075,
+    "ast_hash": "23591892b760e870ec3f5a73099430d5",
+    "semantic_hash": ""
+  },
+  "client/src/SpokenReview.jsx": {
+    "mtime": 1782467964.6423838,
+    "ast_hash": "2a9e6503190a91d6432bb599684426a1",
+    "semantic_hash": ""
+  },
+  "client/src/Trainingslager.jsx": {
+    "mtime": 1781441274.165893,
+    "ast_hash": "5f9600f7f9096d5ea6f626688d33bc8d",
+    "semantic_hash": ""
+  },
+  "client/src/Trainingsnachweis.jsx": {
+    "mtime": 1782165824.3848553,
+    "ast_hash": "4f0ee5aa09e1d065423cea0ed5ab2cd3",
+    "semantic_hash": ""
+  },
+  "client/src/Zielplan.jsx": {
+    "mtime": 1781039088.8312612,
+    "ast_hash": "3f41ddd5f23b8ffbcf0fdaeb44933119",
+    "semantic_hash": ""
+  },
+  "client/src/audioRecorder.js": {
+    "mtime": 1782164471.269743,
+    "ast_hash": "b3565e9ab1736aceb38409e3fcca18dc",
+    "semantic_hash": ""
+  },
+  "client/src/bargeInMonitor.js": {
+    "mtime": 1782524447.445217,
+    "ast_hash": "56019f8a90bd986d033e37b9d4b12482",
+    "semantic_hash": ""
+  },
+  "client/src/clipRecorder.js": {
+    "mtime": 1782166839.1304054,
+    "ast_hash": "b1dbc5851f1f9b5b2bd8e0b454e99316",
+    "semantic_hash": ""
+  },
+  "client/src/main.jsx": {
+    "mtime": 1782164449.6613424,
+    "ast_hash": "2848f4d3d34777e32f0f65907d3fb4c2",
+    "semantic_hash": ""
+  },
+  "client/vercel.json": {
+    "mtime": 1782522947.9737916,
+    "ast_hash": "99964dc371137c55bb4a31018175fea5",
+    "semantic_hash": ""
+  },
+  "client/vite.config.js": {
+    "mtime": 1782164449.6633623,
+    "ast_hash": "bd833856af24cc6d66ba79d10016b57d",
+    "semantic_hash": ""
+  },
+  "mnt/user-data/outputs/bpo-combat-arena/client/package.json": {
+    "mtime": 1780525634.6608555,
+    "ast_hash": "7e9240b16db6ae79edeafe0e1c9b5ad7",
+    "semantic_hash": ""
+  },
+  "server/admin.js": {
+    "mtime": 1781446424.8904428,
+    "ast_hash": "e3d1ba82bef1f0510624cdfa2069a94a",
+    "semantic_hash": ""
+  },
+  "server/alhassan.js": {
+    "mtime": 1782639398.4105952,
+    "ast_hash": "0657cde43f54528e67f59f38113d710b",
+    "semantic_hash": ""
+  },
+  "server/assessment.js": {
+    "mtime": 1782440152.1251216,
+    "ast_hash": "0ea59c251be32ad16463b0b94e6ca5f7",
+    "semantic_hash": ""
+  },
+  "server/audioGuard.js": {
+    "mtime": 1782439936.8861742,
+    "ast_hash": "a273e062bcf8671c306f536b83596e28",
+    "semantic_hash": ""
+  },
+  "server/auth.js": {
+    "mtime": 1782525764.7728026,
+    "ast_hash": "15650c0dddba47df5361fb87825e5087",
+    "semantic_hash": ""
+  },
+  "server/bossMemory.js": {
+    "mtime": 1782518842.5563614,
+    "ast_hash": "a76abc220a426657316e4d4cf99995c0",
+    "semantic_hash": ""
+  },
+  "server/c1-feedback-playbook.json": {
+    "mtime": 1780755438.9636984,
+    "ast_hash": "4c9e8bc83bc8b4cba6c63a2a9684fe12",
+    "semantic_hash": ""
+  },
+  "server/coach.js": {
+    "mtime": 1782511167.7629752,
+    "ast_hash": "c071481a4b2b3d47de824ec83565ef0c",
+    "semantic_hash": ""
+  },
+  "server/daily.js": {
+    "mtime": 1782469899.002791,
+    "ast_hash": "607dcb5d806e27222a22c69625cc1505",
+    "semantic_hash": ""
+  },
+  "server/db.js": {
+    "mtime": 1781562598.1648748,
+    "ast_hash": "991c26ee2e3977b428cb072ae51dea8c",
+    "semantic_hash": ""
+  },
+  "server/errorTags.js": {
+    "mtime": 1781355372.409396,
+    "ast_hash": "a3995673f685ae9140f17a27f430a7b3",
+    "semantic_hash": ""
+  },
+  "server/feedback.js": {
+    "mtime": 1782386145.5487306,
+    "ast_hash": "bdae85db79bf43ecef35ab398f8492ec",
+    "semantic_hash": ""
+  },
+  "server/fluencyDrill.js": {
+    "mtime": 1782636594.5365682,
+    "ast_hash": "e19bf2d09d04e44d9746e831ccea8bf3",
+    "semantic_hash": ""
+  },
+  "server/geminiLive.js": {
+    "mtime": 1782567967.0663998,
+    "ast_hash": "bf961829ab08143490d605069149d433",
+    "semantic_hash": ""
+  },
+  "server/geminiLiveProxy.js": {
+    "mtime": 1782573559.2808292,
+    "ast_hash": "86e15e9327d03a4d4b8844269a322555",
+    "semantic_hash": ""
+  },
+  "server/grammarCheck.js": {
+    "mtime": 1782472686.907909,
+    "ast_hash": "46aeb591c809e8790897a540ae0a25d1",
+    "semantic_hash": ""
+  },
+  "server/guideStore.js": {
+    "mtime": 1781469547.2688937,
+    "ast_hash": "30feabbaa05b3fc92c6b13269cb59309",
+    "semantic_hash": ""
+  },
+  "server/hireReadiness.js": {
+    "mtime": 1782655449.915123,
+    "ast_hash": "70a3ee4b45744eee8cdfeae623abe082",
+    "semantic_hash": ""
+  },
+  "server/interviewer-characters.json": {
+    "mtime": 1782425106.4003265,
+    "ast_hash": "d1e7f15cf6513885364f5b468235f0f4",
+    "semantic_hash": ""
+  },
+  "server/lessons.config.js": {
+    "mtime": 1781354752.8126774,
+    "ast_hash": "a39def8d322d6fc8ebe629ccb58cd75e",
+    "semantic_hash": ""
+  },
+  "server/listening.js": {
+    "mtime": 1782636576.7883062,
+    "ast_hash": "7e9e7dd80edbfbafe9d10d8060046ca5",
+    "semantic_hash": ""
+  },
+  "server/naturalness.js": {
+    "mtime": 1782201530.0916343,
+    "ast_hash": "f34f489d1b312d857de80fc3a922bd9c",
+    "semantic_hash": ""
+  },
+  "server/package.json": {
+    "mtime": 1782164471.2727342,
+    "ast_hash": "c86509f9b2a7120a2166e519cebd9af2",
+    "semantic_hash": ""
+  },
+  "server/payments.js": {
+    "mtime": 1781367029.0973926,
+    "ast_hash": "71b99aff8975649822b95c0f0a3afa29",
+    "semantic_hash": ""
+  },
+  "server/paymentsStore.js": {
+    "mtime": 1781892106.9126112,
+    "ast_hash": "6323224e688c2b2d3760c735917f10fc",
+    "semantic_hash": ""
+  },
+  "server/placement.js": {
+    "mtime": 1782430320.2343087,
+    "ast_hash": "0473464da4ce97ff381261b27c1277fb",
+    "semantic_hash": ""
+  },
+  "server/planGuide.js": {
+    "mtime": 1782386145.5556087,
+    "ast_hash": "4cbda5156b4a51808688f753232c69b1",
+    "semantic_hash": ""
+  },
+  "server/plans.config.js": {
+    "mtime": 1781362552.0655687,
+    "ast_hash": "fc8a8e8fcbdf0b625c4b40691757f1b2",
+    "semantic_hash": ""
+  },
+  "server/plans.js": {
+    "mtime": 1782472664.8799198,
+    "ast_hash": "2aace27055801c4196a94a5950597497",
+    "semantic_hash": ""
+  },
+  "server/pressureLadder.js": {
+    "mtime": 1782642269.9249296,
+    "ast_hash": "c0a28acba14a89ae157cced437ccc555",
+    "semantic_hash": ""
+  },
+  "server/progress.js": {
+    "mtime": 1782659091.5120418,
+    "ast_hash": "767322b8946fbe1235ae9ea5b54559f0",
+    "semantic_hash": ""
+  },
+  "server/progression.js": {
+    "mtime": 1782204233.646976,
+    "ast_hash": "e9f764e191faada40d8add93bc1d3067",
+    "semantic_hash": ""
+  },
+  "server/realtimeClient.js": {
+    "mtime": 1782650336.2805152,
+    "ast_hash": "c8809efb77f84f7f440487613a6acf90",
+    "semantic_hash": ""
+  },
+  "server/scenarios.js": {
+    "mtime": 1782672391.3640728,
+    "ast_hash": "4b94b8b1ffcb335746bdae94486c2b6b",
+    "semantic_hash": ""
+  },
+  "server/scoring/panelscorer.mjs": {
+    "mtime": 1782471044.3095913,
+    "ast_hash": "a200dc8e176e1e2ae14f9f024aebacea",
+    "semantic_hash": ""
+  },
+  "server/server.js": {
+    "mtime": 1782636555.958699,
+    "ast_hash": "4a1ff32b8c4f1fedbe2425bd675c4518",
+    "semantic_hash": ""
+  },
+  "server/shadowing.js": {
+    "mtime": 1782620117.4349575,
+    "ast_hash": "984c88dde077b614a2fc498cf61859ad",
+    "semantic_hash": ""
+  },
+  "server/spokenReview.js": {
+    "mtime": 1782636298.28147,
+    "ast_hash": "79194b8713c28e2b91dea2c8addd1caa",
+    "semantic_hash": ""
+  },
+  "server/srs.js": {
+    "mtime": 1782469269.3085003,
+    "ast_hash": "d90632ce2314c7596e123439707549a7",
+    "semantic_hash": ""
+  },
+  "server/store.js": {
+    "mtime": 1782636513.9181263,
+    "ast_hash": "48a2bacc0e45c46db0d53fbfb36abe2e",
+    "semantic_hash": ""
+  },
+  "server/streamingTranscribe.js": {
+    "mtime": 1782202603.8109286,
+    "ast_hash": "786dd97c6057d629e15a11609713e62a",
+    "semantic_hash": ""
+  },
+  "server/time.js": {
+    "mtime": 1781260555.6456225,
+    "ast_hash": "2ecc2850f8768034a385c15a87f669eb",
+    "semantic_hash": ""
+  },
+  "server/trainingslager.js": {
+    "mtime": 1781475159.9613416,
+    "ast_hash": "4edb7321c57fe668bc1ccfedbe801f23",
+    "semantic_hash": ""
+  },
+  "server/trainingslagerContent.js": {
+    "mtime": 1782204320.3809228,
+    "ast_hash": "78117ae7fde6d177b3d6bce9ca04a42a",
+    "semantic_hash": ""
+  },
+  "server/transcribeDeepgram.js": {
+    "mtime": 1782164449.6911244,
+    "ast_hash": "b5727bc204f29931eaef5e627df14f1f",
+    "semantic_hash": ""
+  },
+  "server/transcribeRouter.js": {
+    "mtime": 1782562173.6652782,
+    "ast_hash": "3948a129d88d08886a7647b21b4d475d",
+    "semantic_hash": ""
+  },
+  "server/websocketManager.js": {
+    "mtime": 1782673283.7880518,
+    "ast_hash": "327101e08180154e36df0ac0fc074706",
+    "semantic_hash": ""
+  },
+  "weakness_db_schema.sql": {
+    "mtime": 1781562232.1254904,
+    "ast_hash": "9c57200196e3fb1e0f45ca1bc51b20d3",
+    "semantic_hash": ""
+  },
+  ".claude/agents/plan-forger.md": {
+    "mtime": 1782518803.5922892,
+    "ast_hash": "5da3e5a86af9a3bbc6c9a5ac7b049753",
+    "semantic_hash": ""
+  },
+  ".claude/agents/the-debugger-man.md": {
+    "mtime": 1782472133.2755032,
+    "ast_hash": "e8c27b6f70a1b90734429c333d0ced28",
+    "semantic_hash": ""
+  },
+  ".claude/agents/ui-designer.md": {
+    "mtime": 1782203723.2359927,
+    "ast_hash": "c22f3fd91c0209b574129fa774864523",
+    "semantic_hash": ""
+  },
+  ".claude/skills/TheDebuggerMAN/SKILL.md": {
+    "mtime": 1782472072.799499,
+    "ast_hash": "fc474bfaa92d7fe69148893c352d4dc3",
+    "semantic_hash": ""
+  },
+  ".claude/skills/council/SKILL.md": {
+    "mtime": 1782518803.5922892,
+    "ast_hash": "0c95c5f5ff2b8252b723d40d713db21d",
+    "semantic_hash": ""
+  },
+  ".claude/skills/feedback-accuracy-doctrine/SKILL.md": {
+    "mtime": 1782386145.5073874,
+    "ast_hash": "0228592071f29f68747e319ec237808b",
+    "semantic_hash": ""
+  },
+  ".claude/skills/goal-loop/SKILL.md": {
+    "mtime": 1782518803.594299,
+    "ast_hash": "d3e0ced12d72227dbe882e3e8487e3e5",
+    "semantic_hash": ""
+  },
+  ".claude/skills/session-handoff/SKILL.md": {
+    "mtime": 1782518803.5965276,
+    "ast_hash": "191d19423121b2528bb75c579f50f6d1",
+    "semantic_hash": ""
+  },
+  ".claude/skills/ship-and-verify/SKILL.md": {
+    "mtime": 1782518879.818471,
+    "ast_hash": "d59df6f0f31fa428c498e9cf485ecf87",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1782518803.5965276,
+    "ast_hash": "d0834f4eb214a0cbfb97159ac0e3d942",
+    "semantic_hash": ""
+  },
+  "GO-LIVE-CHECKLIST.md": {
+    "mtime": 1781363837.3654757,
+    "ast_hash": "4c6fe1aaabdc39fa43ebd3dc2b2e1c79",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1782164471.263174,
+    "ast_hash": "4d31b22f8b8d022fabfb3296a6185acc",
+    "semantic_hash": ""
+  },
+  "client/Destroy HR totally.txt": {
+    "mtime": 1780610538.3031812,
+    "ast_hash": "08b13493d7b2b27ef35fe72c5a2c66bb",
+    "semantic_hash": ""
+  },
+  "client/Destroy HR.txt": {
+    "mtime": 1780610502.0491343,
+    "ast_hash": "37391c4322aeaba4b4eb3b362081ffad",
+    "semantic_hash": ""
+  },
+  "client/index.html": {
+    "mtime": 1781457254.804176,
+    "ast_hash": "fbb3ce4aacaa6a45a68c9c5357826bf3",
+    "semantic_hash": ""
+  },
+  "client/public/robots.txt": {
+    "mtime": 1782431288.426138,
+    "ast_hash": "621dc75ff1d43f72e9307492d696374c",
+    "semantic_hash": ""
+  },
+  "render.yaml": {
+    "mtime": 1782518879.8205006,
+    "ast_hash": "342f56d80798fd87ad19615178484aee",
+    "semantic_hash": ""
+  },
+  "server/_digest.txt": {
+    "mtime": 1780755253.178638,
+    "ast_hash": "9ec2432f3facf1e4f1fb79be37205eb7",
+    "semantic_hash": ""
+  },
+  "server/latencyLog.js": {
+    "mtime": 1782658792.2134001,
+    "ast_hash": "8bb10df20a3b1168736d0ff42b2cd36c",
+    "semantic_hash": ""
+  },
+  "claude-auto-research-revolutionary-prompt.md": {
+    "mtime": 1782663488.516145,
+    "ast_hash": "d5e6b8806fcfa4a6cfbb3f6c074f14b3",
+    "semantic_hash": ""
+  }
+}

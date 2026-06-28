@@ -9,7 +9,19 @@
       "Glob(*)",
       "Bash(npx esbuild *)",
       "Bash(echo \"---FRONTEND BUNDLE EXIT: $?---\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git checkout *)",
+      "Bash(git commit *)",
+      "Bash(git stash*)",
+      "Bash(git fetch*)",
+      "Bash(node --check *)",
+      "Bash(node -e *)",
+      "Bash(npm run build*)"
     ]
   }
 }

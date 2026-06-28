@@ -28,6 +28,17 @@ they were "built but not deployed" or "deployed but not verified live."** Follow
 "Stop for testing" only makes sense for LOCAL testing — and then you must say so explicitly and give
 the local run steps. Never tell the user to "test X" when X is only on disk. When in doubt: push, verify, then hand off.
 
+## THE RELEASE GATE — human-gate anything you cannot verify yourself  ⟵ hard rule
+Push-to-main is a **release to real clients**, not a save. So:
+- If you can verify it with real tools (HTTP probe, grep the bundle, run the script, drive the UI), the
+  Golden Rule applies: push → verify live → report.
+- If you **cannot** verify it yourself — **audio quality, on-device feel, voice naturalness, anything
+  subjective** — it does NOT go to prod on your say-so. Build it on a **branch** or behind a **flag/env
+  toggle** (e.g. `USE_ELEVENLABS=1`), tell the user plainly "I can't verify this from here," and ship to
+  prod only after they validate OR explicitly say "ship blind." Make the unverifiable a loud gate, never a footnote.
+- Real precedent: a band-pass voice filter was shipped to prod unheard → "extremely robotic" → revert + lost time.
+  The fix was to stage it for a device listen first. Default to that.
+
 ## Before every push — build-check
 - Server JS: `node --check server/<file>.js`, then resolve imports: `node -e "import('./server/<file>.js').then(()=>console.log('ok')).catch(e=>{console.error(e.message);process.exit(1)})"`
 - Client JSX (esbuild is in `client/node_modules`): `node ./node_modules/esbuild/bin/esbuild src/<File>.jsx --loader:.jsx=jsx >/dev/null` (expect exit 0).

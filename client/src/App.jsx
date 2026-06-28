@@ -34,14 +34,14 @@ class OverlayBoundary extends Component {
       <div style={{ position:'absolute', inset:0, zIndex:300, display:'flex', flexDirection:'column',
         alignItems:'center', justifyContent:'center', gap:14, padding:24, textAlign:'center',
         background:'rgba(2,4,9,0.98)', color:'#fca5a5' }}>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:14, color:'#f87171' }}>Etwas ist schiefgelaufen</div>
+        <div style={{ fontFamily:'Orbitron,monospace', fontSize:14, color:'#f87171' }}>Something went wrong</div>
         <div style={{ fontSize:11, color:'#94a3b8', maxWidth:340, wordBreak:'break-word' }}>
-          {String(this.state.error?.message || this.state.error)}
+          {String(this.state.error?.message || this.state.error || 'Something went wrong')}
         </div>
-        <div style={{ fontSize:10, color:'#64748b' }}>Tipp: Seite neu laden (Strg+Shift+R).</div>
+        <div style={{ fontSize:10, color:'#64748b' }}>Tip: Reload page (Ctrl+Shift+R).</div>
         <button onClick={this.props.onClose} style={{ fontFamily:'Orbitron,monospace', fontSize:11,
           padding:'10px 18px', borderRadius:8, cursor:'pointer', border:'1px solid #00e5ff',
-          color:'#00e5ff', background:'rgba(0,229,255,0.06)' }}>SCHLIESSEN</button>
+          color:'#00e5ff', background:'rgba(0,229,255,0.06)' }}>CLOSE</button>
       </div>
     );
   }
@@ -56,19 +56,19 @@ const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replac
 // Human-readable, bilingual text for server error codes (DE default + Arabic). Raw
 // recorder/connection strings that aren't codes fall through to their own message.
 const WS_ERROR_TEXT = {
-  service_unavailable:  { de: 'Der Sprachdienst ist gerade nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.', ar: 'خدمة المحادثة مش متاحة دلوقتي. من فضلك جرّب تاني بعد كام دقيقة.' },
-  realtime_error:       { de: 'Verbindungsproblem mit dem Interviewer. Bitte starte den Kampf neu.', ar: 'في مشكلة في الاتصال بالمحاوِر. من فضلك ابدأ الجولة من جديد.' },
-  fight_start_failed:   { de: 'Der Kampf konnte nicht gestartet werden. Bitte versuche es erneut.', ar: 'مقدرناش نبدأ الجولة. من فضلك جرّب تاني.' },
-  fight_already_active: { de: 'Es läuft bereits ein Kampf.', ar: 'في جولة شغّالة بالفعل.' },
-  auth_required:        { de: 'Bitte melde dich erneut an.', ar: 'من فضلك سجّل دخول تاني.' },
-  mic_denied:           { de: 'Mikrofon-Zugriff wurde blockiert. Erlaube das Mikrofon in den Browser-Einstellungen (Schloss-Symbol neben der Adresse) und starte neu.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
-  mic_not_found:        { de: 'Kein Mikrofon gefunden. Schließe ein Mikrofon an oder erlaube es und starte neu.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
-  mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Der Kampf wurde beendet — bitte starte neu.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
-  lessons_incomplete:   { de: 'Schließe zuerst deine Trainingslager-Stationen ab, um das Boss-Tor zu öffnen.', ar: 'خلّص محطات الـTrainingslager الأول عشان تفتح بوابة التحدي.' },
-  plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
-  daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
-  ws_connect_failed:    { de: 'Keine Verbindung zum Server. Prüfe dein Internet und starte neu.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
-  connection_lost:      { de: 'Verbindung unterbrochen. Bitte starte den Kampf neu.', ar: 'الاتصال اتقطع. من فضلك ابدأ الجولة من جديد.' },
+  service_unavailable:  { de: 'The speech service is temporarily unavailable. Please try again in a few minutes.', ar: 'خدمة المحادثة مش متاحة دلوقتي. من فضلك جرّب تاني بعد كام دقيقة.' },
+  realtime_error:       { de: 'Connection problem with the interviewer. Please restart the fight.', ar: 'في مشكلة في الاتصال بالمحاوِر. من فضلك ابدأ الجولة من جديد.' },
+  fight_start_failed:   { de: 'The fight could not be started. Please try again.', ar: 'مقدرناش نبدأ الجولة. من فضلك جرّب تاني.' },
+  fight_already_active: { de: 'A fight is already in progress.', ar: 'في جولة شغّالة بالفعل.' },
+  auth_required:        { de: 'Please log in again.', ar: 'من فضلك سجّل دخول تاني.' },
+  mic_denied:           { de: 'Microphone access was blocked. Allow the microphone in browser settings (lock icon next to the address) and restart.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
+  mic_not_found:        { de: 'No microphone found. Connect a microphone or allow it and restart.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
+  mic_lost:             { de: 'Connection to the microphone lost. The fight was ended — please restart.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
+  lessons_incomplete:   { de: 'Complete your training camp stations first to open the boss gate.', ar: 'خلّص محطات الـTrainingslager الأول عشان تفتح بوابة التحدي.' },
+  plan_required:        { de: 'Your training plan is ready — select a plan to unlock it.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
+  daily_limit:          { de: 'Your training today is complete. Tomorrow awaits the next session — today: Drills & Lessons.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
+  ws_connect_failed:    { de: 'No connection to the server. Check your internet and restart.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
+  connection_lost:      { de: 'Connection lost. Please restart the fight.', ar: 'الاتصال اتقطع. من فضلك ابدأ الجولة من جديد.' },
 };
 function wsErrorText(code, lang) {
   const e = WS_ERROR_TEXT[code];
@@ -92,12 +92,12 @@ function persistAuth(auth) {
 }
 function authErrText(code) {
   return ({
-    invalid_email:       { de: 'Ungültige E-Mail-Adresse.',            ar: 'الإيميل مش صح.' },
-    weak_password:       { de: 'Passwort muss mind. 6 Zeichen haben.', ar: 'الباسورد لازم ٦ حروف على الأقل.' },
-    email_taken:         { de: 'Diese E-Mail ist bereits registriert.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
-    invalid_credentials: { de: 'E-Mail oder Passwort ist falsch.',     ar: 'الإيميل أو الباسورد غلط.' },
-    too_many_attempts:   { de: 'Zu viele Versuche. Bitte warte ein paar Minuten.', ar: 'محاولات كتير. استنى كام دقيقة وجرّب تاني.' },
-  })[code] || { de: 'Etwas ist schiefgelaufen.', ar: 'حصل خطأ. جرّب تاني.' };
+    invalid_email:       { de: 'Invalid email address.',            ar: 'الإيميل مش صح.' },
+    weak_password:       { de: 'Password must be at least 6 characters.', ar: 'الباسورد لازم ٦ حروف على الأقل.' },
+    email_taken:         { de: 'This email is already registered.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
+    invalid_credentials: { de: 'Email or password is incorrect.',     ar: 'الإيميل أو الباسورد غلط.' },
+    too_many_attempts:   { de: 'Too many attempts. Please wait a few minutes.', ar: 'محاولات كتير. استنى كام دقيقة وجرّب تاني.' },
+  })[code] || { de: 'Something went wrong.', ar: 'حصل خطأ. جرّب تاني.' };
 }
 
 // ── Server message types ──────────────────────────────────────────────────────
@@ -341,12 +341,12 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
 const EMOTIONS = {
   // Pre-fight default + the FOUR backend-driven reaction states. Each carries the SVG
   // face, the German status label, and the accent colour the whole boss card shifts to.
-  idle:        { face: 'composed',  label: 'GEFASST',     color: '#22d3ee' }, // before the fight
-  gefasst:     { face: 'composed',  label: 'GEFASST',     color: '#22d3ee' }, // composed authority
-  skeptisch:   { face: 'skeptical', label: 'SKEPTISCH',   color: '#f59e0b' }, // mild doubt — weak answer
-  beeindruckt: { face: 'impressed', label: 'BEEINDRUCKT', color: '#10b981' }, // grudging respect
-  wuetend:     { face: 'furious',   label: 'WÜTEND',      color: '#ef4444' }, // cornered / candidate fails
-  hurt:        { face: 'shaken',    label: 'GETROFFEN',   color: '#f59e0b' }, // rattled (transient)
+  idle:        { face: 'composed',  label: 'IDLE',       color: '#22d3ee' }, // before the fight
+  gefasst:     { face: 'composed',  label: 'COMPOSED',   color: '#22d3ee' }, // composed authority
+  skeptisch:   { face: 'skeptical', label: 'SKEPTICAL',  color: '#f59e0b' }, // mild doubt — weak answer
+  beeindruckt: { face: 'impressed', label: 'IMPRESSED',  color: '#10b981' }, // grudging respect
+  wuetend:     { face: 'furious',   label: 'FURIOUS',    color: '#ef4444' }, // cornered / candidate fails
+  hurt:        { face: 'shaken',    label: 'HIT',        color: '#ef4444' }, // player scored
 };
 
 // Per-expression facial parameters (driven into the SVG below).
@@ -667,7 +667,7 @@ function WpmMeter({ wpm }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:3 }}>
         <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.14em', color:'var(--text-dim)' }}>TEMPO</span>
         <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:11, color:mColor, fontVariantNumeric:'tabular-nums' }}>
-          {shown}<span style={{ opacity:0.5, fontSize:8 }}> WpM</span>
+          {shown}<span style={{ opacity:0.5, fontSize:8 }}> WPM</span>
         </span>
       </div>
       <div style={{ position:'relative', height:8, borderRadius:'var(--r-pill)', overflow:'hidden',
@@ -691,7 +691,7 @@ function FillerCounter({ count }) {
   return (
     <div style={{ textAlign:'center', minWidth:54 }}>
       <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.12em',
-        color:'var(--text-dim)', marginBottom:3 }}>FÜLLWÖRTER</div>
+        color:'var(--text-dim)', marginBottom:3 }}>FILLER WORDS</div>
       {/* key=count remounts the number so it replays the pop animation on every change */}
       <div key={count} style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, lineHeight:1,
         color: hot ? '#f87171' : '#64748b',
@@ -710,7 +710,7 @@ function ComboMeter({ combo }) {
   return (
     <div style={{ textAlign:'center', minWidth:64 }}>
       <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.12em',
-        color:'var(--text-dim)', marginBottom:3 }}>KOMBO</div>
+        color:'var(--text-dim)', marginBottom:3 }}>COMBO</div>
       {active ? (
         <div key={combo} style={{ fontFamily:'var(--font-display)', fontWeight:700,
           fontSize: 14 + intensity * 1.5, lineHeight:1,
@@ -904,10 +904,10 @@ function GameOver({ winner, onRestart }) {
       <div style={{ fontFamily:'Orbitron,monospace', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
         color: win ? '#10b981' : '#ef4444',
         textShadow:`0 0 30px ${win ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
-        {win ? 'SIEG!' : 'NIEDERLAGE'}
+        {win ? 'VICTORY!' : 'DEFEAT'}
       </div>
       <div style={{ fontSize:12, color:'#94a3b8', marginBottom:28, textAlign:'center', lineHeight:1.6 }}>
-        {win ? 'Herr Tariq ist besiegt. Du hast den Level bestanden.' : 'Herr Tariq triumphiert. Versuche es erneut.'}
+        {win ? 'Mr. Tariq is defeated. You passed the level.' : 'Mr. Tariq triumphs. Try again.'}
       </div>
       <button onClick={onRestart} style={{ fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.14em',
         padding:'12px 32px', borderRadius:8, cursor:'pointer',
@@ -3709,7 +3709,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   value={answerText}
                   onChange={(e) => { setAnswerText(e.target.value); pendingDurationRef.current = 0; }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAnswer(); } }}
-                  placeholder="Ihre Antwort auf Deutsch… (Enter zum Senden)"
+                  placeholder="Your answer in English… (Enter to send)"
                   rows={3}
                   disabled={transcribing}
                   style={{ width:'100%', boxSizing:'border-box', resize:'vertical', padding:'10px 12px',

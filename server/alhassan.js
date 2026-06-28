@@ -210,6 +210,15 @@ async function buildFacts(account, g) {
       if (tw.length && lw.length) lines.push(`This week vs last week fluency: ${avg(lw)} → ${avg(tw)} — reference this REAL weekly change.`);
     }
   } catch (e) { /* facts are best-effort; never block the reply */ }
+  const rawLines = lines.join('\n');
+  const hasSubstance = /Concrete weaknesses \(from assessment\):/.test(rawLines)
+    || /Live interview fights done: [1-9]/.test(rawLines)
+    || /THEIR #1 RECURRING WEAKNESS RIGHT NOW/.test(rawLines)
+    || /spaced-review item\(s\) due right now/.test(rawLines)
+    || /THEIR LAST INTERVIEW RESULT/.test(rawLines)
+    || /Fluency trend since first fight/.test(rawLines)
+    || /Grammar rules they've MASTERED/.test(rawLines);
+  if (!hasSubstance) lines.push(`\n\n[NO CONCRETE FACTS — this student is brand new or has no data yet. ASK ONE sharp question to get their name, level, or goal. Do NOT fill silence with generic encouragement or canned phrases. Your authority is asking the right question.]`);
   return lines.join('\n');
 }
 
@@ -253,7 +262,7 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
     const messages = [{ role: 'system', content: sys }, ...recent, { role: 'user', content: text }];
 
     let reply;
-    try { reply = await callModel(messages, { maxTokens: 520, temperature: 0.85 }); }
+    try { reply = await callModel(messages, { maxTokens: 900, temperature: 0.75 }); }
     catch (e) {
       console.error('[alhassan] reply failed:', e.message);
       return res.status(e.message === 'no_api_key' ? 503 : 502).json({ error: 'guide_unavailable' });

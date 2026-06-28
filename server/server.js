@@ -19,6 +19,7 @@ import { spokenReviewRouter }  from './spokenReview.js';
 import { guideRouter }         from './alhassan.js';
 import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
+import { pressureRouter }       from './pressureLadder.js';
 import { dbEnabled }            from './db.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -109,6 +110,7 @@ app.use('/api', shadowingRouter);
 app.use('/api', fluencyRouter);   // GET /api/fluency + POST /api/fluency/score — 4-3-2 spoken-fluency drill
 app.use('/api', listeningRouter); // GET /api/listening + POST /api/listening/grade — listening & data-capture drill
 app.use('/api', spokenReviewRouter); // GET /api/spoken-review + POST /api/spoken-review/grade — spoken-production SRS
+app.use('/api', pressureRouter);     // GET /api/pressure/survived + POST /api/pressure/survive — DRUCK-LEITER no-repeat
 app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', transcribeRouter);  // POST /api/transcribe — spoken-answer STT (Groq Whisper / Deepgram)

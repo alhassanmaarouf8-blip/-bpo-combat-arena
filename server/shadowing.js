@@ -107,17 +107,17 @@ function paidOnly(req, res) {
 // Random subset of a {id,de,en} POOL → [{ id, de, en }]. Each phrase carries an explicit id
 // (generated ids live above GEN_ID_BASE, fixed ids are stable BPO_PHRASES indices), so /score
 // can resolve the target server-side (never trusts a client-sent sentence) and the seen-list
-// stays valid across pools. No-repeat: serve UNSEEN first; reset only when fewer than a session remain.
-function pickSentences(pool, n, seen) {
+// NEVER REPEAT correct answers: serve phrases that are neither seen (wrong) nor correct.
+// Only when fewer than a session remain do we reset the seen list. `reset` tells the
+// caller to wipe the seen list; correct items are ALWAYS excluded.
+function pickSentences(pool, n, seen, correct) {
   const idx = pool.map((p) => p.id);
-  for (let i = idx.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [idx[i], idx[j]] = [idx[j], idx[i]];
-  }
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
   const seenSet = new Set(seen || []);
-  let unseen = idx.filter((i) => !seenSet.has(i));
+  const correctSet = new Set(correct || []);
+  let unseen = idx.filter((i) => !seenSet.has(i) && !correctSet.has(i));
   let reset = false;
-  if (unseen.length < n) { unseen = idx; reset = true; }
+  if (unseen.length < n) { unseen = idx.filter((i) => !correctSet.has(i)); reset = true; }
   const ids = unseen.slice(0, n);
   const byId = new Map(pool.map((p) => [p.id, p]));
   return { ids, reset, sentences: ids.map((i) => ({ id: i, de: byId.get(i).de, en: byId.get(i).en })) };
@@ -150,20 +150,22 @@ shadowingRouter.get('/shadowing', requireAuth, async (req, res) => {
   const n    = Math.min(PER_SESSION_MIN + Math.floor(Math.random() * span), pool.length);
   try {
     const u = await loadUser(req.account.id);
-    const seen = Array.isArray(u.shadowingSeen) ? u.shadowingSeen : [];
-    const r = pickSentences(pool, n, seen);                 // UNSEEN phrases → never repeat until exhausted
+    const seen    = Array.isArray(u.shadowingSeen)   ? u.shadowingSeen   : [];
+    const correct = Array.isArray(u.shadowingCorrect) ? u.shadowingCorrect : [];
+    const r = pickSentences(pool, n, seen, correct);   // UNSEEN & NOT mastered → retry wrong, skip correct
     // Persist the EXACT served generated phrases so /score can grade against the same text later
     // (survives cache expiry + restarts). Fixed-pool phrases need no persistence (BPO_PHRASES has them).
     const map = (u.shadowingPool && typeof u.shadowingPool === 'object' && !Array.isArray(u.shadowingPool)) ? u.shadowingPool : {};
     for (const s of r.sentences) if (s.id >= GEN_ID_BASE) map[s.id] = { de: s.de };
     const keys = Object.keys(map).map(Number).sort((a, b) => a - b);
     while (keys.length > GEN_POOL_CAP) delete map[keys.shift()];   // bound growth: drop oldest ids
-    u.shadowingPool = map;
-    u.shadowingSeen = r.reset ? r.ids.slice() : [...seen, ...r.ids];
+    u.shadowingPool   = map;
+    u.shadowingSeen   = r.reset ? r.ids.filter((id) => !correct.includes(id)).slice() : [...seen.filter((id) => !correct.includes(id)), ...r.ids];
+    u.shadowingCorrect = correct;
     await saveUser(u);
     return res.json({ sentences: r.sentences });
   } catch {
-    return res.json({ sentences: pickSentences(pool, n, []).sentences });
+    return res.json({ sentences: pickSentences(pool, n, [], []).sentences });
   }
 });
 
@@ -208,7 +210,23 @@ shadowingRouter.post('/shadowing/score',
       // accent), so any pronunciation verdict it produced was invented. Honest > impressive.
       const { match, missed } = wordAccuracy(transcript, target);
 
-      console.log(`[shadowing] user=${req.account.id} id=${id} accuracy=${match}% missed=${missed.length}`);
+      // Permanent no-return: ≥85% word accuracy = mastered (never repeated); wrong stays retryable.
+      const mastered = match >= 85;
+      try {
+        const u2 = await loadUser(req.account.id).catch(() => null);
+        if (u2) {
+          u2.shadowingCorrect = (u2.shadowingCorrect || []).filter((x) => String(x) !== String(id));
+          u2.shadowingSeen    = (u2.shadowingSeen || []).filter((x) => String(x) !== String(id));
+          if (mastered) {
+            if (!u2.shadowingCorrect.includes(id)) u2.shadowingCorrect.push(id);
+          } else {
+            if (!u2.shadowingSeen.includes(id)) u2.shadowingSeen.push(id);
+          }
+          await saveUser(u2).catch(() => {});
+        }
+      } catch { /* tracking is best-effort */ }
+
+      console.log(`[shadowing] user=${req.account.id} id=${id} accuracy=${match}% missed=${missed.length} mastered=${mastered}`);
       res.json({ transcript, target, match, missed });
     } catch (err) {
       console.error('[shadowing] score error:', err.message);

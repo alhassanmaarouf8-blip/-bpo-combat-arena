@@ -148,16 +148,17 @@ function paidOnly(req, res) {
   return true;
 }
 
-// Pick a prompt the student has NOT seen (no repeats until the level's pool is exhausted, then cycle).
-// `pool` carries explicit ids (generated ids live above GEN_ID_BASE, fixed ids are 0..n-1), so the
-// per-level seen-list stays valid no matter which pool is active.
-function pickPrompt(pool, level, seen) {
+// NEVER REPEAT mastered prompts: serve prompts that are neither seen (wrong) nor correct.
+// Only when fewer than a session remain do we reset the seen list. `reset` tells the caller
+// to wipe the seen list; correct items are ALWAYS excluded. KEYED BY LEVEL.
+function pickPrompt(pool, level, seen, correct) {
   const matched = pool.filter((p) => p.level === level);
   const from = matched.length ? matched : pool;
   const seenSet = new Set(seen || []);
-  let unseen = from.filter((p) => !seenSet.has(p.id));
+  const correctSet = new Set(correct || []);
+  let unseen = from.filter((p) => !seenSet.has(p.id) && !correctSet.has(p.id));
   let reset = false;
-  if (!unseen.length) { unseen = from; reset = true; }
+  if (!unseen.length) { unseen = from.filter((p) => !correctSet.has(p.id)); reset = true; }
   return { chosen: unseen[Math.floor(Math.random() * unseen.length)], reset };
 }
 const fixedPool = () => PROMPTS.map((p, i) => ({ ...p, id: i }));
@@ -217,14 +218,18 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   let chosen, focus = null;
   try {
     const u = await loadUser(req.account.id);
-    // No-repeat, KEYED BY LEVEL: a2-b1 and b2 keep separate seen-lists, so exhausting/resetting one
+    // No-repeat, KEYED BY LEVEL: a2-b1 and b2 keep separate seen/correct lists, so exhausting/resetting one
     // level can't wipe or contaminate the other's no-repeat history. (Migrates the old flat array.)
-    const store = (u.fluencySeen && !Array.isArray(u.fluencySeen)) ? u.fluencySeen : {};
+    const store   = (u.fluencySeen && !Array.isArray(u.fluencySeen)) ? u.fluencySeen : {};
+    const correctStore = (u.fluencyCorrect && !Array.isArray(u.fluencyCorrect)) ? u.fluencyCorrect : {};
     const seen  = Array.isArray(store[level]) ? store[level] : [];
-    const r = pickPrompt(pool, level, seen);
+    const correct = Array.isArray(correctStore[level]) ? correctStore[level] : [];
+    const r = pickPrompt(pool, level, seen, correct);
     chosen = r.chosen;
-    store[level]  = r.reset ? [chosen.id] : [...seen, chosen.id];
-    u.fluencySeen = store;
+    store[level]   = r.reset ? [chosen.id] : [...seen.filter((id) => !correct.includes(id)), chosen.id];
+    correctStore[level] = correct;
+    u.fluencySeen    = store;
+    u.fluencyCorrect = correctStore;
     // Weakness FOCUS: prime the learner on their #1 weak (speakable) rule; LanguageTool then measures it.
     const weak = (u.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content))
                               .sort((a, b) => (b.lapses || 0) - (a.lapses || 0))[0];
@@ -233,6 +238,16 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
   } catch {
     chosen = pickPrompt(pool, level, []).chosen;   // best-effort: still serve a prompt
   }
+  try {
+    if (chosen && chosen.id !== undefined) {
+      const uInit = await loadUser(req.account.id).catch(() => null);
+      if (uInit) {
+        uInit.fluencyCurrentPrompt = chosen.id;
+        uInit.fluencyCurrentLevel  = level;
+        await saveUser(uInit).catch(() => {});
+      }
+    }
+  } catch { /* non-blocking */ }
   res.json({ prompt: { id: chosen.id, de: chosen.de, ar: chosen.ar }, rounds: ROUND_SECONDS, focus });
 });
 
@@ -275,6 +290,27 @@ fluencyRouter.post('/fluency/score',
       }
 
       console.log(`[fluency] user=${req.account.id} round=${round} wpm=${metrics.wpm} words=${metrics.words} fillers=${metrics.fillers}`);
+
+      // Final round success → mark the prompt as mastered (never return in future /fluency sessions).
+      if (round === 3 && metrics.words > 0) {
+        try {
+          const u3 = await loadUser(req.account.id).catch(() => null);
+          if (u3 && u3.fluencyCurrentPrompt !== undefined) {
+                const lvl = u3.fluencyCurrentLevel || level;
+                const store   = (u3.fluencyCorrect && !Array.isArray(u3.fluencyCorrect)) ? u3.fluencyCorrect : {};
+                const correct = Array.isArray(store[lvl]) ? store[lvl] : [];
+                const pid = u3.fluencyCurrentPrompt;
+                if (!correct.includes(pid)) {
+                  store[lvl] = [...correct, pid];
+                  u3.fluencyCorrect  = store;
+                  u3.fluencyCurrentPrompt = undefined;
+                  u3.fluencyCurrentLevel  = undefined;
+                  await saveUser(u3).catch(() => {});
+                }
+              }
+        } catch { /* mastery is non-blocking */ }
+      }
+
       res.json({ transcript, metrics, ...(grammar !== undefined ? { grammar } : {}) });
     } catch (err) {
       console.error('[fluency] score error:', err.message);

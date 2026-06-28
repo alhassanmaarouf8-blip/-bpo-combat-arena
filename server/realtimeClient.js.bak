@@ -92,35 +92,22 @@ async function callBoss(turnMsgs, sessionId, opts = {}) {
         const data = await res.json().catch(() => ({}));
         return { content: (data.choices?.[0]?.message?.content ?? '').trim(), provider: p.name };
       }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
+      const text = await res.text();
       let content = '';
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        for (const raw of lines) {
-          const line = raw.trim();
-          if (!line.startsWith('data:')) continue;
-          const payload = line.slice(5).trim();
-          if (payload === '[DONE]') {
-            try { reader.releaseLock(); } catch {}
-            return { content: content.trim(), provider: p.name };
+      for (const raw of text.split('\n')) {
+        const line = raw.trim();
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (payload === '[DONE]') break;
+        try {
+          const obj = JSON.parse(payload);
+          const delta = obj.choices?.[0]?.delta?.content;
+          if (typeof delta === 'string') {
+            content += delta;
+            opts.onChunk?.(content);
           }
-          try {
-            const obj = JSON.parse(payload);
-            const delta = obj.choices?.[0]?.delta?.content;
-            if (typeof delta === 'string') {
-              content += delta;
-              opts.onChunk?.(content);
-            }
-          } catch {}
-        }
+        } catch {}
       }
-      try { reader.releaseLock(); } catch {}
       return { content: content.trim(), provider: p.name };
     } catch (err) {
       lastErr = err;
