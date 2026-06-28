@@ -2343,6 +2343,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [recording, setRecording]     = useState(false);   // mic clip in progress
   const [transcribing, setTranscribing] = useState(false); // clip → text in flight
   const [error, setError]         = useState(null);
+  const [errorDetail, setErrorDetail] = useState('');
   const [scoreFlash, setScoreFlash] = useState(null);
   const [screenFlash, setScreenFlash] = useState(null); // 'green' | 'red' | null
   const [bossHurt, setBossHurt]   = useState(false);
@@ -2690,6 +2691,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.ERROR:
         setError(msg.code ?? 'server_error');
+        setErrorDetail(msg.detail ?? '');
         break;
 
       case S.PONG:
@@ -2707,6 +2709,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // Turn-based text interview: no mic needed to START (typing works everywhere).
     // The microphone is only requested on demand, when the user records a spoken answer.
     setError(null);
+    setErrorDetail('');
     setBossHp(100); setPlayerHp(100);
     setBossText(''); setTranscript([]);
     setEmotion('idle'); setScoreFlash(null); setBossDmgFloat(null);
@@ -3666,6 +3669,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
             color:'#fca5a5', fontSize:11 }}>
             ⚠ {wsErrorText(error, feedbackLang) ?? error}
+            {errorDetail && (
+              <div style={{ marginTop:6, fontSize:10, color:'#f87171', opacity:0.9, wordBreak:'break-word' }}>
+                debug: {errorDetail}
+              </div>
+            )}
           </div>
         )}
 

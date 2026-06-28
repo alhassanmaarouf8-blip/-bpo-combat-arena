@@ -623,6 +623,8 @@ export class WebSocketManager {
       ctx.realtimeClient = null;
       this._releaseFight(ctx);   // free the per-user lock + cap timer so the user can retry
       this._sendError(ctx, 'fight_start_failed');
+      // Surface the actual error for debugging — client shows this alongside the generic text.
+      try { this._send(ctx, { type: S.ERROR, code: 'fight_start_detail', detail: String(err.message || 'unknown').slice(0, 500) }); } catch {}
     }
   }
 
