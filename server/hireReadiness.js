@@ -45,6 +45,21 @@ export function classify(f) {
   return { level, hireReady, limitingSkill: limitingSkillOf(f) };
 }
 
+// Clear German subordinators (ambiguous ones like da/wie/wo/als omitted to cut false positives).
+const SUBORD = /\b(weil|dass|daß|obwohl|obgleich|damit|sodass|so dass|bevor|nachdem|falls|indem|sobald|seitdem|während|wenn|ob|sofern|solange|sooft)\b/gi;
+/** Deterministic, FREE text features from the candidate's transcript: subordinate-clause rate
+ *  (range/complexity) and vocab diversity (type-token ratio). null when too little text to judge. */
+export function textFeatures(text) {
+  const t = String(text || '').trim();
+  const words = t.toLowerCase().replace(/[^a-zäöüß\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const total = words.length;
+  if (total < 20) return { wordCount: total, subClauseRate: null, vocabDiversity: null };
+  const sentences = Math.max(1, (t.match(/[.!?]+/g) || []).length);
+  const subClauseRate = Math.min(1, (t.match(SUBORD) || []).length / sentences);
+  const vocabDiversity = Math.max(0.2, Math.min(0.8, new Set(words).size / total));
+  return { wordCount: total, subClauseRate, vocabDiversity };
+}
+
 /** Map the app's available session/profile signals → feature vector + provenance (which are real). */
 export function featuresFromProfile(p) {
   const s = (p?.sessions || []).slice(-1)[0] || {};
@@ -53,15 +68,17 @@ export function featuresFromProfile(p) {
     wpm: typeof s.wpm === 'number' && s.wpm > 0,
     fillerPer100: typeof s.fillers === 'number',
     errPer100: grammarCount != null,
-    intelligibility: false, subClauseRate: false, vocabDiversity: false, deescalation: false, giveUpRate: false, latencyS: false,
+    subClauseRate: typeof s.subClauseRate === 'number',   // now computed from transcript at session end
+    vocabDiversity: typeof s.vocabDiversity === 'number', // now computed from transcript at session end
+    intelligibility: false, deescalation: false, giveUpRate: false, latencyS: false,
   };
   const f = {
     wpm:             measured.wpm ? s.wpm : 100,
     fillerPer100:    measured.fillerPer100 ? s.fillers : 6,
     errPer100:       measured.errPer100 ? Math.min(20, grammarCount) : 6,  // rough proxy (no per-100 normalization yet)
+    subClauseRate:   measured.subClauseRate ? s.subClauseRate : 0.3,
+    vocabDiversity:  measured.vocabDiversity ? s.vocabDiversity : 0.5,
     intelligibility: 0.8,  // NOT measured — neutral assumption (flagged)
-    subClauseRate:   0.3,  // NOT measured
-    vocabDiversity:  0.5,  // NOT measured
     deescalation:    0.6,  // NOT measured
     giveUpRate:      0.15, // NOT measured
     latencyS:        3,    // NOT measured
@@ -75,6 +92,7 @@ export function hireReadinessFor(p) {
   const { f, measured } = featuresFromProfile(p);
   const raw = classify(f);
   const measuredCount = Object.values(measured).filter(Boolean).length;
+  const missing = Object.entries(measured).filter(([, v]) => !v).map(([k]) => k);
   const gatingMeasured = measured.intelligibility && measured.deescalation && measured.wpm;
   const out = {
     level: p?.assessmentResult?.estimatedLevel || raw.level,   // prefer the real CEFR estimate
@@ -84,7 +102,7 @@ export function hireReadinessFor(p) {
     measuredSignals: measuredCount,
     totalSignals: 9,
     note: measuredCount < 9
-      ? `preliminary — based on ${measuredCount}/9 measured signals (intelligibility, sub-clause rate, vocab diversity, give-up rate not yet measured)`
+      ? `preliminary — ${measuredCount}/9 signals measured; not yet measured: ${missing.join(', ')}`
       : 'full',
   };
   return out;

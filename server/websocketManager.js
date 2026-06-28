@@ -5,6 +5,7 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
+import { textFeatures } from './hireReadiness.js';
 import { loadUser, saveUser } from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
@@ -441,7 +442,15 @@ export class WebSocketManager {
           ctx.dialogue.push({ role: 'boss', text, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
           this._send(ctx, { type: S.BOSS_SPEECH, text });
         },
+        onBossPartial:     (text)   => {
+          if (!text || !text.trim()) return;
+          const prevLen = ctx.lastBossPartialLen || 0;
+          const delta = text.slice(prevLen);
+          ctx.lastBossPartialLen = text.length;
+          if (delta) this._send(ctx, { type: S.BOSS_SPEECH_DELTA, text: delta });
+        },
         onBossSpeechDone:  ()       => {
+          ctx.lastBossPartialLen = 0;
           this._send(ctx, { type: S.BOSS_SPEECH_DONE });
           // Server is the single source of truth: end ONLY after the boss has finished
           // its turn, and only once all three parts are complete.
@@ -705,10 +714,9 @@ export class WebSocketManager {
     ctx.dgStreamer = null;
     try { streamer?.close(); } catch {}   // CloseStream → a trailing onFinal may still append
     if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
-    // 550ms flush: Deepgram's trailing final after CloseStream typically lands in ~300–500ms. The 320ms
-    // I'd set was too short → finals missed → empty commits → answers dropped ("no session"). Capture
-    // reliability beats shaving ~200ms; the interim fallback in _commitTurn backstops the rest.
-    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 550);
+    // 320ms flush: Deepgram trailing final usually lands in ~200–400ms. The fallback in _commitTurn
+    // (last interim) prevents empty commits if the final missed the window.
+    ctx._commitTimer = setTimeout(() => { ctx._commitTimer = null; this._commitTurn(ctx); }, 160);
     ctx._commitTimer.unref?.();
   }
 
@@ -906,9 +914,15 @@ export class WebSocketManager {
 
       if (ctx.bossHp <= 0 && !p.bossesDefeated.includes(ctx.bossId)) p.bossesDefeated.push(ctx.bossId);
 
+      // FREE diagnostic features from the candidate's own transcript (deterministic, no API):
+      // subordinate-clause rate (range) + vocab diversity. Feeds the hire-readiness diagnostic.
+      const _candidateText = (ctx.dialogue || []).filter((d) => d.role === 'candidate').map((d) => d.text).join(' ');
+      const _tf = textFeatures(_candidateText);
+
       p.sessions.push({
         date: now, level: ctx.level, bossId: ctx.bossId,
         fluency: metrics.fluency, wpm: metrics.wpm, fillers: metrics.fillers,
+        ...(_tf.subClauseRate != null ? { subClauseRate: _tf.subClauseRate, vocabDiversity: _tf.vocabDiversity } : {}),
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
@@ -1183,19 +1197,18 @@ export class WebSocketManager {
     const words = ctx._lastWords ?? [];
     ctx._lastWords = null;
 
-    // Score this answer + advance the funnel (may set ctx.completePending).
-    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
-    if (ctx.closed) return;
-
-    // Boss replies with exactly ONE turn. onBossSpeech / onBossSpeechDone fire from
-    // inside respond(); if this was the final roleplay exchange, onBossSpeechDone
-    // ends the session AFTER the boss's closing line is delivered.
-    try {
-      await ctx.realtimeClient.respond(transcript);
-    } catch (err) {
+    // Boss replies with exactly ONE turn. Fire the LLM request FIRST so generation
+    // overlaps with scoring (saves ~100–300 ms on every answer).
+    const respondPromise = ctx.realtimeClient.respond(transcript).catch(err => {
       console.error(`[wsManager] boss respond failed session=${ctx.sessionId}: ${err.message}`);
       this._sendError(ctx, 'realtime_error');
-    }
+      return null;
+    });
+    // Score this answer + advance the funnel (may set ctx.completePending).
+    // Runs synchronously while the boss is generating → latency win.
+    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
+    if (ctx.closed) { await respondPromise; return; }
+    const bossResult = await respondPromise;
   }
 
   // ── Score one candidate answer + advance the funnel ─────────────────────────
