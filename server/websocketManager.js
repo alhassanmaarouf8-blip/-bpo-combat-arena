@@ -6,6 +6,7 @@ import { generateDebrief } from './coach.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { textFeatures } from './hireReadiness.js';
+import { recordTurn } from './latencyLog.js';
 import { loadUser, saveUser } from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
@@ -445,11 +446,13 @@ export class WebSocketManager {
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
         // that follows, so it can judge whether the candidate actually answered what was asked.
         onBossSpeech:      (text)   => {
+          this._recordTurnLatency(ctx);   // [LAT] boss text ready (non-streaming path)
           ctx.dialogue.push({ role: 'boss', text, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
           this._send(ctx, { type: S.BOSS_SPEECH, text });
         },
         onBossPartial:     (text)   => {
           if (!text || !text.trim()) return;
+          this._recordTurnLatency(ctx);   // [LAT] first boss token (streaming path = true TTFT)
           const prevLen = ctx.lastBossPartialLen || 0;
           const delta = text.slice(prevLen);
           ctx.lastBossPartialLen = text.length;
@@ -713,7 +716,25 @@ export class WebSocketManager {
     ctx.dgStreamer.sendChunk(buf);
   }
 
+  // [LAT] Record the server-side turn-latency breakdown ONCE per spoken turn, the moment the boss's
+  // first text is ready (TTFT). Guarded by ctx._tAudioEnd so it fires once and never on typed turns.
+  _recordTurnLatency(ctx) {
+    if (!ctx._tAudioEnd) return;
+    const now = Date.now();
+    const tCommit = ctx._tCommit || now;
+    const tResp = ctx._tRespondStart || tCommit;
+    const flushMs = tCommit - ctx._tAudioEnd;
+    const prepMs = tResp - tCommit;
+    const llmMs = now - tResp;
+    const serverTotalMs = now - ctx._tAudioEnd;
+    const provider = ctx.realtimeClient?._lastProvider || ctx._lastProvider || (process.env.USE_GEMINI_LIVE === '1' ? 'gemini' : '?');
+    try { recordTurn({ flushMs, prepMs, llmMs, serverTotalMs, provider }); } catch {}
+    try { console.log(`[LAT] flush=${flushMs} prep=${prepMs} llm=${llmMs} serverTotal=${serverTotalMs}ms provider=${provider} session=${ctx.sessionId}`); } catch {}
+    ctx._tAudioEnd = null;   // consume — one record per turn
+  }
+
   _handleAudioEnd(ctx) {
+    ctx._tAudioEnd = Date.now();   // [LAT] turn clock: user stopped speaking (AUDIO_END received)
     // The client's adaptive VAD has decided the turn is over (this is now the ONLY thing
     // that ends a turn). Flush Deepgram, give the final segment ~450ms to arrive, then
     // commit the whole accumulated turn at once.
@@ -732,6 +753,7 @@ export class WebSocketManager {
   // trigger the boss.
   _commitTurn(ctx) {
     if (ctx.closed) return;
+    ctx._tCommit = Date.now();   // [LAT] flush done, committing the turn
     // Prefer the accumulated FINAL segments; if none arrived (final missed the flush window), fall
     // back to the last INTERIM so a real answer is still captured rather than dropped as "no session".
     const text  = ((ctx._turnText || '').trim()) || ((ctx._lastInterim || '').trim());
@@ -1227,6 +1249,7 @@ export class WebSocketManager {
 
     // Boss replies with exactly ONE turn. Fire the LLM request FIRST so generation
     // overlaps with scoring (saves ~100–300 ms on every answer).
+    ctx._tRespondStart = Date.now();   // [LAT] boss LLM request fired
     const respondPromise = ctx.realtimeClient.respond(transcript).catch(err => {
       console.error(`[wsManager] boss respond failed session=${ctx.sessionId}: ${err.message}`);
       this._sendError(ctx, 'realtime_error');

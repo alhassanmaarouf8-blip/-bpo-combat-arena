@@ -14,6 +14,7 @@ import { isSpeakableRule } from './grammarCheck.js';
 import { dayKey } from './time.js';
 import { requireAuth, publicAccount, listAllAccounts } from './auth.js';
 import { hireReadinessFor } from './hireReadiness.js';
+import { recentTurns, summary as latencySummary } from './latencyLog.js';
 
 export const progressRouter = express.Router();
 
@@ -94,6 +95,11 @@ function buildDashboard(p) {
     vocabLearned:  p.vocabLearned || [],
   };
 }
+
+// [LAT] DIAGNOSTIC: server-side voice-turn latency breakdown (user-stops → boss-text-ready).
+// Run an interview, then GET /api/diag/latency to see avg flush/prep/llm ms + the biggest gap.
+// No auth (numbers only, no PII) so it's a one-curl read.
+progressRouter.get('/diag/latency', (_req, res) => res.json({ summary: latencySummary(), turns: recentTurns() }));
 
 progressRouter.get('/progress', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // never serve a stale readiness/weakness snapshot
