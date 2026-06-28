@@ -367,6 +367,7 @@ export class WebSocketManager {
     let memory = null;
     let focusTitle = null;
     let prof = null;
+    let candidateName = null;
     try {
       prof = await loadUser(ctx.userId);
       bossId  = bossForLevel(prof.level).id;
@@ -385,7 +386,6 @@ export class WebSocketManager {
       memory = buildBossMemory(prof);
       // Name recall from the guide profile (detectName in alhassan.js stores it when the candidate
       // says their name in chat). If we have it, the opening line will address them naturally.
-      let candidateName = null;
       try {
         const guide = await loadGuide(account.id);
         candidateName = guide?.name || null;
