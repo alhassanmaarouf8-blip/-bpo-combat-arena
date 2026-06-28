@@ -14,7 +14,7 @@ import { isSpeakableRule } from './grammarCheck.js';
 import { dayKey } from './time.js';
 import { requireAuth, publicAccount, listAllAccounts } from './auth.js';
 import { hireReadinessFor } from './hireReadiness.js';
-import { recentTurns, summary as latencySummary } from './latencyLog.js';
+import { recentTurns, summary as latencySummary, recordClient, recentClient, clientSummary } from './latencyLog.js';
 
 export const progressRouter = express.Router();
 
@@ -99,7 +99,9 @@ function buildDashboard(p) {
 // [LAT] DIAGNOSTIC: server-side voice-turn latency breakdown (user-stops → boss-text-ready).
 // Run an interview, then GET /api/diag/latency to see avg flush/prep/llm ms + the biggest gap.
 // No auth (numbers only, no PII) so it's a one-curl read.
-progressRouter.get('/diag/latency', (_req, res) => res.json({ summary: latencySummary(), turns: recentTurns() }));
+progressRouter.get('/diag/latency', (_req, res) => res.json({ server: latencySummary(), client: clientSummary(), serverTurns: recentTurns(), clientTurns: recentClient() }));
+// Browser POSTs its real per-turn timing here (vadWaitMs / ttsMs / fullMs / build). No auth (numbers only).
+progressRouter.post('/diag/clientlat', (req, res) => { try { recordClient(req.body || {}); } catch {} res.json({ ok: true }); });
 
 progressRouter.get('/progress', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // never serve a stale readiness/weakness snapshot

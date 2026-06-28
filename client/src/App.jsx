@@ -198,6 +198,20 @@ function stopBossVoice() {
 }
 
 // Fetch ONE clip's audio (POST → normalized WAV blob) and return an object URL. Throws on failure.
+// [LAT] real client timing → POSTed to the server so /api/diag/latency shows the FULL split
+// (vad wait + tts) with the client build id (catches stale cache as "zero improvement").
+let _latTtsStart = 0, _latAudioEndAt = 0, _latVadWait = 0;
+function reportClientLat(apiUrl) {
+  try {
+    const now = Date.now();
+    const ttsMs = _latTtsStart ? now - _latTtsStart : 0;
+    const fullMs = _latAudioEndAt ? _latVadWait + (now - _latAudioEndAt) : 0;
+    const build = (typeof document !== 'undefined' && document.querySelector('meta[name=build]')?.content) || 'dev';
+    fetch(`${apiUrl}/api/diag/clientlat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vadWaitMs: _latVadWait, ttsMs, fullMs, build }) }).catch(() => {});
+    _latTtsStart = 0;
+  } catch {}
+}
+
 async function fetchTtsUrl(apiUrl, token, voice, text) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), 12000);
@@ -2615,21 +2629,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {
           const spokenLine = bossLineRef.current || '';
           try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
+          _latTtsStart = Date.now();   // [LAT] TTS clock: boss text ready, about to synth+play
           if (!ttsMutedRef.current && spokenLine) {
-            // LATENCY FIX: chunked TTS — speak sentence 1 the instant its short clip is ready while
-            // prefetching the rest, so the boss starts talking ~1s sooner (kills the post-answer dead
-            // air). Deepgram (prod default) streams sentence-by-sentence; ElevenLabs opt-in stays
-            // single-shot (its API differs). speakBossStreamed falls back to single-shot for 1-sentence lines.
             if (bossElevenVoiceRef.current) {
               playBossVoice({
                 apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
-                onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
+                onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
               });
             } else {
               stopBossVoice();   // bump _streamSeq so this line owns the stream (per speakBossStreamed contract)
               speakBossStreamed({
                 apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, text: spokenLine,
-                onStart: () => setBossSpeak(true), onEnd: () => setBossSpeak(false),
+                onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
               });
             }
           } else {
@@ -2903,6 +2914,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // Always close the Deepgram stream so the server never leaks a stale dgStreamer.
       // Without this, a turn where the user didn't speak leaves dgStreamer open; Deepgram
       // eventually closes it silently (_done=true) and the next turn's audio is dropped.
+      _latAudioEndAt = Date.now(); _latVadWait = Math.round(silenceMs);   // [LAT] capture the VAD wait
       wsRef.current?.send(JSON.stringify({ type: C.AUDIO_END }));
       if (!spoke) return;   // said nothing → don't transcribe, just wait for next turn
       // Signal end-of-speech: server's Deepgram streamer flushes remaining audio → speech_final

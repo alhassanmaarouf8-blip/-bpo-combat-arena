@@ -15,6 +15,21 @@ const MAX = 80;
 export function recordTurn(rec) { BUF.push(rec); if (BUF.length > MAX) BUF.shift(); }
 export function recentTurns(n = 40) { return BUF.slice(-n); }
 
+// CLIENT-side timings POSTed from the browser (the half the server clock can't see):
+//   vadWaitMs  = silence the VAD waited after you stopped, before sending the turn
+//   ttsMs      = boss text received → first audio actually played (TTS synth+download+decode)
+//   fullMs     = you stopped speaking → first boss audio (the number you FEEL)
+//   build      = which client build reported it (catches stale-cache)
+const CLIENT = [];
+export function recordClient(rec) { CLIENT.push(rec); if (CLIENT.length > MAX) CLIENT.shift(); }
+export function recentClient(n = 40) { return CLIENT.slice(-n); }
+export function clientSummary() {
+  if (!CLIENT.length) return { count: 0, note: 'no client timings yet — run an interview on the new build' };
+  const avg = (k) => Math.round(CLIENT.reduce((a, r) => a + (r[k] || 0), 0) / CLIENT.length);
+  const builds = [...new Set(CLIENT.map((r) => r.build).filter(Boolean))];
+  return { count: CLIENT.length, avgVadWaitMs: avg('vadWaitMs'), avgTtsMs: avg('ttsMs'), avgFullMs: avg('fullMs'), builds };
+}
+
 export function summary() {
   if (!BUF.length) return { count: 0, note: 'no spoken turns recorded yet — run an interview' };
   const avg = (k) => Math.round(BUF.reduce((a, r) => a + (r[k] || 0), 0) / BUF.length);
