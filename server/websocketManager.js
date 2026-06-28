@@ -196,6 +196,8 @@ export class WebSocketManager {
       bossId:         'yasmin',
       scoreSum:       0,
       scoreCount:     0,
+      csScoreSum:     0,       // de-escalation proxy: sum of CS-roleplay (stage 2) answer scores
+      csScoreCount:   0,
       fillerTotal:    0,       // cumulative filler words this session (for the live counter)
       combo:          0,       // consecutive strong answers (for the combo multiplier)
       comboBest:      0,       // best combo reached this session
@@ -916,13 +918,20 @@ export class WebSocketManager {
 
       // FREE diagnostic features from the candidate's own transcript (deterministic, no API):
       // subordinate-clause rate (range) + vocab diversity. Feeds the hire-readiness diagnostic.
-      const _candidateText = (ctx.dialogue || []).filter((d) => d.role === 'candidate').map((d) => d.text).join(' ');
+      const _candTurns = (ctx.dialogue || []).filter((d) => d.role === 'candidate');
+      const _candidateText = _candTurns.map((d) => d.text).join(' ');
       const _tf = textFeatures(_candidateText);
+      // give-up rate: share of candidate turns that were empty/near-silent (<3 words).
+      const _giveUpRate = _candTurns.length ? _candTurns.filter((d) => (d.words || 0) < 3).length / _candTurns.length : null;
+      // de-escalation proxy: average CS-roleplay (stage 2) answer score, 0..1.
+      const _deescalation = ctx.csScoreCount ? Math.max(0, Math.min(1, (ctx.csScoreSum / ctx.csScoreCount) / 100)) : null;
 
       p.sessions.push({
         date: now, level: ctx.level, bossId: ctx.bossId,
         fluency: metrics.fluency, wpm: metrics.wpm, fillers: metrics.fillers,
         ...(_tf.subClauseRate != null ? { subClauseRate: _tf.subClauseRate, vocabDiversity: _tf.vocabDiversity } : {}),
+        ...(_giveUpRate != null ? { giveUpRate: _giveUpRate } : {}),
+        ...(_deescalation != null ? { deescalation: _deescalation } : {}),
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
         connectorHits: metrics.connectorHits, answers: metrics.answers,
         vocabTotal: p.vocabLearned.length,
@@ -1276,6 +1285,7 @@ export class WebSocketManager {
     // each with its own label (see _scoreFactors). Nothing here is random.
     const { score, factors } = this._scoreFactors(transcript, durationMs, wordCount, { levelId: ctx.level, stage: ctx.stageIdx });
     ctx.scoreSum += score; ctx.scoreCount += 1;
+    if (ctx.stageIdx === 2) { ctx.csScoreSum += score; ctx.csScoreCount += 1; }   // CS roleplay → de-escalation proxy
 
     // Combo: consecutive STRONG answers build a multiplier; a clear MISS breaks it.
     // 45–64 holds the current streak (neither builds nor breaks). Display-only meter —
