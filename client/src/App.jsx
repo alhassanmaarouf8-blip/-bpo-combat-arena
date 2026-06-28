@@ -251,9 +251,11 @@ async function playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd })
 
 // Split a German line into sentences, merging very short fragments so we never TTS a 2-word scrap.
 function splitSentencesDE(text) {
-  const raw = (String(text).match(/[^.!?…]+[.!?…]*/g) || [text]).map((s) => s.trim()).filter(Boolean);
+  // Split on CLAUSE boundaries (commas/colons/semicolons too, not just sentence enders) so the FIRST
+  // playable clip is short → synthesizes + starts in ~0.2-0.3s instead of waiting for the whole line.
+  const raw = (String(text).match(/[^.!?…;:,]+[.!?…;:,]*/g) || [text]).map((s) => s.trim()).filter(Boolean);
   const out = [];
-  for (const p of raw) { if (out.length && out[out.length - 1].length < 24) out[out.length - 1] += ' ' + p; else out.push(p); }
+  for (const p of raw) { if (out.length && out[out.length - 1].length < 10) out[out.length - 1] += ' ' + p; else out.push(p); }
   return out.length ? out : [String(text)];
 }
 
@@ -2865,7 +2867,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
     // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
     // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    const SIL_COMPLETE = 400, SIL_AMBIGUOUS = 1200, SIL_INCOMPLETE = 2000;
+    const SIL_COMPLETE = 350, SIL_AMBIGUOUS = 800, SIL_INCOMPLETE = 1400;
     const STEP = 50, K = 2.6, MIN_SPEAK_MS = 180, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -2889,7 +2891,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 600;   // open-question grace (trimmed — accept the answer sooner)
+      if (stageIdxRef.current <= 1) needSilence += 250;   // open-question grace (cut for latency — was 600)
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
