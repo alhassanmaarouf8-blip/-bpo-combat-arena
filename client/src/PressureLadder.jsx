@@ -198,7 +198,7 @@ async function voicedMsFromBlob(blob) {
   } catch { return 0; }
 }
 
-export function PressureLadder({ lang = 'de', onClose }) {
+export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
   const [phase, setPhase]   = useState('intro');    // intro | ready | answering | round | done
   const [left, setLeft]     = useState(0);
@@ -250,6 +250,8 @@ export function PressureLadder({ lang = 'de', onClose }) {
     // = froze. (Tunable single number; raise if it's too lenient, lower if too strict.)
     try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = (await voicedMsFromBlob(c?.blob)) >= 5000; } } catch { /* ignore */ }
     setFroze(!kept);
+    // Feed the brain: held the line or froze? (DRUCK-LEITER fed back nothing before — loop now closes.)
+    try { if (token && apiUrl) fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'druck-leiter', froze: !kept }) }); } catch { /* fire-and-forget */ }
     if (kept) {
       if (endless) setEndlessStreak((n) => n + 1);
       else setSurvived((n) => Math.max(n, idx + 1));

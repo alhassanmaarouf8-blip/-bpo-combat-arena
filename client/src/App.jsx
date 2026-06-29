@@ -3218,7 +3218,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Pressure Ladder — overload training (client-only: browser voice, no server, zero cost) */}
       {pressureOpen && (
-        <PressureLadder lang={feedbackLang} onClose={() => setPressureOpen(false)} />
+        <PressureLadder lang={feedbackLang} onClose={() => setPressureOpen(false)} token={auth.token} apiUrl={API_URL} />
       )}
 
       {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}

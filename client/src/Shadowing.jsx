@@ -116,6 +116,8 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'shadowing_failed');
       setResult(d);   // may be { retry:true } when nothing was transcribed
+      // Feed the brain: pronunciation drill done (closes the loop — Shadowing fed back nothing before).
+      try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'shadowing', voicedMs: clip.durationMs }) }); } catch { /* fire-and-forget */ }
     } catch (e) {
       setErr(e.message === 'no_api_key'
         ? { de: 'Dienst gerade nicht verfügbar. Bitte später.', ar: 'الخدمة مش متاحة دلوقتي. جرّب بعدين.' }
