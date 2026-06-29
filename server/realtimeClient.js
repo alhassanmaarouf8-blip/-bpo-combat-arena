@@ -24,9 +24,11 @@ import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
 
 // Hard cap per boss turn. A single question is ~20–60 tokens; a Teil-3 customer
-// complaint with scenario context is longer. 280 leaves room for a vivid customer
-// line while making it structurally impossible to run on and answer for the candidate.
-const MAX_TURN_TOKENS = 280;
+// complaint with scenario context is longer. 200 still leaves room for a vivid customer
+// line while making it structurally impossible to run on and answer for the candidate —
+// and since TTS bills per character (the #1 cost), a tighter boss is cheaper AND more
+// disciplined ("say one thing, then stop"). Tunable; raise toward 280 if lines feel clipped.
+const MAX_TURN_TOKENS = 200;
 
 // ── Boss LLM providers (OpenAI-compatible) with automatic cap-failover ──────────
 // The boss tries providers in order. When one returns 429 (its daily/rate cap is hit)
