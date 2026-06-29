@@ -16,7 +16,7 @@
  * but never resurfaces it later. If memory load fails, Alhassan still works (no crash, no memory).
  */
 import express from 'express';
-import { requireAuth } from './auth.js';
+import { requireAuth, planOf } from './auth.js';
 import { loadUser }    from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { dueCount }            from './srs.js';
@@ -297,6 +297,47 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[alhassan] chat error:', err.message);
     res.status(500).json({ error: 'guide_failed' });
+  }
+});
+
+// ── GET /guide/briefing — ELITE-ONLY premium: Alhassan's DEEP WEEKLY BRIEFING ─────────
+// A personalized weekly report in Alhassan's voice, built from the brain's real signals: what they
+// BEAT, where they are on the road to applying, and the ONE move next week. Generated ONCE per 7-day
+// window (cached on the guide record) → ~1 free-Groq call/week/user. Elite plan only.
+const weekKey = () => 'wk' + Math.floor(Date.now() / (7 * 86400000));
+
+guideRouter.get('/guide/briefing', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (planOf(req.account) !== 'elite') return res.status(403).json({ error: 'elite_only' });
+  try {
+    const g = await loadGuide(req.account.id);
+    const wk = weekKey();
+    if (g.briefing?.week === wk && g.briefing.text) return res.json({ briefing: g.briefing.text, week: wk, cached: true });
+
+    const facts = await buildFacts(req.account, g);
+    const sys = ALHASSAN_PROMPT +
+      `\n\n[WEEKLY BRIEFING MODE — write this student's WEEKLY briefing (NOT a chat reply), in your Egyptian-Arabic voice, from the facts below. EXACTLY four short parts, each with its tiny header and 1–2 sentences:\n` +
+      `🏆 اللي كسرته الأسبوع ده — what they BEAT this week, using the REAL numbers from the facts (NEVER invent a number; if none, speak to what IS there).\n` +
+      `📍 إنت فين على الطريق — where they are on the road to applying (the journey progress / how close to apply-ready).\n` +
+      `🎯 مهمتك الأسبوع الجاي — the ONE next move = THE BRAIN'S NEXT MOVE from the facts, exactly, in your voice.\n` +
+      `🔥 — one short fire line to close, pointing forward.\n` +
+      `Honest, warm, specific to THIS student. No generic motivation.]\n${facts}`;
+
+    let text;
+    try {
+      text = await callModel(
+        [{ role: 'system', content: sys }, { role: 'user', content: 'اكتبلي الـ briefing بتاع الأسبوع.' }],
+        { maxTokens: 600, temperature: 0.7 });
+    } catch (e) {
+      return res.status(e.message === 'no_api_key' ? 503 : 502).json({ error: 'briefing_unavailable' });
+    }
+    text = text || 'لسه مفيش داتا كفاية الأسبوع ده يا سطا — اعمل كام fight وهرجعلك بـ briefing كامل.';
+    g.briefing = { week: wk, text, at: Date.now() };
+    try { await saveGuide(g); } catch { /* still return the briefing */ }
+    res.json({ briefing: text, week: wk, cached: false });
+  } catch (err) {
+    console.error('[alhassan] briefing error:', err.message);
+    res.status(500).json({ error: 'briefing_failed' });
   }
 });
 

@@ -12,6 +12,7 @@ import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BrainGuide } from './BrainGuide.jsx';
+import { WeeklyBriefing } from './WeeklyBriefing.jsx';
 import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
@@ -3878,6 +3879,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             else if (p.action === 'assessment') setAssessmentOpen(true);
             else if (p.action === 'apply') setZielplanOpen(true);
           }} />
+        )}
+
+        {/* ELITE-ONLY premium: Alhassan's deep weekly briefing (self-hides for non-Elite / no data). */}
+        {canStart && auth.account?.entitlement?.plan === 'elite' && (
+          <WeeklyBriefing token={auth.token} apiUrl={API_URL} />
         )}
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
