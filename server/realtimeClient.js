@@ -295,11 +295,12 @@ export class RealtimeClient {
     this.sessionInfo = {
       bossId,
       displayName: this._boss.displayName,
-      voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 fallback (used if ElevenLabs has no key / fails)
-      // ElevenLabs native-German is the DEFAULT boss voice. PROVEN working via /api/tts-test: the key
-      // has text_to_speech permission and the configured voice id returns HTTP 200. The "robotic" sound
-      // was simply ElevenLabs being OFF → free Aura-2 fallback. Set USE_ELEVENLABS=0 to force Aura-2.
-      elevenVoice: (process.env.USE_ELEVENLABS !== '0') ? (this._boss.elevenVoice ?? '') : '',
+      voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 — THE boss voice
+      // OWNER DECISION 2026-06-30: native-German Deepgram Aura-2 is THE voice — ~5-10× cheaper than
+      // ElevenLabs (TTS = the #1 cost) and on the existing Deepgram key, keeping the packages profitable.
+      // Realism comes from BEHAVIOR (spoken-register prompt), not paid TTS. ElevenLabs is hard-off here
+      // regardless of the Render env var; to A/B it again, restore `process.env.USE_ELEVENLABS === '1'`.
+      elevenVoice: '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
