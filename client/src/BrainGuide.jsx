@@ -14,20 +14,26 @@ import { useEffect, useState } from 'react';
 // with TRUE values. These are PLACEHOLDERS so the structure renders — do NOT ship them as final copy.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 const BRAIN_COPY = {
-  nextStepLabel: 'خطوتك الجاية',                 // "your next step" (safe, common)
-  journeyLabel:  'الطريق لإنك تتقدّم للشغل',       // "the road to applying"
-  stepsLeft:     (n) => `فاضل ${n} خطوة`,          // "N steps left"  /* OWNER: refine */
-  drill:         (id) => DRILL_LABEL[id] || id,    // uses existing drill names
-  startCta:      'ابدأ',                           // "start"
-  apply:         '🎉 /* OWNER masri */ بقيت جاهز — قدّم على خط ألماني دلوقتي.',
-  measure:       '/* OWNER masri */ محتاجين نقيس حاجة الأول — يلا نعملها.',
-  ahaTitle:      '/* OWNER masri */ شوف بنفسك — شغّال:',
-  ahaBody:       (rule, before, after) => `/* OWNER masri */ ${rule}: من ${before} غلطة لـ ${after}.`,
+  nextStepLabel: 'خطوتك الجاية',
+  journeyLabel:  'طريقك للشغل الألماني',
+  stepsLeft:     (n) => `فاضلّك ${n} خطوة`,
+  drill:         (id) => DRILL_LABEL[id] || id,
+  startCta:      'يلا بينا',
+  apply:         '🎉 برافو يا وحش! بقيت جاهز للخط الألماني — قدّم دلوقتي وانت واثق.',
+  measure:       'قبل ما نكمّل، محتاج أقيس نقطة واحدة عشان أظبّط مسارك صح — يلا نعملها بسرعة.',
+  ahaTitle:      'بص بنفسك — اللي درّبت عليه بيدّي نتيجة:',
+  ahaBody:       (label, before, after) => `${label}: كنت بتغلط فيها ${before} مرّة، دلوقتي ${after} بس. ده انت اللي عملت ده.`,
 };
+// NOTE (owner): masri above is grounded best-effort — give it a native pass; the {slots} stay, the words are yours.
 const DRILL_LABEL = {
   'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL',
   'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG', 'interview': 'INTERVIEW',
 };
+// Readable German labels for the canonical grammar ruleIds (so the aha reads naturally, not "konjunktiv-2").
+const RULE_LABEL = {
+  'konjunktiv-2': 'Konjunktiv II', 'dativ-akkusativ': 'Dativ/Akkusativ', 'word-order-sub': 'Satzstellung',
+};
+const ruleLabel = (id) => RULE_LABEL[id] || String(id || '').replace(/^lt:/, '');
 
 // onAction(directive) — the parent launches the prescribed thing (drill / interview / assessment / apply).
 export function BrainGuide({ token, apiUrl, onAction }) {
@@ -64,7 +70,7 @@ export function BrainGuide({ token, apiUrl, onAction }) {
       {d.aha && (
         <div style={ahaBox}>
           <div style={{ fontWeight: 800, color: '#34d399' }}>{BRAIN_COPY.ahaTitle}</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(d.aha.ruleId, d.aha.before, d.aha.after)}</div>
+          <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(ruleLabel(d.aha.ruleId), d.aha.before, d.aha.after)}</div>
         </div>
       )}
 

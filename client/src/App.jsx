@@ -55,7 +55,7 @@ const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:
 const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replace(/^ws/, 'http');
 // The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
 // masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
-const BRAIN_GUIDE_LIVE = false;
+const BRAIN_GUIDE_LIVE = true;
 
 // Human-readable, bilingual text for server error codes (DE default + Arabic). Raw
 // recorder/connection strings that aren't codes fall through to their own message.
@@ -3844,8 +3844,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         ) : null}
 
-        {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only) */}
-        {canStart && (
+        {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only).
+            Hidden when the live brain is active — the brain is the single source of "what to do next"
+            (no two competing routers). */}
+        {canStart && !BRAIN_GUIDE_LIVE && (
           <DailyMission token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             name={auth.account?.name || (auth.account?.email || '').split('@')[0]}
             onOpen={(drill) => {

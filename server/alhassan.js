@@ -21,6 +21,8 @@ import { loadUser }    from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { dueCount }            from './srs.js';
 import { isSpeakableRule }     from './grammarCheck.js';
+import { buildSnapshot }       from './brain/adapter.js';
+import { decide }              from './brain/engine.js';
 
 export const guideRouter = express.Router();
 
@@ -100,6 +102,9 @@ IRON RULES (never break):
    you can carry alone and point them to real human help. ONLY for actual danger.
 6. Stay Alhassan. If a student sincerely and directly asks whether they're talking to a real human,
    don't deceive — answer honestly while staying warm and in your voice. No unprompted disclaimers.
+7. When the facts include "THE BRAIN'S NEXT MOVE", that IS the next move — push EXACTLY it, in your
+   own voice; never substitute a different plan. The brain decides the step; your job is to make them
+   WANT to do it and to show them how close they are (the journey). One brain, one voice — you.
 
 ANTI-GENERIC (CRITICAL — canned, copy-paste replies make you useless and the student stops trusting you):
 - NEVER give generic advice ("ذاكر أكتر", "اتمرن كل يوم", "إنت تقدر"). EVERY reply must HOOK onto at least one
@@ -209,6 +214,25 @@ async function buildFacts(account, g) {
       const avg = (a) => (a.length ? Math.round(a.reduce((x, s) => x + (s.fluency || 0), 0) / a.length) : null);
       if (tw.length && lw.length) lines.push(`This week vs last week fluency: ${avg(lw)} → ${avg(tw)} — reference this REAL weekly change.`);
     }
+
+    // ── THE BRAIN'S DIRECTIVE — the SINGLE source of "what to do next". Alhassan SPEAKS this; he never
+    // invents a competing plan. The sophisticated engine decides; Alhassan is its human Cairo voice. ──
+    try {
+      const dir = decide(buildSnapshot(p));
+      const DRILL = { 'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL', 'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG (المراجعة)', 'interview': 'الـ Live-Interview' };
+      const pr = dir.prescription || {};
+      const step =
+          pr.action === 'drill'      ? `send them to the drill ${DRILL[pr.drill] || pr.drill} — it targets "${pr.skillId}"`
+        : pr.action === 'interview'  ? 'send them into a live interview NOW'
+        : pr.action === 'measure'    ? `they need a live interview so we can MEASURE their ${pr.signal} — we don't guide on what we haven't measured`
+        : pr.action === 'assessment' ? 'send them to the free level assessment first (they have no data yet)'
+        : pr.action === 'apply'      ? 'they CLEARED the entry tier — STOP drilling, push them to APPLY to a German line this week (confident, not "one day")'
+        :                              'send them into a live interview';
+      lines.push(`THE BRAIN'S NEXT MOVE FOR THEM (push EXACTLY this, in your voice — do NOT invent a different plan): ${step}.`);
+      if (dir.journey && dir.journey.entryTotal) lines.push(`Journey to apply-ready: ${dir.journey.entryDone}/${dir.journey.entryTotal} steps done (${dir.journey.pctToApply}%). Make how CLOSE they are to being able to apply feel real and motivating.`);
+      if (dir.aha) lines.push(`A CONFIRMED, REAL WIN to celebrate (the engine verified it — not hype): their "${dir.aha.ruleId}" errors dropped ${dir.aha.before} → ${dir.aha.after} after the drill you sent them to. Celebrate THIS specifically as living proof their work pays off, then point forward.`);
+      if (dir.confidence === 'low') lines.push(`Low confidence on their weakness (not enough data yet) — ask ONE sharp question or send them to practice; do NOT assert a weakness as fact.`);
+    } catch { /* brain facts best-effort — never block the reply */ }
   } catch (e) { /* facts are best-effort; never block the reply */ }
   return lines.join('\n');
 }
