@@ -1217,6 +1217,15 @@ export class WebSocketManager {
       } catch { /* name capture is best-effort; never block the turn */ }
     }
 
+    // wordCount + durationMs are computed BEFORE the abuse block: the abuse branches reference
+    // them in the TRANSCRIPT_DONE payload, and a `const` temporal-dead-zone here threw a
+    // ReferenceError on any insult → TRANSCRIPT_DONE never sent → the client's `transcribing`
+    // flag stuck → the mic froze for the rest of the session. Declared up here, the crash is gone.
+    const wordCount  = transcript.split(/\s+/).filter(Boolean).length;
+    // durationMs is supplied for spoken answers (clip length) so WPM works; typed
+    // answers omit it (WPM is simply not scored for typed turns).
+    const durationMs = Number(msg.durationMs) > 0 ? Math.min(Number(msg.durationMs), 120_000) : 0;
+
     // Abuse detector: explicit AR/DE insults → professional warning, then end session on severe tier.
     if (ABUSE_T2.test(transcript)) {
       console.warn(`[wsManager] Severe abuse detected session=${ctx.sessionId}`);
@@ -1235,10 +1244,6 @@ export class WebSocketManager {
       return;
     }
 
-    const wordCount  = transcript.split(/\s+/).filter(Boolean).length;
-    // durationMs is supplied for spoken answers (clip length) so WPM works; typed
-    // answers omit it (WPM is simply not scored for typed turns).
-    const durationMs = Number(msg.durationMs) > 0 ? Math.min(Number(msg.durationMs), 120_000) : 0;
     if (durationMs > 400) ctx.totalSpeechMs += durationMs;
 
     // Pick up word-level confidence scores set by the streaming STT handler.

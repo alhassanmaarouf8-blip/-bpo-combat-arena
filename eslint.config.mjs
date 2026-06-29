@@ -20,6 +20,10 @@ export default [
     rules: {
       'no-undef': 'error',
       'no-unused-vars': 'off',   // not a crash; off to avoid noise on a fast-moving codebase
+      // NOTE: tried `no-use-before-define` to catch the temporal-dead-zone crash class, but it
+      // flags 137 SAFE sites (module-level consts defined at file-bottom, referenced inside
+      // functions above — initialized by run time, not a TDZ). Too noisy to be trustworthy, so
+      // it's off; same-scope TDZ remains an accepted gap (the no-undef gate stays the workhorse).
     },
   },
 

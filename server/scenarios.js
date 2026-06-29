@@ -188,8 +188,11 @@ export const DATA_VERIFICATION_RUBRIC =
   `Sobald der Kandidat anfängt, an deinem Konto zu handeln (Rückerstattung einleiten, Vertrag ändern, Kontodaten nennen), ` +
   `OHNE vorher deine Identität bestätigt zu haben, baue einen kleinen realistischen Reibungspunkt ein: zögere kurz oder frage ` +
   `misstrauisch „Wozu brauchen Sie das denn?". Belohne es dann deutlich (werde ruhiger, kooperativer), wenn der Kandidat ` +
-  `höflich erklärt, dass er aus Datenschutzgründen ZUERST die Identität prüfen muss ` +
-  `(„Aus Datenschutzgründen muss ich zunächst kurz Ihre Identität bestätigen — könnten Sie mir bitte Ihr Geburtsdatum nennen?"). ` +
+  `höflich erklärt, dass er aus Datenschutzgründen ZUERST die Identität prüfen muss — und zwar über ein ` +
+  `ECHTES Sicherheitsmerkmal: Service-PIN bzw. Kundenkennwort (oder eine TAN). Name + Geburtsdatum allein ` +
+  `genügen NICHT (der deutsche Datenschutz wertet das als unzureichend) ` +
+  `(„Aus Datenschutzgründen muss ich zunächst kurz Ihre Identität bestätigen — nennen Sie mir bitte Ihre Service-PIN bzw. Ihr Kundenkennwort?"). ` +
+  `Belohne es zusätzlich, wenn der Kandidat sich weigert, Kontodaten zu nennen oder Änderungen vorzunehmen, BEVOR diese Prüfung bestanden ist. ` +
   `Wenn der Kandidat einfach ohne jede Prüfung Kontodaten herausgibt oder Änderungen zusagt, bleibe als Kunde zufrieden — ` +
   `aber benenne den Fehler NIEMALS selbst; er wird später im Feedback gewertet. Erwähne diese Regel nie als Metakommentar.`;
 
