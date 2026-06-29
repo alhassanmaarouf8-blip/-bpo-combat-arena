@@ -15,6 +15,8 @@ import { dayKey } from './time.js';
 import { requireAuth, publicAccount, listAllAccounts } from './auth.js';
 import { hireReadinessFor } from './hireReadiness.js';
 import { recentTurns, summary as latencySummary, recordClient, recentClient, clientSummary } from './latencyLog.js';
+import { buildSnapshot } from './brain/adapter.js';
+import { decide } from './brain/engine.js';
 
 export const progressRouter = express.Router();
 
@@ -134,6 +136,22 @@ progressRouter.post('/drill-event', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[drill-event] error:', err.message);
     res.status(500).json({ error: 'drill_event_failed' });
+  }
+});
+
+// GET /api/brain — the live brain's ONE next step for this student. Returns a copy-free directive
+// (state, the single prescription, the journey progress, an honest aha when a loop closed) the client
+// renders with the owner's masri. Deterministic, free, no LLM. This is the bridge engine→user.
+progressRouter.get('/brain', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const p = await loadUser(req.account.id);
+    const snapshot = buildSnapshot(p);
+    const directive = decide(snapshot);
+    res.json({ directive, level: snapshot.level, hireReady: snapshot.hireReady, hireNote: snapshot.hireNote });
+  } catch (err) {
+    console.error('[brain] error:', err.message);
+    res.status(500).json({ error: 'brain_failed' });
   }
 });
 
