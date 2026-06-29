@@ -69,9 +69,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # NB: the `secrets` context is NOT allowed inside `if:` — so we pass the hook to env and
+      # check it inside the step. Skips cleanly (no-op) until you create the secret.
       - name: Deploy server to Render (only once RENDER_DEPLOY_HOOK secret is set)
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then curl -fsS -X POST "$HOOK"; else echo "RENDER_DEPLOY_HOOK not set — skipping (auto-deploy still active on the dashboard)"; fi
       - name: Deploy client to Vercel (only once VERCEL_DEPLOY_HOOK secret is set)
-        if: ${{ secrets.VERCEL_DEPLOY_HOOK != '' }}
-        run: curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+        env:
+          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$HOOK" ]; then curl -fsS -X POST "$HOOK"; else echo "VERCEL_DEPLOY_HOOK not set — skipping (auto-deploy still active on the dashboard)"; fi
