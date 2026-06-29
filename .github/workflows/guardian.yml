@@ -36,6 +36,11 @@ jobs:
       - name: Lint (no-undef — catches the crashes that broke fight-start)
         run: npm run lint
 
+      # ── The brain's sophistication must never silently break: the deterministic engine
+      #    (Elo / BKT / skill-DAG / decision policy + honesty gates) is unit-tested on every commit. ──
+      - name: Brain engine tests
+        run: node --test server/brain/*.test.mjs
+
       # ── 2. Syntax gate — every server file must parse ──
       - name: Syntax-check all server files
         run: |
