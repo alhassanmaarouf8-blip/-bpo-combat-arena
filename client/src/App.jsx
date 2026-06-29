@@ -11,6 +11,7 @@ import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
+import { BrainGuide } from './BrainGuide.jsx';
 import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
@@ -52,6 +53,9 @@ const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:
 // API base is injected separately (defaults to the live Render backend in production builds).
 // Fall back to deriving it from the WebSocket URL if the define is ever missing.
 const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replace(/^ws/, 'http');
+// The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
+// masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
+const BRAIN_GUIDE_LIVE = false;
 
 // Human-readable, bilingual text for server error codes (DE default + Arabic). Raw
 // recorder/connection strings that aren't codes fall through to their own message.
@@ -3851,6 +3855,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               else if (drill === 'pressure') setPressureOpen(true);
               else if (drill === 'listening') setListeningOpen(true);
             }} />
+        )}
+
+        {/* The LIVE BRAIN: one next step + the journey toward the goal + an honest aha (GET /api/brain).
+            OFF until the masri in BrainGuide.jsx is authored (BRAIN_GUIDE_LIVE). */}
+        {BRAIN_GUIDE_LIVE && canStart && (
+          <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d) => {
+            const p = d?.prescription || {};
+            const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
+              'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
+              'srs': setDailyOpen };
+            if (p.action === 'drill') { const fn = OPEN[p.drill]; fn ? fn(true) : beginSession(); }
+            else if (p.action === 'interview' || p.action === 'measure') beginSession();
+            else if (p.action === 'assessment') setAssessmentOpen(true);
+            else if (p.action === 'apply') setZielplanOpen(true);
+          }} />
         )}
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
