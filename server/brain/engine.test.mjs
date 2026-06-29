@@ -86,6 +86,16 @@ test('engine: global regression vetoes a local celebration (honesty)', () => {
   assert.equal(d.aha, null);
 });
 
+test('engine: every directive carries a journey the UI can reflect, and it advances with mastery', () => {
+  const layer0 = SKILLS.filter((s) => s.layer === 0).map((s) => s.id);
+  const d0 = decide({ sessionCount: 2, masteredSkills: [] });
+  const dMore = decide({ sessionCount: 2, masteredSkills: layer0 });
+  assert.ok(d0.journey && typeof d0.journey.pctToApply === 'number');
+  assert.ok(d0.journey.stepsToApply > 0);
+  assert.ok(dMore.journey.entryDone > d0.journey.entryDone);      // advancing skills advances the journey
+  assert.ok(dMore.journey.pctToApply >= d0.journey.pctToApply);
+});
+
 test('engine: a weakness with <2 sessions of evidence is LOW confidence (no over-claiming)', () => {
   const d = decide({ sessionCount: 1, masteredSkills: SKILLS.filter(s=>s.layer===0).map(s=>s.id),
     limitingSkill: 'grammar', weakLog: { 'dativ-akkusativ': { errCounts: [{ count: 3 }] } } });

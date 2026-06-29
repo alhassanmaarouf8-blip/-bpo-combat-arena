@@ -52,6 +52,23 @@ export function frontier(masteredSet) {
   return SKILLS.filter((s) => !m.has(s.id) && s.prereq.every((p) => m.has(p)));
 }
 
+// Journey progress toward the GOAL (apply-ready), so the app can REFLECT advancement back to the
+// learner — a filling path, "X of N steps to apply-ready", the next milestone — not just a next step.
+export function progress(masteredSet) {
+  const m = masteredSet instanceof Set ? masteredSet : new Set(masteredSet || []);
+  const entryPath   = SKILLS.filter((s) => s.layer <= 1);   // Layer 0 + 1 = the road to apply-ready
+  const premiumPath = SKILLS.filter((s) => s.layer >= 2);
+  const done = (arr) => arr.filter((s) => m.has(s.id)).length;
+  const entryDone = done(entryPath), entryTotal = entryPath.length;
+  return {
+    entryDone, entryTotal,
+    premiumDone: done(premiumPath), premiumTotal: premiumPath.length,
+    pctToApply: entryTotal ? Math.round((entryDone / entryTotal) * 100) : 0,
+    stepsToApply: Math.max(0, entryTotal - entryDone),
+    totalMastered: SKILLS.filter((s) => m.has(s.id)).length, totalSkills: SKILLS.length,
+  };
+}
+
 // The nearest hiring tier the learner can CLEAR next = the lowest-layer tier whose every skill is
 // mastered. Returns { cleared:[tierIds], next:tierId|null, applyNow:boolean }.
 export function tierStatus(masteredSet) {

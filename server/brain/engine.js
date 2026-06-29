@@ -11,7 +11,7 @@
  *    when overall errors didn't rise (global regression vetoes a local celebration)
  *  - when a hire-gating signal is unmeasured, the next action is to MEASURE it, not guess
  */
-import { frontier, tierStatus, SKILL_BY_ID } from './skillGraph.js';
+import { frontier, tierStatus, progress, SKILL_BY_ID } from './skillGraph.js';
 
 // Which frontier skill best addresses the hire-gating limiting skill (reuses hireReadiness' vector).
 const LIMIT_TO_SKILL = {
@@ -66,10 +66,14 @@ export function decide(snapshot = {}) {
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
   } = snapshot;
 
+  // Journey toward the goal — handed to the UI so the app REFLECTS step-by-step advancement back to
+  // the learner (a filling path, "N steps to apply-ready"), making the guidance felt, not just done.
+  const journey = progress(masteredSkills);
+
   // Cold-start: no history → no causal claims, just the first concrete step.
   if (sessionCount <= 0) {
     return { state: 'NEW', confidence: 'low', target: null,
-      prescription: { action: 'assessment' }, tier: tierStatus(masteredSkills), aha: null, measure: [] };
+      prescription: { action: 'assessment' }, tier: tierStatus(masteredSkills), journey, aha: null, measure: [] };
   }
 
   const mastered = new Set(masteredSkills);
@@ -80,13 +84,13 @@ export function decide(snapshot = {}) {
   // Entry tier cleared → stop drilling, start applying (the loop must end in a JOB, not a treadmill).
   if (tier.applyNow) {
     return { state: 'APPLY', confidence: 'high', target: null,
-      prescription: { action: 'apply', tier: 'entry' }, tier, aha, measure: [] };
+      prescription: { action: 'apply', tier: 'entry' }, tier, journey, aha, measure: [] };
   }
 
   // A hire-gating signal is unmeasured → MEASURE it (don't prescribe a grammar drill on missing data).
   if (unmeasuredGates.length) {
     return { state: 'MEASURE', confidence: 'high', target: null,
-      prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, aha, measure: unmeasuredGates };
+      prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, journey, aha, measure: unmeasuredGates };
   }
 
   const target = pickTarget(fr, limitingSkill, weakLog);
@@ -100,7 +104,7 @@ export function decide(snapshot = {}) {
     : 'POST_FIGHT';                        // fresh debrief → here's the prescription
 
   return {
-    state, confidence, tier, aha,
+    state, confidence, tier, journey, aha,
     target: target ? { skillId: target.id, layer: target.layer } : null,
     prescription: target ? { action: 'drill', drill: target.drill, skillId: target.id } : { action: 'interview' },
     measure: [],
