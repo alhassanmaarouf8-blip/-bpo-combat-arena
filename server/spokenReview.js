@@ -17,7 +17,7 @@
  *   POST /api/spoken-review/grade      → raw audio + ?id= → { correct, expected, heard }
  */
 import express from 'express';
-import { requireAuth, planOf } from './auth.js';
+import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, saveUser }  from './store.js';
 import { dueItems, grade, normalize } from './srs.js';
 import { voicedDurationMs }            from './audioGuard.js';
@@ -28,7 +28,7 @@ const GROQ_BASE = 'https://api.groq.com/openai/v1';
 const STT_MODEL = process.env.GROQ_TRANSCRIBE_MODEL || 'whisper-large-v3';
 
 function paidOnly(req, res) {
-  if (planOf(req.account) === 'free') { res.status(402).json({ error: 'plan_required', reason: 'spoken_review_is_paid' }); return false; }
+  if (!drillsUnlocked(req.account)) { res.status(402).json({ error: 'plan_required', reason: 'spoken_review_is_paid' }); return false; }
   return true;
 }
 

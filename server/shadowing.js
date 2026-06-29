@@ -15,7 +15,7 @@
  * which already reverts an expired plan to free). Sessions are unlimited.
  */
 import express from 'express';
-import { requireAuth, planOf }                from './auth.js';
+import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { BPO_PHRASES }                         from './scenarios.js';
 import { transcribeAudio }                     from './planGuide.js';
 import { loadUser, saveUser }                  from './store.js';
@@ -97,7 +97,7 @@ const fixedPool = () => BPO_PHRASES.map((p, i) => ({ id: i, de: p.de, en: p.en }
 // Active-paid gate (basic/elite/admin). planOf() already reverts an expired plan to 'free',
 // so an expired subscriber is blocked here automatically. Sends 402 and returns false on block.
 function paidOnly(req, res) {
-  if (planOf(req.account) === 'free') {
+  if (!drillsUnlocked(req.account)) {
     res.status(402).json({ error: 'plan_required', reason: 'shadowing_is_paid' });
     return false;
   }

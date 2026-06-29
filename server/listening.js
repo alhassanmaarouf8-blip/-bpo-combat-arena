@@ -19,7 +19,7 @@
  * Gated like other paid practice: requireAuth + active plan (planOf !== 'free').
  */
 import express from 'express';
-import { requireAuth, planOf } from './auth.js';
+import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, saveUser }  from './store.js';
 
 export const listeningRouter = express.Router();
@@ -113,7 +113,7 @@ const ITEMS = [
 ];
 
 function paidOnly(req, res) {
-  if (planOf(req.account) === 'free') { res.status(402).json({ error: 'plan_required', reason: 'listening_is_paid' }); return false; }
+  if (!drillsUnlocked(req.account)) { res.status(402).json({ error: 'plan_required', reason: 'listening_is_paid' }); return false; }
   return true;
 }
 

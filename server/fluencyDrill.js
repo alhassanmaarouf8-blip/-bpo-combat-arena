@@ -31,7 +31,7 @@
  * Gated exactly like shadowing: requireAuth + active plan (planOf !== 'free').
  */
 import express from 'express';
-import { requireAuth, planOf } from './auth.js';
+import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { loadUser, saveUser }  from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
@@ -141,7 +141,7 @@ async function getGeneratedPrompts() {
 
 // Active-paid gate (basic/elite/admin). planOf() already reverts an expired plan to 'free'.
 function paidOnly(req, res) {
-  if (planOf(req.account) === 'free') {
+  if (!drillsUnlocked(req.account)) {
     res.status(402).json({ error: 'plan_required', reason: 'fluency_is_paid' });
     return false;
   }

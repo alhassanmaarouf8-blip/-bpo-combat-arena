@@ -157,7 +157,31 @@ export function planOf(account) {
   if (s.tier === 'pro' || s.tier === 'team') return 'elite'; // legacy paid grants keep access
   return 'free';
 }
-export function dailyMinutesFor(account) { return PLANS[planOf(account)]?.dailyLiveMinutes || 0; }
+// FREE TRIAL — the acquisition engine. New free users live the full Fokus product (daily interview
+// minutes + ALL drills) for their first FREE_TRIAL_DAYS, so they FEEL the benefit before the paywall —
+// not just one cold interview. Bounded per account (a few days), so cost exposure is capped. Tunable.
+const FREE_TRIAL_DAYS = 3;
+const FREE_TRIAL_DAY_MS = 86400000;
+export function trialActive(account) {
+  if (!account || isAdminEmail(account.email)) return false;   // admins are already elite
+  if (planOf(account) !== 'free') return false;                // paid users don't need the trial
+  const start = account.subscription?.trialStartedAt || account.createdAt;
+  return !!start && (Date.now() - start) < FREE_TRIAL_DAYS * FREE_TRIAL_DAY_MS;
+}
+export function trialDaysLeft(account) {
+  const start = account?.subscription?.trialStartedAt || account?.createdAt;
+  if (!start) return 0;
+  return Math.max(0, Math.ceil((FREE_TRIAL_DAYS * FREE_TRIAL_DAY_MS - (Date.now() - start)) / FREE_TRIAL_DAY_MS));
+}
+// During the trial a free user gets Fokus-level daily minutes; otherwise the plan's own value.
+export function dailyMinutesFor(account) {
+  if (trialActive(account)) return PLANS.basic.dailyLiveMinutes || 0;
+  return PLANS[planOf(account)]?.dailyLiveMinutes || 0;
+}
+// Drills (listening, fluency, spoken-review, shadowing) — unlocked for any paid plan OR an active trial.
+export function drillsUnlocked(account) {
+  return planOf(account) !== 'free' || trialActive(account);
+}
 
 // ONE free 7-minute interview for a free account, ever — the acquisition hook. Available when the plan
 // has no paid live minutes AND the free fight hasn't been spent yet (or for admins, always).
@@ -172,14 +196,18 @@ export function freeFightAvailable(account) {
 export function entitlement(account) {
   const plan = planOf(account);
   const feat = PLANS[plan] || PLANS.free;
+  const mins = dailyMinutesFor(account);          // trial-aware (Fokus minutes during the trial)
   const freeFight = freeFightAvailable(account);
+  const trial = trialActive(account);
   return {
-    allowed:               (feat.dailyLiveMinutes || 0) > 0 || freeFight,
+    allowed:               mins > 0 || freeFight,
     freeFight,                                   // true → client shows "1 kostenloses Interview"
     tier:                  plan,
     plan,
-    dailyLiveMinutes:      feat.dailyLiveMinutes || 0,
-    trainingslagerUnlocked: !!feat.trainingslagerUnlocked,
+    dailyLiveMinutes:      mins,
+    drillsUnlocked:        drillsUnlocked(account),
+    trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
+    trainingslagerUnlocked: !!feat.trainingslagerUnlocked || trial,   // trial gives the full taste
     unlimited:             isAdminEmail(account?.email),
   };
 }
