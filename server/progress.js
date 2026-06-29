@@ -103,6 +103,40 @@ progressRouter.get('/diag/latency', (_req, res) => res.json({ server: latencySum
 // Browser POSTs its real per-turn timing here (vadWaitMs / ttsMs / fullMs / build). No auth (numbers only).
 progressRouter.post('/diag/clientlat', (req, res) => { try { recordClient(req.body || {}); } catch {} res.json({ ok: true }); });
 
+// POST /api/drill-event — a drill reports its OUTCOME so the brain can see whether a prescribed fix
+// actually worked (the two client drills, DRUCK-LEITER + Shadowing, fed back NOTHING before this →
+// the brain would prescribe them blind). Appends to the per-weakness weakLog spine (keyed by the
+// canonical ruleId when the drill targets one) or a global drillLog otherwise. Authed, additive, free.
+progressRouter.post('/drill-event', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const { drill, ruleId, rule, froze, correct, voicedMs } = req.body || {};
+    if (!drill) return res.status(400).json({ error: 'missing_drill' });
+    const p = await loadUser(req.account.id);
+    p.weakLog = p.weakLog || {};
+    const ev = {
+      at: Date.now(), drill: String(drill).slice(0, 40),
+      ...(typeof froze === 'boolean'    ? { froze }   : {}),
+      ...(typeof correct === 'boolean'  ? { correct } : {}),
+      ...(Number.isFinite(+voicedMs)    ? { voicedMs: Math.round(+voicedMs) } : {}),
+    };
+    const key = ruleId || (typeof rule === 'string' && rule ? 'lt:' + rule : null);
+    if (key) {
+      const entry = p.weakLog[key] || { ruleId: ruleId || null, ltName: rule || null, firstSeen: Date.now(), errCounts: [], drills: [] };
+      entry.drills.push(ev);
+      if (entry.drills.length > 50) entry.drills = entry.drills.slice(-50);
+      p.weakLog[key] = entry;
+    } else {
+      p.drillLog = (p.drillLog || []).concat(ev).slice(-100);   // not tied to a rule (general pressure/shadowing)
+    }
+    await saveUser(p);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[drill-event] error:', err.message);
+    res.status(500).json({ error: 'drill_event_failed' });
+  }
+});
+
 progressRouter.get('/progress', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // never serve a stale readiness/weakness snapshot
   try {

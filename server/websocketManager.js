@@ -982,9 +982,14 @@ export class WebSocketManager {
         priorityFix: debrief?.priorityFix?.de || null,
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
-        // Raw LanguageTool rule→count for this session. Same identifier space as topWeakRule, so the
-        // debrief can prove "your weakness X: N→M" honestly. Absent rule = 0 errors of it this session.
-        grammarRules: (debrief.grammar || []).map((g) => ({ rule: g.rule, count: g.count || 1 })),
+        // Per-session grammar errors with BOTH the canonical Trainingslager ruleId (the STABLE id the
+        // brain matches on — fixes the free-text-drift that silently broke weak-rule matching) AND the
+        // raw LanguageTool name (human-readable). Absent rule = 0 errors of it this session.
+        grammarRules: (debrief.grammar || []).map((g) => ({
+          ruleId: classifyGrammar([{ ...g, count: 1 }])[0] ?? null,
+          rule:   g.rule,
+          count:  g.count || 1,
+        })),
       });
 
       // Trainingslager: refresh study recommendations from the last 3 fights (rule-based, no AI).
@@ -996,6 +1001,27 @@ export class WebSocketManager {
         const freq = {};
         for (const lbl of ctx.errorLabels) freq[lbl] = (freq[lbl] || 0) + 1;
         p.recentErrors = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([lbl]) => lbl);
+      }
+
+      // ── BRAIN SPINE: a per-weakness event log keyed by the canonical ruleId. Every surface appends
+      // here (this interview, and the drills via POST /api/drill-event) so the brain can tell ONE
+      // student's cause→effect story over time. Additive + deterministic; no AI, no cost. ──
+      p.weakLog = p.weakLog || {};
+      const _thisSession = p.sessions[p.sessions.length - 1];
+      for (const gr of (_thisSession.grammarRules || [])) {
+        const key = gr.ruleId || ('lt:' + gr.rule);
+        const entry = p.weakLog[key] || { ruleId: gr.ruleId || null, ltName: gr.rule, firstSeen: now, errCounts: [], drills: [] };
+        entry.errCounts.push({ date: now, count: gr.count });
+        if (entry.errCounts.length > 30) entry.errCounts = entry.errCounts.slice(-30);
+        p.weakLog[key] = entry;
+      }
+      // The rule the brain TARGETED this session (canonical id), persisted so the NEXT session can
+      // prove the delta — `weakRuleDelta`/`targetWeakRule` were computed-then-thrown-away before.
+      if (ctx.targetWeakRule) {
+        p.lastTargetRule = {
+          ltName: ctx.targetWeakRule,
+          ruleId: classifyGrammar([{ rule: ctx.targetWeakRule, count: 1 }])[0] ?? null,
+        };
       }
 
       await saveUser(p);
