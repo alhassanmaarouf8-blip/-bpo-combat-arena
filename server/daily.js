@@ -12,7 +12,7 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth, planOf } from './auth.js';
+import { requireAuth, planOf, trialActive } from './auth.js';
 import { dueItems, grade, checkAnswer } from './srs.js';
 import { BPO_PHRASES }        from './scenarios.js';
 import { dayKey }             from './time.js';
@@ -243,7 +243,7 @@ dailyRouter.get('/daily', requireAuth, async (req, res) => {
 // touches ONLY text drills; the 7-minute live-voice cap (websocketManager) is untouched.
 dailyRouter.post('/daily/next', requireAuth, async (req, res) => {
   try {
-    if (planOf(req.account) === 'free') {
+    if (planOf(req.account) === 'free' && !trialActive(req.account)) {
       return res.status(402).json({ error: 'plan_required', reason: 'unlimited_drills_are_paid' });
     }
     const p   = await loadUser(req.account.id);

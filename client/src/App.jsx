@@ -1335,13 +1335,16 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             </div>
           )}
 
-          {/* ── Schaden nach Kategorie ──────────────────────────────────────── */}
-          <Section title={ar ? 'الضرر حسب الفئة · SCHADEN' : 'SCHADEN NACH KATEGORIE'} color="#00e5ff">
-            <CatBar label="Flüssigkeit"   value={cats.fluency}      color="#34d399" />
-            <CatBar label="Grammatik"     value={cats.grammar}      color="#00e5ff" />
-            <CatBar label="Wortschatz"    value={cats.vocab}        color="#a78bfa" />
-            <CatBar label="De-Eskalation" value={cats.deescalation} color="#f59e0b" />
-          </Section>
+          {/* ── Schaden nach Kategorie — only when the server actually scored them (honesty: never
+              paint a fake "Grammatik 0" from a missing/failed scoring path). ── */}
+          {!gradeUnavailable && r.categories && (
+            <Section title={ar ? 'الضرر حسب الفئة · SCHADEN' : 'SCHADEN NACH KATEGORIE'} color="#00e5ff">
+              <CatBar label="Flüssigkeit"   value={cats.fluency}      color="#34d399" />
+              <CatBar label="Grammatik"     value={cats.grammar}      color="#00e5ff" />
+              <CatBar label="Wortschatz"    value={cats.vocab}        color="#a78bfa" />
+              <CatBar label="De-Eskalation" value={cats.deescalation} color="#f59e0b" />
+            </Section>
+          )}
 
           {/* ── Natürlichkeit (language naturalness score) ─────────────────── */}
           {data?.naturalness && (
@@ -2749,7 +2752,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
+    // Render's free dyno cold-starts (30-60s+); a slow-but-not-failed handshake fires no error and
+    // would hang the UI on "VERBINDE…" forever. Hard 60s connect timeout → honest error, not a hang.
+    const connectTimer = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) { try { ws.close(); } catch {} setError((prev) => prev || 'ws_connect_failed'); setPhaseSync('error'); }
+    }, 60_000);
+
     ws.onopen = () => {
+      clearTimeout(connectTimer);
       setPhaseSync('active');
       pingRef.current = setInterval(() => ws.send(JSON.stringify({ type: C.PING })), 25_000);
     };
@@ -2759,6 +2769,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     };
 
     ws.onclose = (ev) => {
+      clearTimeout(connectTimer);
       clearInterval(pingRef.current);
       if (phaseRef.current !== 'stopping' && phaseRef.current !== 'idle') {
         // Don't overwrite a more specific error already set (e.g. a mic failure).
@@ -3694,11 +3705,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
             color:'#fca5a5', fontSize:11 }}>
             ⚠ {wsErrorText(error, feedbackLang) ?? error}
-            {errorDetail && (
-              <div style={{ marginTop:6, fontSize:10, color:'#f87171', opacity:0.9, wordBreak:'break-word' }}>
-                debug: {errorDetail}
-              </div>
-            )}
           </div>
         )}
 
