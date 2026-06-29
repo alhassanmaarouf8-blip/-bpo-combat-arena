@@ -1248,9 +1248,16 @@ export class WebSocketManager {
       try {
         const guide = await loadGuide(ctx.userId);
         if (guide && !guide.name) {
-          const m = transcript.match(/\b(?:ich bin|ich heiße|mein name ist)\s+([A-ZÄÖÜ][a-zäöüß]+)/i);
-          if (m && m[1]) {
-            guide.name = m[1];
+          const m = transcript.match(/\b(?:ich heiße|mein name ist|ich bin)\s+([A-Za-zÄÖÜäöüß]{2,20})/i);
+          const cand = m?.[1];
+          // Guard the classic false positive that made the boss greet "Guten Tag. Al,/Bereit,…":
+          // "ich bin BEREIT/müde/fertig/…" is a STATE, not a name, and 2-letter STT fragments ("Al"
+          // from a mis-heard "Alhassan") aren't names. Require ≥3 letters and reject common fillers.
+          const NOT_A_NAME = new Set(['bereit','fertig','müde','gut','hier','daheim','neu','krank','sicher',
+            'online','soweit','durch','dran','okay','froh','nervös','aufgeregt','ein','eine','der','die','das',
+            'sehr','schon','noch','auch','jetzt','heute','dabei','wieder','zurück','glücklich','traurig']);
+          if (cand && cand.length >= 3 && !NOT_A_NAME.has(cand.toLowerCase())) {
+            guide.name = cand.charAt(0).toUpperCase() + cand.slice(1).toLowerCase();   // normalize casing
             await saveGuide(guide);
             console.log(`[wsManager] Captured candidate name  user=${ctx.userId}  name="${guide.name}"`);
           }

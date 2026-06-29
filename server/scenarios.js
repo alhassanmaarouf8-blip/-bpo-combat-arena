@@ -460,7 +460,11 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
   const intro = INTRO_VARIANTS[mood] || INTRO_VARIANTS.neutral;
   // Name recall: if we know the candidate's name (from guide chat), weave it into the opener
   // so the boss sounds like a returning interviewer who actually knows who they're talking to.
-  const namedIntro = candidateName ? `${candidateName}, ${intro.charAt(0).toLowerCase() + intro.slice(1)}` : intro;
+  // Only weave the name if it's a plausible name (≥3 letters, alphabetic) — defense-in-depth so a
+  // junk capture ("Al", "Bereit") that slipped through earlier can never make the boss greet a wrong
+  // name (the "Guten Tag. AL,…" fake-sounding opener). Otherwise open cleanly with no name.
+  const nameOk = candidateName && /^[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß-]{2,}$/.test(String(candidateName).trim());
+  const namedIntro = nameOk ? `${String(candidateName).trim()}, ${intro.charAt(0).toLowerCase() + intro.slice(1)}` : intro;
   const openingLine = `${greeting} ${namedIntro}`;
 
   return {
