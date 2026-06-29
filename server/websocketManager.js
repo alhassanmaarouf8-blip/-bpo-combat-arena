@@ -874,7 +874,7 @@ export class WebSocketManager {
     }
 
     // Compute the result (rank/verdict/jobLabel) BEFORE persisting — the session record stores it.
-    const result   = await this._computeResult(ctx, metrics);
+    const result   = await this._computeResult(ctx, metrics, debrief);
     const progress = await this._persistProgress(ctx, metrics, debrief, result);
 
     console.log(`[wsManager] Debrief ready  generated=${debrief.generated}  outcome=${result.outcome}  rank=${result.rank}  bossHp=${result.bossHp}  answers=${metrics.answers}  session=${ctx.sessionId}`);
@@ -1126,17 +1126,32 @@ export class WebSocketManager {
 
   // End-of-fight result: outcome, rank, headline score, and per-skill "damage" — all
   // derived from the SAME metric signals so the cinematic results screen is display-only.
-  async _computeResult(ctx, metrics) {
+  async _computeResult(ctx, metrics, debrief = null) {
     const bossHp   = Math.max(0, Math.round(ctx.bossHp));
     const playerHp = Math.max(0, Math.round(ctx.playerHp));
     const outcome  = (bossHp <= 0 || bossHp <= playerHp) ? 'win' : 'loss';
     const score    = metrics.avgScore ?? 0;
     const clamp    = (n) => Math.max(0, Math.min(100, Math.round(n)));
 
+    // The Grammatik bar reflects ACTUAL grammar: density of LanguageTool errors (the app's
+    // authoritative deterministic grammar source, already computed for the debrief) per 100 words.
+    // The old `38 + connectors*15 − fillers*3` contained NO grammar, so a learner with chronic case
+    // errors could read 83/100. Only trust it when the debrief actually ran — otherwise fall back,
+    // so a failed debrief never paints a fake perfect "100". (Note: this still undercounts to the
+    // degree the STT launders errors before LanguageTool sees them — tracked separately as Tier-1 #6.)
+    let grammarBar;
+    if (debrief?.generated) {
+      const grammarErrs = (debrief.grammar || []).reduce((n, g) => n + (g.count || 1), 0);
+      const errPer100   = (grammarErrs / Math.max(metrics.words || 0, 1)) * 100;
+      grammarBar        = clamp(100 - errPer100 * 8);   // ~0 err→100, ~3/100w→76, ~6→52, ~13→0
+    } else {
+      grammarBar        = clamp(38 + metrics.connectorHits * 15 - metrics.fillers * 3);
+    }
+
     // Per-skill damage 0–100 — DISPLAY BARS ONLY. These do NOT decide the grade.
     const categories = {
       fluency:      clamp(metrics.fluency),
-      grammar:      clamp(38 + metrics.connectorHits * 15 - metrics.fillers * 3),
+      grammar:      grammarBar,
       vocab:        clamp(40 + metrics.c1Hits * 18),
       deescalation: clamp(34 + metrics.politenessHits * 15 + metrics.konjunktivHits * 6),
     };
