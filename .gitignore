@@ -45,3 +45,6 @@ _pdf_text/
 Thumbs.db
 .vscode/
 .idea/
+
+# Code-graph analysis output (regenerable for free via `graphify update .` — do not commit)
+graphify-out/

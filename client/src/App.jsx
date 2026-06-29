@@ -297,60 +297,72 @@ async function speakBossStreamed({ apiUrl, token, voice, text, onStart, onEnd })
   if (myseq === _streamSeq) { try { onEnd?.(); } catch {} }
 }
 
+// Play a STREAMING audio URL via a progressive <audio> element: sound starts the instant the first
+// bytes arrive (~350ms) instead of waiting for the whole clip. Returns true if it FELL BACK (the
+// stream failed before any playback began) so the caller can try a buffered path; false once it has
+// taken ownership of playback (onStart/onEnd will fire). Used for BOTH boss voices — ElevenLabs and
+// the free Deepgram Aura-2 mp3 stream — since the machinery (stall watchdog, single-fire end) is
+// voice-agnostic.
+function playProgressiveAudio(url, onStart, onEnd) {
+  return new Promise((resolve) => {
+    const audio = new Audio(url);
+    _bossAudio = audio;
+    let started = false, resolved = false, stallInterval = null;
+    const finish = (fallback) => {
+      if (resolved) return;
+      resolved = true;
+      if (stallInterval) { clearInterval(stallInterval); stallInterval = null; }
+      clearTimeout(guard);
+      resolve(fallback);
+    };
+    // 40s hard cap: final backstop for cases where neither onended nor onerror fires.
+    // onstalled/onwaiting NOT used — they fire during normal initial buffering (false positive).
+    // A currentTime-based stall detector (started in onplay) catches mid-play stream hangs
+    // without triggering during the normal buffering phase before playback begins.
+    const guard = setTimeout(() => { if (started) { try { onEnd?.(); } catch {} } finish(false); }, 40000);
+    audio.onplay = () => {
+      started = true;
+      try { onStart?.(); } catch {}
+      // Detect a stream stall: if currentTime stops advancing for 6s after playback began, the
+      // server-side stream hung. Catches mid-play hangs without false-firing during initial buffering.
+      let lastTime = -1, stuckCount = 0;
+      stallInterval = setInterval(() => {
+        if (resolved) { clearInterval(stallInterval); stallInterval = null; return; }
+        const ct = audio.currentTime;
+        if (ct === lastTime) {
+          stuckCount++;
+          if (stuckCount >= 4) { // 4 × 1.5s = 6s frozen → stall confirmed
+            if (_bossAudio === audio) _bossAudio = null;
+            try { onEnd?.(); } catch {}
+            finish(false);
+          }
+        } else { stuckCount = 0; lastTime = ct; }
+      }, 1500);
+    };
+    audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
+    audio.onerror = () => {
+      if (_bossAudio === audio) _bossAudio = null;
+      if (started) { try { onEnd?.(); } catch {} finish(false); }
+      else finish(true);
+    };
+    audio.play().catch(() => { if (!started) { if (_bossAudio === audio) _bossAudio = null; finish(true); } });
+  });
+}
+
 async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart, onEnd }) {
   if (!text) { onEnd?.(); return; }
   stopBossVoice();
-  // PRIMARY: ElevenLabs Flash v2.5, streamed via a GET <audio> source (progressive playback).
-  if (elevenVoice) {
-    const url = `${apiUrl}/api/voice?voice=${encodeURIComponent(elevenVoice)}`
-              + `&token=${encodeURIComponent(token)}&text=${encodeURIComponent(text)}`;
-    const fellBack = await new Promise((resolve) => {
-      const audio = new Audio(url);
-      _bossAudio = audio;
-      let started = false, resolved = false, stallInterval = null;
-      const finish = (fallback) => {
-        if (resolved) return;
-        resolved = true;
-        if (stallInterval) { clearInterval(stallInterval); stallInterval = null; }
-        clearTimeout(guard);
-        resolve(fallback);
-      };
-      // 40s hard cap: final backstop for cases where neither onended nor onerror fires.
-      // onstalled/onwaiting NOT used — they fire during normal initial buffering (false positive).
-      // A currentTime-based stall detector (started in onplay) catches mid-play stream hangs
-      // without triggering during the normal buffering phase before playback begins.
-      const guard = setTimeout(() => { if (started) { try { onEnd?.(); } catch {} } finish(false); }, 40000);
-      audio.onplay = () => {
-        started = true;
-        try { onStart?.(); } catch {}
-        // Detect ElevenLabs stream stall: if currentTime stops advancing for 6s after playback
-        // began, the server-side stream hung (old Render build has no 25s abort timer).
-        let lastTime = -1, stuckCount = 0;
-        stallInterval = setInterval(() => {
-          if (resolved) { clearInterval(stallInterval); stallInterval = null; return; }
-          const ct = audio.currentTime;
-          if (ct === lastTime) {
-            stuckCount++;
-            if (stuckCount >= 4) { // 4 × 1.5s = 6s frozen → stall confirmed
-              if (_bossAudio === audio) _bossAudio = null;
-              try { onEnd?.(); } catch {}
-              finish(false);
-            }
-          } else { stuckCount = 0; lastTime = ct; }
-        }, 1500);
-      };
-      audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
-      audio.onerror = () => {
-        if (_bossAudio === audio) _bossAudio = null;
-        if (started) { try { onEnd?.(); } catch {} finish(false); }
-        else finish(true);
-      };
-      audio.play().catch(() => { if (!started) { if (_bossAudio === audio) _bossAudio = null; finish(true); } });
-    });
-    if (!fellBack) return;
-  }
-  // FALLBACK: Deepgram neural (never the robotic browser voice).
-  await playDeepgramVoice({ apiUrl, token, voice, text, onStart, onEnd });
+  const enc = encodeURIComponent;
+  // PRIMARY: a STREAMING GET <audio> source — sound starts ~350ms in, killing the ~6s dead air the
+  // buffered (whole-clip) path had. ElevenLabs if opted in (paid), else the free Deepgram Aura-2 stream.
+  const streamUrl = elevenVoice
+    ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(text)}`
+    : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(text)}`;
+  const fellBack = await playProgressiveAudio(streamUrl, onStart, onEnd);
+  if (!fellBack) return;
+  // FALLBACK (stream unavailable): buffered, clause-split Deepgram clips (never the robotic browser voice).
+  stopBossVoice();   // bump _streamSeq so the fallback owns the stream (speakBossStreamed contract)
+  await speakBossStreamed({ apiUrl, token, voice, text, onStart, onEnd });
 }
 
 // ── Boss emotional states → drives the SVG interviewer's expression ───────────
@@ -2631,18 +2643,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
           _latTtsStart = Date.now();   // [LAT] TTS clock: boss text ready, about to synth+play
           if (!ttsMutedRef.current && spokenLine) {
-            if (bossElevenVoiceRef.current) {
-              playBossVoice({
-                apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
-                onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
-              });
-            } else {
-              stopBossVoice();   // bump _streamSeq so this line owns the stream (per speakBossStreamed contract)
-              speakBossStreamed({
-                apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, text: spokenLine,
-                onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
-              });
-            }
+            // playBossVoice now STREAMS both voices (ElevenLabs if opted in, else the free Aura-2 mp3
+            // stream) via a progressive <audio> — sound starts ~350ms in instead of after the whole
+            // clip buffers (~6s on a long line). Falls back to buffered clause-split clips on failure.
+            playBossVoice({
+              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
+              onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
+            });
           } else {
             setBossSpeak(false);
           }
