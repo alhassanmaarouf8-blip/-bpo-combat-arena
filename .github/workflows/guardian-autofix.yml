@@ -1,0 +1,70 @@
+# Guardian Auto-Fix — the FREE Claude-style layer. When the Guardian goes RED on main, this fires
+# automatically (you never invoke it), has a FREE model (GitHub Models — $0, uses the runner's
+# built-in GITHUB_TOKEN, no API key, no card) diagnose + fix the root cause, RE-VERIFY every check,
+# and push the fix to main only if it's genuinely green. If it can't fix it safely, it opens an issue
+# instead of shipping a guess. Cost: zero, forever.
+name: Guardian Auto-Fix
+
+on:
+  workflow_run:
+    workflows: ["Guardian"]
+    types: [completed]
+
+permissions:
+  contents: write     # push the verified fix
+  issues: write       # open an issue when it can't fix confidently
+  models: read        # FREE GitHub Models inference
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only on a FAILED Guardian from a push to main — and NOT on a commit the bot itself made
+    # (prevents an infinite fix→push→fix loop).
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_commit.author.email != 'guardian-bot@users.noreply.github.com'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps (so the fixer can RUN the exact guardian checks to verify itself)
+        run: |
+          npm ci
+          (cd client && npm ci)
+          (cd server && npm ci)
+
+      - name: Diagnose + fix + verify (free, via GitHub Models)
+        id: fix
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Override to any free GitHub Models id if you like (e.g. openai/gpt-4o-mini, meta/llama-3.3-70b).
+          GUARDIAN_MODEL: openai/gpt-4o
+        run: node scripts/guardian-autofix.mjs
+
+      - name: Commit & push the VERIFIED fix
+        if: steps.fix.outcome == 'success'
+        run: |
+          git config user.name  "guardian-bot"
+          git config user.email "guardian-bot@users.noreply.github.com"
+          git add -A
+          git commit -F .guardian-fix-summary.txt || { echo "nothing to commit"; exit 0; }
+          git push origin HEAD:main
+
+      - name: Open an issue if it could not fix safely
+        if: steps.fix.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Guardian auto-fix needs a human" \
+            --body-file .guardian-fix-summary.txt || true

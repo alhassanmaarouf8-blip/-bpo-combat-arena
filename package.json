@@ -1,0 +1,14 @@
+{
+  "name": "bpo-combat-arena-guardian",
+  "private": true,
+  "type": "module",
+  "description": "Root tooling for the Guardian CI gate (lint + syntax checks). The app lives in server/ and client/.",
+  "scripts": {
+    "lint": "eslint server client --no-warn-ignored"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.0.0"
+  }
+}
