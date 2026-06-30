@@ -47,7 +47,11 @@ const PROVIDERS = [
     key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
     model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
     maxTokens: MAX_TURN_TOKENS,
-    extra: {},
+    // Naturalness: llama-3.3-70b at temp 0.7 with no penalties collapses toward one safe written
+    // register and recycles the same openers ("Das ist interessant…"). presence/frequency penalties
+    // + a small temp bump break that mechanically. Set per-provider (NOT on the Cerebras reasoning
+    // model, which handles these params differently) and spread AFTER the body's temperature so it wins.
+    extra: { temperature: 0.85, presence_penalty: 0.6, frequency_penalty: 0.4 },
   },
   {
     name:  'cerebras',
@@ -225,6 +229,10 @@ const TURN_RULE =
   `Sprich wie ein echter Mensch im Gespräch: variiere Satzlänge (kurze Einwürfe wechseln mit längeren Fragen), ` +
   `nutze natürliche Gesprächspartikel ("Also,", "Gut,", "Na,", "Ich sehe."), setze bewusste kurze Pausen mit "—" oder "...", ` +
   `und reagiere konkret auf das, was der Kandidat gerade gesagt hat (kein generisches Weiterfragen). ` +
+  `Nutze deutsche Modalpartikeln wie ein Muttersprachler im echten Gespräch („Was reizt Sie denn daran?", ` +
+  `„Erzählen Sie mal…", „Das ist doch interessant", „Na ja…", „Soso."). ` +
+  `VERMEIDE abgenutzte Floskeln am Anfang — beginne NIEMALS mit „Das ist interessant", „Vielen Dank für Ihre Antwort", ` +
+  `„Das ist eine gute Frage" oder einem bloßen „Verstehe." Variiere deinen Einstieg bei JEDEM Redebeitrag. ` +
   `IMPLIZITES RECAST (wichtige Lernhilfe — sparsam einsetzen): Wenn der Kandidat einen offensichtlichen ` +
   `Grammatikfehler macht, flechte die korrekte Form UNAUFFÄLLIG in deinen eigenen Satz ein — OHNE ` +
   `die Korrektur zu benennen oder den Kandidaten zu unterbrechen. ` +
@@ -355,6 +363,18 @@ export class RealtimeClient {
 
     // Per-turn instruction: the one-turn rule, plus optional rescue softener or correction probe.
     const turnMsgs = [...this._history, { role: 'system', content: TURN_RULE }];
+
+    // ROLLING ANTI-REPEAT: a static ban list can't anticipate the model's favourite opener OF THE DAY.
+    // Read the boss's OWN last few turns and forbid re-using their opening words — so it is structurally
+    // impossible to begin two nearby turns the same way. $0, deterministic, no extra call.
+    const recentOpeners = [...new Set(
+      this._history.filter((m) => m.role === 'assistant').slice(-3)
+        .map((m) => String(m.content || '').trim().replace(/^[„"'»]+/, '').split(/\s+/).slice(0, 2).join(' ').replace(/[^\p{L}\s]/gu, '').trim())
+        .filter((o) => o.length >= 3)
+    )];
+    if (recentOpeners.length) {
+      turnMsgs.push({ role: 'system', content: `Beginne deinen Redebeitrag NICHT mit denselben Worten wie zuvor. Vermeide diese Anfänge: ${recentOpeners.map((o) => `„${o}…"`).join(', ')}.` });
+    }
     if (this._pendingRescue) {
       turnMsgs.push({ role: 'system', content: this._rescueInstruction(this._pendingRescue) });
       this._pendingRescue = null;
