@@ -39,7 +39,7 @@ export function HomeFeedback({ token, apiUrl }) {
   return (
     <>
       <button onClick={() => setOpen(true)} style={{ width: '100%', marginTop: 8, padding: '10px',
-        cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 10, letterSpacing: '0.14em',
+        cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.14em',
         borderRadius: 8, border: '1px solid rgba(148,163,184,0.35)', color: '#94a3b8', background: 'rgba(255,255,255,0.02)' }}>
         💬  FEEDBACK GEBEN
       </button>
@@ -160,7 +160,7 @@ function GrantPro({ token, apiUrl }) {
 
   const btn = (plan, label, color) => (
     <button onClick={() => grant(plan)} disabled={busy || !email.trim()}
-      style={{ flex: 1, padding: '9px 6px', minHeight: 40, borderRadius: 7, cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 9.5,
+      style={{ flex: 1, padding: '9px 6px', minHeight: 40, borderRadius: 7, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 9.5,
         border: `1px solid ${color}`, color: '#04070d', background: color, opacity: (busy || !email.trim()) ? 0.5 : 1 }}>
       {label}
     </button>
@@ -168,16 +168,16 @@ function GrantPro({ token, apiUrl }) {
 
   return (
     <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.3)' }}>
-      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 9.5, letterSpacing: '0.1em', color: '#a78bfa', marginBottom: 7 }}>PLAN SETZEN · ZAHLUNG ERFÜLLEN / TEST</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 7 }}>PLAN SETZEN · ZAHLUNG ERFÜLLEN / TEST</div>
       <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kunde@email.com" type="email"
         style={{ width: '100%', boxSizing: 'border-box', padding: '9px', borderRadius: 7, fontSize: 12, background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid var(--line)', outline: 'none', marginBottom: 7 }} />
       <div style={{ display: 'flex', gap: 6 }}>
-        {btn('basic', 'BASIC', '#22d3ee')}
-        {btn('elite', 'ELITE', '#fbbf24')}
+        {btn('basic', 'BASIC', 'var(--accent-2)')}
+        {btn('elite', 'ELITE', 'var(--action)')}
         {btn('free', 'FREE', '#94a3b8')}
       </div>
       {busy && <div style={{ fontSize: 10, marginTop: 6, color: '#94a3b8' }}>…</div>}
-      {msg && <div style={{ fontSize: 10.5, marginTop: 6, color: msg.ok ? '#34d399' : '#f87171' }}>{msg.t}</div>}
+      {msg && <div style={{ fontSize: 10.5, marginTop: 6, color: msg.ok ? 'var(--accent)' : '#f87171' }}>{msg.t}</div>}
     </div>
   );
 }
@@ -204,8 +204,8 @@ export function AdminFeedback({ token, apiUrl }) {
   return (
     <>
       <button onClick={load} style={{ width: '100%', marginTop: 8, padding: '12px 10px', minHeight: 44,
-        cursor: 'pointer', fontFamily: 'Orbitron,monospace', fontSize: 10, letterSpacing: '0.14em',
-        borderRadius: 8, border: '1px solid rgba(52,211,153,0.4)', color: '#34d399', background: 'rgba(52,211,153,0.06)' }}>
+        cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.14em',
+        borderRadius: 8, border: '1px solid rgba(52,211,153,0.4)', color: 'var(--accent)', background: 'rgba(52,211,153,0.06)' }}>
         🛠  FEEDBACK-DATEN (ADMIN)
       </button>
 
@@ -213,7 +213,7 @@ export function AdminFeedback({ token, apiUrl }) {
         <div onClick={() => setOpen(false)} style={overlay}>
           <div onClick={(e) => e.stopPropagation()} style={{ ...modal, maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: '#34d399' }}>Feedback-Daten</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: 'var(--accent)' }}>Feedback-Daten</span>
               <button onClick={() => setOpen(false)} style={{ ...btnGhost, flex: 'none', padding: '4px 10px', fontSize: 11 }}>✕</button>
             </div>
 
@@ -226,12 +226,12 @@ export function AdminFeedback({ token, apiUrl }) {
               <>
                 <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 12 }}>
                   <div><b>{data.summary.total}</b> Rückmeldungen · ⭐ Ø {data.summary.avgRating ?? '—'} ({data.summary.ratingCount})</div>
-                  <div>Wirkte echt: <span style={{ color: '#34d399' }}>{data.summary.feltRealYes} ✓</span> · <span style={{ color: '#f87171' }}>{data.summary.feltRealNo} ✗</span></div>
+                  <div>Wirkte echt: <span style={{ color: 'var(--accent)' }}>{data.summary.feltRealYes} ✓</span> · <span style={{ color: '#f87171' }}>{data.summary.feltRealNo} ✗</span></div>
                   <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>Zahlungsbereitschaft:</div>
                   {priceRows.length === 0
                     ? <div style={{ fontSize: 11, color: '#64748b' }}>noch keine</div>
                     : priceRows.map(([k, v]) => (
-                        <div key={k} dir="rtl" style={{ fontSize: 12, color: '#cbd5e1' }}>{k} — <b style={{ color: '#34d399' }}>{v}</b></div>
+                        <div key={k} dir="rtl" style={{ fontSize: 12, color: '#cbd5e1' }}>{k} — <b style={{ color: 'var(--accent)' }}>{v}</b></div>
                       ))}
                 </div>
 
@@ -241,7 +241,7 @@ export function AdminFeedback({ token, apiUrl }) {
                     <div style={{ color: '#64748b', fontSize: 9.5 }}>
                       {(e.timestamp || '').slice(0, 16).replace('T', ' ')} · {e.screen} · {e.email || 'anon'}
                     </div>
-                    {e.rating ? <span style={{ color: '#fbbf24' }}>⭐ {e.rating} </span> : null}
+                    {e.rating ? <span style={{ color: 'var(--action)' }}>⭐ {e.rating} </span> : null}
                     {e.answers?.feltReal != null && <span>· echt: {e.answers.feltReal ? '✓' : '✗'} </span>}
                     {e.answers?.price && <span dir="rtl">· {e.answers.price} </span>}
                     {e.text ? <div style={{ color: '#94a3b8', marginTop: 2, overflowWrap: 'anywhere' }}>„{e.text}"</div> : null}

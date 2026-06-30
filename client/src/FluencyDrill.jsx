@@ -130,7 +130,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#f59e0b' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
         ⚡ FLOW-DRILL · سرعة الكلام
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -153,17 +153,17 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   // The shared prompt card + round tracker (shown across ready/practice/scoring/between).
   const promptCard = (
     <>
-      <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'Orbitron, monospace', letterSpacing: '0.1em', marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
         {T(lang, 'RUNDE', 'جولة')} {round + 1} / {rounds.length} · {T(lang, `${limit} Sek.`, `${limit} ثانية`)}
       </div>
       <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
         {rounds.map((sec, i) => (
           <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-            background: i < round ? '#f59e0b' : i === round ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.08)' }} />
+            background: i < round ? 'var(--action)' : i === round ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.08)' }} />
         ))}
       </div>
       <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(245,158,11,0.25)' }}>
-        <div style={{ fontSize: 9, color: '#f59e0b', letterSpacing: '0.12em', marginBottom: 6 }}>
+        <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.12em', marginBottom: 6 }}>
           {T(lang, 'DEINE FRAGE — DREIMAL, JEDES MAL SCHNELLER', 'سؤالك — تلت مرات، كل مرة أسرع')}
         </div>
         <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{prompt?.de}</div>
@@ -171,7 +171,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
         {focus && (
           <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(245,158,11,0.2)',
             ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
-            <span style={{ fontSize: 11.5, color: '#fbbf24', fontWeight: 700 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--action)', fontWeight: 700 }}>
               {T(lang, `🎯 Achte diesmal besonders auf: ${focus}`, `🎯 ركّز المرة دي بالذات على: ${focus}`)}
             </span>
           </div>
@@ -184,7 +184,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     {header}
     {promptCard}
     {round === 0 && (
-      <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', fontSize: 11.5, color: '#fcd34d', lineHeight: 1.6 }}>
+      <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', fontSize: 11.5, color: 'var(--action)', lineHeight: 1.6 }}>
         {T(lang,
           'Beantworte dieselbe Frage dreimal. Jede Runde hast du weniger Zeit — das trainiert dein Sprechtempo. Am Ende vergleichen wir Runde 1 mit Runde 3 mit deinen echten Zahlen.',
           'جاوب على نفس السؤال تلت مرات. كل جولة وقتك أقل — ده بيدرّب سرعة كلامك. في الآخر بنقارن الجولة 1 بالجولة 3 بأرقامك الحقيقية.')}
@@ -205,7 +205,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     {header}
     {promptCard}
     <div style={{ marginTop: 18, textAlign: 'center' }}>
-      <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 34, color: remaining <= 10 ? '#ef4444' : '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: remaining <= 10 ? '#ef4444' : 'var(--action)', fontVariantNumeric: 'tabular-nums' }}>
         00:{String(remaining).padStart(2, '0')}
       </div>
       <div style={{ fontSize: 10, color: '#64748b', marginBottom: 14 }}>{T(lang, 'verbleibend', 'الوقت المتبقي')}</div>
@@ -226,7 +226,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       {header}
       {promptCard}
       <div style={{ marginTop: 14, padding: '13px', borderRadius: 11, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)' }}>
-        <div style={{ fontSize: 9, color: '#f59e0b', letterSpacing: '0.12em', marginBottom: 8 }}>
+        <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.12em', marginBottom: 8 }}>
           {T(lang, `RUNDE ${round + 1} — DEINE ZAHLEN`, `الجولة ${round + 1} — أرقامك`)}
         </div>
         <StatRow lang={lang} m={m} />
@@ -289,7 +289,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
       {/* Headline: round 1 vs round 3, side by side, from the learner's real numbers */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <RoundCard lang={lang} label={T(lang, 'RUNDE 1', 'جولة 1')} m={r1} dim />
-        <div style={{ alignSelf: 'center', color: '#f59e0b', fontSize: 20 }}>→</div>
+        <div style={{ alignSelf: 'center', color: 'var(--action)', fontSize: 20 }}>→</div>
         <RoundCard lang={lang} label={T(lang, 'RUNDE 3', 'جولة 3')} m={rL} />
       </div>
 
@@ -302,7 +302,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
       {/* Authoritative grammar — LanguageTool only. Clearly separated from the fluency win. */}
       {grammar.length > 0 && (
         <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 11, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(148,163,184,0.25)' }}>
-          <div style={{ fontSize: 9, color: '#a78bfa', letterSpacing: '0.12em', marginBottom: 8 }}>
+          <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 8 }}>
             {T(lang, 'GRAMMATIK AUS RUNDE 3 (separat üben)', 'نحو من الجولة 3 (اتدرّب عليه لوحده)')}
           </div>
           {grammar.slice(0, 3).map((g, i) => {
@@ -340,8 +340,8 @@ function RoundCard({ lang, label, m, dim }) {
     <div style={{ flex: 1, padding: '12px 10px', borderRadius: 11, textAlign: 'center',
       background: dim ? 'rgba(255,255,255,0.03)' : 'rgba(245,158,11,0.1)',
       border: `1px solid ${dim ? 'rgba(148,163,184,0.2)' : 'rgba(245,158,11,0.45)'}` }}>
-      <div style={{ fontSize: 8.5, color: dim ? '#94a3b8' : '#f59e0b', letterSpacing: '0.12em' }}>{label}</div>
-      <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 26, color: dim ? '#cbd5e1' : '#fbbf24', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{m.wpm ?? 0}</div>
+      <div style={{ fontSize: 8.5, color: dim ? '#94a3b8' : 'var(--action)', letterSpacing: '0.12em' }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: dim ? '#cbd5e1' : 'var(--action)', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{m.wpm ?? 0}</div>
       <div style={{ fontSize: 8.5, color: '#64748b' }}>{T(lang, 'W/Min', 'كلمة/د')}</div>
       <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>{m.words ?? 0} {T(lang, 'Wörter', 'كلمة')} · {m.fillers ?? 0} {T(lang, 'äh', 'تردد')}</div>
     </div>
@@ -351,7 +351,7 @@ function RoundCard({ lang, label, m, dim }) {
 function StatRow({ lang, m }) {
   const cell = (val, label) => (
     <div style={{ flex: 1, textAlign: 'center' }}>
-      <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 22, color: '#fbbf24', fontVariantNumeric: 'tabular-nums' }}>{val}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--action)', fontVariantNumeric: 'tabular-nums' }}>{val}</div>
       <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 2 }}>{label}</div>
     </div>
   );
@@ -373,10 +373,10 @@ function ErrBox({ err }) {
 }
 
 // ── shared button styles (match Shadowing) ──
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #f59e0b', color: '#04070d',
-  background: 'linear-gradient(135deg,#f59e0b,#fbbf24)' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7,
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
+  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--action)', color: '#04070d',
+  background: 'linear-gradient(135deg,var(--action),var(--action))' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10.5, padding: '12px', minHeight: 44,
+const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
   borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

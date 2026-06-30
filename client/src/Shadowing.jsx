@@ -142,7 +142,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#22d3ee' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent-2)' }}>
         🗣️ SHADOWING · ترديد
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -176,13 +176,13 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   // ── PRACTICE ──
   return shell(<>
     {header}
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'Orbitron, monospace', letterSpacing: '0.1em', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'SATZ', 'جملة')} {idx + 1} / {sentences.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {sentences.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? '#22d3ee' : i === idx ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent-2)' : i === idx ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
 
@@ -194,7 +194,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
         🔊 {T(lang, 'Anhören', 'استمع')}
       </button>
       {!ttsOk && (
-        <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 6, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 10, color: 'var(--action)', marginTop: 6, lineHeight: 1.5 }}>
           {T(lang, 'Sprachausgabe in diesem Browser nicht verfügbar — lies den Satz und sprich ihn nach.',
                    'تشغيل الصوت مش متاح في المتصفح ده — اقرأ الجملة وكرّرها.')}
         </div>
@@ -211,7 +211,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     <div style={{ marginTop: 16, textAlign: 'center' }}>
       {recording ? (
         <>
-          <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 30, color: seconds >= MAX_SEC - 5 ? '#f59e0b' : '#22d3ee', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= MAX_SEC - 5 ? 'var(--action)' : 'var(--accent-2)', fontVariantNumeric: 'tabular-nums' }}>
             00:{String(seconds).padStart(2, '0')}
           </div>
           <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
@@ -224,21 +224,21 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       ) : result ? (
         <>
           {result.retry ? (
-            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12.5, color: '#fde68a', lineHeight: 1.5 }}>
+            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12.5, color: 'var(--action-2)', lineHeight: 1.5 }}>
               {T(lang, 'Nichts erkannt — sprich den Satz bitte noch einmal nach.', 'مفيش كلام اتسمع — كرّر الجملة تاني من فضلك.')}
             </div>
           ) : (
             <div style={{ textAlign: 'left' }}>
               <div style={{ padding: '11px 13px', borderRadius: 10, background: 'rgba(34,211,238,0.07)', border: '1px solid rgba(34,211,238,0.3)' }}>
-                <div style={{ fontSize: 9, color: '#22d3ee', letterSpacing: '0.1em', marginBottom: 5 }}>
+                <div style={{ fontSize: 9, color: 'var(--accent-2)', letterSpacing: '0.1em', marginBottom: 5 }}>
                   {T(lang, 'WORTGENAUIGKEIT', 'دقة الكلمات')} · {result.match}%
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{result.transcript}</div>
               </div>
               {Array.isArray(result.missed) && result.missed.length > 0 && (
                 <div style={{ padding: '11px 13px', borderRadius: 10, marginTop: 8, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                  <div style={{ fontSize: 9, color: '#f59e0b', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'NICHT ERKANNT', 'مش اتعرفت')}</div>
-                  <div style={{ fontSize: 13, color: '#fcd34d', lineHeight: 1.6 }}>{result.missed.join(' · ')}</div>
+                  <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'NICHT ERKANNT', 'مش اتعرفت')}</div>
+                  <div style={{ fontSize: 13, color: 'var(--action)', lineHeight: 1.6 }}>{result.missed.join(' · ')}</div>
                 </div>
               )}
               <div style={{ fontSize: 9.5, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
@@ -268,10 +268,10 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 }
 
 // ── shared button styles (match the Assessment screen) ──
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #22d3ee', color: '#04070d',
-  background: 'linear-gradient(135deg,#22d3ee,#00e5ff)' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7,
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
+  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent-2)', color: '#04070d',
+  background: 'linear-gradient(135deg,var(--accent-2),var(--accent))' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10.5, padding: '12px', minHeight: 44,
+const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
   borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

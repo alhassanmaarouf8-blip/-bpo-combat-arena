@@ -183,7 +183,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       {/* Variable ratio bonus pop — Skinner VR schedule: unexpected reward maximises engagement */}
       {bonus && (
         <div style={{ position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
-          background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', color: '#04070d',
+          background: 'linear-gradient(135deg,var(--action),var(--action))', color: '#04070d',
           fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, letterSpacing: '0.12em',
           padding: '10px 22px', borderRadius: 'var(--r-sm)', boxShadow: '0 0 32px rgba(245,158,11,0.7)',
           animation: 'rank-pop 0.4s var(--ease-spring)', pointerEvents: 'none' }}>
@@ -199,7 +199,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {comboLabel && (
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 11,
-              color: combo >= 5 ? '#fbbf24' : '#f97316', letterSpacing: '0.1em',
+              color: combo >= 5 ? 'var(--action)' : '#f97316', letterSpacing: '0.1em',
               textShadow: combo >= 5 ? '0 0 10px rgba(245,158,11,0.7)' : 'none' }}>{comboLabel}</span>
           )}
           <button onClick={onClose} style={ghost}>✕</button>
@@ -214,23 +214,23 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       {done && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 56, animation: 'rank-pop 0.7s var(--ease-spring)' }}>🔥</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 26, color: '#fbbf24', textShadow: '0 0 18px rgba(245,158,11,0.6)' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 26, color: 'var(--action)', textShadow: '0 0 18px rgba(245,158,11,0.6)' }}>
             Trainingsserie: {finalStreak} {finalStreak === 1 ? 'Tag' : 'Tage'}
           </div>
           {/* Streak shield notifications — loss aversion (Kahneman & Tversky 1979) */}
           {shieldMsg === 'earned' && (
             <div style={{ padding: '8px 14px', borderRadius: 'var(--r-sm)', background: 'rgba(251,191,36,0.15)',
-              border: '1px solid rgba(251,191,36,0.4)', fontSize: 12, color: '#fbbf24', fontWeight: 700 }}>
+              border: '1px solid rgba(251,191,36,0.4)', fontSize: 12, color: 'var(--action)', fontWeight: 700 }}>
               🛡 SCHUTZSCHILD VERDIENT! 7 Tage am Stück — ein verpasster Tag wird vergeben.
             </div>
           )}
           {shieldMsg === 'used' && (
             <div style={{ padding: '8px 14px', borderRadius: 'var(--r-sm)', background: 'rgba(16,185,129,0.12)',
-              border: '1px solid rgba(16,185,129,0.35)', fontSize: 12, color: '#34d399', fontWeight: 700 }}>
+              border: '1px solid rgba(16,185,129,0.35)', fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>
               🛡 SCHUTZSCHILD AKTIVIERT! Deine Serie ist gerettet.
             </div>
           )}
-          <div style={{ fontSize: 13, color: '#a7f3d0' }}>Erledigt für heute. Komm morgen wieder, um die Serie zu halten.</div>
+          <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute. Komm morgen wieder, um die Serie zu halten.</div>
           <button onClick={loadMore} disabled={busy} style={{ ...primary, marginTop: 8, opacity: busy ? 0.5 : 1 }}>
             {busy ? '…' : (lang === 'ar' ? 'جولة تانية ↻' : 'NOCH EINE RUNDE ↻')}
           </button>
@@ -293,8 +293,8 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               {result && (
                 <div className="flash" style={{ marginTop: 10, padding: '9px 11px', borderRadius: 'var(--r-sm)',
                   background: result.correct ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
-                  border: `1px solid ${result.correct ? '#10b98155' : '#ef444455'}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? '#34d399' : '#f87171' }}>
+                  border: `1px solid ${result.correct ? 'var(--accent)55' : '#ef444455'}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? 'var(--accent)' : '#f87171' }}>
                     {result.correct ? '✓ Richtig' : '✗ Nochmal üben'}
                   </div>
                   {!result.correct && result.expected && (
@@ -306,7 +306,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                     </div>
                   )}
                   {(result.note || result.note_ar) && (
-                    <div style={{ fontSize: 11, color: '#fbbf24', marginTop: 4,
+                    <div style={{ fontSize: 11, color: 'var(--action)', marginTop: 4,
                       direction: lang === 'ar' ? 'rtl' : 'ltr', textAlign: lang === 'ar' ? 'right' : 'left' }}>
                       ⚠ {lang === 'ar' && result.note_ar ? result.note_ar : result.note}
                     </div>
@@ -353,7 +353,7 @@ const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'l
 const secTitle = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-dim)', marginBottom: 6 };
 const inputSt = { width: '100%', padding: '11px', borderRadius: 'var(--r-sm)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 14, border: '1px solid var(--line)', outline: 'none', boxSizing: 'border-box' };
 const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(0,229,255,0.35)', background: 'rgba(0,229,255,0.07)', color: 'var(--accent-dim)' };
-const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, #fbbf24, var(--warn))' };
+const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, var(--action), var(--warn))' };
 const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
 const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' };
 const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(0,229,255,0.25)', background: 'rgba(0,229,255,0.06)', color: 'var(--accent-dim)', lineHeight: 1 };

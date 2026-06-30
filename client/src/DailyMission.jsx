@@ -109,7 +109,7 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
   const r = computeReadiness(d);
   const m = nextMission(d, r);
   const pct = r.score;
-  const color = pct == null ? '#64748b' : pct >= 70 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#ef4444';
+  const color = pct == null ? '#64748b' : pct >= 70 ? 'var(--accent)' : pct >= 45 ? 'var(--action)' : '#ef4444';
   const ar = lang === 'ar';
   const greet = coachLine(name, d, r, ar);
 
@@ -129,12 +129,12 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
           display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#0a1320',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'Orbitron,monospace', fontSize: 15, fontWeight: 800, color }}>
+            fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color }}>
             {pct == null ? '—' : `${pct}`}
           </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#38bdf8' }}>
+          <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: 'var(--accent-2)' }}>
             {T(lang, 'INTERVIEW-BEREITSCHAFT', 'جاهزية المقابلة')}
           </div>
           <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 3, lineHeight: 1.4 }}>
@@ -166,7 +166,7 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
         return (
           <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)',
             ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
-            <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#f87171', marginBottom: 5 }}>{title}</div>
+            <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: '#f87171', marginBottom: 5 }}>{title}</div>
             <div style={{ fontSize: 12.5, color: '#fecaca', lineHeight: 1.5 }}>{body}</div>
           </div>
         );
@@ -174,15 +174,15 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
 
       {/* Today's one mission — the fix for exactly the weakness named above */}
       <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'Orbitron,monospace', color: '#fbbf24', marginBottom: 5 }}>
+        <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: 'var(--action)', marginBottom: 5 }}>
           {T(lang, 'DEINE MISSION HEUTE', 'مهمتك النهارده')}
         </div>
         <div style={{ fontSize: 13, color: '#f1f5f9', lineHeight: 1.5, marginBottom: 9, ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
           {T(lang, m.de, m.ar)}
         </div>
         <button onClick={() => onOpen?.(m.drill)} style={{ width: '100%', padding: '12px', minHeight: 46, cursor: 'pointer',
-          fontFamily: 'Orbitron,monospace', fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', borderRadius: 9,
-          border: '1px solid #38bdf8', color: '#04070d', background: 'linear-gradient(135deg,#38bdf8,#22d3ee)' }}>
+          fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', borderRadius: 9,
+          border: '1px solid var(--accent-2)', color: '#04070d', background: 'linear-gradient(135deg,var(--accent-2),var(--accent-2))' }}>
           {T(lang, DRILL_LABEL[m.drill]?.de || 'START', DRILL_LABEL[m.drill]?.ar || 'ابدأ')} ▸
         </button>
       </div>

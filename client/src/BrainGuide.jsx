@@ -69,7 +69,7 @@ export function BrainGuide({ token, apiUrl, onAction }) {
       {/* The aha — only when the engine confirmed a real closed loop (it never fabricates one). */}
       {d.aha && (
         <div style={ahaBox}>
-          <div style={{ fontWeight: 800, color: '#34d399' }}>{BRAIN_COPY.ahaTitle}</div>
+          <div style={{ fontWeight: 800, color: 'var(--accent)' }}>{BRAIN_COPY.ahaTitle}</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(ruleLabel(d.aha.ruleId), d.aha.before, d.aha.after)}</div>
         </div>
       )}
@@ -89,6 +89,6 @@ export function BrainGuide({ token, apiUrl, onAction }) {
 
 const card   = { marginTop: 12, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'right' };
 const track  = { height: 8, borderRadius: 6, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' };
-const fill   = { height: '100%', background: 'linear-gradient(90deg,#22c55e,#6ee7b7)', transition: 'width .4s' };
+const fill   = { height: '100%', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))', transition: 'width .4s' };
 const ahaBox = { marginBottom: 12, padding: 10, borderRadius: 10, background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.3)' };
-const cta    = { width: '100%', marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,#22c55e,#6ee7b7)' };
+const cta    = { width: '100%', marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };

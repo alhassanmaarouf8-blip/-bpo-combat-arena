@@ -23,7 +23,7 @@ export function InviteCard({ accountId }) {
     <div style={card} dir="rtl">
       <div style={head}>🎁 ادعي صاحبك · FREUND EINLADEN</div>
       <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.7 }}>
-        ابعت اللينك ده لصاحبك — أول ما يعمل أول إنترفيو، انتوا الاتنين تاخدوا <b style={{ color: '#fbbf24' }}>3 أيام مجانية</b> زيادة.
+        ابعت اللينك ده لصاحبك — أول ما يعمل أول إنترفيو، انتوا الاتنين تاخدوا <b style={{ color: 'var(--action)' }}>3 أيام مجانية</b> زيادة.
       </div>
       <button onClick={onShare} style={btn}>{copied ? '✓ اتنسخ اللينك' : '📤 ابعت الدعوة'}</button>
     </div>
@@ -31,5 +31,5 @@ export function InviteCard({ accountId }) {
 }
 
 const card = { marginTop: 12, padding: 14, borderRadius: 12, border: '1px solid rgba(110,231,183,0.25)', background: 'rgba(52,211,153,0.06)' };
-const head = { fontSize: 10.5, letterSpacing: '0.08em', color: '#6ee7b7', fontWeight: 800, marginBottom: 8, fontFamily: 'Orbitron,monospace' };
-const btn  = { width: '100%', marginTop: 10, padding: '10px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,#22c55e,#6ee7b7)' };
+const head = { fontSize: 10.5, letterSpacing: '0.08em', color: 'var(--accent-2)', fontWeight: 800, marginBottom: 8, fontFamily: 'var(--font-display)' };
+const btn  = { width: '100%', marginTop: 10, padding: '10px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };

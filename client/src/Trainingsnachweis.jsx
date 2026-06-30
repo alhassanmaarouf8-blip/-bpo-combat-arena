@@ -33,16 +33,16 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
         {/* Close */}
         <button className="nachweis-noprint" onClick={onClose}
           style={{ position: 'absolute', top: 14, right: 14, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 6, color: '#64748b', cursor: 'pointer', fontSize: 14, padding: '3px 9px', fontFamily: 'Orbitron, monospace' }}>✕</button>
+            borderRadius: 6, color: '#64748b', cursor: 'pointer', fontSize: 14, padding: '3px 9px', fontFamily: 'var(--font-display)' }}>✕</button>
 
         {/* Logo */}
         <div style={{ fontSize: 32, marginBottom: 4 }}>🥊</div>
-        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 18, fontWeight: 900, letterSpacing: 3,
-          color: '#00e5ff', textShadow: '0 0 20px rgba(0,229,255,0.6)', marginBottom: 4 }}>OMNI-PERFORM</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 900, letterSpacing: 3,
+          color: 'var(--accent)', textShadow: '0 0 20px rgba(0,229,255,0.6)', marginBottom: 4 }}>OMNI-PERFORM</div>
 
         {/* Title */}
-        <div style={{ fontFamily: 'Orbitron, monospace', fontWeight: 700, fontSize: 13, letterSpacing: '0.2em',
-          color: '#a78bfa', textShadow: '0 0 12px rgba(167,139,250,0.5)', marginBottom: 16 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.2em',
+          color: 'var(--accent)', textShadow: '0 0 12px rgba(167,139,250,0.5)', marginBottom: 16 }}>
           TRAININGSNACHWEIS
         </div>
 
@@ -51,7 +51,7 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
 
         {/* Student */}
         <div style={{ fontSize: 11, color: '#64748b', letterSpacing: '0.1em', marginBottom: 4 }}>TEILNEHMER · المتدرب</div>
-        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4, wordBreak: 'break-all' }}>{email}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4, wordBreak: 'break-all' }}>{email}</div>
         <div style={{ fontSize: 11, color: '#475569', marginBottom: 20 }}>{today}</div>
 
         {/* Stats grid */}
@@ -61,7 +61,7 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
               background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div className="nachweis-stat-label" style={{ fontSize: 9, color: '#475569', letterSpacing: '0.1em', marginBottom: 4 }}>{s.label.toUpperCase()}</div>
               <div dir="rtl" style={{ fontSize: 9, color: '#374151', marginBottom: 4 }}>{s.ar}</div>
-              <div className="nachweis-stat-val" style={{ fontFamily: 'Orbitron, monospace', fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{s.value}</div>
+              <div className="nachweis-stat-val" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>{s.value}</div>
             </div>
           ))}
         </div>
@@ -77,9 +77,9 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
 
         {/* Print button */}
         <button className="nachweis-noprint" onClick={() => window.print()}
-          style={{ fontFamily: 'Orbitron, monospace', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em',
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em',
             padding: '11px 22px', borderRadius: 8, cursor: 'pointer',
-            border: '1px solid #a78bfa', color: '#a78bfa', background: 'rgba(167,139,250,0.1)',
+            border: '1px solid var(--accent)', color: 'var(--accent)', background: 'rgba(167,139,250,0.1)',
             boxShadow: '0 0 16px rgba(167,139,250,0.2)' }}>
           🖨 DRUCKEN / PRINT
         </button>

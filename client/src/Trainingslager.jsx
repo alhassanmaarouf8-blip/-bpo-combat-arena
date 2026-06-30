@@ -121,7 +121,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
 
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 13, fontWeight: 900, letterSpacing: 1.5, color: '#fbbf24' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 900, letterSpacing: 1.5, color: 'var(--action)' }}>
         🏕️ TRAININGSLAGER
       </span>
       <button onClick={onClose} style={ghost}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -160,7 +160,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
       <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         <path d={buildPath(allPts)} fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         {litPts.length >= 2 && (
-          <path className="tl-path-lit" d={buildPath(litPts)} fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
+          <path className="tl-path-lit" d={buildPath(litPts)} fill="none" stroke="var(--action)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
         )}
       </svg>
 
@@ -196,7 +196,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
         <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: '100%', borderRadius: 16, padding: 20, textAlign: 'center',
           background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))', border: '1px solid rgba(251,191,36,0.35)' }}>
           <div style={{ fontSize: 34 }}>🏕️</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24', marginTop: 6 }}>{T(lang, 'Trainingslager freischalten', 'افتح الـTrainingslager')}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--action)', marginTop: 6 }}>{T(lang, 'Trainingslager freischalten', 'افتح الـTrainingslager')}</div>
           <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 6 }}>
             {T(lang, 'Jeder bezahlte Plan (Basic oder Elite) öffnet das volle Trainingslager und das Boss-Tor — Lektionen und Videos, die auf deine eigenen Interview-Fehler zugeschnitten sind.',
                      'أي خطة مدفوعة (Basic أو Elite) بتفتح الـTrainingslager كامل وبوابة التحدي — دروس وفيديوهات متفصّلة على أخطائك في الإنترفيو.')}
@@ -265,7 +265,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
   return overlay(<>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 10 }}>
       <div>
-        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 13, fontWeight: 800, color: '#fbbf24', lineHeight: 1.3 }}>{lesson.title_de}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--action)', lineHeight: 1.3 }}>{lesson.title_de}</div>
         <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{lesson.title_ar}</div>
       </div>
       <button onClick={onClose} style={ghost}>✕</button>
@@ -299,7 +299,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
 
     {/* Schlüssel-Quiz */}
     <div style={{ marginTop: 16 }}>
-      <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 10, letterSpacing: '0.12em', color: '#fbbf24', marginBottom: 10 }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--action)', marginBottom: 10 }}>
         🔑 {T(lang, 'SCHLÜSSEL-QUIZ', 'كويز المفتاح')} · {T(lang, '2 von 3 zum Bestehen', '٢ من ٣ عشان تعدّي')}
       </div>
 
@@ -316,7 +316,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
                 const isChosen = chosen === origIdx;
                 const isCorrect = origIdx === q.correctIndex;
                 let bg = 'rgba(255,255,255,0.04)', border = 'rgba(148,163,184,0.25)', col = '#e2e8f0';
-                if (locked && isCorrect) { bg = 'rgba(16,185,129,0.18)'; border = '#10b981'; col = '#d1fae5'; }
+                if (locked && isCorrect) { bg = 'rgba(16,185,129,0.18)'; border = 'var(--accent)'; col = 'var(--accent-2)'; }
                 else if (locked && isChosen && !isCorrect) { bg = 'rgba(239,68,68,0.16)'; border = '#ef4444'; col = '#fecaca'; }
                 return (
                   <button key={pos} disabled={locked}
@@ -343,7 +343,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
       {phase === 'passed' && (
         <div style={{ textAlign: 'center', marginTop: 6 }}>
           <div style={{ fontSize: 30 }}>✅</div>
-          <div style={{ fontSize: 14, color: '#34d399', fontWeight: 700, marginTop: 4 }}>{T(lang, 'Bestanden! Station erledigt.', 'نجحت! المحطة اتخلّصت.')}</div>
+          <div style={{ fontSize: 14, color: 'var(--accent)', fontWeight: 700, marginTop: 4 }}>{T(lang, 'Bestanden! Station erledigt.', 'نجحت! المحطة اتخلّصت.')}</div>
           <button onClick={onClose} style={{ ...primaryBtn, marginTop: 12 }}>{T(lang, 'Zur Karte', 'للخريطة')} ▸</button>
         </div>
       )}
@@ -360,23 +360,23 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #fbbf24', color: '#04070d',
-  background: 'linear-gradient(135deg,#fcd34d,#fbbf24)' };
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
+  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--action)', color: '#04070d',
+  background: 'linear-gradient(135deg,var(--action),var(--action))' };
 
 function Legend({ dot, label }) {
   return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9.5, color: '#94a3b8' }}>{dot}{label}</span>;
 }
 function MiniDot({ state }) {
-  const c = state === 'done' ? '#34d399' : state === 'available' ? '#fbbf24' : '#475569';
+  const c = state === 'done' ? 'var(--accent)' : state === 'available' ? 'var(--action)' : '#475569';
   return <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${c}`,
     background: state === 'done' ? 'rgba(52,211,153,0.2)' : 'transparent', filter: state === 'locked' ? 'grayscale(1)' : 'none',
     display: 'inline-block' }} />;
 }
 
 function nodeColors(state) {
-  if (state === 'done')      return { ring: '#34d399', bg: 'rgba(52,211,153,0.12)', text: '#d1fae5' };
-  if (state === 'available') return { ring: '#fbbf24', bg: 'rgba(251,191,36,0.14)', text: '#fde68a' };
+  if (state === 'done')      return { ring: 'var(--accent)', bg: 'rgba(52,211,153,0.12)', text: 'var(--accent-2)' };
+  if (state === 'available') return { ring: 'var(--action)', bg: 'rgba(251,191,36,0.14)', text: 'var(--action-2)' };
   return { ring: '#475569', bg: 'rgba(255,255,255,0.03)', text: '#64748b' }; // locked
 }
 
@@ -391,7 +391,7 @@ function MapNode({ node, x, y, lang, onOpen }) {
   return (
     <div style={{ position: 'absolute', left: `${x}%`, top: y, width: size, height: size, transform: 'translate(-50%,-50%)' }}>
       {state === 'available' && (
-        <span className="tl-ring-el" style={{ position: 'absolute', left: '50%', top: '50%', width: size, height: size, borderRadius: '50%', border: '2px solid #fbbf24', pointerEvents: 'none' }} />
+        <span className="tl-ring-el" style={{ position: 'absolute', left: '50%', top: '50%', width: size, height: size, borderRadius: '50%', border: '2px solid var(--action)', pointerEvents: 'none' }} />
       )}
       <button
         className={state === 'available' ? 'tl-avail' : undefined}
@@ -408,7 +408,7 @@ function MapNode({ node, x, y, lang, onOpen }) {
         }}>
         {locked ? '🔒' : iconFor(node.ruleId)}
         {state === 'done' && (
-          <span style={{ position: 'absolute', right: -4, top: -4, width: 20, height: 20, borderRadius: '50%', background: '#34d399', color: '#04130c', fontSize: 12, display: 'grid', placeItems: 'center', fontWeight: 900 }}>✓</span>
+          <span style={{ position: 'absolute', right: -4, top: -4, width: 20, height: 20, borderRadius: '50%', background: 'var(--accent)', color: '#04130c', fontSize: 12, display: 'grid', placeItems: 'center', fontWeight: 900 }}>✓</span>
         )}
       </button>
       <div style={{ position: 'absolute', top: size + 5, left: '50%', transform: 'translateX(-50%)', width: 150, textAlign: 'center',
@@ -427,7 +427,7 @@ function BossNode({ x, y, state, planBlocked, lang, onChallenge }) {
   const planLocked = !unlocked && planBlocked;     // free/expired only
   const tappable   = unlocked || planLocked;       // upgrading is an action too
   const size = 76;
-  const ring = unlocked ? '#f59e0b' : planLocked ? '#fbbf24' : '#475569';
+  const ring = unlocked ? 'var(--action)' : planLocked ? 'var(--action)' : '#475569';
   return (
     <div style={{ position: 'absolute', left: `${x}%`, top: y, width: size, height: size, transform: 'translate(-50%,-50%)' }}>
       {tappable && <span className="tl-ring-el" style={{ position: 'absolute', left: '50%', top: '50%', width: size, height: size, borderRadius: '50%', border: `2px solid ${ring}`, pointerEvents: 'none' }} />}
@@ -445,11 +445,11 @@ function BossNode({ x, y, state, planBlocked, lang, onChallenge }) {
         {unlocked ? '🏰' : '🔒'}
       </button>
       <div style={{ position: 'absolute', top: size + 6, left: '50%', transform: 'translateX(-50%)', width: 184, textAlign: 'center' }}>
-        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 11, fontWeight: 900, letterSpacing: 1, color: tappable ? '#fbbf24' : '#64748b' }}>BOSS-TOR</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 900, letterSpacing: 1, color: tappable ? 'var(--action)' : '#64748b' }}>BOSS-TOR</div>
         <div dir="rtl" style={{ fontSize: 10, color: tappable ? '#94a3b8' : '#475569' }}>بوابة التحدي</div>
-        {unlocked && <div style={{ fontSize: 9.5, color: '#fbbf24', marginTop: 3 }}>{T(lang, 'Tippen zum Kämpfen', 'دوس عشان تتحدّى')}</div>}
+        {unlocked && <div style={{ fontSize: 9.5, color: 'var(--action)', marginTop: 3 }}>{T(lang, 'Tippen zum Kämpfen', 'دوس عشان تتحدّى')}</div>}
         {planLocked && (<>
-          <div style={{ fontSize: 9.5, color: '#fbbf24', marginTop: 3, fontWeight: 700 }}>{T(lang, '🔒 Bezahlter Plan', '🔒 خطة مدفوعة')}</div>
+          <div style={{ fontSize: 9.5, color: 'var(--action)', marginTop: 3, fontWeight: 700 }}>{T(lang, '🔒 Bezahlter Plan', '🔒 خطة مدفوعة')}</div>
           <div style={{ fontSize: 9, color: '#cbd5e1', marginTop: 1 }}>{T(lang, 'Tippen zum Freischalten ▸', 'دوس للفتح ▸')}</div>
         </>)}
         {!unlocked && !planLocked && (
@@ -474,13 +474,13 @@ export function GameMapCompact({ token, apiUrl, lang = 'de', onOpen }) {
     <button onClick={onOpen} style={{ width: '100%', marginTop: 8, padding: '10px 12px', minHeight: 44, cursor: 'pointer',
       borderRadius: 10, border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.06)', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-        <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 9.5, letterSpacing: '0.12em', color: '#fbbf24' }}>🏕️ TRAININGSLAGER</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--action)' }}>🏕️ TRAININGSLAGER</span>
         <span style={{ fontSize: 9, color: '#94a3b8' }}>{doneCount}/{nodes.length} ✓</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', overflowX: 'auto' }}>
         {items.map((n, i) => (
           <Fragment key={n.ruleId}>
-            {i > 0 && <span style={{ width: 18, height: 3, borderRadius: 9, flexShrink: 0, background: i <= doneCount ? '#fbbf24' : 'rgba(148,163,184,0.25)' }} />}
+            {i > 0 && <span style={{ width: 18, height: 3, borderRadius: 9, flexShrink: 0, background: i <= doneCount ? 'var(--action)' : 'rgba(148,163,184,0.25)' }} />}
             <CompactNode node={n} />
           </Fragment>
         ))}
@@ -495,12 +495,12 @@ function CompactNode({ node }) {
   const locked = node.state === 'locked';
   return (
     <span style={{ position: 'relative', flexShrink: 0, width: 30, height: 30, borderRadius: '50%', display: 'grid', placeItems: 'center',
-      fontSize: 14, border: `2px solid ${boss && node.state === 'available' ? '#f59e0b' : c.ring}`, background: c.bg,
+      fontSize: 14, border: `2px solid ${boss && node.state === 'available' ? 'var(--action)' : c.ring}`, background: c.bg,
       opacity: locked ? 0.5 : 1, filter: locked ? 'grayscale(1)' : 'none' }}>
       {boss ? (node.state === 'available' ? '🏰' : '🔒') : locked ? '🔒' : node.state === 'done' ? '✓' : iconFor(node.ruleId)}
     </span>
   );
 }
 
-const ghost = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7,
+const ghost = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };

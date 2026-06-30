@@ -93,7 +93,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#a78bfa' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         🗯️ SAG ES RICHTIG · قولها صح
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -122,15 +122,15 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
   // PRACTICE
   return shell(<>
     {header}
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'Orbitron, monospace', letterSpacing: '0.1em', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'DEINE FEHLER', 'أخطاؤك')} · {idx + 1} / {items.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
-      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? '#a78bfa' : i === idx ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
+      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
     </div>
 
     <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(167,139,250,0.25)' }}>
-      <div style={{ fontSize: 9, color: '#a78bfa', letterSpacing: '0.12em', marginBottom: 6 }}>{item?.rule}</div>
+      <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item?.rule}</div>
       <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
       {item?.wrong && (
         <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
@@ -145,7 +145,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
     <div style={{ marginTop: 16, textAlign: 'center' }}>
       {recording ? (
         <>
-          <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 30, color: seconds >= MAX_SEC - 4 ? '#f59e0b' : '#a78bfa', fontVariantNumeric: 'tabular-nums' }}>00:{String(seconds).padStart(2, '0')}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= MAX_SEC - 4 ? 'var(--action)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>00:{String(seconds).padStart(2, '0')}</div>
           <button onClick={stopRec} style={{ ...primaryBtn, marginTop: 8, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}>⏹ {T(lang, 'Fertig', 'خلصت')}</button>
         </>
       ) : busy ? (
@@ -153,11 +153,11 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
       ) : result ? (
         <>
           {result.retry ? (
-            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12.5, color: '#fde68a' }}>{T(lang, 'Nichts erkannt — sag es bitte noch einmal.', 'مفيش كلام اتسمع — قولها تاني.')}</div>
+            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12.5, color: 'var(--action-2)' }}>{T(lang, 'Nichts erkannt — sag es bitte noch einmal.', 'مفيش كلام اتسمع — قولها تاني.')}</div>
           ) : (
             <div style={{ textAlign: 'left' }}>
               <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-                <div style={{ fontSize: 13.5, color: result.correct ? '#6ee7b7' : '#fca5a5', fontWeight: 700 }}>
+                <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
                   {result.correct ? T(lang, '✓ Richtig gesagt!', '✓ قلتها صح!') : T(lang, '✗ Noch nicht ganz', '✗ لسه مش مظبوط')}
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>{T(lang, 'Richtig: ', 'الصح: ')}<b style={{ color: '#4ade80' }}>{result.expected}</b></div>
@@ -180,6 +180,6 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #a78bfa', color: '#04070d', background: 'linear-gradient(135deg,#a78bfa,#c4b5fd)' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d', background: 'linear-gradient(135deg,var(--accent),#c4b5fd)' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
+const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

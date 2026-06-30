@@ -50,7 +50,7 @@ export function Alhassan({ token, apiUrl, lang = 'de', onClose }) {
     <div style={ov}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
-          <div style={{ fontFamily: 'Orbitron, monospace', fontWeight: 800, fontSize: 16, letterSpacing: '0.08em', color: '#34d399' }}>🧭 الحسن</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '0.08em', color: 'var(--accent)' }}>🧭 الحسن</div>
           <div style={{ fontSize: 9.5, color: '#64748b', letterSpacing: '0.06em' }}>{T(lang, 'DEIN GUIDE · 24/7', 'دليلك · اسأله أي وقت')}</div>
         </div>
         <button onClick={onClose} style={ghost}>✕</button>
@@ -81,8 +81,8 @@ export function Alhassan({ token, apiUrl, lang = 'de', onClose }) {
             color: '#e2e8f0', fontSize: 14, border: '1px solid var(--line, #1e293b)', outline: 'none', lineHeight: 1.5 }} />
         <button onClick={send} disabled={busy || !input.trim()}
           style={{ padding: '11px 16px', minHeight: 44, cursor: (busy || !input.trim()) ? 'default' : 'pointer', borderRadius: 10,
-            fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 700, border: '1px solid #34d399',
-            color: '#04130c', background: 'linear-gradient(135deg,#34d399,#10b981)', opacity: (busy || !input.trim()) ? 0.5 : 1 }}>
+            fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, border: '1px solid var(--accent)',
+            color: '#04130c', background: 'linear-gradient(135deg,var(--accent),var(--accent))', opacity: (busy || !input.trim()) ? 0.5 : 1 }}>
           {busy ? '…' : T(lang, 'Senden', 'ابعت')}
         </button>
       </div>
@@ -92,7 +92,7 @@ export function Alhassan({ token, apiUrl, lang = 'de', onClose }) {
 
 const ov = { position: 'absolute', inset: 0, zIndex: 225, display: 'flex', flexDirection: 'column',
   background: 'radial-gradient(120% 80% at 50% 0%, #0c1a14 0%, #060c0a 55%, #020409 100%)', animation: 'flash-in 0.3s ease' };
-const ghost = { fontFamily: 'Orbitron, monospace', fontWeight: 600, fontSize: 12, padding: '7px 11px', borderRadius: 7,
+const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', borderRadius: 7,
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8', cursor: 'pointer' };
 const errBox = { margin: '0 14px 6px', padding: '8px 12px', borderRadius: 8, fontSize: 11.5, textAlign: 'center',
   background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' };
@@ -101,5 +101,5 @@ function bubble(role) {
   return { maxWidth: '82%', padding: '10px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
     background: me ? 'rgba(34,211,238,0.12)' : 'rgba(52,211,153,0.10)',
     border: `1px solid ${me ? 'rgba(34,211,238,0.3)' : 'rgba(52,211,153,0.3)'}`,
-    color: me ? '#cffafe' : '#d1fae5' };
+    color: me ? '#cffafe' : 'var(--accent-2)' };
 }

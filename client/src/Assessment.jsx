@@ -132,7 +132,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#00e5ff' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         EINSTUFUNG · تقييم مستواك
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -145,7 +145,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   if (phase === 'intro') return shell(<>
     {header}
     <div style={{ fontSize: 22 }}>🎯</div>
-    <h2 style={{ fontFamily: 'Orbitron, monospace', fontSize: 18, color: '#f8fafc', margin: '8px 0' }}>
+    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#f8fafc', margin: '8px 0' }}>
       {T(lang, 'Kostenlose Einstufung', 'تقييم مستواك المجاني')}
     </h2>
     <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.7 }}>
@@ -166,7 +166,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     {header}
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
       <div style={{ width: 60, height: 60, margin: '0 auto 18px', borderRadius: '50%',
-        border: '3px solid rgba(0,229,255,0.16)', borderTopColor: '#00e5ff', animation: 'spin 0.9s linear infinite' }} />
+        border: '3px solid rgba(0,229,255,0.16)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
       <div style={{ fontSize: 14, color: '#f8fafc' }}>{T(lang, 'Deine Antworten werden ausgewertet…', 'بنحلّل إجاباتك…')}</div>
       <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>استنى لحظة</div>
     </div>
@@ -194,16 +194,16 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   return shell(<>
     {header}
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-      <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'Orbitron, monospace', letterSpacing: '0.1em' }}>
+      <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
         {T(lang, 'FRAGE', 'سؤال')} {idx + 1} / {QUESTIONS.length}
       </span>
-      <span style={{ fontSize: 10, color: '#a78bfa', border: '1px solid rgba(167,139,250,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
+      <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(167,139,250,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
     </div>
     {/* progress dots */}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {QUESTIONS.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? '#00e5ff' : i === idx ? 'rgba(0,229,255,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(0,229,255,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
 
@@ -223,7 +223,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     <div style={{ marginTop: 16, textAlign: 'center' }}>
       {recording ? (
         <>
-          <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 30, color: seconds >= MAX_SEC - 10 ? '#f59e0b' : '#00e5ff', fontVariantNumeric: 'tabular-nums' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= MAX_SEC - 10 ? 'var(--action)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
             00:{String(seconds).padStart(2, '0')}
           </div>
           <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
@@ -236,7 +236,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       ) : answer ? (
         <>
           <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
-            <div style={{ fontSize: 9, color: '#34d399', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'DEINE ANTWORT', 'إجابتك')}</div>
+            <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'DEINE ANTWORT', 'إجابتك')}</div>
             <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{answer.transcript || T(lang, '(nichts erkannt)', '(مفيش كلام اتسمع)')}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -267,7 +267,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
     <div>
       <div style={{ textAlign: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 12, color: '#94a3b8' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
-        <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 44, fontWeight: 900, color: '#00e5ff', textShadow: '0 0 22px rgba(0,229,255,0.5)' }}>~{lvl}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 900, color: 'var(--accent)', textShadow: '0 0 22px rgba(0,229,255,0.5)' }}>~{lvl}</div>
         <div style={{ fontSize: 10, color: '#64748b' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
       </div>
 
@@ -290,15 +290,15 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
       )}
 
       {result.strengths?.length > 0 && (
-        <Section title={T(lang, 'Deine Stärken', 'نقط قوتك')} color="#34d399">
+        <Section title={T(lang, 'Deine Stärken', 'نقط قوتك')} color="var(--accent)">
           {result.strengths.map((s, i) => (
-            <div key={i} style={{ fontSize: 12, color: '#d1fae5', marginBottom: 4, lineHeight: 1.5 }}>✓ {T(lang, s.de, s.ar || s.de)}</div>
+            <div key={i} style={{ fontSize: 12, color: 'var(--accent-2)', marginBottom: 4, lineHeight: 1.5 }}>✓ {T(lang, s.de, s.ar || s.de)}</div>
           ))}
         </Section>
       )}
 
       {(result.recommendedFocus?.de || result.recommendedFocus?.ar) && (
-        <Section title={T(lang, 'Fang hier an', 'ابدأ من هنا')} color="#00e5ff">
+        <Section title={T(lang, 'Fang hier an', 'ابدأ من هنا')} color="var(--accent)">
           <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.55 }}>{T(lang, result.recommendedFocus.de, result.recommendedFocus.ar)}</div>
         </Section>
       )}
@@ -315,17 +315,17 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
 function Section({ title, color, children }) {
   return (
     <div style={{ borderRadius: 10, padding: '11px 13px', marginBottom: 10, background: 'rgba(0,0,0,0.32)', border: `1px solid ${color}33` }}>
-      <div style={{ fontFamily: 'Orbitron, monospace', fontSize: 9.5, letterSpacing: '0.12em', color, marginBottom: 8 }}>{title}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.12em', color, marginBottom: 8 }}>{title}</div>
       {children}
     </div>
   );
 }
 
 // ── shared button styles ──
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #00e5ff', color: '#04070d',
-  background: 'linear-gradient(135deg,#22d3ee,#00e5ff)' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7,
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
+  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d',
+  background: 'linear-gradient(135deg,var(--accent-2),var(--accent))' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10.5, padding: '12px', minHeight: 44,
+const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
   borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

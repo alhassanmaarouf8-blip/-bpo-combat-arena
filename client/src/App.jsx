@@ -37,14 +37,14 @@ class OverlayBoundary extends Component {
       <div style={{ position:'absolute', inset:0, zIndex:300, display:'flex', flexDirection:'column',
         alignItems:'center', justifyContent:'center', gap:14, padding:24, textAlign:'center',
         background:'rgba(2,4,9,0.98)', color:'#fca5a5' }}>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:14, color:'#f87171' }}>Etwas ist schiefgelaufen</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:14, color:'#f87171' }}>Etwas ist schiefgelaufen</div>
         <div style={{ fontSize:11, color:'#94a3b8', maxWidth:340, wordBreak:'break-word' }}>
           {String(this.state.error?.message || this.state.error)}
         </div>
         <div style={{ fontSize:10, color:'#64748b' }}>Tipp: Seite neu laden (Strg+Shift+R).</div>
-        <button onClick={this.props.onClose} style={{ fontFamily:'Orbitron,monospace', fontSize:11,
-          padding:'10px 18px', borderRadius:8, cursor:'pointer', border:'1px solid #00e5ff',
-          color:'#00e5ff', background:'rgba(0,229,255,0.06)' }}>SCHLIESSEN</button>
+        <button onClick={this.props.onClose} style={{ fontFamily:'var(--font-display)', fontSize:11,
+          padding:'10px 18px', borderRadius:8, cursor:'pointer', border:'1px solid var(--accent)',
+          color:'var(--accent)', background:'rgba(0,229,255,0.06)' }}>SCHLIESSEN</button>
       </div>
     );
   }
@@ -383,12 +383,12 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart,
 const EMOTIONS = {
   // Pre-fight default + the FOUR backend-driven reaction states. Each carries the SVG
   // face, the German status label, and the accent colour the whole boss card shifts to.
-  idle:        { face: 'composed',  label: 'GEFASST',     color: '#22d3ee' }, // before the fight
-  gefasst:     { face: 'composed',  label: 'GEFASST',     color: '#22d3ee' }, // composed authority
-  skeptisch:   { face: 'skeptical', label: 'SKEPTISCH',   color: '#f59e0b' }, // mild doubt — weak answer
-  beeindruckt: { face: 'impressed', label: 'BEEINDRUCKT', color: '#10b981' }, // grudging respect
+  idle:        { face: 'composed',  label: 'GEFASST',     color: 'var(--accent-2)' }, // before the fight
+  gefasst:     { face: 'composed',  label: 'GEFASST',     color: 'var(--accent-2)' }, // composed authority
+  skeptisch:   { face: 'skeptical', label: 'SKEPTISCH',   color: 'var(--action)' }, // mild doubt — weak answer
+  beeindruckt: { face: 'impressed', label: 'BEEINDRUCKT', color: 'var(--accent)' }, // grudging respect
   wuetend:     { face: 'furious',   label: 'WÜTEND',      color: '#ef4444' }, // cornered / candidate fails
-  hurt:        { face: 'shaken',    label: 'GETROFFEN',   color: '#f59e0b' }, // rattled (transient)
+  hurt:        { face: 'shaken',    label: 'GETROFFEN',   color: 'var(--action)' }, // rattled (transient)
 };
 
 // Per-expression facial parameters (driven into the SVG below).
@@ -415,27 +415,32 @@ const POSTURE = {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
-  /* Chakra Petch (display) + Inter (body) both fully support ä ö ü ß. Orbitron + Share
-     Tech Mono kept so not-yet-migrated labels still render during the phased redesign. */
-  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  /* Direction A = calm/premium/trust. ONE clean type family (Inter — full ä ö ü ß + good Latin),
+     no gaming display face. Share Tech Mono kept only for any monospace numerics. */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
 
   /* ── OMNI-PERFORM design tokens ─────────────────────────────────────────────
      Single source of truth for colour, type, spacing, radius, motion, depth.
      Everything in the redesign references these — never hard-coded hexes. */
   :root {
-    /* surfaces / depth */
-    --bg-0:#020409; --bg-1:#070d18; --bg-2:#0c1626;
-    --surface:rgba(255,255,255,0.045); --surface-2:rgba(255,255,255,0.07);
-    --line:rgba(0,229,255,0.18); --line-strong:rgba(0,229,255,0.4);
-    /* accents */
-    --accent:#00e5ff; --accent-2:#22d3ee; --accent-dim:rgba(0,229,255,0.5);
-    --player:#10b981; --player-2:#34d399; --player-glow:rgba(16,185,129,0.55);
-    --boss:#ef4444; --boss-2:#f97316; --boss-glow:rgba(239,68,68,0.5);
-    --warn:#f59e0b; --good:#34d399; --bad:#f87171; --violet:#a78bfa;
+    /* ── Direction A: calm, premium, trustworthy. TWO brand colours ONLY —
+       BLUE = trust / primary / structure, ORANGE = the single action accent (use sparingly).
+       Neutrals carry everything else. No neon, no rainbow. Intensity lives only in the fight
+       (player = blue, boss = orange — the brand pair, not green/red). */
+    /* surfaces / depth — calm deep navy, not neon black */
+    --bg-0:#0a0f1a; --bg-1:#0f1626; --bg-2:#172033;
+    --surface:rgba(255,255,255,0.04); --surface-2:rgba(255,255,255,0.07);
+    --line:rgba(255,255,255,0.09); --line-strong:rgba(255,255,255,0.18);
+    /* accents — blue primary, orange action */
+    --accent:#3b82f6; --accent-2:#60a5fa; --accent-dim:rgba(59,130,246,0.45);
+    --action:#f97316; --action-2:#fb923c; --action-dim:rgba(249,115,22,0.45);
+    --player:#3b82f6; --player-2:#60a5fa; --player-glow:rgba(59,130,246,0.40);
+    --boss:#f97316; --boss-2:#fb923c; --boss-glow:rgba(249,115,22,0.40);
+    --warn:#f97316; --good:#3b82f6; --bad:#f87171; --violet:#3b82f6;
     /* text */
-    --text:#e2e8f0; --text-dim:#94a3b8; --text-faint:#475569;
-    /* type */
-    --font-display:'Chakra Petch','Inter',sans-serif;
+    --text:#e8eef6; --text-dim:#9aa7bd; --text-faint:#64748b;
+    /* type — one clean family, no gaming face */
+    --font-display:'Inter','system-ui',sans-serif;
     --font-body:'Inter',system-ui,sans-serif;
     --font-mono:'Share Tech Mono',monospace;
     /* radius / spacing */
@@ -447,7 +452,7 @@ const GLOBAL_CSS = `
     --ease-out:cubic-bezier(.23,1,.32,1);
     --ease-spring:cubic-bezier(.34,1.56,.64,1);
     /* depth primitives */
-    --glow-accent:0 0 18px rgba(0,229,255,0.35);
+    --glow-accent:0 0 0 1px rgba(59,130,246,0.18);
     --glow-player:0 0 16px var(--player-glow);
     --glow-boss:0 0 16px var(--boss-glow);
     --shadow-card:0 12px 38px rgba(0,0,0,0.55), inset 0 0 60px rgba(0,0,0,0.45);
@@ -527,7 +532,7 @@ function _mouthPath(cx, cy, curve, open) {
   return `M ${cx-w} ${cy} Q ${cx} ${mid} ${cx+w} ${cy} Q ${cx} ${mid + h} ${cx-w} ${cy} Z`;
 }
 
-function BossAvatar({ emotion = 'composed', speaking = false, color = '#22d3ee' }) {
+function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--accent-2)' }) {
   const p = FACE_PARAMS[emotion] || FACE_PARAMS.composed;
   const eyeCY = 102, browY = 80 + p.browLift, mouthCY = 150;
 
@@ -641,10 +646,10 @@ function HpBar({ label, value, isPlayer, reason }) {
   const low   = pct <= 25;
   // Palette tracks the design tokens; solid hexes kept where glow math needs string concat.
   const solid = isPlayer
-    ? (pct > 50 ? '#10b981' : pct > 25 ? '#f59e0b' : '#ef4444')
+    ? (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : '#ef4444')
     : (pct > 50 ? '#ef4444' : pct > 25 ? '#f97316' : '#dc2626');
   const glow   = solid + '66';
-  const rColor = isPlayer ? '#f87171' : '#34d399';   // player loss = red, gain = green
+  const rColor = isPlayer ? '#f87171' : 'var(--accent)';   // player loss = red, gain = green
   const rSign  = isPlayer ? '−' : '+';
 
   return (
@@ -701,7 +706,7 @@ function WpmMeter({ wpm }) {
   const pos   = Math.max(0, Math.min(100, (wpm / WPM_MAX) * 100));
   const inZone = wpm >= 140 && wpm <= 160;
   const near   = wpm >= 110 && wpm < 140;
-  const mColor = inZone ? '#34d399' : near || (wpm > 160 && wpm <= 185) ? '#f59e0b' : wpm === 0 ? '#475569' : '#f87171';
+  const mColor = inZone ? 'var(--accent)' : near || (wpm > 160 && wpm <= 185) ? 'var(--action)' : wpm === 0 ? '#475569' : '#f87171';
   const zoneL  = (140 / WPM_MAX) * 100;
   const zoneW  = ((160 - 140) / WPM_MAX) * 100;
   return (
@@ -756,7 +761,7 @@ function ComboMeter({ combo }) {
       {active ? (
         <div key={combo} style={{ fontFamily:'var(--font-display)', fontWeight:700,
           fontSize: 14 + intensity * 1.5, lineHeight:1,
-          color:'#fbbf24',
+          color:'var(--action)',
           textShadow:`0 0 ${6 + intensity * 3}px rgba(251,191,36,${0.5 + intensity * 0.08})`,
           animation:'combo-in 0.35s var(--ease-spring)' }}>
           x{combo}
@@ -810,7 +815,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
   const baseHue = bossSpeak ? 185 : (active ? 160 : 220);
   // The orb breathes with the mic amplitude — transform: scale only (GPU-cheap, no reflow).
   const scale   = active ? (1 + volume * 0.3).toFixed(3) : '1';
-  const ringCol = bossSpeak ? '#22d3ee' : active ? '#00e5ff' : '#475569';
+  const ringCol = bossSpeak ? 'var(--accent-2)' : active ? 'var(--accent)' : '#475569';
 
   return (
     <div style={{ position:'relative', width:154, height:154, margin:'0 auto',
@@ -889,7 +894,7 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
         </div>
       ))}
       {userSpeak && lines.length === 0 && (
-        <div style={{ color:'#10b981', animation:'pulse 0.8s infinite' }}>Höre zu…</div>
+        <div style={{ color:'var(--accent)', animation:'pulse 0.8s infinite' }}>Höre zu…</div>
       )}
       <div ref={endRef} />
     </div>
@@ -915,7 +920,7 @@ function _renderLine(line) {
     );
     if (conf < 0.75) return (
       <span key={i} title={`${Math.round(conf * 100)}% sicher`}
-        style={{ color:'#f59e0b' }}>{tok}</span>
+        style={{ color:'var(--action)' }}>{tok}</span>
     );
     return tok;
   });
@@ -943,18 +948,18 @@ function GameOver({ winner, onRestart }) {
       background:'rgba(0,0,0,0.88)', backdropFilter:'blur(6px)', flexDirection:'column', padding:24,
       animation:'flash-in 0.4s ease' }}>
       <div style={{ fontSize:70, marginBottom:16 }}>{win ? '🏆' : '💀'}</div>
-      <div style={{ fontFamily:'Orbitron,monospace', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
-        color: win ? '#10b981' : '#ef4444',
+      <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
+        color: win ? 'var(--accent)' : '#ef4444',
         textShadow:`0 0 30px ${win ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
         {win ? 'SIEG!' : 'NIEDERLAGE'}
       </div>
       <div style={{ fontSize:12, color:'#94a3b8', marginBottom:28, textAlign:'center', lineHeight:1.6 }}>
         {win ? 'Herr Tariq ist besiegt. Du hast den Level bestanden.' : 'Herr Tariq triumphiert. Versuche es erneut.'}
       </div>
-      <button onClick={onRestart} style={{ fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.14em',
+      <button onClick={onRestart} style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em',
         padding:'12px 32px', borderRadius:8, cursor:'pointer',
-        border:`1px solid ${win ? '#00e5ff' : '#ef4444'}`,
-        color:  win ? '#00e5ff' : '#ef4444',
+        border:`1px solid ${win ? 'var(--accent)' : '#ef4444'}`,
+        color:  win ? 'var(--accent)' : '#ef4444',
         background:'transparent',
         boxShadow:`0 0 20px ${win ? 'rgba(0,229,255,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
         NEU STARTEN
@@ -964,11 +969,11 @@ function GameOver({ winner, onRestart }) {
 }
 
 // ── Component: Metric pill ────────────────────────────────────────────────────
-function Metric({ label, value, sub, color = '#00e5ff' }) {
+function Metric({ label, value, sub, color = 'var(--accent)' }) {
   return (
     <div style={{ flex:1, minWidth:78, padding:'8px 6px', borderRadius:8, textAlign:'center',
       background:'rgba(0,0,0,0.35)', border:`1px solid ${color}33` }}>
-      <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, color }}>{value}</div>
+      <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, color }}>{value}</div>
       <div style={{ fontSize:8, letterSpacing:'0.08em', color:'#94a3b8', marginTop:2 }}>{label}</div>
       {sub && <div style={{ fontSize:7.5, color:'#64748b', marginTop:1 }}>{sub}</div>}
     </div>
@@ -998,7 +1003,7 @@ function CatBar({ label, value, color }) {
 function RankLadder({ rank }) {
   if (!rank?.ranks?.length) return null;
   const tier = rank.tier ?? 0;
-  const cur  = tier >= 4 ? '#a78bfa' : '#fbbf24';
+  const cur  = tier >= 4 ? 'var(--accent)' : 'var(--action)';
   return (
     <div style={{ padding:'10px 12px', borderRadius:'var(--r-md)', background:'rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:9 }}>
@@ -1036,7 +1041,7 @@ function RankLadder({ rank }) {
             {/* Near-miss psychology (Griffiths 1991): within 15% of next tier activates reward circuits */}
             {rank.nextBy !== 'sessions' && rank.toNextPct >= 85 && (
               <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:9, letterSpacing:'0.1em',
-                color:'#fbbf24', textShadow:'0 0 8px rgba(245,158,11,0.6)', animation:'pulse 1.8s ease-in-out infinite' }}>
+                color:'var(--action)', textShadow:'0 0 8px rgba(245,158,11,0.6)', animation:'pulse 1.8s ease-in-out infinite' }}>
                 SO NAH! 🔥
               </span>
             )}
@@ -1074,7 +1079,7 @@ function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 10px' }}>
         <div>
           <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:17, letterSpacing:'0.1em',
-            color:'#fbbf24', textShadow:'0 0 14px rgba(245,158,11,0.5)' }}>🏆 DIESE WOCHE</div>
+            color:'var(--action)', textShadow:'0 0 14px rgba(245,158,11,0.5)' }}>🏆 DIESE WOCHE</div>
           <div style={{ fontSize:9, color:'var(--text-faint)', letterSpacing:'0.08em' }}>TOP 15 · ÜBUNGEN + TÄGLICHE TRAININGS</div>
         </div>
         <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:12, padding:'7px 11px',
@@ -1103,7 +1108,7 @@ function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
               background: isMe ? 'rgba(0,229,255,0.07)' : e.rank === 1 ? 'rgba(251,191,36,0.08)' : 'rgba(255,255,255,0.03)',
               border: `1px solid ${isMe ? 'rgba(0,229,255,0.35)' : e.rank === 1 ? 'rgba(251,191,36,0.35)' : 'var(--line)'}` }}>
               <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13,
-                color: e.rank === 1 ? '#fbbf24' : e.rank === 2 ? '#94a3b8' : e.rank === 3 ? '#cd7f32' : 'var(--text-dim)',
+                color: e.rank === 1 ? 'var(--action)' : e.rank === 2 ? '#94a3b8' : e.rank === 3 ? '#cd7f32' : 'var(--text-dim)',
                 minWidth:24, textAlign:'center' }}>
                 {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : `#${e.rank}`}
               </span>
@@ -1116,7 +1121,7 @@ function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
                   {e.liveSessions} Kämpfe · {e.dailyDays} Tage · {e.streak > 0 ? `${e.streak}🔥` : ''}
                 </div>
               </div>
-              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:12, color:'#fbbf24' }}>{e.score}</span>
+              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:12, color:'var(--action)' }}>{e.score}</span>
             </div>
           );
         })}
@@ -1147,15 +1152,15 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
   const pick = (de, arr) => (ar && arr ? arr : de) || de || '';   // explanation chooser
   const rtl  = ar ? { direction:'rtl', textAlign:'right' } : null;
   const [lo, hi] = m.wpmTarget ?? [140, 160];
-  const wpmColor = m.wpm >= lo && m.wpm <= hi ? '#10b981'
-                 : (m.wpm >= lo - 30 && m.wpm <= hi + 25) ? '#f59e0b' : '#ef4444';
+  const wpmColor = m.wpm >= lo && m.wpm <= hi ? 'var(--accent)'
+                 : (m.wpm >= lo - 30 && m.wpm <= hi + 25) ? 'var(--action)' : '#ef4444';
   const win   = r.outcome === 'win';
   const score = Number.isFinite(r.score) ? r.score : (m.avgScore ?? 0);
   const shownScore = useAnimatedNumber(score, 900);
   const rank  = r.rank ?? '–';
   const gradeUnavailable = !!r.gradeUnavailable;
   const cats  = r.categories ?? {};
-  const accent = win ? '#34d399' : '#f59e0b';
+  const accent = win ? 'var(--accent)' : 'var(--action)';
 
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://bpo-combat-arena.vercel.app';
   const shareText = [
@@ -1192,7 +1197,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
       }
       const stats = [m.wpm > 0 ? `${m.wpm} W/min` : '', m.c1Hits > 0 ? `C1-Vokabular: ${m.c1Hits}` : ''].filter(Boolean).join('   ·   ');
       if (stats) { x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif'; x.fillText(stats, W / 2, 830); }
-      x.fillStyle = '#fbbf24'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('اتدرّب على إنترفيو شغل ألماني', W / 2, 930);
+      x.fillStyle = 'var(--action)'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('اتدرّب على إنترفيو شغل ألماني', W / 2, 930);
       x.fillStyle = '#64748b'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
       return await new Promise((res) => c.toBlob(res, 'image/png'));
     } catch { return null; }
@@ -1230,7 +1235,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
       {pending && !data ? (
         <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
           <div className="spin" style={{ width:34, height:34, borderRadius:'50%',
-            border:'3px solid rgba(0,229,255,0.2)', borderTopColor:'#00e5ff' }} />
+            border:'3px solid rgba(0,229,255,0.2)', borderTopColor:'var(--accent)' }} />
           <div style={{ fontSize:12, color:'#94a3b8' }}>Analyse deiner Antworten läuft…</div>
         </div>
       ) : (
@@ -1243,7 +1248,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               {win ? 'SIEG' : 'NIEDERLAGE'}
             </div>
             {gradeUnavailable ? (
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:20, lineHeight:1.25, color:'#fbbf24',
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:20, lineHeight:1.25, color:'var(--action)',
                 margin:'12px 0 2px', textShadow:'0 0 18px rgba(251,191,36,0.4)' }}>
                 Bewertung nicht verfügbar
               </div>
@@ -1258,14 +1263,14 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   RANG · {shownScore}<span style={{ opacity:0.5 }}> / 100</span>
                 </div>
                 {r.jobLabel && (
-                  <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'#fbbf24', textShadow:'0 0 10px rgba(251,191,36,0.35)', marginTop:4 }}>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'var(--action)', textShadow:'0 0 10px rgba(251,191,36,0.35)', marginTop:4 }}>
                     {r.jobLabel.toUpperCase()}
                   </div>
                 )}
               </>
             )}
             {/* Motivating loss / win line */}
-            <div style={{ marginTop:8, fontSize:12, color: win ? '#a7f3d0' : '#fcd34d', lineHeight:1.5,
+            <div style={{ marginTop:8, fontSize:12, color: win ? 'var(--accent-2)' : 'var(--action)', lineHeight:1.5,
               animation:'result-rise 0.6s var(--ease-out)' }}>
               {win
                 ? `Stark${nm ? ', ' + nm : ''}! Du hast ${bossName || 'den Interviewer'} bezwungen — nur noch ${r.playerHp ?? '?'} HP übrig bei dir.`
@@ -1274,7 +1279,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             {data?.progress?.personalBest && (
               <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
                 fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em',
-                color:'#04070d', background:'linear-gradient(135deg,#fde68a,#fbbf24)', boxShadow:'0 0 22px rgba(251,191,36,0.55)',
+                color:'#04070d', background:'linear-gradient(135deg,var(--action-2),var(--action))', boxShadow:'0 0 22px rgba(251,191,36,0.55)',
                 animation:'rank-pop 0.7s var(--ease-spring)' }}>
                 🏆 BESTLEISTUNG!
               </div>
@@ -1288,11 +1293,11 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             const d = r.verdict === 'fail'
               ? { icon:'✗', label:'DIESMAL NICHT', de:'Unter Druck eingebrochen — genau das entscheidet auf der Linie. Weiter trainieren, der Weg ist klar.', ar:'انهرت تحت الضغط — ده بالظبط اللي الشغل بيتقرر عليه. كمّل تدريب، الطريق واضح.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' }
               : (rank === 'C1' && r.verdict === 'pass')
-              ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'C1 unter Druck gehalten — auf einer deutschen Kundenlinie einsetzbar.', ar:'حافظت على C1 تحت الضغط — جاهز لخط خدمة ألماني.', color:'#34d399', bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.4)' }
+              ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'C1 unter Druck gehalten — auf einer deutschen Kundenlinie einsetzbar.', ar:'حافظت على C1 تحت الضغط — جاهز لخط خدمة ألماني.', color:'var(--accent)', bg:'rgba(16,185,129,0.12)', border:'rgba(16,185,129,0.4)' }
               : rank === 'C1'
-              ? { icon:'📋', label:'ZWEITES GESPRÄCH', de:'C1-Niveau, aber unter Druck noch instabil — das schließt die Linie noch nicht auf.', ar:'مستوى C1 بس لسه مش ثابت تحت الضغط — لسه بدري على الخط.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
+              ? { icon:'📋', label:'ZWEITES GESPRÄCH', de:'C1-Niveau, aber unter Druck noch instabil — das schließt die Linie noch nicht auf.', ar:'مستوى C1 بس لسه مش ثابت تحت الضغط — لسه بدري على الخط.', color:'var(--action)', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
               : rank === 'B2'
-              ? { icon:'📋', label:'TELEFON-SCREEN BESTANDEN', de:'B2: Sie bestehen das HR-Screening. Für die Kundenlinie fehlt C1 unter Druck.', ar:'B2: بتعدّي فلتر الـHR. لكن الخط محتاج C1 تحت الضغط.', color:'#fbbf24', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
+              ? { icon:'📋', label:'TELEFON-SCREEN BESTANDEN', de:'B2: Sie bestehen das HR-Screening. Für die Kundenlinie fehlt C1 unter Druck.', ar:'B2: بتعدّي فلتر الـHR. لكن الخط محتاج C1 تحت الضغط.', color:'var(--action)', bg:'rgba(251,191,36,0.10)', border:'rgba(251,191,36,0.4)' }
               : rank === 'B1'
               ? { icon:'⏸', label:'NOCH NICHT', de:'B1: Die Grundlage steht — aber eine deutsche Linie verlangt C1.', ar:'B1: الأساس موجود — بس الخط الألماني محتاج C1.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               : rank === 'A2'
@@ -1322,19 +1327,19 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   border:'1.5px solid rgba(245,158,11,0.6)', display:'flex', alignItems:'center',
                   justifyContent:'center', fontSize:14, flexShrink:0 }}>⭐</div>
                 <div>
-                  <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'Orbitron,monospace', color:'#f59e0b' }}>
+                  <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'var(--action)' }}>
                     WOCHENFOKUS · DEIN TÄGLICHES ZIEL
                   </div>
-                  <div style={{ fontSize:8, color:'rgba(255,255,255,0.3)', letterSpacing:'0.08em', fontFamily:'Orbitron,monospace' }}>
+                  <div style={{ fontSize:8, color:'rgba(255,255,255,0.3)', letterSpacing:'0.08em', fontFamily:'var(--font-display)' }}>
                     تمرين الأسبوع · هدفك اليومي
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize:13.5, color:'#fde68a', lineHeight:1.65, fontWeight:600 }}>
+              <div style={{ fontSize:13.5, color:'var(--action-2)', lineHeight:1.65, fontWeight:600 }}>
                 {ar && data.priorityFix.ar ? data.priorityFix.ar : data.priorityFix.de}
               </div>
               {!ar && data.priorityFix.ar && (
-                <div dir="rtl" style={{ marginTop:7, fontSize:11.5, color:'#fbbf24', lineHeight:1.55, opacity:0.8 }}>
+                <div dir="rtl" style={{ marginTop:7, fontSize:11.5, color:'var(--action)', lineHeight:1.55, opacity:0.8 }}>
                   {data.priorityFix.ar}
                 </div>
               )}
@@ -1344,24 +1349,24 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
           {data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
             <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(56,189,248,0.07)', border:'1px solid rgba(56,189,248,0.3)' }}>
-              <div style={{ fontSize:9, fontFamily:'Orbitron,monospace', letterSpacing:'0.12em', color:'#38bdf8', marginBottom:5 }}>{ar ? 'تقدّمك' : 'DEIN FORTSCHRITT'}</div>
+              <div style={{ fontSize:9, fontFamily:'var(--font-display)', letterSpacing:'0.12em', color:'var(--accent-2)', marginBottom:5 }}>{ar ? 'تقدّمك' : 'DEIN FORTSCHRITT'}</div>
               <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.6, ...rtl }}>{ar && data.progressNarrative.ar ? data.progressNarrative.ar : data.progressNarrative.de}</div>
             </div>
           )}
 
           {/* INTERVIEW REVIEW — per exchange: your real words → what was missing vs the question → the fix that gets you hired */}
           {!!data?.interviewReview?.length && (
-            <Section title={ar ? 'المقابلة · سؤال بسؤال' : 'INTERVIEW · FRAGE FÜR FRAGE'} color="#fbbf24">
+            <Section title={ar ? 'المقابلة · سؤال بسؤال' : 'INTERVIEW · FRAGE FÜR FRAGE'} color="var(--action)">
               {data.interviewReview.map((r, i) => (
                 <div key={i} style={{ marginBottom:i < data.interviewReview.length-1 ? 12 : 0,
                   paddingBottom:i < data.interviewReview.length-1 ? 12 : 0,
                   borderBottom:i < data.interviewReview.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                   {r.frage && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4, ...rtl }}>❓ {r.frage}</div>}
                   <div style={{ fontSize:12, color:'#e2e8f0', fontStyle:'italic', lineHeight:1.5, marginBottom:6, overflowWrap:'anywhere', ...rtl }}>„{r.deinSatz}“</div>
-                  {(ar ? r.stark_ar : r.stark) && <div style={{ fontSize:11.5, color:'#6ee7b7', lineHeight:1.5, marginBottom:4, ...rtl }}>✓ {ar && r.stark_ar ? r.stark_ar : r.stark}</div>}
+                  {(ar ? r.stark_ar : r.stark) && <div style={{ fontSize:11.5, color:'var(--accent-2)', lineHeight:1.5, marginBottom:4, ...rtl }}>✓ {ar && r.stark_ar ? r.stark_ar : r.stark}</div>}
                   {(ar ? r.luecke_ar : r.luecke) && <div style={{ fontSize:11.5, color:'#fca5a5', lineHeight:1.5, marginBottom:4, ...rtl }}>✗ {ar && r.luecke_ar ? r.luecke_ar : r.luecke}</div>}
                   {(ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt) && (
-                    <div style={{ fontSize:11.5, color:'#fcd34d', lineHeight:1.55, background:'rgba(245,158,11,0.08)', borderRadius:7, padding:'6px 9px', marginTop:4, ...rtl }}>
+                    <div style={{ fontSize:11.5, color:'var(--action)', lineHeight:1.55, background:'rgba(245,158,11,0.08)', borderRadius:7, padding:'6px 9px', marginTop:4, ...rtl }}>
                       💡 {ar && r.fixDerEinstellt_ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt}
                     </div>
                   )}
@@ -1381,20 +1386,20 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {/* ── Schaden nach Kategorie — only when the server actually scored them (honesty: never
               paint a fake "Grammatik 0" from a missing/failed scoring path). ── */}
           {!gradeUnavailable && r.categories && (
-            <Section title={ar ? 'الضرر حسب الفئة · SCHADEN' : 'SCHADEN NACH KATEGORIE'} color="#00e5ff">
-              <CatBar label="Flüssigkeit"   value={cats.fluency}      color="#34d399" />
-              <CatBar label="Grammatik"     value={cats.grammar}      color="#00e5ff" />
-              <CatBar label="Wortschatz"    value={cats.vocab}        color="#a78bfa" />
-              <CatBar label="De-Eskalation" value={cats.deescalation} color="#f59e0b" />
+            <Section title={ar ? 'الضرر حسب الفئة · SCHADEN' : 'SCHADEN NACH KATEGORIE'} color="var(--accent)">
+              <CatBar label="Flüssigkeit"   value={cats.fluency}      color="var(--accent)" />
+              <CatBar label="Grammatik"     value={cats.grammar}      color="var(--accent)" />
+              <CatBar label="Wortschatz"    value={cats.vocab}        color="var(--accent)" />
+              <CatBar label="De-Eskalation" value={cats.deescalation} color="var(--action)" />
             </Section>
           )}
 
           {/* ── Natürlichkeit (language naturalness score) ─────────────────── */}
           {data?.naturalness && (
-            <Section title={ar ? 'صياغة وكلمات · NATÜRLICHKEIT' : 'NATÜRLICHKEIT · WORTWAHL'} color="#22d3ee"
+            <Section title={ar ? 'صياغة وكلمات · NATÜRLICHKEIT' : 'NATÜRLICHKEIT · WORTWAHL'} color="var(--accent-2)"
               right={
-                <span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
-                  borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'#22d3ee' }}>
+                <span style={{ fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 8px',
+                  borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'var(--accent-2)' }}>
                   {data.naturalness.score}/100
                 </span>
               }>
@@ -1412,7 +1417,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* ── Dein Fortschritt: readiness rank + one improvement trend line ── */}
           {(data?.progress?.rank || data?.progress?.trend?.fluency?.length > 1) && (
-            <Section title={ar ? 'تقدّمك · DEIN FORTSCHRITT' : 'DEIN FORTSCHRITT'} color="#a78bfa">
+            <Section title={ar ? 'تقدّمك · DEIN FORTSCHRITT' : 'DEIN FORTSCHRITT'} color="var(--accent)">
               {data.progress.rank && <RankLadder rank={data.progress.rank} />}
               {data.progress.trend?.fluency?.length > 1 && (() => {
                 const f = data.progress.trend.fluency;
@@ -1423,13 +1428,13 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                     <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, letterSpacing:'0.02em' }}>
                       {f.map((v, i) => (
                         <span key={i}>
-                          <span style={{ color: i === f.length - 1 ? '#34d399' : '#94a3b8',
+                          <span style={{ color: i === f.length - 1 ? 'var(--accent)' : '#94a3b8',
                             textShadow: i === f.length - 1 ? '0 0 10px rgba(52,211,153,0.6)' : 'none' }}>{v}</span>
                           {i < f.length - 1 && <span style={{ color:'#475569', margin:'0 7px' }}>→</span>}
                         </span>
                       ))}
                     </div>
-                    <div style={{ fontSize:10, marginTop:4, color: delta > 0 ? '#34d399' : delta < 0 ? '#f87171' : '#94a3b8' }}>
+                    <div style={{ fontSize:10, marginTop:4, color: delta > 0 ? 'var(--accent)' : delta < 0 ? '#f87171' : '#94a3b8' }}>
                       {delta > 0 ? `+${delta} besser als zu Beginn dieser Reihe — du verbesserst dich.`
                         : delta < 0 ? `${delta} heute — dranbleiben, der Trend dreht sich.`
                         : 'Stabil — jetzt zum nächsten Sprung.'}
@@ -1444,25 +1449,25 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {data?.progress && (
             <div style={{ padding:'10px 12px', borderRadius:10,
               background: data.progress.leveledUp ? 'rgba(167,139,250,0.14)' : 'rgba(0,229,255,0.06)',
-              border:`1px solid ${data.progress.leveledUp ? '#a78bfa' : 'rgba(0,229,255,0.25)'}` }}>
+              border:`1px solid ${data.progress.leveledUp ? 'var(--accent)' : 'rgba(0,229,255,0.25)'}` }}>
               {data.progress.leveledUp && (
-                <div style={{ fontFamily:'Orbitron,monospace', fontSize:12, fontWeight:900, color:'#a78bfa',
+                <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:900, color:'var(--accent)',
                   letterSpacing:'0.1em', marginBottom:4, textShadow:'0 0 12px rgba(167,139,250,0.7)' }}>
                   ↑ LEVEL UP — LEVEL {data.progress.level ?? '–'}
                 </div>
               )}
               <div style={{ fontSize:12, color:'#e2e8f0' }}>
-                <b style={{ color:'#34d399' }}>+{data.progress.xpGained ?? 0} XP</b>
+                <b style={{ color:'var(--accent)' }}>+{data.progress.xpGained ?? 0} XP</b>
                 <span style={{ color:'#94a3b8' }}> · RANG {data.result?.rank ?? '–'} · Level {data.progress.level ?? '–'}</span>
                 {typeof data.progress.dueReviews === 'number' && data.progress.dueReviews > 0 && (
-                  <span style={{ color:'#f59e0b' }}> · {data.progress.dueReviews} Wiederholung(en) fällig</span>
+                  <span style={{ color:'var(--action)' }}> · {data.progress.dueReviews} Wiederholung(en) fällig</span>
                 )}
               </div>
               {data.progress.levelProgress && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
                   <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, data.progress.levelProgress.pct || 0))}%`, borderRadius:'inherit',
-                      background:'linear-gradient(90deg, #22d3ee99, #00e5ff)', boxShadow:'0 0 8px rgba(0,229,255,0.35)', transition:'width 0.7s var(--ease-out)' }} />
+                      background:'linear-gradient(90deg, var(--accent-2)99, var(--accent))', boxShadow:'0 0 8px rgba(0,229,255,0.35)', transition:'width 0.7s var(--ease-out)' }} />
                   </div>
                   <span style={{ fontSize:9.5, color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{data.progress.levelProgress.pct ?? 0}%</span>
                 </div>
@@ -1474,23 +1479,23 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               )}
               {data.progress.trainingDelta && (
                 <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
-                  <b style={{ color:'#fbbf24' }}>{ar ? data.progress.trainingDelta.title_ar : data.progress.trainingDelta.title_de}</b>:{' '}
+                  <b style={{ color:'var(--action)' }}>{ar ? data.progress.trainingDelta.title_ar : data.progress.trainingDelta.title_de}</b>:{' '}
                   {ar ? 'الجولة اللي فاتت' : 'letzter Kampf'} {data.progress.trainingDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
-                  <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? '#34d399' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
+                  <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
                 </div>
               )}
               {data.progress.weakRuleDelta && (
                 <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
-                  <b style={{ color:'#fbbf24' }}>{ar ? 'نقطة ضعفك المستهدفة' : 'Gezielt getestete Schwäche'}</b> — {data.progress.weakRuleDelta.rule}:{' '}
+                  <b style={{ color:'var(--action)' }}>{ar ? 'نقطة ضعفك المستهدفة' : 'Gezielt getestete Schwäche'}</b> — {data.progress.weakRuleDelta.rule}:{' '}
                   {ar ? 'الجولة اللي فاتت' : 'letzte Sitzung'} {data.progress.weakRuleDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
-                  <b style={{ color: data.progress.weakRuleDelta.after <= data.progress.weakRuleDelta.before ? '#34d399' : '#f87171' }}>{data.progress.weakRuleDelta.after}</b>
+                  <b style={{ color: data.progress.weakRuleDelta.after <= data.progress.weakRuleDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.weakRuleDelta.after}</b>
                 </div>
               )}
               {data.progress.weekTrend && (
                 <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
-                  <b style={{ color:'#fbbf24' }}>{ar ? 'الأسبوع ده مقابل اللي فات' : 'Diese Woche vs. letzte Woche'}</b>:{' '}
-                  {ar ? 'الطلاقة' : 'Flüssigkeit'} {data.progress.weekTrend.fluency.last} → <b style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? '#34d399' : '#f87171' }}>{data.progress.weekTrend.fluency.this}</b>{' '}
-                  <span style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? '#34d399' : '#f87171' }}>({data.progress.weekTrend.fluency.delta >= 0 ? '+' : ''}{data.progress.weekTrend.fluency.delta})</span>
+                  <b style={{ color:'var(--action)' }}>{ar ? 'الأسبوع ده مقابل اللي فات' : 'Diese Woche vs. letzte Woche'}</b>:{' '}
+                  {ar ? 'الطلاقة' : 'Flüssigkeit'} {data.progress.weekTrend.fluency.last} → <b style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? 'var(--accent)' : '#f87171' }}>{data.progress.weekTrend.fluency.this}</b>{' '}
+                  <span style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? 'var(--accent)' : '#f87171' }}>({data.progress.weekTrend.fluency.delta >= 0 ? '+' : ''}{data.progress.weekTrend.fluency.delta})</span>
                 </div>
               )}
             </div>
@@ -1499,10 +1504,10 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {/* Metrics */}
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
             <Metric label="WpM"        value={m.wpm ?? '–'}            sub={`Ziel ${lo}–${hi}`} color={wpmColor} />
-            <Metric label="FÜLLWÖRTER" value={m.fillers ?? 0}         sub="äh/ehm/also" color="#f59e0b" />
-            <Metric label="C1-VOKABEL" value={m.c1Hits ?? 0}          color="#10b981" />
-            <Metric label="KONJ. II"   value={m.konjunktivHits ?? 0}  sub="Höflichkeit" color="#a78bfa" />
-            <Metric label="KONNEKTOR"  value={m.connectorHits ?? 0}   sub="weil/obwohl…" color="#00e5ff" />
+            <Metric label="FÜLLWÖRTER" value={m.fillers ?? 0}         sub="äh/ehm/also" color="var(--action)" />
+            <Metric label="C1-VOKABEL" value={m.c1Hits ?? 0}          color="var(--accent)" />
+            <Metric label="KONJ. II"   value={m.konjunktivHits ?? 0}  sub="Höflichkeit" color="var(--accent)" />
+            <Metric label="KONNEKTOR"  value={m.connectorHits ?? 0}   sub="weil/obwohl…" color="var(--accent)" />
           </div>
 
           {data?.note && (
@@ -1511,19 +1516,19 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* Strengths */}
           {!!data?.strengths?.length && (
-            <Section title="DAS LIEF GUT" color="#10b981">
+            <Section title="DAS LIEF GUT" color="var(--accent)">
               {data.strengths.map((s, i) => {
                 const txt = ar && data.strengths_ar?.[i] ? data.strengths_ar[i] : s;
-                return <div key={i} style={{ fontSize:12, color:'#d1fae5', marginBottom:5, lineHeight:1.5, ...rtl }}>✓ {txt}</div>;
+                return <div key={i} style={{ fontSize:12, color:'var(--accent-2)', marginBottom:5, lineHeight:1.5, ...rtl }}>✓ {txt}</div>;
               })}
             </Section>
           )}
 
           {/* Answer architecture (structure & framing) — additive coaching dimension */}
           {data?.answerArchitecture && (data.answerArchitecture.ar || data.answerArchitecture.de) && (
-            <Section title={ar ? 'بنية الإجابة · ANTWORT-AUFBAU' : 'ANTWORT-AUFBAU · STRUKTUR'} color="#22d3ee"
-              right={<span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
-                borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'#22d3ee' }}>{String(data.answerArchitecture.label || '').toUpperCase()}</span>}>
+            <Section title={ar ? 'بنية الإجابة · ANTWORT-AUFBAU' : 'ANTWORT-AUFBAU · STRUKTUR'} color="var(--accent-2)"
+              right={<span style={{ fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 8px',
+                borderRadius:99, border:'1px solid rgba(34,211,238,0.45)', color:'var(--accent-2)' }}>{String(data.answerArchitecture.label || '').toUpperCase()}</span>}>
               <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl }}>
                 {ar && data.answerArchitecture.ar ? data.answerArchitecture.ar : data.answerArchitecture.de}
               </div>
@@ -1532,9 +1537,9 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* Delivery confidence — additive coaching dimension (separate from filler/fluency) */}
           {data?.deliveryConfidence && (data.deliveryConfidence.ar || data.deliveryConfidence.de) && (
-            <Section title={ar ? 'ثقة الإلقاء · AUFTRETEN' : 'AUFTRETEN · SICHERHEIT'} color="#a78bfa"
-              right={<span style={{ fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 8px',
-                borderRadius:99, border:'1px solid rgba(167,139,250,0.45)', color:'#a78bfa' }}>{String(data.deliveryConfidence.label || '').toUpperCase()}</span>}>
+            <Section title={ar ? 'ثقة الإلقاء · AUFTRETEN' : 'AUFTRETEN · SICHERHEIT'} color="var(--accent)"
+              right={<span style={{ fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 8px',
+                borderRadius:99, border:'1px solid rgba(167,139,250,0.45)', color:'var(--accent)' }}>{String(data.deliveryConfidence.label || '').toUpperCase()}</span>}>
               <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl }}>
                 {ar && data.deliveryConfidence.ar ? data.deliveryConfidence.ar : data.deliveryConfidence.de}
               </div>
@@ -1546,7 +1551,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             <Section title="GRAMMATIK · NACH REGEL" color="#f87171"
               right={
                 <button onClick={() => setShowAll(v => !v)} style={{ fontSize:8.5, cursor:'pointer',
-                  fontFamily:'Orbitron,monospace', letterSpacing:'0.06em', padding:'3px 7px', borderRadius:5,
+                  fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 7px', borderRadius:5,
                   border:'1px solid rgba(248,113,113,0.4)', background:'transparent', color:'#f87171' }}>
                   {showAll ? 'NUR BEISPIELE' : 'ALLE FEHLER ANZEIGEN'}
                 </button>
@@ -1576,7 +1581,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                               <div>
                                 <span style={{ color:'#ef4444', textDecoration:'line-through' }}>{e.wrongWord}</span>
                                 <span style={{ color:'#64748b' }}> → </span>
-                                <b style={{ color:'#34d399' }}>{e.rightWord}</b>
+                                <b style={{ color:'var(--accent)' }}>{e.rightWord}</b>
                               </div>
                               {e.wrongFragment && (
                                 <div style={{ fontSize:10, color:'#64748b', marginTop:2, fontStyle:'italic' }}>{e.wrongFragment}</div>
@@ -1585,7 +1590,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                           ) : (
                             <>
                               <span style={{ color:'#ef4444' }}>✗ {e.wrong}</span><br />
-                              <span style={{ color:'#34d399' }}>✓ {e.right}</span>
+                              <span style={{ color:'var(--accent)' }}>✓ {e.right}</span>
                             </>
                           )}
                         </div>
@@ -1599,7 +1604,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* ── KORREKTURDRILL — flip-cards built from this session's errors ──── */}
           {!!data?.drills?.length && (
-            <Section title={ar ? 'كوّن الجملة الصح · KORREKTURDRILL' : 'KORREKTURDRILL · ÜBEN'} color="#f59e0b">
+            <Section title={ar ? 'كوّن الجملة الصح · KORREKTURDRILL' : 'KORREKTURDRILL · ÜBEN'} color="var(--action)">
               <div style={{ fontSize:9.5, color:'#94a3b8', marginBottom:9, fontStyle:'italic' }}>
                 {ar ? 'انقر على كل كارت عشان تشوف الإجابة الصح.'
                     : 'Tippe auf eine Karte, um die korrekte Version aufzudecken.'}
@@ -1615,7 +1620,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {data?.grammarUnavailable && (m.answers > 0) && (
             <div style={{ padding:'10px 12px', borderRadius:10, ...rtl,
               background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.35)',
-              fontSize:11.5, color:'#fcd34d', lineHeight:1.5 }}>
+              fontSize:11.5, color:'var(--action)', lineHeight:1.5 }}>
               {ar ? '⚠ فحص القواعد غير متاح حاليًا — لم نتمكن من التحقق من الأخطاء النحوية هذه المرة.'
                   : '⚠ Grammatikprüfung nicht verfügbar — die Grammatik konnte diesmal nicht geprüft werden.'}
             </div>
@@ -1624,7 +1629,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {!data?.grammar?.length && (m.answers > 0) && !data?.grammarUnavailable && (
             <div style={{ padding:'10px 12px', borderRadius:10, ...rtl,
               background:'rgba(16,185,129,0.10)', border:'1px solid rgba(16,185,129,0.3)',
-              fontSize:11.5, color:'#a7f3d0', lineHeight:1.5 }}>
+              fontSize:11.5, color:'var(--accent-2)', lineHeight:1.5 }}>
               {ar ? '✓ لم يتم رصد أخطاء نحوية واضحة — أداء نظيف. ارفع ألمانيتك إلى مستوى أقوى:'
                   : '✓ Keine klaren Grammatikfehler gefunden — saubere Leistung. Heb dein Deutsch jetzt auf die nächste Stufe:'}
             </div>
@@ -1632,19 +1637,19 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* Lesson when there are few/no corrections */}
           {!!data?.lesson?.length && (
-            <Section title={ar ? 'الدرس · LESSON' : 'LESSON'} color="#f59e0b">
+            <Section title={ar ? 'الدرس · LESSON' : 'LESSON'} color="var(--action)">
               {data.lesson.map((line, i) => {
                 const text = line && typeof line === 'object'
                   ? (ar && line.ar ? line.ar : line.de)
                   : String(line ?? '');
-                return <div key={i} style={{ fontSize:11.5, color:'#fde68a', lineHeight:1.5, marginBottom:4 }}>{text}</div>;
+                return <div key={i} style={{ fontSize:11.5, color:'var(--action-2)', lineHeight:1.5, marginBottom:4 }}>{text}</div>;
               })}
             </Section>
           )}
 
           {/* Enrichment: STRONGER ways to say what the candidate ACTUALLY said (not corrections) */}
           {!!data?.upgrades?.length && (
-            <Section title={ar ? 'صياغة أقوى · STÄRKER FORMULIEREN' : 'STÄRKER FORMULIEREN'} color="#a78bfa">
+            <Section title={ar ? 'صياغة أقوى · STÄRKER FORMULIEREN' : 'STÄRKER FORMULIEREN'} color="var(--accent)">
               {data.upgrades.map((u, i) => {
                 const why = ar && u.why_ar ? u.why_ar : u.why;
                 return (
@@ -1660,13 +1665,13 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* What to study next */}
           {!!data?.studyNext?.length && (
-            <Section title="NÄCHSTE SCHRITTE" color="#00e5ff">
+            <Section title="NÄCHSTE SCHRITTE" color="var(--accent)">
               {data.studyNext.map((s, i) => {
                 const title  = ar && s.title_ar  ? s.title_ar  : s.title;
                 const detail = ar && s.detail_ar ? s.detail_ar : s.detail;
                 return (
                   <div key={i} style={{ fontSize:12, color:'#e2e8f0', marginBottom:6, lineHeight:1.45, ...rtl }}>
-                    <span style={{ color:'#00e5ff' }}>▸ {title}</span>
+                    <span style={{ color:'var(--accent)' }}>▸ {title}</span>
                     {detail && <span style={{ color:'#94a3b8' }}> — {detail}</span>}
                   </div>
                 );
@@ -1676,12 +1681,12 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* Vocab to drill (also queued into spaced repetition) */}
           {!!data?.vocabTargets?.length && (
-            <Section title="VOKABELN ZUM ÜBEN" color="#10b981">
+            <Section title="VOKABELN ZUM ÜBEN" color="var(--accent)">
               {data.vocabTargets.map((v, i) => {
                 const note = ar && v.note_ar ? v.note_ar : v.note;
                 return (
                   <div key={i} style={{ fontSize:12, marginBottom:4, lineHeight:1.45 }}>
-                    <b style={{ color:'#34d399' }}>{v.de}</b>
+                    <b style={{ color:'var(--accent)' }}>{v.de}</b>
                     <span style={{ color:'#94a3b8' }}> — {v.en}{note ? ` (${note})` : ''}</span>
                   </div>
                 );
@@ -1719,7 +1724,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
         <div style={{ padding:'2px 16px 0' }}>
           <button onClick={onOpenGuide} style={{ width:'100%', fontFamily:'var(--font-display)', fontWeight:700,
             fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
-            border:'1px solid #34d399', color:'#34d399', background:'rgba(52,211,153,0.08)' }}>
+            border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(52,211,153,0.08)' }}>
             🧭 {lang === 'ar' ? 'مش فاهم نتيجتك؟ اسأل الحسن' : 'Frag Alhassan — was bedeutet das für mich?'}
           </button>
         </div>
@@ -1748,7 +1753,7 @@ function Section({ title, color, right, children }) {
     <div style={{ borderRadius:10, padding:'10px 12px',
       background:'rgba(0,0,0,0.35)', border:`1px solid ${color}2a` }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
-        <span style={{ fontFamily:'Orbitron,monospace', fontSize:9.5, letterSpacing:'0.12em', color,
+        <span style={{ fontFamily:'var(--font-display)', fontSize:9.5, letterSpacing:'0.12em', color,
           textShadow:`0 0 8px ${color}55` }}>{title}</span>
         {right}
       </div>
@@ -1767,7 +1772,7 @@ function DrillCard({ drill, ar }) {
       border:`1px solid rgba(245,158,11,${flipped ? '0.65' : '0.3'})`,
       background: flipped ? 'rgba(245,158,11,0.09)' : 'rgba(245,158,11,0.04)',
       transition:'background 0.2s, border-color 0.2s' }}>
-      <div style={{ fontSize:9.5, fontFamily:'Orbitron,monospace', color:'#f59e0b', marginBottom:6, letterSpacing:'0.08em' }}>
+      <div style={{ fontSize:9.5, fontFamily:'var(--font-display)', color:'var(--action)', marginBottom:6, letterSpacing:'0.08em' }}>
         {drill.rule}
       </div>
       <div style={{ fontSize:12, color:'#fca5a5', marginBottom: flipped ? 8 : 0, fontStyle:'italic' }}>
@@ -1775,10 +1780,10 @@ function DrillCard({ drill, ar }) {
       </div>
       {flipped ? (
         <>
-          <div style={{ fontSize:12, color:'#34d399', marginBottom:6 }}>
+          <div style={{ fontSize:12, color:'var(--accent)', marginBottom:6 }}>
             ✓ „{drill.after}"
           </div>
-          <div style={{ fontSize:11, color:'#fde68a', lineHeight:1.5, ...rtl }}>
+          <div style={{ fontSize:11, color:'var(--action-2)', lineHeight:1.5, ...rtl }}>
             {ar && drill.ar ? drill.ar : drill.de}
           </div>
         </>
@@ -1792,7 +1797,7 @@ function DrillCard({ drill, ar }) {
 }
 
 // ── Component: Sparkline (zero-dependency inline SVG) ─────────────────────────
-function Sparkline({ data, color = '#00e5ff', invert = false, height = 34 }) {
+function Sparkline({ data, color = 'var(--accent)', invert = false, height = 34 }) {
   const pts = (data || []).filter((n) => Number.isFinite(n));
   if (pts.length < 2) {
     return <div style={{ height, display:'flex', alignItems:'center', fontSize:9, color:'#475569' }}>
@@ -1827,10 +1832,10 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
     <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:18, fontWeight:900, letterSpacing:2,
-          color:'#00e5ff', textShadow:'0 0 20px rgba(0,229,255,0.5)' }}>FORTSCHRITT</div>
-        <button onClick={onClose} style={{ fontFamily:'Orbitron,monospace', fontSize:10, cursor:'pointer',
-          padding:'6px 12px', borderRadius:6, border:'1px solid rgba(0,229,255,0.3)', background:'transparent', color:'#00e5ff' }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, letterSpacing:2,
+          color:'var(--accent)', textShadow:'0 0 20px rgba(0,229,255,0.5)' }}>FORTSCHRITT</div>
+        <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
+          padding:'6px 12px', borderRadius:6, border:'1px solid rgba(0,229,255,0.3)', background:'transparent', color:'var(--accent)' }}>
           ✕ ZURÜCK
         </button>
       </div>
@@ -1848,11 +1853,11 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
               padding:'8px 12px', borderRadius:8, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(0,229,255,0.18)' }}>
               <div style={{ minWidth:0 }}>
                 <div style={{ fontSize:11, color:'#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
-                <div style={{ fontSize:9, color: isFreePlan ? '#f59e0b' : '#10b981', fontFamily:'Orbitron,monospace', letterSpacing:'0.08em', marginTop:2 }}>
+                <div style={{ fontSize:9, color: isFreePlan ? 'var(--action)' : 'var(--accent)', fontFamily:'var(--font-display)', letterSpacing:'0.08em', marginTop:2 }}>
                   {tierLabel}
                 </div>
               </div>
-              <button onClick={onLogout} style={{ fontSize:9, cursor:'pointer', fontFamily:'Orbitron,monospace',
+              <button onClick={onLogout} style={{ fontSize:9, cursor:'pointer', fontFamily:'var(--font-display)',
                 padding:'5px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#fca5a5' }}>
                 ABMELDEN
               </button>
@@ -1860,11 +1865,11 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
           )}
 
           {/* Level + boss ladder */}
-          <Section title={`LEVEL ${lp.level}`} color="#a78bfa" right={
+          <Section title={`LEVEL ${lp.level}`} color="var(--accent)" right={
             <span style={{ fontSize:9, color:'#94a3b8' }}>{lp.intoLevel}/{lp.perLevel} XP</span>}>
             <div style={{ height:9, borderRadius:5, background:'rgba(255,255,255,0.06)', overflow:'hidden', marginBottom:8 }}>
               <div style={{ height:'100%', width:`${lp.pct}%`,
-                background:'linear-gradient(90deg,#7c3aed,#a78bfa)', boxShadow:'0 0 10px rgba(167,139,250,0.6)',
+                background:'linear-gradient(90deg,#7c3aed,var(--accent))', boxShadow:'0 0 10px rgba(167,139,250,0.6)',
                 transition:'width 0.6s' }} />
             </div>
             <div style={{ fontSize:11, color:'#cbd5e1' }}>
@@ -1876,7 +1881,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
                 Nächster Gegner ab Level {data.nextBoss.minLevel}: {data.nextBoss.name} ({data.nextBoss.tier})
               </div>
             )}
-            <div style={{ fontSize:10, color:'#a78bfa', marginTop:5 }}>
+            <div style={{ fontSize:10, color:'var(--accent)', marginTop:5 }}>
               Noch {data?.remainingXp ?? Math.max(0, (lp.perLevel || 0) - (lp.intoLevel || 0))} XP bis Level {lp.level + 1}
               {data?.etaSessions ? ` · ~${data.etaSessions} Sitzung${data.etaSessions === 1 ? '' : 'en'}` : ''}
             </div>
@@ -1884,17 +1889,17 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
 
           {/* Stat tiles */}
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-            <Metric label="SITZUNGEN"      value={t.sessions ?? 0}      color="#00e5ff" />
-            <Metric label="VOKABEL"        value={t.vocabLearned ?? 0}  sub="gelernt" color="#10b981" />
-            <Metric label="REGELN"         value={t.rulesMastered ?? 0} sub="gemeistert" color="#a78bfa" />
-            <Metric label="FÄLLIG"         value={t.dueReviews ?? 0}    sub="Wiederholung" color="#f59e0b" />
+            <Metric label="SITZUNGEN"      value={t.sessions ?? 0}      color="var(--accent)" />
+            <Metric label="VOKABEL"        value={t.vocabLearned ?? 0}  sub="gelernt" color="var(--accent)" />
+            <Metric label="REGELN"         value={t.rulesMastered ?? 0} sub="gemeistert" color="var(--accent)" />
+            <Metric label="FÄLLIG"         value={t.dueReviews ?? 0}    sub="Wiederholung" color="var(--action)" />
           </div>
 
           {/* Review CTA */}
           {(t.dueReviews ?? 0) > 0 && (
-            <button onClick={onReview} style={{ width:'100%', fontFamily:'Orbitron,monospace', fontSize:11,
+            <button onClick={onReview} style={{ width:'100%', fontFamily:'var(--font-display)', fontSize:11,
               letterSpacing:'0.12em', padding:'11px', borderRadius:8, cursor:'pointer',
-              border:'1px solid #f59e0b', color:'#f59e0b', background:'rgba(245,158,11,0.08)' }}>
+              border:'1px solid var(--action)', color:'var(--action)', background:'rgba(245,158,11,0.08)' }}>
               ⚡ {t.dueReviews} WIEDERHOLUNG{(t.dueReviews) === 1 ? '' : 'EN'} JETZT ÜBEN
             </button>
           )}
@@ -1902,29 +1907,29 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
           {/* Ask the mentor — reachable from the dashboard too, where a student reviewing their numbers
               is exactly the moment they want to ask "what do I do about this?" */}
           {onOpenGuide && (
-            <button onClick={onOpenGuide} style={{ width:'100%', marginTop:8, fontFamily:'Orbitron,monospace', fontSize:11,
+            <button onClick={onOpenGuide} style={{ width:'100%', marginTop:8, fontFamily:'var(--font-display)', fontSize:11,
               letterSpacing:'0.1em', padding:'11px', borderRadius:8, cursor:'pointer',
-              border:'1px solid #34d399', color:'#34d399', background:'rgba(52,211,153,0.08)' }}>
+              border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(52,211,153,0.08)' }}>
               🧭 الحسن · اسأل دليلك
             </button>
           )}
 
           {/* Trends */}
-          <Section title="FLÜSSIGKEIT ÜBER ZEIT" color="#10b981">
-            <Sparkline data={data?.trends?.fluency} color="#10b981" />
+          <Section title="FLÜSSIGKEIT ÜBER ZEIT" color="var(--accent)">
+            <Sparkline data={data?.trends?.fluency} color="var(--accent)" />
           </Section>
-          <Section title="SPRECHTEMPO ÜBER ZEIT (Ziel 140–160 WpM)" color="#22d3ee">
-            <Sparkline data={data?.trends?.wpm} color="#22d3ee" />
+          <Section title="SPRECHTEMPO ÜBER ZEIT (Ziel 140–160 WpM)" color="var(--accent-2)">
+            <Sparkline data={data?.trends?.wpm} color="var(--accent-2)" />
           </Section>
-          <Section title="FÜLLWÖRTER-TREND (weniger = besser)" color="#f59e0b">
-            <Sparkline data={data?.trends?.fillers} color="#f59e0b" />
+          <Section title="FÜLLWÖRTER-TREND (weniger = besser)" color="var(--action)">
+            <Sparkline data={data?.trends?.fillers} color="var(--action)" />
           </Section>
-          <Section title="WORTSCHATZ-WACHSTUM" color="#00e5ff">
-            <Sparkline data={data?.trends?.vocab} color="#00e5ff" />
+          <Section title="WORTSCHATZ-WACHSTUM" color="var(--accent)">
+            <Sparkline data={data?.trends?.vocab} color="var(--accent)" />
           </Section>
 
           {!!data?.masteredRules?.length && (
-            <Section title="GEMEISTERTE REGELN" color="#a78bfa">
+            <Section title="GEMEISTERTE REGELN" color="var(--accent)">
               {data.masteredRules.map((r, i) => (
                 <div key={i} style={{ fontSize:11, color:'#ddd6fe', marginBottom:3 }}>✓ {r}</div>
               ))}
@@ -1969,8 +1974,8 @@ function AuthScreen({ onAuth }) {
       justifyContent:'center', padding:'24px', position:'relative' }}>
       <div className="scanline" />
       <div style={{ textAlign:'center', marginBottom:24 }}>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:22, fontWeight:900, letterSpacing:3,
-          color:'#00e5ff', textShadow:'0 0 24px rgba(0,229,255,0.6)' }}>OMNI-PERFORM</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:900, letterSpacing:3,
+          color:'var(--accent)', textShadow:'0 0 24px rgba(0,229,255,0.6)' }}>OMNI-PERFORM</div>
         <div style={{ fontSize:10, color:'#64748b', marginTop:4, letterSpacing:'0.12em' }}>
           DE BPO COMBAT · SPRACHTRAINING
         </div>
@@ -1981,7 +1986,7 @@ function AuthScreen({ onAuth }) {
         <div style={{ fontSize:11, color:'#94a3b8', marginTop:8, lineHeight:1.55, maxWidth:360, marginInline:'auto' }}>
           Das erste deutsche Interview-Trainer für Arabisch-Sprechende — optimiert für den ägyptischen BPO-Markt.
         </div>
-        <div style={{ fontSize:10.5, color:'#fbbf24', marginTop:10, lineHeight:1.5, maxWidth:360, marginInline:'auto' }}>
+        <div style={{ fontSize:10.5, color:'var(--action)', marginTop:10, lineHeight:1.5, maxWidth:360, marginInline:'auto' }}>
           🎯 Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
           <br /><span dir="rtl">🎯 بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
         </div>
@@ -2011,9 +2016,9 @@ function AuthScreen({ onAuth }) {
         <div style={{ display:'flex', gap:6, marginBottom:16 }}>
           {['login','signup'].map((m) => (
             <button key={m} onClick={() => { setMode(m); setErr(''); }}
-              style={{ flex:1, padding:'8px', cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10,
-                letterSpacing:'0.1em', borderRadius:7, border:`1px solid ${mode===m?'#00e5ff':'rgba(0,229,255,0.2)'}`,
-                background: mode===m?'rgba(0,229,255,0.1)':'transparent', color: mode===m?'#00e5ff':'#64748b' }}>
+              style={{ flex:1, padding:'8px', cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10,
+                letterSpacing:'0.1em', borderRadius:7, border:`1px solid ${mode===m?'var(--accent)':'rgba(0,229,255,0.2)'}`,
+                background: mode===m?'rgba(0,229,255,0.1)':'transparent', color: mode===m?'var(--accent)':'#64748b' }}>
               {m === 'login' ? 'ANMELDEN' : 'REGISTRIEREN'}
             </button>
           ))}
@@ -2034,8 +2039,8 @@ function AuthScreen({ onAuth }) {
 
         <button onClick={submit} disabled={busy}
           style={{ width:'100%', marginTop:16, padding:'13px', cursor:busy?'wait':'pointer',
-            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.14em', borderRadius:8,
-            border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)', opacity:busy?0.6:1 }}>
+            fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em', borderRadius:8,
+            border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(0,229,255,0.08)', opacity:busy?0.6:1 }}>
           {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
         </button>
         <div style={{ fontSize:9.5, color:'#475569', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
@@ -2112,14 +2117,14 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       {waLink(code) && (
         <a href={waLink(code)} target="_blank" rel="noopener noreferrer"
           style={{ display:'block', textAlign:'center', textDecoration:'none', padding:'13px', minHeight:48, lineHeight:'22px',
-            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.06em', borderRadius:9, fontWeight:700,
-            color:'#04130c', background:'linear-gradient(135deg,#34d399,#10b981)', border:'1px solid #34d399' }}>
+            fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.06em', borderRadius:9, fontWeight:700,
+            color:'#04130c', background:'linear-gradient(135deg,var(--accent),var(--accent))', border:'1px solid var(--accent)' }}>
           💬 {ar ? 'ابعت إثبات الدفع على واتساب' : 'Zahlungsbeleg per WhatsApp senden'}
         </a>
       )}
       <button onClick={() => copyCode(code)}
-        style={{ width:'100%', padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:11,
-          borderRadius:8, border:'1px dashed #fbbf24', background:'rgba(251,191,36,0.08)', color:'#fbbf24' }}>
+        style={{ width:'100%', padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:11,
+          borderRadius:8, border:'1px dashed var(--action)', background:'rgba(251,191,36,0.08)', color:'var(--action)' }}>
         {copied ? (ar ? 'تم نسخ الكود ✓' : 'Code kopiert ✓') : (ar ? `انسخ الكود · ${code}` : `Code kopieren · ${code}`)}
       </button>
     </div>
@@ -2151,16 +2156,16 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     return shell(<>
       <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
         <div style={{ fontSize:48 }}>✅</div>
-        <div dir="rtl" style={{ fontSize:14, color:'#34d399', fontWeight:700, marginTop:10, lineHeight:1.8 }}>
-          تم استلام طلبك ✅ — اشتراكك هيتفعّل خلال ٣٠ دقيقة بعد ما نتأكد من الدفع. تأكد إنك كتبت الكود <b style={{ color:'#fbbf24' }}>{refCode}</b> في التحويل.
+        <div dir="rtl" style={{ fontSize:14, color:'var(--accent)', fontWeight:700, marginTop:10, lineHeight:1.8 }}>
+          تم استلام طلبك ✅ — اشتراكك هيتفعّل خلال ٣٠ دقيقة بعد ما نتأكد من الدفع. تأكد إنك كتبت الكود <b style={{ color:'var(--action)' }}>{refCode}</b> في التحويل.
         </div>
         <div style={{ fontSize:12.5, color:'#cbd5e1', marginTop:14, lineHeight:1.65 }}>
-          Anfrage erhalten! Dein Plan wird innerhalb von 30 Minuten nach Zahlungsbestätigung aktiviert. Stelle sicher, dass du den Code <b style={{ color:'#fbbf24' }}>{refCode}</b> in der Überweisung angegeben hast.
+          Anfrage erhalten! Dein Plan wird innerhalb von 30 Minuten nach Zahlungsbestätigung aktiviert. Stelle sicher, dass du den Code <b style={{ color:'var(--action)' }}>{refCode}</b> in der Überweisung angegeben hast.
         </div>
         {proofActions(refCode)}
       </div>
       <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
-        fontFamily:'Orbitron,monospace', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
+        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
         {ar ? 'تمام' : 'OK'}
       </button>
     </>);
@@ -2171,7 +2176,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     return shell(<>
       <div style={{ textAlign:'center', marginBottom:12 }}>
         <div style={{ fontSize:30 }}>📲</div>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:15, fontWeight:900, letterSpacing:1.5, color:'#22d3ee' }}>VODAFONE CASH</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:900, letterSpacing:1.5, color:'var(--accent-2)' }}>VODAFONE CASH</div>
         <div style={{ fontSize:11, color:'#cbd5e1', marginTop:4 }}>
           {pay.label?.toUpperCase()} — <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
         </div>
@@ -2182,7 +2187,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           {/* Step 1 — send the money */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(0,0,0,0.4)', border:'1px solid rgba(34,211,238,0.3)' }}>
             <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
-              <b style={{ color:'#22d3ee' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
+              <b style={{ color:'var(--accent-2)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
             <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700, color:'#fff',
@@ -2194,26 +2199,26 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           {/* Step 2 — the reference code */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(251,191,36,0.07)', border:'1px solid rgba(251,191,36,0.4)' }}>
             <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
-              <b style={{ color:'#fbbf24' }}>2)</b> Schreibe diesen Code in die Notiz der Überweisung:
+              <b style={{ color:'var(--action)' }}>2)</b> Schreibe diesen Code in die Notiz der Überweisung:
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>اكتب الكود ده في ملاحظة التحويل (مهم عشان نعرف إنك إنت):</div>
-            <div style={{ textAlign:'center', fontFamily:'Orbitron,monospace', fontSize:26, fontWeight:900, color:'#fbbf24',
-              background:'rgba(0,0,0,0.4)', border:'1px dashed #fbbf24', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.2em', textShadow:'0 0 12px rgba(251,191,36,0.5)' }}>
+            <div style={{ textAlign:'center', fontFamily:'var(--font-display)', fontSize:26, fontWeight:900, color:'var(--action)',
+              background:'rgba(0,0,0,0.4)', border:'1px dashed var(--action)', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.2em', textShadow:'0 0 12px rgba(251,191,36,0.5)' }}>
               {refCode}
             </div>
           </div>
 
           {/* Step 3 */}
           <div style={{ fontSize:11.5, color:'#cbd5e1', lineHeight:1.6, marginBottom:6 }}>
-            <b style={{ color:'#34d399' }}>3)</b> Tippe danach unten auf «Ich habe bezahlt».
+            <b style={{ color:'var(--accent)' }}>3)</b> Tippe danach unten auf «Ich habe bezahlt».
             <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
           </div>
 
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
           <button onClick={onPaid} disabled={submitting}
-            style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'Orbitron,monospace',
-              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid #34d399', color:'#04130c',
-              background:'linear-gradient(135deg,#34d399,#10b981)', opacity: submitting ? 0.6 : 1 }}>
+            style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
+              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid var(--accent)', color:'#04130c',
+              background:'linear-gradient(135deg,var(--accent),var(--accent))', opacity: submitting ? 0.6 : 1 }}>
             {submitting ? '…' : 'دفعت · ICH HABE BEZAHLT'}
           </button>
         </div>
@@ -2224,7 +2229,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       )}
 
       <button onClick={() => setPay(null)} style={{ width:'100%', marginTop:12, padding:'11px', minHeight:44, cursor:'pointer',
-        fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
+        fontFamily:'var(--font-display)', fontSize:10, borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
         {ar ? '‹ رجوع للخطط' : '‹ ZURÜCK ZU DEN PLÄNEN'}
       </button>
     </>);
@@ -2236,19 +2241,19 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     return shell(<>
       <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
         <div style={{ fontSize:46 }}>⏳</div>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:14, fontWeight:800, color:'#34d399', marginTop:8 }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:800, color:'var(--accent)', marginTop:8 }}>
           {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
         </div>
         <div dir="rtl" style={{ fontSize:13.5, color:'#cbd5e1', marginTop:12, lineHeight:1.85 }}>
-          طلبك وصلنا ✅ وبنتأكد من الدفع دلوقتي — اشتراكك هيتفعّل خلال ٣٠ دقيقة. الكود بتاعك: <b style={{ color:'#fbbf24' }}>{code}</b>. لو عايز تتأكد إنك كتبته في التحويل، ده هو.
+          طلبك وصلنا ✅ وبنتأكد من الدفع دلوقتي — اشتراكك هيتفعّل خلال ٣٠ دقيقة. الكود بتاعك: <b style={{ color:'var(--action)' }}>{code}</b>. لو عايز تتأكد إنك كتبته في التحويل، ده هو.
         </div>
         <div style={{ fontSize:12.5, color:'#94a3b8', marginTop:14, lineHeight:1.65 }}>
-          Deine Anfrage ist da ✅ — wir prüfen gerade die Zahlung. Dein Plan wird innerhalb von 30 Minuten aktiviert. Dein Code: <b style={{ color:'#fbbf24' }}>{code}</b>.
+          Deine Anfrage ist da ✅ — wir prüfen gerade die Zahlung. Dein Plan wird innerhalb von 30 Minuten aktiviert. Dein Code: <b style={{ color:'var(--action)' }}>{code}</b>.
         </div>
         {proofActions(code)}
       </div>
       <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
-        fontFamily:'Orbitron,monospace', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
+        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
         {ar ? 'تمام' : 'OK'}
       </button>
     </>);
@@ -2257,18 +2262,18 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   // ── PLAN CARDS VIEW ──
   const toggleBtn = (on, label, sub) => (
     <button onClick={() => setYearly(on)} style={{ flex:1, padding:'8px 6px', cursor:'pointer', borderRadius:8,
-      fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.06em', lineHeight:1.3,
-      border:`1px solid ${yearly===on ? '#fbbf24' : 'rgba(148,163,184,0.3)'}`,
-      background: yearly===on ? 'rgba(251,191,36,0.14)' : 'transparent', color: yearly===on ? '#fbbf24' : '#94a3b8' }}>
-      {label}{sub && <div style={{ fontSize:8, color:'#34d399', marginTop:2 }}>{sub}</div>}
+      fontFamily:'var(--font-display)', fontSize:10, letterSpacing:'0.06em', lineHeight:1.3,
+      border:`1px solid ${yearly===on ? 'var(--action)' : 'rgba(148,163,184,0.3)'}`,
+      background: yearly===on ? 'rgba(251,191,36,0.14)' : 'transparent', color: yearly===on ? 'var(--action)' : '#94a3b8' }}>
+      {label}{sub && <div style={{ fontSize:8, color:'var(--accent)', marginTop:2 }}>{sub}</div>}
     </button>
   );
 
   return shell(<>
       <div style={{ textAlign:'center', marginBottom:10 }}>
         <div style={{ fontSize:34 }}>🥊</div>
-        <div style={{ fontFamily:'Orbitron,monospace', fontSize:17, fontWeight:900, letterSpacing:2,
-          color:'#fbbf24', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, letterSpacing:2,
+          color:'var(--action)', textShadow:'0 0 18px rgba(245,158,11,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
         <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:5, lineHeight:1.6 }}>
           Beide Pläne: Live-Interview JEDEN TAG. Die kostenlose Einstufung bleibt immer frei.
           <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
@@ -2295,23 +2300,23 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           const period = yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
           const saving = (p.priceEGP * 12) - p.yearlyEGP;
           const elite  = p.id === 'elite';
-          const accent = elite ? '#fbbf24' : '#22d3ee';
+          const accent = elite ? 'var(--action)' : 'var(--accent-2)';
           return (
             <div key={p.id} style={{ borderRadius:12, padding:14, position:'relative',
               background:'rgba(0,0,0,0.4)', border:`1px solid ${elite ? 'rgba(251,191,36,0.5)' : 'rgba(34,211,238,0.3)'}`,
               boxShadow: elite ? '0 0 20px rgba(251,191,36,0.12)' : 'none' }}>
               {elite && (
-                <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'Orbitron,monospace', letterSpacing:'0.06em',
-                  background:'#fbbf24', color:'#04070d', padding:'2px 8px', borderRadius:99, fontWeight:700 }}>
+                <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em',
+                  background:'var(--action)', color:'#04070d', padding:'2px 8px', borderRadius:99, fontWeight:700 }}>
                   {ar ? 'الأنسب للإنترفيو' : 'Beliebt für Interview-Prep'}
                 </div>
               )}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-                <span style={{ fontFamily:'Orbitron,monospace', fontSize:16, fontWeight:900, color:accent }}>{p.label?.toUpperCase()}</span>
+                <span style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:900, color:accent }}>{p.label?.toUpperCase()}</span>
                 <span style={{ fontSize:14, color:'#e2e8f0', fontWeight:700 }}>{fmt(price)} EGP<span style={{ fontSize:10, color:'#94a3b8' }}>{period}</span></span>
               </div>
               {yearly && (
-                <div style={{ fontSize:9.5, color:'#34d399', marginBottom:7 }}>
+                <div style={{ fontSize:9.5, color:'var(--accent)', marginBottom:7 }}>
                   {ar ? `شهرين هدية · وفّر ${fmt(saving)} جنيه` : `2 Monate geschenkt · spare ${fmt(saving)} EGP`}
                 </div>
               )}
@@ -2321,7 +2326,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
               <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: yearly ? p.yearlyEGP : p.priceEGP, period: yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:'pointer',
-                  fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
+                  fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
                   border:`1px solid ${accent}`, color:'#04070d', background:accent }}>
                 {p.label?.toUpperCase()} {ar ? 'اختار' : 'WÄHLEN'} ▸
               </button>
@@ -2337,7 +2342,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       </div>
 
       <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:'pointer',
-        fontFamily:'Orbitron,monospace', fontSize:10, borderRadius:8,
+        fontFamily:'var(--font-display)', fontSize:10, borderRadius:8,
         border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
         {ar ? 'رجوع' : 'ZURÜCK'}
       </button>
@@ -2370,14 +2375,14 @@ function PendingBadge({ pending, whatsapp, lang }) {
   return (
     <div onClick={() => setOpen((o) => !o)} style={{ marginBottom: 8, padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
       background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.4)' }}>
-      <div style={{ fontSize: 10.5, color: '#fbbf24', lineHeight: 1.5, textAlign: 'center' }}>
+      <div style={{ fontSize: 10.5, color: 'var(--action)', lineHeight: 1.5, textAlign: 'center' }}>
         {ar ? 'اشتراكك قيد التأكيد ⏳ — هيتفعّل خلال ٣٠ دقيقة' : 'Zahlung wird geprüft — Aktivierung in ~30 Min'}
         <span style={{ color: '#94a3b8' }}> {open ? '▲' : '▼'}</span>
       </div>
       {open && (
         <div style={{ marginTop: 8, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
           <div style={{ fontSize: 9.5, color: '#94a3b8' }}>{ar ? 'الكود بتاعك (لازم يبقى في التحويل)' : 'Dein Code (muss in der Überweisung stehen)'}</div>
-          <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 18, fontWeight: 900, color: '#fbbf24', letterSpacing: '0.15em' }}>{code}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 900, color: 'var(--action)', letterSpacing: '0.15em' }}>{code}</div>
           {waLink && (
             <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 10.5,
               color: '#04130c', background: '#25D366', borderRadius: 7, padding: '7px 12px', fontWeight: 700, textDecoration: 'none' }}>
@@ -3299,7 +3304,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
             background:'linear-gradient(180deg, rgba(12,28,20,0.98), rgba(4,12,8,0.99))', border:'1px solid rgba(52,211,153,0.5)', boxShadow:'0 0 40px rgba(52,211,153,0.2)' }}>
             <div style={{ fontSize:52 }}>🎉</div>
-            <div style={{ fontFamily:'Orbitron,monospace', fontSize:17, fontWeight:900, color:'#34d399', marginTop:6 }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, color:'var(--accent)', marginTop:6 }}>
               {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
             </div>
             <div style={{ fontSize:13, color:'#cbd5e1', marginTop:8, lineHeight:1.6 }}>
@@ -3309,8 +3314,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </span>
             </div>
             <button onClick={ackActivation} style={{ width:'100%', marginTop:18, padding:'13px', minHeight:48, cursor:'pointer',
-              fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700,
-              border:'1px solid #34d399', color:'#04130c', background:'linear-gradient(135deg,#34d399,#10b981)' }}>
+              fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700,
+              border:'1px solid var(--accent)', color:'#04130c', background:'linear-gradient(135deg,var(--accent),var(--accent))' }}>
               {feedbackLang === 'ar' ? 'يلا نبدأ ▸' : 'Los geht’s ▸'}
             </button>
           </div>
@@ -3334,7 +3339,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           justifyContent:'center', alignItems:'center', textAlign:'center', padding:28,
           background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div style={{ fontSize:46 }}>🎙️</div>
-          <div style={{ fontFamily:'Orbitron,monospace', fontSize:15, fontWeight:800, color:'#fbbf24', marginTop:10 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, color:'var(--action)', marginTop:10 }}>
             {feedbackLang==='ar' ? 'مفيش مقابلة نقيّمها' : 'Keine Sitzung zum Auswerten'}
           </div>
           <div style={{ fontSize:13, color:'#cbd5e1', marginTop:10, lineHeight:1.6, maxWidth:340 }}>
@@ -3344,8 +3349,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             لم تبدأ المقابلة فعليًا — مفيش حاجة نقيّمها. يلا ادخل وابدأ بجد.
           </div>
           <button onClick={() => setNoSession(false)} style={{ marginTop:18, padding:'12px 28px', minHeight:46, cursor:'pointer',
-            fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.1em', borderRadius:8,
-            border:'1px solid #00e5ff', color:'#00e5ff', background:'rgba(0,229,255,0.08)' }}>
+            fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.1em', borderRadius:8,
+            border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(0,229,255,0.08)' }}>
             {feedbackLang==='ar' ? 'تمام' : 'ZURÜCK'}
           </button>
         </div>
@@ -3355,8 +3360,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       <div style={{ padding:'16px 16px 0' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
           <div style={{ width:7, height:7, borderRadius:'50%',
-            background: isActive ? '#10b981' : isConnecting ? '#f59e0b' : '#475569',
-            boxShadow: isActive ? '0 0 6px #10b981' : 'none',
+            background: isActive ? 'var(--accent)' : isConnecting ? 'var(--action)' : '#475569',
+            boxShadow: isActive ? '0 0 6px var(--accent)' : 'none',
             animation: isActive ? 'pulse 2s infinite' : 'none' }} />
           <span style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {isActive ? 'VERBUNDEN' : isConnecting ? 'VERBINDE…' : 'GETRENNT'}
@@ -3426,7 +3431,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                   <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
-                    color: streak > 0 ? '#fbbf24' : '#94a3b8',
+                    color: streak > 0 ? 'var(--action)' : '#94a3b8',
                     textShadow: streak > 0 ? '0 0 12px rgba(245,158,11,0.5)' : 'none' }}>
                     Trainingsserie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
                   </span>
@@ -3441,7 +3446,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.06em', whiteSpace:'nowrap',
                 padding:'6px 11px', borderRadius:'var(--r-pill)',
                 color: daily.completedToday ? 'var(--player-2)' : '#04070d',
-                background: daily.completedToday ? 'transparent' : 'linear-gradient(135deg, #fbbf24, var(--warn))',
+                background: daily.completedToday ? 'transparent' : 'linear-gradient(135deg, var(--action), var(--warn))',
                 border: daily.completedToday ? '1px solid var(--player)' : 'none' }}>
                 {daily.completedToday ? '✓ ERLEDIGT' : 'START ▸'}
               </div>
@@ -3450,7 +3455,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             {streak > 0 && !trainedToday && (
               <div style={{ marginTop:-3, marginBottom:8, padding:'5px 10px', borderRadius:8,
                 background:'rgba(245,158,11,0.10)', border:'1px solid rgba(245,158,11,0.35)',
-                fontSize:10.5, color:'#fcd34d', textAlign:'center', lineHeight:1.4 }}>
+                fontSize:10.5, color:'var(--action)', textAlign:'center', lineHeight:1.4 }}>
                 🔥 Heute üben, sonst endet deine {streak}-Tage-Serie · درّب النهاردة عشان متخسرش سلسلتك
               </div>
             )}
@@ -3464,10 +3469,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               background:'rgba(167,139,250,0.07)', border:'1px solid rgba(167,139,250,0.25)', transition:'all var(--dur-slow)' }}>
               <div style={{ fontSize:20 }}>📄</div>
               <div style={{ flex:1 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'#a78bfa' }}>TRAININGSNACHWEIS</div>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--accent)' }}>TRAININGSNACHWEIS</div>
                 <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Fortschritt als PDF drucken · اطبع تقدمك كـPDF</div>
               </div>
-              <div style={{ fontSize:10, color:'#a78bfa' }}>▸</div>
+              <div style={{ fontSize:10, color:'var(--accent)' }}>▸</div>
             </button>
 
             {/* Weekly leaderboard — social accountability (Duolingo leagues effect) */}
@@ -3477,10 +3482,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.25)', transition:'all var(--dur-slow)' }}>
               <div style={{ fontSize:20 }}>🏆</div>
               <div style={{ flex:1 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'#fbbf24' }}>DIESE WOCHE</div>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--action)' }}>DIESE WOCHE</div>
                 <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Wochentabelle — wer trainiert am meisten? · مين بيتدرب أكتر الأسبوع ده؟</div>
               </div>
-              <div style={{ fontSize:10, color:'#fbbf24' }}>▸</div>
+              <div style={{ fontSize:10, color:'var(--action)' }}>▸</div>
             </button>
 
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',
@@ -3572,7 +3577,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             {/* Header */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
               <div>
-                <div style={{ fontSize:9, letterSpacing:'0.15em', fontFamily:'Orbitron,monospace', color:'#00bcd4', marginBottom:3 }}>TEIL 3 · SZENARIO-BRIEFING</div>
+                <div style={{ fontSize:9, letterSpacing:'0.15em', fontFamily:'var(--font-display)', color:'var(--accent)', marginBottom:3 }}>TEIL 3 · SZENARIO-BRIEFING</div>
                 <div style={{ fontSize:13, fontWeight:700, color:'#e2e8f0' }}>{csBriefing.skill}</div>
               </div>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.35)', textAlign:'right', lineHeight:1.4 }}>
@@ -3586,12 +3591,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               {csBriefing.situation}
             </div>
             {/* Key phrases */}
-            <div style={{ fontSize:9.5, letterSpacing:'0.1em', color:'#00bcd4', fontFamily:'Orbitron,monospace', marginBottom:8 }}>SCHLÜSSELPHRASEN</div>
+            <div style={{ fontSize:9.5, letterSpacing:'0.1em', color:'var(--accent)', fontFamily:'var(--font-display)', marginBottom:8 }}>SCHLÜSSELPHRASEN</div>
             {csBriefing.keyPhrases.map((phrase, i) => (
               <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:7 }}>
                 <div style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,188,212,0.15)',
                   border:'1px solid rgba(0,188,212,0.4)', display:'flex', alignItems:'center', justifyContent:'center',
-                  flexShrink:0, fontSize:9, color:'#00bcd4', fontFamily:'Orbitron,monospace' }}>{i+1}</div>
+                  flexShrink:0, fontSize:9, color:'var(--accent)', fontFamily:'var(--font-display)' }}>{i+1}</div>
                 <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5, fontStyle:'italic' }}>„{phrase}"</div>
               </div>
             ))}
@@ -3643,7 +3648,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           {bossDmgFloat && (
             <div key={bossDmgFloat.id} style={{ position:'absolute', left:'50%', top:'30%', zIndex:7, transform:'translateX(-50%)',
               pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:900, fontSize:48,
-              color:'#34d399', textShadow:'0 0 22px rgba(52,211,153,0.95), 0 0 6px #fff',
+              color:'var(--accent)', textShadow:'0 0 22px rgba(52,211,153,0.95), 0 0 6px #fff',
               animation:'dmg-float 1s ease-out forwards' }}>−{bossDmgFloat.amount}</div>
           )}
 
@@ -3704,18 +3709,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <div style={{ flex:1 }} />
             {scoreFlash && (
               <span className="flash" style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10,
-                color: scoreFlash.score >= 60 ? '#34d399' : '#f87171' }}>
+                color: scoreFlash.score >= 60 ? 'var(--accent)' : '#f87171' }}>
                 ⚡ {scoreFlash.score}/100{scoreFlash.damage > 0 ? ` · −${scoreFlash.damage} HP` : ''}
               </span>
             )}
           </div>
           {/* the boss's current line — the prominent subtitle */}
           <div style={{ padding:'9px 13px 5px', fontSize:13.5, lineHeight:1.6, minHeight:34, overflowWrap:'anywhere',
-            color: bossIsCorrection ? '#fde68a' : '#e2e8f0',
-            borderLeft: bossIsCorrection ? '3px solid #f59e0b' : '3px solid transparent',
+            color: bossIsCorrection ? 'var(--action-2)' : '#e2e8f0',
+            borderLeft: bossIsCorrection ? '3px solid var(--action)' : '3px solid transparent',
             transition:'border-color 0.3s, color 0.3s' }}>
             {bossIsCorrection && (
-              <div style={{ fontSize:9, fontFamily:'Orbitron,monospace', color:'#f59e0b', marginBottom:4, letterSpacing:'0.1em' }}>
+              <div style={{ fontSize:9, fontFamily:'var(--font-display)', color:'var(--action)', marginBottom:4, letterSpacing:'0.1em' }}>
                 ← SAG ES NOCHMAL RICHTIG · قول الجملة صح
               </div>
             )}
@@ -3755,7 +3760,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:10, textAlign:'left',
             background:'rgba(0,229,255,0.06)', border:'1px solid rgba(0,229,255,0.28)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <span style={{ fontFamily:'Orbitron,monospace', fontSize:9.5, letterSpacing:'0.12em', color:'#00e5ff' }}>SO FUNKTIONIERT'S · إزّاي تلعب</span>
+              <span style={{ fontFamily:'var(--font-display)', fontSize:9.5, letterSpacing:'0.12em', color:'var(--accent)' }}>SO FUNKTIONIERT'S · إزّاي تلعب</span>
               <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'#64748b', background:'none', border:'none', padding:'2px 4px' }}>✕</button>
             </div>
             <div style={{ fontSize:11, color:'#cbd5e1', lineHeight:1.55 }}>
@@ -3771,8 +3776,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {isActive && (
           <div style={{ marginBottom:12, textAlign:'left' }}>
             {bossThinking ? (
-              <div style={{ padding:'14px', textAlign:'center', fontFamily:'Orbitron,monospace',
-                fontSize:11, letterSpacing:'0.1em', color:'#00e5ff',
+              <div style={{ padding:'14px', textAlign:'center', fontFamily:'var(--font-display)',
+                fontSize:11, letterSpacing:'0.1em', color:'var(--accent)',
                 border:'1px solid rgba(0,229,255,0.25)', borderRadius:8,
                 background:'rgba(0,229,255,0.05)', animation:'pulse 1.2s infinite' }}>
                 {funnel?.displayName ?? 'Der Chef'} denkt nach…
@@ -3794,7 +3799,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   <button onClick={() => { setTtsMuted(m => { const next = !m; if (next) stopBossVoice(); return next; }); }}
                     title={ttsMuted ? 'Stimme einschalten' : 'Stimme stummschalten'}
                     style={{ flex:'0 0 auto', padding:'10px 12px', cursor:'pointer', borderRadius:8,
-                      fontFamily:'Orbitron,monospace', fontSize:13, letterSpacing:'0.08em',
+                      fontFamily:'var(--font-display)', fontSize:13, letterSpacing:'0.08em',
                       border:'1px solid #475569', color:'#94a3b8', background:'rgba(148,163,184,0.06)' }}>
                     {ttsMuted ? '🔇' : '🔊'}
                   </button>
@@ -3804,7 +3809,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   {!handsFree && (
                   <button onClick={toggleRecord} disabled={transcribing}
                     style={{ flex:'0 0 auto', padding:'10px 14px', cursor:'pointer', borderRadius:8,
-                      fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.08em',
+                      fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.08em',
                       border:`1px solid ${recording ? '#ef4444' : '#475569'}`,
                       color: recording ? '#fca5a5' : '#94a3b8',
                       background: recording ? 'rgba(239,68,68,0.1)' : 'rgba(148,163,184,0.06)' }}>
@@ -3813,15 +3818,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   )}
                   <button onClick={sendAnswer} disabled={!answerText.trim() || transcribing}
                     style={{ flex:1, padding:'10px 14px', cursor: answerText.trim() ? 'pointer' : 'not-allowed',
-                      borderRadius:8, fontFamily:'Orbitron,monospace', fontSize:11, letterSpacing:'0.12em',
-                      border:'1px solid #00e5ff', color:'#04070d', fontWeight:700,
-                      background: answerText.trim() ? 'linear-gradient(135deg,#67e8f9,#00e5ff)' : 'rgba(0,229,255,0.15)',
+                      borderRadius:8, fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.12em',
+                      border:'1px solid var(--accent)', color:'#04070d', fontWeight:700,
+                      background: answerText.trim() ? 'linear-gradient(135deg,#67e8f9,var(--accent))' : 'rgba(0,229,255,0.15)',
                       opacity: answerText.trim() ? 1 : 0.5 }}>
                     SENDEN ▶
                   </button>
                 </div>
                 {recording && (
-                  <div style={{ fontSize:10, color: handsFree ? '#10b981' : '#fca5a5', marginTop:4, textAlign:'center' }}>
+                  <div style={{ fontSize:10, color: handsFree ? 'var(--accent)' : '#fca5a5', marginTop:4, textAlign:'center' }}>
                     {handsFree
                       ? 'Ich höre zu — sprich einfach weiter, ich sende automatisch.'
                       : 'Aufnahme läuft — auf STOPP drücken, dann wird transkribiert.'}
@@ -3847,7 +3852,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Tippe deine Antwort auf Deutsch — oder nimm sie per 🎤 auf</div>
           )}
           {isConnecting && (
-            <div style={{ fontSize:9.5, color:'#f59e0b', marginTop:4, lineHeight:1.4 }}>
+            <div style={{ fontSize:9.5, color:'var(--action)', marginTop:4, lineHeight:1.4 }}>
               {feedbackLang === 'ar'
                 ? '⏳ بنحضّر المحاوِر… أول مرة ممكن تاخد لحد ٣٠ ثانية. استنى من فضلك.'
                 : '⏳ Der Interviewer wird vorbereitet… der erste Start kann bis zu 30 Sek. dauern. Bitte warten.'}
@@ -3862,7 +3867,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Daily live-minutes remaining (active paid plan, before they start) */}
         {canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining > 0 && (
-          <div style={{ fontSize:10.5, color:'#34d399', textAlign:'center', marginBottom:7, fontFamily:'Orbitron,monospace', letterSpacing:'0.05em' }}>
+          <div style={{ fontSize:10.5, color:'var(--accent)', textAlign:'center', marginBottom:7, fontFamily:'var(--font-display)', letterSpacing:'0.05em' }}>
             ⏱ {feedbackLang === 'ar' ? `متبقي ${billing.minutesRemaining} دقيقة النهاردة` : `${billing.minutesRemaining} Min heute übrig`}
           </div>
         )}
@@ -3870,7 +3875,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Start / Stop toggle — replaced by an honest "come back tomorrow" note at the daily cap */}
         {canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
           <div style={{ padding:'13px', borderRadius:8, border:'1px solid rgba(245,158,11,0.4)', background:'rgba(245,158,11,0.08)',
-            textAlign:'center', fontSize:11, color:'#fbbf24', lineHeight:1.6 }}>
+            textAlign:'center', fontSize:11, color:'var(--action)', lineHeight:1.6 }}>
             {feedbackLang === 'ar'
               ? 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.'
               : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
@@ -3881,9 +3886,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             disabled={isConnecting}
             style={{
               width:'100%', padding:'14px 20px', cursor: isConnecting ? 'wait' : 'pointer',
-              fontFamily:'Orbitron,monospace', fontSize:12, letterSpacing:'0.15em',
-              borderRadius:8, border:'1px solid #00e5ff',
-              color:       '#00e5ff',
+              fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.15em',
+              borderRadius:8, border:'1px solid var(--accent)',
+              color:       'var(--accent)',
               background:  'linear-gradient(135deg,rgba(0,229,255,0.06),rgba(0,229,255,0.02))',
               boxShadow: '0 0 14px rgba(0,229,255,0.12)',
               transition:'all 0.25s',
@@ -3937,9 +3942,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
         {canStart && (
           <button onClick={() => setAssessmentOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #fbbf24', color:'#04070d', fontWeight:700,
-            background:'linear-gradient(135deg,#fcd34d,#fbbf24)', boxShadow:'0 0 16px rgba(251,191,36,0.25)' }}>
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid var(--action)', color:'#04070d', fontWeight:700,
+            background:'linear-gradient(135deg,var(--action),var(--action))', boxShadow:'0 0 16px rgba(251,191,36,0.25)' }}>
             🎯  EINSTUFUNG · تقييم مستواك (gratis)
           </button>
         )}
@@ -3953,7 +3958,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Secondary label so the drill menu reads as EXTRAS under today's one guided mission above
             (DailyMission), instead of competing with it as a second set of equal CTAs. */}
         {canStart && (
-          <div style={{ marginTop:16, marginBottom:2, fontFamily:'Orbitron,monospace', fontSize:8.5,
+          <div style={{ marginTop:16, marginBottom:2, fontFamily:'var(--font-display)', fontSize:8.5,
             letterSpacing:'0.18em', color:'rgba(148,163,184,0.65)', textAlign:'center' }}>
             WEITERE ÜBUNGEN · تمارين إضافية
           </div>
@@ -3962,8 +3967,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Shadowing pronunciation practice (idle only) — paid; server returns 402 → paywall */}
         {canStart && (
           <button onClick={() => setShadowingOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #22d3ee', color:'#22d3ee',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid var(--accent-2)', color:'var(--accent-2)',
             background:'rgba(34,211,238,0.06)' }}>
             🗣️  SHADOWING · تمرين الترديد
           </button>
@@ -3972,8 +3977,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* 4-3-2 spoken-fluency drill (idle only) — paid; server returns 402 → paywall */}
         {canStart && (
           <button onClick={() => setFluencyOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #f59e0b', color:'#f59e0b',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid var(--action)', color:'var(--action)',
             background:'rgba(245,158,11,0.06)' }}>
             ⚡  FLOW-DRILL · سرعة الكلام
           </button>
@@ -3982,8 +3987,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Listening & data-capture drill (idle only) — paid; trains the #1 hiring gap */}
         {canStart && (
           <button onClick={() => setListeningOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #34d399', color:'#34d399',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid var(--accent)', color:'var(--accent)',
             background:'rgba(52,211,153,0.06)' }}>
             🎧  HÖR-CHECK · فهم السمع
           </button>
@@ -3992,8 +3997,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Spoken-production SRS (idle only) — say YOUR own errors correctly, spaced. The compounding core. */}
         {canStart && (
           <button onClick={() => setSpokenReviewOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #a78bfa', color:'#a78bfa',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid var(--accent)', color:'var(--accent)',
             background:'rgba(167,139,250,0.06)' }}>
             🗯️  SAG ES RICHTIG · قولها صح
           </button>
@@ -4002,7 +4007,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Pressure Ladder — train harder than the real interview (idle only; client-only, free) */}
         {canStart && (
           <button onClick={() => setPressureOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
             borderRadius:8, border:'1px solid #ef4444', color:'#ef4444',
             background:'rgba(239,68,68,0.06)' }}>
             🔥  DRUCK-LEITER · سُلّم الضغط
@@ -4012,8 +4017,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Alhassan mentor chat (idle only) — free guide with total recall */}
         {canStart && (
           <button onClick={() => setGuideOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #34d399', color:'#34d399',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
+            borderRadius:8, border:'1px solid var(--accent)', color:'var(--accent)',
             background:'rgba(52,211,153,0.06)' }}>
             🧭  الحسن · اسأل دليلك
           </button>
@@ -4022,8 +4027,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Progress dashboard access (idle only) */}
         {canStart && (
           <button onClick={openDashboard} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
-            borderRadius:8, border:'1px solid rgba(167,139,250,0.4)', color:'#a78bfa',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10, letterSpacing:'0.14em',
+            borderRadius:8, border:'1px solid rgba(167,139,250,0.4)', color:'var(--accent)',
             background:'rgba(167,139,250,0.06)' }}>
             📊  FORTSCHRITT & WIEDERHOLUNG
           </button>
@@ -4038,8 +4043,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             restore; code/route left intact so it's fully reversible. */}
         {false && canStart && (
           <button onClick={() => setZielplanOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'Orbitron,monospace', fontSize:10, letterSpacing:'0.14em',
-            borderRadius:8, border:'1px solid rgba(0,229,255,0.4)', color:'#00e5ff',
+            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10, letterSpacing:'0.14em',
+            borderRadius:8, border:'1px solid rgba(0,229,255,0.4)', color:'var(--accent)',
             background:'rgba(0,229,255,0.06)' }}>
             🎯  ZIELPLAN — DEIN TRAININGSPLAN
           </button>
@@ -4052,7 +4057,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Boss speaking indicator */}
         {bossSpeak && (
           <div style={{ marginTop:10, height:2, borderRadius:1,
-            background:'linear-gradient(90deg,transparent,#00e5ff,transparent)',
+            background:'linear-gradient(90deg,transparent,var(--accent),transparent)',
             animation:'pulse 1s infinite' }} />
         )}
       </div>
@@ -4103,15 +4108,15 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
       background:'radial-gradient(120% 90% at 50% 16%, #0a1626 0%, #050a12 55%, #020409 100%)',
       color:'#e2e8f0', animation:'flash-in 0.4s ease' }}>
 
-      <div style={{ fontFamily:'Orbitron, monospace', fontSize:20, fontWeight:900, letterSpacing:3,
-        color:'#00e5ff', textShadow:'0 0 24px rgba(0,229,255,0.55)' }}>OMNI-PERFORM</div>
+      <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:900, letterSpacing:3,
+        color:'var(--accent)', textShadow:'0 0 24px rgba(0,229,255,0.55)' }}>OMNI-PERFORM</div>
 
       {!failed ? (
         <>
           {/* spinner ring + boxing glove */}
           <div style={{ position:'relative', width:74, height:74, display:'grid', placeItems:'center' }}>
             <div style={{ position:'absolute', inset:0, borderRadius:'50%',
-              border:'3px solid rgba(0,229,255,0.16)', borderTopColor:'#00e5ff',
+              border:'3px solid rgba(0,229,255,0.16)', borderTopColor:'var(--accent)',
               animation:'spin 0.9s linear infinite' }} />
             <div style={{ fontSize:30, animation:'pulse 1.4s ease-in-out infinite' }}>🥊</div>
           </div>
@@ -4127,7 +4132,7 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
             <div style={{ height:8, borderRadius:99, overflow:'hidden', background:'rgba(255,255,255,0.07)',
               border:'1px solid rgba(0,229,255,0.2)' }}>
               <div style={{ height:'100%', width:`${pct}%`, borderRadius:99,
-                background:'linear-gradient(90deg,#22d3ee,#00e5ff)', boxShadow:'0 0 10px rgba(0,229,255,0.5)',
+                background:'linear-gradient(90deg,var(--accent-2),var(--accent))', boxShadow:'0 0 10px rgba(0,229,255,0.5)',
                 transition:'width 0.5s ease' }} />
             </div>
             <div style={{ fontSize:10, color:'#64748b', marginTop:6, fontVariantNumeric:'tabular-nums' }}>~{elapsed}s</div>
@@ -4140,7 +4145,7 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
             <div style={{ marginTop:10, padding:'8px 12px', borderRadius:8,
               background:'rgba(0,229,255,0.06)', border:'1px solid rgba(0,229,255,0.15)',
               fontSize:11.5, color:'#cbd5e1', textAlign:'left' }}>
-              💡 <b style={{ color:'#00e5ff' }}>Tipp:</b> „Einen Moment, ich schaue kurz nach." — immer höflich, wenn du Zeit brauchst.
+              💡 <b style={{ color:'var(--accent)' }}>Tipp:</b> „Einen Moment, ich schaue kurz nach." — immer höflich, wenn du Zeit brauchst.
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:3 }}>تقدر تقول دي دايمًا لو محتاج وقت تفكر</div>
             </div>
           </div>
@@ -4153,8 +4158,8 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
             <br /><span dir="rtl">السيرفر بياخد وقت أطول من المعتاد. من فضلك حاول تاني.</span>
           </div>
           <button onClick={onRetry} style={{ marginTop:4, padding:'14px 24px', minHeight:48, cursor:'pointer',
-            fontFamily:'Orbitron, monospace', fontSize:12, letterSpacing:'0.1em', borderRadius:10, fontWeight:700,
-            border:'1px solid #00e5ff', color:'#020409', background:'#00e5ff', boxShadow:'0 0 18px rgba(0,229,255,0.35)' }}>
+            fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.1em', borderRadius:10, fontWeight:700,
+            border:'1px solid var(--accent)', color:'#020409', background:'var(--accent)', boxShadow:'0 0 18px rgba(0,229,255,0.35)' }}>
             ERNEUT VERSUCHEN · حاول تاني
           </button>
         </>

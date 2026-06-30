@@ -276,7 +276,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
         🔥 DRUCK-LEITER · سُلّم الضغط
       </span>
       <button onClick={() => { cleanup(); onClose?.(); }} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -286,9 +286,9 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {LEVELS.map((lv, i) => (
         <div key={i} style={{ flex: 1, height: 5, borderRadius: 99,
-          background: i < survived ? '#22c55e' : (i === idx && !endless) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
+          background: i < survived ? 'var(--accent)' : (i === idx && !endless) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
       ))}
-      <div style={{ flex: 0.5, height: 5, borderRadius: 99, background: endless ? '#f59e0b' : 'rgba(255,255,255,0.08)' }} />
+      <div style={{ flex: 0.5, height: 5, borderRadius: 99, background: endless ? 'var(--action)' : 'rgba(255,255,255,0.08)' }} />
     </div>
   );
 
@@ -308,8 +308,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   if (phase === 'ready') return shell(<>
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '14px 0' }}>
-      <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'Orbitron,monospace', letterSpacing: '0.12em' }}>{endless ? T(lang, 'ÜBERLEBEN', 'بقاء') : `${T(lang, 'STUFE', 'مستوى')} ${L.n} / 5`}</div>
-      <div style={{ fontSize: 22, color: endless ? '#f59e0b' : '#ef4444', fontWeight: 800, marginTop: 4 }}>{T(lang, L.de, L.ar)}{endless && endlessStreak > 0 ? ` · ${endlessStreak}` : ''}</div>
+      <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'var(--font-display)', letterSpacing: '0.12em' }}>{endless ? T(lang, 'ÜBERLEBEN', 'بقاء') : `${T(lang, 'STUFE', 'مستوى')} ${L.n} / 5`}</div>
+      <div style={{ fontSize: 22, color: endless ? 'var(--action)' : '#ef4444', fontWeight: 800, marginTop: 4 }}>{T(lang, L.de, L.ar)}{endless && endlessStreak > 0 ? ` · ${endlessStreak}` : ''}</div>
       <div style={{ fontSize: 12, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
         {T(lang, `Tempo ${Math.round(L.rate * 100)}% · ${L.sec}s · ${L.interrupts} Unterbrechungen`, `سرعة ${Math.round(L.rate * 100)}% · ${L.sec}ث · ${L.interrupts} مقاطعات`)}
       </div>
@@ -327,7 +327,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
       <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.5 }}>{curLine}</div>
     </div>
     <div style={{ textAlign: 'center', marginTop: 18 }}>
-      <div style={{ fontFamily: 'Orbitron,monospace', fontSize: 40, color: left <= 5 ? '#ef4444' : '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>00:{String(left).padStart(2, '0')}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, color: left <= 5 ? '#ef4444' : 'var(--action)', fontVariantNumeric: 'tabular-nums' }}>00:{String(left).padStart(2, '0')}</div>
       <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4, letterSpacing: '0.05em' }}>{T(lang, '🔴 REDE WEITER — NICHT EINFRIEREN', '🔴 اتكلم — متجمدش')}</div>
       <button onClick={endRound} style={{ ...ghostBtnWide, width: '100%', marginTop: 16 }}>{T(lang, 'Fertig', 'خلصت')}</button>
     </div>
@@ -337,7 +337,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
       <div style={{ fontSize: 44 }}>{froze ? '🥶' : '💪'}</div>
-      <div style={{ fontSize: 18, color: froze ? '#fca5a5' : '#6ee7b7', fontWeight: 800, marginTop: 8 }}>
+      <div style={{ fontSize: 18, color: froze ? '#fca5a5' : 'var(--accent-2)', fontWeight: 800, marginTop: 8 }}>
         {froze ? T(lang, 'Eingefroren.', 'اتجمدت.') : (endless ? T(lang, `Überlebt · Serie ${endlessStreak}`, `نجوت · سلسلة ${endlessStreak}`) : T(lang, 'Standgehalten!', 'صمدت!'))}
       </div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', marginTop: 8, lineHeight: 1.6, padding: '0 10px' }}>
@@ -369,14 +369,14 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
           'Du hast Schnelleres, Unhöflicheres und Härteres überstanden als jedes echte Bewerbungsgespräch. Das echte Interview wird sich jetzt wie Zeitlupe anfühlen — ruhig, höflich, viel Zeit.',
           'عدّيت حاجة أسرع وأقسى وأصعب من أي مقابلة حقيقية. المقابلة الحقيقية هتبقى بطيئة دلوقتي — هادية، مؤدبة، وقت كتير.')}
       </div>
-      <div style={{ fontSize: 12, color: '#6ee7b7', marginTop: 12, fontWeight: 700 }}>{T(lang, `Stufen standgehalten: ${survived}/5`, `مستويات صمدت فيها: ${survived}/5`)}</div>
+      <div style={{ fontSize: 12, color: 'var(--accent-2)', marginTop: 12, fontWeight: 700 }}>{T(lang, `Stufen standgehalten: ${survived}/5`, `مستويات صمدت فيها: ${survived}/5`)}</div>
     </div>
-    <button onClick={goEndless} style={{ ...primaryBtn, background: 'linear-gradient(135deg,#f59e0b,#dc2626)', borderColor: '#f59e0b' }}>♾️ {T(lang, 'ÜBERLEBENSMODUS — endlos', 'وضع البقاء — بلا حدود')}</button>
+    <button onClick={goEndless} style={{ ...primaryBtn, background: 'linear-gradient(135deg,var(--action),#dc2626)', borderColor: 'var(--action)' }}>♾️ {T(lang, 'ÜBERLEBENSMODUS — endlos', 'وضع البقاء — بلا حدود')}</button>
     <button onClick={() => { setIdx(0); setSurvived(0); setPhase('intro'); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 10 }}>{T(lang, 'Von vorne', 'من الأول')}</button>
     <button onClick={() => { cleanup(); onClose?.(); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 8 }}>{T(lang, 'Fertig', 'تمام')}</button>
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '14px', minHeight: 50, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 13, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 800, border: '1px solid #ef4444', color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
+const primaryBtn = { width: '100%', padding: '14px', minHeight: 50, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 800, border: '1px solid #ef4444', color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
+const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

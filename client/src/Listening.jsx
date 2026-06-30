@@ -105,7 +105,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'Orbitron, monospace', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#34d399' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         🎧 HÖR-CHECK · فهم السمع
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
@@ -139,13 +139,13 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   // PRACTICE
   return shell(<>
     {header}
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'Orbitron, monospace', letterSpacing: '0.1em', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'ANRUF', 'مكالمة')} {idx + 1} / {items.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? '#34d399' : i === idx ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
 
@@ -158,7 +158,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
         {T(lang, 'Echtes Tempo. Hör genau hin — du siehst den Text nicht.', 'سرعة حقيقية. ركّز كويس — مش هتشوف النص.')}
       </div>
       {!ttsOk && (
-        <div style={{ fontSize: 10, color: '#f59e0b', marginTop: 8 }}>
+        <div style={{ fontSize: 10, color: 'var(--action)', marginTop: 8 }}>
           {T(lang, 'Sprachausgabe in diesem Browser nicht verfügbar.', 'تشغيل الصوت مش متاح في المتصفح ده.')}
         </div>
       )}
@@ -190,12 +190,12 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 11,
           background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
           border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-          <div style={{ fontSize: 13.5, color: result.correct ? '#6ee7b7' : '#fca5a5', fontWeight: 700 }}>
+          <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
             {result.correct ? T(lang, '✓ Richtig erfasst!', '✓ صح كده!') : T(lang, '✗ Nicht ganz', '✗ مش مظبوط')}
           </div>
           {!result.correct && (
             <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>
-              {T(lang, 'Richtig war: ', 'الصح كان: ')}<b style={{ color: '#fcd34d' }}>{result.expected}</b>
+              {T(lang, 'Richtig war: ', 'الصح كان: ')}<b style={{ color: 'var(--action)' }}>{result.expected}</b>
             </div>
           )}
         </div>
@@ -214,10 +214,10 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'Orbitron, monospace',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid #34d399', color: '#04070d',
-  background: 'linear-gradient(135deg,#34d399,#6ee7b7)' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10, padding: '6px 10px', borderRadius: 7,
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
+  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d',
+  background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'Orbitron, monospace', fontSize: 10.5, padding: '12px', minHeight: 44,
+const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
   borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

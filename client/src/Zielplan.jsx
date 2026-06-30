@@ -188,7 +188,7 @@ export default function Zielplan({ token, apiUrl, onClose, lang = 'de', onStartF
                   </div>
                   <div style={{ fontSize: 9.5, color: 'var(--text-dim)', marginTop: 2 }}>
                     Frist {p.deadline} · {st.done}/{st.total} Schritte · {st.fights}/{p.maxFights} ⚔
-                    {st.total > 0 && st.done === st.total && <span style={{ color: '#34d399', fontWeight: 600 }}> · ✓ abgeschlossen</span>}
+                    {st.total > 0 && st.done === st.total && <span style={{ color: 'var(--accent)', fontWeight: 600 }}> · ✓ abgeschlossen</span>}
                   </div>
                   <ProgressBar pct={st.pct} />
                 </button>
@@ -226,8 +226,8 @@ function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay,
           background: 'linear-gradient(135deg, rgba(16,185,129,0.16), rgba(0,229,255,0.08))',
           border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 22px rgba(16,185,129,0.18)' }}>
           <div style={{ fontSize: 28, lineHeight: 1, animation: 'rank-pop 0.7s var(--ease-spring)' }}>🎯</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#34d399', marginTop: 4, textShadow: '0 0 12px rgba(16,185,129,0.5)' }}>Plan abgeschlossen!</div>
-          <div style={{ fontSize: 10.5, color: '#a7f3d0', marginTop: 2 }}>Alle {stats.total} Schritte erledigt. Bereit fürs echte Interview.</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginTop: 4, textShadow: '0 0 12px rgba(16,185,129,0.5)' }}>Plan abgeschlossen!</div>
+          <div style={{ fontSize: 10.5, color: 'var(--accent-2)', marginTop: 2 }}>Alle {stats.total} Schritte erledigt. Bereit fürs echte Interview.</div>
         </div>
       )}
 
@@ -420,7 +420,7 @@ function SpeakingRunner({ step, onGenerate, onSpeak, lang }) {
   };
   const genTask = async () => { setBusyTask(true); const d = await onGenerate(step.id); setBusyTask(false); if (d?.task) setTask(d.task); };
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  const wpmColor = wpm >= 140 && wpm <= 160 ? '#34d399' : (wpm >= 110 && wpm <= 185) ? '#f59e0b' : '#f87171';
+  const wpmColor = wpm >= 140 && wpm <= 160 ? 'var(--accent)' : (wpm >= 110 && wpm <= 185) ? 'var(--action)' : '#f87171';
 
   return (
     <div style={{ marginLeft: 29, marginTop: 5 }}>
@@ -462,7 +462,7 @@ function SpeakingRunner({ step, onGenerate, onSpeak, lang }) {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={metricBox}><div style={{ color: wpmColor, fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-display)' }}>{wpm}</div><div style={metricLbl}>WpM · Ziel 140–160</div></div>
-                <div style={metricBox}><div style={{ color: fillers <= 2 ? '#34d399' : '#f87171', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-display)' }}>{fillers}</div><div style={metricLbl}>Füllwörter</div></div>
+                <div style={metricBox}><div style={{ color: fillers <= 2 ? 'var(--accent)' : '#f87171', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-display)' }}>{fillers}</div><div style={metricLbl}>Füllwörter</div></div>
               </div>
               {fb && (
                 <div style={{ ...feedbackBox, direction: ar ? 'rtl' : 'ltr', textAlign: ar ? 'right' : 'left' }}>
@@ -498,7 +498,7 @@ const xBtn = { fontSize: 9, cursor: 'pointer', padding: '3px 6px', borderRadius:
 const smallBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9.5, letterSpacing: '0.04em', cursor: 'pointer', padding: '4px 8px', borderRadius: 5, border: '1px solid var(--line)', background: 'transparent', color: 'var(--accent)' };
 const panel = { marginTop: 7, padding: 10, borderRadius: 'var(--r-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 };
 const taskBox = { fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-wrap', padding: 8, borderRadius: 6, background: 'rgba(0,229,255,0.05)', border: '1px solid var(--line)' };
-const feedbackBox = { fontSize: 11.5, color: '#d1fae5', lineHeight: 1.55, padding: 9, borderRadius: 6, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' };
+const feedbackBox = { fontSize: 11.5, color: 'var(--accent-2)', lineHeight: 1.55, padding: 9, borderRadius: 6, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' };
 const textareaStyle = { width: '100%', minHeight: 70, padding: 9, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 12.5, border: '1px solid var(--line)', outline: 'none' };
 const metricBox = { flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 'var(--r-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)' };
 const metricLbl = { fontSize: 8, color: 'var(--text-dim)', marginTop: 2, letterSpacing: '0.04em' };
