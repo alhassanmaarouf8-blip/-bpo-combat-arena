@@ -19,6 +19,17 @@ import { refreshRecommendations, allRecommendedDone } from './trainingslager.js'
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
 
+// One canonical filler definition so the live counter, the per-turn HP scorer and the
+// session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
+// so the number a learner watched climb live disagreed with the debrief). "um" is intentionally
+// EXCLUDED — it is a real, correct German word ("um … zu", "um 9 Uhr"), not a hesitation marker,
+// and counting it penalised exactly the subordinate-clause grammar the app elsewhere rewards.
+// NB: use Unicode letter boundaries, NOT \b — JS \b treats "ä" as a non-word char, so the old
+// \bäh+ never actually matched "äh"/"ähm" (a latent bug in every prior version). \p{L} lookarounds
+// fix that and also stop matching inside real words ("halt" inside "behalten"/"haltbar").
+const FILLER_RE = /(?<!\p{L})(?:ähm+|äh+|ehm+|also|halt|irgendwie|quasi|sozusagen)(?!\p{L})/giu;
+const countFillers = (text) => ((text || '').match(FILLER_RE) ?? []).length;
+
 // Gemini Live native-audio path is active only when explicitly enabled. Defined here (not just in
 // server.js) because the fight-start path references it — a bare reference would ReferenceError.
 const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
@@ -1115,9 +1126,8 @@ export class WebSocketManager {
     const wpm    = ctx.totalSpeechMs > 0 ? Math.round(words / (speechSec / 60)) : 0;
 
     const countList = (list) => list.reduce((n, w) => n + (text.includes(` ${w} `) ? 1 : 0), 0);
-    const matchAll  = (re) => (text.match(re) ?? []).length;
 
-    const fillers = matchAll(/\b(äh+|ähm+|ehm+|also|halt|irgendwie|quasi|sozusagen)\b/g);
+    const fillers = countFillers(text);
 
     const connectors = ['weil','obwohl','damit','sodass','dennoch','trotzdem','deshalb','außerdem','während','sobald','falls','indem','zwar','jedoch'];
     const konjunktiv = ['würde','würden','könnte','könnten','hätte','wäre','müsste','dürfte','sollte','möchte'];
@@ -1361,7 +1371,7 @@ export class WebSocketManager {
     // utterance (≈ every pause), not only on scored exchanges, so the meters feel live.
     if (wordCount >= 2) {
       const liveWpm = durationMs > 0 ? Math.round((wordCount / durationMs) * 60_000) : 0;
-      const fillers = (` ${transcript.toLowerCase()} `.match(/\b(äh+|ehm+|um+|also\s|halt\s|irgendwie|quasi|sozusagen)\b/g) ?? []).length;
+      const fillers = countFillers(transcript);
       ctx.fillerTotal += fillers;
       this._send(ctx, {
         type:        S.LIVE_STATS,
@@ -1541,7 +1551,7 @@ export class WebSocketManager {
     let score = lenient ? 58 : 46; // level-aware baseline (A2-B1 friendlier)
 
     // Filler words — penalty only when EXCESSIVE (a single "also" is normal speech).
-    const fillers = (text.match(/\b(äh+|ehm+|um+|also\s|halt\s|irgendwie|quasi|sozusagen)\b/g) ?? []).length;
+    const fillers = countFillers(text);
     if (fillers > 0) {
       const pen = fillers * (lenient ? 2 : 4);
       score -= pen;
@@ -1634,7 +1644,7 @@ export class WebSocketManager {
     let score = lenient ? 58 : 46; // level-aware baseline (A2-B1 friendlier)
 
     // Filler word penalty
-    const fillers = (text.match(/\b(äh+|ehm+|um+|also\s|halt\s|irgendwie|quasi|sozusagen)\b/g) ?? []).length;
+    const fillers = countFillers(text);
     score -= fillers * (lenient ? 2 : 4);
 
     // WPM: A2-B1 just needs to keep moving; B2 targets a natural 130-165 wpm.
