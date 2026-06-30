@@ -1460,7 +1460,7 @@ export class WebSocketManager {
     ctx.emotion = emotion;
     // Feelings reach the boss's WORDS next turn (delivery/tone only — the scorer above stays mood-blind,
     // so "alive" never means "unfair"). This is the candidate being able to warm or cool the interviewer.
-    ctx.realtimeClient?.requestEmotion?.(emotion);
+    ctx.realtimeClient?.requestEmotion?.(emotion, score);
 
     // Sum each side's factor magnitudes, then CAP — proportional, never a giant drop.
     //   side 'boss'   = player did well  → boss loses HP (player gains ground)

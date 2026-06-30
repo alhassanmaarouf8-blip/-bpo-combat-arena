@@ -267,6 +267,10 @@ const TURN_RULE =
 // out of the claim-ledger so callbacks land on real content ("Reiseleiterin", "Stromanbieter"), not "Dann".
 const LEDGER_STOP = new Set(['Ich','Sie','Er','Es','Wir','Ihr','Man','Das','Die','Der','Den','Dem','Ein','Eine','Einen','Und','Aber','Oder','Denn','Also','Doch','Dann','Wenn','Weil','Dass','Wie','Was','Wer','Wo','Warum','Bei','Für','Mit','Von','Auf','Aus','Nach','Über','Unter','Vor','Zum','Zur','Herr','Frau','Guten','Hallo','Danke','Bitte','Mein','Meine','Sehr','Schon','Noch','Auch','Jetzt','Heute','Hier','Dort','Mehr','Immer','Nur','Erst','Nun','Gut','Okay','Natürlich','Vielleicht','Eigentlich','Genau','Sorry','Ja','Nein','Naja','Soso','Moment','Verstehe']);
 
+// Persona warmth set-points (resting "mood" baseline, -1 cold … +1 warm). The live warmth EMA starts
+// here and drifts with the candidate's scores so they can genuinely warm or cool THIS interviewer.
+const SETPOINTS = { yasmin: 0.35, karim: 0.0, hana: -0.25, tarek: -0.35, 'frau-mona-adel': -0.5, lukas: 0.25 };
+
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
 // speaker turn, cut at the first such marker so only the boss's own line survives.
@@ -347,6 +351,8 @@ export class RealtimeClient {
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
     this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
     this._extraRules         = opts.extraRules || '';   // optional tuning addendum (off by default; used by the naturalness evolve loop)
+    this._setPoint           = SETPOINTS[bossId] ?? 0;  // persona warmth baseline (cold ↔ warm)
+    this._warmth             = this._setPoint;          // continuous warmth EMA — the candidate moves it by performing
   }
 
   // True while a boss turn is being generated (gateway waits for completed turns).
@@ -477,7 +483,16 @@ export class RealtimeClient {
   // turn's TONE only. The scorer never reads it → "alive" never means "unfair" (judgement stays
   // mood-blind). This is what makes the candidate able to "win the room": good answers visibly warm
   // the boss, weak ones cool him — feelings that finally reach his WORDS, not just the HUD badge.
-  requestEmotion(label = '') { this._pendingEmotion = label; }
+  requestEmotion(label = '', score = null) {
+    this._pendingEmotion = label;
+    // Continuous warmth EMA: drift toward a target = persona set-point + how this answer landed.
+    // Small step (0.34) = momentum, so the boss warms/cools GRADUALLY across the conversation, not in
+    // snaps. The candidate genuinely "wins (or loses) the room." Delivery/tone only — scorer never reads it.
+    if (typeof score === 'number') {
+      const target = Math.max(-1, Math.min(1, this._setPoint + (score - 55) / 45));
+      this._warmth = Math.max(-1, Math.min(1, this._warmth + 0.34 * (target - this._warmth)));
+    }
+  }
 
   // Capture the candidate's salient content words (German nouns are Capitalized — a strong, deterministic
   // signal) into the claim-ledger for verbatim callbacks. High-precision on purpose: the boss only ever
@@ -491,13 +506,18 @@ export class RealtimeClient {
     if (this._ledger.length > 14) this._ledger = this._ledger.slice(-14);   // keep it small + recent
   }
 
+  // Build the tone directive from the CONTINUOUS warmth (graded, not 3 buckets), plus a tension note when
+  // the boss is cornered. Returns '' near the neutral band so neutral turns stay clean (token-lean).
   _emotionInstruction(label) {
-    switch (label) {
-      case 'beeindruckt': return 'AFFEKT (nur Ton/Lieferung, NICHT die Bewertung): Die letzte Antwort war stark — lass eine Spur ehrliche Anerkennung oder Wärme durchklingen, dezent und in deiner Rolle.';
-      case 'skeptisch':   return 'AFFEKT (nur Ton/Lieferung): Die letzte Antwort war schwach oder ausweichend — klinge eine Spur skeptischer und zurückhaltender, höflich, aber merklich kühler.';
-      case 'wuetend':     return 'AFFEKT (nur Ton/Lieferung): Die Lage ist angespannt — knapperer, bestimmterer, ungeduldigerer Ton; bleib in der Sie-Form und werde NIEMALS beleidigend.';
-      default:            return '';   // 'gefasst' → no directive (keeps tokens lean)
-    }
+    const w = this._warmth;
+    let base = '';
+    if      (w >=  0.55) base = 'Die Person überzeugt dich gerade — lass deutliche, ehrliche Anerkennung und Wärme durchklingen, in deiner Rolle und nie schmeichlerisch.';
+    else if (w >=  0.22) base = 'Es läuft gut — eine Spur wärmer, zugewandter und offener im Ton.';
+    else if (w <= -0.55) base = 'Die Antworten überzeugen nicht — merklich kühler, knapper und ungeduldiger; höflich in der Sie-Form, aber distanziert.';
+    else if (w <= -0.22) base = 'Noch nicht überzeugt — eine Spur kühler, skeptischer und zurückhaltender.';
+    const tense = (label === 'wuetend') ? ' Die Lage ist angespannt: bestimmt und direkt, aber beherrscht — niemals beleidigend.' : '';
+    const out = (base + tense).trim();
+    return out ? `AFFEKT (nur Ton/Lieferung, NICHT die Bewertung): ${out}` : '';
   }
 
   _correctionInstruction(label) {
