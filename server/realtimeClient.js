@@ -324,6 +324,7 @@ export class RealtimeClient {
     this._closed             = false;
     this._pendingRescue      = null;
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
+    this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
   }
 
   // True while a boss turn is being generated (gateway waits for completed turns).
@@ -383,6 +384,11 @@ export class RealtimeClient {
       turnMsgs.push({ role: 'system', content: this._correctionInstruction(this._pendingCorrection) });
       this._pendingCorrection = null;
     }
+    if (this._pendingEmotion) {
+      const dir = this._emotionInstruction(this._pendingEmotion);
+      if (dir) turnMsgs.push({ role: 'system', content: dir });
+      this._pendingEmotion = null;
+    }
 
     let line = '';
     try {
@@ -430,6 +436,21 @@ export class RealtimeClient {
   // The gateway calls this after 2 weak answers with the same error → probe for specifics.
   // The boss stays in character: no metalinguistic comment, just a targeted follow-up question.
   requestCorrection(label = '') { this._pendingCorrection = label; }
+
+  // The gateway calls this each turn with the backend-computed affect; it colours the NEXT boss
+  // turn's TONE only. The scorer never reads it → "alive" never means "unfair" (judgement stays
+  // mood-blind). This is what makes the candidate able to "win the room": good answers visibly warm
+  // the boss, weak ones cool him — feelings that finally reach his WORDS, not just the HUD badge.
+  requestEmotion(label = '') { this._pendingEmotion = label; }
+
+  _emotionInstruction(label) {
+    switch (label) {
+      case 'beeindruckt': return 'AFFEKT (nur Ton/Lieferung, NICHT die Bewertung): Die letzte Antwort war stark — lass eine Spur ehrliche Anerkennung oder Wärme durchklingen, dezent und in deiner Rolle.';
+      case 'skeptisch':   return 'AFFEKT (nur Ton/Lieferung): Die letzte Antwort war schwach oder ausweichend — klinge eine Spur skeptischer und zurückhaltender, höflich, aber merklich kühler.';
+      case 'wuetend':     return 'AFFEKT (nur Ton/Lieferung): Die Lage ist angespannt — knapperer, bestimmterer, ungeduldigerer Ton; bleib in der Sie-Form und werde NIEMALS beleidigend.';
+      default:            return '';   // 'gefasst' → no directive (keeps tokens lean)
+    }
+  }
 
   _correctionInstruction(label) {
     const hint = label ? ` (es geht um: "${label}")` : '';

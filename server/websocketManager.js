@@ -1457,6 +1457,9 @@ export class WebSocketManager {
     else if (score >= 68)      emotion = 'beeindruckt';
     else if (score <= 40)      emotion = 'skeptisch';
     ctx.emotion = emotion;
+    // Feelings reach the boss's WORDS next turn (delivery/tone only — the scorer above stays mood-blind,
+    // so "alive" never means "unfair"). This is the candidate being able to warm or cool the interviewer.
+    ctx.realtimeClient?.requestEmotion?.(emotion);
 
     // Sum each side's factor magnitudes, then CAP — proportional, never a giant drop.
     //   side 'boss'   = player did well  → boss loses HP (player gains ground)
