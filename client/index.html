@@ -4,19 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#020409" />
-    <meta name="description" content="Übe deutsche Job-Interviews per Sprache gegen einen harten HR-Boss — mit Sofort-Feedback. درّب نفسك على إنترفيو شغل ألماني بالصوت." />
+    <meta name="description" content="درّب على إنترفيو شغل خدمة عملاء ألماني بالصوت ضد HR صعب وخُد تقييم فوري على أخطائك — أول تدريب إنترفيو ألماني مصمم للعرب علشان توصل لشغل كول سنتر ألماني. Übe dein deutsches BPO-Job-Interview per Sprache, mit Sofort-Feedback." />
 
-    <!-- Social share preview (WhatsApp / Facebook / Twitter) -->
+    <!-- Social share preview (WhatsApp / Facebook / Twitter) — Arabic-first (the audience reads Arabic). -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="OMNI-PERFORM" />
-    <meta property="og:title" content="OMNI-PERFORM — Deutsch-Interview-Training per Sprache" />
-    <meta property="og:description" content="Übe deutsche Job-Interviews gegen einen harten HR-Boss, mit Sofort-Feedback. درّب نفسك على إنترفيو شغل ألماني بالصوت وخُد تقييم فوري." />
+    <meta property="og:title" content="اشتغل في كول سنتر ألماني — درّب على الإنترفيو بالصوت · OMNI-PERFORM" />
+    <meta property="og:description" content="أول تدريب إنترفيو ألماني للعرب: اتكلم ألماني ضد HR صعب، خُد تقييم فوري على أخطائك، واتدرّب كل يوم لحد ما تتوظف. Live-Voice-Training für dein deutsches Job-Interview." />
     <meta property="og:url" content="https://bpo-combat-arena.vercel.app" />
-    <meta property="og:locale" content="de_DE" />
-    <meta property="og:locale:alternate" content="ar_EG" />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="OMNI-PERFORM — Deutsch-Interview-Training per Sprache" />
-    <meta name="twitter:description" content="Übe deutsche Job-Interviews gegen einen harten HR-Boss, mit Sofort-Feedback." />
+    <meta property="og:image" content="https://bpo-combat-arena.vercel.app/og.png" />
+    <meta property="og:locale" content="ar_EG" />
+    <meta property="og:locale:alternate" content="de_DE" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="اشتغل في كول سنتر ألماني — درّب على الإنترفيو بالصوت" />
+    <meta name="twitter:description" content="أول تدريب إنترفيو ألماني للعرب: اتكلم ألماني ضد HR صعب، خُد تقييم فوري، واتدرّب كل يوم لحد ما تتوظف." />
+    <meta name="twitter:image" content="https://bpo-combat-arena.vercel.app/og.png" />
+
+    <!-- Structured data for search (honest — no fabricated ratings). -->
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebApplication","name":"OMNI-PERFORM","applicationCategory":"EducationalApplication","operatingSystem":"Web","inLanguage":["ar","de"],"url":"https://bpo-combat-arena.vercel.app","description":"تدريب إنترفيو شغل خدمة عملاء ألماني بالصوت مع تقييم فوري — Deutsch-Job-Interview-Training per Sprache.","offers":{"@type":"Offer","price":"0","priceCurrency":"EGP","description":"3 أيام تجربة مجانية / 3-day free trial"}}
+    </script>
 
     <!-- Add-to-home-screen / mobile web-app feel -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -32,6 +39,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Crawlable content + no-JS fallback: the SPA renders nothing for crawlers, so the root URL had
+         ZERO indexable text. This static hero gives Google real content + the Arabic search terms the
+         audience actually types, without changing the app. -->
+    <noscript>
+      <div style="color:#e2e8f0;font-family:system-ui,sans-serif;max-width:680px;margin:48px auto;padding:24px;text-align:center;line-height:1.7">
+        <h1>OMNI-PERFORM — تدريب إنترفيو شغل خدمة عملاء ألماني بالصوت</h1>
+        <p dir="rtl">أول تدريب إنترفيو ألماني مصمّم للعرب: اتكلم ألماني ضد HR صعب، خُد تقييم فوري على أخطائك، واتدرّب كل يوم لحد ما تتوظف في كول سنتر ألماني. (إنترفيو كول سنتر ألماني · وظائف خدمة عملاء ألماني في مصر · تدريب ألماني بالصوت · رواتب call center ألماني)</p>
+        <p>Übe dein deutsches BPO-Job-Interview per Sprache gegen einen harten HR-Boss, mit Sofort-Feedback. Bitte aktiviere JavaScript, um die App zu starten.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
