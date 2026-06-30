@@ -41,6 +41,11 @@ jobs:
       - name: Brain engine tests
         run: node --test server/brain/*.test.mjs
 
+      # ── Design system: the 2-color (blue+orange) discipline must hold — fail if the old
+      #    rainbow (neon cyan / green / violet / gold / Orbitron) ever reappears. ──
+      - name: Design-lint (no off-brand colors)
+        run: npm run design-lint
+
       # ── 2. Syntax gate — every server file must parse ──
       - name: Syntax-check all server files
         run: |

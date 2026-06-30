@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Root tooling for the Guardian CI gate (lint + syntax checks). The app lives in server/ and client/.",
   "scripts": {
-    "lint": "eslint server client --no-warn-ignored"
+    "lint": "eslint server client --no-warn-ignored",
+    "design-lint": "node scripts/design-lint.mjs"
   },
   "devDependencies": {
     "eslint": "^9.39.0",
