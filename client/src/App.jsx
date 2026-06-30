@@ -3464,30 +3464,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             {/* Interview-readiness rank ladder (visible progress on the home screen) */}
             {rank && <div style={{ marginBottom:9 }}><RankLadder rank={rank} /></div>}
 
-            {/* Trainingsnachweis — printable progress certificate */}
-            <button onClick={() => setNachweisOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:10, marginBottom:9, padding:'8px 12px', borderRadius:'var(--r-md)',
-              background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.25)', transition:'all var(--dur-slow)' }}>
-              <div style={{ fontSize:20 }}>📄</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--accent)' }}>TRAININGSNACHWEIS</div>
-                <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Fortschritt als PDF drucken · اطبع تقدمك كـPDF</div>
-              </div>
-              <div style={{ fontSize:10, color:'var(--accent)' }}>▸</div>
-            </button>
-
-            {/* Weekly leaderboard — social accountability (Duolingo leagues effect) */}
-            <button onClick={() => { setLeaderboardOpen(true); setLeaderboard(null); }}
-              style={{ width:'100%', textAlign:'left', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:10, marginBottom:13, padding:'8px 12px', borderRadius:'var(--r-md)',
-              background:'rgba(249,115,22,0.06)', border:'1px solid rgba(249,115,22,0.25)', transition:'all var(--dur-slow)' }}>
-              <div style={{ fontSize:20 }}>🏆</div>
-              <div style={{ flex:1 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--action)' }}>DIESE WOCHE</div>
-                <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Wochentabelle — wer trainiert am meisten? · مين بيتدرب أكتر الأسبوع ده؟</div>
-              </div>
-              <div style={{ fontSize:10, color:'var(--action)' }}>▸</div>
-            </button>
+            {/* Trainingsnachweis + Weekly leaderboard moved BELOW the primary action (secondary nav),
+                see the "secondary cluster" under the CTA — they used to push the level pick down. */}
 
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',
               color:'var(--accent-dim)', textAlign:'center', marginBottom:9 }}>
@@ -3966,6 +3944,34 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Referral loop: invite a friend → both get +3 trial days when the friend finishes their first interview. */}
         {canStart && <InviteCard accountId={auth.account?.id} />}
+
+        {/* Secondary nav — Trainingsnachweis (PDF cert) + weekly leaderboard. Moved here from above the
+            level picker so the calm idle home leads with the action; these are check-in-later items. */}
+        {canStart && (
+          <button onClick={() => setNachweisOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
+            display:'flex', alignItems:'center', gap:10, marginTop:8, padding:'8px 12px', borderRadius:'var(--r-md)',
+            background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.25)', transition:'all var(--dur-slow)' }}>
+            <div style={{ fontSize:20 }}>📄</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--accent)' }}>TRAININGSNACHWEIS</div>
+              <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Fortschritt als PDF drucken · اطبع تقدمك كـPDF</div>
+            </div>
+            <div style={{ fontSize:10, color:'var(--accent)' }}>▸</div>
+          </button>
+        )}
+        {canStart && (
+          <button onClick={() => { setLeaderboardOpen(true); setLeaderboard(null); }}
+            style={{ width:'100%', textAlign:'left', cursor:'pointer',
+            display:'flex', alignItems:'center', gap:10, marginTop:8, padding:'8px 12px', borderRadius:'var(--r-md)',
+            background:'rgba(249,115,22,0.06)', border:'1px solid rgba(249,115,22,0.25)', transition:'all var(--dur-slow)' }}>
+            <div style={{ fontSize:20 }}>🏆</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--action)' }}>DIESE WOCHE</div>
+              <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Wochentabelle — wer trainiert am meisten? · مين بيتدرب أكتر الأسبوع ده؟</div>
+            </div>
+            <div style={{ fontSize:10, color:'var(--action)' }}>▸</div>
+          </button>
+        )}
 
         {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
         {canStart && (
