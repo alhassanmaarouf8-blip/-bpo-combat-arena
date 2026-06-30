@@ -33,7 +33,7 @@ export function WeeklyBriefing({ token, apiUrl }) {
   );
 }
 
-const card  = { marginTop: 12, padding: 14, borderRadius: 12, border: '1px solid rgba(251,191,36,0.25)',
-  background: 'linear-gradient(180deg, rgba(251,191,36,0.07), rgba(255,255,255,0.03))' };
+const card  = { marginTop: 12, padding: 14, borderRadius: 12, border: '1px solid rgba(249,115,22,0.25)',
+  background: 'linear-gradient(180deg, rgba(249,115,22,0.07), rgba(255,255,255,0.03))' };
 const head  = { fontSize: 10.5, letterSpacing: '0.08em', color: 'var(--action)', fontWeight: 800, marginBottom: 8, fontFamily: 'var(--font-display)' };
-const badge = { fontSize: 8.5, padding: '2px 6px', borderRadius: 99, border: '1px solid rgba(251,191,36,0.5)', color: 'var(--action)', marginInlineStart: 6 };
+const badge = { fontSize: 8.5, padding: '2px 6px', borderRadius: 99, border: '1px solid rgba(249,115,22,0.5)', color: 'var(--action)', marginInlineStart: 6 };
