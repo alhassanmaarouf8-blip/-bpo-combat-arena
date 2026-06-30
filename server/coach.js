@@ -115,8 +115,7 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
 
   // No model key → metrics-only debrief, but still attach the authoritative grammar + progress.
   if (!apiKey) {
-    const fb = fallbackDebrief(metrics, utterances);
-    if (ltGrammar) fb.grammar = ltGrammar;
+    const fb = fallbackDebrief(metrics, utterances, ltGrammar || [], !ltGrammar);
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
     fb.grammarUnavailable = !ltGrammar;
     fb.progressNarrative = progressNarrative;
@@ -193,13 +192,12 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     norm.interviewReview = (norm.interviewReview || []).filter((r) => r.deinSatz && saidCanon.includes(_canon(r.deinSatz)));
     // GRAMMAR: ONLY from LanguageTool — NEVER the model.
     const grammar = ltGrammar || [];
-    const lesson  = buildLesson(utterances, metrics, grammar);
+    const lesson  = buildLesson(utterances, metrics, grammar, !ltGrammar);
     const drills  = buildDrills(grammar);
     return { ...norm, grammar, lesson, drills, metrics, progressNarrative, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
-    const fb = fallbackDebrief(metrics, utterances);
-    if (ltGrammar) fb.grammar = ltGrammar;
+    const fb = fallbackDebrief(metrics, utterances, ltGrammar || [], !ltGrammar);
     fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
     fb.grammarUnavailable = !ltGrammar;
     fb.naturalness = naturalness;
@@ -365,7 +363,7 @@ function buildProgress(history, metrics) {
   return { de: lines_de.join(' '), ar: lines_ar.join(' ') };
 }
 
-function buildLesson(utterances, metrics, grammar) {
+function buildLesson(utterances, metrics, grammar, grammarUnavailable = false) {
   const text = (utterances || []).map((u) => (u?.text || '').trim()).filter(Boolean).join('\n').toLowerCase();
   const picks = [];
 
@@ -375,7 +373,13 @@ function buildLesson(utterances, metrics, grammar) {
   const realRules = (grammar || []).filter((g) => Array.isArray(g.summaryExamples) && g.summaryExamples.length > 0)
     .map((g) => g.rule).filter(Boolean);
   if (realRules.length === 0) {
-    add('Abschluss: Keine expliziten Grammatikfehler gefunden — saubere Sitzung. Nächster Schritt: erzähl eine Geschichte mit 3 verschiedenen Nebensätzen.', 'خلاصة: لم يتم العثور على أخطاء نحوية واضحة — أداء نظيف.');
+    if (grammarUnavailable) {
+      // HONEST: empty grammar because the checker was DOWN is NOT "no errors". Never tell a weak
+      // learner they were clean when we simply didn't look — that false confidence loses the real job.
+      add('Abschluss: Die Grammatik-Analyse war diesmal nicht verfügbar — dieser Teil wurde NICHT geprüft (das heißt NICHT „fehlerfrei"). Nächster Schritt: erzähl eine Geschichte mit 3 verschiedenen Nebensätzen.', 'خلاصة: تحليل القواعد ماكانش متاح المرة دي — الجزء ده ماتفحصش (وده مامعناهوش إنك ملكش أخطاء). الخطوة الجاية: احكي قصة بـ ٣ جمل ثانوية مختلفة.');
+    } else {
+      add('Abschluss: Keine expliziten Grammatikfehler gefunden — saubere Sitzung. Nächster Schritt: erzähl eine Geschichte mit 3 verschiedenen Nebensätzen.', 'خلاصة: لم يتم العثور على أخطاء نحوية واضحة — أداء نظيف.');
+    }
   } else if (realRules.length === 1) {
     const rule = realRules[0];
     add(`Kurzübung nur zu dieser Regel: "${rule}" — 5 Sätze neu formulieren und laut vorlesen.`, 'تمرين قصير متمركز فقط على قاعدة:');
@@ -434,7 +438,7 @@ function buildDrills(grammar) {
 }
 
 // ── Metrics-only fallback (no key / API error / no speech) ───────────────────────
-function fallbackDebrief(metrics, utterances) {
+function fallbackDebrief(metrics, utterances, grammar = [], grammarUnavailable = false) {
   const strengths = [], strengths_ar = [];
   const addStrength = (de, ar) => { strengths.push(de); strengths_ar.push(ar); };
   if (metrics?.connectorHits > 0)  addStrength(`Du hast Nebensätze mit Konnektoren benutzt (${metrics.connectorHits}×) — gute Satzstruktur.`, `استخدمت جملاً ثانوية بأدوات ربط (${metrics.connectorHits}×) — بنية جُمَل جيدة.`);
@@ -462,7 +466,7 @@ function fallbackDebrief(metrics, utterances) {
         ar: `النهاردة أدخل في ٣ إجابات جملة ثانوية بـ "weil" أو "obwohl" أو "damit" — ده بيرفع مستوى ألمانيتك فورًا وبشكل مسموع.` };
 
   return {
-    grammar: [],
+    grammar,
     strengths,
     strengths_ar,
     studyNext,
@@ -471,7 +475,7 @@ function fallbackDebrief(metrics, utterances) {
     upgrades: [],
     drills: [],
     interviewReview: [],
-    lesson: buildLesson(utterances, metrics, []),
+    lesson: buildLesson(utterances, metrics, grammar, grammarUnavailable),
     metrics,
     generated: false,
     naturalness: null,

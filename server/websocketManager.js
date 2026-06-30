@@ -1180,11 +1180,14 @@ export class WebSocketManager {
     // so a failed debrief never paints a fake perfect "100". (Note: this still undercounts to the
     // degree the STT launders errors before LanguageTool sees them — tracked separately as Tier-1 #6.)
     let grammarBar;
-    if (debrief?.generated) {
+    if (debrief?.generated && !debrief.grammarUnavailable) {
       const grammarErrs = (debrief.grammar || []).reduce((n, g) => n + (g.count || 1), 0);
       const errPer100   = (grammarErrs / Math.max(metrics.words || 0, 1)) * 100;
       grammarBar        = clamp(100 - errPer100 * 8);   // ~0 err→100, ~3/100w→76, ~6→52, ~13→0
     } else {
+      // FAIL HONEST: if the debrief failed OR the grammar checker was unavailable, debrief.grammar is
+      // empty NOT because the German was clean — so never paint the fake "100" that empty list would give.
+      // Fall back to the conservative heuristic instead of rewarding an unchecked session.
       grammarBar        = clamp(38 + metrics.connectorHits * 15 - metrics.fillers * 3);
     }
 
