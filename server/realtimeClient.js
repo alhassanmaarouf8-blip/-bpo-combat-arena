@@ -174,11 +174,15 @@ const GREETINGS = {
 // Gender-correct Deepgram Aura-2 German voice per character (the women must NOT be
 // voiced by the male default). All ids exist in transcribeRouter AURA_DE_VOICES.
 const VOICES = {
-  'yasmin':         'aura-2-lara-de',     // female, warm
+  // VOICE LOUDNESS (measured via hear-voice): lara RMS~940 and aurelia RMS~924 are ~2.2× quieter than
+  // viktoria RMS~2040 — they sounded "low / timid / afraid". Aura has no volume param and peaks are
+  // already full-scale (it's low ENERGY, not gain), so the quiet female voices are moved to the loud,
+  // firm viktoria. (Per-voice loudness normalization to restore distinct timbres is a follow-up.)
+  'yasmin':         'aura-2-viktoria-de', // female — was lara (too quiet); viktoria is loud + firm
   'karim':          'aura-2-fabian-de',   // male
   'hana':           'aura-2-viktoria-de', // female, mature
   'tarek':          'aura-2-julius-de',   // male, hard
-  'frau-mona-adel': 'aura-2-aurelia-de',  // female, authoritative
+  'frau-mona-adel': 'aura-2-viktoria-de', // female, authoritative — was aurelia (too quiet)
   'lukas':          'aura-2-fabian-de',   // male, casual (Deepgram fallback)
 };
 try {
@@ -255,8 +259,8 @@ const TURN_RULE =
   `ABGESTUFTE BEWERTUNG statt schwarz/weiß: nutze Zwischentöne — „Ja, schon …", „Teils teils.", „Geht in die richtige Richtung, aber …", „Kann man so sehen.".\n` +
   `EINRÄUMEN, DANN WENDEN (wie ein denkender, skeptischer Mensch): „Schon, aber …", „Mag sein, nur …", „Gut — und trotzdem?".\n` +
   `RÜCKBEZUG STATT WIEDERHOLUNG: verweise mit „da/das" auf das eben Gesagte, statt es zu wiederholen: „Da haben Sie recht.", „Genau da hake ich ein.".\n` +
-  `LAUT DENKEN (gelegentlich): „Hm, wie soll ich sagen …", „Sehen wir mal …".\n` +
   `ECHTE INHALTLICHE RÜCKFRAGE (niemals „akustisch nicht verstanden"): wenn der INHALT unklar ist, frag menschlich nach — „Wie meinen Sie das?", „Inwiefern genau?".\n` +
+  `TON: souverän und bestimmt — ein erfahrener Interviewer, der die Lage führt. NICHT zaghaft, nicht entschuldigend, nicht ängstlich. Sprich mit Präsenz.\n` +
   `Diese Mittel SPARSAM und nie alle auf einmal — höchstens EIN solcher Zug pro Beitrag. „Eine Sache pro Beitrag, dann Stille" bleibt absolut.`;
 
 // Capitalized German words that are NOT content nouns (mostly sentence-initial function words) — kept
