@@ -28,7 +28,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (s) => console.log(s);
 
 let _last = 0;
-async function groq(messages, { json = false, temperature = 0.8, max_tokens = 400 } = {}, tries = 5) {
+async function groq(messages, { json = false, temperature = 0.8, max_tokens = 400 } = {}, tries = 14) {
   for (let a = 0; a < tries; a++) {
     const wait = Math.max(0, PACE_MS - (Date.now() - _last));
     if (wait) await sleep(wait);
@@ -39,12 +39,20 @@ async function groq(messages, { json = false, temperature = 0.8, max_tokens = 40
         method: 'POST', headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'llama-3.3-70b-versatile', temperature, max_tokens, messages, ...(json ? { response_format: { type: 'json_object' } } : {}) }),
       });
-    } catch (e) { await sleep(15000); continue; }
-    if (r.status === 429) { const ra = Number(r.headers.get('retry-after')) || 0; const back = Math.max(ra * 1000, 30000 * (a + 1)); log(`  …429, backoff ${Math.round(back/1000)}s`); await sleep(back); continue; }
-    if (!r.ok) { await sleep(8000); continue; }
+    } catch (e) { await sleep(20000); continue; }
+    if (r.status === 429) {
+      // Overnight survival: a 429 is usually the free PER-MINUTE cap, but can be the DAILY cap. Escalate
+      // the wait (1m→2m→…→30m) so the loop simply SLEEPS THROUGH a daily exhaustion and resumes the moment
+      // the quota refreshes — iterating all night for $0 instead of dying. retry-after honoured when given.
+      const ra = Number(r.headers.get('retry-after')) || 0;
+      const back = Math.min(1800000, Math.max(ra * 1000, 60000 * Math.pow(2, a)));
+      log(`  …429, sleeping ${Math.round(back/1000)}s (overnight-survive)`);
+      await sleep(back); continue;
+    }
+    if (!r.ok) { await sleep(10000); continue; }
     return (await r.json()).choices?.[0]?.message?.content ?? '';
   }
-  throw new Error('groq: exhausted retries (likely daily free cap)');
+  throw new Error('groq: exhausted retries (daily free cap not refreshing)');
 }
 
 async function playCandidate(history) {
