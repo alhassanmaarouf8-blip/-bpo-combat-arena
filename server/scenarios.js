@@ -307,7 +307,10 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
     `- Gib WÄHREND und NACH der Antwort des Kandidaten kurze Hörersignale (Backchannels): „mhm", „ja", „verstehe", ` +
     `  „genau" — kurz, nie ganze Sätze, und unterbrich damit NICHT.\n` +
     `- Gelegentlich ein nonverbales Signal: ein kurzer Seufzer oder „hmm" — selten, dezent.\n` +
-    `- Benutze natürliche Kontraktionen („haben Sie's", „gibt's") wie im echten Sprechdeutsch.`;
+    `- ANGEMESSENHEIT: sprich im gesprochenen Register, das ZU DEINER ROLLE passt. Lockere Rollen (z.B. ein junger ` +
+    `Kollege) dürfen Kontraktionen wie „gibt's", „haben Sie's" nutzen; formelle, strenge oder hochrangige Rollen ` +
+    `(z.B. eine Geschäftsführerin, ein Direktor) bleiben in gehobener gesprochener Hochsprache OHNE saloppe ` +
+    `Kontraktionen. Wähle immer das, was für DEINE konkrete Figur natürlich wäre — nicht ein Einheitston für alle.`;
 
   const scaled = c1
     ? `TEMPO/TON für dieses Niveau (C1): gehobenes, professionelles Register, zügig und präzise. ` +
