@@ -247,6 +247,10 @@ const TURN_RULE =
   `Für Pausen nutze "…" (zögerlich) oder "—" (gefasst). Höchstens ein bis zwei Füllwörter, nur am ANFANG eines ` +
   `Redebeitrags, nie mitten im Satz und nie als abgebrochener Neustart. Zahlen/Daten als Wörter ("tausend Euro", nicht "1.000 €").`;
 
+// Capitalized German words that are NOT content nouns (mostly sentence-initial function words) — kept
+// out of the claim-ledger so callbacks land on real content ("Reiseleiterin", "Stromanbieter"), not "Dann".
+const LEDGER_STOP = new Set(['Ich','Sie','Er','Es','Wir','Ihr','Man','Das','Die','Der','Den','Dem','Ein','Eine','Einen','Und','Aber','Oder','Denn','Also','Doch','Dann','Wenn','Weil','Dass','Wie','Was','Wer','Wo','Warum','Bei','Für','Mit','Von','Auf','Aus','Nach','Über','Unter','Vor','Zum','Zur','Herr','Frau','Guten','Hallo','Danke','Bitte','Mein','Meine','Sehr','Schon','Noch','Auch','Jetzt','Heute','Hier','Dort','Mehr','Immer','Nur','Erst','Nun','Gut','Okay','Natürlich','Vielleicht','Eigentlich','Genau','Sorry','Ja','Nein','Naja','Soso','Moment','Verstehe']);
+
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
 // speaker turn, cut at the first such marker so only the boss's own line survives.
@@ -325,6 +329,7 @@ export class RealtimeClient {
     this._pendingRescue      = null;
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
+    this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
   }
 
   // True while a boss turn is being generated (gateway waits for completed turns).
@@ -361,6 +366,7 @@ export class RealtimeClient {
 
     const answer = (userText && userText.trim()) ? userText.trim() : '(keine hörbare Antwort)';
     this._history.push({ role: 'user', content: answer });
+    this._noteClaims(answer);   // capture the candidate's salient words for verbatim callback this turn
 
     // Per-turn instruction: the one-turn rule, plus optional rescue softener or correction probe.
     const turnMsgs = [...this._history, { role: 'system', content: TURN_RULE }];
@@ -388,6 +394,15 @@ export class RealtimeClient {
       const dir = this._emotionInstruction(this._pendingEmotion);
       if (dir) turnMsgs.push({ role: 'system', content: dir });
       this._pendingEmotion = null;
+    }
+    // CLAIM-LEDGER: hand the boss the candidate's own salient words so it can prove it listened —
+    // reuse ONE verbatim if it fits naturally (callback). Marked "spent" once used so it never nags.
+    const unspent = this._ledger.filter((e) => !e.spent).map((e) => e.term).slice(-6);
+    if (unspent.length) {
+      turnMsgs.push({ role: 'system', content:
+        `Der Kandidat hat unter anderem das gesagt: ${unspent.join(', ')}. Wenn es natürlich passt, ` +
+        `greife GENAU EINEN dieser Begriffe WÖRTLICH in deiner Reaktion auf (so zeigst du, dass du zuhörst) — ` +
+        `aber erzwinge es nicht und liste sie niemals auf.` });
     }
 
     let line = '';
@@ -421,6 +436,9 @@ export class RealtimeClient {
       line = ['Gut. Erzählen Sie mir bitte etwas mehr dazu.', 'Verstanden. Können Sie das an einem konkreten Beispiel festmachen?', 'Okay. Und was genau haben Sie dann getan?'][this._history.length % 3];
     }
 
+    // Mark any ledger term the boss actually reused as "spent" so it isn't suggested again.
+    for (const e of this._ledger) { if (!e.spent && line.includes(e.term)) e.spent = true; }
+
     this._history.push({ role: 'assistant', content: line });
 
     this._responding = false;
@@ -442,6 +460,18 @@ export class RealtimeClient {
   // mood-blind). This is what makes the candidate able to "win the room": good answers visibly warm
   // the boss, weak ones cool him — feelings that finally reach his WORDS, not just the HUD badge.
   requestEmotion(label = '') { this._pendingEmotion = label; }
+
+  // Capture the candidate's salient content words (German nouns are Capitalized — a strong, deterministic
+  // signal) into the claim-ledger for verbatim callbacks. High-precision on purpose: the boss only ever
+  // echoes words the candidate REALLY said, and only "if natural", so a stray capture is harmless.
+  _noteClaims(text) {
+    const found = String(text || '').match(/\b[A-ZÄÖÜ][a-zäöüß]{3,}\b/g) || [];
+    for (const w of found) {
+      if (LEDGER_STOP.has(w)) continue;
+      if (!this._ledger.some((e) => e.term === w)) this._ledger.push({ term: w, spent: false });
+    }
+    if (this._ledger.length > 14) this._ledger = this._ledger.slice(-14);   // keep it small + recent
+  }
 
   _emotionInstruction(label) {
     switch (label) {
