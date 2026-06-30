@@ -2457,6 +2457,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
   const [handsFree, setHandsFree] = useState(true);        // Freisprech: auto start/stop/send — ON by default
+  const [showOpts, setShowOpts]   = useState(false);       // idle home: advanced options (interviewer/freisprech/lang) collapsed by default — declutter
   const [liveTranscript, setLiveTranscript] = useState(''); // Deepgram streaming partial (cleared on transcript_done)
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
   const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
@@ -3516,6 +3517,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               })}
             </div>
 
+            {/* ── ADVANCED OPTIONS — collapsed by default. The interviewer, hands-free and
+                feedback-language rows are power-user settings whose defaults (Auto · Freisprech an ·
+                DE) serve almost everyone; on the calm/premium home they were three rows of clutter
+                between the level pick and the action, so they live behind one quiet disclosure. ── */}
+            <div style={{ textAlign:'center', marginTop:10 }}>
+              <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
+                fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'4px 6px', fontFamily:'inherit' }}>
+                {showOpts ? '▾' : '▸'} Optionen · خيارات
+              </button>
+            </div>
+            {showOpts && (
+            <>
             {/* Interviewer picker: choose your interviewer/persona; default = auto by level */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10 }}>
               <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Interviewer wählen · اختر المُحاوِر</span>
@@ -3558,6 +3571,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 ))}
               </div>
             </div>
+            </>
+            )}
           </div>
         )}
 
@@ -3701,7 +3716,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       </div>
       )}
 
-      {/* ── SUBTITLE STRIP — boss line + live transcript, one film-subtitle panel ── */}
+      {/* ── SUBTITLE STRIP — boss line + live transcript, one film-subtitle panel. Shown ONLY during a
+          live fight; on the idle home it was a tall empty box ("Interview noch nicht gestartet") that
+          ate the screen and pushed the primary action down. Calm idle = no dead panel. ── */}
+      {funnel && (
       <div style={{ padding:'8px 14px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
         <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', borderRadius:'var(--r-md)',
           background:'linear-gradient(180deg, rgba(0,22,44,0.55), rgba(0,8,18,0.85))',
@@ -3751,6 +3769,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* ── MIC + CONTROLS (pinned to viewport bottom so the START button is
              ALWAYS visible, regardless of screen height) ─────────────────── */}
