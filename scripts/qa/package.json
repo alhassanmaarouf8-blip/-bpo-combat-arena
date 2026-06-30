@@ -1,0 +1,9 @@
+{
+  "name": "omni-perform-qa",
+  "private": true,
+  "type": "module",
+  "description": "QA superpowers (eyes/ears/etc.) — dev-only, never shipped to the app. Free + open-source.",
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
