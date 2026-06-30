@@ -1180,7 +1180,7 @@ export class WebSocketManager {
     // so a failed debrief never paints a fake perfect "100". (Note: this still undercounts to the
     // degree the STT launders errors before LanguageTool sees them — tracked separately as Tier-1 #6.)
     let grammarBar;
-    if (debrief?.generated && !debrief.grammarUnavailable) {
+    if (debrief && debrief.grammarUnavailable === false) {
       const grammarErrs = (debrief.grammar || []).reduce((n, g) => n + (g.count || 1), 0);
       const errPer100   = (grammarErrs / Math.max(metrics.words || 0, 1)) * 100;
       grammarBar        = clamp(100 - errPer100 * 8);   // ~0 err→100, ~3/100w→76, ~6→52, ~13→0
@@ -1324,19 +1324,20 @@ export class WebSocketManager {
       ctx._bossEndedMs = null;
     }
 
-    // Boss replies with exactly ONE turn. Fire the LLM request FIRST so generation
-    // overlaps with scoring (saves ~100–300 ms on every answer).
-    ctx._tRespondStart = Date.now();   // [LAT] boss LLM request fired
-    const respondPromise = ctx.realtimeClient.respond(transcript).catch(err => {
+    // Score the answer FIRST so the boss's reply reacts to THIS answer's affect (emotion) and to any
+    // rescue/correction it triggers — not the PREVIOUS turn's (the one-turn lag from the review). The
+    // emotion/rescue/correction flags are set in _scoreAnswer and consumed synchronously at the start of
+    // respond(); firing respond first meant respond consumed the prior turn's flags. _scoreAnswer is
+    // synchronous and fast, and BOSS_SPEECH still arrives ~1s later (after the LLM round-trip), so the
+    // client-visible order is unchanged (TRANSCRIPT_DONE/HP_UPDATE before BOSS_SPEECH).
+    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
+    if (ctx.closed) return;
+    ctx._tRespondStart = Date.now();   // [LAT] boss LLM request fired (after scoring)
+    const bossResult = await ctx.realtimeClient.respond(transcript).catch(err => {
       console.error(`[wsManager] boss respond failed session=${ctx.sessionId}: ${err.message}`);
       this._sendError(ctx, 'realtime_error');
       return null;
     });
-    // Score this answer + advance the funnel (may set ctx.completePending).
-    // Runs synchronously while the boss is generating → latency win.
-    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
-    if (ctx.closed) { await respondPromise; return; }
-    const bossResult = await respondPromise;
   }
 
   // ── Score one candidate answer + advance the funnel ─────────────────────────

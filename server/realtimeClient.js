@@ -483,7 +483,7 @@ export class RealtimeClient {
   // signal) into the claim-ledger for verbatim callbacks. High-precision on purpose: the boss only ever
   // echoes words the candidate REALLY said, and only "if natural", so a stray capture is harmless.
   _noteClaims(text) {
-    const found = String(text || '').match(/\b[A-ZÄÖÜ][a-zäöüß]{3,}\b/g) || [];
+    const found = String(text || '').match(/(?<!\p{L})\p{Lu}\p{Ll}{3,}(?!\p{L})/gu) || [];
     for (const w of found) {
       if (LEDGER_STOP.has(w)) continue;
       if (!this._ledger.some((e) => e.term === w)) this._ledger.push({ term: w, spent: false });

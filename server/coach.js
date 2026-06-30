@@ -351,8 +351,10 @@ function buildProgress(history, metrics) {
 
   if (Number.isFinite(past[0]?.fillers) && Number.isFinite(metrics.fillers)) {
     const d0 = past[0].fillers, dn = metrics.fillers;
-    if (dn < d0)      { lines_de.push(`Füllwörter: von ${d0} (erste Sitzung) auf ${dn} heute — du zögerst weniger.`); lines_ar.push(`كلمات الحشو: من ${d0} (أول جلسة) لـ ${dn} النهاردة — بتتردد أقل.`); }
-    else if (dn > d0) { lines_de.push(`Füllwörter heute ${dn} (erste Sitzung ${d0}) — heute etwas mehr Zögern, das schwankt.`); lines_ar.push(`كلمات الحشو النهاردة ${dn} (أول جلسة ${d0}) — تردد أكتر شوية، بيتغير من جلسة للتانية.`); }
+    // Only celebrate a genuine improvement; never assert a regression here. The filler-count method
+    // changed (äh/ähm now counted, "um" dropped), so a stored baseline is not comparable to today's
+    // count — claiming "more hesitation" would be a false negative to a returning learner.
+    if (dn < d0) { lines_de.push(`Füllwörter: von ${d0} (erste Sitzung) auf ${dn} heute — du zögerst weniger.`); lines_ar.push(`كلمات الحشو: من ${d0} (أول جلسة) لـ ${dn} النهاردة — بتتردد أقل.`); }
   }
   if (Number.isFinite(firstFl) && Number.isFinite(metrics.fluency)) {
     const diff = Math.round(metrics.fluency - firstFl);
@@ -479,6 +481,8 @@ function fallbackDebrief(metrics, utterances, grammar = [], grammarUnavailable =
     metrics,
     generated: false,
     naturalness: null,
-    note: 'Detaillierte Grammatik-Analyse war nicht verfügbar — hier die objektiven Kennzahlen und Lernhinweise.',
+    note: grammarUnavailable
+      ? 'Detaillierte Grammatik-Analyse war nicht verfügbar — hier die objektiven Kennzahlen und Lernhinweise.'
+      : 'Detaillierte KI-Auswertung war diesmal nicht verfügbar — die Grammatik unten wurde aber geprüft; hier die Kennzahlen und Lernhinweise.',
   };
 }
