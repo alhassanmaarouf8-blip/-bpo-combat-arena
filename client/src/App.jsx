@@ -3608,7 +3608,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         </div>
       )}
 
-      {/* ── STAGE — the opponent fills the stage, framed by cinematic HP bars ── */}
+      {/* ── STAGE — opponent + cinematic HP bars. Shown ONLY during a live fight. On the idle home it
+          was a ~400px intimidating combat wall that buried the primary action; Direction A (calm,
+          premium) wants a quiet first impression, so idle gets a one-line preview instead. ── */}
+      {!funnel && (
+        <div style={{ padding:'12px 14px 0', textAlign:'center', color:'var(--text-dim)', fontSize:12 }}>
+          🎧 Bereit, wenn du es bist — dein Interviewer wartet.
+        </div>
+      )}
+      {funnel && (
       <div style={{ padding:'4px 14px 0' }}>
         {/* BOSS HP — top frame */}
         <HpBar label="BOSS HP" value={bossHp} isPlayer={false} reason={bossReason} />
@@ -3691,6 +3699,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <HpBar label="DEINE HP" value={playerHp} isPlayer={true} reason={playerReason} />
         </div>
       </div>
+      )}
 
       {/* ── SUBTITLE STRIP — boss line + live transcript, one film-subtitle panel ── */}
       <div style={{ padding:'8px 14px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
