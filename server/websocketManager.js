@@ -12,7 +12,7 @@ import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
-import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
+import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight, creditReferral } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
@@ -1025,6 +1025,10 @@ export class WebSocketManager {
       }
 
       await saveUser(p);
+
+      // REFERRAL: a real first completed interview is the qualifying event — credit the inviter +
+      // invitee with bonus trial days. No-ops if not referred / already credited / not the first fight.
+      if (p.sessions.length === 1) { try { await creditReferral(await getAccountById(ctx.userId)); } catch { /* best-effort */ } }
 
       // ── Visible-progress signals for the end screen ──
       // Trend of the last few sessions (the user must SEE improvement, not be told it),

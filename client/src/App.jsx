@@ -13,6 +13,7 @@ import { SpokenReview } from './SpokenReview.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BrainGuide } from './BrainGuide.jsx';
 import { WeeklyBriefing } from './WeeklyBriefing.jsx';
+import { InviteCard } from './InviteCard.jsx';
 import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
@@ -57,6 +58,14 @@ const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replac
 // The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
 // masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
 const BRAIN_GUIDE_LIVE = true;
+// Referral: capture ?ref=<inviter id> from the invite link (persist so it survives navigation), read at signup.
+function getRefCode() {
+  try {
+    const u = new URLSearchParams(window.location.search).get('ref');
+    if (u) { localStorage.setItem('bpo_ref', u); return u; }
+    return localStorage.getItem('bpo_ref') || undefined;
+  } catch { return undefined; }
+}
 
 // Human-readable, bilingual text for server error codes (DE default + Arabic). Raw
 // recorder/connection strings that aren't codes fall through to their own message.
@@ -1945,7 +1954,7 @@ function AuthScreen({ onAuth }) {
     try {
       const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw }),
+        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode() } : {}) }),
       });
       const data = await r.json();
       if (!r.ok) { setErr(authErrText(data.error)); setBusy(false); return; }
@@ -3921,6 +3930,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
         {canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
+
+        {/* Referral loop: invite a friend → both get +3 trial days when the friend finishes their first interview. */}
+        {canStart && <InviteCard accountId={auth.account?.id} />}
 
         {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
         {canStart && (

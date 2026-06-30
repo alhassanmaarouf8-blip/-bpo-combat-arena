@@ -117,7 +117,7 @@ export async function getAccountByEmail(email) {
   return id ? s.accounts[id] : null;
 }
 
-export async function createAccount(email, password) {
+export async function createAccount(email, password, ref) {
   const s = await load();
   email = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
@@ -125,11 +125,15 @@ export async function createAccount(email, password) {
   if (s.emailIndex[email])                       throw Object.assign(new Error('email_taken'),   { code: 409 });
 
   const id = 'a_' + randomBytes(8).toString('hex');
+  const refId = typeof ref === 'string' ? ref.trim() : '';
   const account = {
     id, email,
     passwordHash: hashPassword(password),
     createdAt:    Date.now(),
     subscription: { tier: 'trial', trialStartedAt: Date.now(), trialSessionsUsed: 0 },
+    // Referral attribution: store the inviter's account id IF it's a real, different account. The
+    // reward is credited later, only when THIS user completes their first interview (creditReferral).
+    ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
   };
   s.accounts[id] = account;
   s.emailIndex[email] = id;
@@ -166,12 +170,14 @@ export function trialActive(account) {
   if (!account || isAdminEmail(account.email)) return false;   // admins are already elite
   if (planOf(account) !== 'free') return false;                // paid users don't need the trial
   const start = account.subscription?.trialStartedAt || account.createdAt;
-  return !!start && (Date.now() - start) < FREE_TRIAL_DAYS * FREE_TRIAL_DAY_MS;
+  const days = FREE_TRIAL_DAYS + (account.bonusTrialDays || 0);   // referral bonus extends the trial
+  return !!start && (Date.now() - start) < days * FREE_TRIAL_DAY_MS;
 }
 export function trialDaysLeft(account) {
   const start = account?.subscription?.trialStartedAt || account?.createdAt;
   if (!start) return 0;
-  return Math.max(0, Math.ceil((FREE_TRIAL_DAYS * FREE_TRIAL_DAY_MS - (Date.now() - start)) / FREE_TRIAL_DAY_MS));
+  const days = FREE_TRIAL_DAYS + (account?.bonusTrialDays || 0);
+  return Math.max(0, Math.ceil((days * FREE_TRIAL_DAY_MS - (Date.now() - start)) / FREE_TRIAL_DAY_MS));
 }
 // During the trial a free user gets Fokus-level daily minutes; otherwise the plan's own value.
 export function dailyMinutesFor(account) {
@@ -226,6 +232,24 @@ export async function consumeTrialSession(account) {
     account.subscription.trialSessionsUsed = (account.subscription.trialSessionsUsed || 0) + 1;
     await persist();
   }
+}
+
+// REFERRAL credit: when an invited friend completes their FIRST interview, both they AND the inviter
+// get +REFERRAL_BONUS_DAYS free-trial days (capped). Zero new cost MODEL — reuses the trial mechanic.
+// One-time per referred account; no-ops if not referred or already credited (so it can't be farmed by
+// re-calling). Requires a real completed interview, which costs a farmer their own effort/trial.
+const REFERRAL_BONUS_DAYS = 3;
+const REFERRAL_BONUS_CAP  = 15;   // max total bonus trial days per account
+export async function creditReferral(referredAccount) {
+  try {
+    if (!referredAccount || referredAccount.referralCredited || !referredAccount.referredBy) return;
+    referredAccount.referralCredited = true;
+    const grant = (a) => { if (a) a.bonusTrialDays = Math.min(REFERRAL_BONUS_CAP, (a.bonusTrialDays || 0) + REFERRAL_BONUS_DAYS); };
+    grant(referredAccount);
+    grant(await getAccountById(referredAccount.referredBy));
+    await persist();
+    console.log(`[referral] credited ${referredAccount.id} ← invited by ${referredAccount.referredBy} (+${REFERRAL_BONUS_DAYS}d each)`);
+  } catch (e) { console.error('[referral] credit failed:', e.message); }
 }
 
 export async function upgrade(account, tier) {
@@ -341,8 +365,8 @@ export const authRouter = express.Router();
 
 authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8, tag: 'signup' }), async (req, res) => {
   try {
-    const { email, password } = req.body || {};
-    const acct = await createAccount(email, password);
+    const { email, password, ref } = req.body || {};
+    const acct = await createAccount(email, password, ref);
     res.json({ token: signToken(acct.id), account: publicAccount(acct) });
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
