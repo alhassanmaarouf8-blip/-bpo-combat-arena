@@ -330,6 +330,7 @@ export class RealtimeClient {
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
     this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
+    this._extraRules         = opts.extraRules || '';   // optional tuning addendum (off by default; used by the naturalness evolve loop)
   }
 
   // True while a boss turn is being generated (gateway waits for completed turns).
@@ -404,6 +405,7 @@ export class RealtimeClient {
         `greife GENAU EINEN dieser Begriffe WÖRTLICH in deiner Reaktion auf (so zeigst du, dass du zuhörst) — ` +
         `aber erzwinge es nicht und liste sie niemals auf.` });
     }
+    if (this._extraRules) turnMsgs.push({ role: 'system', content: this._extraRules });
 
     let line = '';
     try {
