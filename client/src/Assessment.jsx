@@ -166,7 +166,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     {header}
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
       <div style={{ width: 60, height: 60, margin: '0 auto 18px', borderRadius: '50%',
-        border: '3px solid rgba(0,229,255,0.16)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
+        border: '3px solid rgba(59,130,246,0.16)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
       <div style={{ fontSize: 14, color: '#f8fafc' }}>{T(lang, 'Deine Antworten werden ausgewertet…', 'بنحلّل إجاباتك…')}</div>
       <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>استنى لحظة</div>
     </div>
@@ -197,18 +197,18 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
         {T(lang, 'FRAGE', 'سؤال')} {idx + 1} / {QUESTIONS.length}
       </span>
-      <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(167,139,250,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
+      <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
     </div>
     {/* progress dots */}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {QUESTIONS.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(0,229,255,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
 
     {/* the German prompt + Arabic translation so they understand the task */}
-    <div style={{ padding: '13px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,229,255,0.22)' }}>
+    <div style={{ padding: '13px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.22)' }}>
       <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{q.de}</div>
       <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{q.ar}</div>
     </div>
@@ -235,7 +235,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
         <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>⏳ {T(lang, 'Wird verarbeitet…', 'بنحوّل صوتك لنص…')}</div>
       ) : answer ? (
         <>
-          <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
+          <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' }}>
             <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'DEINE ANTWORT', 'إجابتك')}</div>
             <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{answer.transcript || T(lang, '(nichts erkannt)', '(مفيش كلام اتسمع)')}</div>
           </div>
@@ -267,7 +267,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
     <div>
       <div style={{ textAlign: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 12, color: '#94a3b8' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 900, color: 'var(--accent)', textShadow: '0 0 22px rgba(0,229,255,0.5)' }}>~{lvl}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 900, color: 'var(--accent)', textShadow: '0 0 22px rgba(59,130,246,0.5)' }}>~{lvl}</div>
         <div style={{ fontSize: 10, color: '#64748b' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
       </div>
 

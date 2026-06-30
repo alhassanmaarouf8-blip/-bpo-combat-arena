@@ -182,12 +182,12 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {sentences.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent-2)' : i === idx ? 'rgba(34,211,238,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent-2)' : i === idx ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
 
     {/* the model sentence */}
-    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(34,211,238,0.22)' }}>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(96,165,250,0.22)' }}>
       <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{s?.de}</div>
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
       <button onClick={play} style={{ ...ghostBtnWide, marginTop: 12, width: '100%' }}>
@@ -224,19 +224,19 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       ) : result ? (
         <>
           {result.retry ? (
-            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12.5, color: 'var(--action-2)', lineHeight: 1.5 }}>
+            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.3)', fontSize: 12.5, color: 'var(--action-2)', lineHeight: 1.5 }}>
               {T(lang, 'Nichts erkannt — sprich den Satz bitte noch einmal nach.', 'مفيش كلام اتسمع — كرّر الجملة تاني من فضلك.')}
             </div>
           ) : (
             <div style={{ textAlign: 'left' }}>
-              <div style={{ padding: '11px 13px', borderRadius: 10, background: 'rgba(34,211,238,0.07)', border: '1px solid rgba(34,211,238,0.3)' }}>
+              <div style={{ padding: '11px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.3)' }}>
                 <div style={{ fontSize: 9, color: 'var(--accent-2)', letterSpacing: '0.1em', marginBottom: 5 }}>
                   {T(lang, 'WORTGENAUIGKEIT', 'دقة الكلمات')} · {result.match}%
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{result.transcript}</div>
               </div>
               {Array.isArray(result.missed) && result.missed.length > 0 && (
-                <div style={{ padding: '11px 13px', borderRadius: 10, marginTop: 8, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                <div style={{ padding: '11px 13px', borderRadius: 10, marginTop: 8, background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.3)' }}>
                   <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'NICHT ERKANNT', 'مش اتعرفت')}</div>
                   <div style={{ fontSize: 13, color: 'var(--action)', lineHeight: 1.6 }}>{result.missed.join(' · ')}</div>
                 </div>

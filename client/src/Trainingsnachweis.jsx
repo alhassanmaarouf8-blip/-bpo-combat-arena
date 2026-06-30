@@ -27,7 +27,7 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
       <div id="nachweis-root" className="nachweis-cert" style={{
         width: '100%', maxWidth: 480, borderRadius: 16, padding: '32px 28px',
         background: 'linear-gradient(160deg, #06101e 0%, #030810 60%, #050d18 100%)',
-        border: '1px solid rgba(0,229,255,0.4)', boxShadow: '0 0 60px rgba(0,229,255,0.15), inset 0 0 40px rgba(0,0,0,0.5)',
+        border: '1px solid rgba(59,130,246,0.4)', boxShadow: '0 0 60px rgba(59,130,246,0.15), inset 0 0 40px rgba(0,0,0,0.5)',
         position: 'relative', textAlign: 'center' }}>
 
         {/* Close */}
@@ -38,16 +38,16 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
         {/* Logo */}
         <div style={{ fontSize: 32, marginBottom: 4 }}>🥊</div>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 900, letterSpacing: 3,
-          color: 'var(--accent)', textShadow: '0 0 20px rgba(0,229,255,0.6)', marginBottom: 4 }}>OMNI-PERFORM</div>
+          color: 'var(--accent)', textShadow: '0 0 20px rgba(59,130,246,0.6)', marginBottom: 4 }}>OMNI-PERFORM</div>
 
         {/* Title */}
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, letterSpacing: '0.2em',
-          color: 'var(--accent)', textShadow: '0 0 12px rgba(167,139,250,0.5)', marginBottom: 16 }}>
+          color: 'var(--accent)', textShadow: '0 0 12px rgba(59,130,246,0.5)', marginBottom: 16 }}>
           TRAININGSNACHWEIS
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(0,229,255,0.4), transparent)', marginBottom: 18 }} />
+        <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.4), transparent)', marginBottom: 18 }} />
 
         {/* Student */}
         <div style={{ fontSize: 11, color: '#64748b', letterSpacing: '0.1em', marginBottom: 4 }}>TEILNEHMER · المتدرب</div>
@@ -67,7 +67,7 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.3), transparent)', marginBottom: 14 }} />
+        <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent)', marginBottom: 14 }} />
 
         {/* Disclaimer */}
         <div className="nachweis-disclaimer" style={{ fontSize: 9.5, color: '#374151', lineHeight: 1.6, marginBottom: 16 }}>
@@ -79,8 +79,8 @@ export default function Trainingsnachweis({ email, sessions, rank, daily, totals
         <button className="nachweis-noprint" onClick={() => window.print()}
           style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em',
             padding: '11px 22px', borderRadius: 8, cursor: 'pointer',
-            border: '1px solid var(--accent)', color: 'var(--accent)', background: 'rgba(167,139,250,0.1)',
-            boxShadow: '0 0 16px rgba(167,139,250,0.2)' }}>
+            border: '1px solid var(--accent)', color: 'var(--accent)', background: 'rgba(59,130,246,0.1)',
+            boxShadow: '0 0 16px rgba(59,130,246,0.2)' }}>
           🖨 DRUCKEN / PRINT
         </button>
       </div>

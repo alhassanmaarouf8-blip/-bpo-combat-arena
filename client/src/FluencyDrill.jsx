@@ -159,17 +159,17 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
         {rounds.map((sec, i) => (
           <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-            background: i < round ? 'var(--action)' : i === round ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.08)' }} />
+            background: i < round ? 'var(--action)' : i === round ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)' }} />
         ))}
       </div>
-      <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(245,158,11,0.25)' }}>
+      <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(249,115,22,0.25)' }}>
         <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.12em', marginBottom: 6 }}>
           {T(lang, 'DEINE FRAGE — DREIMAL, JEDES MAL SCHNELLER', 'سؤالك — تلت مرات، كل مرة أسرع')}
         </div>
         <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{prompt?.de}</div>
         <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{prompt?.ar}</div>
         {focus && (
-          <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(245,158,11,0.2)',
+          <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(249,115,22,0.2)',
             ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
             <span style={{ fontSize: 11.5, color: 'var(--action)', fontWeight: 700 }}>
               {T(lang, `🎯 Achte diesmal besonders auf: ${focus}`, `🎯 ركّز المرة دي بالذات على: ${focus}`)}
@@ -184,7 +184,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     {header}
     {promptCard}
     {round === 0 && (
-      <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', fontSize: 11.5, color: 'var(--action)', lineHeight: 1.6 }}>
+      <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', fontSize: 11.5, color: 'var(--action)', lineHeight: 1.6 }}>
         {T(lang,
           'Beantworte dieselbe Frage dreimal. Jede Runde hast du weniger Zeit — das trainiert dein Sprechtempo. Am Ende vergleichen wir Runde 1 mit Runde 3 mit deinen echten Zahlen.',
           'جاوب على نفس السؤال تلت مرات. كل جولة وقتك أقل — ده بيدرّب سرعة كلامك. في الآخر بنقارن الجولة 1 بالجولة 3 بأرقامك الحقيقية.')}
@@ -225,7 +225,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     return shell(<>
       {header}
       {promptCard}
-      <div style={{ marginTop: 14, padding: '13px', borderRadius: 11, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)' }}>
+      <div style={{ marginTop: 14, padding: '13px', borderRadius: 11, background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.3)' }}>
         <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.12em', marginBottom: 8 }}>
           {T(lang, `RUNDE ${round + 1} — DEINE ZAHLEN`, `الجولة ${round + 1} — أرقامك`)}
         </div>
@@ -338,8 +338,8 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
 function RoundCard({ lang, label, m, dim }) {
   return (
     <div style={{ flex: 1, padding: '12px 10px', borderRadius: 11, textAlign: 'center',
-      background: dim ? 'rgba(255,255,255,0.03)' : 'rgba(245,158,11,0.1)',
-      border: `1px solid ${dim ? 'rgba(148,163,184,0.2)' : 'rgba(245,158,11,0.45)'}` }}>
+      background: dim ? 'rgba(255,255,255,0.03)' : 'rgba(249,115,22,0.1)',
+      border: `1px solid ${dim ? 'rgba(148,163,184,0.2)' : 'rgba(249,115,22,0.45)'}` }}>
       <div style={{ fontSize: 8.5, color: dim ? '#94a3b8' : 'var(--action)', letterSpacing: '0.12em' }}>{label}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: dim ? '#cbd5e1' : 'var(--action)', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{m.wpm ?? 0}</div>
       <div style={{ fontSize: 8.5, color: '#64748b' }}>{T(lang, 'W/Min', 'كلمة/د')}</div>

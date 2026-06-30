@@ -145,12 +145,12 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(52,211,153,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
 
     {/* Play card — NO text shown; the whole point is to catch it by ear */}
-    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(52,211,153,0.25)', textAlign: 'center' }}>
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
       <button onClick={play} disabled={!canPlay} style={{ ...primaryBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
         🔊 {played === 0 ? T(lang, 'Anruf abspielen', 'شغّل المكالمة') : T(lang, `Nochmal (${maxPlays - played} übrig)`, `كمان مرة (فاضل ${maxPlays - played})`)}
       </button>

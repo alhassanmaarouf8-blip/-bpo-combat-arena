@@ -223,10 +223,10 @@ function PlanView({ plan, stats, onAddDay, onAddStep, onRemoveStep, onRemoveDay,
 
       {stats.total > 0 && stats.done === stats.total && (
         <div style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', textAlign: 'center',
-          background: 'linear-gradient(135deg, rgba(16,185,129,0.16), rgba(0,229,255,0.08))',
-          border: '1px solid rgba(16,185,129,0.5)', boxShadow: '0 0 22px rgba(16,185,129,0.18)' }}>
+          background: 'linear-gradient(135deg, rgba(59,130,246,0.16), rgba(59,130,246,0.08))',
+          border: '1px solid rgba(59,130,246,0.5)', boxShadow: '0 0 22px rgba(59,130,246,0.18)' }}>
           <div style={{ fontSize: 28, lineHeight: 1, animation: 'rank-pop 0.7s var(--ease-spring)' }}>🎯</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginTop: 4, textShadow: '0 0 12px rgba(16,185,129,0.5)' }}>Plan abgeschlossen!</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: 'var(--accent)', marginTop: 4, textShadow: '0 0 12px rgba(59,130,246,0.5)' }}>Plan abgeschlossen!</div>
           <div style={{ fontSize: 10.5, color: 'var(--accent-2)', marginTop: 2 }}>Alle {stats.total} Schritte erledigt. Bereit fürs echte Interview.</div>
         </div>
       )}
@@ -437,8 +437,8 @@ function SpeakingRunner({ step, onGenerate, onSpeak, lang }) {
               <button onClick={phase === 'recording' ? stopRec : startRec} aria-label="record"
                 style={{ width: 64, height: 64, borderRadius: '50%', cursor: 'pointer', fontSize: 24, color: '#e2e8f0',
                   border: `2px solid ${phase === 'recording' ? 'var(--boss)' : 'var(--accent)'}`,
-                  background: phase === 'recording' ? 'rgba(239,68,68,0.15)' : 'rgba(0,229,255,0.08)',
-                  boxShadow: phase === 'recording' ? `0 0 ${12 + vol * 34}px rgba(239,68,68,0.6)` : '0 0 14px rgba(0,229,255,0.25)',
+                  background: phase === 'recording' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.08)',
+                  boxShadow: phase === 'recording' ? `0 0 ${12 + vol * 34}px rgba(239,68,68,0.6)` : '0 0 14px rgba(59,130,246,0.25)',
                   transform: phase === 'recording' ? `scale(${(1 + vol * 0.25).toFixed(3)})` : 'scale(1)',
                   transition: 'transform 0.08s linear, box-shadow 0.12s, border-color 0.2s' }}>
                 {phase === 'recording' ? '■' : '🎙'}
@@ -497,8 +497,8 @@ const btnGhost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize:
 const xBtn = { fontSize: 9, cursor: 'pointer', padding: '3px 6px', borderRadius: 5, border: '1px solid rgba(148,163,184,0.25)', background: 'transparent', color: '#94a3b8' };
 const smallBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9.5, letterSpacing: '0.04em', cursor: 'pointer', padding: '4px 8px', borderRadius: 5, border: '1px solid var(--line)', background: 'transparent', color: 'var(--accent)' };
 const panel = { marginTop: 7, padding: 10, borderRadius: 'var(--r-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: 8 };
-const taskBox = { fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-wrap', padding: 8, borderRadius: 6, background: 'rgba(0,229,255,0.05)', border: '1px solid var(--line)' };
-const feedbackBox = { fontSize: 11.5, color: 'var(--accent-2)', lineHeight: 1.55, padding: 9, borderRadius: 6, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' };
+const taskBox = { fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5, whiteSpace: 'pre-wrap', padding: 8, borderRadius: 6, background: 'rgba(59,130,246,0.05)', border: '1px solid var(--line)' };
+const feedbackBox = { fontSize: 11.5, color: 'var(--accent-2)', lineHeight: 1.55, padding: 9, borderRadius: 6, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' };
 const textareaStyle = { width: '100%', minHeight: 70, padding: 9, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 12.5, border: '1px solid var(--line)', outline: 'none' };
 const metricBox = { flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 'var(--r-sm)', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)' };
 const metricLbl = { fontSize: 8, color: 'var(--text-dim)', marginTop: 2, letterSpacing: '0.04em' };

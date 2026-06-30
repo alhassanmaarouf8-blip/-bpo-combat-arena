@@ -104,7 +104,7 @@ export function FirstFightCard({ token, apiUrl }) {
 
   const pill = (active) => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 'var(--r-pill)',
     fontFamily: 'var(--font-body)', fontSize: 12, border: `1px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
-    background: active ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)', color: active ? 'var(--accent)' : '#cbd5e1' });
+    background: active ? 'rgba(59,130,246,0.14)' : 'rgba(255,255,255,0.03)', color: active ? 'var(--accent)' : '#cbd5e1' });
 
   return (
     <div style={{ ...card, direction: 'rtl', textAlign: 'right' }}>
@@ -167,7 +167,7 @@ function GrantPro({ token, apiUrl }) {
   );
 
   return (
-    <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.3)' }}>
+    <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.3)' }}>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 7 }}>PLAN SETZEN · ZAHLUNG ERFÜLLEN / TEST</div>
       <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kunde@email.com" type="email"
         style={{ width: '100%', boxSizing: 'border-box', padding: '9px', borderRadius: 7, fontSize: 12, background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid var(--line)', outline: 'none', marginBottom: 7 }} />
@@ -205,7 +205,7 @@ export function AdminFeedback({ token, apiUrl }) {
     <>
       <button onClick={load} style={{ width: '100%', marginTop: 8, padding: '12px 10px', minHeight: 44,
         cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.14em',
-        borderRadius: 8, border: '1px solid rgba(52,211,153,0.4)', color: 'var(--accent)', background: 'rgba(52,211,153,0.06)' }}>
+        borderRadius: 8, border: '1px solid rgba(59,130,246,0.4)', color: 'var(--accent)', background: 'rgba(59,130,246,0.06)' }}>
         🛠  FEEDBACK-DATEN (ADMIN)
       </button>
 
@@ -259,7 +259,7 @@ export function AdminFeedback({ token, apiUrl }) {
 // ── shared styles ──
 const overlay = { position: 'absolute', inset: 0, zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(2,4,9,0.8)', backdropFilter: 'blur(4px)' };
 const modal   = { width: '100%', maxWidth: 360, padding: '18px 16px', borderRadius: 'var(--r-lg)', background: 'linear-gradient(180deg, rgba(10,18,30,0.98), rgba(4,8,14,0.99))', border: '1px solid var(--line)', boxShadow: 'var(--shadow-card)' };
-const card    = { padding: '13px 14px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.92), rgba(4,8,14,0.95))', border: '1px solid rgba(0,229,255,0.3)', boxShadow: '0 0 18px rgba(0,229,255,0.1)' };
+const card    = { padding: '13px 14px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.92), rgba(4,8,14,0.95))', border: '1px solid rgba(59,130,246,0.3)', boxShadow: '0 0 18px rgba(59,130,246,0.1)' };
 const thanks  = { textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--player-2)', padding: '14px 0' };
 const textarea = { width: '100%', minHeight: 64, padding: 10, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 13, border: '1px solid var(--line)', outline: 'none' };
 const btnGhost = { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 11, padding: '9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };

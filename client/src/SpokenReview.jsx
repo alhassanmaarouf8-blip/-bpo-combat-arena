@@ -126,10 +126,10 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
       {T(lang, 'DEINE FEHLER', 'أخطاؤك')} · {idx + 1} / {items.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
-      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(167,139,250,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
+      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
     </div>
 
-    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(167,139,250,0.25)' }}>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)' }}>
       <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item?.rule}</div>
       <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
       {item?.wrong && (
@@ -153,7 +153,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
       ) : result ? (
         <>
           {result.retry ? (
-            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', fontSize: 12.5, color: 'var(--action-2)' }}>{T(lang, 'Nichts erkannt — sag es bitte noch einmal.', 'مفيش كلام اتسمع — قولها تاني.')}</div>
+            <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.3)', fontSize: 12.5, color: 'var(--action-2)' }}>{T(lang, 'Nichts erkannt — sag es bitte noch einmal.', 'مفيش كلام اتسمع — قولها تاني.')}</div>
           ) : (
             <div style={{ textAlign: 'left' }}>
               <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
@@ -180,6 +180,6 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d', background: 'linear-gradient(135deg,var(--accent),#c4b5fd)' };
+const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d', background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' };
 const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
 const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

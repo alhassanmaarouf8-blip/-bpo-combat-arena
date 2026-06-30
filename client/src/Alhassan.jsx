@@ -99,7 +99,7 @@ const errBox = { margin: '0 14px 6px', padding: '8px 12px', borderRadius: 8, fon
 function bubble(role) {
   const me = role === 'user';
   return { maxWidth: '82%', padding: '10px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
-    background: me ? 'rgba(34,211,238,0.12)' : 'rgba(52,211,153,0.10)',
-    border: `1px solid ${me ? 'rgba(34,211,238,0.3)' : 'rgba(52,211,153,0.3)'}`,
+    background: me ? 'rgba(96,165,250,0.12)' : 'rgba(59,130,246,0.10)',
+    border: `1px solid ${me ? 'rgba(96,165,250,0.3)' : 'rgba(59,130,246,0.3)'}`,
     color: me ? '#cffafe' : 'var(--accent-2)' };
 }

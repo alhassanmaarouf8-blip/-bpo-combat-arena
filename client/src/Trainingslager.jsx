@@ -160,7 +160,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
       <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         <path d={buildPath(allPts)} fill="none" stroke="rgba(148,163,184,0.22)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         {litPts.length >= 2 && (
-          <path className="tl-path-lit" d={buildPath(litPts)} fill="none" stroke="var(--action)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.5))' }} />
+          <path className="tl-path-lit" d={buildPath(litPts)} fill="none" stroke="var(--action)" strokeWidth="3" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px rgba(249,115,22,0.5))' }} />
         )}
       </svg>
 
@@ -173,7 +173,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
 
     {/* One-time suggestion to do the monthly re-assessment, once the whole path is done */}
     {data?.suggestReassessment && (
-      <div style={{ marginTop: 16, padding: '11px 13px', borderRadius: 10, background: 'rgba(0,229,255,0.07)', border: '1px solid rgba(0,229,255,0.3)' }}>
+      <div style={{ marginTop: 16, padding: '11px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.3)' }}>
         <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.6 }}>
           {T(lang, '🎉 Pfad abgeschlossen! Zeit für eine neue Einstufung, um deinen Fortschritt zu sehen (monatlich im Elite-Plan).',
                    '🎉 خلّصت المسار! وقت تعمل تقييم جديد تشوف تقدّمك (شهريًا في خطة Elite).')}
@@ -194,7 +194,7 @@ export function Trainingslager({ token, apiUrl, lang = 'de', onClose, onChalleng
       <div onClick={() => setUpsell(false)} style={{ position: 'absolute', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
         padding: 20, background: 'rgba(3,7,10,0.72)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
         <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: '100%', borderRadius: 16, padding: 20, textAlign: 'center',
-          background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))', border: '1px solid rgba(251,191,36,0.35)' }}>
+          background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))', border: '1px solid rgba(249,115,22,0.35)' }}>
           <div style={{ fontSize: 34 }}>🏕️</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--action)', marginTop: 6 }}>{T(lang, 'Trainingslager freischalten', 'افتح الـTrainingslager')}</div>
           <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 6 }}>
@@ -231,7 +231,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
       background: 'rgba(3,7,10,0.72)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 440, borderRadius: 16,
         background: 'linear-gradient(180deg, rgba(12,22,18,0.98), rgba(6,12,10,0.99))',
-        border: '1px solid rgba(251,191,36,0.3)', boxShadow: '0 0 40px rgba(0,0,0,0.6)', padding: 16, animation: 'flash-in 0.25s ease' }}>
+        border: '1px solid rgba(249,115,22,0.3)', boxShadow: '0 0 40px rgba(0,0,0,0.6)', padding: 16, animation: 'flash-in 0.25s ease' }}>
         {children}
       </div>
     </div>
@@ -316,7 +316,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
                 const isChosen = chosen === origIdx;
                 const isCorrect = origIdx === q.correctIndex;
                 let bg = 'rgba(255,255,255,0.04)', border = 'rgba(148,163,184,0.25)', col = '#e2e8f0';
-                if (locked && isCorrect) { bg = 'rgba(16,185,129,0.18)'; border = 'var(--accent)'; col = 'var(--accent-2)'; }
+                if (locked && isCorrect) { bg = 'rgba(59,130,246,0.18)'; border = 'var(--accent)'; col = 'var(--accent-2)'; }
                 else if (locked && isChosen && !isCorrect) { bg = 'rgba(239,68,68,0.16)'; border = '#ef4444'; col = '#fecaca'; }
                 return (
                   <button key={pos} disabled={locked}
@@ -370,13 +370,13 @@ function Legend({ dot, label }) {
 function MiniDot({ state }) {
   const c = state === 'done' ? 'var(--accent)' : state === 'available' ? 'var(--action)' : '#475569';
   return <span style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${c}`,
-    background: state === 'done' ? 'rgba(52,211,153,0.2)' : 'transparent', filter: state === 'locked' ? 'grayscale(1)' : 'none',
+    background: state === 'done' ? 'rgba(59,130,246,0.2)' : 'transparent', filter: state === 'locked' ? 'grayscale(1)' : 'none',
     display: 'inline-block' }} />;
 }
 
 function nodeColors(state) {
-  if (state === 'done')      return { ring: 'var(--accent)', bg: 'rgba(52,211,153,0.12)', text: 'var(--accent-2)' };
-  if (state === 'available') return { ring: 'var(--action)', bg: 'rgba(251,191,36,0.14)', text: 'var(--action-2)' };
+  if (state === 'done')      return { ring: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', text: 'var(--accent-2)' };
+  if (state === 'available') return { ring: 'var(--action)', bg: 'rgba(249,115,22,0.14)', text: 'var(--action-2)' };
   return { ring: '#475569', bg: 'rgba(255,255,255,0.03)', text: '#64748b' }; // locked
 }
 
@@ -403,7 +403,7 @@ function MapNode({ node, x, y, lang, onOpen }) {
           display: 'grid', placeItems: 'center', fontSize: 24,
           cursor: state === 'available' ? 'pointer' : 'default',
           border: `2px solid ${c.ring}`, background: c.bg, color: '#fff',
-          boxShadow: state === 'available' ? '0 0 18px rgba(251,191,36,0.4)' : state === 'done' ? '0 0 10px rgba(52,211,153,0.25)' : 'none',
+          boxShadow: state === 'available' ? '0 0 18px rgba(249,115,22,0.4)' : state === 'done' ? '0 0 10px rgba(59,130,246,0.25)' : 'none',
           opacity: locked ? 0.5 : 1, filter: locked ? 'grayscale(1)' : 'none',
         }}>
         {locked ? '🔒' : iconFor(node.ruleId)}
@@ -437,10 +437,10 @@ function BossNode({ x, y, state, planBlocked, lang, onChallenge }) {
                   : T(lang, 'Boss-Tor — erst alle Stationen abschließen', 'بوابة التحدي — خلّص المحطات الأول')}
         style={{ width: size, height: size, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: tappable ? 'pointer' : 'default',
           fontSize: 32, border: `3px solid ${ring}`, color: '#fff',
-          background: unlocked ? 'radial-gradient(circle, rgba(245,158,11,0.25), rgba(245,158,11,0.05))'
-                    : planLocked ? 'radial-gradient(circle, rgba(251,191,36,0.18), rgba(251,191,36,0.04))'
+          background: unlocked ? 'radial-gradient(circle, rgba(249,115,22,0.25), rgba(249,115,22,0.05))'
+                    : planLocked ? 'radial-gradient(circle, rgba(249,115,22,0.18), rgba(249,115,22,0.04))'
                     : 'rgba(255,255,255,0.03)',
-          boxShadow: unlocked ? '0 0 26px rgba(245,158,11,0.5)' : planLocked ? '0 0 20px rgba(251,191,36,0.3)' : 'none',
+          boxShadow: unlocked ? '0 0 26px rgba(249,115,22,0.5)' : planLocked ? '0 0 20px rgba(249,115,22,0.3)' : 'none',
           opacity: unlocked ? 1 : planLocked ? 0.95 : 0.55, filter: tappable ? 'none' : 'grayscale(1)' }}>
         {unlocked ? '🏰' : '🔒'}
       </button>
@@ -472,7 +472,7 @@ export function GameMapCompact({ token, apiUrl, lang = 'de', onOpen }) {
 
   return (
     <button onClick={onOpen} style={{ width: '100%', marginTop: 8, padding: '10px 12px', minHeight: 44, cursor: 'pointer',
-      borderRadius: 10, border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.06)', textAlign: 'left' }}>
+      borderRadius: 10, border: '1px solid rgba(249,115,22,0.4)', background: 'rgba(249,115,22,0.06)', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--action)' }}>🏕️ TRAININGSLAGER</span>
         <span style={{ fontSize: 9, color: '#94a3b8' }}>{doneCount}/{nodes.length} ✓</span>
