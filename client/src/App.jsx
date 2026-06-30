@@ -1160,10 +1160,43 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
     `أتدرب على مقابلات الشغل بالألماني — جرّب كمان:`,
     shareUrl,
   ].filter((l, i) => i < 2 || l !== '').join('\n');
+  // Render the result as a SHARE IMAGE (people share images on WhatsApp/FB, not paragraphs). Pure
+  // client-side canvas → PNG, $0. Falls back to text share / clipboard if the image or Web Share fails.
+  const makeShareImage = async () => {
+    try {
+      const W = 1080, H = 1080;
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const x = c.getContext('2d'); if (!x) return null;
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#04070d'); g.addColorStop(1, '#0a1222');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      x.fillStyle = accent; x.fillRect(0, 0, W, 14);
+      x.textAlign = 'center';
+      x.fillStyle = '#94a3b8'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('OMNI-PERFORM', W / 2, 130);
+      x.fillStyle = '#e2e8f0'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('Deutsches BPO-Interview', W / 2, 195);
+      x.fillStyle = accent;    x.font = 'bold 190px system-ui,sans-serif'; x.fillText(String(rank || '—'), W / 2, 470);
+      x.fillStyle = '#e2e8f0'; x.font = 'bold 96px system-ui,sans-serif'; x.fillText(`${score}/100`, W / 2, 595);
+      if (r.jobLabel) {
+        x.fillStyle = '#cbd5e1'; x.font = '34px system-ui,sans-serif';
+        const words = String(r.jobLabel).split(' '); let line = '', y = 685;
+        for (const w of words) { if (x.measureText(line + w).width > W - 160) { x.fillText(line.trim(), W / 2, y); line = ''; y += 46; } line += w + ' '; }
+        if (line.trim()) x.fillText(line.trim(), W / 2, y);
+      }
+      const stats = [m.wpm > 0 ? `${m.wpm} W/min` : '', m.c1Hits > 0 ? `C1-Vokabular: ${m.c1Hits}` : ''].filter(Boolean).join('   ·   ');
+      if (stats) { x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif'; x.fillText(stats, W / 2, 830); }
+      x.fillStyle = '#fbbf24'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('اتدرّب على إنترفيو شغل ألماني', W / 2, 930);
+      x.fillStyle = '#64748b'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
+      return await new Promise((res) => c.toBlob(res, 'image/png'));
+    } catch { return null; }
+  };
   const onShare = async () => {
     try {
-      if (navigator.share) { await navigator.share({ title:'OMNI-PERFORM', text: shareText, url: shareUrl }); }
-      else { await navigator.clipboard?.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 1800); }
+      const blob = await makeShareImage();
+      if (blob && navigator.canShare) {
+        const file = new File([blob], 'omni-perform.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: shareText, title: 'OMNI-PERFORM' }); return; }
+      }
+      if (navigator.share) { await navigator.share({ title: 'OMNI-PERFORM', text: shareText, url: shareUrl }); return; }
+      await navigator.clipboard?.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 1800);
     } catch { /* user cancelled */ }
   };
 
