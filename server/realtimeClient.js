@@ -258,6 +258,7 @@ const TURN_RULE =
   `EINRÄUMEN, DANN WENDEN (wie ein denkender, skeptischer Mensch): „Schon, aber …", „Mag sein, nur …", „Gut — und trotzdem?".\n` +
   `RÜCKBEZUG STATT WIEDERHOLUNG: verweise mit „da/das" auf das eben Gesagte, statt es zu wiederholen: „Da haben Sie recht.", „Genau da hake ich ein.".\n` +
   `ECHTE INHALTLICHE RÜCKFRAGE (niemals „akustisch nicht verstanden"): wenn der INHALT unklar ist, frag menschlich nach — „Wie meinen Sie das?", „Inwiefern genau?".\n` +
+  `NIE VERSTÜMMELTE WÖRTER ZURÜCKZITIEREN: Die Spracherkennung verwechselt manchmal englische Fach- oder Eigennamen (z. B. „Python" wird zu „Pariethon"). Zitiere ein ungewöhnliches, sinnloses Wort NIEMALS wörtlich zurück, als hätte der Kandidat es so gesagt — das wirkt kaputt. Frag stattdessen natürlich nach („Welches Werkzeug meinen Sie genau?") oder beziehe dich auf das Thema statt auf das Wort.\n` +
   `TON: souverän und bestimmt — ein erfahrener Interviewer, der die Lage führt. NICHT zaghaft, nicht entschuldigend, nicht ängstlich. Sprich mit Präsenz.\n` +
   `Diese Mittel SPARSAM und nie alle auf einmal — höchstens EIN solcher Zug pro Beitrag. „Eine Sache pro Beitrag, dann Stille" bleibt absolut. ` +
   `Richte HÄUFIGKEIT und Schärfe dieser Züge nach deinem INTERVIEW-STIL (siehe oben im System-Prompt): eine geduldige, warme Rolle nutzt sie kaum und unterbricht NIE; eine fordernde Rolle darf öfter knapp nachhaken und den Kandidaten kurz zurückholen. Nichts davon ist Pflicht — es entsteht aus dem Charakter und dem Moment, nie erzwungen.`;
@@ -446,7 +447,12 @@ export class RealtimeClient {
       turnMsgs.push({ role: 'system', content:
         `Der Kandidat hat unter anderem das gesagt: ${unspent.join(', ')}. Wenn es natürlich passt, ` +
         `greife GENAU EINEN dieser Begriffe WÖRTLICH in deiner Reaktion auf (so zeigst du, dass du zuhörst) — ` +
-        `aber erzwinge es nicht und liste sie niemals auf.` });
+        `aber erzwinge es nicht und liste sie niemals auf. ` +
+        `WICHTIG: Greife nur einen Begriff auf, den du sicher als echtes, sinnvolles Wort erkennst. Wirkt ein ` +
+        `Begriff wie ein Erkennungs-/Hörfehler (ungewöhnlich, kein sinnvolles deutsches Wort, oder er passt ` +
+        `nicht zum Kontext — z. B. ein verstümmeltes Fachwort), wiederhole ihn NIEMALS wörtlich. Frag dann ` +
+        `natürlich nach ("Wie meinen Sie das genau?") oder beziehe dich auf das allgemeine Thema. Zitiere nie ` +
+        `ein Wort, dessen Bedeutung dir unklar ist.` });
     }
     if (this._extraRules) turnMsgs.push({ role: 'system', content: this._extraRules });
 

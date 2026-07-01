@@ -448,6 +448,9 @@ export class WebSocketManager {
       ...(candidateName ? String(candidateName).split(/\s+/).filter(Boolean).slice(0, 2) : []),
       'Vorstellungsgespräch', 'Kundenservice', 'Reklamation', 'Eskalation', 'Kündigung',
       'Selbstvorstellung', 'Teamleiter', 'Kundenzufriedenheit', 'Abbuchung', 'Beschwerde',
+      // English tech/tool words a German-BPO applicant (often IT background) says — the German model
+      // mangles these ("Python" → "Pariethon"), so bias the decoder toward the common ones.
+      'Python', 'Java', 'JavaScript', 'SQL', 'Excel', 'Salesforce', 'CRM', 'Software', 'Ticket', 'Homeoffice',
     ];
     // NO-REPEAT interview content: the seen-id lists the script builder must avoid so a returning
     // candidate never gets the same behavioral question / screening filter / customer scenario twice
