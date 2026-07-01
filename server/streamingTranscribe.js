@@ -25,19 +25,27 @@ export class DeepgramStreamer {
     this._ws        = null;
     this._pending   = [];   // chunks buffered before WS opens
     this._done      = false;
+    this._triedFallback = false;   // nova-3 → nova-2 handshake fallback fires at most once
   }
 
   start() {
+    // Default to nova-3 (lower error rate on accented German + stronger keyterm boosting), but the connect
+    // path below auto-falls-back to nova-2 if nova-3's stream can't open — so the model choice can NEVER
+    // break a live interview. Override with DEEPGRAM_MODEL.
+    this._connect(process.env.DEEPGRAM_MODEL || 'nova-3');
+  }
+
+  _connect(model) {
     const key = process.env.DEEPGRAM_API_KEY;
     if (!key) { this._onError(new Error('DEEPGRAM_API_KEY not set')); return; }
 
     const params = new URLSearchParams({
-      model:           process.env.DEEPGRAM_MODEL || 'nova-2',
+      model,
       language:        'de',
       smart_format:    'true',
       punctuate:       'true',
       interim_results: 'true',
-      endpointing:     '400',   // was 700 — trailing final arrives ~300ms sooner → shorter post-answer flush → less dead-air before the boss replies (turn-commit is still the client VAD, so this can't cut the user off)
+      endpointing:     '400',   // trailing final arrives ~300ms sooner → less dead-air (turn-commit is still the client VAD)
       encoding:        'linear16',
       sample_rate:     '24000',
       channels:        '1',
@@ -47,23 +55,37 @@ export class DeepgramStreamer {
     // this session — the interviewer's name, the candidate's name, core interview/BPO vocabulary — so
     // accented German ("Frau Yasmin", Y=/j/) stops being re-segmented into frequent words like "nicht".
     // Free + model-native. keyterm is the nova-3 param; keywords the nova-2/older one — pick by the active
-    // model so the boost is never silently ignored (and so DEEPGRAM_MODEL=nova-3 later just works).
-    const _model = params.get('model') || '';
-    const _boostParam = /nova-3/.test(_model) ? 'keyterm' : 'keywords';
+    // model so the boost is never silently ignored.
+    const boostParam = /nova-3/.test(model) ? 'keyterm' : 'keywords';
     for (const t of this._keyterms) {
-      params.append(_boostParam, _boostParam === 'keywords' ? `${t}:2` : t);
+      params.append(boostParam, boostParam === 'keywords' ? `${t}:2` : t);
     }
 
-    this._ws = new WebSocket(`${DG_STREAM_URL}?${params}`, {
-      headers: { Authorization: `Token ${key}` },
-    });
+    let opened = false;
+    const ws = new WebSocket(`${DG_STREAM_URL}?${params}`, { headers: { Authorization: `Token ${key}` } });
+    this._ws = ws;
 
-    this._ws.on('open', () => {
-      for (const c of this._pending) this._ws.send(c, { binary: true });
+    // SAFE MODEL SWAP: if nova-3 is rejected at the handshake (never opens), transparently retry ONCE on
+    // nova-2. No audio is sent before 'open', so the buffered _pending chunks replay cleanly on the
+    // fallback connection and the candidate never notices. Guards every handler with `this._ws === ws` so
+    // a stale (replaced) socket's late close/error can't tear down the new connection.
+    const fallbackIfNeeded = () => {
+      if (opened || this._done || this._triedFallback || !/nova-3/.test(model)) return false;
+      this._triedFallback = true;
+      console.warn('[dgStream] nova-3 stream did not open → falling back to nova-2');
+      this._connect('nova-2');
+      return true;
+    };
+
+    ws.on('open', () => {
+      if (this._ws !== ws) return;
+      opened = true;
+      for (const c of this._pending) ws.send(c, { binary: true });
       this._pending = [];
     });
 
-    this._ws.on('message', (raw) => {
+    ws.on('message', (raw) => {
+      if (this._ws !== ws) return;
       try {
         const msg   = JSON.parse(raw);
         const alt   = msg?.channel?.alternatives?.[0] ?? {};
@@ -81,8 +103,14 @@ export class DeepgramStreamer {
       } catch {}
     });
 
-    this._ws.on('error', (err) => { if (!this._done) this._onError(err); });
-    this._ws.on('close', () => {
+    ws.on('error', (err) => {
+      if (this._ws !== ws) return;
+      if (fallbackIfNeeded()) return;
+      if (!this._done) this._onError(err);
+    });
+    ws.on('close', () => {
+      if (this._ws !== ws) return;
+      if (fallbackIfNeeded()) return;
       // Deepgram closed the connection without a speech_final (keepalive timeout, network drop).
       // Fire an empty final so websocketManager nulls ctx.dgStreamer — prevents future audio
       // chunks from going to a dead streamer that silently drops everything.
