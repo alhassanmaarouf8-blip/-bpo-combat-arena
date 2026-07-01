@@ -1962,7 +1962,12 @@ function AuthScreen({ onAuth }) {
         body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode() } : {}) }),
       });
       const data = await r.json();
-      if (!r.ok) { setErr(authErrText(data.error)); setBusy(false); return; }
+      if (!r.ok) {
+        setErr(authErrText(data.error)); setBusy(false);
+        // Email already registered → flip to LOGIN (keep the email) so the user isn't stuck re-signing-up.
+        if (data.error === 'email_taken' && mode === 'signup') setMode('login');
+        return;
+      }
       // Honor the landing promise: open the free assessment right after a fresh signup.
       if (mode === 'signup') { try { localStorage.setItem('bpo_pending_assessment', '1'); } catch {} }
       onAuth({ token: data.token, account: data.account });
