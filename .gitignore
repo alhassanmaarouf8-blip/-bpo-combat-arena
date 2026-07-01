@@ -48,3 +48,10 @@ Thumbs.db
 
 # Code-graph analysis output (regenerable for free via `graphify update .` — do not commit)
 graphify-out/
+
+# ─────────────────────────────────────────────────────────────
+# Git worktrees created under .claude/ — transient working copies (full repo clones).
+# Excluding them keeps every Grep/Glob/ripgrep search ~6x smaller (one hit per file, not
+# one per worktree). Does NOT unregister the linked worktrees — they keep working.
+# ─────────────────────────────────────────────────────────────
+.claude/worktrees/
