@@ -18,6 +18,7 @@ import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
+import { activeFightUsers }       from './liveFights.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -144,7 +145,7 @@ export class WebSocketManager {
     this._sessions = new Map();
     // Account IDs with a fight currently in flight — a per-user single-flight lock so a
     // double-click (which opens TWO browser sockets) cannot open two Realtime sessions.
-    this._activeFightUsers = new Set();
+    this._activeFightUsers = activeFightUsers;   // shared with the TTS/STT endpoints (authorize voice by active fight)
 
     // Same origin allowlist as the HTTP CORS layer — the WS upgrade must validate Origin
     // too, otherwise any website could open sockets against us. No Origin header (native
