@@ -112,9 +112,122 @@ const ITEMS = [
     question_de: 'Wie hoch ist die Gesamtsumme? (z. B. 342,90)', question_ar: 'إيه إجمالي المبلغ؟', answer: '342,90' },
 ];
 
+// ── COMPREHENSION items (owner's #1): understand COMPLEX native German, not just catch a number. ──
+// Each `audioText` is a real call-center utterance at B2–C1: subordinate clauses (weil/obwohl/nachdem/
+// wenn/dass) with the verbs piled at the END the way Germans actually speak. The learner hears it and
+// answers ONE meaning question as multiple choice → graded deterministically on the correct index (honest,
+// never fabricated). `q` = question, `opts` = {de,ar} choices, `correct` = index into opts.
+const COMPREHENSION = [
+  { audioText: 'Ich hätte eigentlich erwartet, dass man mich zurückruft, nachdem ich das Formular, das Sie mir zugeschickt hatten, längst ausgefüllt zurückgesendet habe — aber passiert ist bis heute nichts.',
+    q_de: 'Was erwartet der Kunde?', q_ar: 'العميل مستني إيه؟',
+    opts: [{ de: 'einen Rückruf', ar: 'مكالمة ترجعله' }, { de: 'ein neues Formular', ar: 'استمارة جديدة' }, { de: 'eine Rückerstattung', ar: 'استرداد فلوس' }, { de: 'einen Termin vor Ort', ar: 'ميعاد في الفرع' }], correct: 0 },
+  { audioText: 'Es kann doch nicht sein, dass ich, obwohl ich den Vertrag fristgerecht gekündigt habe, weiterhin Rechnungen bekomme, die ich eigentlich längst nicht mehr bezahlen müsste.',
+    q_de: 'Worüber beschwert sich der Kunde?', q_ar: 'العميل بيشتكي من إيه؟',
+    opts: [{ de: 'Er bekommt trotz Kündigung noch Rechnungen', ar: 'لسه بتيجيله فواتير رغم الإلغاء' }, { de: 'Er konnte den Vertrag nicht kündigen', ar: 'مقدرش يلغي العقد' }, { de: 'Er hat zu wenig bezahlt', ar: 'دفع أقل من اللازم' }, { de: 'Er möchte einen neuen Vertrag', ar: 'عايز عقد جديد' }], correct: 0 },
+  { audioText: 'Wenn Sie mir jetzt nicht garantieren können, dass das Gerät, das ich vorletzte Woche eingeschickt habe, bis Freitag repariert bei mir ankommt, dann muss ich mir das mit dem Vertrag ernsthaft überlegen.',
+    q_de: 'Was verlangt der Kunde?', q_ar: 'العميل بيطلب إيه؟',
+    opts: [{ de: 'eine Reparatur bis Freitag', ar: 'تصليح قبل الجمعة' }, { de: 'sofort ein neues Gerät', ar: 'جهاز جديد حالًا' }, { de: 'sein Geld zurück', ar: 'فلوسه ترجع' }, { de: 'eine schriftliche Entschuldigung', ar: 'اعتذار مكتوب' }], correct: 0 },
+  { audioText: 'Mir wurde am Telefon zugesichert, dass die Gebühr, die man mir letzten Monat berechnet hatte, wieder gutgeschrieben werde — gesehen habe ich davon allerdings bisher überhaupt nichts.',
+    q_de: 'Was wurde dem Kunden versprochen?', q_ar: 'العميل اتوعد بإيه؟',
+    opts: [{ de: 'die Gebühr zurückzubekommen', ar: 'إن الرسوم ترجعله' }, { de: 'einen Rabatt auf den nächsten Kauf', ar: 'خصم على الشراء الجاي' }, { de: 'eine schnellere Lieferung', ar: 'توصيل أسرع' }, { de: 'ein kostenloses Upgrade', ar: 'ترقية مجانية' }], correct: 0 },
+  { audioText: 'Ich rufe an, weil die Bestellung, von der man mir versprochen hatte, sie werde noch am selben Tag verschickt, inzwischen seit über einer Woche einfach nicht angekommen ist.',
+    q_de: 'Was ist das Problem?', q_ar: 'المشكلة إيه؟',
+    opts: [{ de: 'Die Bestellung ist nicht angekommen', ar: 'الطلب موصلش' }, { de: 'Die Bestellung war beschädigt', ar: 'الطلب وصل مكسور' }, { de: 'Er hat das Falsche bestellt', ar: 'طلب حاجة غلط' }, { de: 'Er möchte die Bestellung stornieren', ar: 'عايز يلغي الطلب' }], correct: 0 },
+  { audioText: 'Können Sie mir vielleicht erklären, warum ich, nachdem ich mich dreimal durch Ihr Menü gehangelt und zweimal in der Leitung gehangen habe, immer noch mit niemandem sprechen konnte, der mir tatsächlich weiterhilft?',
+    q_de: 'Worüber ärgert sich die Kundin?', q_ar: 'العميلة زعلانة من إيه؟',
+    opts: [{ de: 'Sie erreicht niemanden, der ihr hilft', ar: 'مبتوصلش لحد يساعدها' }, { de: 'Das Produkt ist zu teuer', ar: 'المنتج غالي' }, { de: 'Die Lieferung ist zu langsam', ar: 'التوصيل بطيء' }, { de: 'Die Rechnung ist falsch', ar: 'الفاتورة غلط' }], correct: 0 },
+  { audioText: 'Ich würde vorschlagen, dass wir die Sache so regeln: Sie erstatten mir die Versandkosten, die ich zu Unrecht gezahlt habe, und im Gegenzug behalte ich den Artikel trotz des kleinen Kratzers.',
+    q_de: 'Was schlägt der Kunde vor?', q_ar: 'العميل بيقترح إيه؟',
+    opts: [{ de: 'Versandkosten zurück, dafür behält er den Artikel', ar: 'ترجعوله مصاريف الشحن ويحتفظ بالمنتج' }, { de: 'den Artikel komplett zurückgeben', ar: 'يرجّع المنتج كله' }, { de: 'einen neuen Artikel ohne Kratzer', ar: 'منتج جديد من غير خربشة' }, { de: 'den vollen Kaufpreis zurück', ar: 'كامل تمن الشراء يرجع' }], correct: 0 },
+  { audioText: 'Bevor ich mich entscheide zu verlängern, müsste ich schon genau wissen, ob die Konditionen, die Sie mir damals beim Abschluss versprochen hatten, auch für das nächste Jahr weiterhin gelten werden.',
+    q_de: 'Was möchte der Kunde wissen?', q_ar: 'العميل عايز يعرف إيه؟',
+    opts: [{ de: 'ob die alten Konditionen weiter gelten', ar: 'هل نفس الشروط هتفضل سارية' }, { de: 'wie er kündigen kann', ar: 'إزاي يلغي' }, { de: 'wann die Lieferung kommt', ar: 'الشحنة هتيجي إمتى' }, { de: 'wo er sich beschweren kann', ar: 'يشتكي فين' }], correct: 0 },
+  { audioText: 'Es geht mir gar nicht so sehr um das Geld, sondern vielmehr darum, dass mir niemand Bescheid gegeben hat, obwohl man mir fest zugesagt hatte, man werde mich informieren, sobald sich etwas ändert.',
+    q_de: 'Was stört den Kunden am meisten?', q_ar: 'أكتر حاجة مضايقة العميل إيه؟',
+    opts: [{ de: 'dass ihn niemand informiert hat', ar: 'إن محدش خبّره' }, { de: 'dass es zu teuer war', ar: 'إنها كانت غالية' }, { de: 'dass die Qualität schlecht war', ar: 'إن الجودة وحشة' }, { de: 'dass er zu lange warten musste', ar: 'إنه استنى كتير' }], correct: 0 },
+  { audioText: 'Ich verstehe ja, dass es zu Verzögerungen kommen kann, aber was ich nicht akzeptieren kann, ist, dass man mir zweimal ein Lieferdatum genannt hat, das dann beide Male einfach nicht eingehalten wurde.',
+    q_de: 'Was akzeptiert der Kunde nicht?', q_ar: 'العميل مش قابل إيه؟',
+    opts: [{ de: 'dass zugesagte Liefertermine nicht eingehalten wurden', ar: 'إن مواعيد التسليم المتفق عليها ماتحترمتش' }, { de: 'dass es überhaupt Verzögerungen gibt', ar: 'إن في تأخير أصلًا' }, { de: 'dass der Preis gestiegen ist', ar: 'إن السعر زاد' }, { de: 'dass er umsonst angerufen hat', ar: 'إنه اتصل ببلاش' }], correct: 0 },
+  { audioText: 'Nachdem ich nun schon dreimal geschrieben und jedes Mal nur eine automatische Antwort erhalten habe, hätte ich langsam wirklich gern einmal einen Menschen, der sich meines Anliegens ernsthaft annimmt.',
+    q_de: 'Was wünscht sich die Kundin?', q_ar: 'العميلة نفسها في إيه؟',
+    opts: [{ de: 'mit einem echten Menschen zu sprechen', ar: 'تكلم حد حقيقي' }, { de: 'eine schnellere automatische Antwort', ar: 'رد آلي أسرع' }, { de: 'eine Rückerstattung', ar: 'استرداد فلوس' }, { de: 'eine E-Mail-Adresse', ar: 'إيميل' }], correct: 0 },
+  { audioText: 'Ich möchte mich nicht streiten, aber Sie werden verstehen, dass ich, solange die Reklamation, die ich eingereicht habe, nicht bearbeitet worden ist, die offene Rechnung erst einmal nicht begleichen werde.',
+    q_de: 'Was macht der Kunde, bis seine Reklamation bearbeitet ist?', q_ar: 'العميل هيعمل إيه لحد ما الشكوى تتحل؟',
+    opts: [{ de: 'die offene Rechnung nicht bezahlen', ar: 'مش هيدفع الفاتورة المفتوحة' }, { de: 'den Vertrag sofort kündigen', ar: 'يلغي العقد فورًا' }, { de: 'eine Anwältin einschalten', ar: 'يجيب محامي' }, { de: 'eine schlechte Bewertung schreiben', ar: 'يكتب تقييم وحش' }], correct: 0 },
+];
+
 function paidOnly(req, res) {
   if (!drillsUnlocked(req.account)) { res.status(402).json({ error: 'plan_required', reason: 'listening_is_paid' }); return false; }
   return true;
+}
+
+// Curated comprehension items, no-repeat until the pool cycles (like the detail pool).
+function pickCuratedComp(seen, n) {
+  const seenSet = new Set(Array.isArray(seen) ? seen : []);
+  let pool = COMPREHENSION.map((_, i) => i).filter((i) => !seenSet.has(i));
+  let reset = false;
+  if (pool.length < n) { pool = COMPREHENSION.map((_, i) => i); reset = true; }
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return { picks: pool.slice(0, n), reset };
+}
+
+// Shuffle a comprehension item's options each serve, so the right answer is never predictably in the
+// same slot (the curated pool authors it first). Returns the shuffled options + the new correct index.
+function shuffledComp(it) {
+  const order = it.opts.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return { opts: order.map((i) => it.opts[i]), correct: order.indexOf(it.correct) };
+}
+
+// Validate a generated comprehension item: complex sentence + a question + 3–4 options + a valid correct index.
+function validComp(it) {
+  if (!it || typeof it !== 'object') return false;
+  const audio = String(it.audioText ?? '').trim();
+  const q = String(it.q_de ?? '').trim();
+  const opts = Array.isArray(it.opts) ? it.opts : [];
+  if (audio.length < 25 || !q || opts.length < 3 || opts.length > 4) return false;
+  if (!opts.every((o) => o && String(o.de ?? '').trim())) return false;
+  return Number.isInteger(it.correct) && it.correct >= 0 && it.correct < opts.length;
+}
+
+// GENERATE novel COMPREHENSION items (Groq). Self-consistent: the model writes the sentence, the question,
+// the options AND which one is correct — we grade the learner deterministically against that index, so a
+// learner is never marked wrong against an answer the model didn't author.
+async function generateComprehension({ level, avoid }) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('no_api_key');
+  console.log(`[ai] ${GEN_MODEL} · listening COMPREHENSION gen (level=${level || 'B2'})`);
+  const sys = `Du erstellst deutsche HÖRVERSTEHENS-Aufgaben für ein Callcenter (eingehende Kundenanrufe).
+Schreibe je einen NATÜRLICHEN, KOMPLEXEN Anrufer-Satz auf Niveau ${level === 'C1' ? 'C1–C2' : level === 'A2' || level === 'A1' ? 'B1–B2' : 'B2–C1'}:
+- echte gesprochene Sprache, wie Deutsche wirklich am Telefon reden,
+- mit NEBENSÄTZEN (weil/obwohl/nachdem/wenn/dass/sodass) und mehreren Verben AM SATZENDE (z. B. „…, das ich eingeschickt hatte, repariert zurückgeschickt werden sollte."),
+- verschiedene Callcenter-Themen (Reklamation, Kündigung, Rechnung, Lieferung, Vertrag, Termin, Rückruf, Erstattung) — abwechslungsreich.
+Zu JEDEM Satz stellst du EINE Verständnisfrage nach dem SINN (nicht nach einer Zahl) und lieferst 4 kurze Antwortoptionen, von denen GENAU EINE korrekt ist. Die falschen Optionen müssen plausibel, aber eindeutig falsch sein.
+Gib AUSSCHLIESSLICH JSON zurück.`;
+  const userMsg = `Erzeuge 4 Items. Vermeide Themen, die diesen ähneln (NICHT wiederholen):
+${avoid && avoid.length ? avoid.map((a) => `- ${a}`).join('\n') : '- (keine)'}
+Jedes Item: { "audioText" (komplexer deutscher Anrufer-Satz), "q_de" (kurze Sinn-Frage auf Deutsch), "q_ar" (dieselbe Frage auf ägyptischem Arabisch), "opts" (4 Optionen, je { "de", "ar" }), "correct" (Index 0–3 der richtigen Option) }.
+Antworte als JSON: { "items": [ ... ] }`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(GROQ_CHAT, {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, signal: controller.signal,
+      body: JSON.stringify({ model: GEN_MODEL, temperature: 0.85, max_tokens: 1800, response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: userMsg }] }),
+    });
+    if (!res.ok) throw new Error(`comp gen ${res.status}`);
+    const data = await res.json();
+    const parsed = JSON.parse(data.choices?.[0]?.message?.content ?? '{}');
+    const raw = Array.isArray(parsed.items) ? parsed.items : [];
+    return raw.map((it) => ({
+      audioText: String(it?.audioText ?? '').trim(),
+      q_de: String(it?.q_de ?? '').trim(),
+      q_ar: String(it?.q_ar ?? '').trim() || String(it?.q_de ?? '').trim(),
+      opts: (Array.isArray(it?.opts) ? it.opts : []).slice(0, 4).map((o) => ({ de: String(o?.de ?? '').trim(), ar: String(o?.ar ?? '').trim() || String(o?.de ?? '').trim() })),
+      correct: it?.correct,
+    })).filter(validComp);
+  } finally { clearTimeout(timer); }
 }
 
 // Deterministic normalization for comparison. Numbers → digits only; text → lowercased,
@@ -269,84 +382,67 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   res.set('Cache-Control', 'no-store');
   const uid = req.account.id;
-  const n   = PER_SESSION;
 
-  // Brief per-user cache: a rapid double-load returns the SAME set (no double Groq bill), but a real
-  // reopen later (> TTL) regenerates → NOVEL content. listeningActive was already persisted, so grade works.
   const cached = genCache.get(uid);
   if (cached && Date.now() - cached.ts < GEN_TTL_MS) { res.json(cached.payload); return; }
 
-  // ── Fail-safe fallback: the existing FIXED pool (never breaks the drill). Stores served items
-  // in listeningActive so grading resolves them uniformly. Used when GROQ_API_KEY is missing or
-  // generation fails/times out / returns nothing.
-  const serveFixed = async () => {
-    let baseRate = 1.0, picks, p = null;
-    try {
-      p = await loadUser(uid);
-      baseRate = baseRateFor(p.assessmentResult?.estimatedLevel);
-      const seen = Array.isArray(p.listeningSeen) ? p.listeningSeen : [];
-      const r = pickAdaptive(p.listeningStats || null, seen, Math.min(n, ITEMS.length));
-      picks = r.picks;
-      p.listeningSeen   = r.reset ? picks.slice() : [...seen, ...picks];   // no-repeat until pool cycles
-      p.listeningActive = {};
-      for (const i of picks) p.listeningActive[String(i)] = { type: ITEMS[i].type, answer: ITEMS[i].answer };
-      await saveUser(p);
-    } catch {
-      picks = pickAdaptive(null, [], Math.min(n, ITEMS.length)).picks;
-    }
-    const items = picks.map((i) => ({
-      id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText,
-      question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS,
-    }));
-    const payload = { items, baseRate };
-    genCache.set(uid, { ts: Date.now(), payload });
-    return res.json(payload);
-  };
-
-  let p;
+  let p = null;
   try { p = await loadUser(uid); } catch { p = null; }
   const level    = p?.assessmentResult?.estimatedLevel;
   const baseRate = baseRateFor(level);
   const stats    = p?.listeningStats || null;
-  const avoid    = Array.isArray(p?.listeningTopics) ? p.listeningTopics : [];
+  const base     = Date.now().toString(36);
+  const active   = {};
+  const items    = [];
 
-  let generated;
-  try {
-    const types = chooseTypes(stats, n);
-    generated = await generateItems({ level, types, avoid });
-  } catch (e) {
-    console.warn(`[listening] generation failed → fixed pool: ${e?.message || e}`);
-    return serveFixed();
+  // ── 1) COMPREHENSION (PRIMARY — owner's #1: understand COMPLEX native German, verb-final clusters,
+  //       not just catch a number). Generator → curated pool fallback (no-repeat). Never blocks the round. ──
+  const N_COMP = 3;
+  let comp = [];
+  try { comp = await generateComprehension({ level, avoid: Array.isArray(p?.listeningCompTopics) ? p.listeningCompTopics : [] }); } catch { comp = []; }
+  let compSeenUpdate = null, compReset = false;
+  if (!comp.length) {
+    const r = pickCuratedComp(p?.listeningCompSeen, N_COMP);
+    compSeenUpdate = r.picks; compReset = r.reset;
+    comp = r.picks.map((i) => COMPREHENSION[i]);
   }
-  if (!generated || !generated.length) return serveFixed();
+  comp.slice(0, N_COMP).forEach((it, k) => {
+    const sh = shuffledComp(it);   // never leave the correct answer in a predictable slot
+    const id = `v${base}-${k}`;
+    active[id] = { kind: 'verstehen', correct: sh.correct };
+    items.push({ id, kind: 'verstehen', audioText: it.audioText, question_de: it.q_de, question_ar: it.q_ar, options: sh.opts, replays: REPLAYS });
+  });
 
-  // Build the served session. Generated items get string ids ("g<ts>-<k>"); if the model returned
-  // fewer than a full session, pad the remaining slots from the fixed pool so UX stays a full round.
-  const base   = Date.now().toString(36);
-  const active = {};
-  const items  = [];
-  generated.slice(0, n).forEach((it, k) => {
+  // ── 2) DETAIL (secondary — number/name/date capture) fills the remaining slots. ──
+  const N_DET = Math.max(0, PER_SESSION - items.length);
+  let detGen = [];
+  if (N_DET > 0) {
+    try { detGen = await generateItems({ level, types: chooseTypes(stats, N_DET), avoid: Array.isArray(p?.listeningTopics) ? p.listeningTopics : [] }); } catch { detGen = []; }
+  }
+  detGen.slice(0, N_DET).forEach((it, k) => {
     const id = `g${base}-${k}`;
     active[id] = { type: it.type, answer: it.answer };
-    items.push({ id, type: it.type, audioText: it.audioText, question_de: it.question_de, question_ar: it.question_ar, replays: REPLAYS });
+    items.push({ id, kind: 'detail', type: it.type, audioText: it.audioText, question_de: it.question_de, question_ar: it.question_ar, replays: REPLAYS });
   });
-  if (items.length < n) {
-    const pad = pickAdaptive(stats, [], Math.min(n - items.length, ITEMS.length)).picks;
+  // Pad any remaining detail slots from the fixed pool so a round is always full.
+  if (items.length < PER_SESSION) {
+    const pad = pickAdaptive(stats, [], Math.min(PER_SESSION - items.length, ITEMS.length)).picks;
     for (const i of pad) {
       active[String(i)] = { type: ITEMS[i].type, answer: ITEMS[i].answer };
-      items.push({ id: i, type: ITEMS[i].type, audioText: ITEMS[i].audioText, question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS });
+      items.push({ id: i, kind: 'detail', type: ITEMS[i].type, audioText: ITEMS[i].audioText, question_de: ITEMS[i].question_de, question_ar: ITEMS[i].question_ar, replays: REPLAYS });
     }
   }
 
-  // NO-REPEAT across reopens: remember recent audio topics → pass them as `avoid` next time.
-  const topics = [...generated.slice(0, n).map((it) => it.audioText.slice(0, 80)), ...avoid].slice(0, AVOID_KEEP);
+  // Persist active (both kinds) + no-repeat memory for comprehension and detail.
   const payload = { items, baseRate };
   try {
     p = p || await loadUser(uid);
-    p.listeningActive = active;       // grade resolves the model-authored answer from here
-    p.listeningTopics = topics;
+    p.listeningActive     = active;
+    p.listeningTopics     = [...detGen.slice(0, N_DET).map((it) => it.audioText.slice(0, 80)), ...(Array.isArray(p.listeningTopics) ? p.listeningTopics : [])].slice(0, AVOID_KEEP);
+    p.listeningCompTopics = [...comp.slice(0, N_COMP).map((it) => it.audioText.slice(0, 80)), ...(Array.isArray(p.listeningCompTopics) ? p.listeningCompTopics : [])].slice(0, AVOID_KEEP);
+    if (compSeenUpdate) p.listeningCompSeen = compReset ? compSeenUpdate.slice() : [...(Array.isArray(p.listeningCompSeen) ? p.listeningCompSeen : []), ...compSeenUpdate];
     await saveUser(p);
-  } catch { /* persistence is best-effort; in-memory cache below still lets grade resolve this session */ }
+  } catch { /* best-effort; genCache still resolves grade this session */ }
   genCache.set(uid, { ts: Date.now(), payload, active });
   res.json(payload);
 });
@@ -379,7 +475,28 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
     const idx = parseInt(rawId, 10);
     if (Number.isInteger(idx) && idx >= 0 && idx < ITEMS.length) item = ITEMS[idx];
   }
-  if (!item || !item.answer || !TYPES.includes(item.type)) return res.status(400).json({ error: 'bad_item' });
+  if (!item) return res.status(400).json({ error: 'bad_item' });
+
+  // COMPREHENSION (MCQ): grade the CHOSEN option index against the authored correct index (self-consistent —
+  // the model/curated item wrote both the options and which is right, so the learner is never marked wrong
+  // against something we invented).
+  if (item.kind === 'verstehen') {
+    const chosen = parseInt(req.body?.response, 10);
+    const correct = Number.isInteger(chosen) && chosen === item.correct;
+    try {
+      if (!p) p = await loadUser(uid);
+      p.listeningStats = p.listeningStats || {};
+      const s = p.listeningStats.verstehen || { seen: 0, correct: 0 };
+      s.seen += 1; if (correct) s.correct += 1;
+      p.listeningStats.verstehen = s;
+      await saveUser(p);
+    } catch { /* best-effort */ }
+    console.log(`[listening] user=${uid} id=${key} kind=verstehen correct=${correct}`);
+    return res.json({ correct, kind: 'verstehen', correctIndex: item.correct });
+  }
+
+  // DETAIL: deterministic normalize + compare against the authored answer.
+  if (!item.answer || !TYPES.includes(item.type)) return res.status(400).json({ error: 'bad_item' });
 
   const you  = normalize(req.body?.response, item.type);
   const want = normalize(item.answer, item.type);

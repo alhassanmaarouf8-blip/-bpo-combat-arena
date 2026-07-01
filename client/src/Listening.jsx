@@ -61,13 +61,15 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     setPlayed((p) => p + 1);
   };
 
-  const submit = async () => {
-    if (!response.trim() || busy || result) return;
+  const submit = async (explicit) => {
+    const resp = explicit != null ? String(explicit) : response;   // MCQ passes the chosen index directly (no stale state)
+    if (resp.trim() === '' || busy || result) return;
+    if (explicit != null) setResponse(resp);                        // remember the choice for the result highlight
     setBusy(true); setErr(null);
     try {
       const r = await fetch(`${apiUrl}/api/listening/grade`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: item.id, response }),
+        body: JSON.stringify({ id: item.id, response: resp }),
       });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
@@ -158,11 +160,30 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
         <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8, ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
           {T(lang, item.question_de, item.question_ar)}
         </div>
-        <input ref={inputRef} value={response} onChange={(e) => setResponse(e.target.value)} disabled={!!result}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-          placeholder={T(lang, 'Tippe, was du gehört hast…', 'اكتب اللي سمعته…')}
-          style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 9, fontSize: 15,
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.35)', color: '#f8fafc', outline: 'none' }} />
+        {item.kind === 'verstehen' ? (
+          // COMPREHENSION: pick the meaning (MCQ). Clicking an option grades it immediately.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(item.options || []).map((o, oi) => {
+              const chose   = result && Number(response) === oi;
+              const isRight = result && result.correctIndex === oi;
+              return (
+                <button key={oi} disabled={busy || !!result} onClick={() => submit(oi)}
+                  style={{ textAlign: lang === 'ar' ? 'right' : 'left', direction: lang === 'ar' ? 'rtl' : 'ltr',
+                    padding: '11px 13px', borderRadius: 9, fontSize: 13.5, cursor: result ? 'default' : 'pointer', color: '#f1f5f9',
+                    background: result && isRight ? 'rgba(34,197,94,0.12)' : (result && chose ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)'),
+                    border: `1px solid ${result ? (isRight ? 'rgba(34,197,94,0.6)' : (chose ? 'rgba(239,68,68,0.6)' : 'rgba(148,163,184,0.2)')) : 'rgba(148,163,184,0.35)'}` }}>
+                  {result && isRight ? '✓ ' : ''}{T(lang, o.de, o.ar)}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <input ref={inputRef} value={response} onChange={(e) => setResponse(e.target.value)} disabled={!!result}
+            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+            placeholder={T(lang, 'Tippe, was du gehört hast…', 'اكتب اللي سمعته…')}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 9, fontSize: 15,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.35)', color: '#f8fafc', outline: 'none' }} />
+        )}
       </div>
     )}
 
@@ -179,9 +200,12 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
           background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
           border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
           <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
-            {result.correct ? T(lang, '✓ Richtig erfasst!', '✓ صح كده!') : T(lang, '✗ Nicht ganz', '✗ مش مظبوط')}
+            {result.correct
+              ? (item.kind === 'verstehen' ? T(lang, '✓ Richtig verstanden!', '✓ فهمتها صح!') : T(lang, '✓ Richtig erfasst!', '✓ صح كده!'))
+              : T(lang, '✗ Nicht ganz', '✗ مش مظبوط')}
           </div>
-          {!result.correct && (
+          {/* comprehension already highlights the right option green; only the detail path needs the answer echoed */}
+          {!result.correct && item.kind !== 'verstehen' && (
             <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>
               {T(lang, 'Richtig war: ', 'الصح كان: ')}<b style={{ color: 'var(--action)' }}>{result.expected}</b>
             </div>
@@ -194,8 +218,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
           </button>
         </div>
       </>
-    ) : played > 0 ? (
-      <button onClick={submit} disabled={busy || !response.trim()} style={{ ...primaryBtn, marginTop: 12, opacity: (busy || !response.trim()) ? 0.5 : 1 }}>
+    ) : (played > 0 && item.kind !== 'verstehen') ? (
+      <button onClick={() => submit()} disabled={busy || !response.trim()} style={{ ...primaryBtn, marginTop: 12, opacity: (busy || !response.trim()) ? 0.5 : 1 }}>
         {busy ? T(lang, 'Prüfe…', 'بصحّح…') : T(lang, 'Antwort prüfen', 'صحّح الإجابة')}
       </button>
     ) : null}
