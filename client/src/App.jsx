@@ -3054,6 +3054,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
       if (stageIdxRef.current <= 1) needSilence += 250;   // open-question grace (cut for latency — was 600)
       needSilence += bossPatienceRef.current;             // per-persona patience: gentle interviewers wait longer before taking the floor, forceful ones stay snappy
+      // CONTENT-AWARE turn-taking (owner: a real interviewer LETS you talk, then cuts in only when you
+      // RAMBLE or start LISTING — it must not grab the floor on a thinking pause "for no reason"). We shape
+      // the wait by HOW the turn is going, not by silence alone:
+      const turnWords = (livePartialRef.current.trim().match(/\S+/g) || []).length;
+      //  (1) "Let me talk a bit first": extra grace on the opening words so an early thinking pause is
+      //      never mistaken for being finished (kills the reasonless early cut-off).
+      if (turnWords > 0 && turnWords < 12) needSilence += 500;
+      //  (2) Ramble / list pressure: the longer you go OR the more you enumerate, the readier a FORCEFUL
+      //      interviewer is to take the floor at the next natural pause. A gentle one (high patience,
+      //      e.g. Yasmin) still waits — this is the "not in Yasmin, yes in the tough ones" rule. Off-topic
+      //      isn't detectable client-side; length + explicit listing are the honest signals we have.
+      const listy    = /\b(erstens|zweitens|drittens|viertens|zum einen|zum anderen)\b/i.test(livePartialRef.current);
+      const longTurn = turnWords >= 50;
+      if ((longTurn || listy) && bossPatienceRef.current < 300) {   // forceful personas only
+        needSilence = Math.max(300, needSilence - 500);
+      }
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
