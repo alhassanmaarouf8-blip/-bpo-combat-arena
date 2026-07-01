@@ -11,6 +11,7 @@ import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
+import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { WeeklyBriefing } from './WeeklyBriefing.jsx';
 import { InviteCard } from './InviteCard.jsx';
@@ -58,6 +59,11 @@ const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replac
 // The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
 // masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
 const BRAIN_GUIDE_LIVE = true;
+// BARGE-IN: let the user interrupt the boss by talking over it (real-conversation feel). The fail-safe
+// BargeInMonitor is fully built, but true talk-over overlaps live mic + boss speaker → echo behaviour
+// differs on a phone speaker vs headphones, so it stays OFF until the owner phone-tests + tunes the
+// sensitivity (rule 2.5). When false, NO extra mic stream is even opened. Flip to true to test on device.
+const BARGE_IN_LIVE = false;
 // Referral: capture ?ref=<inviter id> from the invite link (persist so it survives navigation), read at signup.
 function getRefCode() {
   try {
@@ -2559,6 +2565,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
+  const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss; gated on BARGE_IN_LIVE)
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
   const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
   const pendingDurationRef = useRef(0);    // last clip duration (ms), for WPM; 0 if typed
@@ -3100,6 +3107,27 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [handsFree, phase, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
 
   useEffect(() => () => { if (hfTimerRef.current) clearInterval(hfTimerRef.current); }, []);
+
+  // BARGE-IN (OFF until BARGE_IN_LIVE — see flag): a dedicated mic monitor for the whole active hands-free
+  // phase. When the user speaks OVER the boss, cut the boss off (stopBossVoice) and flip bossSpeak false —
+  // which the hands-free driver above already turns into the user's turn. Fail-safe: if the monitor can't
+  // start (mic denied, no AudioContext), it just never fires and the boss finishes normally (no regression).
+  // When the flag is off we never even open the extra mic stream.
+  useEffect(() => {
+    if (!BARGE_IN_LIVE || phase !== 'active' || !handsFree) return;
+    const mon = new BargeInMonitor({ onBargeIn: () => { stopBossVoice(); setBossSpeak(false); } });
+    bargeRef.current = mon;
+    mon.start();
+    return () => { bargeRef.current = null; mon.stop(); };
+  }, [phase, handsFree]);
+
+  // Arm the monitor ONLY while the boss is actually speaking; disarm otherwise so it can never
+  // self-trigger during the user's own turn.
+  useEffect(() => {
+    const mon = bargeRef.current;
+    if (!mon) return;
+    if (bossSpeak) mon.arm(); else mon.disarm();
+  }, [bossSpeak]);
 
   // KEEP-WARM: the free server sleeps after ~15 min with no inbound traffic, so the NEXT "INTERVIEW
   // STARTEN" pays a long cold-wake. Ping /health every 4 min while the app is open so it never sleeps
