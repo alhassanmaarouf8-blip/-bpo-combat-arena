@@ -37,10 +37,22 @@
     <!-- Critical: dark background from the very first paint (no white flash before React/CSS load) -->
     <style>
       html,body{margin:0;background:#020409}#root{min-height:100svh}
-      /* Mobile-first app is a 440px column — a tiny strip on a laptop. Scale the whole thing up on wider
-         screens so the interface (layout AND fonts) is comfortably bigger on desktop. Mobile untouched. */
-      @media (min-width:900px){ #root{ zoom:1.55; } }
-      @media (min-width:1500px){ #root{ zoom:1.8; } }
+      /* Mobile-first app is a 440px phone column. On a laptop that skinny strip looked "zoomed in" and
+         forced endless scrolling. On desktop we instead WIDEN the shell to fill the screen and lay the
+         home's menu out in multiple columns (side-by-side, not an endless stack). Phones are untouched.
+         Width is kept in vw and the zoom factor chosen so rendered width (vw × zoom) stays < 100vw → no
+         horizontal scrollbar. */
+      .app-shell, .auth-shell{ width:100%; max-width:440px; margin:0 auto; }
+      @media (min-width:900px){
+        .app-shell{ max-width:none; width:80vw; zoom:1.15; }   /* rendered ≈ 92vw — fills the laptop */
+        .auth-shell{ max-width:560px; zoom:1.25; }              /* login stays a card, just bigger */
+        .home-grid{ column-count:2; column-gap:16px; }
+        .home-grid > *{ break-inside:avoid; }                  /* keep each card whole across columns */
+      }
+      @media (min-width:1500px){
+        .app-shell{ width:74vw; zoom:1.2; }
+        .home-grid{ column-count:3; }
+      }
     </style>
   </head>
   <body>

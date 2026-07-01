@@ -1975,7 +1975,7 @@ function AuthScreen({ onAuth }) {
   };
 
   return (
-    <div style={{ minHeight:'100svh', maxWidth:440, margin:'0 auto', display:'flex', flexDirection:'column',
+    <div className="auth-shell" style={{ minHeight:'100svh', display:'flex', flexDirection:'column',
       justifyContent:'center', padding:'24px', position:'relative' }}>
       <div className="scanline" />
       <div style={{ textAlign:'center', marginBottom:24 }}>
@@ -3190,8 +3190,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={shakeScreen ? 'shake' : ''} style={{
-      minHeight:'100svh', maxWidth:440, margin:'0 auto',
+    <div className={`app-shell ${shakeScreen ? 'shake' : ''}`} style={{
+      minHeight:'100svh',
       display:'flex', flexDirection:'column', position:'relative', overflowX:'hidden',
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
@@ -3938,6 +3938,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         ) : null}
 
+        {/* Secondary home menu. On a phone it's a normal single-column stack; on a laptop it flows into
+            2–3 columns (side-by-side, no endless scroll). See .home-grid in index.html. */}
+        <div className="home-grid">
+
         {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only).
             Hidden when the live brain is active — the brain is the single source of "what to do next"
             (no two competing routers). */}
@@ -4121,6 +4125,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Permanent feedback button (idle only) */}
         {canStart && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
         {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
+        </div>{/* /home-grid */}
 
         {/* Boss speaking indicator */}
         {bossSpeak && (
