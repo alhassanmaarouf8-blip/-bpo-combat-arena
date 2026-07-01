@@ -375,6 +375,7 @@ export function buildSessionScript({ persona, displayName, greeting, levelId, do
       `- Echten Fortschritt würdigst du kurz und glaubwürdig (z.B. "Ihre Akte zeigt: flüssiger als beim letzten Mal. Gut — heute hebe ich die Latte.").\n` +
       `- Auf einen Fehler, der sich durch mehrere Gespräche zieht, gehst du gezielt und härter ein (z.B. "Schon wieder dasselbe Muster — heute keine Nachsicht.").\n` +
       `- Eine längere Abwesenheit erwähnst du knapp (z.B. "Lange nicht gesehen — mal sehen, was geblieben ist.").\n` +
+      `- Steht in der Akte, WORÜBER er beim letzten Mal sprach, darfst du GENAU EINEN dieser Begriffe einmal natürlich aufgreifen — wie ein Interviewer, der sich wirklich erinnert (z.B. "Beim letzten Mal erzählten Sie von Ihrer Zeit als Reiseleiterin — wie ging es damit weiter?"). NUR wenn der Begriff ein echtes, sinnvolles Wort ist; wirkt er wie ein Hörfehler, lass ihn komplett weg.\n` +
       `Erfinde dabei NICHTS, was nicht in der Akte steht. Übertreibe es nicht.\n`
     : '';
 

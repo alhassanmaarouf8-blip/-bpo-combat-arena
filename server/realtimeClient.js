@@ -385,6 +385,11 @@ export class RealtimeClient {
   // True while a boss turn is being generated (gateway waits for completed turns).
   get isResponding() { return this._responding; }
 
+  // Snapshot of the claim-ledger for cross-session CONTENT memory: what the candidate talked about.
+  // `spent` terms were reused by the boss itself in conversation — the strongest signal the word is a
+  // real, correctly-heard term (not an STT artifact), so the gateway prefers them when persisting.
+  get ledgerTerms() { return this._ledger.map((e) => ({ term: e.term, spent: e.spent })); }
+
   // ── Connect: set up Groq + emit the deterministic opening line ─────────────────
   async connect() {
     // Boss runs on the configured provider chain (Groq → Cerebras failover, see PROVIDERS).

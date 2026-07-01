@@ -57,6 +57,15 @@ export function buildBossMemory(prof, weakRule = null, nowMs = Date.now()) {
   const recentErrs = (prof?.recentErrors || []).slice(0, 2).filter(Boolean);
   if (recentErrs.length) clauses.push(`zuletzt auffällig: ${recentErrs.join(', ')}`);
 
+  // ── CONTENT memory: what the candidate actually TALKED ABOUT last time (claim-ledger words he
+  // really said, boss-validated first). A returning human remembers the person's STORY, not just
+  // their metrics — this is the clause that lets the boss say "Sie erwähnten letztes Mal Ihre
+  // Zeit als Reiseleiterin". Needs ≥1 past session so a first-timer never gets a fake callback. ──
+  if (n >= 1) {
+    const topics = (prof?.lastTopics || []).slice(0, 2).filter((t) => typeof t === 'string' && t.length >= 4);
+    if (topics.length) clauses.push(`sprach beim letzten Mal über: ${topics.map((t) => `„${t}“`).join(', ')}`);
+  }
+
   // ── Trajectory: real, earned progress or a real dip (only when the delta is beyond noise) ──
   if (n >= 2) {
     const last = sessions[n - 1], prev = sessions[n - 2];

@@ -1036,6 +1036,15 @@ export class WebSocketManager {
         p.recentErrors = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([lbl]) => lbl);
       }
 
+      // Cross-session CONTENT memory: the salient words the candidate actually said (claim-ledger).
+      // Prefer `spent` terms — the boss reused those in conversation, which validates them as real,
+      // correctly-heard words (an STT artifact like "Pariethon" would never be quoted back by the
+      // boss thanks to the ledger's misheard-word guard). Top 3, spent first.
+      if ((ctx.lastLedger || []).length) {
+        const ranked = [...ctx.lastLedger].sort((a, b) => (b.spent === true) - (a.spent === true));
+        p.lastTopics = ranked.slice(0, 3).map((e) => e.term);
+      }
+
       // ── BRAIN SPINE: a per-weakness event log keyed by the canonical ruleId. Every surface appends
       // here (this interview, and the drills via POST /api/drill-event) so the brain can tell ONE
       // student's cause→effect story over time. Additive + deterministic; no AI, no cost. ──
@@ -1447,6 +1456,9 @@ export class WebSocketManager {
     // each with its own label (see _scoreFactors). Nothing here is random.
     const { score, factors } = this._scoreFactors(transcript, durationMs, wordCount, { levelId: ctx.level, stage: ctx.stageIdx });
     ctx.scoreSum += score; ctx.scoreCount += 1;
+    // Snapshot the claim-ledger every scored turn (not at teardown, where realtimeClient may be
+    // gone) → persisted as `lastTopics` so the NEXT session's boss can reference what he SAID.
+    try { ctx.lastLedger = ctx.realtimeClient?.ledgerTerms || ctx.lastLedger; } catch {}
     if (ctx.stageIdx === 2) { ctx.csScoreSum += score; ctx.csScoreCount += 1; }   // CS roleplay → de-escalation proxy
 
     // Combo: consecutive STRONG answers build a multiplier; a clear MISS breaks it.

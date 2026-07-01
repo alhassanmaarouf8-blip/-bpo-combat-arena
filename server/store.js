@@ -42,6 +42,7 @@ export function defaultProfile(userId) {
     liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
     drillsSeen:       {},  // per-drill seen-id sets → never-repeat for every standalone drill
     recentErrors:     [],  // top error labels from the last session (cross-session boss memory)
+    lastTopics:       [],  // salient words the candidate SAID last session (claim-ledger) → content memory ("Sie erwähnten letztes Mal …")
     // PLACEMENT — the ONE outcome that defines the mission: did this student get hired into a
     // German-speaking BPO role? status: none|applying|interviewing|offer|hired|not_hired.
     // history is the audit trail; lastPromptedAt throttles the "any job news?" nudge to weekly.
