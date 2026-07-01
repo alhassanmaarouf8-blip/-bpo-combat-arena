@@ -190,13 +190,18 @@ const _SHORT_VALID = new Set([
 function classifyTurnDE(partial) {
   const raw = String(partial || '').trim();
   if (!raw) return 'ambiguous';
+  // CONSERVATIVE doctrine (owner 07-02, "smooth > fast"): only a POSITIVE completion signal may
+  // classify a turn as done. Anything uncertain is treated as MID-THOUGHT and we wait — a wrongly
+  // early boss reply (talking over him) is far worse than an extra second of natural silence,
+  // and the instant thinking-filler masks the added latency anyway.
+  if (/[,;:\-–—]\s*$/.test(raw)) return 'incomplete';          // mid-clause punctuation → clearly not done
   const noPunct = raw.toLowerCase().replace(/[.,!?;:"'»«…\-]+$/u, '').trim();
   if (_SHORT_VALID.has(noPunct)) return 'complete';            // a short, valid one-word answer
-  if (/[.!?]["'»«]?\s*$/.test(raw)) return 'complete';         // finished sentence (Deepgram punctuate)
   const toks = noPunct.split(/\s+/);
   const last = toks[toks.length - 1] || '';
-  if (_CONT_CUES.has(last)) return 'incomplete';               // trailing cue → still mid-thought
-  return 'ambiguous';
+  if (_CONT_CUES.has(last)) return 'incomplete';               // trailing cue → still mid-thought (even if Deepgram added a period)
+  if (/[.!?]["'»«]?\s*$/.test(raw)) return 'complete';         // finished sentence (Deepgram punctuate)
+  return 'incomplete';                                         // no completion signal → assume mid-thought, wait
 }
 
 // ── Boss voice: ElevenLabs Flash v2.5 (neural, streamed) → Deepgram neural fallback ──
@@ -2708,11 +2713,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
           bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
           const f = typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4;
-          // Turn-taking patience scales with persona (easier interviewer → a bit more grace). RE-BALANCED
-          // 07-01: the multiplier was HALVED (1100→450) because the response wait was the owner's #1
-          // complaint — a gentle interviewer now adds ~0.4s (was ~0.9s), a forceful one ~0.02s. Combined
-          // with the lower SIL windows this ~halves the "seconds until the HR replies" across all personas.
-          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 450);
+          // Turn-taking patience scales with persona (easier interviewer → a bit more grace). RAISED
+          // 07-02 (450→700, owner: SMOOTH > fast — he was still being talked over mid-sentence): a
+          // gentle interviewer now adds ~0.6s, a forceful one ~0.04s. Even the most forceful persona
+          // must never grab the floor inside a thinking pause — forcefulness shows in WORDS, not in
+          // stealing the turn.
+          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 700);
           // Pre-generate short thinking sounds in THIS interviewer's own voice so the dead-air gap can be
           // filled instantly (mic off → echo-safe). Fire-and-forget; stays silent until ready. Revokes the
           // previous session's blobs first so they don't leak.
@@ -3087,14 +3093,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // load-bearing mechanic: the moment the user speaks again, silenceMs resets to 0, so a
     // pause between sentences can NEVER end the turn. These windows already include the
     // non-native (L2) speaker grace from the turn-taking research.
-    // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
-    // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
-    // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    // Owner (07-01, RE-BALANCED): the dead wait before the HR replies is the #1 complaint — speed now
-    // beats the rare cut-off. So a CLEARLY-finished sentence yields FAST (~0.35s). We still stay patient
-    // when the sentence looks mid-clause (SIL_INCOMPLETE) and cancel-on-resume still resets on any speech,
-    // so a real thinking pause mid-thought is protected — we only sped up the "you're clearly done" case.
-    const SIL_COMPLETE = 350, SIL_AMBIGUOUS = 650, SIL_INCOMPLETE = 1200;
+    // Owner (07-02, PRIORITY FLIPPED BACK): after a live run he was still being TALKED OVER mid-sentence —
+    // SMOOTH now beats fast. The windows are raised so a thinking pause can never read as "done":
+    // an L2 speaker pauses 0.7–1.5s BETWEEN sentences of one answer, so even a punctuated "complete"
+    // sentence waits ~0.9s (a real interviewer's natural gap) before the boss may take the floor.
+    // The dead air AFTER the turn commits is masked by the instant thinking-filler, so the felt
+    // latency cost of these raises is small; the felt cost of a wrong cut-off was the #1 crisis.
+    const SIL_COMPLETE = 900, SIL_AMBIGUOUS = 1400, SIL_INCOMPLETE = 2500;
     const STEP = 50, K = 2.6, MIN_SPEAK_MS = 180, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -3118,7 +3123,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 150;   // open-question grace (trimmed for latency — was 250/600)
+      if (stageIdxRef.current <= 1) needSilence += 350;   // open-question grace (restored 07-02 — multi-sentence answers live here)
       needSilence += bossPatienceRef.current;             // per-persona patience: gentle interviewers wait longer before taking the floor, forceful ones stay snappy
       // TURN-TAKING (owner directive 07-01): a real interviewer LETS you talk and only cuts in when you go
       // OFF-TOPIC for a LONG stretch — NEVER on mere length, a list, or a thinking pause. Off-topic is not
@@ -3130,9 +3135,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       //  Opening grace: extra patience on the first few words so an early thinking pause right after the
       //  boss's question is never mistaken for "finished" (kills the reasonless early cut-off).
       if (turnWords > 0 && turnWords < 12) needSilence += 500;
-      // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
-      // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
-      const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
+      // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze
+      // (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
+      // The frozen-transcript net must be CLASSIFICATION-AWARE: a flat 1800ms silently capped every
+      // wait (silence ⇒ frozen transcript), so a mid-clause thinking pause >1.8s was STILL cut no
+      // matter how patient the SIL windows were — the exact "talks over me aggressively" bug. It now
+      // never fires earlier than the adaptive window it exists to backstop.
+      const needStable = Math.max(1800, needSilence + 800);
+      const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= needStable;
       if (!((spoke && silenceMs >= needSilence) || transcriptDone || elapsed >= MAX_MS)) return;
       try { console.log(`[DIAG] turn-END reason=${elapsed >= MAX_MS ? 'MAXCAP' : transcriptDone ? 'transcript-frozen' : 'silence'} vadClass=${cls} needSilence=${needSilence}ms silence=${Math.round(silenceMs)}ms stage=${stageIdxRef.current} heardSoFar=${JSON.stringify((livePartialRef.current || '').slice(0, 160))}`); } catch {}
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
