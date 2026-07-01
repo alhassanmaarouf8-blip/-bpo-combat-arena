@@ -2653,11 +2653,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
           bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
           const f = typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4;
-          // Turn-taking patience scales HARD with persona (owner's rule: easier interviewer → fewer
-          // interruptions). A gentle interviewer (Yasmin, low forcefulness) waits ~0.9s LONGER before
-          // taking the floor, so it never cuts a learner off who paused to think; a forceful one (Tarek)
-          // stays snappy (~50ms). Non-linear so the gentle end gets most of the grace.
-          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 1100);
+          // Turn-taking patience scales with persona (easier interviewer → a bit more grace). RE-BALANCED
+          // 07-01: the multiplier was HALVED (1100→450) because the response wait was the owner's #1
+          // complaint — a gentle interviewer now adds ~0.4s (was ~0.9s), a forceful one ~0.02s. Combined
+          // with the lower SIL windows this ~halves the "seconds until the HR replies" across all personas.
+          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 450);
           // Pre-generate short thinking sounds in THIS interviewer's own voice so the dead-air gap can be
           // filled instantly (mic off → echo-safe). Fire-and-forget; stays silent until ready. Revokes the
           // previous session's blobs first so they don't leak.
@@ -2741,8 +2741,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // Boss is now generating its reply — block hands-free from re-triggering the mic
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
           // Without this, the mic restarts immediately and can get stuck in transcribing=true.
-          setBossThinking(true);
-          playFiller(fillerUrlsRef.current);   // bridge the silent gap with a thinking-sound in the boss's voice (mic off → echo-safe)
+          setBossThinking(true);   // (filler already started at turn-end for zero perceived gap; no replay here)
           const id = ++_lineId;
           setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] }]);
         }
@@ -3035,10 +3034,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
     // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
     // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    // Owner (07-01): stop cutting me off — err toward PATIENCE, respond fast only when I'm truly done.
-    // A clearly-finished sentence still yields promptly (~0.5s, feels natural), but an ambiguous or
-    // mid-clause utterance gets real thinking room so a breath/pause never ends the turn mid-thought.
-    const SIL_COMPLETE = 500, SIL_AMBIGUOUS = 950, SIL_INCOMPLETE = 1500;
+    // Owner (07-01, RE-BALANCED): the dead wait before the HR replies is the #1 complaint — speed now
+    // beats the rare cut-off. So a CLEARLY-finished sentence yields FAST (~0.35s). We still stay patient
+    // when the sentence looks mid-clause (SIL_INCOMPLETE) and cancel-on-resume still resets on any speech,
+    // so a real thinking pause mid-thought is protected — we only sped up the "you're clearly done" case.
+    const SIL_COMPLETE = 350, SIL_AMBIGUOUS = 650, SIL_INCOMPLETE = 1200;
     const STEP = 50, K = 2.6, MIN_SPEAK_MS = 180, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -3062,7 +3062,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 250;   // open-question grace (cut for latency — was 600)
+      if (stageIdxRef.current <= 1) needSilence += 150;   // open-question grace (trimmed for latency — was 250/600)
       needSilence += bossPatienceRef.current;             // per-persona patience: gentle interviewers wait longer before taking the floor, forceful ones stay snappy
       // TURN-TAKING (owner directive 07-01): a real interviewer LETS you talk and only cuts in when you go
       // OFF-TOPIC for a LONG stretch — NEVER on mere length, a list, or a thinking pause. Off-topic is not
@@ -3091,6 +3091,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // Signal end-of-speech: server's Deepgram streamer flushes remaining audio → speech_final
       // fires → server calls _handleAnswer internally. No REST upload needed.
       setTranscribing(true);   // clears in TRANSCRIPT_DONE handler
+      // PERCEIVED-LATENCY (owner's #1 complaint = the dead wait): start the HR "thinking out loud" the
+      // INSTANT you stop — not ~0.5s later when the server finishes transcribing. This masks the whole
+      // server gap (STT flush + LLM + TTS), so the dead air before the reply is gone. Echo-safe: this
+      // turn's mic is already stopped. bossThinking also blocks the mic from re-triggering early.
+      setBossThinking(true);
+      try { playFiller(fillerUrlsRef.current); } catch {}
     }, STEP);
   }, [recording, transcribing]);
 
