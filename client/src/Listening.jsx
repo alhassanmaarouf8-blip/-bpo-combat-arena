@@ -7,23 +7,9 @@
  * rejected: understanding a fast native speaker and capturing data correctly. Zero added cost.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { playNative } from './nativeVoice.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
-
-// Speak German at full, native speed. rate 1.05 ≈ real call pace (deliberately NOT slowed down).
-function speakDe(text, rate = 1.05) {
-  try {
-    const synth = typeof window !== 'undefined' && window.speechSynthesis;
-    if (!synth) return false;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'de-DE'; u.rate = rate;
-    const de = (synth.getVoices() || []).find((v) => /^de(-|_|$)/i.test(v.lang));
-    if (de) u.voice = de;
-    synth.speak(u);
-    return true;
-  } catch { return false; }
-}
 
 export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
   const [phase, setPhase] = useState('loading'); // loading | practice | done | error
@@ -68,9 +54,11 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     if (!item || !canPlay) return;
     // Level-scaled base speed (beginner slower, advanced faster) + progressive overload within the
     // session (each item faster than the last), so you train catching a native at YOUR edge.
-    const ok = speakDe(item.audioText, Math.min(1.7, baseRate + idx * 0.12));
-    setTtsOk(ok);
-    if (ok) setPlayed((p) => p + 1);
+    // Native Aura-2 caller voice (consistent native German, not the device-lottery browser voice); the
+    // level+overload speed ramp still applies via audio playbackRate. Auto-falls back to the browser voice.
+    playNative({ apiUrl, token, text: item.audioText, rate: Math.min(1.7, baseRate + idx * 0.12) });
+    setTtsOk(true);
+    setPlayed((p) => p + 1);
   };
 
   const submit = async () => {

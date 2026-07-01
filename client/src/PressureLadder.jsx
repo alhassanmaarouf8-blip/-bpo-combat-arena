@@ -10,6 +10,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
+import { playNative } from './nativeVoice.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -166,6 +167,26 @@ const ENDLESS = { rate: 1.6, baseSec: 16, interrupts: 4,
     'Letzte Sekunde vor dem Auflegen: halten Sie ihn mit einem Satz.',
   ], barbs: ['Weiter!', 'Schneller!', 'Schwach.', 'Nein, nochmal.', 'Das reicht nicht.', 'Zu langsam.', 'Konkreter!', 'Und?', 'Zur Sache!', 'Kein Gerede!'] };
 
+// KNOWLEDGE SHARED (owner): every rung TEACHES the pro move + hands the learner the exact model phrase.
+// You can't fairly judge de-escalation you never taught — so we teach the move (goal) before the attempt
+// and share the full "so kontert ein Profi" line after EVERY round, survived or frozen. `deesc` rungs are
+// customer-anger scenarios where the server also checks whether the learner actually used the move.
+const KONTER = {
+  1: { goal_de: 'Struktur: 1 Satz Erfahrung + 1 Satz, warum Kundenservice.', goal_ar: 'ركّز: جملة خبرة + جملة ليه خدمة العملاء.',
+       phrase: 'Ich habe Erfahrung im Umgang mit Menschen, und ich bleibe auch dann ruhig, wenn es stressig wird — genau deshalb passt Kundenservice zu mir.', deesc: false },
+  2: { goal_de: 'Nenne eine echte Schwäche — und was du konkret dagegen tust.', goal_ar: 'قول عيب حقيقي — وإيه اللي بتعمله عشانه.',
+       phrase: 'Früher war ich zu ungeduldig bei langen Erklärungen. Heute atme ich kurz durch und höre erst zu Ende zu, bevor ich antworte.', deesc: false },
+  3: { goal_de: 'De-Eskalation: ANERKENNEN → konkrete LÖSUNG → ZUSAGE.', goal_ar: 'تهدئة: اعترف بالمشكلة → حلّ واضح → وعد.',
+       phrase: 'Ich verstehe Ihren Ärger, das darf nicht passieren. Ich kümmere mich sofort darum und melde mich in zehn Minuten mit einer Lösung.', deesc: true },
+  4: { goal_de: 'Provokation IGNORIEREN, ruhig bei der Sache bleiben, ein konkreter Beleg.', goal_ar: 'تجاهل الاستفزاز، اهدأ، وهات دليل ملموس.',
+       phrase: 'Das kann ich nachvollziehen. Lassen Sie mich kurz zeigen, was ich konkret kann — dann urteilen Sie.', deesc: false },
+  5: { goal_de: 'Ruhig die Linie halten + EIN konkreter nächster Schritt.', goal_ar: 'اثبت بهدوء + خطوة واحدة واضحة جاية.',
+       phrase: 'Geben Sie mir dreißig Sekunden: Ich löse das jetzt Schritt für Schritt und sage Ihnen genau, was als Nächstes passiert.', deesc: false },
+  endless: { goal_de: 'Kunde wütend: anerkennen, EINE Lösung, ruhig bleiben — kein „nein".', goal_ar: 'العميل غاضب: اعترف، حلّ واحد، اهدأ — من غير «لأ».',
+       phrase: 'Ich verstehe, dass Sie enttäuscht sind. Was ich jetzt konkret für Sie tun kann, ist Folgendes — und ich bleibe dran, bis es gelöst ist.', deesc: true },
+};
+const konterFor = (L) => KONTER[L.n] || KONTER.endless;
+
 function speak(text, rate) {
   try {
     const s = window.speechSynthesis; if (!s) return false;
@@ -213,6 +234,10 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   const L = endless
     ? { n: '∞', de: 'Überleben', ar: 'بقاء', rate: ENDLESS.rate, sec: Math.max(10, ENDLESS.baseSec - endlessStreak), interrupts: ENDLESS.interrupts, lines: ENDLESS.lines, barbs: ENDLESS.barbs }
     : LEVELS[idx];
+
+  // The MODEL de-escalation phrase is played in the NATIVE Aura-2 voice (a line to LEARN from must sound
+  // native, not device-lottery browser German). The pressure barbs/questions stay on instant browser TTS.
+  const playModel = (text) => playNative({ apiUrl, token, text, rate: 1 });
 
   const cleanup = useCallback(() => {
     clearInterval(tickRef.current); tickRef.current = null;
@@ -317,6 +342,9 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
         {T(lang, 'Sobald du startest, fragt der Boss SOFORT. Rede los und HÖR NICHT AUF.', 'أول ما تبدأ، الـ boss هيسأل على طول. اتكلم وماتسكتش.')}
       </div>
     </div>
+    <div style={{ fontSize: 12, color: 'var(--action)', margin: '4px 0 12px', lineHeight: 1.55, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)' }}>
+      🎯 <b>{T(lang, 'Dein Ziel: ', 'هدفك: ')}</b>{T(lang, konterFor(L).goal_de, konterFor(L).goal_ar)}
+    </div>
     <button onClick={beginRound} style={{ ...primaryBtn }}>● {T(lang, 'START — Boss kommt', 'ابدأ — الـ boss جاي')}</button>
   </>);
 
@@ -347,6 +375,11 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
             ? T(lang, 'Schneller und härter als jedes echte Gespräch — und du redest weiter. Noch eine?', 'أسرع وأقسى من أي مقابلة — وانت لسه بتتكلم. كمان وحدة؟')
             : T(lang, `Stufe ${L.n} überstanden — schneller und unhöflicher als ein echtes Interview. Weiter nach oben.`, `عديت مستوى ${L.n} — أسرع وأقسى من مقابلة حقيقية. كمّل لفوق.`)}
       </div>
+    </div>
+    <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(34,197,94,0.07)', borderRadius: 10, border: '1px solid rgba(34,197,94,0.25)' }}>
+      <div style={{ fontSize: 10, color: '#4ade80', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>💬 {T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
+      <div style={{ color: '#f1f5f9', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
+      <button onClick={() => { cancelSpeech(); playModel(konterFor(L).phrase); }} style={{ ...ghostBtn, marginTop: 8 }}>🔊 {T(lang, 'Anhören', 'اسمع')}</button>
     </div>
     <div style={{ display: 'flex', gap: 8 }}>
       {froze && <button onClick={() => setPhase('ready')} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>}

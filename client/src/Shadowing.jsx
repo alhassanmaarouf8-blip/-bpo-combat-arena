@@ -9,25 +9,10 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
+import { playNative } from './nativeVoice.js';
 
 const MAX_SEC = 20;   // a single sentence repeat is short
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
-
-// Speak a German sentence via the browser's built-in TTS. Returns false if unavailable.
-function speakDe(text) {
-  try {
-    const synth = typeof window !== 'undefined' && window.speechSynthesis;
-    if (!synth) return false;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'de-DE';
-    u.rate = 0.95;
-    const de = (synth.getVoices() || []).find((v) => /^de(-|_|$)/i.test(v.lang));
-    if (de) u.voice = de;
-    synth.speak(u);
-    return true;
-  } catch { return false; }
-}
 
 export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
@@ -71,7 +56,9 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 
   const s = sentences[idx];
 
-  const play = () => { if (s) setTtsOk(speakDe(s.de)); };
+  // Native Aura-2 model voice (server-cached → $0), auto-falling back to the browser voice. Shadowing a
+  // consistent NATIVE benchmark — not a device-lottery voice — is the whole point of the drill.
+  const play = () => { if (s) { playNative({ apiUrl, token, text: s.de, rate: 0.95 }); setTtsOk(true); } };
 
   const startRec = async () => {
     setErr(null); setResult(null);
