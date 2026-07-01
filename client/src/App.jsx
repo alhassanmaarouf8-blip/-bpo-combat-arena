@@ -3170,6 +3170,24 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const canStart     = phase === 'idle' || phase === 'error';
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
 
+  // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
+  // overlay/drill; inside a live interview it offers a clean exit to the home screen. ──
+  const _overlays = [
+    [guideOpen, setGuideOpen], [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
+    [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
+    [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen], [nachweisOpen, setNachweisOpen],
+    [leaderboardOpen, setLeaderboardOpen], [zielplanOpen, setZielplanOpen], [dailyOpen, setDailyOpen],
+    [showBriefing, setShowBriefing],
+  ];
+  const canGoBack = _overlays.some(([o]) => o) || !!funnel || isActive || isConnecting;
+  const goBack = () => {
+    for (const [o, close] of _overlays) { if (o) { close(false); return; } }   // close the top-most overlay
+    if (funnel || isActive || isConnecting) {                                    // in a live interview → clean exit
+      const msg = feedbackLang === 'ar' ? 'تسيب المقابلة وترجع للصفحة الرئيسية؟' : 'Interview verlassen und zurück zur Startseite?';
+      if (window.confirm(msg)) window.location.reload();
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={shakeScreen ? 'shake' : ''} style={{
@@ -3178,6 +3196,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
       <div className="scanline" />
+
+      {/* Global BACK button — persistent on every screen (closes the top overlay, or exits the interview) */}
+      {canGoBack && (
+        <button onClick={goBack} aria-label="Zurück" title="Zurück" style={{
+          position:'fixed', top:10, left:10, zIndex:400, width:38, height:38, borderRadius:'50%', cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, lineHeight:1, paddingBottom:3,
+          color:'#e2e8f0', background:'rgba(2,6,16,0.82)', border:'1px solid var(--line)', backdropFilter:'blur(4px)' }}>
+          ‹
+        </button>
+      )}
 
       {/* Screen flash */}
       {screenFlash && (
