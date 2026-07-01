@@ -209,6 +209,54 @@ function stopBossVoice() {
       a.pause(); a.src = '';
     }
   } catch {}
+  stopFiller();   // a real boss line is starting (or we're tearing down) → kill any thinking-sound bridge
+}
+
+// ── Dead-air "thinking" filler ──────────────────────────────────────────────────
+// Real interviewers don't sit in dead silence for 1-2s while they think — they go "Mhm…", "Also…".
+// Ours used to: the gap between the candidate finishing and the boss's reply arriving was pure silence,
+// which reads as robotic. We fill it with a SHORT sound in the interviewer's OWN voice, pre-generated at
+// session start and played the instant the boss starts "thinking". The mic is OFF during that window
+// (half-duplex), so this is echo-safe. Separate audio channel from the boss line so the two never fight.
+let _fillerAudio = null;
+function stopFiller() {
+  try {
+    if (_fillerAudio) {
+      const a = _fillerAudio; _fillerAudio = null;
+      a.onended = null; a.onerror = null;
+      a.pause(); a.src = '';
+    }
+  } catch {}
+}
+function playFiller(urls) {
+  if (!urls || !urls.length || _fillerAudio) return;   // nothing cached, or one already bridging
+  try {
+    const url = urls[Math.floor(Math.random() * urls.length)];   // vary it so it's not the same word every turn
+    const a = new Audio(url); a.volume = 0.72;
+    _fillerAudio = a;
+    a.onended = () => { if (_fillerAudio === a) _fillerAudio = null; };
+    a.onerror = () => { if (_fillerAudio === a) _fillerAudio = null; };
+    a.play().catch(() => { if (_fillerAudio === a) _fillerAudio = null; });
+  } catch {}
+}
+// Generate a few one-word thinking sounds in the active interviewer's voice, ONCE per session. Forceful
+// personas get clipped/assertive fillers; gentle ones get soft acknowledgements. Returns blob URLs.
+async function precacheFillers({ apiUrl, token, voice, elevenVoice, forceful }) {
+  const phrases = forceful ? ['Also.', 'Gut.', 'So.', 'Hm, gut.'] : ['Mhm.', 'Verstehe.', 'Okay.', 'Ah ja.'];
+  const enc = encodeURIComponent;
+  const urls = [];
+  for (const ph of phrases) {
+    try {
+      const u = elevenVoice
+        ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(ph)}`
+        : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(ph)}`;
+      const r = await fetch(u);
+      if (!r.ok) continue;
+      const blob = await r.blob();
+      if (blob.size > 0) urls.push(URL.createObjectURL(blob));
+    } catch {}
+  }
+  return urls;
 }
 
 // Fetch ONE clip's audio (POST → normalized WAV blob) and return an object URL. Throws on failure.
@@ -2426,6 +2474,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const bossVoiceRef = useRef('aura-2-julius-de');   // Deepgram fallback voice; set per boss on scenario_info
   const bossElevenVoiceRef = useRef('');             // ElevenLabs primary voice id (per character)
   const bossPatienceRef = useRef(0);                 // per-persona turn-taking patience (ms): gentle interviewers wait longer before responding
+  const fillerUrlsRef = useRef([]);                  // pre-cached "thinking" sounds (this persona's voice) for the dead-air gap
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
@@ -2593,6 +2642,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
           bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
           bossPatienceRef.current = Math.round((1 - (typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4)) * 400);   // gentle persona → longer patience, won't cut the candidate off
+          // Pre-generate short thinking sounds in THIS interviewer's own voice so the dead-air gap can be
+          // filled instantly (mic off → echo-safe). Fire-and-forget; stays silent until ready. Revokes the
+          // previous session's blobs first so they don't leak.
+          if (!ttsMutedRef.current) {
+            precacheFillers({
+              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current,
+              forceful: (typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4) >= 0.6,
+            }).then((urls) => {
+              try { fillerUrlsRef.current.forEach((u) => URL.revokeObjectURL(u)); } catch {}
+              fillerUrlsRef.current = urls;
+            }).catch(() => {});
+          }
         }
         break;
 
@@ -2665,6 +2726,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
           // Without this, the mic restarts immediately and can get stuck in transcribing=true.
           setBossThinking(true);
+          playFiller(fillerUrlsRef.current);   // bridge the silent gap with a thinking-sound in the boss's voice (mic off → echo-safe)
           const id = ++_lineId;
           setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] }]);
         }
@@ -2702,6 +2764,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // stays true while speaking, then clears on end, so the avatar animates and
         // the debrief waits until the final line has finished being read out.
         {
+          stopFiller();   // the real reply is ready → end the thinking-sound bridge (also handled by stopBossVoice below)
           const spokenLine = bossLineRef.current || '';
           try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
           _latTtsStart = Date.now();   // [LAT] TTS clock: boss text ready, about to synth+play
