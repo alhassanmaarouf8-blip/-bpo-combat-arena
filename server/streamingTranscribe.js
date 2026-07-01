@@ -36,7 +36,7 @@ export class DeepgramStreamer {
       smart_format:    'true',
       punctuate:       'true',
       interim_results: 'true',
-      endpointing:     '700',   // server-side end-of-speech at 700ms — matches our VAD target
+      endpointing:     '400',   // was 700 — trailing final arrives ~300ms sooner → shorter post-answer flush → less dead-air before the boss replies (turn-commit is still the client VAD, so this can't cut the user off)
       encoding:        'linear16',
       sample_rate:     '24000',
       channels:        '1',

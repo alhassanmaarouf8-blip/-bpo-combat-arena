@@ -28,7 +28,7 @@ import { buildSessionScript } from './scenarios.js';
 // line while making it structurally impossible to run on and answer for the candidate —
 // and since TTS bills per character (the #1 cost), a tighter boss is cheaper AND more
 // disciplined ("say one thing, then stop"). Tunable; raise toward 280 if lines feel clipped.
-const MAX_TURN_TOKENS = 200;
+const MAX_TURN_TOKENS = 110;   // was 200 — measured boss turns averaged 58 words (4-8× a real interviewer's ~7-15); shorter cap + the prompt + the one-question clamp pull it toward human length
 
 // ── Boss LLM providers (OpenAI-compatible) with automatic cap-failover ──────────
 // The boss tries providers in order. When one returns 429 (its daily/rate cap is hit)
@@ -224,7 +224,7 @@ function _seededPick(arr, seed) { const x = Math.imul(seed ^ 0x9e3779b9, 2654435
 // fixes the boss answering its own question.
 const TURN_RULE =
   `WICHTIG: Antworte als Interviewer mit GENAU EINER Sache (eine Frage ODER eine ` +
-  `Kundenäußerung im Rollenspiel). Höre danach SOFORT auf. Beantworte deine eigene Frage NICHT, ` +
+  `Kundenäußerung im Rollenspiel). Höre danach SOFORT auf. HALTE JEDEN REDEBEITRAG SEHR KURZ — wie ein echter Interviewer: meist nur eine knappe Reaktion und EINE kurze Frage (etwa 7–15 Wörter), oft sogar nur eine Ein-Wort-Nachfrage („Inwiefern?", „Und dann?", „Konkret?"). NIEMALS mehrere Fragen in einem Zug. Erzähle die Antwort des Kandidaten NICHT nach („Sie haben also…", „Sie sagten…") — reagiere knapp oder hak nach. Sprich den Vornamen des Kandidaten NICHT in jedem Zug, nur selten. Beantworte deine eigene Frage NICHT, ` +
   `sprich NICHT für den Kandidaten, erfinde KEINE Kandidatenantwort und führe das Gespräch NICHT ` +
   `allein weiter. Schreibe NUR deinen eigenen Redebeitrag — KEINE Sprecher-Labels wie "Kandidat:" ` +
   `oder "Bewerber:". Bleibe auf Deutsch. ` +
@@ -293,6 +293,10 @@ function sanitizeOneTurn(text) {
   if (m && m.index > 0) t = t.slice(0, m.index).trim();
   // Drop a leading boss self-label if present ("Herr Tariq:", "Interviewer:").
   t = t.replace(/^\s*(Yasmin|Karim|Hana|Tarek|Frau\s+Mona\s+Adel|Frau\s+Adel|Herr\s+Tariq|Frau\s+Müller|Direktor\s+Vogel|Interviewer|HR)\s*[:：]\s*/i, '').trim();
+  // ONE question per turn: real interviewers ask one thing, not a stack (measured 1.6 Q/turn, up to 3).
+  // If the line has ≥2 question marks, keep everything up to and including the FIRST '?' and drop the rest.
+  const q1 = t.indexOf('?');
+  if (q1 !== -1 && t.indexOf('?', q1 + 1) !== -1) t = t.slice(0, q1 + 1).trim();
   return t;
 }
 
