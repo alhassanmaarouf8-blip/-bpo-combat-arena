@@ -3035,7 +3035,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // SMART immediacy: jump in FAST when the sentence is clearly COMPLETE (the boss responds the
     // instant the candidate finishes a thought), but stay PATIENT when ambiguous or mid-clause so it
     // NEVER cuts them off. cancel-on-resume resets silence the instant they speak again.
-    const SIL_COMPLETE = 350, SIL_AMBIGUOUS = 800, SIL_INCOMPLETE = 1400;
+    // Owner (07-01): stop cutting me off — err toward PATIENCE, respond fast only when I'm truly done.
+    // A clearly-finished sentence still yields promptly (~0.5s, feels natural), but an ambiguous or
+    // mid-clause utterance gets real thinking room so a breath/pause never ends the turn mid-thought.
+    const SIL_COMPLETE = 500, SIL_AMBIGUOUS = 950, SIL_INCOMPLETE = 1500;
     const STEP = 50, K = 2.6, MIN_SPEAK_MS = 180, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
@@ -3061,22 +3064,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
       if (stageIdxRef.current <= 1) needSilence += 250;   // open-question grace (cut for latency — was 600)
       needSilence += bossPatienceRef.current;             // per-persona patience: gentle interviewers wait longer before taking the floor, forceful ones stay snappy
-      // CONTENT-AWARE turn-taking (owner: a real interviewer LETS you talk, then cuts in only when you
-      // RAMBLE or start LISTING — it must not grab the floor on a thinking pause "for no reason"). We shape
-      // the wait by HOW the turn is going, not by silence alone:
+      // TURN-TAKING (owner directive 07-01): a real interviewer LETS you talk and only cuts in when you go
+      // OFF-TOPIC for a LONG stretch — NEVER on mere length, a list, or a thinking pause. Off-topic is not
+      // detectable client-side and length ≠ rambling, so we NO LONGER shorten the wait for long/enumerated
+      // turns (that reduction was grabbing the floor at ~300ms and cutting people off mid-sentence "for no
+      // reason"). The turn now ends ONLY on a genuine sustained silence; cancel-on-resume resets the timer
+      // the instant you speak again, so as long as you're talking you always keep the floor.
       const turnWords = (livePartialRef.current.trim().match(/\S+/g) || []).length;
-      //  (1) "Let me talk a bit first": extra grace on the opening words so an early thinking pause is
-      //      never mistaken for being finished (kills the reasonless early cut-off).
+      //  Opening grace: extra patience on the first few words so an early thinking pause right after the
+      //  boss's question is never mistaken for "finished" (kills the reasonless early cut-off).
       if (turnWords > 0 && turnWords < 12) needSilence += 500;
-      //  (2) Ramble / list pressure: the longer you go OR the more you enumerate, the readier a FORCEFUL
-      //      interviewer is to take the floor at the next natural pause. A gentle one (high patience,
-      //      e.g. Yasmin) still waits — this is the "not in Yasmin, yes in the tough ones" rule. Off-topic
-      //      isn't detectable client-side; length + explicit listing are the honest signals we have.
-      const listy    = /\b(erstens|zweitens|drittens|viertens|zum einen|zum anderen)\b/i.test(livePartialRef.current);
-      const longTurn = turnWords >= 50;
-      if ((longTurn || listy) && bossPatienceRef.current < 300) {   // forceful personas only
-        needSilence = Math.max(300, needSilence - 500);
-      }
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;

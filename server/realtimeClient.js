@@ -176,7 +176,7 @@ const GREETINGS = {
 const VOICES = {
   // Aura-2 is the FALLBACK voice now (ElevenLabs per-persona human voices are primary when the key is set).
   // Kept DISTINCT per persona so each interviewer still sounds like a different person even on fallback.
-  'yasmin':         'aura-2-lara-de',     // female, warm
+  'yasmin':         'aura-2-elara-de',    // female, warm (owner disliked lara 07-01 → elara; alt: aura-2-kara-de)
   'karim':          'aura-2-fabian-de',   // male
   'hana':           'aura-2-viktoria-de', // female, mature
   'tarek':          'aura-2-julius-de',   // male, hard
