@@ -259,7 +259,8 @@ const TURN_RULE =
   `RÜCKBEZUG STATT WIEDERHOLUNG: verweise mit „da/das" auf das eben Gesagte, statt es zu wiederholen: „Da haben Sie recht.", „Genau da hake ich ein.".\n` +
   `ECHTE INHALTLICHE RÜCKFRAGE (niemals „akustisch nicht verstanden"): wenn der INHALT unklar ist, frag menschlich nach — „Wie meinen Sie das?", „Inwiefern genau?".\n` +
   `TON: souverän und bestimmt — ein erfahrener Interviewer, der die Lage führt. NICHT zaghaft, nicht entschuldigend, nicht ängstlich. Sprich mit Präsenz.\n` +
-  `Diese Mittel SPARSAM und nie alle auf einmal — höchstens EIN solcher Zug pro Beitrag. „Eine Sache pro Beitrag, dann Stille" bleibt absolut.`;
+  `Diese Mittel SPARSAM und nie alle auf einmal — höchstens EIN solcher Zug pro Beitrag. „Eine Sache pro Beitrag, dann Stille" bleibt absolut. ` +
+  `Richte HÄUFIGKEIT und Schärfe dieser Züge nach deinem INTERVIEW-STIL (siehe oben im System-Prompt): eine geduldige, warme Rolle nutzt sie kaum und unterbricht NIE; eine fordernde Rolle darf öfter knapp nachhaken und den Kandidaten kurz zurückholen. Nichts davon ist Pflicht — es entsteht aus dem Charakter und dem Moment, nie erzwungen.`;
 
 // Capitalized German words that are NOT content nouns (mostly sentence-initial function words) — kept
 // out of the claim-ledger so callbacks land on real content ("Reiseleiterin", "Stromanbieter"), not "Dann".
@@ -268,6 +269,17 @@ const LEDGER_STOP = new Set(['Ich','Sie','Er','Es','Wir','Ihr','Man','Das','Die'
 // Persona warmth set-points (resting "mood" baseline, -1 cold … +1 warm). The live warmth EMA starts
 // here and drifts with the candidate's scores so they can genuinely warm or cool THIS interviewer.
 const SETPOINTS = { yasmin: 0.35, karim: 0.0, hana: -0.25, tarek: -0.35, 'frau-mona-adel': -0.5, lukas: 0.25 };
+
+// Persona FORCEFULNESS (0 = gentle/patient, 1 = forceful/interrupting). Drives how much the interviewer
+// pulls a drifting candidate back and fires terse bohrende probes — AND how long the client waits before
+// handing the boss the floor (gentle = patient, lets you finish). Yasmin barely interrupts; Tarek / Frau
+// Mona Adel are the forceful ones. So these behaviours emerge from the CHARACTER, not uniformly for all.
+const FORCEFULNESS = { yasmin: 0.12, karim: 0.42, hana: 0.55, tarek: 0.9, 'frau-mona-adel': 0.72, lukas: 0.4 };
+function forcefulnessBlock(f) {
+  if (f <= 0.3) return `\n\nINTERVIEW-STIL (deine Persönlichkeit): GEDULDIG und warm. Lass den Kandidaten IMMER ausreden — unterbrich NIE, hol ihn NICHT aktiv zurück, wenn er kurz nachdenkt oder abschweift; gib ihm Raum und Zeit. Hake nur selten und sanft nach. Kurze Hörersignale ("mhm", "ja") sehr sparsam. KEINE knappen, fordernden Ein-Wort-Nachfragen.`;
+  if (f >= 0.7) return `\n\nINTERVIEW-STIL (deine Persönlichkeit): FORDERND und bestimmt. Wenn der Kandidat abschweift, sich verzettelt oder zu lange braucht, darfst du ihn kurz zurückholen ("Moment —", "Kommen wir zum Punkt", "Konkret bitte") und knapp-bohrend nachfragen — das ist deine Natur. Immer professionell in der Sie-Form, nie beleidigend, und gezielt eingesetzt, nicht in jedem Satz.`;
+  return `\n\nINTERVIEW-STIL (deine Persönlichkeit): SACHLICH-fordernd. Lass ihn meist ausreden, aber hake bei vagen Antworten gezielt nach. Nur selten kurz zurückholen, wenn er stark abschweift. Gelegentlich ein kurzes Hörersignal.`;
+}
 
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
@@ -317,6 +329,11 @@ export class RealtimeClient {
       recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
     });
 
+    // Persona forcefulness → an interview-style block in the system prompt + a patience value the client
+    // uses for turn-taking (gentle personas wait longer before the boss takes the floor).
+    this._forcefulness = FORCEFULNESS[bossId] ?? 0.4;
+    this._session.instructions += forcefulnessBlock(this._forcefulness);
+
     // Chosen content ids (+ reset flags) so the gateway can persist the no-repeat seen-lists.
     this.picks = this._session.picks;
 
@@ -324,6 +341,7 @@ export class RealtimeClient {
     const cs = this._session.csScenario;
     this.sessionInfo = {
       bossId,
+      forcefulness: this._forcefulness,   // 0 gentle … 1 forceful → client turn-taking patience
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 — THE boss voice
       // OWNER DECISION 2026-07-01: the robotic FREE voice was the #1 blocker, so ElevenLabs (human-grade,

@@ -2420,6 +2420,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   useEffect(() => { tokenRef.current = auth.token; }, [auth.token]);
   const bossVoiceRef = useRef('aura-2-julius-de');   // Deepgram fallback voice; set per boss on scenario_info
   const bossElevenVoiceRef = useRef('');             // ElevenLabs primary voice id (per character)
+  const bossPatienceRef = useRef(0);                 // per-persona turn-taking patience (ms): gentle interviewers wait longer before responding
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
@@ -2586,6 +2587,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           };
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
           bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
+          bossPatienceRef.current = Math.round((1 - (typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4)) * 400);   // gentle persona → longer patience, won't cut the candidate off
         }
         break;
 
@@ -2974,6 +2976,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
       // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
       if (stageIdxRef.current <= 1) needSilence += 250;   // open-question grace (cut for latency — was 600)
+      needSilence += bossPatienceRef.current;             // per-persona patience: gentle interviewers wait longer before taking the floor, forceful ones stay snappy
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze for
       // ~2.5s (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= 1800;
