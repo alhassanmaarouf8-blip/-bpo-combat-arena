@@ -174,15 +174,13 @@ const GREETINGS = {
 // Gender-correct Deepgram Aura-2 German voice per character (the women must NOT be
 // voiced by the male default). All ids exist in transcribeRouter AURA_DE_VOICES.
 const VOICES = {
-  // VOICE LOUDNESS (measured via hear-voice): lara RMS~940 and aurelia RMS~924 are ~2.2× quieter than
-  // viktoria RMS~2040 — they sounded "low / timid / afraid". Aura has no volume param and peaks are
-  // already full-scale (it's low ENERGY, not gain), so the quiet female voices are moved to the loud,
-  // firm viktoria. (Per-voice loudness normalization to restore distinct timbres is a follow-up.)
-  'yasmin':         'aura-2-viktoria-de', // female — was lara (too quiet); viktoria is loud + firm
+  // Aura-2 is the FALLBACK voice now (ElevenLabs per-persona human voices are primary when the key is set).
+  // Kept DISTINCT per persona so each interviewer still sounds like a different person even on fallback.
+  'yasmin':         'aura-2-lara-de',     // female, warm
   'karim':          'aura-2-fabian-de',   // male
   'hana':           'aura-2-viktoria-de', // female, mature
   'tarek':          'aura-2-julius-de',   // male, hard
-  'frau-mona-adel': 'aura-2-viktoria-de', // female, authoritative — was aurelia (too quiet)
+  'frau-mona-adel': 'aura-2-aurelia-de',  // female, authoritative
   'lukas':          'aura-2-fabian-de',   // male, casual (Deepgram fallback)
 };
 try {
@@ -328,11 +326,12 @@ export class RealtimeClient {
       bossId,
       displayName: this._boss.displayName,
       voice:       this._boss.voice ?? 'aura-2-julius-de',   // Deepgram Aura-2 — THE boss voice
-      // OWNER DECISION 2026-06-30: native-German Deepgram Aura-2 is THE voice — ~5-10× cheaper than
-      // ElevenLabs (TTS = the #1 cost) and on the existing Deepgram key, keeping the packages profitable.
-      // Realism comes from BEHAVIOR (spoken-register prompt), not paid TTS. ElevenLabs is hard-off here
-      // regardless of the Render env var; to A/B it again, restore `process.env.USE_ELEVENLABS === '1'`.
-      elevenVoice: '',
+      // OWNER DECISION 2026-07-01: the robotic FREE voice was the #1 blocker, so ElevenLabs (human-grade,
+      // per-persona distinct German voices) is ON whenever its key is present — it is, on Render. Each
+      // persona keeps its OWN voice (Anna/Benjamin/Rebecca/Alexander/Cornelia/Lukas); Deepgram Aura is the
+      // fallback. This costs real money per interview (turbo_v2_5, short boss lines + the daily-minute cap
+      // bound it); to revert to $0, remove ELEVENLABS_API_KEY from Render.
+      elevenVoice: process.env.ELEVENLABS_API_KEY ? (this._boss.elevenVoice || '') : '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,
