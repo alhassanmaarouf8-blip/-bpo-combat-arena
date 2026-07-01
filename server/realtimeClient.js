@@ -22,6 +22,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
+import { seededIdiolect } from './idiolect.js';
 
 // Hard cap per boss turn. A single question is ~20–60 tokens; a Teil-3 customer
 // complaint with scenario context is longer. 200 still leaves room for a vivid customer
@@ -338,6 +339,10 @@ export class RealtimeClient {
     // uses for turn-taking (gentle personas wait longer before the boss takes the floor).
     this._forcefulness = FORCEFULNESS[bossId] ?? 0.4;
     this._session.instructions += forcefulnessBlock(this._forcefulness);
+    // Seeded per-session verbal fingerprint: 2 spoken habits pinned for THIS conversation so the boss
+    // sounds like ONE specific person (not a rule-follower) and differs run-to-run — fights the "recited
+    // / robotic" feel. Register-safe; deterministic from the sessionId.
+    this._session.instructions += seededIdiolect(this._sessionId);
 
     // Chosen content ids (+ reset flags) so the gateway can persist the no-repeat seen-lists.
     this.picks = this._session.picks;

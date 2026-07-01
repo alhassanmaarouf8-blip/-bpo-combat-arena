@@ -26,13 +26,13 @@
           "label": "Starke Antwort",
           "boss": "Yasmin: Gut, dann fangen wir einfach an — stellen Sie sich kurz vor: wer sind Sie, und warum passen Sie zu uns?",
           "candidate": "Guten Tag, mein Name ist Karim Hassan. Ich habe drei Jahre im Kundenservice bei einem deutschen Stromanbieter gearbeitet, schwerpunktmäßig Reklamationsbearbeitung. Was mir dort besonders wichtig wurde: nicht nur die Lösung schnell zu finden, sondern den Kunden wirklich verstehen, bevor ich etwas anbiete.",
-          "reaction": "Yasmin: Das klingt nach genau der Haltung, die wir hier brauchen — erst zuhören, dann handeln. Danke, das war klar und konkret."
+          "reaction": "Yasmin: Ah, schön — erst zuhören, dann handeln. Genau die Haltung, die wir hier brauchen, ehrlich."
         },
         {
           "label": "Schwache Antwort",
           "boss": "Yasmin: Schön. Und jetzt erzählen Sie mir mal von einer Situation, in der Sie einen schwierigen Kunden beruhigen mussten.",
           "candidate": "Ähm, ja, also ich hatte da einen Kunden, der war halt total wütend, und ich habe dann irgendwie versucht, ihn zu beruhigen, und am Ende war er zufrieden.",
-          "reaction": "Yasmin: Ich kann sehen, dass da etwas war — aber der Satz bleibt leider sehr allgemein. Können Sie mir einen konkreten Moment nennen: was genau hat der Kunde gesagt, und was haben Sie darauf getan?"
+          "reaction": "Yasmin: Ich merke, da war was — nur bleibt es noch sehr allgemein. Was hat der Kunde denn genau gesagt, und was haben Sie dann gemacht?"
         }
       ]
     },
@@ -62,13 +62,13 @@
           "label": "Starke Antwort",
           "boss": "Karim: Gut. Beschreiben Sie mir einen Konflikt mit einem Kollegen — und wie Sie ihn am Ende gelöst haben.",
           "candidate": "In meinem letzten Team gab es eine Kollegin, die ihre Schicht häufiger vertauschte, ohne es abzusprechen. Ich habe sie nach der nächsten Schicht unter vier Augen angesprochen, gefragt, was dahintersteckt. Sie hatte private Probleme und traute sich nicht, etwas zu sagen. Wir haben zusammen einen festen Plan erstellt, und danach gab es keine Ausfälle mehr.",
-          "reaction": "Karim: Interessant. Sie haben erst zugehört, dann eine gemeinsame Lösung gesucht — und Sie nennen sogar das Ergebnis. Das ist eine saubere Erzählung."
+          "reaction": "Karim: Gut. Erst zugehört, dann gemeinsam gelöst — und ein Ergebnis nennen Sie auch. Sauber."
         },
         {
           "label": "Schwache Antwort",
           "boss": "Karim: Was war Ihre konkrete Aufgabe in dem Projekt, von dem Sie gerade sprachen?",
           "candidate": "Also im Grunde habe ich das Team unterstützt und wir haben dann halt alles zusammengebracht, also es war mehr so ein Teamerfolg.",
-          "reaction": "Karim: 'Im Grunde' und 'wir' — da fehlt mir Ihre persönliche Rolle. Was haben Sie selbst getan? Bitte beschreiben Sie Ihre Aufgabe, nicht die des Teams."
+          "reaction": "Karim: 'Im Grunde', 'wir' … und Ihre Rolle? Was haben SIE getan, nicht das Team?"
         }
       ]
     },
@@ -98,13 +98,13 @@
           "label": "Starke Antwort",
           "boss": "Hana: Erzählen Sie von einer Situation, in der Sie einen wütenden Kunden beruhigt haben.",
           "candidate": "Ein Kunde hatte eine doppelte Abbuchung und schrie am Telefon. Ich habe ihn erst ausreden lassen, zwei Sekunden Pause gemacht, dann gesagt: 'Ich verstehe Ihren Ärger — lassen Sie mich das in drei Punkten klären: was passiert ist, was ich sofort tue, und was Sie in einer Stunde erwarten können.' Er ist ruhiger geworden und hat mir seine Daten gegeben.",
-          "reaction": "Hana: Das war strukturiert — Empathie, dann ein klarer nächster Schritt. Das funktioniert in unserem Tagesgeschäft. Gut."
+          "reaction": "Hana: Mhm. Erst ausreden lassen, dann der klare Schritt — ja, das trägt bei uns. Weiter."
         },
         {
           "label": "Schwache Antwort",
           "boss": "Hana: Wenn der Kunde verlangt, etwas außerhalb der Regel zu bekommen — was tun Sie?",
           "candidate": "Dann versuche ich, ihn irgendwie zufriedenzustellen, also schaue ich, was möglich ist.",
-          "reaction": "Hana: 'Irgendwie zufriedenzustellen' ist keine Handlung. Beschreiben Sie mir genau: welche Option prüfen Sie zuerst, und wo ist die Grenze, die Sie nicht überschreiten?"
+          "reaction": "Hana: 'Irgendwie' … sehen Sie, da werde ich hellhörig. Welche Option prüfen Sie zuerst — und wo ist Ihre Grenze?"
         }
       ]
     },
@@ -134,13 +134,13 @@
           "label": "Starke Antwort",
           "boss": "Tarek: So, jetzt wird's ernst. Kunde wütend, Lieferung falsch, kündigt den Vertrag. Sie haben dreißig Sekunden, dann rede ich.",
           "candidate": "Ich würde sofort Verstehen signalisieren, dann kurz Ursache klären — ohne lange Erklärungen. Ich sage: 'Ich nehme Ihren Ärger ernst, das darf so nicht passieren. Ich prüfe jetzt, ob wir die korrekte Lieferung heute noch ermöglichen, und rufe Sie in 45 Minuten mit einem festen Termin zurück.' Dann mache ich es.",
-          "reaction": "Tarek: Knapp, mit klarem nächsten Schritt und Zeitangabe. So etwas gefällt mir. Weiter so."
+          "reaction": "Tarek: Knapp, klarer Schritt, Zeitangabe. So. Das gefällt mir — weiter."
         },
         {
           "label": "Schwache Antwort",
           "boss": "Tarek: Was war Ihre konkrete Aufgabe, wenn das Team eine Eskalation bearbeitet?",
           "candidate": "Also ich habe dann halt mit dem Team zusammen geschaut, also jeder hat etwas gemacht, und wir haben dann versucht, den Kunden irgendwie zufriedenzustellen.",
-          "reaction": "Tarek: 'Irgendwie' — das ist keine Aufgabe. Was haben SIE getan, nicht das Team? Kürzer, konkreter, bitte."
+          "reaction": "Tarek: 'Irgendwie' — nein. Was haben SIE getan? Kürzer. Konkret."
         }
       ]
     },
@@ -170,13 +170,13 @@
           "label": "Starke Antwort",
           "boss": "Frau Adel: Kommen wir zum Schluss. Der Kunde will kündigen — Sie haben nur eine Antwort.",
           "candidate": "Ich würde zuerst den Grund erfragen, ohne sofort eine Retraktionshandlung zu starten. Dann sage ich: 'Ich verstehe, dass Sie enttäuscht sind. Bevor wir über eine Kündigung sprechen: was wäre aus Ihrer Sicht eine akzeptable Lösung?'",
-          "reaction": "Frau Adel: Das war knapp. Nicht sofort eine Lösung aufdrängen, sondern verstehen — das ist ein Ansatz, der respektiert wird. Weiter."
+          "reaction": "Frau Adel: … Nicht sofort drängen, erst verstehen. Das respektiere ich. Weiter."
         },
         {
           "label": "Schwache Antwort",
           "boss": "Frau Adel: Warum sollten wir ausgerechnet Sie einstellen?",
           "candidate": "Ich bin ein Teamplayer, lerne schnell und bin immer pünktlich. Ich denke, das sind gute Voraussetzungen.",
-          "reaction": "Frau Adel: Das sind Erwartungen an jeden, nicht an Sie persönlich. Was können Sie, was andere nicht können? Antworten Sie konkreter."
+          "reaction": "Frau Adel: Das gilt für jeden. Was können SIE, das andere nicht können? Konkret."
         }
       ]
     },
