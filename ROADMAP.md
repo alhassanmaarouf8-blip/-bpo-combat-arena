@@ -15,11 +15,15 @@ agent asked to "build the next thing." Items are ordered by learner impact and a
    · `(cd client && npm run build)` · `node scripts/german-check.mjs <files>` if German content changed
    (german-check calls the free LanguageTool endpoint — if the sandbox has no network, say so; it
    then runs as a local gate before merge).
-4. **NEVER push to `main`.** Work on branch `feature/<slug>`; push the branch if credentials
-   allow, otherwise output the full diff. `main` is production — merging is done locally after
-   review, via the repo's ship loop.
+4. **NEVER push to `main` from a builder run.** Work on branch `feature/<slug>`; push the branch
+   if credentials allow, otherwise output the full diff. `main` is production. Merging to main is
+   done ONLY by the independent nightly **verifier+shipper** routine — a separate agent that
+   re-runs every gate itself and adversarially reviews the diff — or locally via the ship loop.
+   **Owner directive 2026-07-02: owner review is NOT required for deploys; independent agent
+   verification IS.** The verifier's default is NO-SHIP; it auto-reverts if production comes up
+   broken after a merge.
 5. Include in your change: flip this item's status to `IN PROGRESS — <branch>` in ROADMAP.md.
-   Status becomes `SHIPPED <sha>` only when merged to main.
+   The verifier flips it to `SHIPPED — verified <date>` when it merges to main.
 6. **Hard rules (never violate):** zero spend — no paid services or new dependencies; never name
    any company/employer; no fabricated metrics or content; **never write Egyptian-Arabic (masri)
    copy — leave `note_ar`-style fields as empty owner slots**; German shown to learners must pass
