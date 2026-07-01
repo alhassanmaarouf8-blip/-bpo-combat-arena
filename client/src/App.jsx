@@ -64,6 +64,10 @@ const BRAIN_GUIDE_LIVE = true;
 // differs on a phone speaker vs headphones, so it stays OFF until the owner phone-tests + tunes the
 // sensitivity (rule 2.5). When false, NO extra mic stream is even opened. Flip to true to test on device.
 const BARGE_IN_LIVE = false;
+// INTERVIEW-BEREITSCHAFT card in the debrief: the hire-readiness judge's verdict (ready / almost +
+// the ONE blocking skill). Honest — it names how many of the 9 signals were really measured and
+// says "vorläufig" when pronunciation wasn't. Flip to false to hide the card in one line.
+const HIRE_VERDICT_LIVE = true;
 // Referral: capture ?ref=<inviter id> from the invite link (persist so it survives navigation), read at signup.
 function getRefCode() {
   try {
@@ -1371,6 +1375,55 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                 </div>
                 <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{d.de}</div>
                 <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{d.ar}</div>
+              </div>
+            );
+          })()}
+
+          {/* ── INTERVIEW-BEREITSCHAFT — the hire-readiness judge (auto-research winner, server-side).
+                Unlike ENTSCHEIDUNG (this fight's result), this reads the student's OVERALL measured
+                signals and names the ONE skill blocking hire-readiness. Honest by construction: it
+                shows how many of the 9 signals were really measured, never guesses the missing ones,
+                and only says "fast bereit" when the level gate (B1+) is actually met. ── */}
+          {HIRE_VERDICT_LIVE && !gradeUnavailable && data?.progress?.hireReadiness && (() => {
+            const h = data.progress.hireReadiness;
+            const SKILL = {
+              fluency:         { de: 'Flüssigkeit — sprich in ganzen Sätzen, ohne lange Pausen', ar: 'الطلاقة — اتكلم بجمل كاملة من غير وقفات طويلة' },
+              grammar:         { de: 'Grammatik — zu viele Fehler pro Antwort', ar: 'القواعد — أخطاء كتير في كل إجابة' },
+              intelligibility: { de: 'Verständlichkeit — deine Aussprache kommt noch nicht klar an', ar: 'وضوح النطق — نطقك لسه مش واصل بوضوح' },
+              confidence:      { de: 'Sicherheit — weniger zögern, schneller antworten', ar: 'الثقة — تردد أقل ورد أسرع' },
+              deescalation:    { de: 'Deeskalation — wütende Kunden ruhig und sicher auffangen', ar: 'التهدئة — استيعاب العميل الغضبان بهدوء وثقة' },
+              complexity:      { de: 'Satzbau & Wortschatz — mehr Nebensätze, mehr Vielfalt', ar: 'تركيب الجمل والمفردات — جمل مركّبة أكتر وتنوّع أكبر' },
+            }[h.limitingSkill] || null;
+            // Tri-state, honest: BEREIT / FAST BEREIT (level gate met, one signal short) / else the
+            // biggest lever. hireReady === null (a gating signal unmeasured) → only show the lever.
+            const levelOk = { B1: 1, B2: 1, C1: 1 }[h.level] === 1;
+            let v = null;
+            if (h.hireReady === true) {
+              v = { label: 'INTERVIEW-BEREIT', color: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)',
+                    de: 'Alle gemessenen Einstellungs-Signale sind im grünen Bereich — du bist bereit für ein echtes Interview.',
+                    ar: 'كل إشارات التوظيف المتقاسة في النطاق الأخضر — انت جاهز لمقابلة حقيقية.' };
+            } else if (h.hireReady === false && levelOk && SKILL) {
+              v = { label: 'FAST INTERVIEW-BEREIT', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
+                    de: `Was dich gerade am stärksten blockiert: ${SKILL.de}`,
+                    ar: `أكتر حاجة بتعطّلك دلوقتي: ${SKILL.ar}` };
+            } else if (SKILL) {
+              v = { label: 'DEIN GRÖSSTER HEBEL', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
+                    de: SKILL.de, ar: SKILL.ar };
+            }
+            if (!v) return null;   // no verdict AND no measurable lever → say nothing rather than guess
+            return (
+              <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:v.bg, border:`1px solid ${v.border}`,
+                animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:v.color, marginBottom:6 }}>
+                  🎯 INTERVIEW-BEREITSCHAFT · {v.label}
+                </div>
+                <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{v.de}</div>
+                <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{v.ar}</div>
+                {(h.partial || h.readyCaveat) && (
+                  <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
+                    vorläufig · {h.measuredSignals}/{h.totalSignals} Signale gemessen{h.readyCaveat ? ' · Aussprache als klar angenommen' : ''}
+                  </div>
+                )}
               </div>
             );
           })()}

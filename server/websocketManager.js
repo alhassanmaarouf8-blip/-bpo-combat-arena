@@ -6,7 +6,7 @@ import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
-import { textFeatures } from './hireReadiness.js';
+import { textFeatures, hireReadinessFor } from './hireReadiness.js';
 import { recordTurn } from './latencyLog.js';
 import { loadUser, saveUser } from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
@@ -1118,6 +1118,13 @@ export class WebSocketManager {
         }
       }
 
+      // HIRE-READINESS verdict for the debrief — computed AFTER this session was persisted, so it
+      // includes tonight's real signals (subclause rate, de-escalation, intelligibility, latency…).
+      // The judge itself (hireReadiness.js classify) is the locked auto-research winner — untouched.
+      // Best-effort: the debrief must never fail because the verdict did.
+      let hireReadiness = null;
+      try { hireReadiness = hireReadinessFor(p); } catch { /* verdict is optional */ }
+
       return {
         xpGained, level: p.level, leveledUp,
         levelProgress: levelProgress(p.xp),
@@ -1127,6 +1134,7 @@ export class WebSocketManager {
         sessionCount:  p.sessions.length,   // = 1 on the user's first-ever fight
         streak:        computeStreak(p.sessions, p.lessonDays),
         rank:          computeRank(p.sessions),
+        hireReadiness,   // { level, hireReady|null, readyCaveat, limitingSkill, partial, measuredSignals, totalSignals }
         trainingDelta,
         weakRuleDelta,
         weekTrend,
