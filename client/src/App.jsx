@@ -3495,24 +3495,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               })}
             </div>
 
-            {/* ── ADVANCED OPTIONS — collapsed by default. The interviewer, hands-free and
-                feedback-language rows are power-user settings whose defaults (Auto · Freisprech an ·
-                DE) serve almost everyone; on the calm/premium home they were three rows of clutter
-                between the level pick and the action, so they live behind one quiet disclosure. ── */}
-            <div style={{ textAlign:'center', marginTop:10 }}>
-              <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
-                fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'4px 6px', fontFamily:'inherit' }}>
-                {showOpts ? '▾' : '▸'} Optionen · خيارات
-              </button>
-            </div>
-            {showOpts && (
-            <>
-            {/* Interviewer picker: choose your interviewer/persona; default = auto by level */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10 }}>
-              <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Interviewer wählen · اختر المُحاوِر</span>
+            {/* Interviewer picker — ALWAYS visible: choosing WHO you face is core to the app, not a hidden
+                setting. (It was buried behind "Optionen" during the declutter → users only ever saw Yasmin.) */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:12, flexWrap:'wrap' }}>
+              <span style={{ fontSize:9.5, color:'#94a3b8', letterSpacing:'0.06em' }}>Interviewer · اختر المُحاوِر</span>
               <select value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
-                style={{ fontSize:11, padding:'5px 8px', borderRadius:6, background:'rgba(2,6,16,0.7)',
-                  color:'#e2e8f0', border:'1px solid var(--line)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
+                style={{ fontSize:11.5, padding:'6px 9px', borderRadius:6, background:'rgba(2,6,16,0.7)',
+                  color:'#e2e8f0', border:'1px solid var(--accent-dim)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
                 <option value="yasmin">Yasmin — warm (L1)</option>
                 <option value="karim">Karim — sachlich (L2)</option>
@@ -3523,6 +3512,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </select>
             </div>
 
+            {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
+            <div style={{ textAlign:'center', marginTop:10 }}>
+              <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
+                fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'4px 6px', fontFamily:'inherit' }}>
+                {showOpts ? '▾' : '▸'} Optionen · خيارات
+              </button>
+            </div>
+            {showOpts && (
+            <>
             {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}
             <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,
               cursor: canStart ? 'pointer' : 'default', userSelect:'none' }}>
