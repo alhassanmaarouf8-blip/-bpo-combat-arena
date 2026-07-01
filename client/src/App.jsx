@@ -2646,7 +2646,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // gender-correct map so a female boss is NEVER voiced by the male default.
         {
           const VOICE_BY_BOSS = {
-            'yasmin': 'aura-2-lara-de', 'hana': 'aura-2-viktoria-de', 'frau-mona-adel': 'aura-2-aurelia-de',
+            'yasmin': 'aura-2-elara-de', 'hana': 'aura-2-viktoria-de', 'frau-mona-adel': 'aura-2-aurelia-de',
             'karim': 'aura-2-fabian-de', 'tarek': 'aura-2-julius-de',
             'frau-mueller': 'aura-2-lara-de', 'herr-tariq': 'aura-2-julius-de', 'direktor-vogel': 'aura-2-fabian-de',
           };
