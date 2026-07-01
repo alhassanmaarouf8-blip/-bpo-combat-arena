@@ -283,6 +283,30 @@ function forcefulnessBlock(f) {
   return `\n\nINTERVIEW-STIL (deine Persönlichkeit): SACHLICH-fordernd. Lass ihn meist ausreden, aber hake bei vagen Antworten gezielt nach. Nur selten kurz zurückholen, wenn er stark abschweift. Gelegentlich ein kurzes Hörersignal.`;
 }
 
+// ── Mechanical thread-following ("don't jump topics while he's mid-story") ──────
+// The ÜBERGÄNGE prompt rules ask the boss to follow a freshly-opened thread, but a prompt
+// rule alone is soft. This is the deterministic backstop: when the candidate's latest answer
+// is substantive AND introduced NEW salient terms (fresh claim-ledger entries), the next boss
+// turn gets a one-off instruction to follow THAT thread before any topic switch. Bounded so
+// the funnel still completes: only in Teil 1–2 (the roleplay customer follows its own script),
+// max 3 per session, never on consecutive turns, and never when a rescue/correction owns the turn.
+// Pure + exported for unit tests.
+export function threadNudge({ freshTerms = [], wordCount = 0, stageIdx = 0, used = 0, cooldown = 0, busy = false } = {}) {
+  if (busy) return null;                       // rescue/correction already owns this turn
+  if (stageIdx >= 2) return null;              // roleplay: the angry customer drives its own thread
+  if (used >= 3 || cooldown > 0) return null;  // bounded: max 3/session, never back-to-back
+  if (wordCount < 12) return null;             // only substantive answers open a real thread
+  const terms = freshTerms.filter(Boolean).slice(0, 2);
+  if (!terms.length) return null;
+  return (
+    `FADEN FOLGEN: Die letzte Antwort hat gerade einen neuen Gesprächsfaden geöffnet (${terms.map((t) => `„${t}“`).join(', ')}). ` +
+    `Wechsle in DIESEM Redebeitrag NICHT das Thema — geh stattdessen mit GENAU EINER kurzen, konkreten Nachfrage ` +
+    `auf genau diesen Faden ein, wie ein Interviewer, der wirklich wissen will, wie die Geschichte weitergeht. ` +
+    `(Wirkt einer der Begriffe wie ein Hörfehler — ungewöhnlich, kein sinnvolles Wort —, zitiere ihn NICHT wörtlich; ` +
+    `frag dann natürlich nach oder bleib beim Thema allgemein.)`
+  );
+}
+
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
 // speaker turn, cut at the first such marker so only the boss's own line survives.
@@ -377,6 +401,9 @@ export class RealtimeClient {
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
     this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
+    this._stageIdx           = 0;      // funnel stage (gateway keeps it fresh) → thread-following only in Teil 1–2
+    this._threadNudges       = 0;      // thread-following nudges used this session (cap 3)
+    this._threadCooldown     = 0;      // ≥1 → no nudge this turn (never on consecutive turns)
     this._extraRules         = opts.extraRules || '';   // optional tuning addendum (off by default; used by the naturalness evolve loop)
     this._setPoint           = SETPOINTS[bossId] ?? 0;  // persona warmth baseline (cold ↔ warm)
     this._warmth             = this._setPoint;          // continuous warmth EMA — the candidate moves it by performing
@@ -421,10 +448,27 @@ export class RealtimeClient {
 
     const answer = (userText && userText.trim()) ? userText.trim() : '(keine hörbare Antwort)';
     this._history.push({ role: 'user', content: answer });
-    this._noteClaims(answer);   // capture the candidate's salient words for verbatim callback this turn
+    const freshTerms = this._noteClaims(answer);   // capture the candidate's salient words for verbatim callback this turn
 
     // Per-turn instruction: the one-turn rule, plus optional rescue softener or correction probe.
     const turnMsgs = [...this._history, { role: 'system', content: TURN_RULE }];
+
+    // Mechanical thread-following: a substantive answer that OPENED a new thread pins the next
+    // boss turn to that thread (deterministic backstop for the ÜBERGÄNGE "don't jump" rules).
+    if (this._threadCooldown > 0) this._threadCooldown -= 1;
+    const nudge = threadNudge({
+      freshTerms,
+      wordCount: (answer.match(/\S+/g) || []).length,
+      stageIdx:  this._stageIdx,
+      used:      this._threadNudges,
+      cooldown:  this._threadCooldown,
+      busy:      !!this._pendingRescue || this._pendingCorrection !== null,
+    });
+    if (nudge) {
+      turnMsgs.push({ role: 'system', content: nudge });
+      this._threadNudges  += 1;
+      this._threadCooldown = 2;   // decremented once per turn → skips exactly the NEXT turn
+    }
 
     // ROLLING ANTI-REPEAT: a static ban list can't anticipate the model's favourite opener OF THE DAY.
     // Read the boss's OWN last few turns and forbid re-using their opening words — so it is structurally
@@ -509,6 +553,9 @@ export class RealtimeClient {
     return line;
   }
 
+  // The gateway keeps the funnel stage fresh → thread-following stays out of the Teil-3 roleplay.
+  setStage(idx) { if (typeof idx === 'number') this._stageIdx = idx; }
+
   // The gateway calls this after two broken answers → soften the NEXT boss turn.
   requestRescue(reason = 'weak') { this._pendingRescue = reason; }
 
@@ -535,12 +582,14 @@ export class RealtimeClient {
   // signal) into the claim-ledger for verbatim callbacks. High-precision on purpose: the boss only ever
   // echoes words the candidate REALLY said, and only "if natural", so a stray capture is harmless.
   _noteClaims(text) {
+    const fresh = [];
     const found = String(text || '').match(/(?<!\p{L})\p{Lu}\p{Ll}{3,}(?!\p{L})/gu) || [];
     for (const w of found) {
       if (LEDGER_STOP.has(w)) continue;
-      if (!this._ledger.some((e) => e.term === w)) this._ledger.push({ term: w, spent: false });
+      if (!this._ledger.some((e) => e.term === w)) { this._ledger.push({ term: w, spent: false }); fresh.push(w); }
     }
     if (this._ledger.length > 14) this._ledger = this._ledger.slice(-14);   // keep it small + recent
+    return fresh;   // the terms THIS answer newly introduced → thread-following signal
   }
 
   // Build the tone directive from the CONTINUOUS warmth (graded, not 3 buckets), plus a tension note when

@@ -1561,6 +1561,7 @@ export class WebSocketManager {
     const newIdx = stageForAnswers(ctx.scoredAnswers);
     if (newIdx !== ctx.stageIdx && ctx.stages[newIdx]) {
       ctx.stageIdx = newIdx;
+      ctx.realtimeClient?.setStage?.(newIdx);   // thread-following must stand down in the roleplay
       this._send(ctx, { type: S.STAGE_UPDATE, index: newIdx, ...ctx.stages[newIdx] });
     }
 
