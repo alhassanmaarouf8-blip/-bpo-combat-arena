@@ -2645,14 +2645,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           };
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
           bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
-          bossPatienceRef.current = Math.round((1 - (typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4)) * 400);   // gentle persona → longer patience, won't cut the candidate off
+          const f = typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4;
+          // Turn-taking patience scales HARD with persona (owner's rule: easier interviewer → fewer
+          // interruptions). A gentle interviewer (Yasmin, low forcefulness) waits ~0.9s LONGER before
+          // taking the floor, so it never cuts a learner off who paused to think; a forceful one (Tarek)
+          // stays snappy (~50ms). Non-linear so the gentle end gets most of the grace.
+          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 1100);
           // Pre-generate short thinking sounds in THIS interviewer's own voice so the dead-air gap can be
           // filled instantly (mic off → echo-safe). Fire-and-forget; stays silent until ready. Revokes the
           // previous session's blobs first so they don't leak.
           if (!ttsMutedRef.current) {
             precacheFillers({
               apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current,
-              forceful: (typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4) >= 0.6,
+              forceful: f >= 0.6,
             }).then((urls) => {
               try { fillerUrlsRef.current.forEach((u) => URL.revokeObjectURL(u)); } catch {}
               fillerUrlsRef.current = urls;
