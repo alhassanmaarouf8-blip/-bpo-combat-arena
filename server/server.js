@@ -13,6 +13,7 @@ import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
 import { adminRouter }        from './admin.js';
 import { shadowingRouter }    from './shadowing.js';
+import { druckLeiterRouter }  from './druckLeiter.js';
 import { fluencyRouter }       from './fluencyDrill.js';
 import { listeningRouter }     from './listening.js';
 import { spokenReviewRouter }  from './spokenReview.js';
@@ -106,6 +107,7 @@ app.use('/api', feedbackRouter);
 app.use('/api', assessmentRouter);
 app.use('/api', trainingslagerRouter);
 app.use('/api', shadowingRouter);
+app.use('/api', druckLeiterRouter);  // POST /api/druck-leiter/score — honest de-escalation QUALITY read on the pressure clip
 app.use('/api', fluencyRouter);   // GET /api/fluency + POST /api/fluency/score — 4-3-2 spoken-fluency drill
 app.use('/api', listeningRouter); // GET /api/listening + POST /api/listening/grade — listening & data-capture drill
 app.use('/api', spokenReviewRouter); // GET /api/spoken-review + POST /api/spoken-review/grade — spoken-production SRS

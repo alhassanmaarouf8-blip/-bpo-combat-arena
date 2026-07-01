@@ -24,15 +24,21 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   const [result, setResult] = useState(null);      // { transcript, match, note_de, note_ar, retry }
   const [ttsOk, setTtsOk]   = useState(true);
   const [err, setErr]       = useState(null);
+  const [clipUrl, setClipUrl] = useState(null);   // object URL of the learner's own take (record-and-compare)
+  const [rate, setRate]     = useState(0.7);       // model playback speed; first listen is slow (0.7×), then 1.0×
 
-  const recRef   = useRef(null);
-  const timerRef = useRef(null);
-  const stopRef  = useRef(null);
+  const recRef      = useRef(null);
+  const timerRef    = useRef(null);
+  const stopRef     = useRef(null);
+  const clipUrlRef  = useRef(null);   // mirror of clipUrl so we can revoke without stale closures
+  const listenedRef = useRef(false);  // did the learner already hear this sentence once?
 
   const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
 
   const loadSession = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);
+    if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
+    setClipUrl(null); setRate(0.7); listenedRef.current = false;
     try {
       const r = await fetch(`${apiUrl}/api/shadowing?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
@@ -52,13 +58,30 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     clearInterval(timerRef.current); clearTimeout(stopRef.current);
     recRef.current?.stop?.().catch(() => {});
     try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+    if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
   }, []);
 
   const s = sentences[idx];
 
   // Native Aura-2 model voice (server-cached → $0), auto-falling back to the browser voice. Shadowing a
   // consistent NATIVE benchmark — not a device-lottery voice — is the whole point of the drill.
-  const play = () => { if (s) { playNative({ apiUrl, token, text: s.de, rate: 0.95 }); setTtsOk(true); } };
+  const play = () => {
+    if (!s) return;
+    playNative({ apiUrl, token, text: s.de, rate });
+    setTtsOk(true);
+    // First listen is slow (0.7×) to catch the sounds; after that default to natural 1.0×.
+    if (!listenedRef.current) { listenedRef.current = true; setRate(1); }
+  };
+
+  // Manual speed pick — takes over from the auto first-listen behaviour.
+  const setSpeed = (v) => { setRate(v); listenedRef.current = true; };
+
+  // Play the learner's own recorded take (honest prosody feedback: their ear judges rhythm vs the model).
+  const playMine = () => {
+    if (!clipUrlRef.current) return;
+    try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+    try { const a = new Audio(clipUrlRef.current); a.play().catch(() => {}); } catch { /* ignore */ }
+  };
 
   const startRec = async () => {
     setErr(null); setResult(null);
@@ -94,6 +117,13 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       return;
     }
 
+    // Keep the learner's take so they can play it back-to-back with the model (record-and-compare).
+    try {
+      if (clipUrlRef.current) URL.revokeObjectURL(clipUrlRef.current);
+      const url = URL.createObjectURL(clip.blob);
+      clipUrlRef.current = url; setClipUrl(url);
+    } catch { /* ignore — comparison playback is a bonus, scoring below is the core */ }
+
     setBusy(true);
     try {
       const r = await fetch(`${apiUrl}/api/shadowing/score?id=${s.id}&ms=${clip.durationMs}`, {
@@ -114,6 +144,8 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   };
 
   const next = () => {
+    if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
+    setClipUrl(null); setRate(0.7); listenedRef.current = false;
     setResult(null); setErr(null); setSec(0);
     if (idx < sentences.length - 1) setIdx(idx + 1);
     else setPhase('done');
@@ -177,9 +209,21 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(96,165,250,0.22)' }}>
       <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{s?.de}</div>
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
-      <button onClick={play} style={{ ...ghostBtnWide, marginTop: 12, width: '100%' }}>
-        🔊 {T(lang, 'Anhören', 'استمع')}
-      </button>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
+        <span style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>{T(lang, 'TEMPO', 'السرعة')}</span>
+        <button onClick={() => setSpeed(0.7)} style={speedBtn(rate === 0.7)}>0,7×</button>
+        <button onClick={() => setSpeed(1)}   style={speedBtn(rate === 1)}>1,0×</button>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+        <button onClick={play} style={{ ...ghostBtnWide }}>
+          🔊 {T(lang, 'Anhören', 'استمع')}
+        </button>
+        {clipUrl && (
+          <button onClick={playMine} style={{ ...ghostBtnWide }}>
+            ▶ {T(lang, 'Deine Aufnahme', 'تسجيلك')}
+          </button>
+        )}
+      </div>
       {!ttsOk && (
         <div style={{ fontSize: 10, color: 'var(--action)', marginTop: 6, lineHeight: 1.5 }}>
           {T(lang, 'Sprachausgabe in diesem Browser nicht verfügbar — lies den Satz und sprich ihn nach.',
@@ -262,3 +306,6 @@ const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSiz
   border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
 const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
   borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
+const speedBtn = (on) => ({ cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '5px 9px', borderRadius: 7,
+  fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent-2)' : 'rgba(148,163,184,0.3)'}`,
+  background: on ? 'rgba(96,165,250,0.15)' : 'transparent', color: on ? 'var(--accent-2)' : '#94a3b8' });

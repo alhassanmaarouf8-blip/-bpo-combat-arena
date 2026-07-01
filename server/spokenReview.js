@@ -37,6 +37,75 @@ function tokenize(s) {
   return normalize(s).toLowerCase().replace(/[^a-z0-9äöüß\s]/gi, ' ').split(/\s+/).filter(Boolean);
 }
 
+// Generic Levenshtein — works on strings (char-level) OR token arrays (word-level), since both
+// index with [] and compare with ===. (srs.js has one too, but it isn't exported; this is local.)
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  let cur  = new Array(n + 1);
+  for (let i = 1; i <= m; i++) {
+    cur[0] = i;
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    [prev, cur] = [cur, prev];
+  }
+  return prev[n];
+}
+
+// Does the contiguous target token sequence appear in what was said, tolerating a SINGLE STT edit
+// per token (dem/den, Jahre/Jahren are exactly what Whisper mis-hears)? Order + adjacency are kept
+// (so a word-order fix must still be produced in the right order); 1–2 char tokens must match
+// exactly. CRUCIAL honesty guard: the 1-edit tolerance never accepts a token that IS the stored
+// WRONG word — otherwise, when the correction itself is a 1-char ending (Jahr→Jahre, den→dem),
+// re-uttering the original error would be mis-credited as a fix. We only absorb STT noise, not the mistake.
+function fuzzyTokenMatch(saidTokens, targetTokens, wrongSet) {
+  const n = targetTokens.length;
+  if (!n || saidTokens.length < n) return false;
+  for (let i = 0; i + n <= saidTokens.length; i++) {
+    let ok = true;
+    for (let j = 0; j < n; j++) {
+      const said = saidTokens[i + j], want = targetTokens[j];
+      if (said === want) continue;
+      if (want.length >= 3 && editDistance(said, want) <= 1 && !wrongSet.has(said)) continue;
+      ok = false; break;
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+// Near-duplicate of the learner's OWN wrong sentence: they reproduced the error (e.g. slipped the
+// right word INTO the old wrong sentence) instead of genuinely repairing it. Word-level distance:
+// if the utterance is at least as close to the WRONG sentence as to the CORRECT one, it hasn't moved
+// toward the fix. A genuine correct answer is distance-0 from the correct sentence and ≥1 from the
+// wrong one, so it is never flagged — this only ever catches a false-pass, never a real fix.
+function isNearDuplicateOfWrong(saidTokens, wrong, right) {
+  const wrongTokens = tokenize(wrong || '');
+  const rightTokens = tokenize(right || '');
+  if (!wrongTokens.length || !rightTokens.length) return false;
+  if (editDistance(wrongTokens, rightTokens) === 0) return false;   // wrong≡right (shouldn't happen) → don't punish
+  return editDistance(saidTokens, rightTokens) >= editDistance(saidTokens, wrongTokens);
+}
+
+// GRAVITY-FIRST ORDERING. A learner must fix the sentence's SKELETON before its polish: GLOBAL
+// errors (word/verb order, a dropped copula/verb, a missing article/determiner) distort meaning and
+// are drilled BEFORE LOCAL ones (article-gender / adjective case endings). The weight is derived
+// from the item's own LanguageTool-authored rule name / error tag (item.content) plus its fragments
+// — no model guessing. Unknown → middle, so it never jumps ahead of a clearly global item.
+const GRAVITY_GLOBAL = /wortstellung|verbstellung|satzstellung|wortreihenfolge|verbposition|verbzweit|verb.?second|inversion|word.?order|satzbau|nebensatz|fehlend|fehlt|missing|kopula|hilfsverb/i;
+const GRAVITY_LOCAL  = /endung|deklination|kongruenz|agreement|adjektiv|kasus|\bgenus\b|artikelform|flexion/i;
+
+function gravityRank(item) {
+  if (item?.type !== 'grammar') return 2;   // phrases/vocab: neutral middle, keep their due order
+  const ex  = item.example || {};
+  const tag = `${item.content || ''} ${ex.wrongFragment || ''} ${ex.rightFragment || ''}`.toLowerCase();
+  if (GRAVITY_GLOBAL.test(tag)) return 3;   // skeleton first
+  if (GRAVITY_LOCAL.test(tag))  return 1;   // polish last
+  return 2;                                 // unknown → middle
+}
+
 // Deterministic spoken grading. Targeted + lenient-positive.
 //  - grammar (has example.rightWord): correct if the corrected token/phrase is present.
 //  - phrase/vocab: correct if ≥70% of the answer's content words were produced.
@@ -50,8 +119,20 @@ function gradeSpoken(item, transcript) {
     const targetTokens = tokenize(ex.rightWord);
     const expected = ex.right || item.answer;
     if (!targetTokens.length) return { correct: false, expected };
-    const correct = saidPadded.includes(` ${targetTokens.join(' ')} `);
-    return { correct, expected };
+
+    // ERROR-REPAIR-AWARE GRADING (deterministic; grammar itself stays LanguageTool-authored):
+    // (a) EXACT corrected token present → it's a fix ONLY if the utterance isn't a near-duplicate of
+    //     their stored WRONG sentence (slipping the right word into the old wrong sentence
+    //     doesn't false-pass). (b) Otherwise tolerate a 1-edit STT variant of the target token
+    //     (dem/den, Jahre/Jahren) — and since the token itself is then STT-uncertain, we do NOT
+    //     apply the near-duplicate guard, so Whisper noise can never FALSE-FAIL a real rep.
+    if (saidPadded.includes(` ${targetTokens.join(' ')} `)) {
+      if (isNearDuplicateOfWrong(saidTokens, ex.wrong, expected)) return { correct: false, expected };
+      return { correct: true, expected };
+    }
+    const wrongSet = new Set(tokenize(ex.wrongWord || ''));   // never let STT-tolerance credit the actual error token
+    if (fuzzyTokenMatch(saidTokens, targetTokens, wrongSet)) return { correct: true, expected };
+    return { correct: false, expected };
   }
 
   // phrase / vocab / anything else: content-word overlap against the target German.
@@ -88,7 +169,12 @@ spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // fresh due items every open
   try {
     const p = await loadUser(req.account.id);
-    const due = dueItems(p, Date.now(), 8);
+    // GRAVITY-FIRST: pull the full due set, re-order so GLOBAL (skeleton) errors come before LOCAL
+    // (polish) ones, then take the session's 8. Stable sort keeps dueItems' due-ascending order
+    // within each gravity tier, so the existing "oldest-due first" behavior is preserved as the tiebreak.
+    const due = dueItems(p, Date.now(), 50)
+      .sort((a, b) => gravityRank(b) - gravityRank(a) || (a.due - b.due))
+      .slice(0, 8);
     const items = due.map((i) => ({
       id:     i.id,
       type:   i.type,

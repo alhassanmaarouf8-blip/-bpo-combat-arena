@@ -56,7 +56,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     // session (each item faster than the last), so you train catching a native at YOUR edge.
     // Native Aura-2 caller voice (consistent native German, not the device-lottery browser voice); the
     // level+overload speed ramp still applies via audio playbackRate. Auto-falls back to the browser voice.
-    playNative({ apiUrl, token, text: item.audioText, rate: Math.min(1.7, baseRate + idx * 0.12) });
+    // phone:true → route the caller through a telephone-band filter. The job is on the PHONE, so clean
+    // studio audio over-prepares on the wrong channel. Shadowing stays clean; only this caller line is phoned.
+    playNative({ apiUrl, token, text: item.audioText, rate: Math.min(1.7, baseRate + idx * 0.12), phone: true });
     setTtsOk(true);
     setPlayed((p) => p + 1);
   };

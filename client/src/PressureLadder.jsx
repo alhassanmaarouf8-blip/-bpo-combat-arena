@@ -225,6 +225,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   const [left, setLeft]     = useState(0);
   const [survived, setSurvived] = useState(0);      // rungs 1..5 survived
   const [froze, setFroze]   = useState(false);
+  const [souveraen, setSouveraen] = useState(false);   // server-verified: a real de-escalation move landed
   const [endlessStreak, setEndlessStreak] = useState(0);
   const [curLine, setCurLine] = useState('');
 
@@ -249,7 +250,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   useEffect(() => { try { window.speechSynthesis?.getVoices(); } catch { /* ignore */ } }, []);
 
   const beginRound = async () => {
-    setFroze(false); setPhase('answering'); setLeft(L.sec);
+    setFroze(false); setSouveraen(false); setPhase('answering'); setLeft(L.sec);
     const line = pickUnseen(L.lines, seenLinesRef.current); setCurLine(line);
     speak(line, L.rate);
     const rec = new ClipRecorder({ onVolume: () => {} });
@@ -268,15 +269,33 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
     clearInterval(tickRef.current); tickRef.current = null;
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
     cancelSpeech();
-    let kept = false;
+    let kept = false, voicedMs = 0, clipBlob = null;
     // "Survived" = they ACTUALLY kept talking. Blob SIZE is wrong (uncompressed WAV is huge even for
     // silence → always "survived"). Measure real VOICED time from the recorded PCM instead.
     // Survived = SUSTAINED talking under pressure: at least 5s of real voiced speech. Two words (~1s)
     // = froze. (Tunable single number; raise if it's too lenient, lower if too strict.)
-    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); kept = (await voicedMsFromBlob(c?.blob)) >= 5000; } } catch { /* ignore */ }
+    try { const rec = recRef.current; recRef.current = null; if (rec) { const c = await rec.stop(); clipBlob = c?.blob || null; voicedMs = await voicedMsFromBlob(clipBlob); kept = voicedMs >= 5000; } } catch { /* ignore */ }
     setFroze(!kept);
-    // Feed the brain: held the line or froze? (DRUCK-LEITER fed back nothing before — loop now closes.)
-    try { if (token && apiUrl) fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'druck-leiter', froze: !kept }) }); } catch { /* fire-and-forget */ }
+    // HONEST QUALITY READ (server): kept-talking alone rewards babble, but these rungs train
+    // DE-ESCALATION. If they didn't freeze, ask the server whether a REAL de-escalation move landed
+    // (barbs stripped, credit-only, never fails on absence). Degrades gracefully: any error → keep the
+    // voiced-time verdict ("Standgehalten"). The taught pro phrase is always shown regardless.
+    let wasSouveraen = false;
+    if (kept && clipBlob && token && apiUrl) {
+      try {
+        const q = encodeURIComponent(JSON.stringify(L.barbs || []));
+        const r = await fetch(`${apiUrl}/api/druck-leiter/score?barbs=${q}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'audio/wav', Authorization: `Bearer ${token}` },
+          body: clipBlob,
+        });
+        if (r.ok) { const d = await r.json(); wasSouveraen = !!d.souveraen; }
+      } catch { /* graceful: fall back to the voiced-time verdict */ }
+    }
+    setSouveraen(wasSouveraen);
+    // Feed the brain: held the line or froze, and — if held — was it actually souverän? (correct/voicedMs
+    // are the fields /api/drill-event persists.) DRUCK-LEITER fed back nothing before — loop now closes.
+    try { if (token && apiUrl) fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'druck-leiter', froze: !kept, voicedMs, ...(kept ? { correct: wasSouveraen } : {}) }) }); } catch { /* fire-and-forget */ }
     if (kept) {
       if (endless) setEndlessStreak((n) => n + 1);
       else setSurvived((n) => Math.max(n, idx + 1));
@@ -364,9 +383,13 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   if (phase === 'round') return shell(<>
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-      <div style={{ fontSize: 44 }}>{froze ? '🥶' : '💪'}</div>
-      <div style={{ fontSize: 18, color: froze ? '#fca5a5' : 'var(--accent-2)', fontWeight: 800, marginTop: 8 }}>
-        {froze ? T(lang, 'Eingefroren.', 'اتجمدت.') : (endless ? T(lang, `Überlebt · Serie ${endlessStreak}`, `نجوت · سلسلة ${endlessStreak}`) : T(lang, 'Standgehalten!', 'صمدت!'))}
+      <div style={{ fontSize: 44 }}>{froze ? '🥶' : souveraen ? '🏅' : '💪'}</div>
+      <div style={{ fontSize: 18, color: froze ? '#fca5a5' : souveraen ? 'var(--accent)' : 'var(--accent-2)', fontWeight: 800, marginTop: 8 }}>
+        {froze
+          ? T(lang, 'Eingefroren.', 'اتجمدت.')
+          : endless
+            ? (souveraen ? T(lang, `Souverän · Serie ${endlessStreak}`, `باحتراف · سلسلة ${endlessStreak}`) : T(lang, `Überlebt · Serie ${endlessStreak}`, `نجوت · سلسلة ${endlessStreak}`))
+            : (souveraen ? T(lang, 'Souverän!', 'باحتراف!') : T(lang, 'Standgehalten!', 'صمدت!'))}
       </div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', marginTop: 8, lineHeight: 1.6, padding: '0 10px' }}>
         {froze
