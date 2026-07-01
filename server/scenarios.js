@@ -61,6 +61,12 @@ export const BEHAVIORAL_QUESTIONS = [
   'Erzählen Sie von einer Situation, in der Sie proaktiv Verbesserungen vorgeschlagen haben.',
   'Beschreiben Sie eine Erfahrung, bei der Sie einem Kunden geholfen haben, der zunächst sehr unzufrieden war.',
   'Wie sind Sie vorgegangen, als Sie mit einer unklaren Arbeitsanweisung konfrontiert wurden?',
+  'Erzählen Sie von einer Situation, in der Sie etwas Neues sehr schnell lernen mussten. Wie sind Sie vorgegangen?',
+  'Beschreiben Sie einen Arbeitstag, an dem alles gleichzeitig kam. Wie haben Sie Prioritäten gesetzt?',
+  'Erzählen Sie von einem Feedback, das Sie überrascht hat. Was haben Sie daraus gemacht?',
+  'Beschreiben Sie eine Situation, in der Sie einem Kollegen geholfen haben, obwohl Sie selbst viel zu tun hatten.',
+  'Erzählen Sie von einem Ziel, das Sie sich selbst gesetzt und erreicht haben. Wie sind Sie drangeblieben?',
+  'Beschreiben Sie eine Situation, in der Sie ruhig bleiben mussten, obwohl Ihr Gegenüber laut wurde. Was haben Sie konkret gesagt?',
 ];
 
 // ── BPO screening questions (Teil 1b) — the real phone-screen filter ─────────────
@@ -74,6 +80,11 @@ export const BPO_SCREENING_QUESTIONS = [
   'Der Alltag am Telefon kann eintönig und stressig sein — viele Anrufe, oft dieselben Beschwerden. Wie halten Sie da Ihre Energie und Geduld?',
   'Was reizt Sie konkret daran, im Kundenservice für deutsche Kunden zu arbeiten — und nicht auf Englisch oder Arabisch?',
   'Nur damit ich es richtig einordne: Wie sieht Ihre Gehaltsvorstellung für eine Vollzeitstelle aus?',
+  'Kurz zur Technik: Haben Sie zu Hause eine stabile Internetverbindung und einen ruhigen Arbeitsplatz, falls Sie im Homeoffice arbeiten?',
+  'Wie schätzen Sie Ihr Deutsch selbst ein — und wo merken Sie im Alltag noch Grenzen, zum Beispiel am Telefon?',
+  'Wo sehen Sie sich beruflich in zwei bis drei Jahren — eher in der Kundenbetreuung, im Qualitätsbereich oder in einer Teamleitung?',
+  'Wie lang wäre Ihr Arbeitsweg zu uns, und wie zuverlässig kommen Sie auch zu einer Frühschicht um sechs Uhr?',
+  'Haben Sie schon einmal im Schichtsystem gearbeitet? Wenn ja: Was war für Sie das Schwierigste daran?',
 ];
 
 // ── C1 Behavioral questions — Swiss/formal BPO register, STAR-method expected ──
@@ -86,6 +97,10 @@ export const C1_BEHAVIORAL_QUESTIONS = [
   'Erzählen Sie von einem Fall, in dem Sie das Vertrauen eines Kunden nach einem schwerwiegenden Servicefehler langfristig zurückgewinnen konnten. Welche konkreten Schritte haben Sie unternommen?',
   'Beschreiben Sie eine Situation, in der Sie interne Prozesse verbessert haben, um die Kundenzufriedenheit messbar zu steigern.',
   'Schildern Sie eine Entscheidungssituation mit ethisch problematischen Aspekten im Berufsalltag — wie haben Sie abgewogen, entschieden und kommuniziert?',
+  'Beschreiben Sie eine Situation, in der Sie einem Kunden eine unbequeme Entscheidung des Unternehmens vermitteln mussten, ohne die Kundenbeziehung zu beschädigen. Wie haben Sie das kommuniziert?',
+  'Schildern Sie einen Fall, in dem Sie Ihr Wissen strukturiert an neue Kolleginnen und Kollegen weitergegeben haben. Woran haben Sie gemerkt, dass Ihre Einarbeitung wirkte?',
+  'Erzählen Sie von einer Situation, in der Sie zwischen Schnelligkeit und Gründlichkeit abwägen mussten. Wie haben Sie entschieden — und wie haben Sie diese Entscheidung begründet?',
+  'Beschreiben Sie einen Fall, in dem Sie aus mehreren Kundenbeschwerden ein wiederkehrendes Muster erkannt und daraus eine konkrete Prozessänderung abgeleitet haben.',
 ];
 
 // ── Customer-service roleplay scenarios (Teil 3) — the boss PLAYS the customer ──
@@ -160,6 +175,54 @@ export const CS_SCENARIOS = [
       'Das tut mir leid zu hören — darf ich fragen, was Sie enttäuscht hat?',
       'Ich nehme Ihr Anliegen sehr ernst und möchte verstehen, was passiert ist.',
       'Ich würde Ihnen gern eine Alternative zeigen, bevor Sie endgültig entscheiden.',
+    ],
+  },
+  {
+    id:        'identity-verification',
+    customer:  'ein gereizter Kunde, der Kontoauskunft verlangt, aber die Identitätsprüfung verweigert',
+    opening:   'Jetzt hören Sie mal zu: Ich will nur wissen, was auf meinem Konto los ist! Nein, ich gebe Ihnen nicht schon wieder mein Geburtsdatum — sagen Sie mir einfach, was da abgebucht wurde!',
+    situation: 'Der Kunde verlangt Auskunft über sein Konto, verweigert aber die Verifizierung — ohne Identitätsprüfung darf nichts herausgegeben werden.',
+    skill:     'Datenschutz freundlich, aber konsequent durchsetzen',
+    keyPhrases: [
+      'Ich helfe Ihnen sofort weiter — aus Datenschutzgründen muss ich Sie vorher kurz verifizieren.',
+      'Genau das schützt Ihr Konto — deshalb frage ich.',
+      'Sobald ich Sie verifiziert habe, kläre ich das umgehend für Sie.',
+    ],
+  },
+  {
+    id:        'price-increase',
+    customer:  'ein empörter Kunde, dessen Vertrag ohne Vorwarnung teurer geworden ist',
+    opening:   'Was soll diese Preiserhöhung?! Neunzehn Euro mehr im Monat, und keiner sagt mir Bescheid?! Das lasse ich mir nicht gefallen!',
+    situation: 'Der Vertrag wurde teurer; der Kunde fühlt sich überrumpelt und droht mit dem Wechsel zur Konkurrenz.',
+    skill:     'Transparenz + Optionen statt Rechtfertigung',
+    keyPhrases: [
+      'Ich verstehe, dass Sie das ärgert — ich schaue mir Ihren Vertrag sofort an.',
+      'Ich erkläre Ihnen transparent, wie der neue Preis zustande kommt.',
+      'Lassen Sie uns gemeinsam prüfen, welcher Tarif besser zu Ihnen passt.',
+    ],
+  },
+  {
+    id:        'demands-manager',
+    customer:  'ein aufgebrachter Kunde, der sofort mit der Teamleitung sprechen will',
+    opening:   'Nein, mit IHNEN rede ich nicht mehr! Geben Sie mir sofort Ihren Vorgesetzten — SOFORT!',
+    situation: 'Der Kunde verlangt sofort die Teamleitung; der Agent soll erst selbst Lösungskompetenz zeigen, ohne die Eskalation zu blockieren.',
+    skill:     'Souverän bleiben + Eskalation professionell anbieten',
+    keyPhrases: [
+      'Das können Sie gern bekommen — geben Sie mir zwei Minuten, vielleicht habe ich bis dahin schon die Lösung für Sie.',
+      'Ich nehme Ihr Anliegen genauso ernst, wie meine Teamleitung es tun würde.',
+      'Wenn Sie danach weiterhin die Teamleitung sprechen möchten, verbinde ich Sie selbstverständlich.',
+    ],
+  },
+  {
+    id:        'wrong-item',
+    customer:  'ein Kunde unter Zeitdruck, der einen falschen Artikel geliefert bekommen hat',
+    opening:   'Ich habe ein GRAUES Notebook bestellt und ein pinkes bekommen! Das ist doch nicht zu fassen — ich brauche das Gerät MORGEN für eine Präsentation!',
+    situation: 'Falscher Artikel geliefert, der Kunde steht unter Zeitdruck — die Lösung muss schnell und konkret sein.',
+    skill:     'Schnelle, konkrete Lösung unter Zeitdruck',
+    keyPhrases: [
+      'Das ist ärgerlich, gerade vor Ihrem Termin — ich kümmere mich sofort darum.',
+      'Ich prüfe, ob eine Expresslieferung bis morgen früh möglich ist.',
+      'Sie bekommen von mir noch heute eine Bestätigung mit der Sendungsnummer.',
     ],
   },
 ];
