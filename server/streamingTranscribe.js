@@ -17,10 +17,11 @@ import { WebSocket } from 'ws';
 const DG_STREAM_URL = 'wss://api.deepgram.com/v1/listen';
 
 export class DeepgramStreamer {
-  constructor({ onPartial = () => {}, onFinal = () => {}, onError = () => {} } = {}) {
+  constructor({ onPartial = () => {}, onFinal = () => {}, onError = () => {}, keyterms = [] } = {}) {
     this._onPartial = onPartial;
     this._onFinal   = onFinal;
     this._onError   = onError;
+    this._keyterms  = Array.isArray(keyterms) ? keyterms.filter(Boolean) : [];   // words to bias the decoder toward (names, domain vocab)
     this._ws        = null;
     this._pending   = [];   // chunks buffered before WS opens
     this._done      = false;
@@ -41,6 +42,17 @@ export class DeepgramStreamer {
       sample_rate:     '24000',
       channels:        '1',
     });
+
+    // ACCENT ACCURACY (general, not a one-word patch): bias the decoder toward the words we KNOW occur
+    // this session — the interviewer's name, the candidate's name, core interview/BPO vocabulary — so
+    // accented German ("Frau Yasmin", Y=/j/) stops being re-segmented into frequent words like "nicht".
+    // Free + model-native. keyterm is the nova-3 param; keywords the nova-2/older one — pick by the active
+    // model so the boost is never silently ignored (and so DEEPGRAM_MODEL=nova-3 later just works).
+    const _model = params.get('model') || '';
+    const _boostParam = /nova-3/.test(_model) ? 'keyterm' : 'keywords';
+    for (const t of this._keyterms) {
+      params.append(_boostParam, _boostParam === 'keywords' ? `${t}:2` : t);
+    }
 
     this._ws = new WebSocket(`${DG_STREAM_URL}?${params}`, {
       headers: { Authorization: `Token ${key}` },

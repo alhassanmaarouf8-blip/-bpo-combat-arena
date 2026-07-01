@@ -437,6 +437,18 @@ export class WebSocketManager {
     }
 
     ctx.bossId = bossId;
+    // STT ACCENT-BOOST list (general accuracy, not a one-word patch): the words we KNOW will occur this
+    // session — the interviewer's name, the candidate's own name, core interview/BPO vocabulary — handed
+    // to Deepgram so accented German is misheard less often ("Frau Yasmin" → not "nicht Yasmin"). The
+    // universal net for whatever slips through is the confidence gate (step ②), not this list.
+    ctx.candidateName = candidateName;
+    const BOSS_STT_NAMES = { yasmin:['Yasmin'], karim:['Karim'], hana:['Hana'], tarek:['Tarek'], 'frau-mona-adel':['Mona','Adel'], lukas:['Lukas'] };
+    ctx.sttBoost = [
+      ...(BOSS_STT_NAMES[bossId] || []),
+      ...(candidateName ? String(candidateName).split(/\s+/).filter(Boolean).slice(0, 2) : []),
+      'Vorstellungsgespräch', 'Kundenservice', 'Reklamation', 'Eskalation', 'Kündigung',
+      'Selbstvorstellung', 'Teamleiter', 'Kundenzufriedenheit', 'Abbuchung', 'Beschwerde',
+    ];
     // NO-REPEAT interview content: the seen-id lists the script builder must avoid so a returning
     // candidate never gets the same behavioral question / screening filter / customer scenario twice
     // until each pool is exhausted. Persisted back below once the picks are made.
@@ -699,6 +711,7 @@ export class WebSocketManager {
     if (!ctx.dgStreamer) {
       if (!ctx._speechStartMs) ctx._speechStartMs = Date.now();   // real speech duration for WPM
       const streamer = new DeepgramStreamer({
+        keyterms: ctx.sttBoost || [],   // bias the decoder toward this session's known names + vocab
         onPartial: (text) => {
           // Keep the latest interim as a CAPTURE FALLBACK: if the turn ends before Deepgram emits a
           // final segment (its trailing final can arrive after the flush), _commitTurn uses this so the
