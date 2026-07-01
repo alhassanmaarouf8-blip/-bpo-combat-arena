@@ -35,7 +35,13 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23020409'/><text y='.9em' x='5' font-size='80'>⚔️</text></svg>" />
     <title>OMNI-PERFORM — Deutsch-Interview-Training per Sprache</title>
     <!-- Critical: dark background from the very first paint (no white flash before React/CSS load) -->
-    <style>html,body{margin:0;background:#020409}#root{min-height:100svh}</style>
+    <style>
+      html,body{margin:0;background:#020409}#root{min-height:100svh}
+      /* Mobile-first app is a 440px column — a tiny strip on a laptop. Scale the whole thing up on wider
+         screens so the interface (layout AND fonts) is comfortably bigger on desktop. Mobile untouched. */
+      @media (min-width:900px){ #root{ zoom:1.55; } }
+      @media (min-width:1500px){ #root{ zoom:1.8; } }
+    </style>
   </head>
   <body>
     <div id="root"></div>
