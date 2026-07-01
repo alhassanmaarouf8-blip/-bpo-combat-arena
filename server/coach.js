@@ -14,7 +14,7 @@
 
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { evaluateNaturalness } from './naturalness.js';
-import { looksTruncatedDE, sessionSubstance } from './scoring/turnQuality.js';
+import { looksTruncatedDE, sessionSubstance, quoteHasLowConfidence } from './scoring/turnQuality.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
 // stays authoritative from LanguageTool; the model only writes strengths/study-next/
@@ -212,6 +212,13 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     // a fragment the interviewer interrupted has no fair "luecke". Drop such reviews/upgrades outright.
     norm.interviewReview = norm.interviewReview.filter((r) => !looksTruncatedDE(r.deinSatz));
     norm.upgrades        = norm.upgrades.filter((u) => !looksTruncatedDE(u.original));
+    // GUARD (STT confidence): never quote back a word the recognizer was UNSURE about — that's how a
+    // mis-transcription like "Python"→"Pariethon" ends up shown to the learner as "you said Pariethon".
+    const lowConfSet = new Set((utterances || []).flatMap((u) => u?.lowConf || []));
+    if (lowConfSet.size) {
+      norm.interviewReview = norm.interviewReview.filter((r) => !quoteHasLowConfidence(r.deinSatz, lowConfSet));
+      norm.upgrades        = norm.upgrades.filter((u) => !quoteHasLowConfidence(u.original, lowConfSet));
+    }
     // GRAMMAR: ONLY from LanguageTool — NEVER the model.
     const grammar = ltGrammar || [];
     const lesson  = buildLesson(utterances, metrics, grammar, !ltGrammar);

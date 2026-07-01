@@ -3,7 +3,7 @@ import { randomUUID }      from 'crypto';
 import { RealtimeClient }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
-import { looksTruncatedDE } from './scoring/turnQuality.js';
+import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { textFeatures } from './hireReadiness.js';
@@ -1394,6 +1394,7 @@ export class WebSocketManager {
         durationMs,
         stage:      ctx.stageIdx,
         stageLabel: ctx.stages[ctx.stageIdx]?.label,
+        lowConf:    lowConfidenceWords(words),   // words Deepgram was unsure about → never quote them back
       });
       // …and into the ordered dialogue, right after the boss question that prompted it,
       // so the debrief can do per-exchange "did you answer what was asked?" analysis.

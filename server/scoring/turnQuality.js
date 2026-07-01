@@ -75,6 +75,29 @@ export function looksTruncatedDE(text) {
 // Tunable thresholds for "too thin / too broken to give a confident hireability verdict".
 export const SUBSTANCE = { MIN_WORDS: 25, MIN_COMPLETE_TURNS: 2, MIN_TURN_WORDS: 6, MAX_TRUNCATED_SHARE: 0.6 };
 
+// Deepgram word-confidence below this = the recognizer wasn't sure it heard the word right (an
+// English tech term, a name, or plain noise) → likely a mis-transcription like "Python"→"Pariethon".
+export const LOW_CONFIDENCE = 0.55;
+
+/** Lowercased words in a Deepgram [{word, confidence}] list that the recognizer was unsure about. */
+export function lowConfidenceWords(words, threshold = LOW_CONFIDENCE) {
+  const out = [];
+  for (const w of (Array.isArray(words) ? words : [])) {
+    if (typeof w?.confidence === 'number' && w.confidence < threshold) {
+      const t = String(w.word || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+      if (t) out.push(t);
+    }
+  }
+  return out;
+}
+
+/** Does a quote contain any token the recognizer was unsure about? (→ don't show it back as "you said X"). */
+export function quoteHasLowConfidence(quote, lowConfSet) {
+  if (!lowConfSet || (lowConfSet.size ?? 0) === 0) return false;
+  for (const tok of wordsOf(quote)) if (lowConfSet.has(tok.toLowerCase())) return true;
+  return false;
+}
+
 /**
  * Aggregate whether a session has enough CLEAN, complete speech to fairly judge interview quality.
  * `tooThinToJudge` → show honest metrics + grammar, but no manufactured per-answer critique / verdict.
@@ -100,4 +123,4 @@ export function sessionSubstance(utterances) {
   return { realWords, completeTurns, truncatedTurns, spoken, truncatedShare, tooThinToJudge };
 }
 
-export default { looksTruncatedDE, sessionSubstance, SUBSTANCE };
+export default { looksTruncatedDE, sessionSubstance, SUBSTANCE, lowConfidenceWords, quoteHasLowConfidence, LOW_CONFIDENCE };

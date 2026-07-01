@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { looksTruncatedDE, sessionSubstance } from './turnQuality.js';
+import { looksTruncatedDE, sessionSubstance, lowConfidenceWords, quoteHasLowConfidence } from './turnQuality.js';
 
 test('truncated: the owner\'s real cut-off fragments are flagged', () => {
   // straight from the reported broken interview
@@ -56,4 +56,21 @@ test('sessionSubstance: two real complete answers with enough words is judgeable
 
 test('sessionSubstance: empty session is trivially too thin', () => {
   assert.equal(sessionSubstance([]).tooThinToJudge, true);
+});
+
+test('lowConfidenceWords: only sub-threshold words are flagged', () => {
+  const words = [
+    { word: 'ich', confidence: 0.98 }, { word: 'nutze', confidence: 0.95 },
+    { word: 'Pariethon', confidence: 0.31 }, { word: 'täglich', confidence: 0.9 },
+  ];
+  assert.deepEqual(lowConfidenceWords(words), ['pariethon']);
+  assert.deepEqual(lowConfidenceWords([]), []);
+  assert.deepEqual(lowConfidenceWords(null), []);
+});
+
+test('quoteHasLowConfidence: a quote containing a mis-heard word is caught', () => {
+  const set = new Set(['pariethon']);
+  assert.equal(quoteHasLowConfidence('ich nutze Pariethon täglich', set), true);   // garbled → drop
+  assert.equal(quoteHasLowConfidence('ich habe drei Jahre gearbeitet', set), false); // clean → keep
+  assert.equal(quoteHasLowConfidence('anything', new Set()), false);                  // no low-conf data → keep
 });
