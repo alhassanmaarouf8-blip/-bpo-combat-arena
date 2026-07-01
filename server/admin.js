@@ -13,7 +13,7 @@
  */
 import express from 'express';
 import { timingSafeEqual } from 'crypto';
-import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf } from './auth.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement } from './auth.js';
 import { loadPayments, savePayments, deletePaymentsFor } from './paymentsStore.js';
 import { deleteUser }                    from './store.js';
 
@@ -45,6 +45,25 @@ adminRouter.get('/admin/payments', async (req, res) => {
   const activated = all.filter((p) => p.status === 'activated').sort((a, b) => (b.activatedAt || 0) - (a.activatedAt || 0)).slice(0, 20);
   const deactivated = all.filter((p) => p.status === 'deactivated').sort((a, b) => (b.deactivatedAt || 0) - (a.deactivatedAt || 0)).slice(0, 10);
   res.json({ pending, activated, deactivated });
+});
+
+// ALL signed-up users (not just payments) — the owner wants to see everyone who registered, with plan +
+// trial + registration date. Test/QA accounts (@example.com) are hidden so real signups aren't buried.
+adminRouter.get('/admin/accounts', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const all = await listAllAccounts();
+    const users = (all || [])
+      .filter((a) => a && a.email && !/@example\.com$/i.test(a.email))
+      .map((a) => {
+        let plan = 'free', trialLeft = null;
+        try { plan = planOf(a); } catch {}
+        try { const e = entitlement(a); trialLeft = e?.trial?.daysLeft ?? null; } catch {}
+        return { email: a.email, plan, tier: a.subscription?.tier || '—', trialLeft, createdAt: a.createdAt || 0 };
+      })
+      .sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
+    res.json({ users, total: users.length });
+  } catch (e) { console.error('[admin] accounts error:', e.message); res.status(500).json({ error: 'accounts_failed' }); }
 });
 
 adminRouter.post('/admin/activate', async (req, res) => {
@@ -170,6 +189,7 @@ button{cursor:pointer;border:none;border-radius:6px;padding:7px 12px;font-weight
 <h2>OFFEN / PENDING</h2><div id="pending"></div>
 <h2>ZULETZT AKTIVIERT (20)</h2><div id="activated"></div>
 <h2>ZULETZT DEAKTIVIERT (10)</h2><div id="deactivated"></div>
+<h2>ALLE NUTZER / ANMELDUNGEN (<span id="userCount">0</span>)</h2><div id="accounts"></div>
 <script>
 var KEY=new URLSearchParams(location.search).get('key')||'';
 function fmtMoney(n){return Number(n||0).toLocaleString('de-DE')+' EGP';}
@@ -182,6 +202,25 @@ function load(){
     document.getElementById('err').textContent='';
     renderPending(d.pending||[]); renderActivated(d.activated||[]); renderDeactivated(d.deactivated||[]);
   }).catch(function(e){document.getElementById('err').textContent='Fehler beim Laden ('+e.message+') — Key korrekt?';});
+  fetch('/admin/accounts?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
+    renderAccounts(d.users||[]); document.getElementById('userCount').textContent=(d.users||[]).length;
+  }).catch(function(){});
+}
+function renderAccounts(rows){
+  var box=document.getElementById('accounts');box.innerHTML='';
+  if(!rows.length){box.innerHTML='<div class="empty">Noch keine Nutzer.</div>';return;}
+  var t=document.createElement('table');
+  t.innerHTML='<tr><th>E-Mail</th><th>Plan</th><th>Tarif</th><th>Trial (Tage)</th><th>Registriert</th></tr>';
+  rows.forEach(function(u){
+    var tr=document.createElement('tr');
+    tr.appendChild(cell(u.email));
+    tr.appendChild(cell(String(u.plan||'free').toUpperCase()));
+    tr.appendChild(cell(u.tier||'—'));
+    tr.appendChild(cell(u.trialLeft==null?'—':String(u.trialLeft)));
+    tr.appendChild(cell(fmtTime(u.createdAt)));
+    t.appendChild(tr);
+  });
+  box.appendChild(t);
 }
 function renderPending(rows){
   var box=document.getElementById('pending');box.innerHTML='';
