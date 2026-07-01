@@ -133,6 +133,7 @@ const S = {
   TRANSCRIPT_DONE:    'transcript_done',
   TRANSCRIPT_PARTIAL: 'transcript_partial',   // Deepgram streaming interim result
   BOSS_SPEECH:        'boss_speech',
+  BOSS_SPEECH_EARLY:  'boss_speech_early',   // first sentence, streamed ahead of the full line → start speaking NOW
   BOSS_SPEECH_DONE:   'boss_speech_done',
   SCENARIO_INFO:      'scenario_info',
   STAGE_UPDATE:       'stage_update',
@@ -213,6 +214,7 @@ let _bossAudio = null;
 let _streamSeq = 0;   // bumped to cancel an in-flight streamed (multi-sentence) boss line
 function stopBossVoice() {
   _streamSeq++;        // cancel any sentence-stream in progress
+  _earlyBoss = null;   // an in-flight early first sentence is superseded too (seq guard makes stale callbacks inert)
   // Null handlers BEFORE clearing src. Clearing src causes the browser to fire onerror/onemptied
   // on the element; if handlers are still attached they call onEnd() → setBossSpeak(false) on
   // the OLD audio, which races with a newly-started audio and clears bossSpeak prematurely.
@@ -426,21 +428,78 @@ function playProgressiveAudio(url, onStart, onEnd) {
   });
 }
 
+// The one place a boss-voice stream URL is built (ElevenLabs if opted in, else free Aura-2 stream).
+function bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text }) {
+  const enc = encodeURIComponent;
+  const em = emotion ? `&emotion=${enc(emotion)}` : '';   // felt state → server maps it to expressive voice settings
+  return elevenVoice
+    ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(text)}${em}`
+    : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(text)}${em}`;
+}
+
 async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, emotion, onStart, onEnd }) {
   if (!text) { onEnd?.(); return; }
   stopBossVoice();
-  const enc = encodeURIComponent;
-  const em = emotion ? `&emotion=${enc(emotion)}` : '';   // felt state → server maps it to expressive voice settings
   // PRIMARY: a STREAMING GET <audio> source — sound starts ~350ms in, killing the ~6s dead air the
   // buffered (whole-clip) path had. ElevenLabs if opted in (paid), else the free Deepgram Aura-2 stream.
-  const streamUrl = elevenVoice
-    ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(text)}${em}`
-    : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(text)}${em}`;
+  const streamUrl = bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text });
   const fellBack = await playProgressiveAudio(streamUrl, onStart, onEnd);
   if (!fellBack) return;
   // FALLBACK (stream unavailable): buffered, clause-split Deepgram clips (never the robotic browser voice).
   stopBossVoice();   // bump _streamSeq so the fallback owns the stream (speakBossStreamed contract)
   await speakBossStreamed({ apiUrl, token, voice, text, onStart, onEnd });
+}
+
+// ── EARLY first sentence (sentence-streaming reply) ────────────────────────────
+// The server now streams the boss LLM and sends the FIRST complete sentence (BOSS_SPEECH_EARLY)
+// while the rest of the line is still generating. We start speaking that sentence immediately;
+// when the full line lands (BOSS_SPEECH_DONE) we splice in only the REMAINDER. The short fetch
+// gap between the two clips reads as a natural inter-sentence pause. If anything about the early
+// clip fails or the full line doesn't start with it (a guard replaced the line), we fall back to
+// playing the whole line from scratch — worst case is a rough cut, never a silent or stuck boss.
+let _earlyBoss = null;   // { text, seq, clipDone, failed, pendingRest, onLineEnd }
+function playBossEarlySentence({ apiUrl, token, voice, elevenVoice, emotion, text, onStart }) {
+  stopBossVoice();               // kills the thinking-filler + any previous line; bumps _streamSeq
+  const seq = _streamSeq;
+  const st = { text, seq, clipDone: false, failed: false, pendingRest: null, onLineEnd: null };
+  _earlyBoss = st;
+  const url = bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text });
+  playProgressiveAudio(url, onStart, () => {
+    st.clipDone = true;
+    if (seq !== _streamSeq) return;                  // superseded by a newer line → nothing to do
+    if (st.pendingRest)     { const go = st.pendingRest;  st.pendingRest = null; _earlyBoss = null; go(); }
+    else if (st.onLineEnd)  { const end = st.onLineEnd;   st.onLineEnd = null;   _earlyBoss = null; try { end(); } catch {} }
+    // else: the full line hasn't landed yet — hold the floor; BOSS_SPEECH_DONE will splice or restart.
+  }).then((fellBack) => { if (fellBack) st.failed = true; });
+}
+// Called by BOSS_SPEECH_DONE with the full sanitized line. Returns true if the early clip took
+// ownership (the caller must NOT start its own playback), false to play the whole line normally.
+function continueBossLineEarly({ full, apiUrl, token, voice, elevenVoice, emotion, onEnd }) {
+  const st = _earlyBoss;
+  if (!st) return false;
+  if (st.seq !== _streamSeq || st.failed || !String(full || '').startsWith(st.text)) {
+    _earlyBoss = null;                               // stale / failed / guard replaced the line → full restart
+    return false;
+  }
+  const rest = String(full).slice(st.text.length).trim();
+  const playRest = () => {
+    // NO stopBossVoice here — that would bump _streamSeq and orphan this line's cancellation contract.
+    const url = bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text: rest });
+    playProgressiveAudio(url, () => {}, () => { if (st.seq === _streamSeq) { try { onEnd?.(); } catch {} } })
+      .then((fellBack) => {
+        if (fellBack && st.seq === _streamSeq) {
+          speakBossStreamed({ apiUrl, token, voice, text: rest, onStart: () => {}, onEnd });
+        }
+      });
+  };
+  if (!rest) {
+    if (st.clipDone) { _earlyBoss = null; try { onEnd?.(); } catch {} }
+    else st.onLineEnd = onEnd;                       // the early clip WAS the whole line — its end ends the turn
+    return true;
+  }
+  if (st.clipDone) { _earlyBoss = null; playRest(); }
+  else st.pendingRest = playRest;                    // splice the remainder in when sentence 1 finishes
+  return true;
 }
 
 // ── Boss emotional states → drives the SVG interviewer's expression ───────────
@@ -2809,6 +2868,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         break;
       }
 
+      case S.BOSS_SPEECH_EARLY: {
+        // First sentence of the boss's reply, streamed ahead of the full line — start SPEAKING it
+        // now. The full line still arrives via BOSS_SPEECH(+DONE), which splices in the remainder.
+        if (!msg.text || ttsMutedRef.current) break;   // muted → the normal text-only path handles it
+        setBossSpeak(true);        // immediately, like BOSS_SPEECH — keeps the auto-mic gate closed (no echo window)
+        setBossThinking(false);
+        setShowBriefing(false);
+        setBossText(msg.text);     // subtitle shows the first words at once; the full line replaces it
+        _latTtsStart = Date.now(); // [LAT] TTS clock starts at the early sentence
+        playBossEarlySentence({
+          apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current,
+          elevenVoice: bossElevenVoiceRef.current, emotion: emotionRef.current, text: msg.text,
+          onStart: () => reportClientLat(API_URL),
+        });
+        break;
+      }
+
       case S.BOSS_SPEECH: {
         if (!msg.text) break;
         setBossSpeak(true);
@@ -2843,16 +2919,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           stopFiller();   // the real reply is ready → end the thinking-sound bridge (also handled by stopBossVoice below)
           const spokenLine = bossLineRef.current || '';
           try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
-          _latTtsStart = Date.now();   // [LAT] TTS clock: boss text ready, about to synth+play
           if (!ttsMutedRef.current && spokenLine) {
-            // playBossVoice now STREAMS both voices (ElevenLabs if opted in, else the free Aura-2 mp3
-            // stream) via a progressive <audio> — sound starts ~350ms in instead of after the whole
-            // clip buffers (~6s on a long line). Falls back to buffered clause-split clips on failure.
-            playBossVoice({
-              apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
-              emotion: emotionRef.current,   // the boss's felt state → its VOICE, not just its face
-              onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
+            // If the EARLY first sentence is already playing (BOSS_SPEECH_EARLY), splice in only the
+            // remainder of the line — the boss has been speaking since ~first-token time. Otherwise
+            // play the full line as before (streamed progressive audio, buffered clips as fallback).
+            const spliced = continueBossLineEarly({
+              full: spokenLine, apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current,
+              elevenVoice: bossElevenVoiceRef.current, emotion: emotionRef.current,
+              onEnd: () => setBossSpeak(false),
             });
+            if (!spliced) {
+              _latTtsStart = Date.now();   // [LAT] TTS clock: boss text ready, about to synth+play
+              playBossVoice({
+                apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
+                emotion: emotionRef.current,   // the boss's felt state → its VOICE, not just its face
+                onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
+              });
+            }
           } else {
             setBossSpeak(false);
           }

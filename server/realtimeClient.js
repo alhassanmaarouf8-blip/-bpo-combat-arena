@@ -67,6 +67,104 @@ const PROVIDERS = [
 const PROVIDER_COOLDOWN_MS = 10 * 60 * 1000;   // after a 429, skip a provider for 10 min
 const _providerCooldownUntil = Object.create(null);   // provider name → epoch ms
 
+// ── First-sentence early emission (sentence-streaming voice) ─────────────────────
+// The single biggest felt-latency lever: the client can START SPEAKING the boss's first
+// sentence while the rest of the line is still being generated. These helpers find a safe
+// first-sentence boundary in the accumulating stream. Conservative on purpose — a missed
+// early emission costs ~0.5s, a WRONG one speaks words that later get cut/replaced.
+const _DE_ABBREV_TAIL = /\b(?:z|bzw|usw|ggf|evtl|ca|inkl|zzgl|max|min|Nr|Dr|Hr|Fr|St|sog|u|o)\.$/i;
+export function firstSentenceBoundary(text) {
+  const re = /[.!?…]["'»«“”]?(?=\s)/gu;   // boundary must be FOLLOWED by whitespace (mid-stream tail is never a confirmed boundary)
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const end = m.index + m[0].length;
+    const head = text.slice(0, end).trim();
+    if (head.replace(/[^\p{L}\p{N}]/gu, '').length < 3) continue;   // "…" / lone punctuation is not a sentence
+    if (_DE_ABBREV_TAIL.test(head.replace(/["'»«“”]$/u, '').replace(/[!?…]$/u, ''))) continue;  // "z. B." etc.
+    const rest = text.slice(end).trimStart();
+    if (!rest) continue;                                            // wait for the next token to confirm
+    if (!/^[\p{Lu}„“"'»«—–…\d(]/u.test(rest)) continue;             // a real German sentence starts capitalized
+    return end;
+  }
+  return -1;
+}
+// A first sentence is only spoken early if it can never be cut or replaced by the full-line
+// guards later: no invented-dialogue marker, and not the false "akustisch nicht verstanden" line.
+export function earlySafeSentence(s1) {
+  const t = String(s1 || '').trim();
+  if (!t || t.replace(/[^\p{L}\p{N}]/gu, '').length < 3) return false;
+  if (/(^|\n)\s*(Kandidat|Bewerber|Bewerberin|Candidate|Du|Sie sagen|Antwort des Kandidaten)\s*[:：]/i.test(t)) return false;
+  if (/nicht\s+(ganz\s+)?(akustisch\s+)?verstanden|akustisch\s+nicht|nicht\s+verstehen|könnten?\s+sie\s+das\s+(bitte\s+)?(noch\s*mal|wiederholen)|wiederholen\s+sie/i.test(t)) return false;
+  return true;
+}
+
+// Leading boss self-label ("Yasmin:", "Interviewer:") — stripped from BOTH the early sentence and
+// the full line (sanitizeOneTurn) so the early prefix always matches the final sanitized line.
+const BOSS_LABEL_RE = /^\s*(Yasmin|Karim|Hana|Tarek|Frau\s+Mona\s+Adel|Frau\s+Adel|Herr\s+Tariq|Frau\s+Müller|Direktor\s+Vogel|Interviewer|HR)\s*[:：]\s*/i;
+
+// Streaming variant of callBoss: same provider failover, but SSE-streamed so the FIRST complete
+// sentence can be emitted (onEarly) while the rest of the turn is still generating. Returns the
+// full completion text. If a provider dies mid-stream after an early emission, the failover
+// provider may produce a different line — the client handles a prefix mismatch by restarting
+// playback, so the worst case is a rough cut, never a stuck or silent turn.
+async function callBossStreaming(turnMsgs, sessionId, onEarly) {
+  const now = Date.now();
+  const fresh = PROVIDERS.filter(p => !(_providerCooldownUntil[p.name] > now));
+  const order = fresh.length ? fresh : PROVIDERS;
+  let lastErr = null;
+  for (const p of order) {
+    try {
+      const res = await fetch(`${p.base}/chat/completions`, {
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${p.key}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ model: p.model, temperature: 0.7, max_tokens: p.maxTokens, messages: turnMsgs, ...p.extra, stream: true }),
+      });
+      if (res.status === 429) {
+        _providerCooldownUntil[p.name] = Date.now() + PROVIDER_COOLDOWN_MS;
+        const body = await res.text().catch(() => '');
+        lastErr = Object.assign(new Error(`${p.name} 429 ${body.slice(0, 120)}`), { status: 429 });
+        console.warn(`[interviewClient] ${p.name} capped (429) → failover  session=${sessionId}`);
+        continue;
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        lastErr = Object.assign(new Error(`${p.name} ${res.status} ${body.slice(0, 160)}`), { status: res.status });
+        console.warn(`[interviewClient] ${p.name} ${res.status} → trying next  session=${sessionId}`);
+        continue;
+      }
+      let full = '', earlyDecided = false, buf = '';
+      const dec = new TextDecoder();
+      for await (const chunk of res.body) {
+        buf += dec.decode(chunk, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) !== -1) {
+          const raw = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+          if (!raw.startsWith('data:')) continue;
+          const data = raw.slice(5).trim();
+          if (!data || data === '[DONE]') continue;
+          let delta = '';
+          try { delta = JSON.parse(data).choices?.[0]?.delta?.content || ''; } catch {}
+          if (!delta) continue;
+          full += delta;
+          if (!earlyDecided && onEarly) {
+            const cut = firstSentenceBoundary(full);
+            if (cut !== -1) {
+              earlyDecided = true;   // one decision per turn — never re-evaluated token by token
+              const s1 = full.slice(0, cut).replace(BOSS_LABEL_RE, '').trim();
+              if (earlySafeSentence(s1)) { try { onEarly(s1); } catch {} }
+            }
+          }
+        }
+      }
+      return { content: full, provider: p.name };
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[interviewClient] ${p.name} stream error → trying next  session=${sessionId}: ${err.message}`);
+    }
+  }
+  throw lastErr || new Error('all boss providers failed');
+}
+
 // Try each configured provider in order; on 429/error, park it and fail over to the next.
 // Returns { content, provider }. Throws only if EVERY provider fails.
 async function callBoss(turnMsgs, sessionId) {
@@ -317,8 +415,9 @@ function sanitizeOneTurn(text) {
   const markers = /(^|\n)\s*(Kandidat|Bewerber|Bewerberin|Candidate|Du|Sie sagen|Antwort des Kandidaten)\s*[:：]/i;
   const m = t.match(markers);
   if (m && m.index > 0) t = t.slice(0, m.index).trim();
-  // Drop a leading boss self-label if present ("Herr Tariq:", "Interviewer:").
-  t = t.replace(/^\s*(Yasmin|Karim|Hana|Tarek|Frau\s+Mona\s+Adel|Frau\s+Adel|Herr\s+Tariq|Frau\s+Müller|Direktor\s+Vogel|Interviewer|HR)\s*[:：]\s*/i, '').trim();
+  // Drop a leading boss self-label if present ("Herr Tariq:", "Interviewer:") — same regex the
+  // early-sentence path strips, so the early prefix always matches the sanitized full line.
+  t = t.replace(BOSS_LABEL_RE, '').trim();
   // ONE question per turn: real interviewers ask one thing, not a stack (measured 1.6 Q/turn, up to 3).
   // If the line has ≥2 question marks, keep everything up to and including the FIRST '?' and drop the rest.
   const q1 = t.indexOf('?');
@@ -512,7 +611,21 @@ export class RealtimeClient {
 
     let line = '';
     try {
-      const { content, provider } = await callBoss(turnMsgs, this._sessionId);
+      // STREAMED: the first complete sentence is handed to the gateway (onBossEarly) the moment it
+      // exists, so the client can start SPEAKING it while the rest of the line is still generating —
+      // the boss now begins answering in roughly first-token time instead of full-completion time.
+      // If streaming fails end-to-end (SSE quirk, proxy, provider), retry ONCE non-streaming so a
+      // streaming problem can never cost the candidate a turn.
+      let content, provider;
+      try {
+        ({ content, provider } = await callBossStreaming(turnMsgs, this._sessionId, (s1) => {
+          if (this._closed) return;
+          this._cb.onBossEarly?.(s1);
+        }));
+      } catch (streamErr) {
+        console.warn(`[interviewClient] streaming failed (${streamErr.message}) → non-streaming retry  session=${this._sessionId}`);
+        ({ content, provider } = await callBoss(turnMsgs, this._sessionId));
+      }
       line = content;
       if (provider !== this._lastProvider) {
         this._lastProvider = provider;

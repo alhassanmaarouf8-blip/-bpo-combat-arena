@@ -102,6 +102,7 @@ const S = {
   TRANSCRIPT_DONE:    'transcript_done',
   TRANSCRIPT_PARTIAL: 'transcript_partial',   // Deepgram streaming interim result
   BOSS_SPEECH:        'boss_speech',
+  BOSS_SPEECH_EARLY:  'boss_speech_early',   // first complete sentence, streamed ahead of the full line → client starts SPEAKING it immediately
   BOSS_SPEECH_DONE:   'boss_speech_done',
   // ── Gemini Live audio path (replaces TTS when USE_GEMINI_LIVE=1) ────────────
   BOSS_AUDIO_DELTA:  'boss_audio_delta',   // b64 PCM16 @ 24 kHz — streamed boss voice
@@ -480,9 +481,18 @@ export class WebSocketManager {
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
         // that follows, so it can judge whether the candidate actually answered what was asked.
         onBossSpeech:      (text)   => {
-          this._recordTurnLatency(ctx);   // [LAT] boss text ready (non-streaming path)
+          this._recordTurnLatency(ctx);   // [LAT] boss text ready (no-op if the early sentence already consumed this turn's clock)
           ctx.dialogue.push({ role: 'boss', text, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
           this._send(ctx, { type: S.BOSS_SPEECH, text });
+        },
+        // First complete sentence of the turn, emitted while the rest is still generating. The
+        // client starts SPEAKING it immediately and splices the remainder in when the full line
+        // lands — the felt "boss thinks" gap shrinks to roughly time-to-first-sentence. The full
+        // line (onBossSpeech) stays the single source of truth for dialogue/debrief records.
+        onBossEarly:       (text)   => {
+          if (!text || !text.trim()) return;
+          this._recordTurnLatency(ctx);   // [LAT] true time-to-first-sentence
+          this._send(ctx, { type: S.BOSS_SPEECH_EARLY, text });
         },
         onBossPartial:     (text)   => {
           if (!text || !text.trim()) return;
