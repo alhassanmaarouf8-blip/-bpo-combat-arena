@@ -417,15 +417,16 @@ function playProgressiveAudio(url, onStart, onEnd) {
   });
 }
 
-async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, onStart, onEnd }) {
+async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, emotion, onStart, onEnd }) {
   if (!text) { onEnd?.(); return; }
   stopBossVoice();
   const enc = encodeURIComponent;
+  const em = emotion ? `&emotion=${enc(emotion)}` : '';   // felt state → server maps it to expressive voice settings
   // PRIMARY: a STREAMING GET <audio> source — sound starts ~350ms in, killing the ~6s dead air the
   // buffered (whole-clip) path had. ElevenLabs if opted in (paid), else the free Deepgram Aura-2 stream.
   const streamUrl = elevenVoice
-    ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(text)}`
-    : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(text)}`;
+    ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(text)}${em}`
+    : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(text)}${em}`;
   const fellBack = await playProgressiveAudio(streamUrl, onStart, onEnd);
   if (!fellBack) return;
   // FALLBACK (stream unavailable): buffered, clause-split Deepgram clips (never the robotic browser voice).
@@ -2467,6 +2468,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [bossHp, setBossHp]       = useState(100);
   const [playerHp, setPlayerHp]   = useState(100);
   const [emotion, setEmotion]     = useState('idle');
+  const emotionRef                = useRef('gefasst');   // latest boss emotion → drives the VOICE delivery (not just the face)
   const [bossText, setBossText]   = useState('');
   const [bossIsCorrection, setBossIsCorrection] = useState(false);
   const [transcript, setTranscript] = useState([]);
@@ -2789,6 +2791,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             // clip buffers (~6s on a long line). Falls back to buffered clause-split clips on failure.
             playBossVoice({
               apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
+              emotion: emotionRef.current,   // the boss's felt state → its VOICE, not just its face
               onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
             });
           } else {
@@ -2810,7 +2813,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (Number.isFinite(msg.combo))       setCombo(msg.combo);
         // Boss emotion is decided by the BACKEND (gefasst/skeptisch/beeindruckt/wuetend)
         // and just displayed here — the client never invents it.
-        if (msg.emotion) setEmotion(msg.emotion);
+        if (msg.emotion) { setEmotion(msg.emotion); emotionRef.current = msg.emotion; }
         if (msg.score !== undefined) {
           setScoreFlash({ score: msg.score, damage: msg.damage });
           setTimeout(() => setScoreFlash(null), 2800);
