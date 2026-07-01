@@ -7,7 +7,7 @@ description: Enforce zero-inaccuracy, hyper-personalized learner feedback whenev
 
 Owner's hard rule: **never show a learner anything inaccurate or generic.** A false "you're wrong" or empty praise destroys trust and the hiring outcome. Apply this every time feedback reaches a student.
 
-## The 6 laws
+## The 7 laws
 
 1. **Measurement over opinion.** Prefer deterministic, computed signals (words/min from VOICED time, counts, deltas) over LLM judgment. If a number can be computed from the learner's own data, compute it — don't ask a model.
 2. **Grammar is LanguageTool-only.** Never let an LLM invent/decide a grammar correction. Route candidate text through `buildGrammar()` (server/grammarCheck.js). If LanguageTool is unreachable, show NO grammar — never a guess.
@@ -15,6 +15,7 @@ Owner's hard rule: **never show a learner anything inaccurate or generic.** A fa
 4. **Don't claim what you can't measure.** The server can't hear pronunciation from a transcript (STT erases accent) → never output a pronunciation verdict from text; label proxies honestly ("word accuracy, not accent"). STT can mishear a real word → never assert "you said X wrong" with certainty.
 5. **Honest labeling of weak signals.** Whisper undercounts "äh/ähm" → headline the robust metric (WpM) and mark fillers best-effort. State how each number was measured. "Got faster" must use voiced time, not mic-on wall-clock (which includes silence).
 6. **Personalize from their own data, not flattery.** The "aha" = their real quote → what was missing vs the actual question/rubric → the one fix that gets them hired; plus a deterministic progress line from their own past sessions ("fillers 7→2 since session 1"). Never two competing hireability verdicts on screen — reconcile with any existing score→label decision.
+7. **Never blame the learner for the system's failure (truncation-awareness).** The half-duplex, silence-timer interview can CUT OFF a turn mid-sentence; an interrupted or STT-garbled turn is stored identically to a freely-chosen short one. NEVER let a scorer read app-truncation as the learner "freezing / collapsing under pressure / having no result / no example / being unsicher" — that is a false, disqualifying verdict for the app's bug. Detect cut-off turns deterministically from the text (`server/scoring/turnQuality.js`: `looksTruncatedDE` — dangling aux/conj/article/prep, "habe ich", 1–2-word scrap; `sessionSubstance` → `tooThinToJudge`). Then: mark cut-off turns in any transcript sent to a model + instruct it to judge ONLY completed turns; never quote a fragment back; don't send fragments to LanguageTool; and on a too-thin/mostly-cut-off session, emit an HONEST "too short/interrupted to judge — do a full run" (metrics + grammar, still one next step) instead of a manufactured verdict/luecke.
 
 ## Build/audit checklist
 - [ ] Every number computed from the learner's own input (not invented)?
@@ -22,6 +23,7 @@ Owner's hard rule: **never show a learner anything inaccurate or generic.** A fa
 - [ ] All quotes substring-verified against the real transcript?
 - [ ] No label overclaims (pronunciation-from-text, faster-from-mic-on-time)?
 - [ ] Feedback ties to the hiring outcome (a concrete fix), not generic praise?
+- [ ] Cut-off / fragmentary turns detected and NEVER scored as a weakness/collapse (law 7)? Too-thin session → honest "do a full run", not a manufactured verdict?
 - [ ] Fallback path returns a valid, honest shape when model/key is down?
 - [ ] Nothing on screen says "OpenAI"/"gpt" (owner directive).
 
