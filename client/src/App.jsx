@@ -565,6 +565,10 @@ const GLOBAL_CSS = `
   .boss-talk { animation: boss-talk 0.22s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes breathe { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-3px) scale(1.012)} }
   .breathe { animation: breathe 4.5s ease-in-out infinite; }
+  /* Listening nod: a real interviewer nods along while you talk instead of freezing. Subtle, slightly
+     asymmetric so it reads as human, not a metronome. Applied to the avatar while the candidate speaks. */
+  @keyframes listen-nod { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(3px) rotate(0.5deg)} 65%{transform:translateY(-1.5px) rotate(-0.4deg)} }
+  .listening { animation: listen-nod 2.1s ease-in-out infinite; }
   @keyframes portrait-glow { 0%,100%{opacity:0.55} 50%{opacity:0.9} }
   @keyframes grid-drift { from{background-position:0 0} to{background-position:0 56px} }
   @keyframes vignette-pulse { 0%,100%{opacity:0.85} 50%{opacity:1} }
@@ -3755,7 +3759,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <div style={{ width:'72%', maxWidth:300, height:'84%',
               transform: `${userSpeak ? 'translateY(9px) scale(1.05)' : ''} ${POSTURE[emotion] || ''}`.trim() || 'none',
               transition:'transform 0.5s var(--ease)' }}>
-              <div className={isActive && !bossSpeak && !userSpeak ? 'breathe' : ''} style={{ width:'100%', height:'100%' }}>
+              <div className={userSpeak ? 'listening' : (isActive && !bossSpeak ? 'breathe' : '')} style={{ width:'100%', height:'100%' }}>
                 <BossAvatar emotion={boss.face} speaking={bossSpeak} color={boss.color} />
               </div>
             </div>
