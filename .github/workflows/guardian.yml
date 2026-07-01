@@ -37,9 +37,11 @@ jobs:
         run: npm run lint
 
       # ── The brain's sophistication must never silently break: the deterministic engine
-      #    (Elo / BKT / skill-DAG / decision policy + honesty gates) is unit-tested on every commit. ──
-      - name: Brain engine tests
-        run: node --test server/brain/*.test.mjs
+      #    (Elo / BKT / skill-DAG / decision policy + honesty gates) is unit-tested on every commit.
+      #    Also the scoring guards (truncated-turn / thin-session detection) that keep the debrief
+      #    from blaming the learner for the interviewer cutting them off. ──
+      - name: Deterministic engine + scoring tests
+        run: node --test server/brain/*.test.mjs server/scoring/*.test.mjs
 
       # ── Design system: the 2-color (blue+orange) discipline must hold — fail if the old
       #    rainbow (neon cyan / green / violet / gold / Orbitron) ever reappears. ──

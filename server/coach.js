@@ -14,6 +14,7 @@
 
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { evaluateNaturalness } from './naturalness.js';
+import { looksTruncatedDE, sessionSubstance } from './scoring/turnQuality.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
 // stays authoritative from LanguageTool; the model only writes strengths/study-next/
@@ -90,6 +91,7 @@ HARTE REGELN:
   • Vorstellung: WER bist du + WARUM Kundenservice + EINE konkrete Stärke mit Beleg. Lücke = nur Floskeln, kein Warum, keine belegte Stärke.
   • Verhaltensfrage (STAR): Situation → Handlung → konkretes ERGEBNIS. Lücke = KEIN Ergebnis, nur Aufgaben aufgezählt, oder Selbstsabotage.
   • Beschwerde/Deeskalation: Beschwerde ANERKENNEN → konkrete LÖSUNG → ZUSAGE/nächster Schritt, ruhig und höflich. Lücke = keine Lösung, defensiv, oder Schuld beim Kunden.
+- ABGESCHNITTENE ANTWORTEN (SEHR WICHTIG — sonst gibst du falsches, entmutigendes Feedback): Manche Kandidaten-Antworten wurden vom Interviewer UNTERBROCHEN oder sind Bruchstücke — im Transkript mit „⟨ABGEBROCHEN⟩" markiert. Eine abgeschnittene Antwort ist NICHT die Schuld des Kandidaten. Werte sie NIEMALS als Schwäche, „kein Ergebnis", „kein Beispiel", „zu kurz", „unsicher" oder „eingebrochen" — er wurde unterbrochen, bevor er fertig sprechen konnte. Bewerte in interviewReview, answerArchitecture und deliveryConfidence AUSSCHLIESSLICH klar VOLLSTÄNDIGE Antworten. Zitiere NIE ein Bruchstück als "deinSatz". Gibt es zu wenige vollständige Antworten, halte interviewReview kurz oder leer und sei ehrlich — erfinde keine Lücke.
 - WAHRHEIT VOR ALLEM: "deinSatz" MUSS wörtlich aus den Kandidaten-Antworten stammen — erfinde NIE ein Zitat. War eine Antwort wirklich gut, lass "luecke" leer und sag es ehrlich in "stark". Erfinde keine Lücke, nur um etwas zu schreiben. Lieber 2 echte, treffende Einträge als 4 erzwungene.
 - NIVEAU für interviewReview: a2-b1 → höchstens 2–3 Einträge, sanft, ein Fix pro Eintrag, nie überfordernd. b2 → hoher Maßstab, benenne fehlende Ergebnisse/Lösungen klar, aber immer mit dem konkreten Fix.`;
 
@@ -111,6 +113,22 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     console.log(`[coach] LanguageTool grammar: ${ltGrammar.length} rule(s) flagged  session-utterances=${utterances.length}`);
   } catch (e) {
     console.error('[coach] LanguageTool unavailable, will backstop with model:', e.message);
+  }
+
+  // ── HONESTY GATE (doctrine: never manufacture confident critique on data too thin to support it) ──
+  // The half-duplex, silence-timer interview can CUT OFF a candidate mid-sentence. If they barely spoke,
+  // or most turns were cut off, there is not enough clean speech to fairly judge interview quality. Return
+  // the honest metrics + grammar debrief (no per-answer "luecke", no hireability verdict) instead of
+  // blaming the learner for gaps the SYSTEM caused. This is the single biggest "BS feedback" fix.
+  const substance = sessionSubstance(utterances);
+  if (substance.tooThinToJudge) {
+    console.log(`[coach] session too thin/interrupted to judge (words=${substance.realWords} completeTurns=${substance.completeTurns} truncatedShare=${substance.truncatedShare.toFixed(2)}) — honest metrics-only debrief`);
+    const fb = fallbackDebrief(metrics, utterances, ltGrammar || [], !ltGrammar, 'thin');
+    fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
+    fb.grammarUnavailable = !ltGrammar;
+    fb.progressNarrative = progressNarrative;
+    fb.tooThin = true;
+    return fb;
   }
 
   // No model key → metrics-only debrief, but still attach the authoritative grammar + progress.
@@ -190,6 +208,10 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     // GUARD: every interviewReview "deinSatz" must be a real candidate quote (substring) —
     // drop any entry the model invented, so the review can never fabricate words.
     norm.interviewReview = (norm.interviewReview || []).filter((r) => r.deinSatz && saidCanon.includes(_canon(r.deinSatz)));
+    // GUARD (truncation): never quote a CUT-OFF fragment back as "your answer" and never critique it —
+    // a fragment the interviewer interrupted has no fair "luecke". Drop such reviews/upgrades outright.
+    norm.interviewReview = norm.interviewReview.filter((r) => !looksTruncatedDE(r.deinSatz));
+    norm.upgrades        = norm.upgrades.filter((u) => !looksTruncatedDE(u.original));
     // GRAMMAR: ONLY from LanguageTool — NEVER the model.
     const grammar = ltGrammar || [];
     const lesson  = buildLesson(utterances, metrics, grammar, !ltGrammar);
@@ -330,7 +352,10 @@ function formatDialogue(dialogue, utterances) {
     let lastStage = -1, out = '';
     for (const t of turns) {
       if (t.stage !== lastStage && t.stageLabel) { out += `\n[${t.stageLabel}]\n`; lastStage = t.stage; }
-      out += `${t.role === 'boss' ? 'B' : 'K'}: ${String(t.text).trim()}\n`;
+      const txt = String(t.text).trim();
+      // Mark candidate turns the interviewer CUT OFF so the model never faults them as incomplete answers.
+      const cut = t.role !== 'boss' && looksTruncatedDE(txt) ? '  ⟨ABGEBROCHEN — vom Interviewer unterbrochen; NICHT als Schwäche/fehlendes Ergebnis werten⟩' : '';
+      out += `${t.role === 'boss' ? 'B' : 'K'}: ${txt}${cut}\n`;
     }
     return out.trim();
   }
@@ -440,7 +465,7 @@ function buildDrills(grammar) {
 }
 
 // ── Metrics-only fallback (no key / API error / no speech) ───────────────────────
-function fallbackDebrief(metrics, utterances, grammar = [], grammarUnavailable = false) {
+function fallbackDebrief(metrics, utterances, grammar = [], grammarUnavailable = false, reason = null) {
   const strengths = [], strengths_ar = [];
   const addStrength = (de, ar) => { strengths.push(de); strengths_ar.push(ar); };
   if (metrics?.connectorHits > 0)  addStrength(`Du hast Nebensätze mit Konnektoren benutzt (${metrics.connectorHits}×) — gute Satzstruktur.`, `استخدمت جملاً ثانوية بأدوات ربط (${metrics.connectorHits}×) — بنية جُمَل جيدة.`);
@@ -481,8 +506,14 @@ function fallbackDebrief(metrics, utterances, grammar = [], grammarUnavailable =
     metrics,
     generated: false,
     naturalness: null,
-    note: grammarUnavailable
+    note: reason === 'thin'
+      ? 'Diese Sitzung war zu kurz oder wurde zu oft unterbrochen, um deine Interview-Antworten fair zu bewerten. Die Kennzahlen unten stimmen — für echtes Antwort-Feedback mach bitte einen vollständigen Durchlauf.'
+      : grammarUnavailable
       ? 'Detaillierte Grammatik-Analyse war nicht verfügbar — hier die objektiven Kennzahlen und Lernhinweise.'
       : 'Detaillierte KI-Auswertung war diesmal nicht verfügbar — die Grammatik unten wurde aber geprüft; hier die Kennzahlen und Lernhinweise.',
+    // NOTE (masri): owner to pass — best-effort honest Cairo-register line for the "too thin" case.
+    note_ar: reason === 'thin'
+      ? 'الجلسة دي كانت قصيرة أو اتقطعت كتير، فمقدرناش نقيّم إجاباتك في الإنترفيو بإنصاف. الأرقام تحت صح — عشان فيدباك حقيقي على إجاباتك اعمل جلسة كاملة.'
+      : '',
   };
 }

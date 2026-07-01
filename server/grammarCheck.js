@@ -12,6 +12,8 @@
  *   { rule, count, explanation, explanation_ar, summaryExamples:[{wrong,right}], allExamples:[...] }
  */
 
+import { looksTruncatedDE } from './scoring/turnQuality.js';
+
 const LT_URL     = process.env.LANGUAGETOOL_URL ?? 'https://api.languagetool.org/v2/check';
 const LT_TIMEOUT = 12_000;
 
@@ -119,7 +121,10 @@ export async function buildGrammar(utterances) {
   let combined = '';
   for (const u of (utterances || [])) {
     const t = (u?.text || '').trim();
-    if (!t || (u.words ?? t.split(/\s+/).length) < 2) continue;
+    // Skip empty/one-word turns AND cut-off fragments: a turn the interviewer interrupted
+    // ("…Wir haben") isn't a grammar mistake — checking it would flag the learner's INCOMPLETE
+    // (not wrong) German as an error, the exact false correction the accuracy doctrine forbids.
+    if (!t || (u.words ?? t.split(/\s+/).length) < 2 || looksTruncatedDE(t)) continue;
     const start = combined.length;
     combined += t;
     segments.push({ start, end: combined.length, text: t });

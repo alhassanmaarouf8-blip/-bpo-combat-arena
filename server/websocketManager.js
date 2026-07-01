@@ -3,6 +3,7 @@ import { randomUUID }      from 'crypto';
 import { RealtimeClient }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
+import { looksTruncatedDE } from './scoring/turnQuality.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { textFeatures } from './hireReadiness.js';
@@ -560,9 +561,11 @@ export class WebSocketManager {
                   // If a boss turn has text, surface it; otherwise just signal done.
                   if (bossFull.length > 2) this._send(ctx, { type: S.LIVE_BOSS_TRANSCRIPT, text: bossFull });
                   else this._send(ctx, { type: S.BOSS_SPEECH, text: '' });
-                  // Score the user's answer (ctx.geminiUserParts already cleared above)
+                  // Score the user's answer (ctx.geminiUserParts already cleared above).
+                  // durationMs:0 = "unknown" — the full-duplex Gemini path has no clean user-speech
+                  // duration, so WpM is intentionally NOT measured here (better absent than a false
+                  // "0 WpM"). TODO(gemini): mark user speech-start/-end to compute real WpM if enabled.
                   if (userFull.trim().length >= 2) {
-                    const durMs = ctx._geminiTurnStartMs ? 0 : 0; // already cleared; use proxy duration if available
                     this._handleAnswer(ctx, { text: userFull.trim(), durationMs: 0 });
                   }
                 } else {
@@ -1221,23 +1224,34 @@ export class WebSocketManager {
     // (fluent + low-filler + connectors scored ~70 → "B2" with the grammar ignored).
     // Now the grade reflects grammar/vocab/content. FAIL LOUD: if the scorer is
     // unreachable or returns no level, mark the grade unavailable — never invent one.
-    const fullTranscript = (ctx.utterances || []).map((u) => u.text).filter(Boolean).join('\n');
+    // Mark turns the interviewer CUT OFF (deterministic, from the text) so the grader never reads
+    // app-truncation as the candidate "collapsing under pressure" — a false, disqualifying verdict.
+    const fullTranscript = (ctx.utterances || [])
+      .map((u) => { const t = String(u.text || '').trim(); return t ? (looksTruncatedDE(t) ? `${t}  ⟨ABGEBROCHEN⟩` : t) : ''; })
+      .filter(Boolean).join('\n');
     let rank = null;
     let gradeUnavailable = false;
     let verdict = null;
-    try {
-      const graded = await gradeTranscript({
-        transcript: fullTranscript,
-        level:      ctx.level,
-        scenarioId: ctx.csScenario || 'general',
-        userId:     ctx.userId,
-      });
-      verdict = graded?.verdict ?? null;
-      rank    = graded?.cefrLevel ?? null;
-      if (!rank) gradeUnavailable = true;
-    } catch (err) {
-      console.error(`[wsManager] grade (panelscorer) failed session=${ctx.sessionId}: ${err.message}`);
+    if (debrief?.tooThin) {
+      // HONESTY: too little clean speech (short or mostly cut off) to hand out a hireability verdict —
+      // mark it unavailable rather than blame the learner for the system interrupting them.
       gradeUnavailable = true;
+      console.log(`[wsManager] grade skipped — session too thin/interrupted to judge  session=${ctx.sessionId}`);
+    } else {
+      try {
+        const graded = await gradeTranscript({
+          transcript: fullTranscript,
+          level:      ctx.level,
+          scenarioId: ctx.csScenario || 'general',
+          userId:     ctx.userId,
+        });
+        verdict = graded?.verdict ?? null;
+        rank    = graded?.cefrLevel ?? null;
+        if (!rank) gradeUnavailable = true;
+      } catch (err) {
+        console.error(`[wsManager] grade (panelscorer) failed session=${ctx.sessionId}: ${err.message}`);
+        gradeUnavailable = true;
+      }
     }
 
     // Honest C1-floor verdict. The pass bar on a real Cairo German line is C1 that
