@@ -26,27 +26,27 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   const [ttsOk, setTtsOk]   = useState(true);
   const [err, setErr]       = useState(null);
   const [clipUrl, setClipUrl] = useState(null);   // object URL of the learner's own take (record-and-compare)
-  // Model playback speed; first listen is slow, then 1.0×. VERIFIED 2026-07-02 (owner: Shadowing
-  // voices sound "very robotic"): Deepgram's native `speed` param — which preserves natural
-  // prosody instead of resampling — is REJECTED (HTTP 400) for every German Aura-2 voice tested
-  // (julius/elara/fabian/aurelia), so the slow-down can only happen client-side via the <audio>
-  // element's playbackRate + preservesPitch, a browser time-stretch algorithm that gets audibly
-  // mechanical the further it's pushed below ~0.8×. 0.8 (was 0.7) keeps a clearly slower pace for
-  // catching sounds while staying inside the range where that stretch stays clean.
-  const [rate, setRate]     = useState(0.8);
+  // Model playback speed. DEFAULT IS NOW 1.0× (owner 2026-07-02: Shadowing "bullshit / robotic").
+  // Two things made it sound robotic, both now removed from the DEFAULT path: (1) the browser
+  // SpeechSynthesis fallback — killed app-wide in nativeVoice.js; (2) the client-side playbackRate
+  // time-stretch used to slow the audio. VERIFIED: Deepgram's native `speed` param (which preserves
+  // prosody) is rejected HTTP 400 for every German Aura-2 voice, so slowing can ONLY happen via the
+  // browser's playbackRate+preservesPitch time-stretch — which gets audibly mechanical below 1.0×.
+  // So the default is pure, un-stretched native Aura-2 (fully human). 0.8× stays as an EXPLICIT
+  // opt-in "slower" button for catching sounds, with an honesty note that it may sound slightly artificial.
+  const [rate, setRate]     = useState(1);
 
   const recRef      = useRef(null);
   const timerRef    = useRef(null);
   const stopRef     = useRef(null);
   const clipUrlRef  = useRef(null);   // mirror of clipUrl so we can revoke without stale closures
-  const listenedRef = useRef(false);  // did the learner already hear this sentence once?
 
   const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
 
   const loadSession = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
-    setClipUrl(null); setRate(0.8); listenedRef.current = false;
+    setClipUrl(null); setRate(1);
     try {
       const r = await fetch(`${apiUrl}/api/shadowing?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
@@ -71,18 +71,18 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 
   const s = sentences[idx];
 
-  // Native Aura-2 model voice (server-cached → $0), auto-falling back to the browser voice. Shadowing a
-  // consistent NATIVE benchmark — not a device-lottery voice — is the whole point of the drill.
+  // Native Aura-2 model voice (server-cached → $0), NEVER the robotic browser voice
+  // (noBrowserFallback is now the app-wide default in nativeVoice.js). A consistent NATIVE benchmark
+  // is the whole point of the drill — a device-lottery voice would defeat it. Default 1.0× = pure,
+  // un-stretched Aura-2; the learner opts into 0.8× explicitly if they want it slower.
   const play = () => {
     if (!s) return;
     playNative({ apiUrl, token, text: s.de, rate });
     setTtsOk(true);
-    // First listen is slow to catch the sounds; after that default to natural 1.0×.
-    if (!listenedRef.current) { listenedRef.current = true; setRate(1); }
   };
 
-  // Manual speed pick — takes over from the auto first-listen behaviour.
-  const setSpeed = (v) => { setRate(v); listenedRef.current = true; };
+  // Manual speed pick.
+  const setSpeed = (v) => { setRate(v); };
 
   // Play the learner's own recorded take (honest prosody feedback: their ear judges rhythm vs the model).
   const playMine = () => {
@@ -153,7 +153,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 
   const next = () => {
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
-    setClipUrl(null); setRate(0.8); listenedRef.current = false;
+    setClipUrl(null); setRate(1);
     setResult(null); setErr(null); setSec(0);
     if (idx < sentences.length - 1) setIdx(idx + 1);
     else setPhase('done');
@@ -220,9 +220,15 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
         <span style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>{T(lang, 'TEMPO', 'السرعة')}</span>
-        <button onClick={() => setSpeed(0.8)} style={speedBtn(rate === 0.8)}>0,8×</button>
         <button onClick={() => setSpeed(1)}   style={speedBtn(rate === 1)}>1,0×</button>
+        <button onClick={() => setSpeed(0.8)} style={speedBtn(rate === 0.8)}>0,8×</button>
       </div>
+      {rate === 0.8 && (
+        <div style={{ fontSize: 9.5, color: '#64748b', marginTop: 5, lineHeight: 1.4 }}>
+          {T(lang, 'Langsamer zum Mithören — kann leicht künstlich klingen. 1,0× ist die echte Stimme.',
+                   'أبطأ عشان تسمع كويس — ممكن يبان صناعي شوية. 1,0× هو الصوت الطبيعي.')}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
         <button onClick={play} style={{ ...ghostBtnWide }}>
           🔊 {T(lang, 'Anhören', 'استمع')}

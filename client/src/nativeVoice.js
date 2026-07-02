@@ -29,8 +29,15 @@ function wirePhoneAudio(a) {
     const src = ctx.createMediaElementSource(a);        // may throw / taint on cross-origin without CORS
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 300;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 3400;
-    const g  = ctx.createGain(); g.gain.value = 1;
-    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(ctx.destination);
+    // MAKEUP GAIN (owner 2026-07-02: "why is the Hör-Check sound so low?"). Band-passing to the
+    // 300–3400 Hz phone band strips a lot of the signal's energy, so at unity gain the caller line
+    // came out noticeably quieter than the un-filtered drills. 2.2× restores a clearly audible
+    // level while keeping the phone-line CHARACTER (the band-pass shape is unchanged). A soft
+    // limiter (DynamicsCompressor with a low threshold) guards against clipping on loud syllables.
+    const g  = ctx.createGain(); g.gain.value = 2.2;
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -3; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = 0.003; lim.release.value = 0.15;
+    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(lim); lim.connect(ctx.destination);
 
     // Very low-level line hiss, band-limited through the same lowpass so it stays in the phone band.
     try {
@@ -72,15 +79,26 @@ function browserSpeak(text, rate, onEnd) {
  * Speak `text` in native German. Returns a stop() function.
  * `phone:true` routes the caller line through a telephone-band Web Audio filter (highpass 300 Hz +
  * lowpass 3400 Hz + faint line hiss) so it sounds like the actual job channel. When falsy, unchanged.
- * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, onEnd?:()=>void }} o
+ * `noBrowserFallback` DEFAULTS TO TRUE (owner standing rule 2026-07-02, emphatic: "remove all
+ * unhuman voices across the app — no robotic sound is EVER allowed"): if the native Aura-2 server
+ * voice fails, DO NOT drop to the device's robotic browser SpeechSynthesis voice — stay silent
+ * instead (onEnd still fires so a drill/lesson that shows its text on screen keeps advancing).
+ * Same discipline the interview already uses (it shows the line silently on a TTS failure rather
+ * than ever play the robotic voice). The browser voice was the device-lottery, English-accented
+ * German that made Shadowing feel "bullshit" — it is now OFF everywhere. Pass `false` ONLY if a
+ * drill is genuinely unusable without SOME audio AND you accept the robotic risk (currently: none).
+ * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, noBrowserFallback?:boolean, onEnd?:()=>void }} o
  */
-export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, onEnd } = {}) {
+export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, noBrowserFallback = true, onEnd } = {}) {
   const done = () => { try { onEnd?.(); } catch { /* ignore */ } };
   const t = String(text || '').trim();
   if (!t) { done(); return () => {}; }
+  // The robotic-voice guard: either speak in the browser voice, or (rule on) stay silent but still
+  // signal completion so nothing hangs waiting on audio that will never come.
+  const fallbackOrSilence = () => (noBrowserFallback ? (done(), () => {}) : browserSpeak(t, rate, done));
 
-  // No server creds → straight to the browser voice.
-  if (!apiUrl || !token) return browserSpeak(t, rate, done);
+  // No server creds → browser voice (or silence, if the caller forbids the robotic fallback).
+  if (!apiUrl || !token) return fallbackOrSilence();
 
   try {
     const enc = encodeURIComponent;
@@ -104,9 +122,9 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
       if (phone && !retried) {
         retried = true;
         try { phoneCtx?.close(); } catch { /* ignore */ } phoneCtx = null;
-        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, onEnd });   // plain native, no filter
+        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, noBrowserFallback, onEnd });   // plain native, no filter
       } else {
-        fellBack = browserSpeak(t, rate, done);   // server failed before any audio → browser voice
+        fellBack = fallbackOrSilence();   // server failed before any audio → browser voice, or silence if forbidden
       }
     };
     a.onerror = onFail;
@@ -119,7 +137,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
       if (fellBack) fellBack();
     };
   } catch {
-    return browserSpeak(t, rate, done);
+    return fallbackOrSilence();   // never the robotic voice unless a caller explicitly opted back in
   }
 }
 
