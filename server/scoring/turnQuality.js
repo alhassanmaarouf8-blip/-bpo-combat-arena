@@ -123,4 +123,32 @@ export function sessionSubstance(utterances) {
   return { realWords, completeTurns, truncatedTurns, spoken, truncatedShare, tooThinToJudge };
 }
 
-export default { looksTruncatedDE, sessionSubstance, SUBSTANCE, lowConfidenceWords, quoteHasLowConfidence, LOW_CONFIDENCE };
+// ── Corrected-sentence trust gate (owner-reported 2026-07-02: Sag es richtig showed a "correct"
+// answer that was itself broken German — "…ab ab anfangen, normalerweise ich" trailing off with a
+// raw stutter left in) ────────────────────────────────────────────────────────────────────────
+// WHY looksTruncatedDE didn't catch it: that detector is tuned to decide whether to CRITIQUE a
+// live interview turn at all — its dangling-word lexicon (auxiliaries/conjunctions/prepositions)
+// doesn't cover every way a sentence can trail off (e.g. "…normalerweise ich" — an adverb+pronoun
+// with nothing after). grammarCheck.js builds its "right" (corrected) sentence by patching ONLY the
+// one span LanguageTool flagged and reusing the REST of the original utterance verbatim — so any
+// OTHER defect already in that utterance (a stutter, an unfinished trailing clause) rides along
+// into what gets shown and stored as "the correct answer to learn." This is a stricter, separate
+// gate for exactly that promotion: a sentence is only trustworthy as a MODEL ANSWER (debrief
+// "Richtig:" display, and the Sag-es-richtig SRS drill target) if it has no immediate word-stutter
+// AND doesn't look cut off by the existing turn doctrine.
+// Deliberately broad: a rare, genuinely intentional emphatic double ("sehr sehr gerne") also trips
+// this and gets rejected. That is the correct trade-off, not a bug — per this file's own doctrine,
+// it is far safer to occasionally fall back to a generic prompt than to ever promote a sentence
+// with a real disfluency stutter ("ab ab") as "the correct answer to learn."
+const STUTTER = /\b(\p{L}{2,})\b(?:\s+\1\b)+/giu;   // the same word repeated back-to-back (case-insensitive)
+
+/** Safe to promote `s` as a MODEL/correct answer (debrief "Richtig:", SRS drill target)? */
+export function looksLikeTrustworthyCorrection(s) {
+  const t = String(s || '').trim();
+  if (!t) return false;
+  STUTTER.lastIndex = 0;
+  if (STUTTER.test(t)) return false;      // a raw stutter is never a genuine correction
+  return !looksTruncatedDE(t);            // reuse the existing cut-off doctrine
+}
+
+export default { looksTruncatedDE, sessionSubstance, SUBSTANCE, lowConfidenceWords, quoteHasLowConfidence, LOW_CONFIDENCE, looksLikeTrustworthyCorrection };

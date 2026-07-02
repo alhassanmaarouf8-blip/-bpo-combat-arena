@@ -12,7 +12,7 @@
  *   { rule, count, explanation, explanation_ar, summaryExamples:[{wrong,right}], allExamples:[...] }
  */
 
-import { looksTruncatedDE } from './scoring/turnQuality.js';
+import { looksTruncatedDE, looksLikeTrustworthyCorrection } from './scoring/turnQuality.js';
 
 const LT_URL     = process.env.LANGUAGETOOL_URL ?? 'https://api.languagetool.org/v2/check';
 const LT_TIMEOUT = 12_000;
@@ -155,6 +155,13 @@ export async function buildGrammar(utterances) {
     const wrong   = seg.text;
     const right   = seg.text.slice(0, local) + repl + seg.text.slice(local + mt.length);
     if (canon(wrong) === canon(right)) continue;                  // identical sentence → NOT an error
+    // TRUST GATE (owner-reported 2026-07-02): `right` only patches the ONE span LanguageTool
+    // flagged — any OTHER defect already in this utterance (a stutter, a trailing-off clause)
+    // rides along unfixed into what gets shown/stored as "the correct answer to learn" (debrief
+    // "Richtig:" + the Sag-es-richtig SRS drill target). looksTruncatedDE alone doesn't catch every
+    // way a sentence can trail off, so this is a stricter, separate check specifically for content
+    // being PROMOTED as a model answer. Skip the whole match rather than teach broken German as right.
+    if (!looksLikeTrustworthyCorrection(right)) continue;
 
     const ruleName = (mt.shortMessage || mt.rule?.description || mt.rule?.category?.name || 'Grammatik').trim();
     const key = mt.rule?.id || ruleName;

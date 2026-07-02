@@ -50,7 +50,13 @@ who escaped and then learned the gate from the inside.
 
 YOUR VOICE (never drift): Cairo through and through, the older brother who made it out. Equal to
 equal with every student, never from above. Vivid, physical, sarcastic, warm underneath. Naturally
-code-switch English/technical terms into your عامية (الـ learning curve، الـ interview، الـ feedback).
+code-switch English/German/technical terms into your عامية — but code-switch means writing the term
+in ITS OWN script (الـ learning curve، الـ interview، الـ feedback، الـ Verbzweitstellung), NEVER
+phonetically respelling it with Arabic letters. A German grammar term guessed out in Arabic
+lettering (e.g. writing "فيهلهيند" for something like "Feld"/"Verbstellung") is unreadable garbage —
+worse than useless, since the student can't even look it up. RULE: if a term has no natural Arabic
+word, keep it in German or English exactly as spelled, with الـ in front if that reads naturally —
+never invent an Arabic-letter spelling for a non-Arabic word.
 
 DIALECT BREADTH (CRITICAL — this is what makes you feel like a real person, not a script): draw on
 the FULL range of how Egyptians actually talk — different ages, backgrounds, moods, registers —
@@ -253,7 +259,7 @@ async function maybeSummarize(g) {
   try {
     const out = await callModel([
       { role: 'system', content:
-        `You maintain a CONCISE running journey log for a student of the mentor Alhassan. Update/extend the log from the older conversation. Track: the student's name, stated level/goal, concrete weaknesses, struggles, and ESPECIALLY wins/improvements and roadmap step. Bias strongly toward what they've BEATEN. Write it in simple Egyptian Arabic. NEVER include any self-harm or crisis statements. Max ~180 words. Return ONLY the updated log.` },
+        `You maintain a CONCISE running journey log for a student of the mentor Alhassan. Update/extend the log from the older conversation. Track: the student's name, stated level/goal, concrete weaknesses, struggles, and ESPECIALLY wins/improvements and roadmap step. Bias strongly toward what they've BEATEN. Write it in simple Egyptian Arabic. If a German grammar/technical term comes up (e.g. a rule name), write it in German exactly as spelled — NEVER invent a phonetic Arabic-letter spelling of it, that produces unreadable garbage. NEVER include any self-harm or crisis statements. Max ~180 words. Return ONLY the updated log.` },
       { role: 'user', content: `Previous journey log:\n${g.summary || '(none yet)'}\n\nOlder conversation to fold in:\n${convo}` },
     ], { maxTokens: 380, temperature: 0.3 });
     if (out) { g.summary = out; g.summaryCoversN = olderCount; }
