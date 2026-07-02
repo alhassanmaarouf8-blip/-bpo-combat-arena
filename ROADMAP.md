@@ -98,6 +98,16 @@ rules, unit-tested. Wire into the drill wall like Hör-Check.
 **DoD:** ≥20 items german-check clean; deterministic grader unit-tested (accept/reject/partial);
 lint+build green; no interview-minute gating.
 
+### 6b. QUEUED — Aspect-audit wave: Zielplan / WeeklyBriefing / Invite / Assessment / Paywall / Trainingsnachweis / BrainGuide polish
+**Why (owner mandate 07-02: "revolutionize 10 undertouched aspects"):** a judged multi-agent audit
+produced 3 concrete moves for each of 10 surfaces; 3 surfaces shipped same-night, the rest are
+specced and waiting.
+**What:** implement the moves in **docs/audit-2026-07-02.md** for ONE surface per run (pick the
+top-most not-yet-done section; respect its S/M/L effort labels and every constraint written there).
+Follow `.claude/skills/design-system/SKILL.md` + `.claude/skills/subagent-contract/SKILL.md`.
+**DoD per surface:** the audit section's moves implemented (or honestly skipped with reason),
+design-lint + lint + build green; german-check on any German content; no Arabic authored.
+
 ### 7. QUEUED — Candidate delivery metrics under pressure (debrief)
 **Why (elite-conversationalist review 07-02):** sounding calm under attack matters as much as the
 words. The app already stores per-utterance WPM, fillers, and stage — so it can MEASURE composure:
