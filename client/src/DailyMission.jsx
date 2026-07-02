@@ -36,6 +36,35 @@ function computeReadiness(d) {
   return { score: clamp(score, 0, 99), fl, wp, fi, sessions, mastered, active };
 }
 
+// The ring, ALIVE: real week-over-week movement computed from the payload's trend arrays (last 20
+// sessions: values + dates, already fetched — no new endpoint). Only the WINDOWED readiness
+// components can be honestly re-computed per week — fluency (weight .4) and fillers (weight .2);
+// mastery/consistency are CUMULATIVE and their history is not in the payload, so windowing them
+// would fake a trend. Rules: <10 real data points, either week too thin (<3 sessions), or zero
+// movement → return null and render NOTHING (an absent chip is honest; an invented one is not).
+function readinessDelta(d) {
+  const t = d?.trends || {};
+  const fl = Array.isArray(t.fluency) ? t.fluency : [];
+  const fi = Array.isArray(t.fillers) ? t.fillers : [];
+  const dates = Array.isArray(t.dates) ? t.dates : [];
+  if (fl.length < 10 || dates.length !== fl.length || fi.length !== fl.length) return null;
+  const now = Date.now(), WEEK = 7 * 864e5;
+  const cur = [], prev = [];
+  dates.forEach((raw, i) => {
+    const ts = new Date(raw).getTime();   // sessions store epoch ms; tolerate ISO strings too
+    if (!Number.isFinite(ts)) return;
+    const age = now - ts;
+    if (age >= 0 && age < WEEK) cur.push(i);
+    else if (age >= WEEK && age < 2 * WEEK) prev.push(i);
+  });
+  if (cur.length < 3 || prev.length < 3) return null;
+  const avg  = (ix, arr) => ix.reduce((a, i) => a + (typeof arr[i] === 'number' ? arr[i] : 0), 0) / ix.length;
+  // Same formulas + weights as computeReadiness, so the chip's points ARE readiness points.
+  const part = (ix) => 0.4 * clamp(avg(ix, fl), 0, 100) + 0.2 * clamp(100 - avg(ix, fi) * 8, 0, 100);
+  const delta = Math.round(part(cur) - part(prev));
+  return delta === 0 ? null : delta;
+}
+
 // Pick the ONE highest-value next drill from the weakest area.
 function nextMission(d, r) {
   const tot = d?.totals || {};
@@ -108,30 +137,49 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
 
   const r = computeReadiness(d);
   const m = nextMission(d, r);
+  const delta = readinessDelta(d);
   const pct = r.score;
-  const color = pct == null ? '#64748b' : pct >= 70 ? 'var(--accent)' : pct >= 45 ? 'var(--action)' : '#ef4444';
+  // LAW: the ring speaks only blue + slate — bright blue near the bar, muted slate below it.
+  // Orange is reserved for the ONE mission CTA; red is off the palette entirely.
+  const color = pct == null ? '#64748b' : pct >= 70 ? 'var(--accent-2)' : pct >= 45 ? 'var(--accent)' : '#94a3b8';
   const ar = lang === 'ar';
   const greet = coachLine(name, d, r, ar);
 
   return (
-    <div style={{ width: '100%', marginTop: 8, padding: '14px', borderRadius: 12,
-      background: 'linear-gradient(135deg, rgba(34,197,94,0.07), rgba(56,189,248,0.05))',
-      border: '1px solid rgba(56,189,248,0.3)', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', marginTop: 8, padding: '14px', borderRadius: 'var(--r-md)',
+      // Navy glass — brand-blue tints only, per the 2-color law (the old green+cyan wash is retired).
+      background: 'linear-gradient(160deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))',
+      border: '1px solid rgba(59,130,246,0.28)', boxSizing: 'border-box' }}>
       {/* Warm, personal coach line — the human "I remember you" moment */}
       <div style={{ fontSize: 12.5, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12,
         paddingBottom: 11, borderBottom: '1px solid rgba(255,255,255,0.07)',
         ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>{greet}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Readiness ring */}
-        <div style={{ width: 58, height: 58, borderRadius: '50%', flexShrink: 0, position: 'relative',
-          background: pct == null ? 'rgba(255,255,255,0.05)'
-            : `conic-gradient(${color} ${pct * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#0a1320',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color }}>
-            {pct == null ? '—' : `${pct}`}
+        {/* Readiness ring + threshold notch — the ring is a GOAL to clear, not just a number */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+          <div style={{ width: 58, height: 58, borderRadius: '50%', position: 'relative',
+            background: pct == null ? 'rgba(255,255,255,0.05)'
+              : `conic-gradient(${color} ${pct * 3.6}deg, rgba(255,255,255,0.08) 0deg)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Notch at 75% — the conic starts at 12 o'clock, so 75% = 270° = the ring's LEFT edge.
+                Marks the application threshold so the learner always sees the bar to clear. */}
+            {pct != null && (
+              <div style={{ position: 'absolute', left: 0, top: '50%', width: 7, height: 2,
+                background: 'var(--text-dim)', transform: 'translateY(-50%)', borderRadius: 1 }} />
+            )}
+            <div style={{ width: 46, height: 46, borderRadius: '50%', background: '#0a1320',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 800, color }}>
+              {pct == null ? '—' : `${pct}`}
+            </div>
           </div>
+          {pct != null && (
+            /* OWNER-AR slot */
+            <div style={{ fontSize: 6.5, letterSpacing: '0.08em', fontFamily: 'var(--font-display)',
+              color: 'var(--text-dim)', marginTop: 4, whiteSpace: 'nowrap' }}>
+              BEWERBUNGS-SCHWELLE
+            </div>
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: 'var(--accent-2)' }}>
@@ -142,6 +190,18 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
               ? T(lang, 'Noch keine Daten — fang heute an.', 'لسه مفيش بيانات — ابدأ النهارده.')
               : T(lang, `aus deinen Übungssignalen · ${r.sessions} Sitzungen`, `من إشارات تدريبك · ${r.sessions} جلسات`)}
           </div>
+          {/* Week-over-week movement chip — rendered ONLY when readinessDelta found enough real
+              data (≥10 points, both weeks populated). Up = blue; down = neutral slate, never red. */}
+          {delta != null && (
+            /* OWNER-AR slot */
+            <span style={{ display: 'inline-block', marginTop: 6, padding: '3px 9px', borderRadius: 'var(--r-pill)',
+              fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: '0.04em',
+              ...(delta > 0
+                ? { background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', color: 'var(--accent-2)' }
+                : { background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text-dim)' }) }}>
+              {delta > 0 ? `+${delta} diese Woche ▲` : `−${Math.abs(delta)} ▼`}
+            </span>
+          )}
         </div>
       </div>
 
@@ -166,23 +226,26 @@ export function DailyMission({ token, apiUrl, lang = 'de', name = '', onOpen }) 
         return (
           <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)',
             ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
-            <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: '#f87171', marginBottom: 5 }}>{title}</div>
-            <div style={{ fontSize: 12.5, color: '#fecaca', lineHeight: 1.5 }}>{body}</div>
+            {/* Blue spotlight, not red alarm — the weakness is information, not a punishment */}
+            <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: 'var(--accent-2)', marginBottom: 5 }}>{title}</div>
+            <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.5 }}>{body}</div>
           </div>
         );
       })()}
 
       {/* Today's one mission — the fix for exactly the weakness named above */}
       <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: 'var(--action)', marginBottom: 5 }}>
+        {/* Label stays quiet slate — orange belongs to the CTA alone, so ONE thing screams "act" */}
+        <div style={{ fontSize: 8.5, letterSpacing: '0.12em', fontFamily: 'var(--font-display)', color: 'var(--text-dim)', marginBottom: 5 }}>
           {T(lang, 'DEINE MISSION HEUTE', 'مهمتك النهارده')}
         </div>
         <div style={{ fontSize: 13, color: '#f1f5f9', lineHeight: 1.5, marginBottom: 9, ...(ar ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
           {T(lang, m.de, m.ar)}
         </div>
+        {/* The SINGLE orange action on the panel — the one thing to do today */}
         <button onClick={() => onOpen?.(m.drill)} style={{ width: '100%', padding: '12px', minHeight: 46, cursor: 'pointer',
           fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', borderRadius: 9,
-          border: '1px solid var(--accent-2)', color: '#04070d', background: 'linear-gradient(135deg,var(--accent-2),var(--accent-2))' }}>
+          border: '1px solid var(--action)', color: '#04070d', background: 'linear-gradient(135deg,var(--action),var(--action-2))' }}>
           {T(lang, DRILL_LABEL[m.drill]?.de || 'START', DRILL_LABEL[m.drill]?.ar || 'ابدأ')} ▸
         </button>
       </div>

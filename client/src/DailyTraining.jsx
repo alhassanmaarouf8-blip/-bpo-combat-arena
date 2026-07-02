@@ -10,6 +10,7 @@
  *  • Streak shield (Kahneman loss aversion)       — 7-day shield display + earned notification
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { playNative } from './nativeVoice.js';
 
 // Minimal client-side normaliser for the re-type gate (strict — they've seen the answer).
 function normClient(s) {
@@ -32,6 +33,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const [combo, setCombo] = useState(0);
   const [bonus, setBonus] = useState(null);   // { label, xp } — variable ratio reward
   const [showCue, setShowCue] = useState(false); // first-letter generation cue
+  // Session receipt: counted from REAL graded answers only (source==='mistake' items answered
+  // correctly + total correct) — deterministic, never invented, shown on the completion screen.
+  const [tally, setTally] = useState({ correct: 0, mistakeFixed: 0 });
   // Write-it-again: when wrong, student must retype the correct answer before advancing
   const [retypeMode, setRetypeMode] = useState(false);
   const [retypeValue, setRetypeValue] = useState('');
@@ -39,43 +43,22 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 
   const [speaking, setSpeaking] = useState(null);   // which text id is being spoken
   const bonusTimer = useRef(null);
-  const audioRef = useRef(null);
+  const stopSpeakRef = useRef(null);                // stop() of the current playNative playback
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
-  // TTS: tries Deepgram Aura (auth required) then falls back to browser SpeechSynthesis.
-  const speakCard = useCallback(async (text, id) => {
+  // TTS: the SHARED native-voice helper (nativeVoice.js) — same native-German Aura-2 family the
+  // interview uses, via /tts-stream?drill=1 so the interview-minute gate never blocks a drill.
+  // The old /api/tts path here used the RETIRED 'aura-2-lara-de' voice AND burned interview minutes.
+  // playNative falls back to browser SpeechSynthesis by itself, so audio never just goes silent.
+  const speakCard = useCallback((text, id) => {
     if (!text) return;
-    window.speechSynthesis?.cancel?.();
-    audioRef.current?.pause?.();
+    stopSpeakRef.current?.();   // one voice at a time — kill any running playback (server or browser)
     setSpeaking(id);
-    let usedBrowser = false;
-    try {
-      const r = await fetch(`${apiUrl}/api/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: text.slice(0, 500), voice: 'aura-2-lara-de' }),
-      });
-      if (r.ok) {
-        const blob = await r.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => { URL.revokeObjectURL(url); setSpeaking(null); };
-        audio.onerror = () => { URL.revokeObjectURL(url); usedBrowser = true; };
-        await audio.play().catch(() => { usedBrowser = true; });
-        if (!usedBrowser) return;
-      }
-    } catch {}
-    // Fallback: browser SpeechSynthesis — free, instant, works offline
-    if (window.speechSynthesis) {
-      const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = 'de-DE'; utt.rate = 0.85;
-      utt.onend = () => setSpeaking(null);
-      utt.onerror = () => setSpeaking(null);
-      window.speechSynthesis.speak(utt);
-    } else {
-      setSpeaking(null);
-    }
+    stopSpeakRef.current = playNative({
+      apiUrl, token, text: String(text).slice(0, 500),
+      voice: 'aura-2-elara-de',
+      onEnd: () => setSpeaking(null),
+    });
   }, [apiUrl, token]);
 
   useEffect(() => {
@@ -91,7 +74,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   }, [apiUrl, headers]);
 
   useEffect(() => () => { clearTimeout(bonusTimer.current); }, []);
-  useEffect(() => () => { audioRef.current?.pause?.(); }, []);
+  useEffect(() => () => { stopSpeakRef.current?.(); }, []);   // don't let audio outlive the overlay
 
   const questions = data?.questions || [];
   const q = questions[idx];
@@ -113,6 +96,8 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       if (res.correct) {
         const newCombo = combo + 1;
         setCombo(newCombo);
+        // submit() is guarded (`|| result`) so each question grades exactly ONCE — no double counts.
+        setTally((t) => ({ correct: t.correct + 1, mistakeFixed: t.mistakeFixed + (q?.source === 'mistake' ? 1 : 0) }));
         // Variable ratio reinforcement (Skinner VR schedule): random ~15% bonus XP.
         // Variable rewards produce the highest response rate and greatest extinction resistance.
         if (Math.random() < 0.15) {
@@ -132,6 +117,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
         setRetypeMode(true);
         setRetypeValue('');
         setRetypeOk(false);
+        // Speak the solution the moment it renders — hearing the correct form beats silently
+        // reading it (the phone job tests the EAR), and it models the retype they must now do.
+        if (res.expected) speakCard(res.expected, 'answer');
       }
     } catch { setErr('Bewertung fehlgeschlagen.'); }
     setBusy(false);
@@ -170,7 +158,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       const d = await r.json();
       if (!r.ok || !Array.isArray(d.questions) || !d.questions.length) throw new Error('no_set');
       setData(d); setIdx(0); resetItemState(); setFinalStreak(null); setDone(false);
-      setCombo(0); setShieldMsg(null);
+      setCombo(0); setShieldMsg(null); setTally({ correct: 0, mistakeFixed: 0 });   // fresh round, fresh receipt
     } catch { setErr(lang === 'ar' ? 'مقدرناش نجيب جولة جديدة.' : 'Konnte keine neue Runde laden.'); }
     setBusy(false);
   };
@@ -228,6 +216,16 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
             <div style={{ padding: '8px 14px', borderRadius: 'var(--r-sm)', background: 'rgba(59,130,246,0.12)',
               border: '1px solid rgba(59,130,246,0.35)', fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>
               🛡 SCHUTZSCHILD AKTIVIERT! Deine Serie ist gerettet.
+            </div>
+          )}
+          {/* Deterministic receipt — counted client-side from graded answers; rendered ONLY when the
+              payload actually carries per-question `source`, so "deiner Fehler" always has real data
+              behind it (never invented numbers). */}
+          {questions.some((x) => x && Object.prototype.hasOwnProperty.call(x, 'source')) && (
+            /* OWNER-AR slot */
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-2)', padding: '6px 14px',
+              borderRadius: 'var(--r-pill)', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.30)' }}>
+              {tally.mistakeFixed} deiner Fehler geschlossen · {tally.correct} richtig
             </div>
           )}
           <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute. Komm morgen wieder, um die Serie zu halten.</div>
@@ -352,8 +350,9 @@ const ov = { position: 'absolute', inset: 0, zIndex: 220, display: 'flex', flexD
 const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))', border: '1px solid var(--line)', boxShadow: 'inset 0 0 24px rgba(0,0,0,0.45)' };
 const secTitle = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-dim)', marginBottom: 6 };
 const inputSt = { width: '100%', padding: '11px', borderRadius: 'var(--r-sm)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontFamily: 'var(--font-body)', fontSize: 14, border: '1px solid var(--line)', outline: 'none', boxSizing: 'border-box' };
-const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.35)', background: 'rgba(59,130,246,0.07)', color: 'var(--accent-dim)' };
+// minWidth/minHeight 44 = the mobile touch-target floor — these are tap-mid-drill buttons.
+const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.35)', background: 'rgba(59,130,246,0.07)', color: 'var(--accent-dim)' };
 const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, var(--action), var(--warn))' };
-const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
+const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
 const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' };
-const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.06)', color: 'var(--accent-dim)', lineHeight: 1 };
+const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.06)', color: 'var(--accent-dim)', lineHeight: 1 };
