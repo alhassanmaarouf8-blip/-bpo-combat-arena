@@ -14,8 +14,12 @@
  * output = PCM16 @24kHz. Input/output transcription are enabled so the existing
  * scoring/coach/SRS pipeline can consume the same transcripts it does today.
  *
- * No new dependency: uses Node's built-in global WebSocket (Node 21+; this repo runs 24).
+ * Outbound socket uses the `ws` library (already a dependency) rather than Node's global
+ * WebSocket: the global exists only on Node 21+, but CI (Guardian) and `engines` pin Node 20,
+ * where `new WebSocket()` throws ReferenceError. `ws` works identically on every supported Node.
  */
+
+import { WebSocket } from 'ws';
 
 const HOST = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest';
@@ -39,7 +43,8 @@ async function frameToJson(data) {
  * @param {string} [opts.model]        Live model id
  * @param {string} [opts.voiceName]    prebuilt voice (e.g. 'Charon'); omit for model default
  * @param {object} opts.handlers       { onReady, onAudio(Buffer), onInputText(s), onOutputText(s),
- *                                        onTurnComplete, onInterrupted, onError(e), onClose(code,reason) }
+ *                                        onTurnComplete, onInterrupted, onUsage(usageMetadata),
+ *                                        onError(e), onClose(code,reason) }
  * @returns {Promise<{ sendAudioChunk, sendText, close, isOpen }>}
  */
 export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODEL, voiceName, handlers = {} }) {
@@ -61,11 +66,11 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
     },
   };
 
-  ws.addEventListener('open', () => { ws.send(JSON.stringify(setup)); });
+  ws.on('open', () => { ws.send(JSON.stringify(setup)); });
 
-  ws.addEventListener('message', async (ev) => {
+  ws.on('message', async (data) => {
     let msg;
-    try { msg = await frameToJson(ev.data); }
+    try { msg = await frameToJson(data); }
     catch (e) { h.onError?.(new Error('geminiLive: bad frame: ' + e.message)); return; }
 
     if (msg.setupComplete) { ready = true; h.onReady?.(); return; }
@@ -83,11 +88,14 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
       if (sc.interrupted)               h.onInterrupted?.();
       if (sc.turnComplete)              h.onTurnComplete?.();
     }
+    // Token accounting: Gemini reports SESSION-CUMULATIVE usage per turn. Forward it so the
+    // bridge can price it (audio/text in+out) and enforce the monthly spend cap.
+    if (msg.usageMetadata) h.onUsage?.(msg.usageMetadata);
     if (msg.error) h.onError?.(new Error('geminiLive server error: ' + JSON.stringify(msg.error)));
   });
 
-  ws.addEventListener('error', (e) => { h.onError?.(new Error('geminiLive ws error: ' + (e?.message || 'unknown'))); });
-  ws.addEventListener('close', (e) => { ready = false; h.onClose?.(e?.code, e?.reason); });
+  ws.on('error', (e) => { h.onError?.(new Error('geminiLive ws error: ' + (e?.message || 'unknown'))); });
+  ws.on('close', (code, reason) => { ready = false; h.onClose?.(code, reason?.toString?.() || ''); });
 
   return {
     isOpen: () => ready && ws.readyState === 1,

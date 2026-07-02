@@ -541,7 +541,10 @@ export class RealtimeClient {
   get ledgerTerms() { return this._ledger.map((e) => ({ term: e.term, spent: e.spent })); }
 
   // ── Connect: set up Groq + emit the deterministic opening line ─────────────────
-  async connect() {
+  // suppressOpening=true when the Gemini Live path will greet natively (audio): we still seed the
+  // history so scoring/respond has the real start, but we do NOT emit the Groq opening (that would
+  // make the candidate hear two hellos). The caller re-emits it via emitOpening() if Gemini fails.
+  async connect(suppressOpening = false) {
     // Boss runs on the configured provider chain (Groq → Cerebras failover, see PROVIDERS).
     if (!PROVIDERS.length) throw new Error('No boss LLM key set (GROQ_API_KEY or CEREBRAS_API_KEY)');
 
@@ -551,17 +554,27 @@ export class RealtimeClient {
       { role: 'system',    content: this._session.instructions },
       { role: 'assistant', content: this._session.openingLine },
     ];
+    this._openingEmitted = false;
 
-    console.log(`[interviewClient] connected  providers=${PROVIDERS.map(p => p.name).join('+')}  mood=${this._mood}  session=${this._sessionId}`);
+    console.log(`[interviewClient] connected  providers=${PROVIDERS.map(p => p.name).join('+')}  mood=${this._mood}  session=${this._sessionId}  suppressOpening=${suppressOpening}`);
 
-    // Deliver the opening line after a short, deliberate "thinking" pause.
+    // Deliver the opening line after a short, deliberate "thinking" pause (unless suppressed).
     this._responding = true;
     setTimeout(() => {
       if (this._closed) return;
       this._responding = false;
-      this._cb.onBossSpeech?.(this._session.openingLine);
-      this._cb.onBossSpeechDone?.();
+      if (!suppressOpening) this.emitOpening();
     }, RESPONSE_DELAY_MS);
+  }
+
+  // Emit the deterministic opening line NOW. Used both by connect() (normal Groq path) and as the
+  // fallback when Gemini Live was expected to greet but failed. Idempotent (fires at most once).
+  emitOpening() {
+    if (this._closed || this._openingEmitted) return;
+    this._openingEmitted = true;
+    this._responding = false;
+    this._cb.onBossSpeech?.(this._session.openingLine);
+    this._cb.onBossSpeechDone?.();
   }
 
   // ── Respond: generate ONE boss turn for the candidate's answer ─────────────────

@@ -20,6 +20,8 @@ import { refreshRecommendations, allRecommendedDone } from './trainingslager.js'
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
 import { activeFightUsers }       from './liveFights.js';
+import geminiBudget               from './geminiBudget.js';
+import { downsamplePcm24to16 }    from './geminiAudio.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -35,6 +37,17 @@ const countFillers = (text) => ((text || '').match(FILLER_RE) ?? []).length;
 // Gemini Live native-audio path is active only when explicitly enabled. Defined here (not just in
 // server.js) because the fight-start path references it — a bare reference would ReferenceError.
 const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
+// PAID-PATH GATE: Gemini Live costs money, so it is NOT for all users. It runs only for accounts on
+// this allowlist (GEMINI_LIVE_EMAILS, comma-separated; falls back to ADMIN_EMAIL). During the owner's
+// ear-test that is just his account. Widen the env var to open it up once he validates it live.
+const GEMINI_LIVE_EMAILS = (process.env.GEMINI_LIVE_EMAILS || process.env.ADMIN_EMAIL || '')
+  .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+const geminiEmailAllowed = (email) => !!email && GEMINI_LIVE_EMAILS.includes(String(email).toLowerCase());
+// BARGE-IN: when ON (default), the user's mic keeps streaming while the boss speaks, so Gemini's native
+// VAD hears the interruption and yields — the real "let me cut in" feel. Requires headphones (open mic +
+// loudspeaker = the boss hears itself). Set GEMINI_BARGE_IN=0 for echo-safe half-duplex (mic muted while
+// the boss talks) if the owner tests on speakers.
+const GEMINI_BARGE_IN = process.env.GEMINI_BARGE_IN !== '0';
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -106,9 +119,12 @@ const S = {
   BOSS_SPEECH_DONE:   'boss_speech_done',
   // ── Gemini Live audio path (replaces TTS when USE_GEMINI_LIVE=1) ────────────
   BOSS_AUDIO_DELTA:  'boss_audio_delta',   // b64 PCM16 @ 24 kHz — streamed boss voice
+  BOSS_INTERRUPTED:  'boss_interrupted',   // user barged in → client flushes queued boss audio
   LIVE_USER_TRANSCRIPT_PARTIAL: 'live_user_transcript_partial',
   LIVE_USER_TRANSCRIPT_DONE:    'live_user_transcript_done',
   LIVE_BOSS_TRANSCRIPT:        'live_boss_transcript',  // sentinel '__TURN_COMPLETE__' ends turn
+  GEMINI_COST:       'gemini_cost',        // {monthUsd, capUsd, capped} live spend readout for the ear-test
+  GEMINI_ENDED:      'gemini_ended',       // paid path ended mid-fight (cap/error) → client drops to $0 flow
   // ───────────────────────────────────────────────────────────────────────────
   SCENARIO_INFO:      'scenario_info',
   STAGE_UPDATE:       'stage_update',
@@ -230,9 +246,6 @@ export class WebSocketManager {
       weakStreak:     0,       // consecutive broken answers (triggers the rescue move)
       // ── Legacy Groq text path ──────────────────────────────────────────────────
       dgStreamer:     null,    // DeepgramStreamer for hands-free streaming STT (one per turn)
-      // ── Gemini Live path (active when USE_GEMINI_LIVE=1) ──────────────────────
-      geminiLive:     null,    // GeminiLiveProxy instance (or null on Groq path)
-      geminiLiveMode: false,   // true when this session runs on native audio
       // Turn accumulation — Deepgram only TRANSCRIBES; the client's adaptive VAD owns the
       // turn boundary. We concatenate every Deepgram segment of the current turn here and
       // commit ONCE when the client sends AUDIO_END (never on Deepgram's own speech_final —
@@ -251,9 +264,11 @@ export class WebSocketManager {
       lastTurnWasCorrection: false,
       errorCounts:           {},
       errorLabels:           [],
-      // ── Gemini Live audio path (USE_GEMINI_LIVE=1) ──────────────────────────────
-      geminiProxy:       null,  // GeminiLiveProxy instance for this session
+      // ── Gemini Live audio path (USE_GEMINI_LIVE=1 + account allowlisted) ────────
+      geminiProxy:       null,  // GeminiLiveProxy instance for this session (null → $0 Groq path)
       geminiActive:      false, // true while the boss is "speaking" via Gemini audio stream (half-duplex)
+      geminiGreeted:     false, // true once Gemini has produced any audio (so a pre-greeting failure can fall back to the Groq opening)
+      geminiSessionUsd:  0,     // this session's cumulative priced usage (usageMetadata is cumulative → we add the delta)
       geminiUserParts:   [],    // accumulated user-transcript parts this Gemini turn (for scoring)
       geminiBossParts:   [],    // accumulated boss-transcript parts this Gemini turn (display + debrief)
       _geminiTurnStartMs: 0,    // wall-clock start of the current Gemini user turn (for durationMs)
@@ -312,25 +327,16 @@ export class WebSocketManager {
         break;
 
       case C.AUDIO_CHUNK:
-        // Gemini Live path: forward raw PCM directly to the proxy; skip Deepgram entirely.
-        if (ctx.geminiLiveMode && ctx.geminiProxy) {
-          const buf = Buffer.from(msg.data, 'base64');
-          ctx.audioInBytes += buf.length;
-          const sent = ctx.geminiProxy.sendAudioChunk(buf.toString('base64'));
-          if (!sent && !ctx._glChunkWarned) {
-            ctx._glChunkWarned = true;
-            console.warn(`[wsManager] Gemini proxy not ready — audio chunk dropped  session=${ctx.sessionId}`);
-          }
-        } else {
-          this._handleAudioChunk(ctx, msg);
-        }
+        // Routed inside _handleAudioChunk: the Gemini proxy (resampled 24→16 kHz) when this fight is
+        // on the native-audio path, else Deepgram streaming STT for the $0 pipeline.
+        this._handleAudioChunk(ctx, msg);
         break;
 
       case C.AUDIO_END:
-        // In GL mode the turn boundary is owned by Gemini's native VAD — just release the
-        // half-duplex gate so the browser knows the user can start speaking again.
-        if (ctx.geminiLiveMode) {
-          ctx._glChunkWarned = false;
+        // Gemini path: turn boundaries are owned by Gemini's native VAD — the client streams
+        // continuously and normally never sends AUDIO_END. If one arrives anyway, just acknowledge
+        // the accumulated user transcript. $0 path: finalize the Deepgram stream.
+        if (ctx.geminiProxy) {
           this._send(ctx, { type: S.LIVE_USER_TRANSCRIPT_DONE, transcript: ctx.geminiUserParts.join('').trim() });
         } else {
           this._handleAudioEnd(ctx);
@@ -468,6 +474,15 @@ export class WebSocketManager {
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
     console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  mode=${viaBossTor ? 'bosstor' : 'daily'}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
+    // ── Should THIS fight run on paid Gemini Live? Flag on + key present + account allowlisted +
+    // the monthly $ cap not yet reached. Decided BEFORE connect() so we can suppress the Groq opening
+    // greeting when Gemini will greet natively (otherwise the candidate hears two hellos). ──
+    const geminiLiveEnabled = USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY
+      && geminiEmailAllowed(account.email) && !geminiBudget.isCapped();
+    if (USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY && geminiEmailAllowed(account.email) && geminiBudget.isCapped()) {
+      console.warn(`[wsManager] Gemini monthly cap ($${geminiBudget.capUsd()}) reached — this fight stays on the $0 path  session=${ctx.sessionId}`);
+    }
+
     try {
       ctx.realtimeClient = new RealtimeClient({
         sessionId: ctx.sessionId,
@@ -530,56 +545,69 @@ export class WebSocketManager {
         },
       });
 
-      await ctx.realtimeClient.connect();
-      console.log(`[wsManager] RealtimeClient connected  session=${ctx.sessionId}`);
+      // Suppress the Groq opening line when Gemini will greet natively (audio). If Gemini then fails
+      // to start, we call ctx.realtimeClient.emitOpening() below so the candidate is still greeted.
+      await ctx.realtimeClient.connect(geminiLiveEnabled);
+      console.log(`[wsManager] RealtimeClient connected  session=${ctx.sessionId}  gemini=${geminiLiveEnabled}`);
 
-      // ── Gemini Live (native-audio speech-to-speech) — only when USE_GEMINI_LIVE=1 ──
-      // Runs in ADDITION to the Groq path; same scoring/debrief pipeline. If it fails
-      // to connect we silently fall back to the Groq text + Deepgram TTS path (already
-      // wired). The user cannot tell the difference — they just hear the same content.
-      const geminiLiveEnabled = USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY;
+      // ── Gemini Live (native-audio speech-to-speech) — gated on flag + key + allowlist + budget ──
+      // Gemini owns the SPOKEN conversation (greeting, questions, replies, turn-taking, barge-in).
+      // The Groq RealtimeClient is kept only for its session script (the system prompt) and the
+      // scoring/debrief pipeline — it does NOT generate boss turns here (see skipRespond). If Gemini
+      // fails at any point BEFORE it greets, we fall back to the Groq opening + text path so the
+      // candidate is never left with a silent interviewer.
       if (geminiLiveEnabled) {
+        // ONE idempotent escape hatch for every way the paid path can die (start failure, setup
+        // rejection, mid-fight close, budget cap). The client may already be in gemini mode — where
+        // BOSS_SPEECH is suppressed and its client VAD is off — so it must be told to LEAVE that mode
+        // FIRST, then be greeted (if Gemini never spoke) or nudged to continue (if it did). Guarded so
+        // a normal end-of-fight proxy close never fires a spurious mid-fight notice.
+        const geminiFallback = (noticeText) => {
+          if (ctx.closed || ctx.ending || ctx._geminiFellBack) return;
+          ctx._geminiFellBack = true;
+          this._send(ctx, { type: S.GEMINI_ENDED });
+          if (!ctx.geminiGreeted) { try { ctx.realtimeClient?.emitOpening?.(); } catch { /* boss gone */ } }
+          else this._send(ctx, { type: S.BOSS_SPEECH, text: noticeText });
+        };
         try {
           const { GeminiLiveProxy } = await import('./geminiLiveProxy.js');
           const proxy = new GeminiLiveProxy({
             handlers: {
               onReady: () => {
                 console.log(`[wsManager] GeminiLive ready  session=${ctx.sessionId}`);
-                ctx.geminiActive = true;
+                ctx.geminiActive = true;   // boss is about to greet (half-duplex gate; barge-in mode ignores it)
+                // A SECOND session_ready, now flagged — tells the client to switch to the native-audio path.
                 this._send(ctx, { type: S.SESSION_READY, useGeminiAudio: true, sessionId: ctx.sessionId, bossHp: ctx.bossHp, playerHp: ctx.playerHp });
               },
               onBossAudio: (buf) => {
-                // Stream boss voice PCM to the browser in small base64 chunks.
-                // The client sends `AUDIO_CHUNK` as base64; the server reconstructs
-                // audio bytes with Buffer.from(b64, 'base64'). Wave the same way back.
+                // Boss voice PCM16 @24kHz → base64 to the browser for Web-Audio playback.
+                ctx.geminiActive = true;
+                ctx.geminiGreeted = true;
                 this._send(ctx, { type: S.BOSS_AUDIO_DELTA, data: buf.toString('base64') });
                 ctx.audioOutBytes += buf.length;
               },
               onBossText: (chunk) => {
+                // The proxy emits '[INTERVIEWER SPRICHT]' as a "boss started talking" marker — it is
+                // NOT real transcript text, so never forward it as one.
+                if (chunk === '[INTERVIEWER SPRICHT]') { ctx.geminiActive = true; ctx.geminiGreeted = true; return; }
                 if (chunk === '__TURN_COMPLETE__') {
-                  // Boss's turn just ended. Record the full boss transcript into dialogue,
-                  // score the accumulated user transcript, then release the half-duplex.
                   const bossFull = ctx.geminiBossParts.join('').trim();
                   const userFull = ctx.geminiUserParts.join('').trim();
                   ctx.geminiBossParts = [];
                   ctx.geminiUserParts = [];
                   ctx._geminiTurnStartMs = 0;
-                  ctx.geminiProxy?.sendText?.('');
-                  // Record boss turn into dialogue for debrief
-                  if (bossFull && bossFull !== '[INTERVIEWER SPRICHT]') {
+                  // Record the boss turn into the ordered dialogue for the debrief.
+                  if (bossFull) {
                     ctx.dialogue.push({ role: 'boss', text: bossFull, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
                   }
                   ctx.geminiActive = false;
-                  this._send(ctx, { type: S.BOSS_SPEECH_DONE });
-                  // If a boss turn has text, surface it; otherwise just signal done.
-                  if (bossFull.length > 2) this._send(ctx, { type: S.LIVE_BOSS_TRANSCRIPT, text: bossFull });
-                  else this._send(ctx, { type: S.BOSS_SPEECH, text: '' });
-                  // Score the user's answer (ctx.geminiUserParts already cleared above).
-                  // durationMs:0 = "unknown" — the full-duplex Gemini path has no clean user-speech
-                  // duration, so WpM is intentionally NOT measured here (better absent than a false
-                  // "0 WpM"). TODO(gemini): mark user speech-start/-end to compute real WpM if enabled.
-                  if (userFull.trim().length >= 2) {
-                    this._handleAnswer(ctx, { text: userFull.trim(), durationMs: 0 });
+                  this._send(ctx, { type: S.BOSS_SPEECH_DONE });   // boss finished → client clears the "speaking" state
+                  // The boss transcript was already streamed chunk-by-chunk (LIVE_BOSS_TRANSCRIPT); do
+                  // NOT re-send the full line (that double-printed it). Score the user's answer WITHOUT
+                  // firing a Groq boss reply — Gemini already voiced this turn (skipRespond = no 2nd brain).
+                  // durationMs:0 = unknown → WpM intentionally not faked for the full-duplex path.
+                  if (userFull.length >= 2) {
+                    this._handleAnswer(ctx, { text: userFull, durationMs: 0 }, { skipRespond: true });
                   }
                 } else {
                   ctx.geminiBossParts.push(chunk);
@@ -591,30 +619,42 @@ export class WebSocketManager {
                 this._send(ctx, { type: S.LIVE_USER_TRANSCRIPT_PARTIAL, text: chunk });
               },
               onInterrupted: () => {
+                // User barged in over the boss → tell the client to drop queued boss audio, end the turn.
                 ctx.geminiActive = false;
+                this._send(ctx, { type: S.BOSS_INTERRUPTED });
                 this._send(ctx, { type: S.BOSS_SPEECH_DONE });
               },
+              onUsage: (u) => {
+                // Price this (session-cumulative) usage report, fold the delta into the month total,
+                // stream a live cost readout, and HARD-STOP the paid path once the $ cap is reached.
+                const r = geminiBudget.recordSessionUsage(ctx.geminiSessionUsd, u);
+                ctx.geminiSessionUsd = r.sessionUsd;
+                this._send(ctx, { type: S.GEMINI_COST, monthUsd: +r.monthUsd.toFixed(4), capUsd: r.capUsd, capped: r.capped });
+                if (r.capped) {
+                  console.warn(`[wsManager] Gemini monthly cap $${r.capUsd} reached — closing proxy; this fight continues on $0  session=${ctx.sessionId}`);
+                  try { ctx.geminiProxy?.close(); } catch {}
+                  ctx.geminiProxy = null;
+                  ctx.geminiActive = false;
+                  geminiFallback('(Der Sprachdienst wurde beendet — bitte sprechen Sie weiter oder tippen Sie Ihre Antwort.)');
+                }
+              },
               onClose: (code, reason) => {
-                console.log(`[wsManager] GeminiLive closed  code=${code} reason=${code}:${reason}  session=${ctx.sessionId}`);
+                console.log(`[wsManager] GeminiLive closed  code=${code} reason=${reason || '(none)'}  session=${ctx.sessionId}`);
                 ctx.geminiActive = false;
                 ctx.geminiProxy = null;
-                // If Gemini dies mid-fight the user loses voice but can still text-answer.
-                if (!ctx.closed) this._send(ctx, { type: S.BOSS_SPEECH, text: '(Die Verbindung zum Interviewer wurde unterbrochen. Bitte tippen Sie Ihre Antwort.)' });
+                geminiFallback('(Der Sprachdienst wurde beendet — bitte sprechen Sie weiter oder tippen Sie Ihre Antwort.)');
               },
               onError: (e) => {
                 console.error(`[wsManager] GeminiLive error session=${ctx.sessionId}: ${e.message}`);
                 ctx.geminiActive = false;
                 ctx.geminiProxy = null;
-                if (!ctx.closed) {
-                  this._send(ctx, { type: S.BOSS_SPEECH, text: '(Es gibt ein technisches Problem — Ihre Antwort als Text.)' });
-                  this._sendError(ctx, 'service_unavailable');
-                }
+                geminiFallback('(Es gibt ein technisches Problem — bitte sprechen Sie weiter oder tippen Sie Ihre Antwort.)');
               },
             },
           });
           await proxy.start({
             apiKey: process.env.GEMINI_API_KEY,
-            model:   process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash',
+            model:   process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest',
             voiceName: process.env.GEMINI_LIVE_VOICE || 'Charon',
             systemInstruction: ctx.realtimeClient._session?.instructions ||
               'Du bist ein deutscher HR-Manager in einem BPO-Unternehmen. Sprich nur Deutsch, Sie-Form.',
@@ -622,8 +662,11 @@ export class WebSocketManager {
           ctx.geminiProxy = proxy;
           console.log(`[wsManager] GeminiLive proxy started  session=${ctx.sessionId}`);
         } catch (e) {
-          console.warn(`[wsManager] GeminiLive failed to start — falling back to Groq text path  session=${ctx.sessionId}: ${e.message}`);
+          console.warn(`[wsManager] GeminiLive failed to start — falling back to Groq opening + text path  session=${ctx.sessionId}: ${e.message}`);
           ctx.geminiProxy = null;
+          // We suppressed the Groq greeting expecting Gemini to speak it — it didn't. geminiFallback
+          // re-emits the opening (and clears gemini mode if the client already entered it at onReady).
+          geminiFallback('(Es gibt ein technisches Problem — bitte sprechen Sie weiter oder tippen Sie Ihre Antwort.)');
         }
       }
 
@@ -709,16 +752,18 @@ export class WebSocketManager {
     if (!ctx.realtimeClient || ctx.closed) return;
     if (!msg.data) return;
 
-    // ── Gemini Live path (USE_GEMINI_LIVE=1): half-duplex — only forward mic audio
-    // while the boss is NOT speaking. If the boss IS speaking (geminiActive = true),
-    // drop the chunk silently (echo protection; client is responsible for gating but
-    // this belt-and-suspenders drop prevents a race condition).
+    // ── Gemini Live path: forward the mic to Gemini, RESAMPLED 24 kHz → 16 kHz (the browser mic is
+    // 24 kHz; Gemini's input contract is 16 kHz — sending 24 kHz tagged as 16 kHz makes it mishear).
+    // Barge-in ON (default): keep streaming even while the boss speaks so Gemini's VAD hears the
+    // interruption. Barge-in OFF: half-duplex — drop the mic while the boss talks (echo-safe on
+    // speakers). If the proxy rejects a chunk (closed between frames), fall through to Deepgram so a
+    // transcript is still captured for scoring.
     if (ctx.geminiProxy) {
-      if (ctx.geminiActive) return;   // boss is talking → drop user mic (anti-echo)
-      // Track the start of the user's first audio chunk this turn (for durationMs in scoring).
+      if (!GEMINI_BARGE_IN && ctx.geminiActive) return;   // half-duplex anti-echo (only when barge-in disabled)
       if (!ctx._geminiTurnStartMs) ctx._geminiTurnStartMs = Date.now();
-      const sent = ctx.geminiProxy.sendAudioChunk(msg.data);
-      // If send failed (e.g. proxy closed between frames), fall through to Deepgram
+      const pcm16k = downsamplePcm24to16(Buffer.from(msg.data, 'base64'));
+      ctx.audioInBytes += pcm16k.length;
+      const sent = ctx.geminiProxy.sendAudioChunk(pcm16k.toString('base64'));
       if (sent) return;
       console.warn(`[wsManager] Gemini proxy reject chunk → fallback Deepgram  session=${ctx.sessionId}`);
     }
@@ -1309,7 +1354,7 @@ export class WebSocketManager {
   // client-side). We score it (unchanged scoring), then ask the Groq boss for its
   // single next turn. Audio never flows over the socket anymore.
 
-  async _handleAnswer(ctx, msg) {
+  async _handleAnswer(ctx, msg, opts = {}) {
     if (!ctx.realtimeClient) return;
     // Ignore an answer that arrives while the boss is still producing its turn, and ignore empties.
     // CRITICAL: still send TRANSCRIPT_DONE on these early returns — otherwise the client's `transcribing`
@@ -1393,6 +1438,9 @@ export class WebSocketManager {
     // client-visible order is unchanged (TRANSCRIPT_DONE/HP_UPDATE before BOSS_SPEECH).
     this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
     if (ctx.closed) return;
+    // Gemini Live path already VOICED the boss's reply (native audio) — score the answer but do NOT
+    // generate a second, conflicting Groq boss turn.
+    if (opts.skipRespond) return;
     ctx._tRespondStart = Date.now();   // [LAT] boss LLM request fired (after scoring)
     const bossResult = await ctx.realtimeClient.respond(transcript).catch(err => {
       console.error(`[wsManager] boss respond failed session=${ctx.sessionId}: ${err.message}`);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
 import { AudioRecorder } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
+import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
 import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
@@ -137,6 +138,14 @@ const S = {
   BOSS_SPEECH:        'boss_speech',
   BOSS_SPEECH_EARLY:  'boss_speech_early',   // first sentence, streamed ahead of the full line → start speaking NOW
   BOSS_SPEECH_DONE:   'boss_speech_done',
+  // ── Gemini Live native-audio path (only when the server flags useGeminiAudio for this account) ──
+  BOSS_AUDIO_DELTA:             'boss_audio_delta',            // b64 PCM16 @24kHz — boss voice over the WS
+  BOSS_INTERRUPTED:             'boss_interrupted',            // user barged in → flush queued boss audio
+  LIVE_BOSS_TRANSCRIPT:         'live_boss_transcript',        // boss's words, streamed chunk-by-chunk
+  LIVE_USER_TRANSCRIPT_PARTIAL: 'live_user_transcript_partial',// your words, as Gemini transcribes them
+  LIVE_USER_TRANSCRIPT_DONE:    'live_user_transcript_done',
+  GEMINI_COST:                  'gemini_cost',                 // {monthUsd, capUsd, capped} live spend readout
+  GEMINI_ENDED:                 'gemini_ended',                // paid path ended mid-fight → resume the $0 flow
   SCENARIO_INFO:      'scenario_info',
   STAGE_UPDATE:       'stage_update',
   DEBRIEF_PENDING:    'debrief_pending',
@@ -2871,6 +2880,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
   const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
+  // ── Gemini Live native-audio path (server opts this account in via SESSION_READY.useGeminiAudio) ──
+  const [geminiMode, setGeminiMode] = useState(false);        // this interview runs on Gemini full-duplex voice
+  const [geminiCost, setGeminiCost] = useState(null);         // { monthUsd, capUsd, capped } live spend readout
 
   // Honor the landing promise ("kostenlose Einstufung direkt nach der Anmeldung"): if the user
   // just signed up, auto-open the free assessment ONCE (flag set in AuthScreen on signup).
@@ -2894,6 +2906,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const wsRef          = useRef(null);
   const recorderRef    = useRef(null);
   const pingRef        = useRef(null);
+  // Gemini native-audio path: a synchronous mode flag (read inside WS handlers), the PCM player for
+  // the boss voice, the continuous mic recorder, and the accumulating boss-subtitle line.
+  const geminiModeRef    = useRef(false);
+  const geminiPlayerRef  = useRef(null);
+  const geminiMicRef     = useRef(null);
+  const geminiBossLineRef = useRef('');
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
@@ -2942,10 +2960,63 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     prevIdxRef.current = idx;
   }, [funnel?.idx]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Gemini Live native-audio mode ───────────────────────────────────────────
+  // Entered on SESSION_READY{useGeminiAudio:true} (server allowlists the account + checks budget).
+  // The boss voice now arrives as PCM over the WS (played by GeminiVoicePlayer) instead of MP3-over-
+  // HTTP, and the mic streams CONTINUOUSLY — Gemini owns turn-taking + barge-in, so the client VAD
+  // (startHandsFreeTurn) is bypassed while this is active.
+  const enterGeminiMode = useCallback(async () => {
+    if (geminiModeRef.current) return;
+    geminiModeRef.current = true;
+    setGeminiMode(true);
+    // Kill any hands-free turn already in flight: phase goes 'active' at ws.onopen, so the client
+    // VAD can have opened its own mic (clipRecRef) BEFORE this second SESSION_READY arrives —
+    // without this, TWO mics stream AUDIO_CHUNK to Gemini simultaneously.
+    if (hfTimerRef.current) { clearInterval(hfTimerRef.current); hfTimerRef.current = null; }
+    try { await clipRecRef.current?.stop(); } catch { /* not recording */ }
+    clipRecRef.current = null;
+    hfActiveRef.current = false;
+    try {
+      geminiPlayerRef.current = new GeminiVoicePlayer({
+        onSpeakStart: () => { setBossSpeak(true); setBossThinking(false); setShowBriefing(false); },
+      });
+      geminiPlayerRef.current.resume();
+    } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
+    try {
+      const rec = new ClipRecorder({
+        onVolume: (v) => { volRef.current = v; },
+        onChunk:  (b64) => { try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ } },
+      });
+      await rec.start();
+      // Teardown may have raced the await above (e.g. GEMINI_ENDED or session close while the mic
+      // permission prompt was open) — geminiMicRef was still null then, so nothing stopped this
+      // recorder. Never leave a mic streaming with no owner.
+      if (!geminiModeRef.current) { try { await rec.stop(); } catch { /* already stopped */ } return; }
+      geminiMicRef.current = rec;
+      setRecording(true);
+    } catch { setError('mic_denied'); }
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stopGeminiMode = useCallback(() => {
+    geminiModeRef.current = false;
+    setGeminiMode(false);
+    try { geminiMicRef.current?.stop?.(); } catch { /* already stopped */ }
+    geminiMicRef.current = null;
+    try { geminiPlayerRef.current?.close?.(); } catch { /* already closed */ }
+    geminiPlayerRef.current = null;
+    geminiBossLineRef.current = '';
+    setRecording(false);
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── WS message dispatch ────────────────────────────────────────────────────
   const handleMsg = useCallback((msg) => {
     switch (msg.type) {
       case S.SESSION_READY:
+        // The server sends SESSION_READY twice: once plain at connect (→ START_FIGHT), and again
+        // WITH useGeminiAudio once the Gemini native-audio session is live for this account. The 2nd
+        // one must NOT re-start the fight (that errors 'fight_already_active') — it switches the
+        // client to the Gemini voice path.
+        if (msg.useGeminiAudio) { enterGeminiMode(); break; }
         setBossHp(msg.bossHp ?? 100);
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
@@ -3016,6 +3087,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         break;
 
       case S.DEBRIEF:
+        stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
         setDebrief(msg);
         setDebriefPending(false);
         if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
@@ -3034,6 +3106,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.NO_SESSION:
         // The user closed the interview without really participating → NO feedback card.
         // Show an honest "you didn't start" message instead of a fake debrief with 0 WpM.
+        stopGeminiMode();
         setDebrief(null); setDebriefPending(false); setNoSession(true);
         break;
 
@@ -3042,6 +3115,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setPhaseSync('idle');
         recorderRef.current?.stop().catch(() => {});
         recorderRef.current = null;
+        stopGeminiMode();
         try { wsRef.current?.close(1000, 'paywall'); } catch {}
         wsRef.current = null;
         setPaywall(msg);
@@ -3049,6 +3123,47 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.AUDIO_DELTA:
         // Boss has no audio in the OpenAI-free text interview — ignore (kept for safety).
+        break;
+
+      // ── Gemini Live native-audio path ──────────────────────────────────────
+      case S.BOSS_AUDIO_DELTA:
+        // Boss voice (PCM16@24k) over the WS → play it. (Barge-in flush arrives via BOSS_INTERRUPTED.)
+        if (!geminiModeRef.current || !geminiPlayerRef.current) break;
+        geminiPlayerRef.current.enqueue(msg.data);
+        break;
+
+      case S.BOSS_INTERRUPTED:
+        // User barged in → drop any queued boss audio immediately so it stops talking over them.
+        if (geminiModeRef.current) geminiPlayerRef.current?.flush();
+        break;
+
+      case S.LIVE_BOSS_TRANSCRIPT: {
+        // Boss's words, streamed chunk-by-chunk → accumulate into the subtitle line.
+        if (!geminiModeRef.current) break;
+        geminiBossLineRef.current += (msg.text || '');
+        setBossText(geminiBossLineRef.current);
+        setBossSpeak(true); setBossThinking(false); setShowBriefing(false);
+        break;
+      }
+
+      case S.LIVE_USER_TRANSCRIPT_PARTIAL:
+        // Your words, as Gemini transcribes them → live subtitle (committed later via TRANSCRIPT_DONE).
+        if (geminiModeRef.current) setLiveTranscript((prev) => (prev || '') + (msg.text || ''));
+        break;
+
+      case S.LIVE_USER_TRANSCRIPT_DONE:
+        // The final user line is committed by the scoring path (TRANSCRIPT_DONE); just clear the live one.
+        if (geminiModeRef.current) setLiveTranscript('');
+        break;
+
+      case S.GEMINI_COST:
+        setGeminiCost({ monthUsd: msg.monthUsd, capUsd: msg.capUsd, capped: !!msg.capped });
+        break;
+
+      case S.GEMINI_ENDED:
+        // Paid path ended mid-fight (budget cap or error) → leave Gemini mode so the normal $0
+        // hands-free flow resumes (mic re-opens via the VAD effect; boss replies return via MP3).
+        stopGeminiMode();
         break;
 
       case S.TRANSCRIPT_DELTA:
@@ -3074,7 +3189,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // Boss is now generating its reply — block hands-free from re-triggering the mic
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
           // Without this, the mic restarts immediately and can get stuck in transcribing=true.
-          setBossThinking(true);   // (filler already started at turn-end for zero perceived gap; no replay here)
+          if (!geminiModeRef.current) setBossThinking(true);   // (filler already started at turn-end for zero perceived gap; no replay here). Gemini already voiced the reply → no "thinking" wait.
           const id = ++_lineId;
           setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] }]);
         }
@@ -3084,6 +3199,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.BOSS_SPEECH_EARLY: {
         // First sentence of the boss's reply, streamed ahead of the full line — start SPEAKING it
         // now. The full line still arrives via BOSS_SPEECH(+DONE), which splices in the remainder.
+        if (geminiModeRef.current) break;              // Gemini path: boss voice is PCM over the WS, never MP3
         if (!msg.text || ttsMutedRef.current) break;   // muted → the normal text-only path handles it
         setBossSpeak(true);        // immediately, like BOSS_SPEECH — keeps the auto-mic gate closed (no echo window)
         setBossThinking(false);
@@ -3099,6 +3215,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       }
 
       case S.BOSS_SPEECH: {
+        if (geminiModeRef.current) break;   // Gemini path: boss text arrives via LIVE_BOSS_TRANSCRIPT, voice via BOSS_AUDIO_DELTA
         if (!msg.text) break;
         setBossSpeak(true);
         setBossThinking(false);   // the boss's next turn has arrived
@@ -3123,6 +3240,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       }
 
       case S.BOSS_SPEECH_DONE:
+        // Gemini path: the boss voice already streamed as PCM (BOSS_AUDIO_DELTA) and its words as
+        // LIVE_BOSS_TRANSCRIPT — there is NO MP3 to synth here. Just end the boss's turn: clear the
+        // subtitle accumulator so the next turn starts fresh and re-announces "speaking".
+        if (geminiModeRef.current) {
+          geminiBossLineRef.current = '';
+          geminiPlayerRef.current?.markTurnEnd();
+          setBossSpeak(false);
+          break;
+        }
         // Boss line is not in the transcript log (single-place render) — nothing to finalize there.
         // Speak the boss's German line aloud (playBossVoice → ElevenLabs if opted in, else Deepgram
         // Aura-2 native German; never browser TTS). bossSpeak
@@ -3203,6 +3329,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         clearInterval(pingRef.current);
         recorderRef.current?.stop().catch(() => {});
         recorderRef.current = null;
+        // Gemini: stop the MIC now (halts streaming + billing) but leave the player so the boss's
+        // final line plays out; the following DEBRIEF/NO_SESSION does the full player teardown.
+        if (geminiModeRef.current) { try { geminiMicRef.current?.stop?.(); } catch { /* already stopped */ } geminiMicRef.current = null; setRecording(false); }
         volRef.current = 0; setUserSpeak(false);
         try { wsRef.current?.close(1000, 'closed'); } catch {}
         wsRef.current = null;
@@ -3263,6 +3392,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     ws.onclose = (ev) => {
       clearTimeout(connectTimer);
       clearInterval(pingRef.current);
+      stopGeminiMode();   // socket gone → tear down the Gemini mic + player (no-op on the $0 path)
       if (phaseRef.current !== 'stopping' && phaseRef.current !== 'idle') {
         // Don't overwrite a more specific error already set (e.g. a mic failure).
         setError((prev) => prev || 'connection_lost');
@@ -3290,6 +3420,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // Stop any in-progress spoken-answer recording; no streaming mic to tear down.
     try { await clipRecRef.current?.stop(); } catch {}
     clipRecRef.current = null;
+    // Gemini: stop the continuous mic now (halts streaming + billing); the player + mode flag are
+    // torn down on the DEBRIEF/SESSION_CLOSED that follows, so the boss's final line still plays.
+    try { await geminiMicRef.current?.stop?.(); } catch {}
+    geminiMicRef.current = null;
     setRecording(false); setBossThinking(false); setUserSpeak(false); setBossSpeak(false); stopBossVoice();
 
     setDebriefPending(true);
@@ -3364,6 +3498,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const hfTimerRef  = useRef(null);
   const hfActiveRef = useRef(false);
   const startHandsFreeTurn = useCallback(async () => {
+    if (geminiModeRef.current) return;   // Gemini owns the mic continuously — the client VAD must never open a second one
     if (hfActiveRef.current || recording || transcribing) return;
     hfActiveRef.current = true;
     try {
@@ -3478,11 +3613,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // Drive hands-free: when it's your idle turn (boss finished, nothing in flight), auto-begin
   // capturing after a short settle. Does nothing while handsFree is off.
   useEffect(() => {
-    if (!handsFree || phase !== 'active') return;
+    if (!handsFree || phase !== 'active' || geminiMode) return;   // Gemini owns the mic continuously → never run the client VAD
     if (recording || transcribing || bossThinking || bossSpeak || hfActiveRef.current) return;
     const t = setTimeout(() => startHandsFreeTurn(), 150);
     return () => clearTimeout(t);
-  }, [handsFree, phase, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
+  }, [handsFree, phase, geminiMode, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
 
   useEffect(() => () => { if (hfTimerRef.current) clearInterval(hfTimerRef.current); }, []);
 
@@ -3636,9 +3771,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     return () => {
       clearInterval(pingRef.current);
       recorderRef.current?.stop().catch(() => {});
+      stopGeminiMode();
       wsRef.current?.close(1000, 'unmount');
     };
-  }, []);
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load the authoritative training streak for the home screen ─────────────
   useEffect(() => {

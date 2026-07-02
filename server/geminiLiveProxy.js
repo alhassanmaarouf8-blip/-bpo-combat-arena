@@ -24,7 +24,9 @@ export class GeminiLiveProxy {
     try {
       this._session = openGeminiLive({
         apiKey,
-        model: model || 'models/gemini-2.5-flash',
+        // Native-audio model = the whole point (most human voice + native turn-taking/interruption).
+        // Plain gemini-2.5-flash is NOT a live-audio model; never let it be the default here.
+        model: model || process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest',
         voiceName: voiceName || 'Charon',
         systemInstruction,
         handlers: {
@@ -55,6 +57,9 @@ export class GeminiLiveProxy {
           onInterrupted: () => {
             this._bossSpeaking = false;
             this._h.onInterrupted?.();
+          },
+          onUsage: (u) => {
+            this._h.onUsage?.(u);   // session-cumulative token usage → wsManager prices + caps it
           },
           onError: (e) => {
             console.error('[geminiLive] error:', e.message);
