@@ -39,26 +39,20 @@ const MAX_TURN_TOKENS = 90;   // was 200 then 110 — tighter cap = faster LLM r
 // budget (~100K/day Groq + ~1M/day Cerebras ≈ 1.1M/day). A provider only activates if
 // its API key env is set, so adding CEREBRAS_API_KEY is all it takes to switch failover on.
 //
-//   GROQ:     GROQ_API_KEY (already set) · llama-3.3-70b-versatile (non-reasoning, fast)
-//   CEREBRAS: CEREBRAS_API_KEY · gpt-oss-120b — a REASONING model, so it gets extra token
-//             headroom + reasoning_effort:'low' (verified: clean formal German, ~0.6s).
+//
+//   GROQ:     GROQ_API_KEY (already set) · llama-3.1-8b-instant (fastest free model, sub-200ms first token on warm)
+//   CEREBRAS: NOT configured in .env — removed from live failover until a key is added.
 const PROVIDERS = [
-  {
-    name:  'cerebras',
-    base:  process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
-    key:   process.env.CEREBRAS_API_KEY,
-    model: process.env.CEREBRAS_INTERVIEW_MODEL || 'gpt-oss-120b',
-    maxTokens: MAX_TURN_TOKENS,
-    extra: { temperature: 0.7 },
-  },
   {
     name:  'groq',
     base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
     key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
-    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
+    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.1-8b-instant',
     maxTokens: MAX_TURN_TOKENS,
-    extra: { temperature: 0.85, presence_penalty: 0.6, frequency_penalty: 0.4 },
+    extra: { temperature: 0.7 },
   },
+  // When CEREBRAS_API_KEY is added to .env, uncomment below to re-enable Cerebras failover:
+  // { name:'cerebras', base:'https://api.cerebras.ai/v1', key:process.env.CEREBRAS_API_KEY, model:'gpt-oss-120b', maxTokens:MAX_TURN_TOKENS, extra:{temperature:0.7} },
 ].filter(p => p.key);                     // only providers whose key is configured
 
 const PROVIDER_COOLDOWN_MS = 10 * 60 * 1000;   // after a 429, skip a provider for 10 min
