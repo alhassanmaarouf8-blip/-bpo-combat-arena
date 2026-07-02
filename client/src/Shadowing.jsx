@@ -10,6 +10,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
+import { DrillIntro } from './drillIntros.jsx';
 
 const MAX_SEC = 20;   // a single sentence repeat is short
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
@@ -25,7 +26,14 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   const [ttsOk, setTtsOk]   = useState(true);
   const [err, setErr]       = useState(null);
   const [clipUrl, setClipUrl] = useState(null);   // object URL of the learner's own take (record-and-compare)
-  const [rate, setRate]     = useState(0.7);       // model playback speed; first listen is slow (0.7×), then 1.0×
+  // Model playback speed; first listen is slow, then 1.0×. VERIFIED 2026-07-02 (owner: Shadowing
+  // voices sound "very robotic"): Deepgram's native `speed` param — which preserves natural
+  // prosody instead of resampling — is REJECTED (HTTP 400) for every German Aura-2 voice tested
+  // (julius/elara/fabian/aurelia), so the slow-down can only happen client-side via the <audio>
+  // element's playbackRate + preservesPitch, a browser time-stretch algorithm that gets audibly
+  // mechanical the further it's pushed below ~0.8×. 0.8 (was 0.7) keeps a clearly slower pace for
+  // catching sounds while staying inside the range where that stretch stays clean.
+  const [rate, setRate]     = useState(0.8);
 
   const recRef      = useRef(null);
   const timerRef    = useRef(null);
@@ -38,7 +46,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   const loadSession = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
-    setClipUrl(null); setRate(0.7); listenedRef.current = false;
+    setClipUrl(null); setRate(0.8); listenedRef.current = false;
     try {
       const r = await fetch(`${apiUrl}/api/shadowing?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
@@ -69,7 +77,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     if (!s) return;
     playNative({ apiUrl, token, text: s.de, rate });
     setTtsOk(true);
-    // First listen is slow (0.7×) to catch the sounds; after that default to natural 1.0×.
+    // First listen is slow to catch the sounds; after that default to natural 1.0×.
     if (!listenedRef.current) { listenedRef.current = true; setRate(1); }
   };
 
@@ -145,7 +153,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
 
   const next = () => {
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
-    setClipUrl(null); setRate(0.7); listenedRef.current = false;
+    setClipUrl(null); setRate(0.8); listenedRef.current = false;
     setResult(null); setErr(null); setSec(0);
     if (idx < sentences.length - 1) setIdx(idx + 1);
     else setPhase('done');
@@ -195,6 +203,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   // ── PRACTICE ──
   return shell(<>
     {header}
+    <DrillIntro drillKey="shadowing" />
     <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'SATZ', 'جملة')} {idx + 1} / {sentences.length}
     </div>
@@ -211,7 +220,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
         <span style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>{T(lang, 'TEMPO', 'السرعة')}</span>
-        <button onClick={() => setSpeed(0.7)} style={speedBtn(rate === 0.7)}>0,7×</button>
+        <button onClick={() => setSpeed(0.8)} style={speedBtn(rate === 0.8)}>0,8×</button>
         <button onClick={() => setSpeed(1)}   style={speedBtn(rate === 1)}>1,0×</button>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

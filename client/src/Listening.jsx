@@ -8,6 +8,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { playNative } from './nativeVoice.js';
+import { DrillIntro } from './drillIntros.jsx';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
@@ -131,6 +132,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   // PRACTICE
   return shell(<>
     {header}
+    <DrillIntro drillKey="listening" />
     <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'ANRUF', 'مكالمة')} {idx + 1} / {items.length}
     </div>

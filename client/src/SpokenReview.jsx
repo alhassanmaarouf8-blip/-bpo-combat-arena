@@ -8,6 +8,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
+import { DrillIntro } from './drillIntros.jsx';
 
 const MAX_SEC = 18;
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
@@ -122,6 +123,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
   // PRACTICE
   return shell(<>
     {header}
+    <DrillIntro drillKey="spokenreview" />
     <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'DEINE FEHLER', 'أخطاؤك')} · {idx + 1} / {items.length}
     </div>
@@ -134,8 +136,17 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
       <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
       {item?.wrong && (
         <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
-          <span style={{ fontSize: 9, color: '#64748b' }}>{T(lang, 'DEIN SATZ (falsch):', 'جملتك (غلط):')}</span><br />
+          {/* Clarified 2026-07-02 (owner: "just a crossed-out line that doesn't represent
+              anything"): the strikethrough sentence is the learner's OWN past error, resurfaced
+              for active recall — say the CORRECTED version from memory, not read this aloud.
+              Explaining that explicitly closes the "why am I looking at this" gap. */}
+          {/* German only — OWNER-AR slot (never authoring Arabic here); falls back to German
+              under the Arabic toggle until the owner writes the masri translation. */}
+          <span style={{ fontSize: 9, color: '#64748b' }}>DAS HAST DU FRÜHER FALSCH GESAGT (durchgestrichen):</span><br />
           <span style={{ textDecoration: 'line-through', opacity: 0.85 }}>{item.wrong}</span>
+          <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 6 }}>
+            → Sag jetzt die richtige Version aus dem Gedächtnis — nicht ablesen, sondern erinnern.
+          </div>
         </div>
       )}
     </div>
