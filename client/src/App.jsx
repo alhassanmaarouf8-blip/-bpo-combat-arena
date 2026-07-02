@@ -3469,8 +3469,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // they just reply. Short answers skip the filler (the streamed reply arrives fast anyway); only
       // substantive answers earn the audible thinking beat.
       setBossThinking(true);
-      const _turnWordCount = (livePartialRef.current.trim().match(/\S+/g) || []).length;
-      if (_turnWordCount >= 4) { try { playFiller(fillerUrlsRef.current); } catch {} }
+      // Always play a thinking filler so the boss never sits in dead silence after ANY answer.
+      // A 300ms bridge beats a 2–6s gap every time; the real reply cuts it off the instant it arrives.
+      if (spoke) { try { playFiller(fillerUrlsRef.current); } catch {} }
     }, STEP);
   }, [recording, transcribing]);
 

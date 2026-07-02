@@ -45,7 +45,7 @@ export class DeepgramStreamer {
       smart_format:    'true',
       punctuate:       'true',
       interim_results: 'true',
-      endpointing:     '400',   // trailing final arrives ~300ms sooner → less dead-air (turn-commit is still the client VAD)
+      endpointing:     '250',   // shorter trailing-silence window → speech_final arrives sooner (turn-commit is still the client VAD)
       encoding:        'linear16',
       sample_rate:     '24000',
       channels:        '1',

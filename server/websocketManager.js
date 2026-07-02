@@ -191,6 +191,7 @@ export class WebSocketManager {
       socket,
       realtimeClient: null,
       isAlive:        true,
+      missedPongs:    0,     // consecutive missed pong counter — tolerate brief network hiccups
       createdAt:      Date.now(),
       lastActivityAt: Date.now(),
       bossHp:         100,
@@ -513,13 +514,13 @@ export class WebSocketManager {
         onError:           (err)    => {
           const code = err?.code || 'realtime_error';
           console.error(`[wsManager] RealtimeClient error session=${ctx.sessionId}: ${err.message}  code=${code}`);
-          // Fatal, non-recoverable errors (no credit, key problem, OpenAI outage): tell the
-          // user plainly and END the fight so the mic stops streaming / billing immediately.
-          const FATAL = new Set(['insufficient_quota', 'rate_limit_exceeded',
-                                 'authentication_error', 'invalid_api_key', 'server_error']);
+          // Provider failover already handled individual 429/500 inside callBossStreaming.
+          // We only end the session on TRULY unrecoverable failures (auth, quota).
+          // A transient 500/server_error from ONE provider must NOT kill the candidate's interview.
+          const FATAL = new Set(['insufficient_quota', 'authentication_error', 'invalid_api_key']);
           this._sendError(ctx, FATAL.has(code) ? 'service_unavailable' : 'realtime_error');
-          if (FATAL.has(code) && !ctx.closed) this._endSession(ctx, 'service_error');
         },
+
         onClose: () => {
           console.log(`[wsManager] RealtimeClient closed  session=${ctx.sessionId}`);
           // During a deliberate stop we close the boss ourselves and send SESSION_CLOSED
@@ -1805,10 +1806,17 @@ export class WebSocketManager {
         continue;
       }
       if (!ctx.isAlive) {
-        console.warn(`[wsManager] Dead socket  session=${ctx.sessionId}`);
-        ctx.socket.terminate();
-        this._sessions.delete(ctx.sessionId);
-        continue;
+        ctx.missedPongs = (ctx.missedPongs || 0) + 1;
+        if (ctx.missedPongs >= 3) {
+          console.warn(`[wsManager] Dead socket (3 missed pongs)  session=${ctx.sessionId}`);
+          ctx.socket.terminate();
+          this._sessions.delete(ctx.sessionId);
+          continue;
+        }
+        // Tolerate 1-2 missed pongs — can be tab throttling or brief network hiccup.
+        // Keep going; next heartbeat will re-check.
+      } else {
+        ctx.missedPongs = 0;
       }
       ctx.isAlive = false;
       ctx.socket.ping();
@@ -1821,6 +1829,9 @@ export class WebSocketManager {
     if (ctx.socket.readyState !== 1) return;
     try {
       ctx.socket.send(JSON.stringify(payload));
+      // Any outbound traffic means the session is alive — reset the idle clock so a chatty
+      // boss monologue never trips the 5-minute inactivity cutoff.
+      ctx.lastActivityAt = Date.now();
     } catch (err) {
       console.warn(`[wsManager] Send failed session=${ctx.sessionId}:`, err.message);
     }

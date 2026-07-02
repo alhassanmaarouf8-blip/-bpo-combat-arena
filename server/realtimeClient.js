@@ -30,7 +30,7 @@ import { scrubForeignScript } from './langGuard.js';
 // line while making it structurally impossible to run on and answer for the candidate —
 // and since TTS bills per character (the #1 cost), a tighter boss is cheaper AND more
 // disciplined ("say one thing, then stop"). Tunable; raise toward 280 if lines feel clipped.
-const MAX_TURN_TOKENS = 110;   // was 200 — measured boss turns averaged 58 words (4-8× a real interviewer's ~7-15); shorter cap + the prompt + the one-question clamp pull it toward human length
+const MAX_TURN_TOKENS = 90;   // was 200 then 110 — tighter cap = faster LLM response + lower TTS cost
 
 // ── Boss LLM providers (OpenAI-compatible) with automatic cap-failover ──────────
 // The boss tries providers in order. When one returns 429 (its daily/rate cap is hit)
@@ -44,28 +44,25 @@ const MAX_TURN_TOKENS = 110;   // was 200 — measured boss turns averaged 58 wo
 //             headroom + reasoning_effort:'low' (verified: clean formal German, ~0.6s).
 const PROVIDERS = [
   {
+    name:  'cerebras',
+    base:  process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
+    key:   process.env.CEREBRAS_API_KEY,
+    model: process.env.CEREBRAS_INTERVIEW_MODEL || 'gpt-oss-120b',
+    maxTokens: MAX_TURN_TOKENS,
+    extra: { temperature: 0.7 },
+  },
+  {
     name:  'groq',
     base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
     key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
     model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
     maxTokens: MAX_TURN_TOKENS,
-    // Naturalness: llama-3.3-70b at temp 0.7 with no penalties collapses toward one safe written
-    // register and recycles the same openers ("Das ist interessant…"). presence/frequency penalties
-    // + a small temp bump break that mechanically. Set per-provider (NOT on the Cerebras reasoning
-    // model, which handles these params differently) and spread AFTER the body's temperature so it wins.
     extra: { temperature: 0.85, presence_penalty: 0.6, frequency_penalty: 0.4 },
-  },
-  {
-    name:  'cerebras',
-    base:  process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
-    key:   process.env.CEREBRAS_API_KEY,
-    model: process.env.CEREBRAS_INTERVIEW_MODEL || 'gpt-oss-120b',
-    maxTokens: 400,                       // reasoning tokens eat into this → give headroom
-    extra: { reasoning_effort: 'low' },   // minimal thinking → short, clean question, fast
   },
 ].filter(p => p.key);                     // only providers whose key is configured
 
 const PROVIDER_COOLDOWN_MS = 10 * 60 * 1000;   // after a 429, skip a provider for 10 min
+const LLM_TIMEOUT_MS      = 12_000;             // hard ceiling per provider — a hung provider must not freeze the interview
 const _providerCooldownUntil = Object.create(null);   // provider name → epoch ms
 
 // ── First-sentence early emission (sentence-streaming voice) ─────────────────────
@@ -115,11 +112,15 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
   let lastErr = null;
   for (const p of order) {
     try {
+      const ctrl = new AbortController();
+      const abortTimer = setTimeout(() => ctrl.abort(new Error(`${p.name} timeout (${LLM_TIMEOUT_MS}ms)`)), LLM_TIMEOUT_MS);
       const res = await fetch(`${p.base}/chat/completions`, {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${p.key}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify({ model: p.model, temperature: 0.7, max_tokens: p.maxTokens, messages: turnMsgs, ...p.extra, stream: true }),
+        signal:  ctrl.signal,
       });
+      clearTimeout(abortTimer);
       if (res.status === 429) {
         _providerCooldownUntil[p.name] = Date.now() + PROVIDER_COOLDOWN_MS;
         const body = await res.text().catch(() => '');
@@ -135,7 +136,12 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
       }
       let full = '', earlyDecided = false, buf = '';
       const dec = new TextDecoder();
-      for await (const chunk of res.body) {
+      const reader = res.body?.getReader?.();
+      if (!reader) throw new Error(`${p.name} stream unsupported`);
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = value;
         buf += dec.decode(chunk, { stream: true });
         let nl;
         while ((nl = buf.indexOf('\n')) !== -1) {
@@ -144,23 +150,26 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
           const data = raw.slice(5).trim();
           if (!data || data === '[DONE]') continue;
           let delta = '';
-          try { delta = JSON.parse(data).choices?.[0]?.delta?.content || ''; } catch {}
+          try { delta = JSON.parse(data).choices?.[0]?.delta?.content || ''; } catch { continue; }
           if (!delta) continue;
           full += delta;
           if (!earlyDecided && onEarly) {
             const cut = firstSentenceBoundary(full);
             if (cut !== -1) {
-              earlyDecided = true;   // one decision per turn — never re-evaluated token by token
-              // scrub: a script-drift glyph must never reach TTS (it gets SPOKEN as gibberish).
-              // sanitizeOneTurn scrubs the full line the same way, so the prefix-match holds.
+              earlyDecided = true;
               const s1 = scrubForeignScript(full.slice(0, cut).replace(BOSS_LABEL_RE, '')).trim();
               if (earlySafeSentence(s1)) { try { onEarly(s1); } catch {} }
             }
           }
         }
       }
+      if (!earlyDecided && onEarly && full.trim()) {
+        const s1 = scrubForeignScript(full.replace(BOSS_LABEL_RE, '')).trim();
+        if (earlySafeSentence(s1)) { try { onEarly(s1); } catch {} }
+      }
       return { content: full, provider: p.name };
     } catch (err) {
+      if (err?.name === 'AbortError') err = new Error(`${p.name} timeout (${LLM_TIMEOUT_MS}ms)`);
       lastErr = err;
       console.warn(`[interviewClient] ${p.name} stream error → trying next  session=${sessionId}: ${err.message}`);
     }
@@ -635,30 +644,29 @@ export class RealtimeClient {
       // STREAMED: the first complete sentence is handed to the gateway (onBossEarly) the moment it
       // exists, so the client can start SPEAKING it while the rest of the line is still generating —
       // the boss now begins answering in roughly first-token time instead of full-completion time.
-      // If streaming fails end-to-end (SSE quirk, proxy, provider), retry ONCE non-streaming so a
-      // streaming problem can never cost the candidate a turn.
-      let content, provider;
-      try {
-        ({ content, provider } = await callBossStreaming(turnMsgs, this._sessionId, (s1) => {
-          if (this._closed) return;
-          this._cb.onBossEarly?.(s1);
-        }));
-      } catch (streamErr) {
-        console.warn(`[interviewClient] streaming failed (${streamErr.message}) → non-streaming retry  session=${this._sessionId}`);
-        ({ content, provider } = await callBoss(turnMsgs, this._sessionId));
-      }
+      // If streaming fails end-to-end (SSE quirk, proxy, provider), we surface the error to the client
+      // rather than silently degrading to a non-streaming path, because a blocking fallback is what
+      // causes the 5–6 s dead air the user experiences.
+      ({ content, provider } = await callBossStreaming(turnMsgs, this._sessionId, (s1) => {
+        if (this._closed) return;
+        this._cb.onBossEarly?.(s1);
+      }));
       line = content;
-      if (provider !== this._lastProvider) {
-        this._lastProvider = provider;
-        console.log(`[interviewClient] boss on ${provider}  session=${this._sessionId}`);
-      }
     } catch (err) {
       console.error(`[interviewClient] boss error (all providers)  session=${this._sessionId}: ${err.message}`);
       this._responding = false;
       const code = this._classify(err);
       this._cb.onError?.(Object.assign(new Error(err.message || 'boss_error'), { code }));
-      return '';
+      // NEVER leave the client hanging. Always emit a boss line so the interview can continue.
+      const fallback = ['Bitte fahren Sie fort.', 'Erzählen Sie ruhig weiter.', 'Gut — und weiter?'][this._history.length % 3];
+      this._cb.onBossSpeech?.(fallback);
+      this._cb.onBossSpeechDone?.();
+      return fallback;
     }
+    if (provider !== this._lastProvider) {
+        this._lastProvider = provider;
+        console.log(`[interviewClient] boss on ${provider}  session=${this._sessionId}`);
+      }
 
     line = sanitizeOneTurn(line);
     // never emit an empty boss turn — and VARY the fallback so a repeat doesn't read as a robot.
