@@ -18,6 +18,7 @@ import { InviteCard } from './InviteCard.jsx';
 import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
+import { VideoLessons } from './VideoLessons.jsx';
 import Trainingsnachweis from './Trainingsnachweis.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
@@ -2837,6 +2838,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       .then((r) => r.json()).then((d) => { if (d && !d.used) setAssessmentOpen(true); }).catch(() => {});
   }, []);   // once, on first mount after signup
   const [trainingslagerOpen, setTrainingslagerOpen] = useState(false); // study game-map route
+  const [videoLessonsOpen, setVideoLessonsOpen] = useState(false);     // $0 video-lesson engine (animated slides + native TTS)
 
   const phaseRef       = useRef('idle');
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
@@ -3622,6 +3624,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     [guideOpen, setGuideOpen], [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
     [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen], [nachweisOpen, setNachweisOpen],
+    [videoLessonsOpen, setVideoLessonsOpen],
     [leaderboardOpen, setLeaderboardOpen], [zielplanOpen, setZielplanOpen], [dailyOpen, setDailyOpen],
     [showBriefing, setShowBriefing],
   ];
@@ -3766,9 +3769,24 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <PressureLadder lang={feedbackLang} onClose={() => setPressureOpen(false)} token={auth.token} apiUrl={API_URL} />
       )}
 
-      {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime) */}
+      {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime).
+          onAction: the mentor's "do THIS next" becomes a tappable chip → jumps straight into the
+          named surface (the brain→mentor→action loop closes instead of dying in the chat). */}
       {guideOpen && (
-        <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)} />
+        <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)}
+          onAction={(id) => {
+            setGuideOpen(false);
+            const go = { interview: () => beginSession(), review: () => setSpokenReviewOpen(true),
+              shadowing: () => setShadowingOpen(true), fluency: () => setFluencyOpen(true),
+              listening: () => setListeningOpen(true), spokenreview: () => setSpokenReviewOpen(true),
+              pressure: () => setPressureOpen(true), assessment: () => setAssessmentOpen(true) }[id];
+            go?.();
+          }} />
+      )}
+
+      {/* Video lessons — the $0 "video" engine: animated slides + native German narration */}
+      {videoLessonsOpen && (
+        <VideoLessons token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setVideoLessonsOpen(false)} />
       )}
 
       {/* Trainingslager game-map route (study mode — never a Realtime session) */}
@@ -3900,91 +3918,91 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         ) : (
           <div style={{ marginBottom:12 }}>
-            {/* Tägliches Training — big streak + the daily habit entry point */}
+            {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. No card walls. */}
             <button onClick={() => setDailyOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:10, marginBottom:9, padding:'8px 12px', borderRadius:'var(--r-md)',
-              background: streak > 0
-                ? 'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(239,68,68,0.10))'
-                : 'rgba(255,255,255,0.03)',
-              border:`1px solid ${daily.completedToday ? 'rgba(59,130,246,0.45)' : streak > 0 ? 'rgba(249,115,22,0.5)' : 'var(--line)'}`,
-              boxShadow: streak > 0 ? '0 0 20px rgba(249,115,22,0.15)' : 'none',
+              display:'flex', alignItems:'center', gap:10, marginBottom:10, padding:'10px 14px', minHeight:44,
+              borderRadius:'var(--r-pill)', background:'var(--surface)',
+              border:`1px solid ${daily.completedToday ? 'rgba(59,130,246,0.35)' : streak > 0 ? 'rgba(249,115,22,0.4)' : 'var(--line)'}`,
               transition:'all var(--dur-slow)' }}>
-              <div style={{ fontSize:22, lineHeight:1,
-                filter: streak > 0 ? 'none' : 'grayscale(1)', opacity: streak > 0 ? 1 : 0.5,
-                animation: streak > 0 ? 'pulse 2.4s ease-in-out infinite' : 'none' }}>🔥</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                  <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.01em', lineHeight:1.05,
-                    color: streak > 0 ? 'var(--action)' : '#94a3b8',
-                    textShadow: streak > 0 ? '0 0 12px rgba(249,115,22,0.5)' : 'none' }}>
-                    Trainingsserie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
-                  </span>
-                  {daily.streakShield && (
-                    <span title="Schutzschild aktiv — ein verpasster Tag wird vergeben" style={{ fontSize:13, lineHeight:1, cursor:'default' }}>🛡</span>
-                  )}
-                </div>
-                <div style={{ fontSize:9, color:'#94a3b8', marginTop:2, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {daily.completedToday ? '✓ Heute erledigt — nochmal üben?' : 'Tägliches Training · 3–5 Min'}
-                </div>
+              <span style={{ color: streak > 0 ? 'var(--action)' : 'var(--text-faint)', display:'flex' }}>
+                <Icon name="flame" size={18} />
+              </span>
+              <div style={{ flex:1, minWidth:0, display:'flex', alignItems:'baseline', gap:8 }}>
+                <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-label)',
+                  color: streak > 0 ? 'var(--action)' : 'var(--text-dim)' }}>
+                  Serie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
+                </span>
+                {daily.streakShield && (
+                  <span title="Schutzschild aktiv — ein verpasster Tag wird vergeben" style={{ fontSize:12, lineHeight:1, cursor:'default' }}>🛡</span>
+                )}
+                <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {daily.completedToday ? '✓ Heute erledigt' : 'Tägliches Training · 3–5 Min'}
+                </span>
               </div>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.06em', whiteSpace:'nowrap',
-                padding:'6px 11px', borderRadius:'var(--r-pill)',
-                color: daily.completedToday ? 'var(--player-2)' : '#04070d',
-                background: daily.completedToday ? 'transparent' : 'linear-gradient(135deg, var(--action), var(--warn))',
-                border: daily.completedToday ? '1px solid var(--player)' : 'none' }}>
-                {daily.completedToday ? '✓ ERLEDIGT' : 'START ▸'}
-              </div>
+              <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-meta)', whiteSpace:'nowrap',
+                padding:'6px 12px', borderRadius:'var(--r-pill)',
+                color: daily.completedToday ? 'var(--accent-2)' : '#081019',
+                background: daily.completedToday ? 'transparent' : 'var(--grad-action)',
+                border: daily.completedToday ? '1px solid var(--accent-dim)' : 'none' }}>
+                {daily.completedToday ? '✓' : 'START ▸'}
+              </span>
             </button>
             {/* Loss-aversion (evidence-based retention): the pending LOSS, framed gently, drives return. */}
             {streak > 0 && !trainedToday && (
-              <div style={{ marginTop:-3, marginBottom:8, padding:'5px 10px', borderRadius:8,
+              <div style={{ marginTop:-4, marginBottom:10, padding:'6px 10px', borderRadius:8,
                 background:'rgba(249,115,22,0.10)', border:'1px solid rgba(249,115,22,0.35)',
-                fontSize:10.5, color:'var(--action)', textAlign:'center', lineHeight:1.4 }}>
-                🔥 Heute üben, sonst endet deine {streak}-Tage-Serie · درّب النهاردة عشان متخسرش سلسلتك
+                fontSize:'var(--fs-meta)', color:'var(--action)', textAlign:'center', lineHeight:1.4 }}>
+                Heute üben, sonst endet deine {streak}-Tage-Serie · درّب النهاردة عشان متخسرش سلسلتك
               </div>
             )}
 
-            {/* Interview-readiness rank ladder (visible progress on the home screen) */}
-            {rank && <div style={{ marginBottom:9 }}><RankLadder rank={rank} /></div>}
+            {/* HERO CARD "Dein Interview" (uplift) — the one place everything about starting lives:
+                readiness, level, interviewer, options. The glass card + the orange button below read
+                as ONE hero object; nothing else on the page competes. */}
+            <div style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
+              border:'var(--glass-border)', boxShadow:'var(--e2), var(--glass-highlight)',
+              backdropFilter:'blur(14px) saturate(1.1)' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                <div>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-h1)', color:'var(--text)', lineHeight:1.1 }}>
+                    Dein Interview
+                  </div>
+                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, display:'flex', alignItems:'center', gap:5 }}>
+                    <Icon name="clock" size={12} /> Dein Interviewer wartet
+                  </div>
+                </div>
+                {rank && <RankLadder rank={rank} />}
+              </div>
 
-            {/* Trainingsnachweis + Weekly leaderboard moved BELOW the primary action (secondary nav),
-                see the "secondary cluster" under the CTA — they used to push the level pick down. */}
-
-            <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.2em',
-              color:'var(--accent-dim)', textAlign:'center', marginBottom:9 }}>
-              WÄHLE DEIN NIVEAU
-            </div>
-            <div style={{ display:'flex', gap:10 }}>
-              {[['a2-b1','A2–B1','Langsamer · verzeiht Fehler'],
-                ['b2','B2','Natürliches Tempo · komplex'],
-                ['c1','C1','Schweizer Niveau · formell']].map(([id, lbl, desc]) => {
-                const sel = level === id;
-                return (
-                  <button key={id} onClick={() => chooseLevel(id)} disabled={!canStart}
-                    style={{ flex:1, padding:'12px 12px', cursor: canStart ? 'pointer' : 'default',
-                      borderRadius:'var(--r-md)', textAlign:'left', position:'relative', overflow:'hidden',
-                      border:`1px solid ${sel ? 'var(--accent)' : 'var(--line)'}`,
-                      background: sel
-                        ? 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.03))'
-                        : 'rgba(255,255,255,0.02)',
-                      boxShadow: sel ? '0 0 18px rgba(59,130,246,0.3), inset 0 0 20px rgba(59,130,246,0.06)' : 'none',
-                      transition:'all var(--dur) var(--ease)' }}>
-                    <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, letterSpacing:'0.04em',
-                      color: sel ? 'var(--accent)' : '#cbd5e1', textShadow: sel ? 'var(--glow-accent)' : 'none' }}>{lbl}</div>
-                    <div style={{ fontSize:8.5, color:'#94a3b8', marginTop:3, lineHeight:1.35 }}>{desc}</div>
-                    {sel && <div style={{ position:'absolute', top:7, right:9, fontSize:10, color:'var(--accent)' }}>✓</div>}
-                  </button>
-                );
-              })}
-            </div>
+              {/* Level — segmented control (was three shouting cards) */}
+              <div style={{ display:'flex', gap:0, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3, marginBottom:8 }}>
+                {[['a2-b1','A2–B1'],['b2','B2'],['c1','C1']].map(([id, lbl]) => {
+                  const sel = level === id;
+                  return (
+                    <button key={id} onClick={() => chooseLevel(id)} disabled={!canStart}
+                      style={{ flex:1, padding:'10px', minHeight:44, cursor: canStart ? 'pointer' : 'default',
+                        borderRadius:'var(--r-pill)', border:'none', fontFamily:'var(--font-display)',
+                        fontWeight:600, fontSize:'var(--fs-label)', transition:'all 200ms var(--ease)',
+                        background: sel ? 'rgba(59,130,246,0.18)' : 'transparent',
+                        color: sel ? 'var(--accent-2)' : 'var(--text-faint)',
+                        boxShadow: sel ? 'inset 0 0 0 1px var(--accent-dim)' : 'none' }}>
+                      {lbl}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:10, minHeight:15 }}>
+                {{ 'a2-b1':'Langsamer · verzeiht Fehler', 'b2':'Natürliches Tempo · komplex', 'c1':'Schweizer Niveau · formell' }[level]}
+              </div>
 
             {/* Interviewer picker — ALWAYS visible: choosing WHO you face is core to the app, not a hidden
                 setting. (It was buried behind "Optionen" during the declutter → users only ever saw Yasmin.) */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:12, flexWrap:'wrap' }}>
-              <span style={{ fontSize:9.5, color:'#94a3b8', letterSpacing:'0.06em' }}>Interviewer · اختر المُحاوِر</span>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap',
+              padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
+              <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
               <select value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
-                style={{ fontSize:11.5, padding:'6px 9px', borderRadius:6, background:'rgba(2,6,16,0.7)',
-                  color:'#e2e8f0', border:'1px solid var(--accent-dim)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
+                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
+                  color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
                 <option value="yasmin">Yasmin — warm (L1)</option>
                 <option value="karim">Karim — sachlich (L2)</option>
@@ -4032,6 +4050,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </div>
             </>
             )}
+            </div>{/* /hero card */}
           </div>
         )}
 
@@ -4085,11 +4104,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* ── STAGE — opponent + cinematic HP bars. Shown ONLY during a live fight. On the idle home it
           was a ~400px intimidating combat wall that buried the primary action; Direction A (calm,
           premium) wants a quiet first impression, so idle gets a one-line preview instead. ── */}
-      {!funnel && (
-        <div style={{ padding:'12px 14px 0', textAlign:'center', color:'var(--text-dim)', fontSize:12 }}>
-          🎧 Bereit, wenn du es bist — dein Interviewer wartet.
-        </div>
-      )}
+      {/* (uplift) the idle "Bereit, wenn du es bist" line + decorative mic circle are gone —
+          the hero card + the one orange button ARE the invitation now. */}
       {funnel && (
       <div style={{ padding:'4px 14px 0' }}>
         {/* BOSS HP — top frame */}
@@ -4324,17 +4340,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         )}
 
-        {!isActive && <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />}
+        {isConnecting && <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />}
 
         <div style={{ margin:'6px 0 12px' }}>
+          {(isActive || isConnecting) && (
           <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.18em',
             fontSize: (isActive && !bossSpeak && !userSpeak) ? 24 : 13,
-            color: bossSpeak ? boss.color : isActive ? 'var(--accent)' : isConnecting ? 'var(--warn)' : '#475569',
+            color: bossSpeak ? boss.color : isActive ? 'var(--accent)' : 'var(--warn)',
             textShadow: (isActive && !bossSpeak) ? '0 0 16px rgba(59,130,246,0.6)' : bossSpeak ? `0 0 12px ${boss.color}` : 'none',
             transition:'all 0.3s' }}>
-            {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : 'DU BIST DRAN')
-              : isConnecting ? 'VERBINDE…' : 'BEREIT ZUM KAMPF'}
+            {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : 'DU BIST DRAN') : 'VERBINDE…'}
           </div>
+          )}
           {isActive && !bossThinking && (
             <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Tippe deine Antwort auf Deutsch — oder nimm sie per 🎤 auf</div>
           )}
@@ -4368,20 +4385,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
           </div>
         ) : canStart ? (
+          /* THE BUTTON (uplift): the single orange fill on the whole home — 56px, gradient, mic icon.
+             It was a thin blue outline while a secondary button screamed orange; hierarchy now matches
+             what the app IS: this is the arena door. */
           <button
             onClick={beginSession}
             disabled={isConnecting}
             style={{
-              width:'100%', padding:'14px 20px', cursor: isConnecting ? 'wait' : 'pointer',
-              fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.15em',
-              borderRadius:8, border:'1px solid var(--accent)',
-              color:       'var(--accent)',
-              background:  'linear-gradient(135deg,rgba(59,130,246,0.06),rgba(59,130,246,0.02))',
-              boxShadow: '0 0 14px rgba(59,130,246,0.12)',
-              transition:'all 0.25s',
+              width:'100%', padding:'16px 20px', minHeight:56, cursor: isConnecting ? 'wait' : 'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+              fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em',
+              borderRadius:16, border:'none', color:'#081019',
+              background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
+              transition:'transform 100ms var(--ease)',
               opacity: isConnecting ? 0.55 : 1,
             }}>
-            {isConnecting ? '⠋ VERBINDE…' : '▶  INTERVIEW STARTEN'}
+            <Icon name="mic" size={19} /> {isConnecting ? 'Verbinde…' : 'Interview starten'}
           </button>
         ) : null}
 
@@ -4430,41 +4449,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Referral loop: invite a friend → both get +3 trial days when the friend finishes their first interview. */}
         {canStart && <InviteCard accountId={auth.account?.id} />}
 
-        {/* Secondary nav — Trainingsnachweis (PDF cert) + weekly leaderboard. Moved here from above the
-            level picker so the calm idle home leads with the action; these are check-in-later items. */}
-        {canStart && (
-          <button onClick={() => setNachweisOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
-            display:'flex', alignItems:'center', gap:10, marginTop:8, padding:'8px 12px', borderRadius:'var(--r-md)',
-            background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.25)', transition:'all var(--dur-slow)' }}>
-            <div style={{ fontSize:20 }}>📄</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--accent)' }}>TRAININGSNACHWEIS</div>
-              <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Fortschritt als PDF drucken · اطبع تقدمك كـPDF</div>
-            </div>
-            <div style={{ fontSize:10, color:'var(--accent)' }}>▸</div>
-          </button>
-        )}
-        {canStart && (
-          <button onClick={() => { setLeaderboardOpen(true); setLeaderboard(null); }}
-            style={{ width:'100%', textAlign:'left', cursor:'pointer',
-            display:'flex', alignItems:'center', gap:10, marginTop:8, padding:'8px 12px', borderRadius:'var(--r-md)',
-            background:'rgba(249,115,22,0.06)', border:'1px solid rgba(249,115,22,0.25)', transition:'all var(--dur-slow)' }}>
-            <div style={{ fontSize:20 }}>🏆</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, color:'var(--action)' }}>DIESE WOCHE</div>
-              <div style={{ fontSize:9, color:'var(--text-dim)', marginTop:2 }}>Wochentabelle — wer trainiert am meisten? · مين بيتدرب أكتر الأسبوع ده؟</div>
-            </div>
-            <div style={{ fontSize:10, color:'var(--action)' }}>▸</div>
-          </button>
-        )}
+        {/* (uplift) Trainingsnachweis + Diese Woche + Fortschritt now live in ONE quiet footer list
+            card BELOW the Übungen grid — check-in-later items, no per-row color chrome. */}
 
-        {/* Free intelligent assessment — the hook (idle only). Distinct highlight. */}
+        {/* Einstufung — DUPLICATE KILLED (uplift): this was the second, orange-screaming EINSTUFUNG
+            button competing with the one inside the mission card. Now a quiet text link; the hero
+            stays the only loud object on the page. */}
         {canStart && (
-          <button onClick={() => setAssessmentOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid var(--action)', color:'#04070d', fontWeight:700,
-            background:'linear-gradient(135deg,var(--action),var(--action))', boxShadow:'0 0 16px rgba(249,115,22,0.25)' }}>
-            🎯  EINSTUFUNG · تقييم مستواك (gratis)
+          <button onClick={() => setAssessmentOpen(true)} style={{ width:'100%', marginTop:10, padding:'10px', minHeight:44,
+            cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
+            fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
+            Niveau noch unbekannt? <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Einstufung machen (gratis)</span> · تقييم مستواك →
           </button>
         )}
 
@@ -4474,83 +4469,66 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             onOpen={() => setTrainingslagerOpen(true)} />
         )}
 
-        {/* Secondary label so the drill menu reads as EXTRAS under today's one guided mission above
-            (DailyMission), instead of competing with it as a second set of equal CTAs. */}
+        {/* ÜBUNGEN GRID (uplift): the 7-button drill wall becomes one titled card with icon tiles —
+            2 columns, real SVG icons, every tile the same quiet weight (the #ef4444 red is gone;
+            Druck-Leiter carries a neutral SCHWER badge instead). */}
         {canStart && (
-          <div style={{ marginTop:16, marginBottom:2, fontFamily:'var(--font-display)', fontSize:8.5,
-            letterSpacing:'0.18em', color:'rgba(148,163,184,0.65)', textAlign:'center' }}>
-            WEITERE ÜBUNGEN · تمارين إضافية
+          <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
+            border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginBottom:3 }}>
+              Übungen
+            </div>
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginBottom:11 }}>تمارين إضافية</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {[
+                { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', open:() => setShadowingOpen(true) },
+                { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   open:() => setFluencyOpen(true) },
+                { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     open:() => setListeningOpen(true) },
+                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      open:() => setSpokenReviewOpen(true) },
+                { icon:'gauge',        de:'Druck-Leiter',   ar:'سُلّم الضغط',   open:() => setPressureOpen(true), badge:'SCHWER' },
+                { icon:'play',         de:'Video-Lektionen', ar:'دروس فيديو',   open:() => setVideoLessonsOpen(true), badge:'NEU' },
+                { icon:'compass',      de:'الحسن — dein Guide', ar:'اسأل دليلك', open:() => setGuideOpen(true) },
+              ].map((t, i) => (
+                <button key={i} onClick={t.open} style={{ minHeight:88, padding:'12px', cursor:'pointer', textAlign:'left',
+                  borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
+                  display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
+                  transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
+                  {t.badge && (
+                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:600, letterSpacing:'0.06em',
+                      color:'var(--text-dim)', border:'1px solid var(--line-strong)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
+                      {t.badge}
+                    </span>
+                  )}
+                  <span style={{ color:'var(--accent)', display:'flex' }}><Icon name={t.icon} size={22} /></span>
+                  <span>
+                    <span style={{ display:'block', fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-label)', color:'var(--text)' }}>{t.de}</span>
+                    <span style={{ display:'block', fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:2 }}>{t.ar}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Shadowing pronunciation practice (idle only) — paid; server returns 402 → paywall */}
+        {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting. */}
         {canStart && (
-          <button onClick={() => setShadowingOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid var(--accent-2)', color:'var(--accent-2)',
-            background:'rgba(96,165,250,0.06)' }}>
-            🗣️  SHADOWING · تمرين الترديد
-          </button>
-        )}
-
-        {/* 4-3-2 spoken-fluency drill (idle only) — paid; server returns 402 → paywall */}
-        {canStart && (
-          <button onClick={() => setFluencyOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid var(--action)', color:'var(--action)',
-            background:'rgba(249,115,22,0.06)' }}>
-            ⚡  FLOW-DRILL · سرعة الكلام
-          </button>
-        )}
-
-        {/* Listening & data-capture drill (idle only) — paid; trains the #1 hiring gap */}
-        {canStart && (
-          <button onClick={() => setListeningOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid var(--accent)', color:'var(--accent)',
-            background:'rgba(59,130,246,0.06)' }}>
-            🎧  HÖR-CHECK · فهم السمع
-          </button>
-        )}
-
-        {/* Spoken-production SRS (idle only) — say YOUR own errors correctly, spaced. The compounding core. */}
-        {canStart && (
-          <button onClick={() => setSpokenReviewOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid var(--accent)', color:'var(--accent)',
-            background:'rgba(59,130,246,0.06)' }}>
-            🗯️  SAG ES RICHTIG · قولها صح
-          </button>
-        )}
-
-        {/* Pressure Ladder — train harder than the real interview (idle only; client-only, free) */}
-        {canStart && (
-          <button onClick={() => setPressureOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid #ef4444', color:'#ef4444',
-            background:'rgba(239,68,68,0.06)' }}>
-            🔥  DRUCK-LEITER · سُلّم الضغط
-          </button>
-        )}
-
-        {/* Alhassan mentor chat (idle only) — free guide with total recall */}
-        {canStart && (
-          <button onClick={() => setGuideOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10.5, letterSpacing:'0.1em',
-            borderRadius:8, border:'1px solid var(--accent)', color:'var(--accent)',
-            background:'rgba(59,130,246,0.06)' }}>
-            🧭  الحسن · اسأل دليلك
-          </button>
-        )}
-
-        {/* Progress dashboard access (idle only) */}
-        {canStart && (
-          <button onClick={openDashboard} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10, letterSpacing:'0.14em',
-            borderRadius:8, border:'1px solid rgba(59,130,246,0.4)', color:'var(--accent)',
-            background:'rgba(59,130,246,0.06)' }}>
-            📊  FORTSCHRITT & WIEDERHOLUNG
-          </button>
+          <div style={{ marginTop:10, borderRadius:'var(--r-lg)', background:'var(--surface)', border:'1px solid var(--line)', overflow:'hidden' }}>
+            {[
+              { icon:'chartUp',   de:'Fortschritt & Wiederholung', ar:'',                     open: openDashboard },
+              { icon:'fileBadge', de:'Trainingsnachweis',           ar:'اطبع تقدمك كـPDF',     open: () => setNachweisOpen(true) },
+              { icon:'trophy',    de:'Diese Woche',                 ar:'مين بيتدرب أكتر؟',     open: () => { setLeaderboardOpen(true); setLeaderboard(null); } },
+            ].map((r, i) => (
+              <button key={i} onClick={r.open} style={{ width:'100%', minHeight:48, padding:'12px 14px', cursor:'pointer',
+                display:'flex', alignItems:'center', gap:11, textAlign:'left', background:'none', border:'none',
+                borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                <span style={{ color:'var(--text-dim)', display:'flex' }}><Icon name={r.icon} size={17} /></span>
+                <span style={{ flex:1, fontSize:'var(--fs-label)', color:'var(--text)', fontFamily:'var(--font-display)', fontWeight:500 }}>
+                  {r.de} {r.ar && <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginRight:4 }}> · {r.ar}</span>}
+                </span>
+                <span style={{ color:'var(--text-faint)', display:'flex' }}><Icon name="chevronRight" size={15} /></span>
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Standalone TYPED "Wiederholung" button removed — it drilled the same SRS items as
