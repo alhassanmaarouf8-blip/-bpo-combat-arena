@@ -80,3 +80,29 @@ call; no scoring-logic change.
 **What:** tighten the heuristic in the scorer with unit tests around the boundary cases; keep it
 deterministic and cause-labeled (every HP change stays explainable).
 **DoD:** boundary unit tests; no change to HP caps or damage balance; gates green.
+
+### 6. QUEUED — Rückfrage-Reflex: the repair-language drill
+**Why (elite-conversationalist review 07-02):** real German phone work is ~a third clarification
+and repair — „Habe ich Sie richtig verstanden, dass …?", „Meinen Sie damit …?", „Könnten Sie mir
+das bitte präzisieren?". The app trains ANSWERING but never the spoken REPAIR move, and a candidate
+who can repair gracefully never freezes — it converts every misunderstanding into a competence
+signal. This is arguably the single most hireable phone skill.
+**What:** a drill that plays a deliberately ambiguous/incomplete customer line (existing TTS path,
+`drill=1`) and grades — deterministically — whether the learner's spoken response is a WELL-FORMED
+clarifying question (question form + repair formula present + polite Sie-register), not a guessed
+answer. Bank of ≥20 ambiguous prompts (german-check gated); grading via existing STT + pattern
+rules, unit-tested. Wire into the drill wall like Hör-Check.
+**DoD:** ≥20 items german-check clean; deterministic grader unit-tested (accept/reject/partial);
+lint+build green; no interview-minute gating.
+
+### 7. QUEUED — Candidate delivery metrics under pressure (debrief)
+**Why (elite-conversationalist review 07-02):** sounding calm under attack matters as much as the
+words. The app already stores per-utterance WPM, fillers, and stage — so it can MEASURE composure:
+pace spike and filler spike in the Teil-3 roleplay vs. Teil-1, latency drift across the session.
+"Dein Tempo sprang um 40%, als der Kunde laut wurde" is elite, personal, and fully deterministic.
+**What:** compute stage-contrast deltas (WPM variance, filler rate, reaction latency: Teil 3 vs
+Teil 1) from EXISTING stored signals in the debrief pipeline; surface ONE composure insight in the
+debrief only when the delta is beyond noise (respect turnQuality honesty gates — truncated turns
+excluded). No new data collection.
+**DoD:** pure helper with unit tests (incl. below-noise → silent, thin-session → silent); wired
+into coach/debrief behind the existing honesty gates; gates green.
