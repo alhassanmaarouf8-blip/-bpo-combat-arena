@@ -12,7 +12,10 @@ exists because breaking it once hurt a real person or the owner's trust.
 1. Read `.claude/skills/app-map/SKILL.md` — the codebase map (saves you ~30k tokens of exploring).
 2. UI task? Also read `.claude/skills/design-system/SKILL.md` — the visual law.
 3. Learner-facing numbers/verdicts/corrections? Also `.claude/skills/feedback-accuracy-doctrine/SKILL.md`.
-4. Touch ONLY the files your task names. If other files need changes, SAY so in your report instead.
+4. ANYTHING learner-facing (audio, text, UI, feedback)? Also `.claude/skills/owner-doctrine/SKILL.md`
+   — the owner's 8 laws + 60-second pre-ship checklist. It predicts his verdict before he gives it;
+   a violation there WILL come back as an angry bug report.
+5. Touch ONLY the files your task names. If other files need changes, SAY so in your report instead.
 
 ## While you work
 - **NO git commands** (no add/commit/push/checkout) unless your task explicitly grants them.

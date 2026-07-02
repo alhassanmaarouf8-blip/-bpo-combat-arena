@@ -8,7 +8,9 @@ agent asked to "build the next thing." Items are ordered by learner impact and a
 
 0. **Token-saver (read these FIRST instead of exploring):** `.claude/skills/app-map/SKILL.md`
    (codebase map), `.claude/skills/design-system/SKILL.md` (UI law, for any client work),
-   `.claude/skills/subagent-contract/SKILL.md` (binding work rules).
+   `.claude/skills/subagent-contract/SKILL.md` (binding work rules),
+   `.claude/skills/owner-doctrine/SKILL.md` (the owner's 8 laws + pre-ship checklist —
+   REQUIRED for anything learner-facing; it predicts his verdict before he gives it).
 1. Build the **TOP item whose status is `QUEUED`** and which is not already claimed by an
    existing `feature/*` branch (check `git ls-remote origin 'refs/heads/feature/*'` and open
    PRs via the public GitHub API).
@@ -40,16 +42,17 @@ agent asked to "build the next thing." Items are ordered by learner impact and a
 
 ## Queue
 
-### 1. QUEUED — Satzbau-Schmiede: verb-final / word-order builder drill
+### 1. SHIPPED — verified 2026-07-02 — Satzbau-Schmiede: verb-final / word-order builder drill
 **Why (owner mandate):** German verb-final word order is the #1 wall for Arabic-L1 speakers —
 the single highest-leverage structure for hireable spoken German.
-**What:** a new drill where the learner assembles/produces subordinate-clause sentences
-(weil/dass/wenn/obwohl…) against the clock. Server-side generator + deterministic grader
-(exact-order check with tolerant articles), C1-level BPO-context sentences, difficulty ramps.
-Wire into the existing drill list UI following the pattern of Hör-Check / Sag-es-Richtig.
-**DoD:** ≥24 curated seed items passing german-check; unit tests for the grader (word-order
-correct/incorrect/partial); lint+build green; drill reachable from the drill wall; no interview-
-minute gating (it's a drill, use the `drill=1` TTS path if voice is used).
+**Shipped as:** `server/satzbauSchmiede.js` (26 curated seed items, deterministic position-by-
+position grader, unseen-first rotation, paid-drill gating) + `client/src/SatzbauSchmiede.jsx`
+(tile-builder UI, cosmetic-only countdown, native-voice replay) + wiring (server.js route, home
+Übungen-grid tile, BrainGuide/Alhassan prescription maps, DrillIntro line, drill-event → brain).
+Built overnight by the nightly feature builder; independently verified + integrated by the
+session agent (verifier fixes: newly-authored masri stripped to OWNER-AR slots, DrillIntro added,
+native-voice stop handle, retry-timer reset; conflict with the redesigned home resolved — the
+standalone button became a grid tile). 11 unit tests.
 
 ### 2. QUEUED — Formulaic-chunk automaticity in Flow-Drill
 **Why (owner mandate):** formulaic chunks ("Da bin ich mir sicher, dass…", "Ich kümmere mich
@@ -119,3 +122,50 @@ debrief only when the delta is beyond noise (respect turnQuality honesty gates �
 excluded). No new data collection.
 **DoD:** pure helper with unit tests (incl. below-noise → silent, thin-session → silent); wired
 into coach/debrief behind the existing honesty gates; gates green.
+
+### 8. QUEUED — Lessons report to the brain (harmony gap)
+**Why (predicted from the owner's standing harmony mandate — "real intelligence and congruency
+between the drills, the interview, the feedback; everything must work in harmony"):** Video-
+Lektionen now RECOMMENDS by weakness, but a finished lesson + quiz result never reaches the
+brain, so Alhassan and the next debrief can't see that the learner already studied the rule.
+That's the exact class of incongruence the owner flags on sight.
+**What:** on quiz completion, POST the existing `/api/drill-event` with
+`{drill:'video-lektion', correct:<quiz majority>, ruleKeywords}` from VideoLessons.jsx; extend
+the brain's snapshot to read it (same pattern as the other drills). No new endpoint.
+**DoD:** event fires once per completed quiz (unit-testable helper for the payload); brain
+snapshot test extended; gates green.
+
+### 9. QUEUED — Druck-Leiter: retire mastered lines across sessions
+**Why (salvaged from an abandoned WIP branch/stash `hermes-client-wip` — the idea is right, the
+WIP was broken; build it fresh):** within a session lines never repeat, but across sessions the
+same openers return, and a learner who has already survived a line under max pressure gains
+nothing from hearing it again.
+**What:** persist survived line ids per user server-side (same `loadUser/saveUser` store idiom as
+`satzbauSeen`); a proper authed GET/POST route (the WIP's `/api/pressure/survived` fetch had no
+auth and no server side — do NOT copy it); client filters retired lines out of the pool and
+signals pool exhaustion honestly.
+**DoD:** server route unit-tested (auth, persistence, reset-on-exhaustion); client never throws
+on an empty pool; gates green.
+
+### 10. QUEUED — OWNER-AR fill sheet (one-sitting masri pass)
+**Why (predicted):** the hard rule "the builder never authors masri" is accumulating empty
+OWNER-AR slots across the app (drill intros, Satzbau labels, thin-debrief note_ar, BrainGuide
+copy). The owner WILL eventually sit down for the native pass — today that means hunting slots
+across a dozen files.
+**What:** a zero-cost script (`scripts/owner-ar-sheet.mjs`) that greps the repo for OWNER-AR
+slots + empty `_ar`/`ar:''` fields and emits ONE `docs/owner-ar-sheet.md` with file:line, the
+German source string, and an empty column to fill. Re-runnable (idempotent).
+**DoD:** script runs offline, output complete against a hand-checked sample; committed sheet;
+gates green (script excluded from client build).
+
+### 11. QUEUED — Abend-Rückkehr: surface the two-session day on home
+**Why (predicted from the owner's own design: 15 min/day = 2×7.5-min interviews, "study today →
+return tonight"):** the debrief already says "komm heute Abend wieder", but the home screen has
+no state that knows a morning session happened — the return visit lands on a generic home and
+the rhythm dies there.
+**What:** deterministic client-side read of today's session count from existing progress data:
+if 1 interview today + budget remaining → the home's single orange CTA becomes the SECOND
+session prompt with the day's one focus (from the debrief's stored next step). No new endpoints,
+no notifications (zero cost, no permissions).
+**DoD:** pure date-boundary helper unit-tested (Cairo timezone); design-lint green (still ONE
+orange object); gates green.
