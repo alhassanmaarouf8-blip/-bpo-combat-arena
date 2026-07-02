@@ -4,6 +4,7 @@
  * in conversation — phrasing, turn-taking, register, discourse particles.
  * Returns structured JSON merged into the debrief.
  */
+import { scrubStringsDeep } from './langGuard.js';
 
 const COACH_MODEL   = process.env.GROQ_COACH_MODEL ?? 'llama-3.3-70b-versatile';
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -88,7 +89,8 @@ export async function evaluateNaturalness({ utterances, level, csScenarioId }) {
 
     const data   = await res.json();
     const txt    = data.choices?.[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(txt);
+    // Scrub script-drift glyphs (the "兄" class) from every string field before anything is shown.
+    const parsed = scrubStringsDeep(JSON.parse(txt));
 
     if (!parsed?.naturalness?.score) return null;
 

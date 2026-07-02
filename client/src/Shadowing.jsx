@@ -1,9 +1,9 @@
 /**
- * Shadowing.jsx — pronunciation practice (PAID). The browser SPEAKS a model German
- * sentence (built-in speechSynthesis, zero cost), the learner records themselves repeating
- * it, and the server returns a transcript + a short Arabic pronunciation note. NEVER opens a
- * Realtime session (ClipRecorder keeps audio local until submit) and uses only existing
- * cheap models. 3–5 sentences per session; sessions are unlimited.
+ * Shadowing.jsx — pronunciation practice (PAID). A NATIVE Aura-2 voice speaks the model German
+ * sentence (playNative, server-cached → $0; the robotic browser voice is banned app-wide),
+ * the learner records themselves repeating it, and the server returns a transcript + a short
+ * Arabic pronunciation note. NEVER opens a Realtime session (ClipRecorder keeps audio local
+ * until submit) and uses only existing cheap models. 3–5 sentences per session; unlimited.
  *
  * Gating is server-side: GET/POST return 402 for free/expired accounts → we route to pricing.
  */
@@ -60,12 +60,14 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   }, [apiUrl, token, blocked]);
 
   useEffect(() => { loadSession(); }, [loadSession]);
-  // Warm up the voice list (Chrome loads voices asynchronously).
-  useEffect(() => { try { window.speechSynthesis?.getVoices(); } catch { /* ignore */ } }, []);
+  // Keep the model-voice stop handle: closing the drill or playing something new must SILENCE
+  // the previous line (an orphaned model voice talking over the next screen reads as a bug).
+  const stopVoiceRef = useRef(null);
+  const stopVoice = () => { try { stopVoiceRef.current?.(); } catch { /* ignore */ } stopVoiceRef.current = null; };
   useEffect(() => () => {
     clearInterval(timerRef.current); clearTimeout(stopRef.current);
     recRef.current?.stop?.().catch(() => {});
-    try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
   }, []);
 
@@ -77,7 +79,8 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   // un-stretched Aura-2; the learner opts into 0.8× explicitly if they want it slower.
   const play = () => {
     if (!s) return;
-    playNative({ apiUrl, token, text: s.de, rate });
+    stopVoice();
+    stopVoiceRef.current = playNative({ apiUrl, token, text: s.de, rate });
     setTtsOk(true);
   };
 
@@ -87,7 +90,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   // Play the learner's own recorded take (honest prosody feedback: their ear judges rhythm vs the model).
   const playMine = () => {
     if (!clipUrlRef.current) return;
-    try { window.speechSynthesis?.cancel(); } catch { /* ignore */ }
+    stopVoice();   // the model must not talk over the learner's own take
     try { const a = new Audio(clipUrlRef.current); a.play().catch(() => {}); } catch { /* ignore */ }
   };
 

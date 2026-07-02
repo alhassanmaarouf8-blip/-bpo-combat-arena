@@ -36,3 +36,36 @@ export function isCleanArabicOrGermanText(s) {
   if (!t.trim()) return false;
   return !FOREIGN_SCRIPT.test(t);
 }
+
+// ── Scrubbing (for surfaces where REJECTING isn't possible) ───────────────────────────────────
+// The drills above can reject a glitched item and fall back to a curated pool. But the DEBRIEF,
+// the BOSS's live streamed turn, the assessment verdict etc. have no pool to fall back to — the
+// text is one-of-a-kind and mostly fine except for the stray glyph ("兄" inside an Arabic reply,
+// owner-reported live 2026-07-02). For those, the safe deterministic move is to STRIP the
+// foreign-script characters (plus the U+FFFD replacement char) and tidy the whitespace: real
+// German/Arabic never contains these ranges, so scrubbing can only remove glitch glyphs, never
+// meaning. NOTE the honest limit: same-script drift (Latin "aku", Arabic-script Farsi) is
+// invisible to any character-range check — that class needs a different tool.
+const SCRUB      = /[一-鿿぀-ヿ가-힯฀-๿ऀ-ॿЀ-ӿ�]/g;
+const SCRUB_TEST = /[一-鿿぀-ヿ가-힯฀-๿ऀ-ॿЀ-ӿ�]/;    // no `g` — a global regex's test() mutates lastIndex
+
+/** Remove foreign-script glyphs from one string; collapse the whitespace scars left behind. */
+export function scrubForeignScript(s) {
+  const t = String(s ?? '');
+  if (!SCRUB_TEST.test(t)) return t;   // fast path: nothing to scrub
+  return t.replace(SCRUB, '').replace(/ {2,}/g, ' ').replace(/^ +| +$/gm, '');
+}
+
+/** Walk any parsed-JSON value (object/array/string) and scrub EVERY string in place-of.
+ *  Non-string leaves pass through untouched. Use at the parse boundary of learner-facing
+ *  LLM JSON (debrief, assessment, plan) — one line, covers every field incl. _ar. */
+export function scrubStringsDeep(v) {
+  if (typeof v === 'string') return scrubForeignScript(v);
+  if (Array.isArray(v)) return v.map(scrubStringsDeep);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v)) out[k] = scrubStringsDeep(v[k]);
+    return out;
+  }
+  return v;
+}

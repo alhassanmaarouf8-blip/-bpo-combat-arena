@@ -15,6 +15,7 @@
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { evaluateNaturalness } from './naturalness.js';
 import { looksTruncatedDE, sessionSubstance, quoteHasLowConfidence } from './scoring/turnQuality.js';
+import { scrubStringsDeep } from './langGuard.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
 // stays authoritative from LanguageTool; the model only writes strengths/study-next/
@@ -200,7 +201,10 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
 
     const data   = await res.json();
     const txt    = data.choices?.[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(txt);
+    // Scrub script-drift glyphs (CJK/Cyrillic/… — the "兄" class of glitch) from EVERY string
+    // field, incl. _ar: the debrief is one-of-a-kind text with no curated pool to fall back to,
+    // so stripping the glyph is the only $0 fix that keeps the rest of the (fine) content.
+    const parsed = scrubStringsDeep(JSON.parse(txt));
     const norm   = normalize(parsed);
     // GUARD (anti-fabrication): an "upgrade" must reword words the candidate REALLY said.
     const saidCanon = _canon((utterances || []).map((u) => u?.text || '').join(' '));

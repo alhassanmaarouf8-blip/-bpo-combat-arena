@@ -187,17 +187,10 @@ const KONTER = {
 };
 const konterFor = (L) => KONTER[L.n] || KONTER.endless;
 
-function speak(text, rate) {
-  try {
-    const s = window.speechSynthesis; if (!s) return false;
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'de-DE'; u.rate = Math.min(2, rate); u.pitch = 1;
-    const de = (s.getVoices() || []).find((v) => /^de(-|_|$)/i.test(v.lang));
-    if (de) u.voice = de;
-    s.speak(u); return true;
-  } catch { return false; }
-}
-const cancelSpeech = () => { try { window.speechSynthesis?.cancel(); } catch { /* ignore */ } };
+// (The old module-level speechSynthesis speak() is GONE — owner standing rule 2026-07-02: "no
+// robotic sound is EVER allowed in my application." The customer lines and pressure barbs were the
+// last place the device-lottery browser voice still played; they now run on the same native Aura-2
+// voice as everything else — see sayNative inside the component, which needs apiUrl/token.)
 
 // Real VOICED time (ms) from the recorded WAV (PCM16, 24 kHz, 44-byte header) — the honest "did they
 // keep talking under pressure" signal (blob size is meaningless: uncompressed silence is still huge).
@@ -236,29 +229,40 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
     ? { n: '∞', de: 'Überleben', ar: 'بقاء', rate: ENDLESS.rate, sec: Math.max(10, ENDLESS.baseSec - endlessStreak), interrupts: ENDLESS.interrupts, lines: ENDLESS.lines, barbs: ENDLESS.barbs }
     : LEVELS[idx];
 
-  // The MODEL de-escalation phrase is played in the NATIVE Aura-2 voice (a line to LEARN from must sound
-  // native, not device-lottery browser German). The pressure barbs/questions stay on instant browser TTS.
-  const playModel = (text) => playNative({ apiUrl, token, text, rate: 1 });
+  // ALL audio is the native Aura-2 voice now — customer lines, barbs, AND the model phrase (the
+  // robotic browser voice is banned app-wide). One voice at a time: a new line/barb STOPS the
+  // previous one, which is exactly how an interrupting, impatient customer behaves. Customer lines
+  // ride the phone-band filter (same realism as Hör-Check); the model phrase to LEARN plays clean.
+  // The rung `rate` stays as the pressure mechanic — the timbre underneath is human, only faster.
+  const stopVoiceRef = useRef(null);
+  const cancelVoice = useCallback(() => { try { stopVoiceRef.current?.(); } catch { /* ignore */ } stopVoiceRef.current = null; }, []);
+  const sayNative = useCallback((text, rate) => {
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    stopVoiceRef.current = playNative({ apiUrl, token, text, rate, phone: true });
+  }, [apiUrl, token]);
+  const playModel = useCallback((text) => {
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    stopVoiceRef.current = playNative({ apiUrl, token, text, rate: 1 });
+  }, [apiUrl, token]);
 
   const cleanup = useCallback(() => {
     clearInterval(tickRef.current); tickRef.current = null;
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
-    cancelSpeech();
+    cancelVoice();
     recRef.current?.stop?.().catch(() => {}); recRef.current = null;
-  }, []);
+  }, [cancelVoice]);
   useEffect(() => () => cleanup(), [cleanup]);
-  useEffect(() => { try { window.speechSynthesis?.getVoices(); } catch { /* ignore */ } }, []);
 
   const beginRound = async () => {
     setFroze(false); setSouveraen(false); setPhase('answering'); setLeft(L.sec);
     const line = pickUnseen(L.lines, seenLinesRef.current); setCurLine(line);
-    speak(line, L.rate);
+    sayNative(line, L.rate);
     const rec = new ClipRecorder({ onVolume: () => {} });
     try { await rec.start(); recRef.current = rec; } catch { /* no mic → timer still runs */ }
     const nBarbs = Math.min(L.interrupts, L.barbs.length);
     barbRefs.current = Array.from({ length: nBarbs }, (_, i) => {
       const at = Math.round((L.sec * 1000) * ((i + 1) / (nBarbs + 1)));
-      return setTimeout(() => speak(pick(L.barbs), Math.min(2, L.rate + 0.1)), at);
+      return setTimeout(() => sayNative(pick(L.barbs), Math.min(2, L.rate + 0.1)), at);
     });
     tickRef.current = setInterval(() => {
       setLeft((s) => { if (s <= 1) { clearInterval(tickRef.current); endRound(); return 0; } return s - 1; });
@@ -268,7 +272,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
   const endRound = async () => {
     clearInterval(tickRef.current); tickRef.current = null;
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
-    cancelSpeech();
+    cancelVoice();
     let kept = false, voicedMs = 0, clipBlob = null;
     // "Survived" = they ACTUALLY kept talking. Blob SIZE is wrong (uncompressed WAV is huge even for
     // silence → always "survived"). Measure real VOICED time from the recorded PCM instead.
@@ -402,7 +406,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
     <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(34,197,94,0.07)', borderRadius: 10, border: '1px solid rgba(34,197,94,0.25)' }}>
       <div style={{ fontSize: 10, color: '#4ade80', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>💬 {T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
       <div style={{ color: '#f1f5f9', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
-      <button onClick={() => { cancelSpeech(); playModel(konterFor(L).phrase); }} style={{ ...ghostBtn, marginTop: 8 }}>🔊 {T(lang, 'Anhören', 'اسمع')}</button>
+      <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}>🔊 {T(lang, 'Anhören', 'اسمع')}</button>
     </div>
     <div style={{ display: 'flex', gap: 8 }}>
       {froze && <button onClick={() => setPhase('ready')} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>}

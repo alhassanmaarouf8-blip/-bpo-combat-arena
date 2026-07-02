@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
+import { scrubStringsDeep } from '../langGuard.js';
 
 // ── New architecture: Groq + Deepgram, NO OpenAI ────────────────────────────
 // Transcription: Groq whisper-large-v3 (default) or Deepgram nova-3 (TRANSCRIBER=deepgram).
@@ -194,7 +195,9 @@ function parseScoredCompletion(completion, echoTranscript) {
   const text = completion?.choices?.[0]?.message?.content || '';
   let parsed;
   try {
-    parsed = JSON.parse(text);
+    // scrubStringsDeep: strip script-drift glyphs (the "兄" class) from strengths/studyNext/grammar
+    // strings — this verdict text reaches the learner's debrief with no curated fallback.
+    parsed = scrubStringsDeep(JSON.parse(text));
   } catch {
     parsed = {};
   }

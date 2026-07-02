@@ -23,6 +23,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
 import { seededIdiolect } from './idiolect.js';
+import { scrubForeignScript } from './langGuard.js';
 
 // Hard cap per boss turn. A single question is ~20–60 tokens; a Teil-3 customer
 // complaint with scenario context is longer. 200 still leaves room for a vivid customer
@@ -150,7 +151,9 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
             const cut = firstSentenceBoundary(full);
             if (cut !== -1) {
               earlyDecided = true;   // one decision per turn — never re-evaluated token by token
-              const s1 = full.slice(0, cut).replace(BOSS_LABEL_RE, '').trim();
+              // scrub: a script-drift glyph must never reach TTS (it gets SPOKEN as gibberish).
+              // sanitizeOneTurn scrubs the full line the same way, so the prefix-match holds.
+              const s1 = scrubForeignScript(full.slice(0, cut).replace(BOSS_LABEL_RE, '')).trim();
               if (earlySafeSentence(s1)) { try { onEarly(s1); } catch {} }
             }
           }
@@ -410,7 +413,10 @@ export function threadNudge({ freshTerms = [], wordCount = 0, stageIdx = 0, used
 // speaker turn, cut at the first such marker so only the boss's own line survives.
 // Exported for unit tests — the self-answer/ramble backstop below is otherwise unprovable statically.
 export function sanitizeOneTurn(text) {
-  let t = String(text || '').trim();
+  // Scrub script-drift glyphs FIRST (the "兄" class): a stray CJK/Cyrillic char in a boss line
+  // would be spoken by TTS as gibberish mid-interview AND shown in the transcript. Deterministic,
+  // $0, and can only remove glitch glyphs — real German never contains these ranges.
+  let t = scrubForeignScript(String(text || '')).trim();
   if (!t) return t;
   // Cut at the first candidate/second-speaker marker if the model invented a dialogue.
   const markers = /(^|\n)\s*(Kandidat|Bewerber|Bewerberin|Candidate|Du|Sie sagen|Antwort des Kandidaten)\s*[:：]/i;

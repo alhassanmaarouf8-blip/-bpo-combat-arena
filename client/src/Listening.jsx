@@ -1,7 +1,8 @@
 /**
  * Listening.jsx — LISTENING + LIVE DATA-CAPTURE drill (PAID). "The interview in reverse."
  *
- * The browser SPEAKS a natural German line at full speed (free speechSynthesis). The learner
+ * A NATIVE Aura-2 voice speaks a natural German line at full speed through the phone-band filter
+ * (playNative — the robotic browser voice is banned app-wide, owner rule 2026-07-02). The learner
  * NEVER sees the text — they must catch the detail (number/name/date/amount) by EAR and TYPE it.
  * Grading is deterministic on the server (no model). Trains the #1 thing that gets candidates
  * rejected: understanding a fast native speaker and capturing data correctly. Zero added cost.
@@ -44,22 +45,26 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
   }, [apiUrl, token, blocked]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { try { window.speechSynthesis?.getVoices(); } catch { /* ignore */ } }, []);
-  useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch { /* ignore */ } }, []);
 
   const item = items[idx];
   const maxPlays = (item?.replays ?? 1) + 1;   // initial play + N replays
   const canPlay  = played < maxPlays && !result;
 
+  // Keep the stop handle so closing the drill (or replaying) actually SILENCES the caller —
+  // an orphaned line talking over the next screen reads as a bug.
+  const stopVoiceRef = useRef(null);
+  useEffect(() => () => { try { stopVoiceRef.current?.(); } catch { /* ignore */ } }, []);
+
   const play = () => {
     if (!item || !canPlay) return;
     // Level-scaled base speed (beginner slower, advanced faster) + progressive overload within the
     // session (each item faster than the last), so you train catching a native at YOUR edge.
-    // Native Aura-2 caller voice (consistent native German, not the device-lottery browser voice); the
-    // level+overload speed ramp still applies via audio playbackRate. Auto-falls back to the browser voice.
+    // Native Aura-2 caller voice; the level+overload speed ramp still applies via audio playbackRate.
+    // (No browser-voice fallback — robotic voice is banned app-wide; on TTS failure it stays silent.)
     // phone:true → route the caller through a telephone-band filter. The job is on the PHONE, so clean
     // studio audio over-prepares on the wrong channel. Shadowing stays clean; only this caller line is phoned.
-    playNative({ apiUrl, token, text: item.audioText, rate: Math.min(1.7, baseRate + idx * 0.12), phone: true });
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    stopVoiceRef.current = playNative({ apiUrl, token, text: item.audioText, rate: Math.min(1.7, baseRate + idx * 0.12), phone: true });
     setTtsOk(true);
     setPlayed((p) => p + 1);
   };

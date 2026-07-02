@@ -9,6 +9,8 @@
  *   generateTask({ type, topic, level })            → a short task/prompt for the step
  *   giveFeedback({ type, topic, task, input, level })→ concise German feedback on the answer
  */
+import { scrubForeignScript } from './langGuard.js';
+
 const PLAN_MODEL       = process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
 const TRANSCRIBE_MODEL = process.env.GROQ_TRANSCRIBE_MODEL ?? 'whisper-large-v3';
 const GROQ_CHAT        = 'https://api.groq.com/openai/v1/chat/completions';
@@ -40,7 +42,10 @@ async function chat(system, user, maxTokens = 420, { json = false, purpose = 'pl
     });
     if (!res.ok) throw new Error(`plan model ${res.status} ${await res.text().catch(() => '')}`);
     const data = await res.json();
-    return (data.choices?.[0]?.message?.content ?? '').trim();
+    // Scrub script-drift glyphs (CJK/Cyrillic/… — the "兄" class) ONCE here at the choke point:
+    // every learner-facing planGuide output (tasks, drills, {de,ar} feedback) flows through chat().
+    // Safe on raw JSON too — the scrubbed ranges are never JSON-structural characters.
+    return scrubForeignScript((data.choices?.[0]?.message?.content ?? '').trim());
   } finally {
     clearTimeout(timer);
   }

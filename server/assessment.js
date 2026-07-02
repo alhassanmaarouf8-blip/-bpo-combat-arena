@@ -20,6 +20,7 @@ import { requireAuth, planOf }  from './auth.js';
 import { transcribeAudio }    from './planGuide.js';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
 import { voicedDurationMs }   from './audioGuard.js';
+import { scrubStringsDeep }   from './langGuard.js';
 
 export const assessmentRouter = express.Router();
 
@@ -161,7 +162,9 @@ async function analyze(answers) {
     });
     if (!res.ok) throw new Error(`assessment model ${res.status} ${await res.text().catch(() => '')}`);
     const data = await res.json();
-    return normalizeResult(JSON.parse(data.choices?.[0]?.message?.content ?? '{}'), answers);
+    // scrubStringsDeep: strip script-drift glyphs (the "兄" class) from every string field —
+    // the Einstufung verdict is one-of-a-kind text with nothing curated to fall back to.
+    return normalizeResult(scrubStringsDeep(JSON.parse(data.choices?.[0]?.message?.content ?? '{}')), answers);
   } finally {
     clearTimeout(timer);
   }

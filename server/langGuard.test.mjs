@@ -5,7 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
+import { isCleanGermanText, isCleanArabicOrGermanText, scrubForeignScript, scrubStringsDeep } from './langGuard.js';
 
 test('isCleanGermanText: accepts real German with umlauts/punctuation', () => {
   assert.equal(isCleanGermanText('Guten Tag, meine Kundennummer ist vier sieben zwei — wie kann ich helfen?'), true);
@@ -67,4 +67,47 @@ test('regression: the exact Alhassan CJK-glitch reply is rejected', () => {
 });
 test('regression: a clean Egyptian-Arabic mentor reply (with allowed German code-switch) passes', () => {
   assert.equal(isCleanArabicOrGermanText('ماشي يا سطا، إنت عملت تقدم كويس في الـ Fluency. كمّل كده.'), true);
+});
+
+// ── scrubForeignScript / scrubStringsDeep — the boundary scrubber for one-of-a-kind text ─────────
+
+test('scrubForeignScript: strips the exact reported "兄" glitch, keeps the Arabic intact', () => {
+  assert.equal(scrubForeignScript('ماشي يا兄! تمام؟'), 'ماشي يا! تمام؟');
+});
+
+test('scrubForeignScript: never touches clean German or clean Arabic (identity)', () => {
+  const de = 'Gut, das reicht mir dazu — kommen wir zur Praxis. Wie würden Sie reagieren?';
+  const ar = 'إيه رقم العميلة اللي قالته؟';
+  assert.equal(scrubForeignScript(de), de);
+  assert.equal(scrubForeignScript(ar), ar);
+});
+
+test('scrubForeignScript: collapses the whitespace scar a mid-sentence glyph leaves behind', () => {
+  assert.equal(scrubForeignScript('Guten Tag 你好 wie kann ich helfen?'), 'Guten Tag wie kann ich helfen?');
+});
+
+test('scrubForeignScript: also removes the U+FFFD replacement character', () => {
+  assert.equal(scrubForeignScript('Bestellnummer � vier sieben'), 'Bestellnummer vier sieben');
+});
+
+test('scrubForeignScript: stateful-regex regression — two glitched strings in a row BOTH get scrubbed', () => {
+  // A /g regex's test() mutates lastIndex; if the fast path shared it, the 2nd call could miss.
+  assert.equal(scrubForeignScript('a兄b'), 'ab');
+  assert.equal(scrubForeignScript('c兄d'), 'cd');
+  assert.equal(scrubForeignScript('e兄f'), 'ef');
+});
+
+test('scrubStringsDeep: walks nested debrief-shaped JSON and scrubs every string, incl. _ar fields', () => {
+  const debrief = {
+    verdict: 'Stark unter Druck 你好 geblieben.',
+    luecke: { rule: 'Verbstellung', note_ar: 'الفعل بييجي في الآخر兄 في الجملة الثانوية', score: 3 },
+    steps: ['Übe den Relativsatz.', 'Sprich lauter अ.'],
+    ok: true, n: 7, nothing: null,
+  };
+  const out = scrubStringsDeep(debrief);
+  assert.equal(out.verdict, 'Stark unter Druck geblieben.');
+  assert.equal(out.luecke.note_ar, 'الفعل بييجي في الآخر في الجملة الثانوية');
+  assert.deepEqual(out.steps, ['Übe den Relativsatz.', 'Sprich lauter .']);
+  assert.equal(out.ok, true); assert.equal(out.n, 7); assert.equal(out.nothing, null);
+  assert.equal(out.luecke.score, 3);
 });
