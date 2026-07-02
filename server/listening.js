@@ -21,6 +21,7 @@
 import express from 'express';
 import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, saveUser }  from './store.js';
+import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
 
 export const listeningRouter = express.Router();
 
@@ -180,6 +181,8 @@ function shuffledComp(it) {
 }
 
 // Validate a generated comprehension item: complex sentence + a question + 3–4 options + a valid correct index.
+// SCRIPT SANITY (langGuard.js): a small model occasionally emits a stray foreign-script token under
+// generation pressure — reject the WHOLE item rather than show a learner text that isn't German/Arabic.
 function validComp(it) {
   if (!it || typeof it !== 'object') return false;
   const audio = String(it.audioText ?? '').trim();
@@ -187,6 +190,9 @@ function validComp(it) {
   const opts = Array.isArray(it.opts) ? it.opts : [];
   if (audio.length < 25 || !q || opts.length < 3 || opts.length > 4) return false;
   if (!opts.every((o) => o && String(o.de ?? '').trim())) return false;
+  if (!isCleanGermanText(audio) || !isCleanGermanText(q)) return false;
+  if (it.q_ar && !isCleanArabicOrGermanText(it.q_ar)) return false;
+  if (!opts.every((o) => isCleanGermanText(o.de) && (!o.ar || isCleanArabicOrGermanText(o.ar)))) return false;
   return Number.isInteger(it.correct) && it.correct >= 0 && it.correct < opts.length;
 }
 
@@ -297,6 +303,8 @@ function chooseTypes(stats, n) {
 // Validate a generated item: must have the full shape AND an answer whose FORMAT matches its type
 // (so the deterministic normalizer can grade it). Malformed → dropped. This also reduces the chance
 // of an audio/answer mismatch slipping through.
+// SCRIPT SANITY (langGuard.js): reject any item whose spoken/shown text contains a foreign script —
+// a generation glitch, never a real German sentence — before it ever reaches a learner.
 function validItem(it) {
   if (!it || typeof it !== 'object') return false;
   if (!TYPES.includes(it.type)) return false;
@@ -304,6 +312,9 @@ function validItem(it) {
   const q     = String(it.question_de ?? '').trim();
   const ans   = String(it.answer ?? '').trim();
   if (audio.length < 12 || !q || !ans) return false;
+  if (!isCleanGermanText(audio) || !isCleanGermanText(q)) return false;
+  if (it.question_ar && !isCleanArabicOrGermanText(it.question_ar)) return false;
+  if (it.type === 'name' && !isCleanGermanText(ans)) return false;   // a name IS shown/spoken raw
   const nAns = normalize(ans, it.type);
   if (it.type === 'adresse') return nAns.length === 5;        // PLZ = exactly 5 digits
   if (it.type === 'name')    return nAns.length >= 2;          // letters only

@@ -35,6 +35,7 @@ import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { loadUser, saveUser }  from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
+import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
 
 export const fluencyRouter = express.Router();
 
@@ -119,8 +120,10 @@ async function generatePrompts() {
   const content = await groqChatJSON([{ role: 'system', content: sys }, { role: 'user', content: user }]);
   const parsed = JSON.parse(content);
   const arr = Array.isArray(parsed) ? parsed : (parsed.prompts || parsed.items || parsed.aufgaben || []);
+  // SCRIPT SANITY (langGuard.js): the learner speaks for 90-60-45s FROM this prompt — a foreign-
+  // script glitch here would derail the whole round, so reject it before it's ever served.
   return (Array.isArray(arr) ? arr : [])
-    .filter((p) => p && typeof p.de === 'string' && p.de.trim().length > 12)
+    .filter((p) => p && typeof p.de === 'string' && p.de.trim().length > 12 && isCleanGermanText(p.de) && (!p.ar || isCleanArabicOrGermanText(p.ar)))
     .map((p) => ({ de: String(p.de).trim(), ar: String(p.ar || '').trim(),
                    level: p.level === 'b2' ? 'b2' : 'a2-b1', id: _promptSeq++ }));
 }

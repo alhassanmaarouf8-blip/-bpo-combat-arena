@@ -5,7 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { threadNudge, firstSentenceBoundary, earlySafeSentence } from './realtimeClient.js';
+import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn } from './realtimeClient.js';
 
 const base = { freshTerms: ['Reiseleiterin'], wordCount: 20, stageIdx: 0, used: 0, cooldown: 0, busy: false };
 
@@ -73,4 +73,39 @@ test('earlySafeSentence: real sentences pass, guard-trigger lines never speak ea
   assert.equal(earlySafeSentence('Ich habe Sie akustisch nicht verstanden.'), false);
   assert.equal(earlySafeSentence('Kandidat: Ich bin bereit.'), false);
   assert.equal(earlySafeSentence('…'), false);
+});
+
+// ── sanitizeOneTurn: the self-answer/ramble backstop (owner-reported 2026-07-02, "responded to
+// itself") — a legitimate short HR turn must survive untouched; a labeled OR unlabeled hallucinated
+// candidate answer tacked onto the end must be cut.
+
+test('sanitizeOneTurn: a normal short reaction + one question passes through unchanged', () => {
+  const t = 'Gut, das war konkret. Was war das Ergebnis?';
+  assert.equal(sanitizeOneTurn(t), t);
+});
+
+test('sanitizeOneTurn: a legitimate 4-sentence Teil-3 transition announcement survives', () => {
+  const t = 'So, jetzt machen wir etwas Praktisches. Ich bin ab jetzt ein verärgerter Kunde am Telefon. Sie nehmen den Anruf an. Also, hören Sie zu.';
+  assert.equal(sanitizeOneTurn(t), t);
+});
+
+test('sanitizeOneTurn: an explicit "Kandidat:" labeled hallucination is still cut (regression)', () => {
+  const t = 'Was war das Ergebnis?\nKandidat: Ich habe das Problem gelöst.';
+  assert.equal(sanitizeOneTurn(t), 'Was war das Ergebnis?');
+});
+
+test('sanitizeOneTurn: an UNLABELED hallucinated candidate answer tacked onto a real turn is cut by the length cap', () => {
+  const t = 'Verstehe. Und wie sind Sie da vorgegangen? Ich habe zuerst mit dem Kunden gesprochen. Dann habe ich die Situation geprüft. Danach habe ich eine Lösung vorgeschlagen. Am Ende war der Kunde zufrieden.';
+  const out = sanitizeOneTurn(t);
+  assert.equal(out, 'Verstehe. Und wie sind Sie da vorgegangen? Ich habe zuerst mit dem Kunden gesprochen. Dann habe ich die Situation geprüft.');
+  assert.ok(!out.includes('Am Ende war der Kunde zufrieden'), 'the hallucinated tail must be gone');
+});
+
+test('sanitizeOneTurn: two questions in one turn still keeps only the first (regression)', () => {
+  const t = 'Warum wollen Sie hier arbeiten? Und was reizt Sie daran?';
+  assert.equal(sanitizeOneTurn(t), 'Warum wollen Sie hier arbeiten?');
+});
+
+test('sanitizeOneTurn: a leading self-label is still stripped (regression)', () => {
+  assert.equal(sanitizeOneTurn('Frau Mona Adel: Kommen wir zum Schluss.'), 'Kommen wir zum Schluss.');
 });

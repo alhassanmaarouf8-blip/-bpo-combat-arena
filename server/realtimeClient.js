@@ -408,7 +408,8 @@ export function threadNudge({ freshTerms = [], wordCount = 0, stageIdx = 0, used
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
 // speaker turn, cut at the first such marker so only the boss's own line survives.
-function sanitizeOneTurn(text) {
+// Exported for unit tests — the self-answer/ramble backstop below is otherwise unprovable statically.
+export function sanitizeOneTurn(text) {
   let t = String(text || '').trim();
   if (!t) return t;
   // Cut at the first candidate/second-speaker marker if the model invented a dialogue.
@@ -422,6 +423,19 @@ function sanitizeOneTurn(text) {
   // If the line has ≥2 question marks, keep everything up to and including the FIRST '?' and drop the rest.
   const q1 = t.indexOf('?');
   if (q1 !== -1 && t.indexOf('?', q1 + 1) !== -1) t = t.slice(0, q1 + 1).trim();
+  // LENGTH CAP — the self-answer/ramble backstop (owner-reported 2026-07-02: the boss "responded
+  // to itself" early in an interview). A real interviewer turn is a short reaction + ONE question,
+  // almost never more than a few sentences (TURN_RULE: "sehr kurz... 7-15 Wörter"). When the model
+  // hallucinates the candidate's OWN answer onto the end of its turn WITHOUT a "Kandidat:" label
+  // (so the marker cut above never fires), the turn balloons far past any legitimate length — even
+  // the longest real case (a Teil-3 roleplay transition announcement) stays within a few sentences.
+  // Capping at 4 keeps every legitimate turn intact while reliably cutting a runaway self-answer.
+  const MAX_TURN_SENTENCES = 4;
+  const ends = [...t.matchAll(/[.!?…]["'»«]?(?=\s|$)/gu)];
+  if (ends.length > MAX_TURN_SENTENCES) {
+    const cut = ends[MAX_TURN_SENTENCES - 1];
+    t = t.slice(0, cut.index + cut[0].length).trim();
+  }
   return t;
 }
 

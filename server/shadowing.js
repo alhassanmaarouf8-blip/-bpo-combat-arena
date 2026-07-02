@@ -20,6 +20,7 @@ import { BPO_PHRASES }                         from './scenarios.js';
 import { transcribeAudio }                     from './planGuide.js';
 import { loadUser, saveUser }                  from './store.js';
 import { voicedDurationMs }                    from './audioGuard.js';
+import { isCleanGermanText }                   from './langGuard.js';
 
 export const shadowingRouter = express.Router();
 
@@ -72,8 +73,10 @@ async function generatePhrases() {
   const content = await groqChatJSON([{ role: 'system', content: sys }, { role: 'user', content: user }]);
   const parsed = JSON.parse(content);
   const arr = Array.isArray(parsed) ? parsed : (parsed.phrases || parsed.items || parsed.saetze || []);
+  // SCRIPT SANITY (langGuard.js): reject any phrase containing a foreign-script glitch — the
+  // learner SHADOWS (hears + repeats) this text directly, so it must be real German or nothing.
   return (Array.isArray(arr) ? arr : [])
-    .filter((p) => p && typeof p.de === 'string' && p.de.trim().length > 8 && p.de.trim().length < 200)
+    .filter((p) => p && typeof p.de === 'string' && p.de.trim().length > 8 && p.de.trim().length < 200 && isCleanGermanText(p.de))
     .map((p) => ({ id: _phraseSeq++, de: String(p.de).trim(), en: String(p.en || '').trim() }));
 }
 
