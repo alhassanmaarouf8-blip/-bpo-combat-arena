@@ -6,6 +6,9 @@ agent asked to "build the next thing." Items are ordered by learner impact and a
 
 ## Contract for any builder run (read before building)
 
+0. **Token-saver (read these FIRST instead of exploring):** `.claude/skills/app-map/SKILL.md`
+   (codebase map), `.claude/skills/design-system/SKILL.md` (UI law, for any client work),
+   `.claude/skills/subagent-contract/SKILL.md` (binding work rules).
 1. Build the **TOP item whose status is `QUEUED`** and which is not already claimed by an
    existing `feature/*` branch (check `git ls-remote origin 'refs/heads/feature/*'` and open
    PRs via the public GitHub API).
