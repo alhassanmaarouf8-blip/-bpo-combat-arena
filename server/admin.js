@@ -527,8 +527,8 @@ function loadMission(){
     sum.textContent='Insgesamt: '+(d.total||0)+' Einträge (letzte '+((d.entries||[]).length)+' unten)';
     var box=document.getElementById('feedbackList');box.innerHTML='';
     if(!d.entries||!d.entries.length){box.innerHTML='<div class="empty">Noch kein Feedback.</div>';return;}
-    var t=document.createElement('table');t.innerHTML='<tr><th>Datum</th><th>Nutzer</th><th>Screen</th><th>Bewertung</th><th>Text</th></tr>';
-    d.entries.forEach(function(e){var tr=document.createElement('tr');tr.appendChild(cell(fmtTime(e.timestamp)));tr.appendChild(cell(e.email||'—'));tr.appendChild(cell(e.screen||'—'));tr.appendChild(cell(e.rating==null?'—':String(e.rating)));tr.appendChild(cell(e.text||''));t.appendChild(tr);});
+    var t=document.createElement('table');t.innerHTML='<tr><th>Datum</th><th>Name</th><th>E-Mail</th><th>Bewertung</th><th>Text</th></tr>';
+    d.entries.forEach(function(e){var tr=document.createElement('tr');tr.appendChild(cell(fmtTime(e.timestamp)));tr.appendChild(cell(e.name||'—'));tr.appendChild(cell(e.email||'—'));tr.appendChild(cell(e.rating==null?'★—':('★ '+e.rating)));tr.appendChild(cell(e.text||'—'));t.appendChild(tr);});
     box.appendChild(t);
   }).catch(function(){document.getElementById('feedbackList').innerHTML='<div class="empty">Fehler beim Laden.</div>';});
 }

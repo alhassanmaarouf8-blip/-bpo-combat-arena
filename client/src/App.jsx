@@ -2385,7 +2385,10 @@ function AuthScreen({ onAuth }) {
                   <div style={{ fontSize:'var(--fs-label)', color:'var(--text)', lineHeight:1.5, fontStyle:'italic' }}>
                     „{c.text}"
                   </div>
-                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--action)', marginTop:6 }}>{'★'.repeat(c.rating)}</div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:7 }}>
+                    <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', fontWeight:600 }}>— {c.name}</span>
+                    <span style={{ fontSize:'var(--fs-meta)', color:'var(--action)' }}>{'★'.repeat(c.rating)}</span>
+                  </div>
                 </div>
               ))}
             </div>

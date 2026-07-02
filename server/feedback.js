@@ -14,6 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { timingSafeEqual } from 'crypto';
 import { loadUser } from './store.js';
+import { loadGuide } from './guideStore.js';
 import { requireAuth, isAdminEmail } from './auth.js';
 import { dbEnabled, kvGet, kvSet } from './db.js';
 
@@ -41,11 +42,33 @@ async function saveFeedback(all) {
 //   - Comments never carry email/name/timestamp — text + the SAME rating that quote earned,
 //     capped in length. Sampled from rating>=4 (a testimonials sample, standard practice) but the
 //     honest average above always reflects the FULL distribution, including anything lower.
-const MIN_PUBLIC_RATINGS = 5;
+// Threshold lowered to 1 (owner: "doesn't have to be big, just mentioned" — show it even with few
+// ratings); ratingCount is always shown so 2 ratings reads honestly as "2", not a fake big average.
+// Comments now carry the NAME (never email — owner's explicit privacy choice), resolved by the route.
+const MIN_PUBLIC_RATINGS = 1;
 const MAX_PUBLIC_COMMENTS = 6;
 const MAX_COMMENT_CHARS  = 200;
 
-/** Pure + exported for unit tests. `all` is the raw feedback.json array. */
+// A public-safe display name: a stored name (from the Alhassan guide profile) if we have one,
+// else a neutral label. NEVER the email — the owner explicitly chose names-only for privacy.
+function displayName(e) {
+  const n = String(e?.name || '').trim();
+  return n || 'Ein Lernender';   // OWNER-AR slot (neutral fallback label)
+}
+
+// Best-effort: stamp a `name` onto entries that lack one, resolved from the Alhassan guide profile
+// by userId (so his + Fares' EXISTING feedback shows a name too, not just future submissions).
+// Bounded to the entries passed (a recent slice) and failure-tolerant → neutral fallback on miss.
+async function enrichNames(entries) {
+  await Promise.all((Array.isArray(entries) ? entries : []).map(async (e) => {
+    if (e.name || !e.userId) return;
+    try { const g = await loadGuide(e.userId); if (g?.name) e.name = g.name; } catch { /* neutral fallback */ }
+  }));
+  return entries;
+}
+
+/** Pure + exported for unit tests. Entries may carry an optional `name` (resolved by the route).
+ *  Reads e.name only — NEVER e.email — so PII can't leak into a public comment. */
 export function buildPublicRatings(all) {
   const entries = Array.isArray(all) ? all : [];
   const ratings = entries.map((e) => e.rating).filter((n) => Number.isFinite(n) && n > 0);
@@ -56,7 +79,7 @@ export function buildPublicRatings(all) {
     .filter((e) => Number.isFinite(e.rating) && e.rating >= 4 && String(e.text || '').trim())
     .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
     .slice(0, MAX_PUBLIC_COMMENTS)
-    .map((e) => ({ rating: e.rating, text: String(e.text).trim().slice(0, MAX_COMMENT_CHARS) }));
+    .map((e) => ({ name: displayName(e), rating: e.rating, text: String(e.text).trim().slice(0, MAX_COMMENT_CHARS) }));
 
   return { available: true, avgRating, ratingCount: ratings.length, comments };
 }
@@ -64,7 +87,9 @@ export function buildPublicRatings(all) {
 feedbackRouter.get('/feedback/public', async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');   // 5 min — this is public marketing data, cheap to cache
   try {
-    res.json(buildPublicRatings(await loadFeedback()));
+    const all = await loadFeedback();
+    await enrichNames((Array.isArray(all) ? all : []).slice(-60));   // resolve names for the recent slice we might show
+    res.json(buildPublicRatings(all));
   } catch (err) {
     console.error('[feedback] public error:', err.message);
     res.json({ available: false });   // never break the landing page over this
@@ -76,10 +101,15 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
     const { rating, answers, text, screen } = req.body || {};
     const p = await loadUser(req.account.id);
     const sessions = p.sessions || [];
+    // Capture the display NAME at write time (from the Alhassan guide profile) so public ratings
+    // can show a name without an email (owner's privacy choice). Best-effort; null if unknown.
+    let name = null;
+    try { const g = await loadGuide(req.account.id); name = g?.name || null; } catch { /* stays null */ }
 
     const entry = {
       userId:       req.account.id,
-      email:        req.account.email ?? null,
+      email:        req.account.email ?? null,   // stored for the ADMIN view only; NEVER sent to /feedback/public
+      name:         name,
       timestamp:    new Date().toISOString(),
       sessionCount: sessions.length,                                   // how many fights so far
       level:        sessions.slice(-1)[0]?.level ?? 'a2-b1',           // their last fight's level
@@ -157,9 +187,12 @@ feedbackRouter.get('/admin/feedback', async (req, res) => {
   if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });
   try {
     const all = await loadFeedback();
-    const entries = all.slice(-100).reverse().map((e) => ({
+    const recent = all.slice(-100).reverse();
+    await enrichNames(recent);   // resolve names for existing entries so the owner sees WHO said what
+    // The ADMIN view is owner-only, so it keeps BOTH name and email (unlike the public route).
+    const entries = recent.map((e) => ({
       timestamp: e.timestamp, screen: e.screen, rating: e.rating ?? null,
-      answers: e.answers ?? null, text: e.text ?? '', email: e.email ?? null,
+      answers: e.answers ?? null, text: e.text ?? '', email: e.email ?? null, name: e.name ?? null,
       sessionCount: e.sessionCount, level: e.level,
     }));
     res.json({ entries, total: all.length });

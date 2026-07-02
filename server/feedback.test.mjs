@@ -11,9 +11,16 @@ const entry = (rating, text = '', daysAgo = 0) => ({
   rating, text, timestamp: new Date(Date.now() - daysAgo * 86400000).toISOString(),
 });
 
-test('buildPublicRatings: below MIN_PUBLIC_RATINGS reports unavailable, never a thin sample', () => {
-  const few = [entry(5, 'Toll!'), entry(4), entry(5), entry(5)];   // 4 ratings, threshold is 5
-  assert.deepEqual(buildPublicRatings(few), { available: false });
+test('buildPublicRatings: zero ratings → unavailable (never a fabricated placeholder)', () => {
+  assert.deepEqual(buildPublicRatings([]), { available: false });
+  assert.deepEqual(buildPublicRatings([{ text: 'no rating field' }]), { available: false });
+});
+
+test('buildPublicRatings: shows even with a few ratings (owner: "just mentioned"), count stays honest', () => {
+  // Threshold is now 1 — 2 real ratings must show, and ratingCount reports the true small number.
+  const out = buildPublicRatings([entry(5, 'Toll!'), entry(4, 'Gut')]);
+  assert.equal(out.available, true);
+  assert.equal(out.ratingCount, 2);
 });
 
 test('buildPublicRatings: average is computed over ALL ratings, including low ones not shown as quotes', () => {
@@ -35,20 +42,27 @@ test('buildPublicRatings: comments are sampled only from rating>=4 with real tex
   assert.equal(out.comments.length, 3);   // the 3 non-empty rating>=4 entries
 });
 
-test('buildPublicRatings: never leaks email, name, or timestamp into a public comment', () => {
+test('buildPublicRatings: a public comment carries ONLY name/rating/text — never email/userId/timestamp', () => {
   const all = Array.from({ length: 6 }, (_, i) => ({
-    rating: 5, text: `Kommentar ${i}`, email: 'student@example.com', userId: 'a_123', timestamp: new Date().toISOString(),
+    rating: 5, text: `Kommentar ${i}`, name: 'Omar', email: 'student@example.com', userId: 'a_123', timestamp: new Date().toISOString(),
   }));
   const out = buildPublicRatings(all);
   for (const c of out.comments) {
-    assert.deepEqual(Object.keys(c).sort(), ['rating', 'text']);
+    assert.deepEqual(Object.keys(c).sort(), ['name', 'rating', 'text']);
+    assert.equal(c.name, 'Omar');
+    assert.ok(!('email' in c) && !('userId' in c) && !('timestamp' in c), 'no PII beyond the chosen name');
   }
 });
 
-test('buildPublicRatings: comment text is capped in length', () => {
-  const long = 'x'.repeat(500);
-  const all = [entry(5, long), entry(5), entry(5), entry(5), entry(5)];
+test('buildPublicRatings: an entry with no name shows the neutral label, never the email', () => {
+  const all = [{ rating: 5, text: 'Hilfreich', email: 'secret@example.com', userId: 'a_9' }];
   const out = buildPublicRatings(all);
+  assert.equal(out.comments[0].name, 'Ein Lernender');
+  assert.ok(!JSON.stringify(out).includes('secret@example.com'), 'email must never appear anywhere in the public payload');
+});
+
+test('buildPublicRatings: comment text is capped in length', () => {
+  const out = buildPublicRatings([entry(5, 'x'.repeat(500))]);
   assert.ok(out.comments[0].text.length <= 200);
 });
 
@@ -59,13 +73,11 @@ test('buildPublicRatings: caps at MAX_PUBLIC_COMMENTS even with many eligible en
 });
 
 test('buildPublicRatings: newest comments are preferred', () => {
-  const all = [entry(5, 'alt', 30), entry(5, 'neu', 0), entry(5), entry(5), entry(5)];
-  const out = buildPublicRatings(all);
+  const out = buildPublicRatings([entry(5, 'alt', 30), entry(5, 'neu', 0)]);
   assert.equal(out.comments[0].text, 'neu');
 });
 
-test('buildPublicRatings: gracefully handles empty/malformed input', () => {
-  assert.deepEqual(buildPublicRatings([]), { available: false });
+test('buildPublicRatings: gracefully handles malformed input', () => {
   assert.deepEqual(buildPublicRatings(null), { available: false });
   assert.deepEqual(buildPublicRatings(undefined), { available: false });
 });
