@@ -1267,7 +1267,21 @@ function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
-function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager, studentName, onOpenGuide }) {
+// The one-tap interview→drill handoff: the hire-readiness judge names the ONE blocking skill,
+// this maps it to the drill that trains exactly that skill (drill key + on-screen name kept
+// together so the button label can never drift from what actually opens). `confidence`
+// (hesitation/latency) trains with the 4-3-2 fluency drill; `complexity` (Satzbau/Nebensätze)
+// lives in the Trainingslager lessons until the dedicated Satzbau drill ships.
+const TRAIN_FOR_SKILL = {
+  fluency:         { drill: 'fluency',        label: 'FLUENCY 4-3-2' },
+  confidence:      { drill: 'fluency',        label: 'FLUENCY 4-3-2' },
+  intelligibility: { drill: 'shadowing',      label: 'SHADOWING' },
+  deescalation:    { drill: 'pressure',       label: 'DRUCK-LEITER' },
+  grammar:         { drill: 'trainingslager', label: 'TRAININGSLAGER' },
+  complexity:      { drill: 'trainingslager', label: 'TRAININGSLAGER' },
+};
+
+function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager, studentName, onOpenGuide, onTrainSkill }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -1487,6 +1501,16 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
                     vorläufig · {h.measuredSignals}/{h.totalSignals} Signale gemessen{h.readyCaveat ? ' · Aussprache als klar angenommen' : ''}
                   </div>
+                )}
+                {/* One-tap handoff: the drill that trains EXACTLY the blocking skill opens on top of
+                    this screen (drills stack above the debrief); closing it returns to the results. */}
+                {SKILL && onTrainSkill && TRAIN_FOR_SKILL[h.limitingSkill] && (
+                  <button onClick={() => onTrainSkill(TRAIN_FOR_SKILL[h.limitingSkill].drill)}
+                    style={{ width:'100%', marginTop:10, padding:'12px', minHeight:46, cursor:'pointer',
+                      fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', fontWeight:700,
+                      borderRadius:9, border:`1px solid ${v.border}`, color:v.color, background:'rgba(0,0,0,0.25)' }}>
+                    ▶ JETZT GEZIELT TRAINIEREN: {TRAIN_FOR_SKILL[h.limitingSkill].label}
+                  </button>
                 )}
               </div>
             );
@@ -3634,6 +3658,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           onOpenGuide={() => setGuideOpen(true)}
+          onTrainSkill={(drill) => ({ fluency: setFluencyOpen, shadowing: setShadowingOpen,
+            pressure: setPressureOpen, trainingslager: setTrainingslagerOpen }[drill]?.(true))}
           token={auth.token} apiUrl={API_URL} onOpenTrainingslager={() => setTrainingslagerOpen(true)} />
       )}
 
