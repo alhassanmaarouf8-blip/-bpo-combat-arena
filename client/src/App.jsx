@@ -205,6 +205,39 @@ function classifyTurnDE(partial) {
   return 'incomplete';                                         // no completion signal → assume mid-thought, wait
 }
 
+// ── Icon system (07-02 uplift): hand-authored Feather-style stroke SVGs replace every emoji-as-icon
+// on home + landing. $0, no deps, one component. Icons render in --accent or --text-dim only —
+// orange appears solely inside the hero/CTA buttons via currentColor. Emoji survives only inside
+// conversational content (chat, debrief text), never as UI chrome.
+const ICON_PATHS = {
+  mic: <><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /><line x1="8" y1="23" x2="16" y2="23" /></>,
+  target: <><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>,
+  waveform: <><line x1="4" y1="9" x2="4" y2="15" /><line x1="8" y1="6" x2="8" y2="18" /><line x1="12" y1="3" x2="12" y2="21" /><line x1="16" y1="6" x2="16" y2="18" /><line x1="20" y1="9" x2="20" y2="15" /></>,
+  bolt: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+  headphones: <><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></>,
+  messageCheck: <><path d="M21 11.5a8.38 8.38 0 0 1-8.4 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l2-5.8a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.4 8.38 8.38 0 0 1 8.4 8.5z" /><polyline points="9 11.5 11.5 14 15.5 9.5" /></>,
+  gauge: <><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /><line x1="12" y1="12" x2="16" y2="8" /></>,
+  map: <><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></>,
+  compass: <><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>,
+  chartUp: <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>,
+  fileBadge: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><circle cx="12" cy="15" r="3" /></>,
+  trophy: <><path d="M8 21h8M12 17v4" /><path d="M7 4h10v6a5 5 0 0 1-10 0z" /><path d="M7 6H4a2 2 0 0 0 2 4h1M17 6h3a2 2 0 0 1-2 4h-1" /></>,
+  flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" />,
+  gift: <><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></>,
+  clock: <><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>,
+  check: <polyline points="20 6 9 17 4 12" />,
+  chevronRight: <polyline points="9 18 15 12 9 6" />,
+  play: <polygon points="6 3 20 12 6 21 6 3" />,
+};
+function Icon({ name, size = 20, color = 'currentColor', style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75"
+      strokeLinecap="round" strokeLinejoin="round" style={style} aria-hidden="true">
+      {ICON_PATHS[name] || null}
+    </svg>
+  );
+}
+
 // ── Boss voice: ElevenLabs Flash v2.5 (neural, streamed) → Deepgram neural fallback ──
 // PRIMARY: ElevenLabs Flash v2.5, streamed server-side and played progressively via a
 // GET <audio> source (sound starts before the full clip is ready). FALLBACK: the existing
@@ -580,6 +613,22 @@ const GLOBAL_CSS = `
     --glow-boss:0 0 16px var(--boss-glow);
     --shadow-card:0 12px 38px rgba(0,0,0,0.55), inset 0 0 60px rgba(0,0,0,0.45);
     --vignette:radial-gradient(120% 100% at 50% 32%, transparent 48%, rgba(0,0,0,0.55) 100%);
+    /* ── "Private Bank Arena" uplift (07-02): premium glass + a real type scale.
+       Floor 11px — the 8.5-10.5px micro-caps era is over. One orange object per screen. */
+    --fs-hero:clamp(30px,7vw,44px); --fs-h1:24px; --fs-h2:17px;
+    --fs-body:15px; --fs-label:13px; --fs-meta:11px;
+    --glass:linear-gradient(165deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015));
+    --glass-border:1px solid rgba(255,255,255,0.10);
+    --glass-highlight:inset 0 1px 0 rgba(255,255,255,0.08);
+    --e1:0 1px 2px rgba(0,0,0,0.35);
+    --e2:0 8px 24px -8px rgba(0,0,0,0.5);
+    --e3:0 24px 64px -16px rgba(2,6,17,0.7);
+    --r-xl:24px;
+    --grad-action:linear-gradient(180deg,#fb923c,#f97316);
+    --shadow-action:0 8px 24px -6px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.25);
+    --grad-ring:conic-gradient(from 220deg,#3b82f6,#60a5fa,transparent 70%);
+    --ring-focus:0 0 0 1px var(--accent), 0 0 0 4px rgba(59,130,246,0.18);
+    --sp-6:32px; --sp-7:48px;
   }
 
   /* Respect the OS "reduce motion" setting — all juice becomes instant. */
@@ -602,10 +651,8 @@ const GLOBAL_CSS = `
     overflow-x: hidden;
     overflow-y: auto;
   }
-  body::before {
-    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
-  }
+  /* CRT scanline overlay REMOVED (07-02 uplift) — premium surfaces are clean; the gamer-HUD
+     texture read as a toy. (body::before + .scanline are gone on purpose.) */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.25); border-radius: 2px; }
@@ -628,8 +675,13 @@ const GLOBAL_CSS = `
   @keyframes result-rise { 0%{opacity:0;transform:translateY(14px)} 100%{opacity:1;transform:translateY(0)} }
   @keyframes spin { to { transform: rotate(360deg) } }
   .spin { animation: spin 0.9s linear infinite; }
-  @keyframes scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
-  .scanline { position:fixed;top:0;left:0;width:100%;height:3px;background:rgba(0,255,200,0.04);animation:scan 5s linear infinite;pointer-events:none;z-index:9998; }
+  @keyframes sheen-once { 0%{transform:translateX(-130%) skewX(-18deg)} 100%{transform:translateX(340%) skewX(-18deg)} }
+  @keyframes rise-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+  @keyframes wave-bar { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }
+  .uplift-input:focus { box-shadow: var(--ring-focus); border-color: var(--accent); }
+  @media (min-width: 900px) {
+    .landing-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:48px; align-items:center; }
+  }
   .shake  { animation: shake 0.4s ease; }
   .hurt   { animation: boss-hurt 0.55s ease; }
   .flash  { animation: flash-in 0.2s ease; }
@@ -2199,90 +2251,155 @@ function AuthScreen({ onAuth }) {
     } catch { setErr({ de: 'Server nicht erreichbar. Bitte versuche es gleich erneut.', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); setBusy(false); }
   };
 
+  // "Private Bank Arena" landing (07-02 uplift): quiet lockup, the Arabic headline AS the hero,
+  // a CSS-drawn phone showing the REAL fight UI (the blue-vs-orange moat — $0 product proof),
+  // a boxless feature checklist, and a glass auth card whose KONTO-ERSTELLEN button is the ONE
+  // orange fill on the page. All DE/AR copy verbatim from the previous landing.
+  const rise = (i) => ({ animation:`rise-in 0.36s var(--ease-out) both`, animationDelay:`${i * 60}ms` });
   return (
     <div className="auth-shell" style={{ minHeight:'100svh', display:'flex', flexDirection:'column',
-      justifyContent:'center', padding:'24px', position:'relative' }}>
-      <div className="scanline" />
-      <div style={{ textAlign:'center', marginBottom:24 }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:22, fontWeight:900, letterSpacing:3,
-          color:'var(--accent)', textShadow:'0 0 24px rgba(59,130,246,0.6)' }}>OMNI-PERFORM</div>
-        <div style={{ fontSize:10, color:'#64748b', marginTop:4, letterSpacing:'0.12em' }}>
-          DE BPO COMBAT · SPRACHTRAINING
+      justifyContent:'center', padding:'24px', position:'relative', overflow:'hidden' }}>
+      {/* one ultra-soft blue orb — the only background decoration */}
+      <div style={{ position:'fixed', top:-180, right:-180, width:600, height:600, borderRadius:'50%', pointerEvents:'none',
+        background:'radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 65%)' }} />
+      <div className="landing-grid" style={{ maxWidth:1120, margin:'0 auto', width:'100%' }}>
+      <div>
+      <div style={{ textAlign:'center', marginBottom:20, ...rise(0) }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, letterSpacing:'0.04em', color:'var(--text-dim)' }}>
+          OMNI-PERFORM <span style={{ color:'var(--text-faint)' }}>· Sprachtraining</span>
         </div>
         {/* Arabic-first positioning — our biggest moat: no other German trainer serves Arabic speakers */}
-        <div dir="rtl" style={{ fontSize:14, fontWeight:700, color:'#f8fafc', marginTop:14, lineHeight:1.6, maxWidth:360, marginInline:'auto' }}>
+        <div dir="rtl" style={{ fontSize:'var(--fs-hero)', fontWeight:700, color:'#f8fafc', marginTop:16, lineHeight:1.35, maxWidth:520, marginInline:'auto' }}>
           أول تدريب إنترفيو ألماني مصمم خصيصًا للعرب — علشان توصل للشغل في كول سنتر ألماني.
         </div>
-        <div style={{ fontSize:11, color:'#94a3b8', marginTop:8, lineHeight:1.55, maxWidth:360, marginInline:'auto' }}>
+        <div style={{ fontSize:'var(--fs-body)', color:'var(--text-dim)', marginTop:12, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
           Das erste deutsche Interview-Trainer für Arabisch-Sprechende — optimiert für den ägyptischen BPO-Markt.
         </div>
-        <div style={{ fontSize:10.5, color:'var(--action)', marginTop:10, lineHeight:1.5, maxWidth:360, marginInline:'auto' }}>
-          🎯 Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
-          <br /><span dir="rtl">🎯 بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
+        <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:4, marginTop:16,
+          padding:'9px 16px', borderRadius:'var(--r-pill)', border:'1px solid var(--action-dim)',
+          background:'rgba(249,115,22,0.08)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:13, color:'var(--action)' }}>
+            <Icon name="target" size={14} /> Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
+          </div>
+          <span dir="rtl" style={{ fontSize:12, color:'var(--action)' }}>بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
         </div>
       </div>
 
-      {/* Landing proof — honest, concrete (mirrors what the app actually does; no fabricated stats) */}
-      <div style={{ maxWidth:380, margin:'0 auto 18px', display:'flex', flexDirection:'column', gap:8 }}>
+      {/* $0 PRODUCT PROOF — a CSS phone showing the actual fight UI (blue player vs orange boss).
+          Pure divs, zero assets. The boss line is VERBATIM from scenarios.js (german-checked). */}
+      <div style={{ display:'flex', justifyContent:'center', margin:'26px 0 30px', perspective:'1200px', ...rise(1) }}>
+        <div style={{ width:240, borderRadius:34, padding:9, background:'#0f1626', boxShadow:'var(--e3)',
+          transform:'rotate(-4deg)', border:'1px solid rgba(255,255,255,0.08)', position:'relative' }}>
+          <div style={{ position:'absolute', left:'50%', bottom:-26, transform:'translateX(-50%)', width:190, height:30,
+            borderRadius:'50%', background:'radial-gradient(ellipse, rgba(59,130,246,0.25), transparent 70%)', filter:'blur(6px)' }} />
+          <div style={{ borderRadius:26, overflow:'hidden', background:'linear-gradient(180deg,#0a0f1a,#0d1424)', padding:'10px 12px 14px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:8, color:'var(--text-faint)', marginBottom:10 }}>
+              <span>09:41</span><span>●●●</span>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <div style={{ width:30, height:30, borderRadius:'50%', background:'rgba(249,115,22,0.18)', border:'1px solid rgba(249,115,22,0.5)',
+                display:'grid', placeItems:'center', fontSize:12, fontWeight:700, color:'var(--boss-2)' }}>Y</div>
+              <div>
+                <div style={{ fontSize:10, fontWeight:600, color:'var(--text)' }}>Yasmin · HR</div>
+                <div style={{ fontSize:8, color:'var(--text-faint)' }}>Live-Interview</div>
+              </div>
+            </div>
+            <div style={{ height:5, borderRadius:3, background:'rgba(255,255,255,0.07)', marginBottom:5 }}>
+              <div style={{ width:'64%', height:'100%', borderRadius:3, background:'var(--boss)' }} />
+            </div>
+            <div style={{ height:5, borderRadius:3, background:'rgba(255,255,255,0.07)', marginBottom:12 }}>
+              <div style={{ width:'88%', height:'100%', borderRadius:3, background:'var(--player)' }} />
+            </div>
+            <div style={{ borderRadius:'10px 10px 10px 3px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)',
+              padding:'8px 9px', fontSize:9.5, lineHeight:1.5, color:'var(--text)', marginBottom:8 }}>
+              Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.
+            </div>
+            <div style={{ borderRadius:'10px 10px 3px 10px', background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.3)',
+              padding:'8px 10px', marginLeft:34, marginBottom:10, display:'flex', gap:3, alignItems:'center', justifyContent:'center', height:30 }}>
+              {[0,1,2,3,4].map((i) => (
+                <div key={i} style={{ width:3, height:14, borderRadius:2, background:'var(--accent-2)', transformOrigin:'center',
+                  animation:`wave-bar 1.1s ease-in-out ${i * 90}ms infinite` }} />
+              ))}
+            </div>
+            <div style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:8.5, fontWeight:600, color:'var(--accent-2)',
+              background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:'var(--r-pill)', padding:'3px 8px' }}>
+              +12 · Grammatik
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:-16, marginBottom:22, ...rise(2) }}>
+        Echtes Live-Interview — Ton an. {/* OWNER-AR slot */}
+      </div>
+
+      {/* Feature checklist — boxless, real icons (copy verbatim) */}
+      <div style={{ maxWidth:420, margin:'0 auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
         {[
-          { icon:'🎤', ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
-          { icon:'🎯', ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
-          { icon:'📈', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Sieh deinen Fortschritt Woche für Woche — bis zum Job' },
+          { icon:'mic',     ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
+          { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
+          { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Sieh deinen Fortschritt Woche für Woche — bis zum Job' },
         ].map((b, i) => (
-          <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start',
-            background:'rgba(59,130,246,0.05)', border:'1px solid rgba(59,130,246,0.15)', borderRadius:10, padding:'9px 11px' }}>
-            <span style={{ fontSize:16, lineHeight:1.3 }}>{b.icon}</span>
+          <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+            <div style={{ width:36, height:36, borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)',
+              display:'grid', placeItems:'center', flexShrink:0, color:'var(--accent)' }}>
+              <Icon name={b.icon} size={18} />
+            </div>
             <div style={{ flex:1 }}>
-              <div dir="rtl" style={{ fontSize:12, fontWeight:700, color:'#e2e8f0' }}>{b.ar}</div>
-              <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>{b.de}</div>
+              <div dir="rtl" style={{ fontSize:'var(--fs-label)', fontWeight:600, color:'#e2e8f0', textAlign:'right' }}>{b.ar}</div>
+              <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.5 }}>{b.de}</div>
             </div>
           </div>
         ))}
       </div>
+      </div>
 
-      <div style={{ borderRadius:14, padding:20,
-        background:'linear-gradient(145deg,#0a0f1a,#060c15)', border:'1px solid rgba(59,130,246,0.25)',
-        boxShadow:'0 0 28px rgba(59,130,246,0.12)' }}>
-        <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+      {/* AUTH CARD — glass, one orange fill on the whole page */}
+      <div style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
+        background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3), var(--glass-highlight)',
+        backdropFilter:'blur(14px) saturate(1.1)', ...rise(4) }}>
+        <div style={{ display:'flex', gap:0, marginBottom:18, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3 }}>
           {['login','signup'].map((m) => (
             <button key={m} onClick={() => { setMode(m); setErr(''); }}
-              style={{ flex:1, padding:'8px', cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10,
-                letterSpacing:'0.1em', borderRadius:7, border:`1px solid ${mode===m?'var(--accent)':'rgba(59,130,246,0.2)'}`,
-                background: mode===m?'rgba(59,130,246,0.1)':'transparent', color: mode===m?'var(--accent)':'#64748b' }}>
-              {m === 'login' ? 'ANMELDEN' : 'REGISTRIEREN'}
+              style={{ flex:1, padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)',
+                fontWeight:600, letterSpacing:'0.04em', borderRadius:'var(--r-pill)', border:'none', transition:'all 200ms var(--ease)',
+                background: mode===m?'rgba(59,130,246,0.18)':'transparent', color: mode===m?'var(--accent-2)':'var(--text-faint)' }}>
+              {m === 'login' ? 'Anmelden' : 'Registrieren'}
             </button>
           ))}
         </div>
 
         <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="E-Mail"
-          autoComplete="email" style={inputStyle} />
+          autoComplete="email" className="uplift-input" style={inputStyle} />
         <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="Passwort (min. 6 Zeichen)"
           autoComplete={mode==='signup'?'new-password':'current-password'}
-          onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} style={{ ...inputStyle, marginTop:10 }} />
+          onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
 
         {err && (
           <div style={{ marginTop:10 }}>
-            <div style={{ color:'#fca5a5', fontSize:11 }}>⚠ {err.de}</div>
-            {err.ar && <div dir="rtl" style={{ color:'#fca5a5', fontSize:11, marginTop:2 }}>{err.ar}</div>}
+            <div style={{ color:'#fca5a5', fontSize:12 }}>⚠ {err.de}</div>
+            {err.ar && <div dir="rtl" style={{ color:'#fca5a5', fontSize:12, marginTop:2 }}>{err.ar}</div>}
           </div>
         )}
 
         <button onClick={submit} disabled={busy}
-          style={{ width:'100%', marginTop:16, padding:'13px', cursor:busy?'wait':'pointer',
-            fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em', borderRadius:8,
-            border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)', opacity:busy?0.6:1 }}>
-          {busy ? '…' : mode==='login' ? 'ANMELDEN' : 'KONTO ERSTELLEN'}
+          style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:busy?'wait':'pointer',
+            fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em', borderRadius:14,
+            border:'none', color:'#081019', background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
+            opacity:busy?0.6:1, transition:'transform 100ms var(--ease)' }}>
+          {busy ? '…' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
         </button>
-        <div style={{ fontSize:9.5, color:'#475569', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
+        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
           Kostenlos starten: Niveau-Einstufung · كل ده بالعربي · مجاني للبداية
         </div>
+      </div>
       </div>
     </div>
   );
 }
 const inputStyle = {
-  width:'100%', padding:'12px', borderRadius:8, fontSize:14, fontFamily:'Share Tech Mono, monospace',
-  background:'rgba(255,255,255,0.04)', color:'#e2e8f0', border:'1px solid rgba(59,130,246,0.25)', outline:'none',
+  width:'100%', padding:'14px 16px', minHeight:52, borderRadius:12, fontSize:15, fontFamily:'var(--font-body)',
+  background:'rgba(255,255,255,0.05)', color:'#e2e8f0', border:'1px solid var(--line)', outline:'none',
+  letterSpacing:'0.01em', transition:'box-shadow 120ms var(--ease), border-color 120ms var(--ease)',
 };
 
 // ── Component: PaywallScreen = the EGP pricing page (Basic / Elite, daily minutes) ─────
@@ -3524,7 +3641,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       display:'flex', flexDirection:'column', position:'relative', overflowX:'hidden',
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
-      <div className="scanline" />
 
       {/* Global BACK button — persistent on every screen (closes the top overlay, or exits the interview) */}
       {canGoBack && (
