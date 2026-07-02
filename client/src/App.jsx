@@ -3190,7 +3190,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       setRecording(true);
     } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
 
-    let spoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
+    let spoke = false, volSpoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
     let lastPartial = '', partialStableMs = 0;   // transcript-stopped-growing detector (noisy-mic safety net)
     livePartialRef.current = '';   // fresh transcript for this turn's classification
     // ADAPTIVE end-of-turn. Instead of one fixed silence value we pick how long to wait based
@@ -3213,13 +3213,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       const v = volRef.current || 0;
       if (!spoke) floor = floor * 0.92 + v * 0.08;          // adapt to room noise until speech
       const thresh = Math.max(0.02, floor * K);
-      if (v > thresh) { if (elapsed > MIN_SPEAK_MS) spoke = true; silenceMs = 0; }
+      if (v > thresh) { if (elapsed > MIN_SPEAK_MS) { spoke = true; volSpoke = true; } silenceMs = 0; }
       else if (spoke) { silenceMs += STEP; }
       // SAFETY NET (fixes "my words just hang, it never sends"): if the live transcript has STOPPED
       // GROWING for a while, the candidate has clearly stopped talking — even if a noisy mic keeps the
       // volume above the silence threshold (which would otherwise never end the turn). Grows again →
       // resets, so it can't cut off someone who's still speaking.
-      if (livePartialRef.current !== lastPartial) { lastPartial = livePartialRef.current; partialStableMs = 0; }
+      // SOFT-SPEAKER SENSITIVITY (owner 07-02: "the sensor must catch ANYTHING the student said"):
+      // a quiet voice / weak mic can stay under the volume threshold for the whole turn, yet Deepgram
+      // still hears words. The transcript is definitive evidence of speech — without this, such a turn
+      // hung for the full 60s cap and was then DISCARDED as "said nothing". When volume never registered
+      // (!volSpoke), the transcript also drives the silence clock, so quiet speech is never cut mid-word.
+      if (livePartialRef.current !== lastPartial) {
+        lastPartial = livePartialRef.current; partialStableMs = 0;
+        if (!volSpoke && lastPartial.trim()) { spoke = true; silenceMs = 0; }
+      }
       else if (spoke) { partialStableMs += STEP; }
       // How long the user must stay silent depends on whether their sentence looks finished.
       const cls = classifyTurnDE(livePartialRef.current);
@@ -3268,8 +3276,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // INSTANT you stop — not ~0.5s later when the server finishes transcribing. This masks the whole
       // server gap (STT flush + LLM + TTS), so the dead air before the reply is gone. Echo-safe: this
       // turn's mic is already stopped. bossThinking also blocks the mic from re-triggering early.
+      // TIMING MICRO-DETAIL (07-02): a human doesn't hum "Mhm…" thoughtfully after a two-word answer —
+      // they just reply. Short answers skip the filler (the streamed reply arrives fast anyway); only
+      // substantive answers earn the audible thinking beat.
       setBossThinking(true);
-      try { playFiller(fillerUrlsRef.current); } catch {}
+      const _turnWordCount = (livePartialRef.current.trim().match(/\S+/g) || []).length;
+      if (_turnWordCount >= 4) { try { playFiller(fillerUrlsRef.current); } catch {} }
     }, STEP);
   }, [recording, transcribing]);
 

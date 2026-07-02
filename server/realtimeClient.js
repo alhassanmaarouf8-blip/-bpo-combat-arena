@@ -456,6 +456,7 @@ export class RealtimeClient {
       mood:        this._mood,
       clarificationRate,
       recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
+      sessionSeed: this._sessionId,   // seeds the intro-variant pick (phone-real opening variety)
     });
 
     // Persona forcefulness → an interview-style block in the system prompt + a patience value the client

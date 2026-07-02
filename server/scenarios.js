@@ -404,7 +404,7 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {} }) {
+export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '' }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -528,12 +528,31 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
   // time; combined with the per-character greeting this gives a distinct, human start.
   // Spoken opener — must NOT say "Teil eins" (robotic). It flows straight from the greeting
   // into a real first question, the way a human interviewer actually opens.
+  // Three variants per mood (phone-real micro-details a human interviewer actually says: the
+  // connection check, the "your file is in front of me" beat, the time-pressure beat) — seeded per
+  // session so a returning candidate hears a different, but always natural, opening. None of them
+  // ends dangling: each flows straight into the self-introduction request.
   const INTRO_VARIANTS = {
-    'sharp-monday': 'Fangen wir direkt an: Stellen Sie sich bitte kurz vor — wer sind Sie, und warum sollten wir mit Ihnen weitermachen?',
-    'neutral':      'Erzählen Sie mir zu Beginn ein wenig über sich — Ihr Hintergrund und warum Sie zu uns passen.',
-    'tired-friday': 'Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.',
+    'sharp-monday': [
+      'Fangen wir direkt an: Stellen Sie sich bitte kurz vor — wer sind Sie, und warum sollten wir mit Ihnen weitermachen?',
+      'Die Verbindung steht, ich höre Sie klar — dann los: Stellen Sie sich kurz vor, und sagen Sie mir gleich, warum genau Sie.',
+      'Ich habe gleich den nächsten Termin, also nutzen wir die Zeit: Wer sind Sie, und was können Sie für uns tun?',
+    ],
+    'neutral': [
+      'Erzählen Sie mir zu Beginn ein wenig über sich — Ihr Hintergrund und warum Sie zu uns passen.',
+      'Ich habe Ihre Unterlagen hier vor mir liegen — aber erzählen Sie es mir lieber selbst: Wer sind Sie, und was bringt Sie zu uns?',
+      'Schön, dass die Verbindung klappt. Beginnen wir ganz entspannt: Erzählen Sie mir ein wenig über sich und Ihren Weg.',
+    ],
+    'tired-friday': [
+      'Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.',
+      'So, Ihre Unterlagen habe ich hier — aber erzählen Sie mal selbst: Wer sind Sie, und was hat Sie hierhergeführt?',
+      'Langer Tag heute, aber für Sie bin ich ganz Ohr: Stellen Sie sich kurz vor.',
+    ],
   };
-  const intro = INTRO_VARIANTS[mood] || INTRO_VARIANTS.neutral;
+  const pool = INTRO_VARIANTS[mood] || INTRO_VARIANTS.neutral;
+  let ih = 2166136261 >>> 0;
+  for (const ch of String(sessionSeed || 'x')) { ih ^= ch.charCodeAt(0); ih = Math.imul(ih, 16777619); }
+  const intro = pool[(ih >>> 0) % pool.length];
   // Name recall: if we know the candidate's name (from guide chat), weave it into the opener
   // so the boss sounds like a returning interviewer who actually knows who they're talking to.
   // Only weave the name if it's a plausible name (≥3 letters, alphabetic) — defense-in-depth so a
