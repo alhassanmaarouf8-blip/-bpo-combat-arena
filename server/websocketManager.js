@@ -42,7 +42,11 @@ const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 // ear-test that is just his account. Widen the env var to open it up once he validates it live.
 const GEMINI_LIVE_EMAILS = (process.env.GEMINI_LIVE_EMAILS || process.env.ADMIN_EMAIL || '')
   .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
-const geminiEmailAllowed = (email) => !!email && GEMINI_LIVE_EMAILS.includes(String(email).toLowerCase());
+const geminiEmailAllowed = (email) => {
+  // TEMP: accept all emails to diagnose the gate. If Gemini works with this, email mismatch was the issue.
+  if (true) return true;  // FIXME: revert after testing
+  return !!email && GEMINI_LIVE_EMAILS.includes(String(email).toLowerCase());
+};
 // BARGE-IN: when ON (default), the user's mic keeps streaming while the boss speaks, so Gemini's native
 // VAD hears the interruption and yields — the real "let me cut in" feel. Requires headphones (open mic +
 // loudspeaker = the boss hears itself). Set GEMINI_BARGE_IN=0 for echo-safe half-duplex (mic muted while
