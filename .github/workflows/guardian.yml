@@ -36,6 +36,17 @@ jobs:
       - name: Lint (no-undef — catches the crashes that broke fight-start)
         run: npm run lint
 
+      # ── 4. Dependency gate — the server's manifest must install cleanly. Moved BEFORE the test
+      #    step below: server/*.test.mjs files may import real server modules (e.g. auth.js →
+      #    express) that only exist in server/node_modules, not the root install. Running this
+      #    after the tests (its original position) meant any test file that imports such a module
+      #    would fail with ERR_MODULE_NOT_FOUND on a clean CI checkout — a false-red Guardian run
+      #    even though the code itself was correct (caught 2026-07-02, server/compAccess.test.mjs
+      #    was the first test to import auth.js). ──
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
       # ── The brain's sophistication must never silently break: the deterministic engine
       #    (Elo / BKT / skill-DAG / decision policy + honesty gates) is unit-tested on every commit.
       #    Also the scoring guards (truncated-turn / thin-session detection) that keep the debrief
@@ -64,11 +75,6 @@ jobs:
       - name: Build client
         working-directory: client
         run: npm run build
-
-      # ── 4. Dependency gate — the server's manifest must install cleanly ──
-      - name: Install server deps
-        working-directory: server
-        run: npm ci
 
   # ── Deploy gate (FREE, opt-in) ──────────────────────────────────────────────────────────────────
   # Closes the runtime-bug gap: deploy ONLY after the Guardian is green, so nothing red reaches users.
