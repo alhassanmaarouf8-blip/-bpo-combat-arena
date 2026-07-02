@@ -123,7 +123,7 @@ excluded). No new data collection.
 **DoD:** pure helper with unit tests (incl. below-noise → silent, thin-session → silent); wired
 into coach/debrief behind the existing honesty gates; gates green.
 
-### 8. QUEUED — Lessons report to the brain (harmony gap)
+### 8. SHIPPED — verified 2026-07-02 — Lessons report to the brain (harmony gap)
 **Why (predicted from the owner's standing harmony mandate — "real intelligence and congruency
 between the drills, the interview, the feedback; everything must work in harmony"):** Video-
 Lektionen now RECOMMENDS by weakness, but a finished lesson + quiz result never reaches the
