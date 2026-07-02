@@ -41,6 +41,32 @@ test('adapter: prepDone true when a drill-event landed after the last interview'
   assert.equal(buildSnapshot(p, NOW).prepDone, true);
 });
 
+// Pins the lessons→brain wiring (ROADMAP #8): a finished Video-Lektion quiz posts
+// {drill:'video-lektion'} to /api/drill-event, which lands either on the general drillLog (no
+// rule matched) or on the rule's weakLog spine ('lt:'-keyed) — BOTH must read as prep, so the
+// brain never re-prescribes a fix the learner just studied.
+test('adapter: prepDone true from a video-lektion event on the general drillLog', () => {
+  const p = {
+    sessions: [{ date: NOW - 2 * DAY, verdict: 'weak' }],
+    drillLog: [{ at: NOW - 1 * DAY, drill: 'video-lektion', correct: true }],
+  };
+  assert.equal(buildSnapshot(p, NOW).prepDone, true);
+});
+
+test('adapter: prepDone true from a rule-keyed video-lektion event, false when it predates the interview', () => {
+  const keyed = {
+    sessions: [{ date: NOW - 2 * DAY, verdict: 'weak' }],
+    weakLog: { 'lt:Verb am Satzende nach „weil"': { ltName: 'Verb am Satzende nach „weil"', errCounts: [], drills: [{ at: NOW - 1 * DAY, drill: 'video-lektion', correct: true }] } },
+  };
+  assert.equal(buildSnapshot(keyed, NOW).prepDone, true);
+
+  const stale = {
+    sessions: [{ date: NOW - 1 * DAY, verdict: 'weak' }],
+    drillLog: [{ at: NOW - 2 * DAY, drill: 'video-lektion', correct: true }],   // BEFORE the interview
+  };
+  assert.equal(buildSnapshot(stale, NOW).prepDone, false);
+});
+
 test('adapter: globalRegressed when total grammar errors rose last session', () => {
   const p = { sessions: [
     { date: NOW - 2 * DAY, grammarRules: [{ count: 2 }] },

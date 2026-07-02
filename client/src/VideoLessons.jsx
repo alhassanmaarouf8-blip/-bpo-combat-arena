@@ -379,11 +379,33 @@ function recommendLesson(progress) {
     }
   }
   for (const les of LESSONS) {
-    if (rule && (les.targets?.ruleKeywords || []).some((k) => rule.includes(k))) {
+    if (lessonMatchesRule(les, rule)) {
       return { recId: les.id, reason: `Aus deinem letzten Interview: „${progress.topWeakness.rule}“ — genau das übt diese Lektion.` };
     }
   }
   return { recId: null, reason: null };
+}
+
+// Does this lesson train the named weak grammar rule? ONE source for the matching semantics —
+// used by the recommendation above AND by the finished-quiz report below, so a lesson can never
+// be recommended for a rule it wouldn't report against.
+function lessonMatchesRule(les, rule) {
+  const r = String(rule || '').toLowerCase();
+  return !!r && (les.targets?.ruleKeywords || []).some((k) => r.includes(k));
+}
+
+// Payload for POST /api/drill-event when a quiz finishes — the lesson reports its OUTCOME to the
+// same spine every other drill feeds (owner's harmony rule: the brain must SEE that the lesson
+// happened, else Alhassan/debrief prescribe a fix the learner already studied). `correct` =
+// majority of quiz answers right (the brain's binary "did the prescribed fix land"). The weak
+// rule is attached ONLY when this lesson actually targets it, so the event lands on that
+// weakness's weakLog entry; otherwise it goes to the general drillLog (still counts as prep).
+export function lessonEventPayload(les, qScore, total, topRule) {
+  return {
+    drill: 'video-lektion',
+    correct: total > 0 && qScore * 2 >= total,
+    ...(lessonMatchesRule(les, topRule) ? { rule: topRule } : {}),
+  };
 }
 function reasonFor(skill, progress) {
   // German-only; OWNER-AR slots. Names the real gap the interview/feedback found.
@@ -424,6 +446,8 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
   const stopTtsRef = useRef(null);   // stop() of the current narration
   const timersRef  = useRef([]);     // all pending timeouts of the current slide
   const runRef     = useRef(0);      // generation token — stale timers/onEnd no-op
+  const topRuleRef = useRef('');     // the student's top weak rule (for the finished-quiz report)
+  const reportedRef = useRef(false); // one drill-event per completed quiz, even on double-click
 
   const [reducedMotion] = useState(() => {
     try { return !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches; } catch { return false; }
@@ -437,7 +461,11 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
     let cancelled = false;
     fetch(`${apiUrl}/api/progress`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (!cancelled && d) setRec(recommendLesson(d)); })
+      .then((d) => {
+        if (cancelled || !d) return;
+        setRec(recommendLesson(d));
+        topRuleRef.current = String(d?.topWeakness?.rule || '');   // kept for the finished-quiz report
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [token, apiUrl]);
@@ -490,6 +518,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
     runRef.current += 1; clearAll(); setPlaying(false);
     const qs = (les.quiz || []).map(shuffledOptions).map((sh, k) => ({ ...les.quiz[k], ...sh }));
     setQShuffled(qs); setQIdx(0); setQPicked(null); setQScore(0);
+    reportedRef.current = false;   // a retake is a NEW completed quiz → new evidence, new report
     setPhase(qs.length ? 'quiz' : 'done');
   }, [clearAll]);
 
@@ -500,7 +529,20 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
   };
   const nextQuestion = () => {
     if (qIdx + 1 < qShuffled.length) { setQIdx(qIdx + 1); setQPicked(null); }
-    else setPhase('done');
+    else {
+      // Report ONCE per completed quiz (owner's harmony rule — the brain sees the lesson outcome
+      // on the same drill-event spine as every other drill). Fire-and-forget: a network failure
+      // only means one missed prep signal, never a blocked learner.
+      if (!reportedRef.current && token && apiUrl) {
+        reportedRef.current = true;
+        try {
+          fetch(`${apiUrl}/api/drill-event`, { method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(lessonEventPayload(lesson, qScore, qShuffled.length, topRuleRef.current)) });
+        } catch { /* fire-and-forget */ }
+      }
+      setPhase('done');
+    }
   };
 
   // ── controls ──
