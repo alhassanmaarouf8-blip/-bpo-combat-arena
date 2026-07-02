@@ -1287,6 +1287,10 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
   const [showAll, setShowAll] = useState(false);
   const [copied, setCopied]   = useState(false);
+  // FEEDBACK ESSENCE (owner 07-02): "never give a million advice." The debrief opens with ONLY the
+  // verdict, the readiness judge, and the plan for today — everything else (17 sections of analysis)
+  // lives behind one toggle for the learner who wants to dig.
+  const [showDetails, setShowDetails] = useState(false);
   const m = data?.metrics ?? {};
   const r = data?.result ?? {};
   const ar = lang === 'ar';
@@ -1543,9 +1547,29 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   {data.priorityFix.ar}
                 </div>
               )}
+              {/* The two-session day rhythm: study THIS now, come back tonight — the boss's dossier
+                  re-test + AKTE memory make the "she re-tests your weakness" promise literally true. */}
+              <div style={{ marginTop:10, paddingTop:9, borderTop:'1px solid rgba(249,115,22,0.25)',
+                fontSize:12, color:'#e2e8f0', lineHeight:1.6 }}>
+                Übe genau das jetzt — und komm heute Abend für dein zweites Interview zurück:
+                dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut.
+              </div>
             </div>
           )}
 
+          {/* Progressive disclosure (owner: "never give a million advice"): the full analysis —
+              every metric, exchange review, grammar group, drill and vocab list — sits behind ONE
+              toggle. The learner leaves with a verdict and a plan, not a wall. */}
+          <button onClick={() => setShowDetails(s => !s)}
+            style={{ width:'100%', padding:'12px', minHeight:46, cursor:'pointer', borderRadius:10,
+              fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', fontWeight:700,
+              border:'1px solid var(--line-strong)', color:'var(--text-dim)', background:'var(--surface)' }}>
+            {showDetails
+              ? (ar ? '▴ إخفاء التفاصيل' : 'WENIGER ANZEIGEN ▴')
+              : (ar ? '▾ كل التفاصيل والتحليل' : 'ALLE DETAILS & ANALYSE ANZEIGEN ▾')}
+          </button>
+
+          {showDetails && (<>
           {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
           {data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
             <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(56,189,248,0.07)', border:'1px solid rgba(56,189,248,0.3)' }}>
@@ -1896,6 +1920,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               </div>
             </Section>
           )}
+          </>)}
 
           {/* One-time feedback prompt, only after the user's first-ever fight. Skippable; never blocks restart. */}
           {data?.sessionCount === 1 && token && (
