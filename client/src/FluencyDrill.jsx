@@ -97,7 +97,10 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     setPhase('scoring');
     const isLast = round === rounds.length - 1;
     try {
-      const r = await fetch(`${apiUrl}/api/fluency/score?id=${prompt.id}&round=${round + 1}&ms=${clip.durationMs}&level=${encodeURIComponent(level)}&grammar=${isLast ? 1 : 0}`, {
+      // Send the prompt the learner is answering so the server can measure TOPIC RELEVANCY
+      // (did the answer engage the question's key words?) — the "relevancy" half of the matrix.
+      const promptQ = encodeURIComponent(String(prompt?.de || '').slice(0, 400));
+      const r = await fetch(`${apiUrl}/api/fluency/score?id=${prompt.id}&round=${round + 1}&ms=${clip.durationMs}&level=${encodeURIComponent(level)}&grammar=${isLast ? 1 : 0}&prompt=${promptQ}`, {
         method: 'POST', headers: { 'Content-Type': 'audio/wav', Authorization: `Bearer ${token}` }, body: clip.blob,
       });
       if (r.status === 402) { blocked(); return; }
@@ -323,6 +326,25 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
     }
   }
 
+  // RELEVANCY — the owner's core point: speed means nothing if you didn't answer the QUESTION.
+  // Read from the final round (where it matters most). Honest framing: praise clear on-topic
+  // coverage; warn GENTLY only when a substantial answer touched almost none of the question's
+  // key words; stay SILENT when null (too thin to judge). Never a hard "off-topic" verdict.
+  let relevancyLine = null, relevancyWarn = false;
+  if (typeof rL.relevancy === 'number') {
+    const pct = Math.round(rL.relevancy * 100);
+    if (rL.relevancy >= 0.3) {
+      relevancyLine = `Beim Thema geblieben: Du bist auf die Kernbegriffe der Frage eingegangen (${pct}% abgedeckt).`;
+    } else if (rL.relevancy < 0.15 && (rL.words || 0) >= 20) {
+      relevancyWarn = true;
+      relevancyLine = `Achtung — nur wenige Wörter aus der Frage kamen in deiner Antwort vor. Schnell und flüssig zu sprechen zählt nur, wenn du auch WIRKLICH die gestellte Frage beantwortest. Lies die Frage nochmal und geh direkt darauf ein.`;
+    }
+  }
+
+  // ACCURACY — surface the grammar count as an explicit matrix cell (the fix stays in the grammar
+  // card below; here it's just the score, so "Tempo / Genauigkeit / Relevanz" reads as one matrix).
+  const grammarErrCount = grammar.reduce((n, g) => n + (g.count || (g.summaryExamples || []).length || 1), 0);
+
   return (
     <>
       <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
@@ -337,11 +359,33 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
         <RoundCard lang={lang} label={T(lang, 'RUNDE 3', 'جولة 3')} m={rL} />
       </div>
 
+      {/* THE MATRIX (owner: "not just speed — accuracy AND relevancy to the topic"). Three cells so
+          the learner sees at a glance that speed is only one of three axes. Each shows a dash when
+          not measurable rather than a fabricated value. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <MatrixCell label={T(lang, 'TEMPO', 'السرعة')} value={`${rL.wpm ?? 0}`} unit={T(lang, 'W/Min', 'ك/د')} />
+        <MatrixCell label={T(lang, 'GENAUIGKEIT', 'الدقة')}
+          value={typeof grammarErrCount === 'number' && grammar.length >= 0 ? `${grammarErrCount}` : '—'}
+          unit={T(lang, 'Fehler', 'أخطاء')} good={grammarErrCount === 0} />
+        <MatrixCell label={T(lang, 'RELEVANZ', 'الصلة')}
+          value={typeof rL.relevancy === 'number' ? `${Math.round(rL.relevancy * 100)}%` : '—'}
+          unit={T(lang, 'zum Thema', 'للموضوع')} good={typeof rL.relevancy === 'number' && rL.relevancy >= 0.3}
+          warn={relevancyWarn} />
+      </div>
+
       <div style={{ padding: '12px 14px', borderRadius: 11, background: wpmGood ? 'rgba(34,197,94,0.08)' : 'rgba(56,189,248,0.07)',
         border: `1px solid ${wpmGood ? 'rgba(34,197,94,0.35)' : 'rgba(56,189,248,0.3)'}` }}>
         <div style={{ fontSize: 13.5, color: '#f1f5f9', lineHeight: 1.6 }}>{wpmLine}</div>
         {fillerLine && <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 8 }}>{fillerLine}</div>}
       </div>
+
+      {relevancyLine && (
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10,
+          background: relevancyWarn ? 'rgba(249,115,22,0.08)' : 'rgba(34,197,94,0.07)',
+          border: `1px solid ${relevancyWarn ? 'rgba(249,115,22,0.4)' : 'rgba(34,197,94,0.3)'}` }}>
+          <div style={{ fontSize: 12.5, color: relevancyWarn ? 'var(--action-2)' : '#cbd5e1', lineHeight: 1.6 }}>{relevancyLine}</div>
+        </div>
+      )}
 
       {/* Three additional deterministic signals — beyond raw WPM (owner: "is that enough?").
           German-only (OWNER-AR slots, not authored here); each is its own small card so a missing
@@ -395,6 +439,21 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
       <button onClick={onAgain} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Neue Frage ▸', 'سؤال جديد ▸')}</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </>
+  );
+}
+
+// One cell of the Tempo / Genauigkeit / Relevanz matrix. `good` → green, `warn` → orange,
+// otherwise neutral. A dash value stays neutral (not measurable this round).
+function MatrixCell({ label, value, unit, good, warn }) {
+  const color = warn ? 'var(--action)' : good ? '#4ade80' : '#cbd5e1';
+  const border = warn ? 'rgba(249,115,22,0.4)' : good ? 'rgba(34,197,94,0.35)' : 'rgba(148,163,184,0.2)';
+  return (
+    <div style={{ flex: 1, padding: '10px 8px', borderRadius: 10, textAlign: 'center',
+      background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }}>
+      <div style={{ fontSize: 8, color: '#64748b', letterSpacing: '0.1em', fontFamily: 'var(--font-display)' }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color, fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>{value}</div>
+      <div style={{ fontSize: 8.5, color: '#64748b', marginTop: 1 }}>{unit}</div>
+    </div>
   );
 }
 

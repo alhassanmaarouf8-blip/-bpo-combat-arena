@@ -188,6 +188,37 @@ function measure(transcript, durationMs, voicedMs) {
   return { words, wpm, fillers, uniqueWords, durationMs, voicedMs: voicedMs || 0 };
 }
 
+// ── TOPIC RELEVANCY (owner 2026-07-02: "there's no such thing as JUST speech-speed — there must be
+// a matrix for accuracy AND relevancy to the required topic"). Deterministic, $0, NO LLM judge:
+// how many of the QUESTION's own key content words did the answer actually engage with? A fast,
+// fluent, but off-topic answer must not read as a win. Crude 5-char stemming handles German
+// morphology (motiviert↔Motivation, Faktoren↔Faktor). Honest by construction: it can only mark
+// coverage HIGH (praise) or, when an answer is substantial yet touches almost none of the question's
+// terms, warn GENTLY — it NEVER hard-declares "off-topic" from lexical overlap alone (a good
+// paraphrase could score low), and it returns null when there is too little to judge.
+const REL_STOP = new Set([
+  'welche', 'welcher', 'welches', 'warum', 'wieso', 'weshalb', 'wofür', 'womit', 'wodurch',
+  'beschreiben', 'erzählen', 'schildern', 'nennen', 'erklären',   // prompt imperatives, not topic content
+  'einen', 'eine', 'einer', 'einem', 'eines', 'ihrer', 'ihrem', 'ihren', 'diese', 'dieser', 'dieses',
+  'haben', 'hatten', 'wurde', 'wurden', 'sind', 'waren', 'wären', 'können', 'könnten', 'sollen',
+  'müssen', 'werden', 'worden', 'etwas', 'jemand', 'immer', 'wieder', 'schon', 'sehr', 'auch',
+  'oder', 'aber', 'sondern', 'dann', 'wenn', 'dass', 'weil', 'damit', 'sodass', 'obwohl',
+]);
+const relTokens = (s) => String(s || '').toLowerCase().normalize('NFC')
+  .replace(/[^a-zäöüß0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
+const relStem = (w) => w.slice(0, 5);   // crude morphological stem — enough for de-inflection overlap
+
+/** { coverage: 0..1|null, matched: string[], keyWords: string[] }. null coverage = too thin to judge. */
+export function topicRelevancy(promptText, transcript) {
+  const keyWords = [...new Set(relTokens(promptText).filter((w) => w.length >= 5 && !REL_STOP.has(w)))];
+  const answer = relTokens(transcript);
+  // Need a real question AND a real answer to say anything honest.
+  if (keyWords.length < 2 || answer.length < 8) return { coverage: null, matched: [], keyWords };
+  const answerStems = new Set(answer.map(relStem));
+  const matched = keyWords.filter((w) => answerStems.has(relStem(w)));
+  return { coverage: matched.length / keyWords.length, matched, keyWords };
+}
+
 // voicedDurationMs now lives in audioGuard.js (shared by every audio-scored feature).
 
 async function transcribeGroq(buffer, mimeType) {
@@ -269,6 +300,12 @@ fluencyRouter.post('/fluency/score',
       // already-vetted extractor hireReadiness.js uses (no LLM, no new judgment call). null on
       // <20 words (its own honest gate) so a short answer never gets a fabricated verdict.
       metrics.subClauseRate = textFeatures(transcript).subClauseRate;
+      // TOPIC RELEVANCY (owner: "there must be a matrix for accuracy AND relevancy to the topic,
+      // not just speed"). The client sends the prompt it displayed; we measure how much of the
+      // question's key vocabulary the answer engaged with. null when too thin to judge honestly.
+      const rel = topicRelevancy(String(req.query.prompt || ''), transcript);
+      metrics.relevancy = rel.coverage;
+      metrics.relevancyMatched = rel.matched.slice(0, 6);
 
       // Authoritative grammar (LanguageTool only) — requested on the final round so we don't
       // interrupt the fluency push mid-drill. Never model-invented; [] if LT is unreachable.
