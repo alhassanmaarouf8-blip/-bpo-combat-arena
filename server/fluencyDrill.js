@@ -36,6 +36,7 @@ import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { loadUser, saveUser }  from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
+import { textFeatures }        from './hireReadiness.js';
 
 export const fluencyRouter = express.Router();
 
@@ -264,6 +265,10 @@ fluencyRouter.post('/fluency/score',
       if (!transcript) return res.json({ transcript: '', retry: true, noSpeech: true });
 
       const metrics = measure(transcript, durationMs, voicedMs);
+      // Structural complexity (owner: "is WPM alone enough?") — reuses the SAME deterministic,
+      // already-vetted extractor hireReadiness.js uses (no LLM, no new judgment call). null on
+      // <20 words (its own honest gate) so a short answer never gets a fabricated verdict.
+      metrics.subClauseRate = textFeatures(transcript).subClauseRate;
 
       // Authoritative grammar (LanguageTool only) — requested on the final round so we don't
       // interrupt the fluency push mid-drill. Never model-invented; [] if LT is unreachable.

@@ -279,6 +279,50 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
                          `أصوات تردد أكتر في الجولة 3 (${r1.fillers} ← ${rL.fillers}) — طبيعي تحت ضغط الوقت. وقفة قصيرة أحسن من „äh".`);
   }
 
+  // ── Three additional deterministic signals (owner: "is pure WPM enough?") — same doctrine as
+  // above: only speak when the underlying data is reliable enough to mean something, German-only
+  // (OWNER-AR slots — not authored here), never overclaiming beyond what the number supports. ──
+
+  // PAUSE/CONTINUITY: voiced-time share of the recording. A learner who freezes silently instead
+  // of saying "äh" looks IDENTICAL to a fluent speaker under wpm+fillers alone — this catches it.
+  // Gated on the SAME ≥800ms voiced-detection reliability threshold the server's own wpm calc uses.
+  let pauseLine = null;
+  if ((r1.voicedMs || 0) >= 800 && (rL.voicedMs || 0) >= 800 && r1.durationMs > 0 && rL.durationMs > 0) {
+    const pct1 = Math.round((r1.voicedMs / r1.durationMs) * 100);
+    const pctL = Math.round((rL.voicedMs / rL.durationMs) * 100);
+    if (pctL > pct1 + 5) {
+      pauseLine = `Weniger stille Denkpausen: ${pct1}% → ${pctL}% der Aufnahme warst du wirklich am Sprechen.`;
+    } else if (pctL < pct1 - 5) {
+      pauseLine = `Runde 3 hatte mehr stille Pausen (${pct1}% → ${pctL}% Sprechanteil) — eine kurze Pause zum Nachdenken ist normal, achte nur darauf, den Faden zu halten.`;
+    }
+  }
+
+  // VOCABULARY under pressure: did the speed-up come from genuinely varied language, or from
+  // repeating the same few safe words? The 4-3-2 method's real claim is speed WITHOUT that trade.
+  let vocabLine = null;
+  if (r1.words >= 15 && rL.words >= 15) {
+    const div1 = Math.round((r1.uniqueWords / r1.words) * 100);
+    const divL = Math.round((rL.uniqueWords / rL.words) * 100);
+    if (wpmGood && divL < div1 - 12) {
+      vocabLine = `Achtung: Ein Teil des Tempo-Gewinns kam durch WIEDERHOLUNG derselben Wörter (Wortvielfalt ${div1}% → ${divL}%). Versuch beim nächsten Mal, auch unter Zeitdruck neue Wörter zu nutzen.`;
+    } else if (divL >= div1) {
+      vocabLine = `Deine Wortvielfalt blieb auch unter Zeitdruck stabil (${div1}% → ${divL}%) — du bist nicht in Wiederholungen verfallen.`;
+    }
+  }
+
+  // STRUCTURAL COMPLEXITY: subordinate-clause rate (weil/dass/wenn…) — the same deterministic
+  // signal hireReadiness.js uses, reused here (no LLM, no new judgment). A rushed answer often
+  // flattens into short disconnected fragments instead of a connected story.
+  let complexityLine = null;
+  if (r1.subClauseRate != null && rL.subClauseRate != null) {
+    const c1 = Math.round(r1.subClauseRate * 100), cL = Math.round(rL.subClauseRate * 100);
+    if (cL > c1 + 10) {
+      complexityLine = `Deine Sätze wurden komplexer: mehr verbundene Nebensätze (weil/dass/wenn) unter Zeitdruck (${c1}% → ${cL}%).`;
+    } else if (cL < c1 - 15) {
+      complexityLine = `Unter Zeitdruck wurden deine Sätze einfacher (${c1}% → ${cL}% Nebensätze) — normal, wenn Tempo gerade im Fokus steht.`;
+    }
+  }
+
   return (
     <>
       <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
@@ -298,6 +342,25 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
         <div style={{ fontSize: 13.5, color: '#f1f5f9', lineHeight: 1.6 }}>{wpmLine}</div>
         {fillerLine && <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 8 }}>{fillerLine}</div>}
       </div>
+
+      {/* Three additional deterministic signals — beyond raw WPM (owner: "is that enough?").
+          German-only (OWNER-AR slots, not authored here); each is its own small card so a missing
+          signal (e.g. subClauseRate null on a short answer) never leaves an empty gap. */}
+      {pauseLine && (
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.25)' }}>
+          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6 }}>{pauseLine}</div>
+        </div>
+      )}
+      {vocabLine && (
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.25)' }}>
+          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6 }}>{vocabLine}</div>
+        </div>
+      )}
+      {complexityLine && (
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.25)' }}>
+          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6 }}>{complexityLine}</div>
+        </div>
+      )}
 
       {/* Authoritative grammar — LanguageTool only. Clearly separated from the fluency win. */}
       {grammar.length > 0 && (
