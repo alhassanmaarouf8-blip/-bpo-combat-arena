@@ -12,6 +12,7 @@ import express from 'express';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { timingSafeEqual } from 'crypto';
 import { loadUser } from './store.js';
 import { requireAuth, isAdminEmail } from './auth.js';
 import { dbEnabled, kvGet, kvSet } from './db.js';
@@ -98,6 +99,31 @@ feedbackRouter.get('/feedback/admin', requireAuth, async (req, res) => {
     res.json({ summary, entries });
   } catch (err) {
     console.error('[feedback] admin error:', err.message);
+    res.status(500).json({ error: 'feedback_admin_failed' });
+  }
+});
+
+// Same data as /feedback/admin, but reachable from the ADMIN_KEY-gated /admin panel (no login
+// needed — same dual-gate pattern placement.js uses for /admin/placements).
+function adminKeyOk(req) {
+  const key = process.env.ADMIN_KEY || '';
+  if (!key) return false;
+  const got = String(req.query.key || req.headers['x-admin-key'] || (req.body && req.body.key) || '');
+  if (got.length !== key.length) return false;
+  try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
+}
+feedbackRouter.get('/admin/feedback', async (req, res) => {
+  if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });
+  try {
+    const all = await loadFeedback();
+    const entries = all.slice(-100).reverse().map((e) => ({
+      timestamp: e.timestamp, screen: e.screen, rating: e.rating ?? null,
+      answers: e.answers ?? null, text: e.text ?? '', email: e.email ?? null,
+      sessionCount: e.sessionCount, level: e.level,
+    }));
+    res.json({ entries, total: all.length });
+  } catch (err) {
+    console.error('[feedback] admin-key error:', err.message);
     res.status(500).json({ error: 'feedback_admin_failed' });
   }
 });

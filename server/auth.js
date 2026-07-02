@@ -21,6 +21,7 @@ import { PLANS }                       from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
 import { loadUser }                    from './store.js';
 import { dayKey }                      from './time.js';
+import { findComp }                    from './compAccess.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -135,6 +136,14 @@ export async function createAccount(email, password, ref) {
     // reward is credited later, only when THIS user completes their first interview (creditReferral).
     ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
   };
+  // Standing comp-access whitelist (server/compAccess.js): an email the owner pre-approved gets
+  // its paid plan the INSTANT they sign up — no payment, no request from them, never a paywall.
+  try {
+    const comp = await findComp(email);
+    if (comp && PLANS[comp.plan]) {
+      account.subscription = { ...account.subscription, plan: comp.plan, comp: true, compGrantedAt: Date.now() };
+    }
+  } catch (e) { console.error('[auth] comp-whitelist check failed (signup proceeds normally):', e.message); }
   s.accounts[id] = account;
   s.emailIndex[email] = id;
   await persist();
@@ -153,6 +162,9 @@ export async function authenticate(email, password) {
 export function planOf(account) {
   if (isAdminEmail(account?.email)) return 'elite';
   const s = account?.subscription || {};
+  // Comp access (server/compAccess.js): a standing owner grant, immune to billingPeriodEnd —
+  // it never silently expires like a real payment period. Only admin removal revokes it.
+  if (s.comp && s.plan && PLANS[s.plan]) return s.plan;
   if (s.plan && PLANS[s.plan]) {
     // A paid plan with a billing end-date reverts to free once it expires.
     if (s.billingPeriodEnd && Date.now() > s.billingPeriodEnd) return 'free';
@@ -268,6 +280,16 @@ export async function setPlan(account, plan) {
   return account;
 }
 
+// Grant comp access (admin action, server/compAccess.js): apply the standing whitelist grant to
+// an ALREADY-REGISTERED account immediately (the signup-time path lives in createAccount above).
+// No billing period — comp access never expires on its own; only revokeComp/deactivatePlan ends it.
+export async function grantComp(account, plan) {
+  if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
+  account.subscription = { ...account.subscription, plan, comp: true, compGrantedAt: Date.now(), activatedNoticePending: true };
+  await persist();
+  return account;
+}
+
 // Activate a paid plan with a billing end-date (1 month or 1 year) — used by the admin panel
 // when a Vodafone Cash payment is confirmed. The daily-minute gating takes effect immediately.
 export async function activatePlan(account, plan, billingPeriod) {
@@ -290,6 +312,7 @@ export async function deactivatePlan(account) {
     ...account.subscription,
     plan: null,
     tier: 'trial',
+    comp: false,                  // clears a comp grant too, if this account had one
     billingPeriodEnd: now,        // expired now (planOf falls back to free)
     deactivatedAt: now,
     activatedNoticePending: false,
