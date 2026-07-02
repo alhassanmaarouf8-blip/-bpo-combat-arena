@@ -58,3 +58,13 @@ test('regression: scenarios.js BPO_PHRASES all pass the guard', async () => {
   const bad = (BPO_PHRASES || []).filter((p) => !isCleanGermanText(typeof p === 'string' ? p : p?.de || ''));
   assert.deepEqual(bad, []);
 });
+
+// Regression for the EXACT Alhassan glitch reported 2026-07-02 (a live mentor reply contained
+// "兄" — a raw CJK character): the Arabic-or-German gate must reject a reply with any CJK token.
+test('regression: the exact Alhassan CJK-glitch reply is rejected', () => {
+  const reported = 'ماشي يا兄! عايز أتكلم معاك عن حاجة مهمة، أنت لسه مش مصدر على German level بتاعك';
+  assert.equal(isCleanArabicOrGermanText(reported), false);
+});
+test('regression: a clean Egyptian-Arabic mentor reply (with allowed German code-switch) passes', () => {
+  assert.equal(isCleanArabicOrGermanText('ماشي يا سطا، إنت عملت تقدم كويس في الـ Fluency. كمّل كده.'), true);
+});

@@ -23,6 +23,7 @@ import { dueCount }            from './srs.js';
 import { isSpeakableRule }     from './grammarCheck.js';
 import { buildSnapshot }       from './brain/adapter.js';
 import { decide }              from './brain/engine.js';
+import { isCleanArabicOrGermanText } from './langGuard.js';
 
 export const guideRouter = express.Router();
 
@@ -256,12 +257,25 @@ async function maybeSummarize(g) {
   const older = g.history.slice(0, olderCount).filter((t) => !t.flagged);   // never summarize flagged crisis turns
   if (!older.length) { g.summaryCoversN = olderCount; return; }
   const convo = older.map((t) => `${t.role === 'user' ? 'Student' : 'Alhassan'}: ${t.content}`).join('\n').slice(0, 6000);
+  const summaryMsgs = [
+    { role: 'system', content:
+      `You maintain a CONCISE running journey log for a student of the mentor Alhassan. Update/extend the log from the older conversation. Track: the student's name, stated level/goal, concrete weaknesses, struggles, and ESPECIALLY wins/improvements and roadmap step. Bias strongly toward what they've BEATEN. Write it in simple Egyptian Arabic. If a German grammar/technical term comes up (e.g. a rule name), write it in German exactly as spelled — NEVER invent a phonetic Arabic-letter spelling of it, that produces unreadable garbage. NEVER include any self-harm or crisis statements. Max ~180 words. Return ONLY the updated log.` },
+    { role: 'user', content: `Previous journey log:\n${g.summary || '(none yet)'}\n\nOlder conversation to fold in:\n${convo}` },
+  ];
   try {
-    const out = await callModel([
-      { role: 'system', content:
-        `You maintain a CONCISE running journey log for a student of the mentor Alhassan. Update/extend the log from the older conversation. Track: the student's name, stated level/goal, concrete weaknesses, struggles, and ESPECIALLY wins/improvements and roadmap step. Bias strongly toward what they've BEATEN. Write it in simple Egyptian Arabic. If a German grammar/technical term comes up (e.g. a rule name), write it in German exactly as spelled — NEVER invent a phonetic Arabic-letter spelling of it, that produces unreadable garbage. NEVER include any self-harm or crisis statements. Max ~180 words. Return ONLY the updated log.` },
-      { role: 'user', content: `Previous journey log:\n${g.summary || '(none yet)'}\n\nOlder conversation to fold in:\n${convo}` },
-    ], { maxTokens: 380, temperature: 0.3 });
+    // SCRIPT-SANITY GATE (owner-reported 2026-07-02: a live reply contained "兄" — a raw Chinese
+    // character — and separately a stray Indonesian word "aku"; a persisted SUMMARY glitching is
+    // worse than a one-off chat reply, since it pollutes the student's long-term memory record).
+    // One retry, then keep the PREVIOUS summary rather than ever persist a script glitch.
+    let out = await callModel(summaryMsgs, { maxTokens: 380, temperature: 0.3 });
+    if (out && !isCleanArabicOrGermanText(out)) {
+      console.warn(`[alhassan] summary failed script-sanity, retrying once: "${out.slice(0, 80)}"`);
+      out = await callModel(summaryMsgs, { maxTokens: 380, temperature: 0.2 });
+      if (out && !isCleanArabicOrGermanText(out)) {
+        console.error(`[alhassan] summary retry ALSO failed script-sanity — keeping previous summary: "${out.slice(0, 80)}"`);
+        out = null;
+      }
+    }
     if (out) { g.summary = out; g.summaryCoversN = olderCount; }
   } catch (e) { console.error('[alhassan] summary failed (keeping previous):', e.message); }
 }
@@ -287,8 +301,24 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
     const messages = [{ role: 'system', content: sys }, ...recent, { role: 'user', content: text }];
 
     let reply;
-    try { reply = await callModel(messages, { maxTokens: 520, temperature: 0.85 }); }
-    catch (e) {
+    try {
+      reply = await callModel(messages, { maxTokens: 520, temperature: 0.75 });
+      // SCRIPT-SANITY GATE (owner-reported 2026-07-02, LIVE: a reply contained "兄" — a raw
+      // Chinese character — and separately a stray Indonesian word "aku"; a temperature-induced
+      // token glitch, the same failure class already fixed for the generated drills tonight
+      // (listening/shadowing/fluencyDrill) but never wired into Alhassan's own live chat + memory
+      // summarizer. One retry at a cooler temperature (glitches are more likely at higher
+      // temperature), then the SAME honest "please repeat that" fallback the empty-reply case
+      // already uses — never show the student an unreadable mixed-script reply.
+      if (reply && !isCleanArabicOrGermanText(reply)) {
+        console.warn(`[alhassan] reply failed script-sanity, retrying once: "${reply.slice(0, 80)}"`);
+        reply = await callModel(messages, { maxTokens: 520, temperature: 0.6 });
+        if (reply && !isCleanArabicOrGermanText(reply)) {
+          console.error(`[alhassan] retry ALSO failed script-sanity, falling back: "${reply.slice(0, 80)}"`);
+          reply = '';
+        }
+      }
+    } catch (e) {
       console.error('[alhassan] reply failed:', e.message);
       return res.status(e.message === 'no_api_key' ? 503 : 502).json({ error: 'guide_unavailable' });
     }
@@ -333,11 +363,20 @@ guideRouter.get('/guide/briefing', requireAuth, async (req, res) => {
       `🔥 — one short fire line to close, pointing forward.\n` +
       `Honest, warm, specific to THIS student. No generic motivation.]\n${facts}`;
 
+    const briefingMsgs = [{ role: 'system', content: sys }, { role: 'user', content: 'اكتبلي الـ briefing بتاع الأسبوع.' }];
     let text;
     try {
-      text = await callModel(
-        [{ role: 'system', content: sys }, { role: 'user', content: 'اكتبلي الـ briefing بتاع الأسبوع.' }],
-        { maxTokens: 600, temperature: 0.7 });
+      text = await callModel(briefingMsgs, { maxTokens: 600, temperature: 0.7 });
+      // SCRIPT-SANITY GATE — this gets CACHED for a whole 7-day window, so a glitch here is worse
+      // than a one-off chat reply (a paying Elite student would see it all week). Same doctrine.
+      if (text && !isCleanArabicOrGermanText(text)) {
+        console.warn(`[alhassan] briefing failed script-sanity, retrying once: "${text.slice(0, 80)}"`);
+        text = await callModel(briefingMsgs, { maxTokens: 600, temperature: 0.55 });
+        if (text && !isCleanArabicOrGermanText(text)) {
+          console.error(`[alhassan] briefing retry ALSO failed script-sanity, falling back: "${text.slice(0, 80)}"`);
+          text = '';
+        }
+      }
     } catch (e) {
       return res.status(e.message === 'no_api_key' ? 503 : 502).json({ error: 'briefing_unavailable' });
     }
