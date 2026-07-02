@@ -1,0 +1,5 @@
+fix(guardian): auto-repair red CI via GitHub Models (free)
+
+Checks were already green.
+
+Co-Authored-By: Guardian Bot <guardian-bot@users.noreply.github.com>
