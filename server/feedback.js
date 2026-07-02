@@ -30,6 +30,47 @@ async function saveFeedback(all) {
   await writeFile(FEEDBACK_FILE, JSON.stringify(all, null, 2), 'utf8');
 }
 
+// ── Public ratings (landing-page social proof) ────────────────────────────────
+// Owner (2026-07-02): show the real user ratings publicly. Honesty rules, non-negotiable:
+//   - avgRating/ratingCount are computed over EVERY rating ever submitted — never just the
+//     ones displayed. This is the anchor that keeps the curated quotes below from being
+//     misleading cherry-picking: the true average is always shown alongside them.
+//   - Below MIN_PUBLIC_RATINGS, the whole section reports unavailable rather than presenting a
+//     thin, unrepresentative sample as if it were robust social proof (same doctrine as the
+//     DailyMission trend chip elsewhere in this app: no data → say nothing, never fake it).
+//   - Comments never carry email/name/timestamp — text + the SAME rating that quote earned,
+//     capped in length. Sampled from rating>=4 (a testimonials sample, standard practice) but the
+//     honest average above always reflects the FULL distribution, including anything lower.
+const MIN_PUBLIC_RATINGS = 5;
+const MAX_PUBLIC_COMMENTS = 6;
+const MAX_COMMENT_CHARS  = 200;
+
+/** Pure + exported for unit tests. `all` is the raw feedback.json array. */
+export function buildPublicRatings(all) {
+  const entries = Array.isArray(all) ? all : [];
+  const ratings = entries.map((e) => e.rating).filter((n) => Number.isFinite(n) && n > 0);
+  if (ratings.length < MIN_PUBLIC_RATINGS) return { available: false };
+
+  const avgRating = Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10;
+  const comments = entries
+    .filter((e) => Number.isFinite(e.rating) && e.rating >= 4 && String(e.text || '').trim())
+    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+    .slice(0, MAX_PUBLIC_COMMENTS)
+    .map((e) => ({ rating: e.rating, text: String(e.text).trim().slice(0, MAX_COMMENT_CHARS) }));
+
+  return { available: true, avgRating, ratingCount: ratings.length, comments };
+}
+
+feedbackRouter.get('/feedback/public', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');   // 5 min — this is public marketing data, cheap to cache
+  try {
+    res.json(buildPublicRatings(await loadFeedback()));
+  } catch (err) {
+    console.error('[feedback] public error:', err.message);
+    res.json({ available: false });   // never break the landing page over this
+  }
+});
+
 feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
   try {
     const { rating, answers, text, screen } = req.body || {};

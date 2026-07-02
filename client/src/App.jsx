@@ -2229,6 +2229,17 @@ function AuthScreen({ onAuth }) {
   const [pw, setPw]       = useState('');
   const [err, setErr]     = useState('');
   const [busy, setBusy]   = useState(false);
+  // Public ratings (owner 2026-07-02: show real user ratings publicly). Honest by construction —
+  // the server itself refuses to return anything until there's a real, non-thin sample (see
+  // feedback.js buildPublicRatings); `null` here just means "don't render the section", never a
+  // fabricated placeholder.
+  const [publicRatings, setPublicRatings] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/feedback/public`).then((r) => r.json())
+      .then((d) => { if (!cancelled && d?.available) setPublicRatings(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const submit = async () => {
     if (busy) return;
@@ -2353,6 +2364,34 @@ function AuthScreen({ onAuth }) {
         ))}
       </div>
       </div>
+
+      {/* PUBLIC RATINGS (owner 2026-07-02: real user ratings, publicly shown) — only renders once
+          the server confirms a real, non-thin sample exists (never a placeholder/fabricated stat).
+          The average is always computed over EVERY rating ever submitted, not just the quotes
+          shown below — that's what keeps a curated quote sample honest rather than cherry-picked. */}
+      {publicRatings && (
+        <div style={{ maxWidth:420, margin:'0 auto 22px', ...rise(3.5) }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginBottom:14 }}>
+            <span style={{ color:'var(--action)', fontSize:15, fontWeight:700 }}>★ {publicRatings.avgRating.toFixed(1)}</span>
+            <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)' }}>
+              · {publicRatings.ratingCount} echte Bewertungen {/* OWNER-AR slot */}
+            </span>
+          </div>
+          {publicRatings.comments.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {publicRatings.comments.slice(0, 3).map((c, i) => (
+                <div key={i} style={{ padding:'12px 14px', borderRadius:12, background:'var(--surface)',
+                  border:'1px solid var(--line)' }}>
+                  <div style={{ fontSize:'var(--fs-label)', color:'var(--text)', lineHeight:1.5, fontStyle:'italic' }}>
+                    „{c.text}"
+                  </div>
+                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--action)', marginTop:6 }}>{'★'.repeat(c.rating)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* AUTH CARD — glass, one orange fill on the whole page */}
       <div style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
