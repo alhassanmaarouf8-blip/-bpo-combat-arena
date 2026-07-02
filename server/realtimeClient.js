@@ -634,6 +634,9 @@ export class RealtimeClient {
     if (this._extraRules) turnMsgs.push({ role: 'system', content: this._extraRules });
 
     let line = '';
+    let content, provider;   // MUST be declared: in an ES module, assigning to undeclared names
+    // throws ReferenceError on EVERY turn → the catch below swallowed it and every boss line
+    // became the canned fallback ("Bitte fahren Sie fort.") — a silently broken interview.
     try {
       // STREAMED: the first complete sentence is handed to the gateway (onBossEarly) the moment it
       // exists, so the client can start SPEAKING it while the rest of the line is still generating —
