@@ -15,6 +15,7 @@ const DRILL_INTROS = {
   listening: 'Ein echter Anrufer-Satz, einmal gehört — trainiert das Zuhören, das reines Sprechen nicht abdeckt.',
   spokenreview: 'Das hier ist dein EIGENER früherer Fehler (durchgestrichen) — sag jetzt die korrekte Version aus dem Gedächtnis. So schließt du genau die Lücken, die das Interview bei dir gefunden hat.',
   pressure: 'Ein Kunde eskaliert Stufe für Stufe — bereitet dich auf den härtesten Teil des echten Interviews vor: Teil 3.',
+  satzbau: 'Baue den Satz Wort für Wort — das Verb gehört ans Ende. Genau die Struktur, die im Interview über flüssig oder holprig entscheidet.',
 };
 
 export function DrillIntro({ drillKey, style }) {

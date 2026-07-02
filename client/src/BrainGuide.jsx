@@ -28,6 +28,7 @@ const BRAIN_COPY = {
 const DRILL_LABEL = {
   'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL',
   'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG', 'interview': 'INTERVIEW',
+  'satzbau-schmiede': 'SATZBAU-SCHMIEDE',
 };
 // Readable German labels for the canonical grammar ruleIds (so the aha reads naturally, not "konjunktiv-2").
 const RULE_LABEL = {

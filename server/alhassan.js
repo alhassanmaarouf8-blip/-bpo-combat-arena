@@ -230,7 +230,7 @@ async function buildFacts(account, g) {
     // invents a competing plan. The sophisticated engine decides; Alhassan is its human Cairo voice. ──
     try {
       const dir = decide(buildSnapshot(p));
-      const DRILL = { 'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL', 'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG (المراجعة)', 'interview': 'الـ Live-Interview' };
+      const DRILL = { 'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL', 'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG (المراجعة)', 'interview': 'الـ Live-Interview', 'satzbau-schmiede': 'SATZBAU-SCHMIEDE' };
       const pr = dir.prescription || {};
       const step =
           pr.action === 'drill'      ? `send them to the drill ${DRILL[pr.drill] || pr.drill} — it targets "${pr.skillId}"`

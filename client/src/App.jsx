@@ -10,6 +10,7 @@ import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
+import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
@@ -229,6 +230,7 @@ const ICON_PATHS = {
   check: <polyline points="20 6 9 17 4 12" />,
   chevronRight: <polyline points="9 18 15 12 9 6" />,
   play: <polygon points="6 3 20 12 6 21 6 3" />,
+  layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
 };
 function Icon({ name, size = 20, color = 'currentColor', style }) {
   return (
@@ -2864,6 +2866,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
+  const [satzbauOpen, setSatzbauOpen] = useState(false);           // paid verb-final word-order builder drill route
   const [pressureOpen, setPressureOpen] = useState(false);         // pressure-ladder overload drill (client-only)
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
@@ -3665,6 +3668,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const _overlays = [
     [guideOpen, setGuideOpen], [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
+    [satzbauOpen, setSatzbauOpen],
     [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen], [nachweisOpen, setNachweisOpen],
     [videoLessonsOpen, setVideoLessonsOpen],
     [leaderboardOpen, setLeaderboardOpen], [zielplanOpen, setZielplanOpen], [dailyOpen, setDailyOpen],
@@ -3806,7 +3810,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onGoPricing={() => { setSpokenReviewOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
-      {/* Pressure Ladder — overload training (client-only: browser voice, no server, zero cost) */}
+      {/* Satzbau-Schmiede — verb-final word-order builder (PAID; deterministic order grading, zero cost) */}
+      {satzbauOpen && (
+        <SatzbauSchmiede token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          onClose={() => setSatzbauOpen(false)}
+          onGoPricing={() => { setSatzbauOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+      )}
+
+      {/* Pressure Ladder — overload training (native Aura-2 voice via the server TTS route, zero cost) */}
       {pressureOpen && (
         <PressureLadder lang={feedbackLang} onClose={() => setPressureOpen(false)} token={auth.token} apiUrl={API_URL} />
       )}
@@ -4472,6 +4483,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             const p = d?.prescription || {};
             const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
               'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
+              'satzbau-schmiede': setSatzbauOpen,
               'srs': setDailyOpen };
             if (p.action === 'drill') { const fn = OPEN[p.drill]; fn ? fn(true) : beginSession(); }
             else if (p.action === 'interview' || p.action === 'measure') beginSession();
@@ -4527,6 +4539,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   open:() => setFluencyOpen(true) },
                 { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     open:() => setListeningOpen(true) },
                 { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      open:() => setSpokenReviewOpen(true) },
+                { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
                 { icon:'gauge',        de:'Druck-Leiter',   ar:'سُلّم الضغط',   open:() => setPressureOpen(true), badge:'SCHWER' },
                 { icon:'play',         de:'Video-Lektionen', ar:'دروس فيديو',   open:() => setVideoLessonsOpen(true), badge:'NEU' },
                 { icon:'compass',      de:'الحسن — dein Guide', ar:'اسأل دليلك', open:() => setGuideOpen(true) },
