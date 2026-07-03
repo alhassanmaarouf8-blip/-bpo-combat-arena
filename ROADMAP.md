@@ -162,16 +162,35 @@ signals pool exhaustion honestly.
 **DoD:** server route unit-tested (auth, persistence, reset-on-exhaustion); client never throws
 on an empty pool; gates green.
 
-### 10. QUEUED — OWNER-AR fill sheet (one-sitting masri pass)
+### 10. SHIPPED — verified 2026-07-04 — OWNER-AR fill sheet (one-sitting masri pass)
 **Why (predicted):** the hard rule "the builder never authors masri" is accumulating empty
 OWNER-AR slots across the app (drill intros, Satzbau labels, thin-debrief note_ar, BrainGuide
 copy). The owner WILL eventually sit down for the native pass — today that means hunting slots
 across a dozen files.
-**What:** a zero-cost script (`scripts/owner-ar-sheet.mjs`) that greps the repo for OWNER-AR
-slots + empty `_ar`/`ar:''` fields and emits ONE `docs/owner-ar-sheet.md` with file:line, the
-German source string, and an empty column to fill. Re-runnable (idempotent).
-**DoD:** script runs offline, output complete against a hand-checked sample; committed sheet;
-gates green (script excluded from client build).
+**Shipped as:** `scripts/owner-ar-sheet.mjs` (offline, node built-ins only, idempotent —
+regenerating after slots are filled shows only what's left; filters out runtime
+coercions/fallbacks and `youtubeId_ar` video-ID slots, which are not masri text) +
+committed `docs/owner-ar-sheet.md` (45 slots / 11 files at generation time, with fill
+instructions: masri in the عربي column, `-` = keep German, bank/data rows expanded per-item
+in-session). Hand-checked against the SatzbauSchmiede + VideoLessons slot sets.
+
+### 11b. QUEUED — Payment-provider webhook: paid plan activates itself
+**Why (owner go 2026-07-04, week-1 distribution push):** fulfillment is manual — every payment
+requires the owner to verify and set the plan in the admin panel, so revenue is capped by his
+availability. The owner is creating a hosted checkout (Paddle or Lemon Squeezy — both free to
+set up, both pay out to Egypt) and setting `PAYMENT_URL` on Render; the missing half is the
+webhook so payment → plan happens with no human.
+**What:** `POST /api/payments/webhook` (payments.js): verify the provider's signature
+(Paddle `Paddle-Signature` HMAC / Lemon Squeezy `X-Signature` HMAC-SHA256 — secret from a new
+`PAYMENT_WEBHOOK_SECRET` env, reject unsigned), map the checkout's customer email + product/
+variant to `basic`/`elite` (mapping via env or a small config block next to plans.config.js),
+set the plan through the SAME code path the admin panel uses (no duplicate plan-setting logic),
+handle `subscription_cancelled`/`refund` events by reverting to `free`, idempotent on event id.
+Keep manual Vodafone Cash flow untouched as the no-card fallback.
+**DoD:** unit tests for signature verify (valid/invalid/missing), event→plan mapping, idempotent
+replay, cancel/refund revert; no plan change on unverified payload; zero new dependencies (node
+`crypto`); gates green. Until the owner picks the provider, implement both verifiers behind one
+env-selected switch (`PAYMENT_PROVIDER=paddle|lemonsqueezy`).
 
 ### 11. QUEUED — Abend-Rückkehr: surface the two-session day on home
 **Why (predicted from the owner's own design: 15 min/day = 2×7.5-min interviews, "study today →

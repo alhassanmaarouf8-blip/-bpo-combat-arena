@@ -2473,6 +2473,17 @@ function AuthScreen({ onAuth }) {
           Kostenlos starten: Niveau-Einstufung · كل ده بالعربي · مجاني للبداية
         </div>
       </div>
+
+      {/* Legal links — static pages in client/public; the payment provider's site review
+          requires terms/privacy/refund to be reachable from the public site. Quiet by design. */}
+      <div style={{ textAlign:'center', marginTop:18, fontSize:'var(--fs-meta)', color:'var(--text-faint)', ...rise(5) }}>
+        {[['/terms.html','AGB'], ['/privacy.html','Datenschutz'], ['/refund.html','Rückerstattung']].map(([href, label], i) => (
+          <span key={href}>
+            {i > 0 && ' · '}
+            <a href={href} style={{ color:'var(--text-faint)', textDecoration:'underline', textUnderlineOffset:3 }}>{label}</a>
+          </span>
+        ))}
+      </div>
       </div>
     </div>
   );
