@@ -422,7 +422,10 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
     instapayAddress: process.env.INSTAPAY_ADDRESS || null,
     bankInfo:       process.env.BANK_ACCOUNT_INFO || null,
-    whatsappNumber: process.env.WHATSAPP_NUMBER || null,
+    // WhatsApp for payment proof: falls back to the Vodafone Cash number — in Egypt that IS the
+    // owner's published phone number, so the proof lands where the money does. Set WHATSAPP_NUMBER
+    // explicitly to receive WhatsApp on a different number.
+    whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
     pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
     paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
   });
@@ -457,7 +460,7 @@ billingRouter.get('/state', requireAuth, async (req, res) => {
     pendingPayment: pending,
     justActivated,
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
-    whatsappNumber: process.env.WHATSAPP_NUMBER || null,
+    whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
   });
 });
 
