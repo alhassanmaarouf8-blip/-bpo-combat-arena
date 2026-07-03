@@ -15,10 +15,12 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
+import { playNative } from './nativeVoice.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onClose, onGoPricing }) {
+  const [mode, setMode]     = useState('432');      // '432' (classic) | 'chunks' (Blitz-Formeln)
   const [phase, setPhase]   = useState('loading'); // loading | ready | practice | scoring | between | done | error
   const [prompt, setPrompt] = useState(null);      // { id, de, ar }
   const [focus, setFocus]   = useState(null);      // the student's #1 weak rule to focus on
@@ -140,6 +142,15 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     </div>
   );
 
+  // Blitz-Formeln mode is its own flow (own fetch + state machine); the 4-3-2 state stays
+  // untouched behind it, so switching back resumes cleanly.
+  if (mode === 'chunks') {
+    return (
+      <ChunkMode token={token} apiUrl={apiUrl} lang={lang} shell={shell}
+        onBack={() => setMode('432')} onClose={onClose} blocked={blocked} />
+    );
+  }
+
   if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
 
   if (phase === 'error') return shell(<>
@@ -202,6 +213,12 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
         {T(lang, `Sprich frei bis zu ${limit} Sekunden.`, `اتكلم بحرية لحد ${limit} ثانية.`)}
       </div>
     </div>
+    {round === 0 && results.length === 0 && (
+      <button onClick={() => setMode('chunks')} style={{ ...ghostBtnWide, width: '100%', marginTop: 14, textAlign: 'left', lineHeight: 1.5 }}>
+        <span style={{ color: '#7dd3fc', fontWeight: 700 }}>⚡ Blitz-Formeln</span>
+        <span style={{ color: '#94a3b8' }}> — feste Callcenter-Formeln so lange üben, bis sie ohne Nachdenken kommen. Verpasste Formeln kommen automatisch wieder. ▸</span>
+      </button>
+    )}
   </>);
 
   if (phase === 'practice') return shell(<>
@@ -492,6 +509,305 @@ function ErrBox({ err }) {
       {err.de}<br /><span dir="rtl">{err.ar}</span>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// BLITZ-FORMELN — formulaic-chunk automaticity (ROADMAP #2).
+// Per item: PRIME (see + hear the formula once) → FIRE (formula hidden, the situation cue
+// fires, say it from memory — reaction time measured from mic-open to first voiced frame)
+// → verdict. Every number shown is measured (match ratio server-side, latency client-side);
+// misses go on the 1-3-7-14-30-day SRS schedule server-side.
+// ═══════════════════════════════════════════════════════════════════════════════════
+function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
+  const [phase, setPhase]   = useState('loading');  // loading | prime | fire | scoring | verdict | done | error
+  const [items, setItems]   = useState([]);
+  const [idx, setIdx]       = useState(0);
+  const [results, setRes]   = useState([]);          // per item: { hit, verdict, latencyMs, transcript, nextDueDays }
+  const [err, setErr]       = useState(null);
+
+  const recRef      = useRef(null);
+  const voiceStopRef = useRef(null);
+  const resultsRef  = useRef([]);       // mirror of `results` — timers fire from old closures
+  const timersRef   = useRef([]);       // every pending timeout/interval, cleared on any transition
+  const firedRef    = useRef(false);    // guards the auto prime→fire transition per item
+  const startTRef   = useRef(0);        // mic-open timestamp (latency zero point)
+  const onsetRef    = useRef(0);        // first voiced frame (ms after mic-open)
+  const lastLoudRef = useRef(0);
+
+  const clearTimers = () => { for (const t of timersRef.current) { clearTimeout(t); clearInterval(t); } timersRef.current = []; };
+  const arm = (fn, ms) => { const t = setTimeout(fn, ms); timersRef.current.push(t); return t; };
+
+  const load = useCallback(async () => {
+    setPhase('loading'); setErr(null); setRes([]); resultsRef.current = []; setIdx(0); firedRef.current = false;
+    try {
+      const r = await fetch(`${apiUrl}/api/fluency/chunks?count=8&t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
+      if (r.status === 402) { blocked(); return; }
+      const d = await r.json();
+      if (!r.ok || !Array.isArray(d.items) || !d.items.length) throw new Error('load_failed');
+      setItems(d.items);
+      setPhase('prime');
+    } catch {
+      setErr({ de: 'Konnte die Übung nicht laden. Bitte erneut versuchen.', ar: 'مقدرناش نحمّل التمرين. حاول تاني.' });
+      setPhase('error');
+    }
+  }, [apiUrl, token, blocked]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => () => {   // unmount: silence the voice, close the mic, drop every timer
+    clearTimers();
+    try { voiceStopRef.current?.(); } catch { /* already stopped */ }
+    recRef.current?.stop?.().catch(() => {});
+  }, []);
+
+  const item = items[idx];
+
+  // PRIME: play the formula once in the native voice; when it ends, fire automatically.
+  useEffect(() => {
+    if (phase !== 'prime' || !item) return;
+    firedRef.current = false;
+    voiceStopRef.current = playNative({
+      apiUrl, token, text: item.chunk,
+      onEnd: () => arm(() => { if (!firedRef.current) startFire(); }, 500),
+    });
+    return () => { try { voiceStopRef.current?.(); } catch { /* ignore */ } };
+  }, [phase, idx]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startFire = async () => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    clearTimers();
+    try { voiceStopRef.current?.(); } catch { /* ignore */ }
+    setErr(null);
+    onsetRef.current = 0; lastLoudRef.current = 0;
+    const rec = new ClipRecorder({
+      onVolume: (v) => {
+        const now = performance.now();
+        if (v >= 0.05) {
+          lastLoudRef.current = now;
+          if (!onsetRef.current && startTRef.current) onsetRef.current = Math.round(now - startTRef.current);
+        }
+      },
+    });
+    try { await rec.start(); }
+    catch (e) {
+      firedRef.current = false;
+      setErr(e?.code === 'MIC_DENIED'
+        ? { de: 'Mikrofon-Zugriff wurde blockiert. Bitte im Browser erlauben.', ar: 'الوصول للمايك متمنوع. اسمح بيه من المتصفح.' }
+        : { de: 'Mikrofon konnte nicht gestartet werden.', ar: 'مقدرناش نشغّل المايك.' });
+      return;
+    }
+    recRef.current = rec;
+    startTRef.current = performance.now();
+    setPhase('fire');
+    // Rapid-fire feel: auto-stop ~1.3s after the learner falls silent (a formula is one breath),
+    // with an 8s hard cap so a stuck mic can never hang the drill.
+    const iv = setInterval(() => {
+      if (onsetRef.current && performance.now() - lastLoudRef.current > 1300) stopFire();
+    }, 200);
+    timersRef.current.push(iv);
+    arm(() => stopFire(), 8000);
+  };
+
+  const stopFire = async () => {
+    const rec = recRef.current;
+    if (!rec) return;
+    recRef.current = null;
+    clearTimers();
+
+    let clip;
+    try { clip = await rec.stop(); }
+    catch { setErr({ de: 'Aufnahme fehlgeschlagen. Bitte erneut.', ar: 'فشل التسجيل. جرّب تاني.' }); setPhase('prime'); return; }
+    if (!clip?.blob || clip.blob.size < 1200) {
+      setErr({ de: 'Nichts aufgenommen — sprich die Formel laut.', ar: '' });
+      firedRef.current = false; setPhase('prime'); return;
+    }
+
+    setPhase('scoring');
+    try {
+      const lat = onsetRef.current || 0;
+      const r = await fetch(`${apiUrl}/api/fluency/chunks/score?id=${item.id}&ms=${clip.durationMs}&lat=${lat}`, {
+        method: 'POST', headers: { 'Content-Type': 'audio/wav', Authorization: `Bearer ${token}` }, body: clip.blob,
+      });
+      if (r.status === 402) { blocked(); return; }
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'chunks_failed');
+      if (d.retry) {
+        setErr({ de: 'Nichts erkannt — sprich bitte lauter.', ar: '' });
+        firedRef.current = false; setPhase('prime'); return;
+      }
+      setRes((prev) => { const next = [...prev, { ...d, durationMs: clip.durationMs }]; resultsRef.current = next; return next; });
+      setPhase('verdict');
+      if (d.hit) arm(() => advance(), 1700);   // hits flow on their own; misses wait for the learner
+    } catch (e) {
+      setErr(e.message === 'no_api_key'
+        ? { de: 'Dienst gerade nicht verfügbar. Bitte später.', ar: 'الخدمة مش متاحة دلوقتي. جرّب بعدين.' }
+        : { de: 'Konnte die Aufnahme nicht verarbeiten. Bitte erneut.', ar: 'مقدرناش نعالج الصوت. سجّل تاني.' });
+      firedRef.current = false; setPhase('prime');
+    }
+  };
+
+  const advance = () => {
+    clearTimers();
+    if (idx + 1 >= items.length) { finish(); return; }
+    setIdx((x) => x + 1);
+    setErr(null);
+    setPhase('prime');
+  };
+
+  const finish = () => {
+    setPhase('done');
+    // The drill reports its OUTCOME to the brain (one organism): majority-correct + spoken time.
+    // Reads the ref, not state — this runs from a timer whose closure may predate the last result.
+    try {
+      const all = resultsRef.current;
+      const hits = all.filter((r) => r.hit).length;
+      const voicedMs = all.reduce((s, r) => s + (r.durationMs || 0), 0);
+      fetch(`${apiUrl}/api/drill-event`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ drill: 'blitz-formeln', correct: hits >= Math.ceil(all.length / 2), voicedMs }),
+      });
+    } catch { /* fire-and-forget */ }
+  };
+
+  const header = (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
+        ⚡ BLITZ-FORMELN
+      </span>
+      <span style={{ display: 'flex', gap: 8 }}>
+        <button onClick={onBack} style={ghostBtn}>◂ 4-3-2</button>
+        <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      </span>
+    </div>
+  );
+
+  const progress = items.length > 0 && (
+    <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
+      {items.map((_, i) => (
+        <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
+          background: i < results.length ? (results[i]?.hit ? '#4ade80' : '#ef4444')
+                    : i === idx ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)' }} />
+      ))}
+    </div>
+  );
+
+  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+
+  if (phase === 'error') return shell(<>
+    {header}
+    <div style={{ textAlign: 'center', padding: '30px 0' }}>
+      <div style={{ fontSize: 36 }}>⚠</div>
+      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}{err?.ar ? <><br /><span dir="rtl">{err.ar}</span></> : null}</div>
+      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
+    </div>
+  </>);
+
+  if (phase === 'done') {
+    const hits = results.filter((r) => r.hit).length;
+    const autos = results.filter((r) => r.verdict === 'automatic').length;
+    const hitLats = results.filter((r) => r.hit && r.latencyMs > 0).map((r) => r.latencyMs);
+    const avgLat = hitLats.length ? Math.round(hitLats.reduce((a, b) => a + b, 0) / hitLats.length) : null;
+    return shell(<>
+      {header}
+      <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
+        <div style={{ fontSize: 38 }}>{hits === results.length ? '⚡' : '✅'}</div>
+        <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 6 }}>Runde geschafft</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <MatrixCell label="GETROFFEN" value={`${hits}/${results.length}`} unit="Formeln" good={hits === results.length} />
+        <MatrixCell label="AUTOMATISCH" value={`${autos}`} unit="unter 1,5 s" good={autos > 0} />
+        <MatrixCell label="REAKTION" value={avgLat != null ? `${(avgLat / 1000).toFixed(1)}s` : '—'} unit="im Schnitt" good={avgLat != null && avgLat <= 1500} />
+      </div>
+      <div style={{ padding: '12px 14px', borderRadius: 11, background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.3)' }}>
+        <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6 }}>
+          Getroffene Formeln kommen nach dem 1-3-7-14-30-Tage-Plan wieder; verpasste schon morgen.
+          So wird aus Wissen ein Reflex — genau das, was am Telefon zählt.
+        </div>
+      </div>
+      <button onClick={load} style={{ ...primaryBtn, marginTop: 16 }}>Neue Runde ▸</button>
+      <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
+    </>);
+  }
+
+  if (!item) return null;
+  const last = results[results.length - 1];
+
+  if (phase === 'prime') return shell(<>
+    {header}
+    {progress}
+    {idx === 0 && results.length === 0 && (
+      <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)', fontSize: 11.5, color: 'var(--action)', lineHeight: 1.6 }}>
+        Profis rufen feste Formeln ohne Nachdenken ab. Hör die Formel einmal — dann kommt die Situation, und du sagst sie sofort aus dem Kopf.
+      </div>
+    )}
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(56,189,248,0.3)' }}>
+      <div style={{ fontSize: 9, color: '#7dd3fc', letterSpacing: '0.12em', marginBottom: 8 }}>MERK DIR DIE FORMEL</div>
+      <div style={{ fontSize: 19, color: '#f8fafc', lineHeight: 1.55, fontWeight: 600, overflowWrap: 'anywhere' }}>{item.chunk}</div>
+      {item.note_ar && <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7 }}>{item.note_ar}</div>}
+    </div>
+    {err && <ErrBox err={err} />}
+    <div style={{ marginTop: 16, textAlign: 'center' }}>
+      <button onClick={startFire} style={{ ...primaryBtn, fontSize: 14 }}>● Bereit — Situation zeigen</button>
+      <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
+        Nach dem Vorsprechen geht es automatisch los.
+      </div>
+    </div>
+  </>);
+
+  if (phase === 'fire') return shell(<>
+    {header}
+    {progress}
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(249,115,22,0.35)' }}>
+      <div style={{ fontSize: 9, color: 'var(--action)', letterSpacing: '0.12em', marginBottom: 8 }}>SITUATION — SAG DIE FORMEL. JETZT.</div>
+      <div style={{ fontSize: 17, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{item.cue}</div>
+    </div>
+    <div style={{ marginTop: 20, textAlign: 'center' }}>
+      <div style={{ fontSize: 26, color: '#ef4444', animation: 'pulse 1.2s infinite' }}>●</div>
+      <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Aufnahme läuft — stoppt von selbst, wenn du fertig bist.</div>
+      <button onClick={stopFire} style={{ ...ghostBtnWide, width: 'auto', padding: '10px 22px', marginTop: 12 }}>⏹ Fertig</button>
+    </div>
+  </>);
+
+  if (phase === 'scoring') return shell(<>{header}{progress}
+    <div style={{ color: '#94a3b8', fontSize: 13, padding: 30, textAlign: 'center' }}>⏳ Wird geprüft…</div>
+  </>);
+
+  if (phase === 'verdict' && last) {
+    const v = last.verdict;
+    const latS = last.latencyMs > 0 ? `${(last.latencyMs / 1000).toFixed(1)} s` : null;
+    const title = v === 'automatic' ? `⚡ Automatisch!${latS ? ` (${latS})` : ''}`
+                : v === 'ok'        ? `✓ Richtig${latS ? ` (${latS})` : ''}`
+                : v === 'slow'      ? `✓ Richtig — aber langsam${latS ? ` (${latS})` : ''}. Ziel: unter 1,5 s.`
+                : '✗ Das war nicht die Formel.';
+    const good = last.hit;
+    return shell(<>
+      {header}
+      {progress}
+      <div style={{ padding: '16px 14px', borderRadius: 12, textAlign: 'center',
+        background: good ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+        border: `1px solid ${good ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
+        <div style={{ fontSize: 16, color: good ? '#4ade80' : '#fca5a5', fontWeight: 700, lineHeight: 1.5 }}>{title}</div>
+        {!good && (
+          <div style={{ marginTop: 12, textAlign: 'left' }}>
+            <div style={{ fontSize: 9, color: '#94a3b8', letterSpacing: '0.1em' }}>DIE FORMEL</div>
+            <div style={{ fontSize: 15, color: '#4ade80', lineHeight: 1.5, marginTop: 3 }}>{item.chunk}</div>
+            {last.transcript && <>
+              <div style={{ fontSize: 9, color: '#94a3b8', letterSpacing: '0.1em', marginTop: 10 }}>VERSTANDEN WURDE</div>
+              <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5, marginTop: 3 }}>{last.transcript}</div>
+            </>}
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, lineHeight: 1.5 }}>
+              Diese Formel kommt morgen wieder — bis sie sitzt.
+            </div>
+          </div>
+        )}
+      </div>
+      <button onClick={advance} style={{ ...primaryBtn, marginTop: 16 }}>
+        {idx + 1 >= items.length ? 'Ergebnis ▸' : 'Weiter ▸'}
+      </button>
+    </>);
+  }
+
+  return null;
 }
 
 // ── shared button styles (match Shadowing) ──

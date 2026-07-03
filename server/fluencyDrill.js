@@ -37,6 +37,7 @@ import { loadUser, saveUser }  from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
 import { textFeatures }        from './hireReadiness.js';
+import { addItem, grade, srsKey, isCorrect } from './srs.js';
 
 export const fluencyRouter = express.Router();
 
@@ -240,6 +241,182 @@ async function transcribeGroq(buffer, mimeType) {
     return (await res.text()).trim();
   } finally { clearTimeout(timer); }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// BLITZ-FORMELN — formulaic-chunk automaticity mode (ROADMAP #2).
+//
+// METHOD: formulaic chunks ("Ich kümmere mich sofort darum.") are retrieved as ONE unit by
+// fluent speakers — the anti-freeze for real-time phone German. Each item: the chunk is
+// PRIMED (shown + heard once), then hidden; a situation cue fires and the learner must say
+// the chunk from memory, fast. Automaticity = correct + quick, so both are measured:
+//   - PRESENCE: deterministic in-order token match of the chunk inside the transcript
+//     (per-word tolerance = the ONE grading rule from srs.js isCorrect — no second rule).
+//   - LATENCY: ms from mic-open to first voiced frame, measured client-side from the same
+//     volume tap every drill uses, labeled honestly as "Reaktionszeit".
+// Scheduling: every chunk is an SRS item (type 'chunk') — misses resurface tomorrow,
+// hits expand 1→3→7→14→30 days. Selection serves DUE chunks first, then unseen, then cycles.
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+// Curated BPO-register chunk bank. cue = the situation that must TRIGGER the formula.
+// note_ar fields are OWNER-AR slots (the owner authors all masri) — empty until filled.
+export const CHUNKS = [
+  { cue: 'Ein Anruf beginnt. Melden Sie sich professionell.',                chunk: 'Guten Tag, was kann ich für Sie tun?' },
+  { cue: 'Der Kunde bedankt sich am Ende des Gesprächs.',                    chunk: 'Sehr gerne, ich wünsche Ihnen einen schönen Tag.' },
+  { cue: 'Der Kunde ist wütend über eine verspätete Lieferung.',             chunk: 'Ich verstehe Ihren Ärger vollkommen.' },
+  { cue: 'Der Kunde hatte durch unseren Fehler Unannehmlichkeiten.',         chunk: 'Das tut mir wirklich leid.' },
+  { cue: 'Der Kunde beschwert sich zum zweiten Mal über dasselbe Problem.',  chunk: 'Ich entschuldige mich für die Unannehmlichkeiten.' },
+  { cue: 'Der Kunde ist frustriert und wird laut.',                          chunk: 'Ich kann Ihre Frustration gut nachvollziehen.' },
+  { cue: 'Der Kunde musste lange in der Leitung warten.',                    chunk: 'Vielen Dank für Ihre Geduld.' },
+  { cue: 'Ein Problem, das Sie selbst lösen können.',                        chunk: 'Ich kümmere mich sofort darum.' },
+  { cue: 'Sie brauchen Details aus dem Kundenkonto.',                        chunk: 'Einen Moment bitte, ich schaue im System nach.' },
+  { cue: 'Der Kunde nennt Ihnen seine Bestellnummer.',                       chunk: 'Ich prüfe das gleich für Sie.' },
+  { cue: 'Der Kunde hat ein Problem, das gelöst werden muss.',               chunk: 'Ich finde eine Lösung für Sie.' },
+  { cue: 'Das Anliegen gehört zu einer anderen Abteilung.',                  chunk: 'Ich leite Ihr Anliegen sofort an die Fachabteilung weiter.' },
+  { cue: 'Sie können das Problem nicht sofort im Gespräch lösen.',           chunk: 'Ich rufe Sie heute noch zurück.' },
+  { cue: 'Sie haben den Kunden akustisch nicht verstanden.',                 chunk: 'Entschuldigung, könnten Sie das bitte wiederholen?' },
+  { cue: 'Die Beschreibung des Kunden ist unklar.',                          chunk: 'Könnten Sie mir das bitte genauer erklären?' },
+  { cue: 'Der Kunde spricht sehr schnell.',                                  chunk: 'Könnten Sie bitte etwas langsamer sprechen?' },
+  { cue: 'Sie brauchen die Kundennummer für die Suche.',                     chunk: 'Könnten Sie mir bitte Ihre Kundennummer nennen?' },
+  { cue: 'Sie sind unsicher, wie der Name geschrieben wird.',                chunk: 'Könnten Sie das bitte für mich buchstabieren?' },
+  { cue: 'Der Kunde fragt, ob die Lösung wirklich funktioniert.',            chunk: 'Da bin ich mir ganz sicher.' },
+  { cue: 'Der Kunde zweifelt, ob Sie sich wirklich kümmern.',                chunk: 'Sie können sich darauf verlassen.' },
+  { cue: 'Der Kunde fragt nach dem Stand seiner Reklamation.',               chunk: 'Ihre Anfrage ist bereits in Bearbeitung.' },
+  { cue: 'Der Wunsch des Kunden ist leider nicht machbar.',                  chunk: 'Das ist leider nicht möglich, aber ich habe eine Alternative für Sie.' },
+  { cue: 'Der Kunde verlangt etwas, das gegen die Regeln ist.',              chunk: 'Das darf ich leider nicht, aber ich helfe Ihnen gerne anders.' },
+  { cue: 'Sie brauchen kurz Zeit, um etwas zu prüfen.',                      chunk: 'Darf ich Sie kurz in die Warteschleife legen?' },
+  { cue: 'Ein Kollege aus der Fachabteilung muss übernehmen.',               chunk: 'Ich verbinde Sie mit der zuständigen Abteilung.' },
+  { cue: 'Sie kennen die Antwort auf die Frage nicht sofort.',               chunk: 'Das kläre ich für Sie und melde mich umgehend.' },
+  { cue: 'Der Kunde stellt eine unerwartet schwierige Frage.',               chunk: 'Gute Frage, das prüfe ich sofort für Sie.' },
+  { cue: 'Das Gespräch ist fast fertig — Sie sichern das Ergebnis.',         chunk: 'Ich fasse kurz zusammen, was wir besprochen haben.' },
+  { cue: 'Das Anliegen ist erledigt. Sie fragen nach weiteren Wünschen.',    chunk: 'Kann ich sonst noch etwas für Sie tun?' },
+  { cue: 'Die Störung ist behoben und alles funktioniert wieder.',           chunk: 'Das Problem ist gelöst, alles ist wieder in Ordnung.' },
+  { cue: 'Der Kunde wird persönlich und unhöflich.',                         chunk: 'Ich möchte Ihnen wirklich helfen, bitte bleiben wir sachlich.' },
+  { cue: 'Der Kunde droht damit, den Vertrag zu kündigen.',                  chunk: 'Ich verstehe Sie, lassen Sie uns gemeinsam eine Lösung finden.' },
+].map((c, i) => ({ ...c, id: i, note_ar: '' }));
+
+// Reaction-latency verdict thresholds (ms from mic-open to first voiced frame). A fluent
+// speaker fires a known formula in about a second; 3s+ means it was constructed, not retrieved.
+const LAT_AUTOMATIC_MS = 1500;
+const LAT_OK_MS        = 3000;
+
+// Deterministic chunk-presence check: every token of the chunk must appear IN ORDER in the
+// transcript (extra words around/between are fine — the formula may be embedded in a longer
+// sentence). Per-word comparison reuses srs.js isCorrect (case-insensitive exact, or one edit
+// on 4+ letter words) so the whole app keeps ONE grading rule. Word ORDER is deliberately
+// strict: a formula said in scrambled order is not automatized.
+const chunkTokens = (s) => String(s || '').toLowerCase().normalize('NFC')
+  .replace(/[^a-zäöüß0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
+
+export function chunkMatch(chunk, transcript) {
+  const exp = chunkTokens(chunk);
+  const got = chunkTokens(transcript);
+  if (!exp.length || !got.length) return { ratio: 0, hit: false };
+  let i = 0;
+  for (const g of got) {
+    if (i >= exp.length) break;
+    if (isCorrect(g, exp[i])) i++;
+  }
+  const ratio = i / exp.length;
+  return { ratio, hit: ratio >= 0.85 };
+}
+
+// Latency → verdict, only when the answer was CORRECT (a fast wrong answer is just wrong).
+export function chunkVerdict(hit, latencyMs) {
+  if (!hit) return 'miss';
+  if (!Number.isFinite(latencyMs) || latencyMs <= 0) return 'ok';   // no reliable latency → correctness only
+  if (latencyMs <= LAT_AUTOMATIC_MS) return 'automatic';
+  if (latencyMs <= LAT_OK_MS)        return 'ok';
+  return 'slow';
+}
+
+// Session selection: SRS-due chunks FIRST (the schedule is the whole point), then unseen
+// (rotation via profile.chunkSeen), then cycle from the start. Deterministic order, no repeats
+// within one session.
+export function pickChunks(profile, count = 8, now = Date.now()) {
+  const byId = new Map(CHUNKS.map((c) => [srsKey('chunk', c.chunk), c]));
+  const due = (profile.srs || [])
+    .filter((i) => i.type === 'chunk' && !i.mastered && i.due <= now && byId.has(i.id))
+    .sort((a, b) => a.due - b.due)
+    .map((i) => byId.get(i.id));
+  const seen = new Set(Array.isArray(profile.chunkSeen) ? profile.chunkSeen : []);
+  const dueIds = new Set(due.map((c) => c.id));
+  const unseen = CHUNKS.filter((c) => !dueIds.has(c.id) && !seen.has(c.id));
+  const rest   = CHUNKS.filter((c) => !dueIds.has(c.id) && seen.has(c.id));
+  return [...due, ...unseen, ...rest].slice(0, Math.max(1, Math.min(count, CHUNKS.length)));
+}
+
+// ── GET a Blitz-Formeln session: due-first chunk list (paid only) ──
+fluencyRouter.get('/fluency/chunks', requireAuth, async (req, res) => {
+  if (!paidOnly(req, res)) return;
+  res.set('Cache-Control', 'no-store');
+  const count = Math.max(3, Math.min(12, parseInt(req.query.count, 10) || 8));
+  let items;
+  try {
+    const u = await loadUser(req.account.id);
+    if (!Array.isArray(u.srs)) u.srs = [];
+    items = pickChunks(u, count);
+    // Rotation memory: mark served chunks as seen (reset the list once the bank is exhausted).
+    const seen = new Set(Array.isArray(u.chunkSeen) ? u.chunkSeen : []);
+    for (const c of items) seen.add(c.id);
+    u.chunkSeen = seen.size >= CHUNKS.length ? [] : [...seen];
+    await saveUser(u);
+  } catch {
+    items = CHUNKS.slice(0, count);   // best-effort: still serve a session
+  }
+  res.json({ items: items.map((c) => ({ id: c.id, cue: c.cue, chunk: c.chunk, note_ar: c.note_ar })) });
+});
+
+// ── POST one fired chunk recording → presence + latency verdict + SRS schedule ──
+fluencyRouter.post('/fluency/chunks/score',
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
+  requireAuth,
+  async (req, res) => {
+    if (!paidOnly(req, res)) return;
+    res.set('Cache-Control', 'no-store');
+    try {
+      const id = parseInt(req.query.id, 10);
+      const item = CHUNKS[id];
+      if (!item) return res.status(400).json({ error: 'unknown_chunk' });
+      const latencyMs = Math.max(0, Math.min(15_000, parseInt(req.query.lat, 10) || 0));
+
+      const audio = req.body;
+      if (!Buffer.isBuffer(audio) || audio.length < 1000) return res.status(400).json({ error: 'empty_audio' });
+
+      // Same honesty gate as 4-3-2: no voiced speech → no transcription, no fake verdict.
+      const voicedMs = voicedDurationMs(audio);
+      if (voicedMs < 400) return res.json({ transcript: '', retry: true, noSpeech: true });
+
+      const transcript = (await transcribeGroq(audio, req.headers['content-type'] || 'audio/wav')).trim();
+      if (!transcript) return res.json({ transcript: '', retry: true, noSpeech: true });
+
+      const { ratio, hit } = chunkMatch(item.chunk, transcript);
+      const verdict = chunkVerdict(hit, latencyMs);
+
+      // SRS: every fired chunk lives on the 1→3→7→14→30-day schedule. addItem only for
+      // brand-new items (calling it on an existing one would count a false lapse).
+      let nextDueDays = null;
+      try {
+        const u = await loadUser(req.account.id);
+        if (!Array.isArray(u.srs)) u.srs = [];
+        const key = srsKey('chunk', item.chunk);
+        if (!u.srs.find((i) => i.id === key)) {
+          addItem(u, { type: 'chunk', content: item.chunk, prompt: item.cue, answer: item.chunk });
+        }
+        const graded = grade(u, key, hit);
+        if (graded) nextDueDays = Math.max(1, Math.round((graded.due - Date.now()) / 86_400_000));
+        await saveUser(u);
+      } catch (e) {
+        console.error('[chunks] SRS write failed:', e.message);   // verdict still returned
+      }
+
+      console.log(`[chunks] user=${req.account.id} chunk=${id} hit=${hit} ratio=${ratio.toFixed(2)} lat=${latencyMs}ms verdict=${verdict}`);
+      res.json({ transcript, hit, ratio: +ratio.toFixed(2), latencyMs, verdict, nextDueDays });
+    } catch (err) {
+      console.error('[chunks] score error:', err.message);
+      const noKey = err.message === 'no_api_key';
+      res.status(noKey ? 503 : 500).json({ error: noKey ? 'no_api_key' : 'chunks_failed' });
+    }
+  });
 
 // ── GET a fresh drill: one prompt + the three shrinking round windows (paid only) ──
 fluencyRouter.get('/fluency', requireAuth, async (req, res) => {

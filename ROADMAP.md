@@ -54,14 +54,21 @@ session agent (verifier fixes: newly-authored masri stripped to OWNER-AR slots, 
 native-voice stop handle, retry-timer reset; conflict with the redesigned home resolved — the
 standalone button became a grid tile). 11 unit tests.
 
-### 2. QUEUED — Formulaic-chunk automaticity in Flow-Drill
+### 2. SHIPPED — verified 2026-07-03 — Formulaic-chunk automaticity in Flow-Drill ("Blitz-Formeln")
 **Why (owner mandate):** formulaic chunks ("Da bin ich mir sicher, dass…", "Ich kümmere mich
 sofort darum") are the anti-freeze for real-time fluency.
-**What:** extend Flow-Drill with a chunk-automaticity mode: a curated bank of BPO-register
-chunks, prompted rapid-fire, graded deterministically on chunk presence + latency (existing
-timing signals). Repetition schedule via the existing SRS (`server/srs.js`).
-**DoD:** ≥30 chunks passing german-check; deterministic grading unit-tested; SRS wiring tested;
-gates green.
+**Shipped as:** `server/fluencyDrill.js` chunk section (32-chunk BPO-register bank, cue→formula
+pairs, OWNER-AR note slots; deterministic in-order presence match reusing the ONE srs.js grading
+rule; latency verdict automatic ≤1.5s / ok ≤3s / slow; GET `/api/fluency/chunks` serves SRS-due
+chunks first then unseen; POST `/api/fluency/chunks/score` grades + schedules on the 1-3-7-14-30
+SRS) + `client/src/FluencyDrill.jsx` ChunkMode (prime: see+hear the formula once in the native
+voice → fire: formula hidden, situation cue shown, reaction time measured mic-open→first voiced
+frame, silence auto-stop → verdict → SRS-honest summary; drill-event `blitz-formeln` → brain).
+Entry from the Flow-Drill round-0 screen. 17 unit tests (bank hygiene incl. langGuard + empty
+OWNER-AR slots, match accept/typo/scramble/partial/reject, verdict tiers incl. missing-latency
+honesty, due-first/unseen/cycle selection, SRS advance+lapse). Suite 148/148, lint (changed
+files), design-lint, client build green; german-check: all 64 new strings clean (4 flags =
+pre-existing false positives in the old prompt bank).
 
 ### 3. QUEUED — Debrief names Arabic-L1 high-frequency errors
 **Why (owner mandate):** the debrief should name the L1-specific pattern (verb-second in
