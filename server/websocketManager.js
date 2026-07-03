@@ -582,6 +582,10 @@ export class WebSocketManager {
                 ctx.geminiActive = true;   // boss is about to greet (half-duplex gate; barge-in mode ignores it)
                 // A SECOND session_ready, now flagged — tells the client to switch to the native-audio path.
                 this._send(ctx, { type: S.SESSION_READY, useGeminiAudio: true, sessionId: ctx.sessionId, bossHp: ctx.bossHp, playerHp: ctx.playerHp });
+                // Gemini Live never speaks unprompted — without this kick the interviewer sits SILENT
+                // until the candidate talks first. A clientContent text turn is not audio input, so it
+                // produces no inputTranscription and can never leak into the scored dialogue.
+                try { proxy.sendText('(Der Kandidat ist jetzt im Gespräch. Beginnen Sie das Interview auf Deutsch mit Ihrer Begrüßung.)'); } catch { /* fallback path handles a dead session */ }
               },
               onBossAudio: (buf) => {
                 // Boss voice PCM16 @24kHz → base64 to the browser for Web-Audio playback.
