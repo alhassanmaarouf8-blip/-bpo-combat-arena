@@ -70,16 +70,24 @@ honesty, due-first/unseen/cycle selection, SRS advance+lapse). Suite 148/148, li
 files), design-lint, client build green; german-check: all 64 new strings clean (4 flags =
 pre-existing false positives in the old prompt bank).
 
-### 3. QUEUED — Debrief names Arabic-L1 high-frequency errors
+### 3. SHIPPED — verified 2026-07-03 — Debrief names Arabic-L1 high-frequency errors
 **Why (owner mandate):** the debrief should name the L1-specific pattern (verb-second in
 subordinate clauses, article-gender slips, P/B devoicing transcript artifacts) — not generic
 "grammar mistakes."
-**What:** deterministic detectors in `server/scoring/` for the top Arabic-L1 error patterns
-detectable from text; coach.js surfaces at most the ONE most frequent detected pattern with the
-learner's own (confidence-gated, non-truncated) example. Must respect the existing honesty gates
-(`turnQuality.js`: never quote low-confidence words, never fault truncated turns).
-**DoD:** detectors unit-tested on synthetic + past-bug fragments (incl. false-positive cases);
-integrates behind the existing thin-session gate; gates green.
+**Shipped as:** NEW `server/scoring/l1Errors.js` — three deterministic detectors: (1) V2-in-
+subordinate-clause (conj+subject+finite-verb+more-content; clause-final verbs never flagged;
+deterministic verb-final rewrite offered only for simple clauses, else no fabricated example);
+(2) article-gender on a 30-noun interview lexicon, flagging ONLY articles impossible in EVERY
+case of the correct gender ("mit der Frage" dative never flagged — underclaims by design);
+(3) P→B devoicing via a non-word-only artifact map (broblem→Problem…), framed as what the
+speech recognition heard, never a knowledge error. `topL1Pattern()` names at most ONE pattern,
+only at ≥2 occurrences, example gated by looksTruncatedDE + lowConf-overlap (counted but
+unquoted otherwise). Wired in `websocketManager._finishSession` (DEBRIEF payload `l1Pattern`,
+behind the existing real-session gate; coach.js deliberately untouched — a concurrent session
+holds uncommitted WIP there) + neutral-blue debrief card in `client/src/App.jsx` (Wochenfokus
+keeps the single orange; note_ar OWNER-AR slot). 17 unit tests incl. false-positive guards.
+Suite 165/165, lint, design-lint, client build green; german-check: learner-visible strings
+clean (6 flags = regex source internals, not shown to learners).
 
 ### 4. QUEUED — Druck-Leiter scoring spinner
 **Why:** the scoring round-trip currently shows nothing while the grade computes (known

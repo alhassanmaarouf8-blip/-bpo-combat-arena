@@ -1621,6 +1621,33 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             </div>
           )}
 
+          {/* ── DEIN L1-MUSTER — the Arabic-L1-specific pattern (ROADMAP #3). Deterministic
+                detectors, named ONLY when it repeated ≥2×; the example is the learner's own
+                (non-truncated, confidence-gated) fragment. Neutral blue — the Wochenfokus above
+                stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}
+          {data?.l1Pattern && (
+            <div style={{ padding:'13px 15px', borderRadius:13, animation:'result-rise 0.55s var(--ease-out)',
+              background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.35)' }}>
+              <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'#7dd3fc', marginBottom:7 }}>
+                DEIN L1-MUSTER · {data.l1Pattern.count}× IN DIESEM INTERVIEW
+              </div>
+              <div style={{ fontSize:13.5, color:'#f1f5f9', fontWeight:700, lineHeight:1.5 }}>{data.l1Pattern.title}</div>
+              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.65, marginTop:6 }}>{data.l1Pattern.explain}</div>
+              {ar && data.l1Pattern.note_ar && (
+                <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:6 }}>{data.l1Pattern.note_ar}</div>
+              )}
+              {data.l1Pattern.example && (
+                <div style={{ marginTop:9, paddingTop:8, borderTop:'1px solid rgba(96,165,250,0.2)', fontSize:12.5, lineHeight:1.6 }}>
+                  <span style={{ color:'#f87171', textDecoration:'line-through' }}>{data.l1Pattern.example.quote}</span>
+                  {data.l1Pattern.example.better && <>
+                    <span style={{ color:'#64748b' }}> → </span>
+                    <span style={{ color:'#4ade80' }}>{data.l1Pattern.example.better}</span>
+                  </>}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Progressive disclosure (owner: "never give a million advice"): the full analysis —
               every metric, exchange review, grammar group, drill and vocab list — sits behind ONE
               toggle. The learner leaves with a verdict and a plan, not a wall. */}
