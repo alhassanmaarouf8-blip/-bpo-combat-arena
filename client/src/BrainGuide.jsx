@@ -36,6 +36,48 @@ const RULE_LABEL = {
 };
 const ruleLabel = (id) => RULE_LABEL[id] || String(id || '').replace(/^lt:/, '');
 
+// Skill-graph target ids → learner-readable German (the graph itself is copy-free).
+const SKILL_LABEL = {
+  'self-intro': 'Selbstvorstellung', 'praesens-perfekt': 'Präsens & Perfekt', 'core-vocab': 'Kern-Wortschatz',
+  'listen-clear': 'Klares Verstehen', 'word-order-sub': 'Verb ans Ende (weil/dass/wenn)',
+  'dativ-akkusativ': 'Dativ & Akkusativ', 'sie-register': 'Sie-Form & Höflichkeit',
+  'handle-clear-request': 'Klare Kundenanfragen', 'listen-phone': 'Hören am Telefon',
+  'no-freeze-expected': 'Nicht einfrieren', 'deescalate': 'Deeskalation', 'gdpr-verify': 'Daten-Verifizierung',
+  'complaint-phrases': 'Beschwerde-Formeln', 'fluency-interrupt': 'Flüssig trotz Unterbrechung',
+  'pronunciation-phone': 'Aussprache am Telefon', 'angry-c1': 'Wütende Kunden (C1)',
+  'spontaneous-precise': 'Spontan & präzise', 'behavioral-salary': 'Verhaltensfragen & Gehalt',
+  'konjunktiv-2': 'Konjunktiv II',
+};
+const MEASURE_LABEL = { intelligibility: 'deine Verständlichkeit am Telefon', deescalation: 'deine Deeskalation', wpm: 'dein Sprechtempo' };
+
+// THE FATHER EXPLAINS (bottleneck-doctrine D1–D4): one German sentence saying WHY this is the
+// step — the diagnosis framing (D1), honest "I must hear you more" (D4), drill-nominates/
+// interview-confirms (D3), soft wording on thin evidence (D4). German is builder-authorable;
+// the masri voice above stays the owner's.
+function whyLine(d) {
+  const label = d.target ? (SKILL_LABEL[d.target.skillId] || ruleLabel(d.target.skillId)) : null;
+  const soft = d.confidence === 'low';
+  switch (d.state) {
+    case 'NEW':
+      return 'Dein Diagnose-Interview: Ich muss dich zuerst sprechen hören, um deine größte Baustelle zu finden — danach führe ich dich Schritt für Schritt.';
+    case 'MEASURE': {
+      const sig = MEASURE_LABEL[d.prescription?.signal] || 'ein wichtiges Signal';
+      return `Ich kann ${sig} noch nicht sicher messen — und ich rate nicht. Das nächste Interview misst genau das.`;
+    }
+    case 'READY':
+      return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: die Interviewerin kennt deine Akte und testet genau diese Stelle erneut. Erst wenn sie im Interview hält, gilt sie als gelöst.`;
+    case 'APPLY':
+      return 'Deine Entry-Skills sind komplett. Ab hier bringt dich jede Bewerbung weiter als jede weitere Übung.';
+    case 'PLATEAU':
+      return `Du warst ein paar Tage weg — ${label ? `mit ${label} ` : ''}machst du am schnellsten wieder Boden gut.`;
+    default:   // POST_FIGHT — the fresh prescription
+      if (!label) return null;
+      return soft
+        ? `Erste Diagnose: ${label}. Je mehr ich dich höre, desto schärfer wird sie — dieses Training bringt dich JETZT am weitesten.`
+        : `Deine größte Baustelle: ${label}. Von allem, was ich gemessen habe, blockiert DAS deine Einstellung am meisten — ein Problem, ein Training, dann der Beweis im Interview.`;
+  }
+}
+
 // onAction(directive) — the parent launches the prescribed thing (drill / interview / assessment / apply).
 export function BrainGuide({ token, apiUrl, onAction }) {
   const [data, setData] = useState(null);
@@ -83,6 +125,13 @@ export function BrainGuide({ token, apiUrl, onAction }) {
 
       {/* The ONE next step. */}
       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 12 }}>{BRAIN_COPY.nextStepLabel}</div>
+      {/* WHY this step (the father explains the diagnosis — bottleneck-doctrine). German, LTR
+          inside the RTL card; renders only when the engine's state yields an honest line. */}
+      {whyLine(d) && (
+        <div dir="ltr" style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6, margin: '6px 0 2px', textAlign: 'left' }}>
+          {whyLine(d)}
+        </div>
+      )}
       <button style={cta} onClick={() => onAction?.(d)}>{ctaText}</button>
     </div>
   );
