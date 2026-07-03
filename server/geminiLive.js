@@ -58,8 +58,14 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
       model,
       generationConfig: {
         responseModalities: ['AUDIO'],
+        // Thinking OFF: the -latest native-audio alias thinks before answering, which doubled
+        // measured turn latency (first audio 2.05s → 1.10s with budget 0, same key/model/voice).
+        thinkingConfig: { thinkingBudget: 0 },
         ...(voiceName ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } : {}),
       },
+      // Faster end-of-turn: detect the candidate finishing sooner (interview turns are short);
+      // 400ms silence + high end sensitivity measured setup-valid with no latency penalty.
+      realtimeInputConfig: { automaticActivityDetection: { endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH', silenceDurationMs: 400 } },
       systemInstruction: { parts: [{ text: systemInstruction }] },
       inputAudioTranscription: {},
       outputAudioTranscription: {},

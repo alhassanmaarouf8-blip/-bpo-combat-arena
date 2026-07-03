@@ -2912,6 +2912,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiPlayerRef  = useRef(null);
   const geminiMicRef     = useRef(null);
   const geminiBossLineRef = useRef('');
+  const geminiPendingTextRef = useRef('');   // transcript chunks held back until the boss's VOICE starts
+  const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
@@ -3005,6 +3007,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     try { geminiPlayerRef.current?.close?.(); } catch { /* already closed */ }
     geminiPlayerRef.current = null;
     geminiBossLineRef.current = '';
+    geminiPendingTextRef.current = '';
+    geminiVoiceOnRef.current = false;
     setRecording(false);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3130,6 +3134,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // Boss voice (PCM16@24k) over the WS → play it. (Barge-in flush arrives via BOSS_INTERRUPTED.)
         if (!geminiModeRef.current || !geminiPlayerRef.current) break;
         geminiPlayerRef.current.enqueue(msg.data);
+        // Voice-first ordering: the transcript held back for this turn is released only now, when
+        // her voice is actually audible — the text follows the speech, never announces it.
+        if (!geminiVoiceOnRef.current) {
+          geminiVoiceOnRef.current = true;
+          if (geminiPendingTextRef.current) {
+            geminiBossLineRef.current += geminiPendingTextRef.current;
+            geminiPendingTextRef.current = '';
+            setBossText(geminiBossLineRef.current);
+          }
+          setBossSpeak(true); setBossThinking(false); setShowBriefing(false);
+        }
         break;
 
       case S.BOSS_INTERRUPTED:
@@ -3138,11 +3153,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         break;
 
       case S.LIVE_BOSS_TRANSCRIPT: {
-        // Boss's words, streamed chunk-by-chunk → accumulate into the subtitle line.
+        // Boss's words, streamed chunk-by-chunk. Gemini streams the transcript ~0.5s AHEAD of the
+        // audio; showing it immediately made the reply feel gated on text. Hold chunks back until
+        // the voice starts (BOSS_AUDIO_DELTA releases them), then append live as she speaks.
         if (!geminiModeRef.current) break;
+        if (!geminiVoiceOnRef.current) { geminiPendingTextRef.current += (msg.text || ''); break; }
         geminiBossLineRef.current += (msg.text || '');
         setBossText(geminiBossLineRef.current);
-        setBossSpeak(true); setBossThinking(false); setShowBriefing(false);
         break;
       }
 
@@ -3245,6 +3262,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // subtitle accumulator so the next turn starts fresh and re-announces "speaking".
         if (geminiModeRef.current) {
           geminiBossLineRef.current = '';
+          geminiPendingTextRef.current = '';
+          geminiVoiceOnRef.current = false;   // next turn holds its text again until the voice starts
           geminiPlayerRef.current?.markTurnEnd();
           setBossSpeak(false);
           break;
