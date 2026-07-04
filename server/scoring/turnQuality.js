@@ -79,6 +79,31 @@ export const SUBSTANCE = { MIN_WORDS: 25, MIN_COMPLETE_TURNS: 2, MIN_TURN_WORDS:
 // English tech term, a name, or plain noise) → likely a mis-transcription like "Python"→"Pariethon".
 export const LOW_CONFIDENCE = 0.55;
 
+// ── SHADES OF GRAY (owner 2026-07-04: "not black and white — grade the total like a human, not a
+// machine") ────────────────────────────────────────────────────────────────────────────────────
+// A hard threshold makes a 0.54-confidence word worthless and a 0.56 word fully counted — a cliff no
+// human has. `confidenceWeight` maps a raw Deepgram confidence (0..1) to a CONTINUOUS trust weight,
+// so an unclear word contributes a light-gray shade, never all-or-nothing. A logistic centred at
+// ~0.6 keeps the ends soft (very-unsure ≈ 0, clear ≈ 1) and the middle a real gradient.
+export function confidenceWeight(confidence) {
+  const c = typeof confidence === 'number' && isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5;
+  return 1 / (1 + Math.exp(-(c - 0.6) * 9));
+}
+
+// How much a single detected mistake should count toward the total — the human "how bad was it,
+// really?" blend, on a 0..1 continuum instead of a checkbox:
+//   severity   0..1  did it BLOCK understanding? (wrong article ≈ 0.15; unintelligible ≈ 0.9)
+//   confidence 0..1  raw STT confidence that we even heard it right (→ confidenceWeight)
+//   recurrence 1..n  how many times this same mistake appeared this session (a pattern weighs more)
+// A one-off, low-confidence, meaning-preserving slip ≈ a whisper; a repeated, clear, meaning-blocking
+// error ≈ full weight. Never 0 (ignored) and never a flat "−1 per error".
+export function errorWeight({ severity = 0.5, confidence = 0.8, recurrence = 1 } = {}) {
+  const sev = Math.max(0, Math.min(1, severity));
+  const cw  = confidenceWeight(confidence);
+  const rec = 1 - Math.pow(0.6, Math.max(1, recurrence));   // 1×→0.40, 2×→0.64, 3×→0.78, →1 (saturating)
+  return sev * cw * rec;
+}
+
 /** Lowercased words in a Deepgram [{word, confidence}] list that the recognizer was unsure about. */
 export function lowConfidenceWords(words, threshold = LOW_CONFIDENCE) {
   const out = [];

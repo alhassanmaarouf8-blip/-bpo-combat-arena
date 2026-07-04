@@ -13,6 +13,7 @@
  */
 
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
+import { buildGrammarLLM } from './grammarLLM.js';
 import { evaluateNaturalness } from './naturalness.js';
 import { looksTruncatedDE, sessionSubstance, quoteHasLowConfidence } from './scoring/turnQuality.js';
 import { scrubStringsDeep } from './langGuard.js';
@@ -114,6 +115,23 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     console.log(`[coach] LanguageTool grammar: ${ltGrammar.length} rule(s) flagged  session-utterances=${utterances.length}`);
   } catch (e) {
     console.error('[coach] LanguageTool unavailable, will backstop with model:', e.message);
+  }
+
+  // ── L2-AWARE grammar (owner 2026-07-05: "LanguageTool accuracy is 0 for my learners — do whatever").
+  // LanguageTool is blind to the systematic Arabic-L1 errors this app exists to fix (verb-final, case,
+  // aux haben/sein, gender, adjective endings). The LLM checker catches them under HARD guards (every
+  // quote verified as a real substring; no-change dropped; cut-off turns skipped; conservative prompt).
+  // Merge as the PRIMARY source, LanguageTool as supplement; fail-safe → null LLM keeps LanguageTool. ──
+  let llmGrammar = null;
+  try { llmGrammar = await buildGrammarLLM(utterances); } catch (e) { console.error('[coach] grammarLLM failed:', e.message); }
+  if (Array.isArray(llmGrammar) && llmGrammar.length) {
+    const keyOf = (x) => `${x.wrong}→${x.right}`.toLowerCase().replace(/\s+/g, ' ').trim();
+    const seen  = new Set((ltGrammar || []).flatMap((g) => (g.examples || []).map(keyOf)));
+    const fresh = llmGrammar
+      .map((g) => ({ ...g, examples: (g.examples || []).filter((x) => !seen.has(keyOf(x))) }))
+      .filter((g) => g.examples.length);
+    ltGrammar = [...fresh, ...(ltGrammar || [])];   // LLM first (primary), LanguageTool appended
+    console.log(`[coach] grammar merged: ${fresh.length} L2 rule(s) from LLM + ${(ltGrammar.length - fresh.length)} from LT`);
   }
 
   // ── HONESTY GATE (doctrine: never manufacture confident critique on data too thin to support it) ──
