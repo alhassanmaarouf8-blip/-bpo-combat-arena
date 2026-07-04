@@ -242,3 +242,68 @@ is the app itself (instructions, Alhassan) — a narrator changing voice mid-les
 bug, not variety.
 **DoD:** per-drill decision table in the commit message (character vs narrator); no new cost
 (same cached /api/tts-stream); gates green.
+
+### 15. QUEUED — Funnel/model pacing sync: tell the boss which Teil the counter is in
+**Why (07-04 adversarial audit, top structural finding):** the stage funnel + ending are a rigid
+counter (`stageForAnswers`, complete at 8 scored answers) while the system prompt orders the model
+to linger on threads — two unsynchronized clocks. A talkative candidate can be forced into the
+goodbye while conversationally still in Teil 2, so the Drucktest ("der eigentliche Prüfstein")
+may never fire before closing.
+**What:** per-turn, append one line to the turn context telling the model the counter's current
+Teil and how many exchanges remain (mechanism like threadNudge/TURN_RULE injection in
+`realtimeClient.respond()`); when ONE answer remains, instruct it to wrap the thread. Do NOT
+change the counter values themselves or any timing knob.
+**DoD:** unit test that the injected line matches ctx.stageIdx/scoredAnswers; prompt-contradiction
+grep (no line tells the model to ignore the funnel); gates green.
+
+### 16. QUEUED — Terse-answer honesty: a real "Sofort." must count
+**Why (07-04 audit, corrected finding):** turns under MIN_SCORED_WORDS=3 are silently IGNORED —
+no score, no funnel advance — yet the Drucktest rubric explicitly solicits terse replies
+("Sofort."). The gate exists to stop VAD fragments from draining HP (owner-tuned balance — do not
+just lower it).
+**What:** distinguish a COMPLETE short turn (typed submit, or spoken turn-final commit) from a
+mid-speech VAD fragment at the _scoreAnswer call site; complete 1–2-word turns in stage ≥2 score
+via factors (never the 'keine Antwort' label) and advance `scoredAnswers`. HP damage caps unchanged.
+**DoD:** unit tests: "Sofort." typed in roleplay → scored + funnel advances; a 2-word VAD fragment
+mid-stream → still ignored; suite green.
+
+### 17. QUEUED — Silence gets an in-character lifeline (wire the dead 'silence' rescue)
+**Why (07-04 audit):** `requestRescue('silence')` exists but is never called — an empty turn
+short-circuits before scoring, so a frozen candidate (the most common real failure) faces an
+endlessly reopening mic with zero acknowledgment, up to 60s, forever.
+**What:** count consecutive empty TRANSCRIPT_DONE turns per session; on the 2nd, call
+`requestRescue('silence')` once (boss says something human: "Lassen Sie sich ruhig einen Moment
+Zeit — fangen Sie einfach mit dem ersten Gedanken an."); cap once per Teil. No VAD/timing changes.
+**DoD:** unit test on the counter/one-shot logic; no rescue on a single empty turn; gates green.
+
+### 18. QUEUED — Honest halt on sustained LLM outage (no infinite filler loop)
+**Why (07-04 audit):** if both providers stay down, every turn becomes a 3-phrase generic filler
+rotation forever while scoring keeps running and a banner simultaneously says "starte neu" — the
+boss says "continue", the system says "restart".
+**What:** after N=3 consecutive fallback-line turns, end the session honestly: boss speaks one
+in-character close ("Ich fürchte, die Leitung macht uns heute einen Strich durch die Rechnung —
+lassen Sie uns hier unterbrechen."), session ends WITHOUT scoring those filler exchanges against
+the learner, client shows the honest connection-error state (no contradictory double message).
+**DoD:** unit test the counter + no-score path; feedback-accuracy doctrine check (no learner blame);
+gates green.
+
+### 19. QUEUED — Opening variety + scene-consistent greetings (German content)
+**Why (07-04 audit):** GREETINGS pool = 1 per boss → the first sentence of the product is its
+most-repeated sentence (bit-identical cached MP3); and 4 bosses greet in-person ("Setzen Sie
+sich…") while 2 of 9 intro variants are phone-framed ("Die Verbindung steht…") — ~22% of those
+sessions contradict the scene inside one breath.
+**What:** 3 scene-neutral greetings per boss (seeded pick like intros; register-true German,
+german-check gated) and pair-filter greeting×intro so phone-framed intros never follow in-person
+greetings. TTS cache works per-variant already.
+**DoD:** probe: 20 seeded interviews/boss → ≥3 distinct first sentences, zero scene-contradiction
+pairs; german-check green on new lines; no employer names; gates green.
+
+### 20. QUEUED — Fallback turn integrity: finish_reason guard + deterministic TTS number expansion
+**Why (07-04 audit):** Groq-fallback turns (cap 90 tokens) can truncate mid-sentence with no
+`finish_reason==='length'` check — and cleanForTTS then APPENDS a '.' so the voice calmly ends
+mid-thought. Separately, digits/€/abbreviations reach TTS raw on paths without TURN_RULE.
+**What:** on `finish_reason==='length'`, trim to the last COMPLETE sentence boundary (never
+fake-close a fragment); raise the fallback cap toward the Cerebras value if latency allows; add a
+small deterministic German digit/€/abbrev expander into `cleanForTTS` (unit-testable, all paths).
+**DoD:** unit tests: truncated sample → ends at a real sentence; "19,99 €"/"24h" → spoken words;
+gates green.
