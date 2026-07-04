@@ -19,6 +19,13 @@ Don't add disconnected tweaks. Drive everything from ONE evolving state per sess
 4. **Memory** (the claimLedger above) + tell the boss its current stage+goal each turn.
 5. **Personality** (scenarios.js MOODS, personas): emotion must reach the WORDS (it was HUD-only); mood should DRIFT not freeze; per-persona register = **Angemessenheit** (a strict director must NOT say casual "gibt's/ne?").
 
+## Lane 6 (added 07-04, shipped `460df52`): the human GOODBYE + verified praise
+The interview must END like a human HR person, not just stop. Machinery that now exists — extend, don't rebuild:
+- `scoring/structureWins.js` — deterministic, honesty-gated detectors for what the candidate did WELL (Konjunktiv II, verb-final Nebensätze, Perfekt; ≥2 occurrences, quote-gated like l1Errors.js). Praise obeys the same law as blame: NEVER invented.
+- `RealtimeClient.requestClosing(wins)` (classic path) + `_maybeRequestGeminiClosing(ctx)` (Gemini path, websocketManager) → last turn = personal thanks + at most ONE verified observation + "Auswertung erscheint gleich" + warm goodbye, NO new question, NO criticism (the written debrief carries it).
+- GOTCHA that caused "no feedback at the end": on the Gemini path `completePending` was only consumed in the Groq `onBossSpeechDone` — which never fires there. Any new conversation path MUST wire its own completion consumer or interviews never end.
+- Boss brain: Cerebras `gpt-oss-120b` PRIMARY (reasoning_effort low, headroom 380, empty-completion + stream-stall + 401-cooldown + reasoning-leak guards), Groq 8B = failover only. If the boss feels dumb again, check which provider actually served (`[interviewClient] boss on <provider>` log).
+
 ## Hard rules
 - $0 only: Groq (free) + Deepgram (existing). NO new service — see [[never-spend-money]].
 - Register must fit the persona (Angemessenheit) — never one casual tone for all.
