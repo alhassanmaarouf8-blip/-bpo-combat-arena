@@ -4138,15 +4138,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
       <div style={{ padding:'16px 16px 0' }}>
+        {/* Connection status is only meaningful DURING a session. On the idle home it showed a scary
+            "GETRENNT" (disconnected) as the first thing a new user sees — pure noise. Hide when idle. */}
+        {(isActive || isConnecting) && (
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
           <div style={{ width:7, height:7, borderRadius:'50%',
-            background: isActive ? 'var(--accent)' : isConnecting ? 'var(--action)' : '#475569',
+            background: isActive ? 'var(--accent)' : 'var(--action)',
             boxShadow: isActive ? '0 0 6px var(--accent)' : 'none',
             animation: isActive ? 'pulse 2s infinite' : 'none' }} />
           <span style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-            {isActive ? 'VERBUNDEN' : isConnecting ? 'VERBINDE…' : 'GETRENNT'}
+            {isActive ? 'VERBUNDEN' : 'VERBINDE…'}
           </span>
         </div>
+        )}
 
         {/* Campaign / round progress (during a session) or level selector (before start) */}
         {funnel ? (
