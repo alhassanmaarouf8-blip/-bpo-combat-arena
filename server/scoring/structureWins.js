@@ -140,4 +140,37 @@ export function topStructureWins(utterances, { max = 2, minCount = 2 } = {}) {
     }));
 }
 
-export default { detectStructureWins, topStructureWins };
+// Learner-facing debrief copy (du-form, like l1Errors' COPY). note_ar stays an OWNER-AR slot.
+const DEBRIEF_COPY = {
+  konjunktiv2: {
+    title:   'Das sitzt schon: Konjunktiv II',
+    explain: 'Du hast mehrfach höfliches, gehobenes Deutsch benutzt (würde / könnte / wäre) — genau das Register, das deutsche Interviewer hören wollen.',
+  },
+  'verb-final-ok': {
+    title:   'Das sitzt schon: Verb am Ende',
+    explain: 'In Nebensätzen hast du das Verb korrekt ans Ende gestellt — DIE Hürde, an der die meisten scheitern, nimmst du schon.',
+  },
+  perfekt: {
+    title:   'Das sitzt schon: Perfekt',
+    explain: 'Du hast im Perfekt von deinen Erfahrungen erzählt („ich habe … gearbeitet") — die natürliche Erzählzeit im Gespräch.',
+  },
+};
+
+/**
+ * THE debrief hook (ROADMAP #12): the same verified wins the interviewer SPEAKS in the goodbye,
+ * as written cards — positive recognition must persist, not evaporate with the audio. Same
+ * gates as everything here: ≥2 occurrences, quotes honesty-gated, nothing invented.
+ * @returns {{ key, count, title, explain, quote|null, note_ar }[]} (max 2)
+ */
+export function debriefStructureWins(utterances) {
+  return topStructureWins(utterances).map((w) => ({
+    key:     w.key,
+    count:   w.count,
+    title:   DEBRIEF_COPY[w.key]?.title   || w.phrase,
+    explain: DEBRIEF_COPY[w.key]?.explain || '',
+    quote:   w.quote,
+    note_ar: '',   // OWNER-AR slot — never authored here
+  }));
+}
+
+export default { detectStructureWins, topStructureWins, debriefStructureWins };

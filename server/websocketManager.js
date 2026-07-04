@@ -5,7 +5,7 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
-import { topStructureWins } from './scoring/structureWins.js';
+import { topStructureWins, debriefStructureWins } from './scoring/structureWins.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { textFeatures, hireReadinessFor } from './hireReadiness.js';
@@ -1060,8 +1060,13 @@ export class WebSocketManager {
     let l1Pattern = null;
     try { l1Pattern = topL1Pattern(ctx.utterances); } catch (e) { console.error('[wsManager] l1Pattern failed:', e.message); }
 
+    // Structure wins (ROADMAP #12): the SAME verified positives the interviewer just spoke in the
+    // goodbye, persisted as written cards — praise must survive the audio. Deterministic, gated.
+    let structureWins = [];
+    try { structureWins = debriefStructureWins(ctx.utterances); } catch (e) { console.error('[wsManager] structureWins debrief failed:', e.message); }
+
     console.log(`[wsManager] Debrief ready  generated=${debrief.generated}  outcome=${result.outcome}  rank=${result.rank}  bossHp=${result.bossHp}  answers=${metrics.answers}  l1=${l1Pattern?.key || 'none'}  session=${ctx.sessionId}`);
-    this._send(ctx, { type: S.DEBRIEF, ...debrief, l1Pattern, result, progress });
+    this._send(ctx, { type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress });
   }
 
   // Persist this session: history, vocab growth, SRS items from errors, XP/level.

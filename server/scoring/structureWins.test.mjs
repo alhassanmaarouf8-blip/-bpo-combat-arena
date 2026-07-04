@@ -84,6 +84,26 @@ test('topStructureWins: needs ≥2 occurrences, caps at max, returns phrase + ga
   }
 });
 
+test('debriefStructureWins: written cards carry title+explain, same gates, max 2, note_ar empty', async () => {
+  const { debriefStructureWins } = await import('./structureWins.js');
+  const none = debriefStructureWins([u('Ich würde das machen.')]);   // single occurrence
+  assert.equal(none.length, 0, 'a single occurrence is never a written card');
+
+  const wins = debriefStructureWins([
+    u('Ich würde zuerst zuhören.'),
+    u('Ich könnte auch eine E-Mail schreiben.'),
+    u('Ich habe zwei Jahre im Support gearbeitet.'),
+    u('Wir haben viel gelernt und ich habe den Prozess verbessert.'),
+  ]);
+  assert.ok(wins.length >= 1 && wins.length <= 2);
+  for (const w of wins) {
+    assert.ok(w.title && w.title.startsWith('Das sitzt schon'), `title: ${w.title}`);
+    assert.ok(w.explain.length > 20);
+    assert.equal(w.note_ar, '', 'Arabic stays an OWNER-AR slot');
+    assert.ok(w.count >= 2);
+  }
+});
+
 test('honesty gates: truncated turns and low-confidence words are never quoted', () => {
   const wins = detectStructureWins([
     u('Ich würde gerne mehr über die', {}),                                  // truncated → no quote

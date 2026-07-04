@@ -1648,6 +1648,30 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             </div>
           )}
 
+          {/* ── DAS SITZT SCHON — verified structure wins (ROADMAP #12): the SAME deterministic,
+                honesty-gated positives the interviewer spoke in the goodbye, persisted in writing.
+                ≥2 occurrences each, quote = the learner's own gated words. Neutral blue like the
+                L1 card — the Wochenfokus stays the screen's single orange. note_ar = OWNER-AR. ── */}
+          {(data?.structureWins || []).slice(0, 2).map((w) => (
+            <div key={w.key} style={{ padding:'13px 15px', borderRadius:13, animation:'result-rise 0.55s var(--ease-out)',
+              background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.35)' }}>
+              <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'var(--accent-2)', marginBottom:7 }}>
+                DAS SITZT SCHON · {w.count}× IN DIESEM INTERVIEW
+              </div>
+              <div style={{ fontSize:13.5, color:'#f1f5f9', fontWeight:700, lineHeight:1.5 }}>{w.title}</div>
+              {w.explain && <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.65, marginTop:6 }}>{w.explain}</div>}
+              {ar && w.note_ar && (
+                <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:6 }}>{w.note_ar}</div>
+              )}
+              {w.quote && (
+                <div style={{ marginTop:9, paddingTop:8, borderTop:'1px solid rgba(96,165,250,0.2)', fontSize:12.5, lineHeight:1.6 }}>
+                  <span style={{ color:'var(--good)' }}>„{w.quote}…"</span>
+                  <span style={{ color:'#64748b' }}> — deine eigenen Worte</span>
+                </div>
+              )}
+            </div>
+          ))}
+
           {/* Progressive disclosure (owner: "never give a million advice"): the full analysis —
               every metric, exchange review, grammar group, drill and vocab list — sits behind ONE
               toggle. The learner leaves with a verdict and a plan, not a wall. */}
