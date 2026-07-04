@@ -37,6 +37,17 @@ const CORPUS = [
   { t: 'Ich glaube, dass das Team stark ist.',                       expect: null },
   { t: 'Ich denke, dass ich die richtige Person bin.',              expect: null },
   { t: 'Obwohl es schwierig war, habe ich nicht aufgegeben.',        expect: null },
+  // ── ADVERSARIAL guard-negatives (2026-07-05): a subordinate clause ending in a finite modal/aux is
+  //    CORRECT even though the early word ("arbeiten"/"gehen") shares a finite-verb form. Broke it once. ──
+  { t: 'Ich komme später, weil ich arbeiten muss.',                  expect: null },
+  { t: 'Ich weiß, dass ich gehen möchte.',                           expect: null },
+  { t: 'Ich glaube, dass wir das schaffen können.',                  expect: null },
+  { t: 'Ich denke, dass er bald kommen wird.',                       expect: null },
+  { t: 'Der Kollege, der gut Deutsch spricht, hilft mir.',           expect: null },
+  { t: 'Ich frage mich, ob sie das wirklich verstehen.',             expect: null },
+  // subtle verb-final errors that MUST still be caught after the fix
+  { t: 'Ich denke, dass ich bin sehr motiviert.',                    expect: 'verb-final' },
+  { t: 'weil ich muss jeden Tag arbeiten',                           expect: 'verb-final' },
   // ── gender / article (RECALL GAP as of 2026-07-05 — detector lexicon too narrow; to be expanded) ──
   { t: 'Ich habe die Problem gelöst.',                               expect: 'gender' },
   { t: 'Das war eine Problem für mich.',                             expect: 'gender' },

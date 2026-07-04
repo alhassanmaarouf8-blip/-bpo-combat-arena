@@ -34,6 +34,19 @@ const FINITE_VERB = '(?:habe|hast|hat|haben|bin|bist|ist|sind|war|warst|waren|we
 const V2_IN_SUB = new RegExp(
   `\\b(${SUB_CONJ})\\s+(${SUBJECT})\\s+(${FINITE_VERB})\\s+([a-zäöüß]+(?:\\s+[a-zäöüß]+)*)`, 'gi');
 
+// ADVERSARIAL FIX (2026-07-05): "weil ich arbeiten muss", "dass ich gehen möchte" are CORRECT — the
+// matched early "verb" is an INFINITIVE that shares a form with the finite list, and the REAL finite
+// verb (a modal/aux) is already clause-final. If the subordinate clause ENDS with one of these finite
+// modal/aux forms, verb-final holds → it is NOT an error. (Caught by the adversarial corpus.)
+const MODAL_AUX_FINAL = new Set([
+  'muss','musst','müssen','musste','mussten','kann','kannst','können','konnte','konnten','könnte','könnten',
+  'will','willst','wollen','wollte','wollten','soll','sollst','sollen','sollte','sollten','darf','darfst','dürfen','durfte',
+  'mag','magst','mögen','möchte','möchtest','möchten',
+  'habe','hab','hast','hat','haben','hatte','hatten','hätte','hätten',
+  'bin','bist','ist','sind','seid','war','warst','waren','wäre','wären',
+  'wird','werde','werden','wirst','wurde','wurden','würde','würden','würdest',
+]);
+
 // Deterministic correction for SIMPLE clauses only: conj + subj + verb + rest → conj + subj +
 // rest + verb. Attempted only when the rest is short and contains no further clause boundary —
 // otherwise we name the rule but do not fabricate a rewrite.
@@ -113,6 +126,11 @@ export function detectL1Patterns(utterances) {
     let m;
     while ((m = V2_IN_SUB.exec(text)) !== null) {
       const [, conj, subj, verb, rest] = m;
+      // GUARD: if THIS subordinate clause already ends with a finite modal/aux, verb-final holds
+      // ("weil ich arbeiten muss", "dass ich gehen möchte") → NOT an error. (Adversarial-corpus fix.)
+      const _tail = text.slice(m.index).split(/[,.!?;:]/)[0];
+      const _last = (_tail.match(/[\p{L}]+/gu) || []).pop() || '';
+      if (MODAL_AUX_FINAL.has(_last.toLowerCase())) continue;
       hits['verb-final'].count++;
       const restShown = rest.replace(/[.,!?].*$/, '').trim().split(/\s+/).slice(0, 6).join(' ');
       const quote = `${conj} ${subj} ${verb} ${restShown}`.trim();
