@@ -199,6 +199,35 @@ const _SHORT_VALID = new Set([
   'ja','nein','doch','gerne','danke','genau','richtig','okay','ok','klar','natürlich',
   'vielleicht','sicher','absolut','stimmt','korrekt','jein','nö','joa','perfekt',
 ]);
+// ── ADAPTIVE per-user turn-taking (owner 2026-07-05: "let the tech decide the ms per person — don't
+// make me the standard, everyone is a different human"). A fixed silence window fits one speaker and
+// cuts off the next. Instead we LEARN: every pause the user RESUMES from was a think-pause, not an
+// ending — so we sample those durations and set the cutoff just above the user's high percentile.
+// Calibrates from the first turns, persists per-device so next session starts pre-tuned, and
+// classifyTurnDE still scales it (a finished-sounding sentence needs less margin than a trailing one). ──
+const _PAUSE_KEY = 'ff_pauseProfile_v1';
+let _pauseSamples = [];
+try { const v = JSON.parse(localStorage.getItem(_PAUSE_KEY) || 'null'); if (Array.isArray(v?.samples)) _pauseSamples = v.samples.slice(-40); } catch { /* first run */ }
+function recordThinkPause(ms) {                        // a pause the user resumed from → learn it
+  if (!(ms >= 250 && ms <= 4000)) return;             // ignore micro-gaps + implausibly-long (between-turn) gaps
+  _pauseSamples.push(Math.round(ms)); if (_pauseSamples.length > 40) _pauseSamples.shift();
+  try { localStorage.setItem(_PAUSE_KEY, JSON.stringify({ samples: _pauseSamples })); } catch { /* storage full */ }
+}
+function userPauseCeiling() {                          // p85 of THIS user's think-pauses; sane default until enough data
+  const s = _pauseSamples.filter((x) => x >= 200 && x <= 4000).sort((a, b) => a - b);
+  if (s.length < 4) return 1000;                       // cold start: a middle value, adapts within a few turns
+  const p85 = s[Math.min(s.length - 1, Math.floor(s.length * 0.85))];
+  return Math.max(500, Math.min(2200, p85));
+}
+function adaptiveNeedSilence(cls, words) {             // the per-user wait, scaled by how finished the sentence sounds
+  const ceil = userPauseCeiling();
+  let ms = cls === 'complete'   ? Math.round(ceil * 0.55)         // finished sentence → send well before their max pause
+         : cls === 'incomplete' ? Math.round(ceil * 1.25) + 250   // trailing cue → clearly mid-thought, extra margin
+         :                        Math.round(ceil * 0.95) + 120;  // default → just clear their own typical pause
+  if (words > 0 && words < 6) ms += 200;              // tiny opening grace for an early pause right after the boss's question
+  return Math.max(450, Math.min(2600, ms));
+}
+
 function classifyTurnDE(partial) {
   const raw = String(partial || '').trim();
   if (!raw) return 'ambiguous';
@@ -213,7 +242,7 @@ function classifyTurnDE(partial) {
   const last = toks[toks.length - 1] || '';
   if (_CONT_CUES.has(last)) return 'incomplete';               // trailing cue → still mid-thought (even if Deepgram added a period)
   if (/[.!?]["'»«]?\s*$/.test(raw)) return 'complete';         // finished sentence (Deepgram punctuate)
-  return 'incomplete';                                         // no completion signal → assume mid-thought, wait
+  return 'ambiguous';                                          // no completion signal → use the user's OWN pause window (adaptive), not the max
 }
 
 // ── Icon system (07-02 uplift): hand-authored Feather-style stroke SVGs replace every emoji-as-icon
@@ -3618,14 +3647,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // sentence waits ~0.9s (a real interviewer's natural gap) before the boss may take the floor.
     // The dead air AFTER the turn commits is masked by the instant thinking-filler, so the felt
     // latency cost of these raises is small; the felt cost of a wrong cut-off was the #1 crisis.
-    const SIL_COMPLETE = 900, SIL_AMBIGUOUS = 1400, SIL_INCOMPLETE = 2500;
     const STEP = 50, K = 2.6, MIN_SPEAK_MS = 180, MAX_MS = 60000;
     hfTimerRef.current = setInterval(async () => {
       elapsed += STEP;
       const v = volRef.current || 0;
       if (!spoke) floor = floor * 0.92 + v * 0.08;          // adapt to room noise until speech
       const thresh = Math.max(0.02, floor * K);
-      if (v > thresh) { if (elapsed > MIN_SPEAK_MS) { spoke = true; volSpoke = true; } silenceMs = 0; }
+      if (v > thresh) {
+        if (spoke && silenceMs >= 250) recordThinkPause(silenceMs);   // resumed after a pause → that pause was thinking; LEARN this user's rhythm
+        if (elapsed > MIN_SPEAK_MS) { spoke = true; volSpoke = true; }
+        silenceMs = 0;
+      }
       else if (spoke) { silenceMs += STEP; }
       // SAFETY NET (fixes "my words just hang, it never sends"): if the live transcript has STOPPED
       // GROWING for a while, the candidate has clearly stopped talking — even if a noisy mic keeps the
@@ -3641,34 +3673,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!volSpoke && lastPartial.trim()) { spoke = true; silenceMs = 0; }
       }
       else if (spoke) { partialStableMs += STEP; }
-      // How long the user must stay silent depends on whether their sentence looks finished.
+      // ADAPTIVE per-user wait: anchored to how long THIS user pauses mid-thought (learned live from
+      // their resume-pauses), scaled by how finished the sentence sounds. Replaces the fixed SIL_*
+      // windows + per-persona patience so the wait fits every speaker — never one person's standard.
       const cls = classifyTurnDE(livePartialRef.current);
-      let needSilence = cls === 'complete'   ? SIL_COMPLETE
-                      : cls === 'incomplete' ? SIL_INCOMPLETE
-                      :                        SIL_AMBIGUOUS;
-      // Open-question patience: the self-presentation (0) and behavioral (1) stages invite
-      // LONG, multi-sentence answers with thinking pauses between sentences ("Ich heiße X.
-      // … Ich bin 24. … Ich habe drei Jahre …"). Add grace there so a between-sentence pause
-      // never hands the floor to the boss mid-introduction. The roleplay (2) stays snappy.
-      if (stageIdxRef.current <= 1) needSilence += 350;   // open-question grace (restored 07-02 — multi-sentence answers live here)
-      needSilence += bossPatienceRef.current;             // per-persona patience: gentle interviewers wait longer before taking the floor, forceful ones stay snappy
-      // TURN-TAKING (owner directive 07-01): a real interviewer LETS you talk and only cuts in when you go
-      // OFF-TOPIC for a LONG stretch — NEVER on mere length, a list, or a thinking pause. Off-topic is not
-      // detectable client-side and length ≠ rambling, so we NO LONGER shorten the wait for long/enumerated
-      // turns (that reduction was grabbing the floor at ~300ms and cutting people off mid-sentence "for no
-      // reason"). The turn now ends ONLY on a genuine sustained silence; cancel-on-resume resets the timer
-      // the instant you speak again, so as long as you're talking you always keep the floor.
       const turnWords = (livePartialRef.current.trim().match(/\S+/g) || []).length;
-      //  Opening grace: extra patience on the first few words so an early thinking pause right after the
-      //  boss's question is never mistaken for "finished" (kills the reasonless early cut-off).
-      if (turnWords > 0 && turnWords < 12) needSilence += 500;
+      let needSilence = adaptiveNeedSilence(cls, turnWords);
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze
       // (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       // The frozen-transcript net must be CLASSIFICATION-AWARE: a flat 1800ms silently capped every
       // wait (silence ⇒ frozen transcript), so a mid-clause thinking pause >1.8s was STILL cut no
       // matter how patient the SIL windows were — the exact "talks over me aggressively" bug. It now
       // never fires earlier than the adaptive window it exists to backstop.
-      const needStable = Math.max(1800, needSilence + 800);
+      const needStable = Math.max(1200, needSilence + 600);
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= needStable;
       if (!((spoke && silenceMs >= needSilence) || transcriptDone || elapsed >= MAX_MS)) return;
       try { console.log(`[DIAG] turn-END reason=${elapsed >= MAX_MS ? 'MAXCAP' : transcriptDone ? 'transcript-frozen' : 'silence'} vadClass=${cls} needSilence=${needSilence}ms silence=${Math.round(silenceMs)}ms stage=${stageIdxRef.current} heardSoFar=${JSON.stringify((livePartialRef.current || '').slice(0, 160))}`); } catch {}
