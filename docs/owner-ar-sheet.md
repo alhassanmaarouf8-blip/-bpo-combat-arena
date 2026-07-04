@@ -11,7 +11,7 @@ disappear from the next run once the strings land in code.
 4. Hand the filled file back to any session: the strings get landed, gated
    (langGuard + german-check), and shipped.
 
-**45 slots across 11 files.**
+**53 slots across 12 files.**
 
 
 ## client/src/Alhassan.jsx
@@ -27,8 +27,8 @@ disappear from the next run once the strings land in code.
 | 1627 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
 | 2382 | `Echtes Live-Interview — Ton an. {/* OWNER-AR slot */}` |  |
 | 2415 | `· {publicRatings.ratingCount} echte Bewertungen {/* OWNER-AR slot */}` |  |
-| 4725 | Satzbau-Schmiede |  |
-| 4755 | Fortschritt & Wiederholung |  |
+| 4736 | Satzbau-Schmiede |  |
+| 4766 | Fortschritt & Wiederholung |  |
 
 ## client/src/FluencyDrill.jsx
 
@@ -106,6 +106,19 @@ disappear from the next run once the strings land in code.
 | Zeile | Deutsch | عربي |
 |---|---|---|
 | 178 | `explanation_ar: '',                                       // LT messages are German; client falls back to G…` |  |
+
+## server/lessons.config.js
+
+| Zeile | Deutsch | عربي |
+|---|---|---|
+| 304 | `title_ar: '',` |  |
+| 315 | `title_ar: '',` |  |
+| 326 | `title_ar: '',` |  |
+| 337 | `title_ar: '',` |  |
+| 348 | `title_ar: '',` |  |
+| 359 | `title_ar: '',` |  |
+| 370 | `title_ar: '',` |  |
+| 381 | `title_ar: '',` |  |
 
 ## server/satzbauSchmiede.js
 
