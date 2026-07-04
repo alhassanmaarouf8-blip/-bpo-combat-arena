@@ -229,3 +229,16 @@ a lightweight directive (`proxy.sendText`, same mechanism as the greeting kick a
 telling the interviewer the NEXT question is the last one and to frame it that way.
 **DoD:** no double-directives (idempotent flag like `_geminiClosingSent`); classic path
 untouched; gates green.
+
+### 14. QUEUED — Voice variety beyond Hör-Check (Shadowing, Sag es richtig, Druck-Leiter)
+**Why (predicted from the 07-04 voice wave):** Hör-Check callers are now 7 different German
+humans; every OTHER drill still speaks with the single default voice (`aura-2-julius-de` via
+nativeVoice.js). The owner will hear the contrast within a day and ask why the rest of the app
+is one narrator.
+**What:** reuse `makeVoicePicker`/`inferSpeakerGender` (exported from server/listening.js —
+move to a shared module) wherever drill lines are SPOKEN CHARACTERS (customer lines in
+Druck-Leiter, example speakers in Sag es richtig). Keep ONE consistent voice where the speaker
+is the app itself (instructions, Alhassan) — a narrator changing voice mid-lesson reads as a
+bug, not variety.
+**DoD:** per-drill decision table in the commit message (character vs narrator); no new cost
+(same cached /api/tts-stream); gates green.
