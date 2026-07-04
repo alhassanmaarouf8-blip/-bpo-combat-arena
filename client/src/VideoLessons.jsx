@@ -640,7 +640,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
           const isPicked  = i === qPicked;
           let bg = 'rgba(0,0,0,0.35)', border = 'rgba(96,165,250,0.25)';
           if (qPicked !== null) {
-            if (isCorrect) { bg = 'rgba(34,197,94,0.12)'; border = 'rgba(34,197,94,0.5)'; }
+            if (isCorrect) { bg = 'rgba(59,130,246,0.12)'; border = 'rgba(59,130,246,0.5)'; }
             else if (isPicked) { bg = 'rgba(239,68,68,0.12)'; border = 'rgba(239,68,68,0.5)'; }
           }
           return (
@@ -679,7 +679,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
         </div>
         <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>{lesson.title}</div>
         {total > 0 && (
-          <div style={{ fontSize: 15, color: perfect ? '#4ade80' : '#e2e8f0', fontWeight: 700, marginTop: 14 }}>
+          <div style={{ fontSize: 15, color: perfect ? 'var(--good)' : '#e2e8f0', fontWeight: 700, marginTop: 14 }}>
             Quiz: {qScore} / {total} richtig{/* OWNER-AR slot */}
           </div>
         )}

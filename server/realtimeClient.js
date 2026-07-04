@@ -329,7 +329,11 @@ const VOICES = {
   'hana':           'aura-2-viktoria-de', // female, mature
   'tarek':          'aura-2-julius-de',   // male, hard
   'frau-mona-adel': 'aura-2-aurelia-de',  // female, authoritative
-  'lukas':          'aura-2-fabian-de',   // male, casual (Deepgram fallback)
+  // julius (not fabian): Deepgram's German Aura-2 catalog has only TWO male voices (fabian,
+  // julius — verified in their tts-models docs 2026-07-04), so one male pair must share on
+  // fallback. Lukas (du-Kumpel) must NOT sound identical to Karim (Sie-Teamleiter) — the same
+  // learner meets both across adjacent levels; sharing with late-stage Tarek is the lesser tell.
+  'lukas':          'aura-2-julius-de',   // male, casual (Deepgram fallback)
 };
 try {
   const _charsPath  = path.join(path.dirname(fileURLToPath(import.meta.url)), 'interviewer-characters.json');
@@ -370,7 +374,10 @@ function _seededPick(arr, seed) { const x = Math.imul(seed ^ 0x9e3779b9, 2654435
 // The single hardest rule, repeated to the model on EVERY turn (belt-and-braces with
 // the system prompt). This is the "say one thing, then stop and wait" discipline that
 // fixes the boss answering its own question.
-const TURN_RULE =
+// Exported: the Gemini Live path builds its own systemInstruction (websocketManager) and must
+// carry the same per-turn humanity discipline — without this the premium path parrots, repeats
+// openers, and reads unspeakable text (audit 2026-07-04).
+export const TURN_RULE =
   `WICHTIG: Antworte als Interviewer mit GENAU EINER Sache (eine Frage ODER eine ` +
   `Kundenäußerung im Rollenspiel). Höre danach SOFORT auf. HALTE JEDEN REDEBEITRAG SEHR KURZ — wie ein echter Interviewer: meist nur eine knappe Reaktion und EINE kurze Frage (etwa 7–15 Wörter), oft sogar nur eine Ein-Wort-Nachfrage („Inwiefern?", „Und dann?", „Konkret?"). NIEMALS mehrere Fragen in einem Zug. Erzähle die Antwort des Kandidaten NICHT nach („Sie haben also…", „Sie sagten…") — reagiere knapp oder hak nach. Sprich den Vornamen des Kandidaten NICHT in jedem Zug, nur selten. Beantworte deine eigene Frage NICHT, ` +
   `sprich NICHT für den Kandidaten, erfinde KEINE Kandidatenantwort und führe das Gespräch NICHT ` +
@@ -458,7 +465,12 @@ export function threadNudge({ freshTerms = [], wordCount = 0, stageIdx = 0, used
 // top of the prompt + token cap). If the model emits a candidate label or a second
 // speaker turn, cut at the first such marker so only the boss's own line survives.
 // Exported for unit tests — the self-answer/ramble backstop below is otherwise unprovable statically.
-export function sanitizeOneTurn(text) {
+// opts.roleplay: Teil-3 (angry customer) turns are legitimately longer and stack questions —
+// a rant like "Was soll das? Ich warte seit zwei Wochen!" is the emotional climax the whole
+// stage exists for. The aggressive one-question/4-sentence cut was amputating the customer's
+// threat sentence on EVERY scripted opening (all 10 CS_SCENARIOS lose their final line at the
+// default caps). Roleplay keeps the self-answer/label backstops but breathes: 2 questions, 6 sentences.
+export function sanitizeOneTurn(text, { roleplay = false } = {}) {
   // Scrub script-drift glyphs FIRST (the "兄" class): a stray CJK/Cyrillic char in a boss line
   // would be spoken by TTS as gibberish mid-interview AND shown in the transcript. Deterministic,
   // $0, and can only remove glitch glyphs — real German never contains these ranges.
@@ -472,9 +484,16 @@ export function sanitizeOneTurn(text) {
   // early-sentence path strips, so the early prefix always matches the sanitized full line.
   t = t.replace(BOSS_LABEL_RE, '').trim();
   // ONE question per turn: real interviewers ask one thing, not a stack (measured 1.6 Q/turn, up to 3).
-  // If the line has ≥2 question marks, keep everything up to and including the FIRST '?' and drop the rest.
-  const q1 = t.indexOf('?');
-  if (q1 !== -1 && t.indexOf('?', q1 + 1) !== -1) t = t.slice(0, q1 + 1).trim();
+  // Interview stages: ≥2 '?' → keep up to the FIRST. Roleplay: an angry customer legitimately
+  // stacks two ("Was soll das? Wo bleibt meine Lieferung?") → keep up to the SECOND, cut a third+.
+  const maxQ = roleplay ? 2 : 1;
+  let qIdx = -1;
+  for (let k = 0; k < maxQ; k++) {
+    const next = t.indexOf('?', qIdx + 1);
+    if (next === -1) { qIdx = -1; break; }
+    qIdx = next;
+  }
+  if (qIdx !== -1 && t.indexOf('?', qIdx + 1) !== -1) t = t.slice(0, qIdx + 1).trim();
   // LENGTH CAP — the self-answer/ramble backstop (owner-reported 2026-07-02: the boss "responded
   // to itself" early in an interview). A real interviewer turn is a short reaction + ONE question,
   // almost never more than a few sentences (TURN_RULE: "sehr kurz... 7-15 Wörter"). When the model
@@ -482,7 +501,8 @@ export function sanitizeOneTurn(text) {
   // (so the marker cut above never fires), the turn balloons far past any legitimate length — even
   // the longest real case (a Teil-3 roleplay transition announcement) stays within a few sentences.
   // Capping at 4 keeps every legitimate turn intact while reliably cutting a runaway self-answer.
-  const MAX_TURN_SENTENCES = 4;
+  // Roleplay turns (scripted openings + stage-change announcement run 5 sentences) get 6.
+  const MAX_TURN_SENTENCES = roleplay ? 6 : 4;
   const ends = [...t.matchAll(/[.!?…]["'»«]?(?=\s|$)/gu)];
   if (ends.length > MAX_TURN_SENTENCES) {
     const cut = ends[MAX_TURN_SENTENCES - 1];
@@ -731,7 +751,7 @@ export class RealtimeClient {
         console.log(`[interviewClient] boss on ${provider}  session=${this._sessionId}`);
       }
 
-    line = sanitizeOneTurn(line);
+    line = sanitizeOneTurn(line, { roleplay: this._stageIdx >= 2 });
     // never emit an empty boss turn — and VARY the fallback so a repeat doesn't read as a robot.
     if (!line) line = ['Bitte fahren Sie fort.', 'Erzählen Sie ruhig weiter.', 'Gut — und weiter?'][this._history.length % 3];
 

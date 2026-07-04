@@ -109,3 +109,28 @@ test('sanitizeOneTurn: two questions in one turn still keeps only the first (reg
 test('sanitizeOneTurn: a leading self-label is still stripped (regression)', () => {
   assert.equal(sanitizeOneTurn('Frau Mona Adel: Kommen wir zum Schluss.'), 'Kommen wir zum Schluss.');
 });
+
+// ── sanitizeOneTurn roleplay mode: the angry customer's rant is the emotional climax of Teil 3 —
+// the default 1-question/4-sentence caps were amputating the final threat of EVERY scripted
+// CS opening (audit 2026-07-04). Roleplay breathes (2 questions, 6 sentences); backstops stay.
+test('sanitizeOneTurn roleplay: every scripted CS opening survives intact (with announcement prefix)', async () => {
+  const { CS_SCENARIOS } = await import('./scenarios.js');
+  for (const cs of CS_SCENARIOS) {
+    const full = 'Gut. Wechseln wir die Rolle — ich bin jetzt ein Kunde am Telefon. ' + cs.opening;
+    assert.equal(sanitizeOneTurn(full, { roleplay: true }), full, `CS opening amputated: ${cs.id}`);
+  }
+});
+
+test('sanitizeOneTurn roleplay: a two-question customer rant stays whole, a third question is cut', () => {
+  const rant = 'Was soll das? Ich warte seit zwei Wochen auf meine Lieferung und niemand meldet sich!';
+  assert.equal(sanitizeOneTurn(rant, { roleplay: true }), rant);
+  assert.equal(sanitizeOneTurn('Was? Wieso? Und wann kommt endlich jemand?', { roleplay: true }), 'Was? Wieso?');
+});
+
+test('sanitizeOneTurn roleplay: the self-answer newline-marker backstop still fires', () => {
+  assert.equal(sanitizeOneTurn('Gute Frage.\nKandidat: Meine Stärke ist Teamarbeit.', { roleplay: true }), 'Gute Frage.');
+});
+
+test('sanitizeOneTurn default (interview stages): still one question max — roleplay laxness must not leak', () => {
+  assert.equal(sanitizeOneTurn('Was war Ihre Rolle? Und was haben Sie gelernt?'), 'Was war Ihre Rolle?');
+});

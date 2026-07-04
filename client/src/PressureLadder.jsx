@@ -403,8 +403,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
             : T(lang, `Stufe ${L.n} überstanden — schneller und unhöflicher als ein echtes Interview. Weiter nach oben.`, `عديت مستوى ${L.n} — أسرع وأقسى من مقابلة حقيقية. كمّل لفوق.`)}
       </div>
     </div>
-    <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(34,197,94,0.07)', borderRadius: 10, border: '1px solid rgba(34,197,94,0.25)' }}>
-      <div style={{ fontSize: 10, color: '#4ade80', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>💬 {T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
+    <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(59,130,246,0.07)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.25)' }}>
+      <div style={{ fontSize: 10, color: 'var(--good)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>💬 {T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
       <div style={{ color: '#f1f5f9', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
       <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}>🔊 {T(lang, 'Anhören', 'اسمع')}</button>
     </div>

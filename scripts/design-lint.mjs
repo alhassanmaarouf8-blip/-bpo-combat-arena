@@ -15,8 +15,8 @@ const ROOT = path.resolve('client/src');
 // Forbidden color signatures (hex + the matching rgb triplet) — the old rainbow that was folded out.
 // Each entry: a human label + the patterns that must not appear.
 const FORBIDDEN = [
-  ['neon cyan',  [/#00e5ff/i, /#22d3ee/i, /#00bcd4/i, /#38bdf8/i, /\b0\s*,\s*229\s*,\s*255\b/, /\b34\s*,\s*211\s*,\s*238\b/]],
-  ['emerald green', [/#34d399/i, /#10b981/i, /#22c55e/i, /#6ee7b7/i, /#a7f3d0/i, /#d1fae5/i, /\b16\s*,\s*185\s*,\s*129\b/, /\b52\s*,\s*211\s*,\s*153\b/, /\b110\s*,\s*231\s*,\s*183\b/]],
+  ['neon cyan',  [/#00e5ff/i, /#22d3ee/i, /#00bcd4/i, /#38bdf8/i, /#67e8f9/i, /#7dd3fc/i, /\b0\s*,\s*229\s*,\s*255\b/, /\b34\s*,\s*211\s*,\s*238\b/, /\b56\s*,\s*189\s*,\s*248\b/, /\b103\s*,\s*232\s*,\s*249\b/, /\b125\s*,\s*211\s*,\s*252\b/]],
+  ['emerald green', [/#34d399/i, /#10b981/i, /#22c55e/i, /#4ade80/i, /#6ee7b7/i, /#a7f3d0/i, /#d1fae5/i, /\b16\s*,\s*185\s*,\s*129\b/, /\b52\s*,\s*211\s*,\s*153\b/, /\b74\s*,\s*222\s*,\s*128\b/, /\b110\s*,\s*231\s*,\s*183\b/]],
   ['violet',     [/#a78bfa/i, /#7c3aed/i, /#c4b5fd/i, /#ede9fe/i, /\b167\s*,\s*139\s*,\s*250\b/]],
   ['gold/amber', [/#fbbf24/i, /#f59e0b/i, /#fcd34d/i, /#fde68a/i, /\b251\s*,\s*191\s*,\s*36\b/, /\b245\s*,\s*158\s*,\s*11\b/]],
   ['gaming font (Orbitron)', [/orbitron/i]],

@@ -215,7 +215,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     </div>
     {round === 0 && results.length === 0 && (
       <button onClick={() => setMode('chunks')} style={{ ...ghostBtnWide, width: '100%', marginTop: 14, textAlign: 'left', lineHeight: 1.5 }}>
-        <span style={{ color: '#7dd3fc', fontWeight: 700 }}>⚡ Blitz-Formeln</span>
+        <span style={{ color: 'var(--accent-2)', fontWeight: 700 }}>⚡ Blitz-Formeln</span>
         <span style={{ color: '#94a3b8' }}> — feste Callcenter-Formeln so lange üben, bis sie ohne Nachdenken kommen. Verpasste Formeln kommen automatisch wieder. ▸</span>
       </button>
     )}
@@ -390,16 +390,16 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
           warn={relevancyWarn} />
       </div>
 
-      <div style={{ padding: '12px 14px', borderRadius: 11, background: wpmGood ? 'rgba(34,197,94,0.08)' : 'rgba(56,189,248,0.07)',
-        border: `1px solid ${wpmGood ? 'rgba(34,197,94,0.35)' : 'rgba(56,189,248,0.3)'}` }}>
+      <div style={{ padding: '12px 14px', borderRadius: 11, background: wpmGood ? 'rgba(59,130,246,0.08)' : 'rgba(96,165,250,0.07)',
+        border: `1px solid ${wpmGood ? 'rgba(59,130,246,0.35)' : 'rgba(96,165,250,0.3)'}` }}>
         <div style={{ fontSize: 13.5, color: '#f1f5f9', lineHeight: 1.6 }}>{wpmLine}</div>
         {fillerLine && <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6, marginTop: 8 }}>{fillerLine}</div>}
       </div>
 
       {relevancyLine && (
         <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10,
-          background: relevancyWarn ? 'rgba(249,115,22,0.08)' : 'rgba(34,197,94,0.07)',
-          border: `1px solid ${relevancyWarn ? 'rgba(249,115,22,0.4)' : 'rgba(34,197,94,0.3)'}` }}>
+          background: relevancyWarn ? 'rgba(249,115,22,0.08)' : 'rgba(59,130,246,0.07)',
+          border: `1px solid ${relevancyWarn ? 'rgba(249,115,22,0.4)' : 'rgba(59,130,246,0.3)'}` }}>
           <div style={{ fontSize: 12.5, color: relevancyWarn ? 'var(--action-2)' : '#cbd5e1', lineHeight: 1.6 }}>{relevancyLine}</div>
         </div>
       )}
@@ -438,7 +438,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
                   <div style={{ fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>
                     <span style={{ color: '#f87171', textDecoration: 'line-through' }}>{ex.wrongFragment || ex.wrong}</span>
                     <span style={{ color: '#64748b' }}> → </span>
-                    <span style={{ color: '#4ade80' }}>{ex.rightFragment || ex.right}</span>
+                    <span style={{ color: 'var(--good)' }}>{ex.rightFragment || ex.right}</span>
                   </div>
                 )}
               </div>
@@ -462,8 +462,8 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
 // One cell of the Tempo / Genauigkeit / Relevanz matrix. `good` → green, `warn` → orange,
 // otherwise neutral. A dash value stays neutral (not measurable this round).
 function MatrixCell({ label, value, unit, good, warn }) {
-  const color = warn ? 'var(--action)' : good ? '#4ade80' : '#cbd5e1';
-  const border = warn ? 'rgba(249,115,22,0.4)' : good ? 'rgba(34,197,94,0.35)' : 'rgba(148,163,184,0.2)';
+  const color = warn ? 'var(--action)' : good ? 'var(--good)' : '#cbd5e1';
+  const border = warn ? 'rgba(249,115,22,0.4)' : good ? 'rgba(59,130,246,0.35)' : 'rgba(148,163,184,0.2)';
   return (
     <div style={{ flex: 1, padding: '10px 8px', borderRadius: 10, textAlign: 'center',
       background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }}>
@@ -685,7 +685,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < results.length ? (results[i]?.hit ? '#4ade80' : '#ef4444')
+          background: i < results.length ? (results[i]?.hit ? 'var(--good)' : '#ef4444')
                     : i === idx ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
@@ -718,7 +718,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
         <MatrixCell label="AUTOMATISCH" value={`${autos}`} unit="unter 1,5 s" good={autos > 0} />
         <MatrixCell label="REAKTION" value={avgLat != null ? `${(avgLat / 1000).toFixed(1)}s` : '—'} unit="im Schnitt" good={avgLat != null && avgLat <= 1500} />
       </div>
-      <div style={{ padding: '12px 14px', borderRadius: 11, background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.3)' }}>
+      <div style={{ padding: '12px 14px', borderRadius: 11, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.3)' }}>
         <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.6 }}>
           Getroffene Formeln kommen nach dem 1-3-7-14-30-Tage-Plan wieder; verpasste schon morgen.
           So wird aus Wissen ein Reflex — genau das, was am Telefon zählt.
@@ -740,8 +740,8 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
         Profis rufen feste Formeln ohne Nachdenken ab. Hör die Formel einmal — dann kommt die Situation, und du sagst sie sofort aus dem Kopf.
       </div>
     )}
-    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(56,189,248,0.3)' }}>
-      <div style={{ fontSize: 9, color: '#7dd3fc', letterSpacing: '0.12em', marginBottom: 8 }}>MERK DIR DIE FORMEL</div>
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(96,165,250,0.3)' }}>
+      <div style={{ fontSize: 9, color: 'var(--accent-2)', letterSpacing: '0.12em', marginBottom: 8 }}>MERK DIR DIE FORMEL</div>
       <div style={{ fontSize: 19, color: '#f8fafc', lineHeight: 1.55, fontWeight: 600, overflowWrap: 'anywhere' }}>{item.chunk}</div>
       {item.note_ar && <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7 }}>{item.note_ar}</div>}
     </div>
@@ -784,13 +784,13 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
       {header}
       {progress}
       <div style={{ padding: '16px 14px', borderRadius: 12, textAlign: 'center',
-        background: good ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-        border: `1px solid ${good ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-        <div style={{ fontSize: 16, color: good ? '#4ade80' : '#fca5a5', fontWeight: 700, lineHeight: 1.5 }}>{title}</div>
+        background: good ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
+        border: `1px solid ${good ? 'rgba(59,130,246,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
+        <div style={{ fontSize: 16, color: good ? 'var(--good)' : '#fca5a5', fontWeight: 700, lineHeight: 1.5 }}>{title}</div>
         {!good && (
           <div style={{ marginTop: 12, textAlign: 'left' }}>
             <div style={{ fontSize: 9, color: '#94a3b8', letterSpacing: '0.1em' }}>DIE FORMEL</div>
-            <div style={{ fontSize: 15, color: '#4ade80', lineHeight: 1.5, marginTop: 3 }}>{item.chunk}</div>
+            <div style={{ fontSize: 15, color: 'var(--good)', lineHeight: 1.5, marginTop: 3 }}>{item.chunk}</div>
             {last.transcript && <>
               <div style={{ fontSize: 9, color: '#94a3b8', letterSpacing: '0.1em', marginTop: 10 }}>VERSTANDEN WURDE</div>
               <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5, marginTop: 3 }}>{last.transcript}</div>

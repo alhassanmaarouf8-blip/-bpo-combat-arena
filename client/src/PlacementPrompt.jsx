@@ -72,7 +72,7 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
   const card = {
     marginTop: 10, padding: '12px 14px', borderRadius: 10,
     direction: ar ? 'rtl' : 'ltr', textAlign: ar ? 'right' : 'left',
-    background: 'rgba(56,189,248,0.07)', border: '1px solid rgba(56,189,248,0.25)',
+    background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.25)',
   };
   const title = { fontSize: 13, fontWeight: 700, color: '#e0f2fe', marginBottom: 8 };
 
@@ -122,8 +122,8 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
         {STAGES.map((s) => (
           <button key={s.id} onClick={() => pick(s)} disabled={busy}
             style={{ padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11.5,
-              background: s.id === 'hired' ? 'rgba(34,197,94,0.18)' : 'rgba(15,23,42,0.6)',
-              border: `1px solid ${s.id === 'hired' ? 'rgba(34,197,94,0.5)' : 'rgba(148,163,184,0.28)'}`,
+              background: s.id === 'hired' ? 'rgba(59,130,246,0.18)' : 'rgba(15,23,42,0.6)',
+              border: `1px solid ${s.id === 'hired' ? 'rgba(59,130,246,0.5)' : 'rgba(148,163,184,0.28)'}`,
               color: s.id === 'hired' ? '#86efac' : '#cbd5e1', fontWeight: s.id === 'hired' ? 700 : 500 }}>
             {ar ? s.ar : s.de}
           </button>

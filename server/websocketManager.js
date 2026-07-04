@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID }      from 'crypto';
-import { RealtimeClient }  from './realtimeClient.js';
+import { RealtimeClient, TURN_RULE }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
@@ -683,8 +683,13 @@ export class WebSocketManager {
             apiKey: process.env.GEMINI_API_KEY,
             model:   process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest',
             voiceName: process.env.GEMINI_LIVE_VOICE || 'Charon',
-            systemInstruction: ctx.realtimeClient._session?.instructions ||
-              'Du bist ein deutscher HR-Manager in einem BPO-Unternehmen. Sprich nur Deutsch, Sie-Form.',
+            // The full persona prompt PLUS the per-turn humanity discipline. The Groq path re-sends
+            // TURN_RULE on every respond(); Gemini gets no per-turn injection, so the rule must live
+            // in the session instruction — without it the premium path parrots ("Sie haben also…"),
+            // repeats openers, and produces unspeakable text (audit 2026-07-04).
+            systemInstruction: ((ctx.realtimeClient._session?.instructions ||
+              'Du bist ein deutscher HR-Manager in einem BPO-Unternehmen. Sprich nur Deutsch, Sie-Form.') +
+              '\n\n' + TURN_RULE),
           });
           ctx.geminiProxy = proxy;
           console.log(`[wsManager] GeminiLive proxy started  session=${ctx.sessionId}`);
@@ -1724,7 +1729,11 @@ export class WebSocketManager {
     const factors = [];
     const add = (side, label, hp) => { const v = Math.round(hp); if (v > 0) factors.push({ side, label, hp: v }); };
 
-    if (!transcript || wordCount < 2) {
+    // "keine Antwort" only when there is literally no answer. A real 1-2-word turn
+    // ("Sofort.", "Ja, genau.") must never be labeled a non-answer — the Drucktest
+    // rubric explicitly solicits terse replies. (Callers gate on MIN_SCORED_WORDS,
+    // so short turns normally never reach here; this guard is honesty hardening.)
+    if (!transcript || wordCount < 1) {
       return { score: 0, factors: [{ side: 'player', label: 'keine Antwort', hp: 4 }] };
     }
 

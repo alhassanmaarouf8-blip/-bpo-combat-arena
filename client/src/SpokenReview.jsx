@@ -167,11 +167,11 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
             <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.3)', fontSize: 12.5, color: 'var(--action-2)' }}>{T(lang, 'Nichts erkannt — sag es bitte noch einmal.', 'مفيش كلام اتسمع — قولها تاني.')}</div>
           ) : (
             <div style={{ textAlign: 'left' }}>
-              <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
+              <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'rgba(59,130,246,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
                 <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
                   {result.correct ? T(lang, '✓ Richtig gesagt!', '✓ قلتها صح!') : T(lang, '✗ Noch nicht ganz', '✗ لسه مش مظبوط')}
                 </div>
-                <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>{T(lang, 'Richtig: ', 'الصح: ')}<b style={{ color: '#4ade80' }}>{result.expected}</b></div>
+                <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>{T(lang, 'Richtig: ', 'الصح: ')}<b style={{ color: 'var(--good)' }}>{result.expected}</b></div>
                 {result.heard && <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 6 }}>{T(lang, 'Gehört: ', 'اتسمع: ')}„{result.heard}"</div>}
               </div>
             </div>

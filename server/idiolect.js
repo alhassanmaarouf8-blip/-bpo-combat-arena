@@ -13,7 +13,9 @@
 
 // Each entry is a concrete, correct-German spoken habit an interviewer can consistently exhibit.
 export const IDIOLECT_POOL = [
-  'Knappe Quittung: Beginne oft mit einem einzigen kurzen Wort — „Gut.", „So.", „Nun.", „Verstehe." — statt mit einem vollen Satz.',
+  // „Verstehe." entfernt: TURN_RULE verbietet es als Beitragsanfang — ein Habit darf nie
+  // gegen die Turn-Regel arbeiten (25% aller Sessions trugen den Widerspruch, Audit 2026-07-04).
+  'Knappe Quittung: Beginne oft mit einem einzigen kurzen Wort — „Gut.", „So.", „Nun.", „Aha." — statt mit einem vollen Satz.',
   'Hörbares Nachdenken: Setze gelegentlich ein „…" oder ein knappes „Hm," an den Anfang, als überlegtest du kurz.',
   'Nackte Rückfrage: Stell ab und zu eine Ein- oder Zwei-Wort-Rückfrage als GANZEN Beitrag: „Inwiefern?", „Konkret?", „Und dann?", „Das Ergebnis?".',
   'Wörtlicher Rückgriff: Greif betont oft ein EXAKTES Wort des Kandidaten wieder auf, statt es zu umschreiben.',

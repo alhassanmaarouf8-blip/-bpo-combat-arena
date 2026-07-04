@@ -555,7 +555,7 @@ const EMOTIONS = {
   gefasst:     { face: 'composed',  label: 'GEFASST',     color: 'var(--accent-2)' }, // composed authority
   skeptisch:   { face: 'skeptical', label: 'SKEPTISCH',   color: 'var(--action)' }, // mild doubt — weak answer
   beeindruckt: { face: 'impressed', label: 'BEEINDRUCKT', color: 'var(--accent)' }, // grudging respect
-  wuetend:     { face: 'furious',   label: 'WÜTEND',      color: '#ef4444' }, // cornered / candidate fails
+  wuetend:     { face: 'furious',   label: 'WÜTEND',      color: 'var(--action-deep)' }, // cornered / candidate fails — deep orange, red stays reserved for true errors
   hurt:        { face: 'shaken',    label: 'GETROFFEN',   color: 'var(--action)' }, // rattled (transient)
 };
 
@@ -601,7 +601,7 @@ const GLOBAL_CSS = `
     --line:rgba(255,255,255,0.09); --line-strong:rgba(255,255,255,0.18);
     /* accents — blue primary, orange action */
     --accent:#3b82f6; --accent-2:#60a5fa; --accent-dim:rgba(59,130,246,0.45);
-    --action:#f97316; --action-2:#fb923c; --action-dim:rgba(249,115,22,0.45);
+    --action:#f97316; --action-2:#fb923c; --action-deep:#ea580c; --action-dim:rgba(249,115,22,0.45);
     --player:#3b82f6; --player-2:#60a5fa; --player-glow:rgba(59,130,246,0.40);
     --boss:#f97316; --boss-2:#fb923c; --boss-glow:rgba(249,115,22,0.40);
     --warn:#f97316; --good:#3b82f6; --bad:#f87171; --violet:#3b82f6;
@@ -1500,7 +1500,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                 Mirrors the server jobLabel so the screen never shows two competing verdicts. ── */}
           {!gradeUnavailable && (() => {
             const d = r.verdict === 'fail'
-              ? { icon:'✗', label:'DIESMAL NICHT', de:'Unter Druck eingebrochen — genau das entscheidet auf der Linie. Weiter trainieren, der Weg ist klar.', ar:'انهرت تحت الضغط — ده بالظبط اللي الشغل بيتقرر عليه. كمّل تدريب، الطريق واضح.', color:'#f87171', bg:'rgba(239,68,68,0.10)', border:'rgba(239,68,68,0.35)' }
+              ? { icon:'✗', label:'DIESMAL NICHT', de:'Unter Druck eingebrochen — genau das entscheidet auf der Linie. Weiter trainieren, der Weg ist klar.', ar:'انهرت تحت الضغط — ده بالظبط اللي الشغل بيتقرر عليه. كمّل تدريب، الطريق واضح.', color:'var(--bad)', bg:'rgba(248,113,113,0.08)', border:'rgba(248,113,113,0.3)' }
               : (rank === 'C1' && r.verdict === 'pass')
               ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'C1 unter Druck gehalten — auf einer deutschen Kundenlinie einsetzbar.', ar:'حافظت على C1 تحت الضغط — جاهز لخط خدمة ألماني.', color:'var(--accent)', bg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.4)' }
               : rank === 'C1'
@@ -1628,7 +1628,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {data?.l1Pattern && (
             <div style={{ padding:'13px 15px', borderRadius:13, animation:'result-rise 0.55s var(--ease-out)',
               background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.35)' }}>
-              <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'#7dd3fc', marginBottom:7 }}>
+              <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'var(--accent-2)', marginBottom:7 }}>
                 DEIN L1-MUSTER · {data.l1Pattern.count}× IN DIESEM INTERVIEW
               </div>
               <div style={{ fontSize:13.5, color:'#f1f5f9', fontWeight:700, lineHeight:1.5 }}>{data.l1Pattern.title}</div>
@@ -1638,10 +1638,10 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
               )}
               {data.l1Pattern.example && (
                 <div style={{ marginTop:9, paddingTop:8, borderTop:'1px solid rgba(96,165,250,0.2)', fontSize:12.5, lineHeight:1.6 }}>
-                  <span style={{ color:'#f87171', textDecoration:'line-through' }}>{data.l1Pattern.example.quote}</span>
+                  <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{data.l1Pattern.example.quote}</span>
                   {data.l1Pattern.example.better && <>
                     <span style={{ color:'#64748b' }}> → </span>
-                    <span style={{ color:'#4ade80' }}>{data.l1Pattern.example.better}</span>
+                    <span style={{ color:'var(--good)' }}>{data.l1Pattern.example.better}</span>
                   </>}
                 </div>
               )}
@@ -1663,7 +1663,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {showDetails && (<>
           {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
           {data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
-            <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(56,189,248,0.07)', border:'1px solid rgba(56,189,248,0.3)' }}>
+            <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.3)' }}>
               <div style={{ fontSize:9, fontFamily:'var(--font-display)', letterSpacing:'0.12em', color:'var(--accent-2)', marginBottom:5 }}>{ar ? 'تقدّمك' : 'DEIN FORTSCHRITT'}</div>
               <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.6, ...rtl }}>{ar && data.progressNarrative.ar ? data.progressNarrative.ar : data.progressNarrative.de}</div>
             </div>
@@ -1679,7 +1679,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                   {r.frage && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4, ...rtl }}>❓ {r.frage}</div>}
                   <div style={{ fontSize:12, color:'#e2e8f0', fontStyle:'italic', lineHeight:1.5, marginBottom:6, overflowWrap:'anywhere', ...rtl }}>„{r.deinSatz}“</div>
                   {(ar ? r.stark_ar : r.stark) && <div style={{ fontSize:11.5, color:'var(--accent-2)', lineHeight:1.5, marginBottom:4, ...rtl }}>✓ {ar && r.stark_ar ? r.stark_ar : r.stark}</div>}
-                  {(ar ? r.luecke_ar : r.luecke) && <div style={{ fontSize:11.5, color:'#fca5a5', lineHeight:1.5, marginBottom:4, ...rtl }}>✗ {ar && r.luecke_ar ? r.luecke_ar : r.luecke}</div>}
+                  {(ar ? r.luecke_ar : r.luecke) && <div style={{ fontSize:11.5, color:'var(--bad)', lineHeight:1.5, marginBottom:4, ...rtl }}>✗ {ar && r.luecke_ar ? r.luecke_ar : r.luecke}</div>}
                   {(ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt) && (
                     <div style={{ fontSize:11.5, color:'var(--action)', lineHeight:1.55, background:'rgba(249,115,22,0.08)', borderRadius:7, padding:'6px 9px', marginTop:4, ...rtl }}>
                       💡 {ar && r.fixDerEinstellt_ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt}
@@ -1863,24 +1863,24 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
 
           {/* Grammar grouped by rule */}
           {!!data?.grammar?.length && (
-            <Section title="GRAMMATIK · NACH REGEL" color="#f87171"
+            <Section title="GRAMMATIK · NACH REGEL" color="var(--bad)"
               right={
                 <button onClick={() => setShowAll(v => !v)} style={{ fontSize:8.5, cursor:'pointer',
                   fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 7px', borderRadius:5,
-                  border:'1px solid rgba(248,113,113,0.4)', background:'transparent', color:'#f87171' }}>
+                  border:'1px solid rgba(248,113,113,0.4)', background:'transparent', color:'var(--bad)' }}>
                   {showAll ? 'NUR BEISPIELE' : 'ALLE FEHLER ANZEIGEN'}
                 </button>
               }>
               <div style={{ fontSize:9, color:'#64748b', marginBottom:7, fontStyle:'italic', ...rtl }}>
-                {ar ? 'فقط أخطاء حقيقية رصدها المدقق. الأحمر = ما قلته · الأخضر = التصحيح.'
-                    : 'Nur echte, vom Grammatik-Prüfer erkannte Fehler. Rot = was du gesagt hast · Grün = Korrektur.'}
+                {ar ? 'فقط أخطاء حقيقية رصدها المدقق. الأحمر = ما قلته · الأزرق = التصحيح.'
+                    : 'Nur echte, vom Grammatik-Prüfer erkannte Fehler. Rot = was du gesagt hast · Blau = Korrektur.'}
               </div>
               {data.grammar.map((g, i) => {
                 const ex = (showAll ? g.allExamples : g.summaryExamples) ?? [];
                 return (
                   <div key={i} style={{ marginBottom:12 }}>
-                    <div style={{ fontSize:12, color:'#fca5a5', fontWeight:700 }}>
-                      {g.rule} {g.count ? <span style={{ color:'#7f1d1d', fontWeight:400 }}>· {g.count}×</span> : null}
+                    <div style={{ fontSize:12, color:'var(--bad)', fontWeight:700 }}>
+                      {g.rule} {g.count ? <span style={{ color:'var(--text-faint)', fontWeight:400 }}>· {g.count}×</span> : null}
                     </div>
                     {(ar && g.explanation_ar) || g.explanation
                       ? <div style={{ fontSize:11, color:'#94a3b8', margin:'2px 0 5px', lineHeight:1.45, ...rtl }}>
@@ -1894,7 +1894,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                           {hasFrag ? (
                             <>
                               <div>
-                                <span style={{ color:'#ef4444', textDecoration:'line-through' }}>{e.wrongWord}</span>
+                                <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{e.wrongWord}</span>
                                 <span style={{ color:'#64748b' }}> → </span>
                                 <b style={{ color:'var(--accent)' }}>{e.rightWord}</b>
                               </div>
@@ -1904,7 +1904,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                             </>
                           ) : (
                             <>
-                              <span style={{ color:'#ef4444' }}>✗ {e.wrong}</span><br />
+                              <span style={{ color:'var(--bad)' }}>✗ {e.wrong}</span><br />
                               <span style={{ color:'var(--accent)' }}>✓ {e.right}</span>
                             </>
                           )}
@@ -4049,7 +4049,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <div onClick={ackActivation} style={{ position:'absolute', inset:0, zIndex:240, display:'grid', placeItems:'center', padding:20,
           background:'rgba(2,4,9,0.92)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
-            background:'linear-gradient(180deg, rgba(12,28,20,0.98), rgba(4,12,8,0.99))', border:'1px solid rgba(59,130,246,0.5)', boxShadow:'0 0 40px rgba(59,130,246,0.2)' }}>
+            background:'linear-gradient(180deg, rgba(0,22,44,0.98), rgba(0,8,18,0.99))', border:'1px solid rgba(59,130,246,0.5)', boxShadow:'0 0 40px rgba(59,130,246,0.2)' }}>
             <div style={{ fontSize:52 }}>🎉</div>
             <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, color:'var(--accent)', marginTop:6 }}>
               {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
@@ -4570,7 +4570,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                     style={{ flex:1, padding:'10px 14px', cursor: answerText.trim() ? 'pointer' : 'not-allowed',
                       borderRadius:8, fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.12em',
                       border:'1px solid var(--accent)', color:'#04070d', fontWeight:700,
-                      background: answerText.trim() ? 'linear-gradient(135deg,#67e8f9,var(--accent))' : 'rgba(59,130,246,0.15)',
+                      background: answerText.trim() ? 'linear-gradient(135deg,var(--accent-2),var(--accent))' : 'rgba(59,130,246,0.15)',
                       opacity: answerText.trim() ? 1 : 0.5 }}>
                     SENDEN ▶
                   </button>
@@ -4596,7 +4596,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             color: bossSpeak ? boss.color : isActive ? 'var(--accent)' : 'var(--warn)',
             textShadow: (isActive && !bossSpeak) ? '0 0 16px rgba(59,130,246,0.6)' : bossSpeak ? `0 0 12px ${boss.color}` : 'none',
             transition:'all 0.3s' }}>
-            {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : 'DU BIST DRAN') : 'VERBINDE…'}
+            {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : bossSpeak ? `${funnel?.displayName ?? 'GEGNER'} SPRICHT` : 'DU BIST DRAN') : 'VERBINDE…'}
           </div>
           )}
           {isActive && !bossThinking && (
