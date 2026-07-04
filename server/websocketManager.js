@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID }      from 'crypto';
-import { RealtimeClient, TURN_RULE }  from './realtimeClient.js';
+import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
@@ -102,6 +102,9 @@ function topWeakRule(profile) {
 // scored exchanges. The SERVER alone decides the session is over (never the client),
 // and only after the boss finishes its current turn — so screen and voice stay in sync.
 const ROLEPLAY_EXCHANGES = 4;
+// The whole interview in scored answers — the single number the pacing sync (ROADMAP #15)
+// reports to the model. Derived, never tuned independently.
+const TOTAL_SCORED_ANSWERS = STAGE_AFTER[1] + ROLEPLAY_EXCHANGES;
 
 // ── "Real session" floor (single source of truth) ────────────────────────────
 // A session only earns feedback/scores/recommendations if the user ACTUALLY spoke:
@@ -632,7 +635,7 @@ export class WebSocketManager {
                   if (userFull.length >= 2) {
                     Promise.resolve(this._handleAnswer(ctx, { text: userFull, durationMs: 0 }, { skipRespond: true }))
                       .catch((e) => console.error(`[wsManager] gemini answer scoring failed session=${ctx.sessionId}: ${e.message}`))
-                      .finally(() => this._maybeRequestGeminiClosing(ctx));
+                      .finally(() => { this._maybeRequestGeminiClosing(ctx); this._maybeAnnounceGeminiLastQuestion(ctx); });
                   } else {
                     this._maybeRequestGeminiClosing(ctx);   // the time cap can set completePending without a fresh answer
                   }
@@ -944,6 +947,25 @@ export class WebSocketManager {
     // Backstop: if the goodbye's TURN_COMPLETE never arrives, the debrief must still happen.
     ctx._geminiCloseTimer = setTimeout(() => { if (!ctx.closed) this._endSession(ctx, 'completed'); }, 30_000);
     ctx._geminiCloseTimer.unref?.();
+  }
+
+  // ROADMAP #13: a real interviewer signals the end BEFORE the last exchange. On the Gemini
+  // path the completion is only knowable after scoring, so when exactly ONE scored answer
+  // remains we tell the interviewer (one shot) that the NEXT question is the last — no more
+  // dangling "one extra question, then an abrupt goodbye".
+  _maybeAnnounceGeminiLastQuestion(ctx) {
+    if (ctx.closed || ctx.ending || ctx.completePending || ctx._geminiClosingSent) return;
+    if (ctx._geminiLastQAnnounced || !ctx.geminiProxy) return;
+    if (TOTAL_SCORED_ANSWERS - ctx.scoredAnswers !== 1) return;
+    ctx._geminiLastQAnnounced = true;
+    try {
+      ctx.geminiProxy.sendText(
+        `(Hinweis an den Interviewer: Ihre NÄCHSTE Frage ist die LETZTE dieses Gesprächs. ` +
+        `Kündigen Sie sie natürlich an — „Eine letzte Frage noch …" — und führen Sie den ` +
+        `aktuellen Faden damit zum Abschluss. Öffnen Sie kein neues Thema.)`
+      );
+      console.log(`[wsManager] Gemini last-question announced  session=${ctx.sessionId}`);
+    } catch { /* best-effort — the goodbye path still ends the session */ }
   }
 
   async _handleStopFight(ctx) {
@@ -1434,7 +1456,24 @@ export class WebSocketManager {
     // session (one dropped turn killed all following turns).
     if (ctx.realtimeClient.isResponding) { this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 }); return; }
     const transcript = (typeof msg.text === 'string') ? msg.text.trim().slice(0, 4000) : '';
-    if (!transcript) { this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 }); return; }
+    if (!transcript) {
+      this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+      // ROADMAP #17: the frozen candidate. On the 2nd consecutive empty turn (once per Teil),
+      // the boss offers an in-character lifeline instead of the mic silently reopening forever.
+      // Classic path only (Gemini owns its own turn-taking); no scoring, no HP — a system
+      // failure to help is never blamed on the learner.
+      if (!ctx.geminiProxy && !ctx.completePending && !ctx.ending) {
+        const r = silenceRescueStep(ctx._silence, ctx.stageIdx);
+        ctx._silence = r.state;
+        if (r.fire && ctx.realtimeClient && !ctx.realtimeClient.isResponding) {
+          console.log(`[wsManager] silence lifeline  stage=${ctx.stageIdx}  session=${ctx.sessionId}`);
+          ctx.realtimeClient.requestRescue('silence');
+          ctx.realtimeClient.respond('').catch((e) => console.error(`[wsManager] silence rescue failed session=${ctx.sessionId}: ${e.message}`));
+        }
+      }
+      return;
+    }
+    ctx._silence = { ...(ctx._silence || {}), emptyTurns: 0 };   // a real answer resets the silence counter
 
     // ── Name auto-capture: if the guide profile has no name yet, try to extract one from the
     // candidate's first self-introduction (e.g. "Ich bin Karim" / "Ich heiße …" / "Mein Name ist …").
@@ -1695,6 +1734,14 @@ export class WebSocketManager {
       ctx.realtimeClient?.setStage?.(newIdx);   // thread-following must stand down in the roleplay
       this._send(ctx, { type: S.STAGE_UPDATE, index: newIdx, ...ctx.stages[newIdx] });
     }
+
+    // Pacing sync (ROADMAP #15): hand the model the counter's clock — Teil, its label, and how
+    // many scored answers remain — so the conversation and the rigid ending finally agree.
+    ctx.realtimeClient?.setPacing?.({
+      teil:      ctx.stageIdx + 1,
+      label:     ctx.stages[ctx.stageIdx]?.label || '',
+      remaining: Math.max(0, TOTAL_SCORED_ANSWERS - ctx.scoredAnswers),
+    });
 
     // Mark the session for completion once the roleplay (final part) has run its
     // course. _handleAnswer still asks the boss for ONE closing turn after this; the

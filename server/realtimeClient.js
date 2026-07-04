@@ -461,6 +461,47 @@ export function threadNudge({ freshTerms = [], wordCount = 0, stageIdx = 0, used
   );
 }
 
+// ── Pacing sync (ROADMAP #15): tell the model which Teil the completion counter is in ──────
+// The funnel/ending is a rigid counter while the prompt tells the model to linger on threads —
+// two unsynchronized clocks. This line (re-sent each turn, like TURN_RULE) is the sync: the
+// model finally KNOWS how much room is left, so a talkative candidate is wrapped up naturally
+// instead of being cut off mid-Teil by a goodbye it never saw coming. Pure → unit-testable.
+export function pacingLine(pacing) {
+  if (!pacing || typeof pacing !== 'object') return '';
+  const teil  = Number(pacing.teil);
+  const rem   = Number(pacing.remaining);
+  if (!Number.isInteger(teil) || !Number.isInteger(rem)) return '';
+  const label = String(pacing.label || '').trim();
+  const wo    = label ? `Teil ${teil} („${label}")` : `Teil ${teil}`;
+  if (rem <= 1) {
+    return (
+      `GESPRÄCHSSTAND: ${wo}. Deine NÄCHSTE Frage ist die LETZTE dieses Gesprächs. ` +
+      `Kündige sie natürlich an („Eine letzte Frage noch …") und führe deinen aktuellen Faden ` +
+      `damit zum Abschluss — öffne KEIN neues Thema mehr.`
+    );
+  }
+  return (
+    `GESPRÄCHSSTAND: ${wo}, noch etwa ${rem} Antworten bis zum Ende des Gesprächs. ` +
+    `Richte dein Tempo daran aus: vertiefe nur, was in diesem Rahmen Platz hat, und öffne kurz ` +
+    `vor dem Ende kein neues großes Thema.`
+  );
+}
+
+// ── Silence lifeline (ROADMAP #17): pure decision step, one shot per Teil ─────────────────
+// A frozen candidate (the most common real failure) used to face an endlessly reopening mic
+// with zero acknowledgment — requestRescue('silence') existed but nothing ever called it.
+// The gateway feeds every EMPTY turn through this step; on the 2nd consecutive empty in a
+// Teil that has not had its lifeline yet, it says fire. Pure → unit-testable.
+export function silenceRescueStep(state, stageIdx) {
+  const s = (state && typeof state === 'object') ? state : {};
+  const emptyTurns = (Number(s.emptyTurns) || 0) + 1;
+  const rescuedStage = Number.isInteger(s.rescuedStage) ? s.rescuedStage : -1;
+  if (emptyTurns >= 2 && rescuedStage !== stageIdx) {
+    return { state: { emptyTurns: 0, rescuedStage: stageIdx }, fire: true };
+  }
+  return { state: { emptyTurns, rescuedStage }, fire: false };
+}
+
 // Strip anything that looks like the model role-playing BOTH sides (a safety net on
 // top of the prompt + token cap). If the model emits a candidate label or a second
 // speaker turn, cut at the first such marker so only the boss's own line survives.
@@ -586,6 +627,7 @@ export class RealtimeClient {
     this._pendingRescue      = null;
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
     this._pendingClosing     = null;   // wins[] → next turn is the human HR goodbye
+    this._pacing             = null;   // { teil, label, remaining } — the funnel clock (ROADMAP #15)
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
     this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
     this._stageIdx           = 0;      // funnel stage (gateway keeps it fresh) → thread-following only in Teil 1–2
@@ -685,6 +727,12 @@ export class RealtimeClient {
     // weakness while saying goodbye. (Emotion tone and the claim-ledger callback stay: they are
     // exactly what makes the goodbye personal.)
     if (this._pendingClosing != null) { this._pendingRescue = null; this._pendingCorrection = null; }
+    // Pacing sync (ROADMAP #15): the funnel clock, re-sent each turn like TURN_RULE. Skipped on
+    // the goodbye turn — the closing instruction already owns the ending.
+    if (this._pendingClosing == null) {
+      const pace = pacingLine(this._pacing);
+      if (pace) turnMsgs.push({ role: 'system', content: pace });
+    }
     if (this._pendingRescue) {
       turnMsgs.push({ role: 'system', content: this._rescueInstruction(this._pendingRescue) });
       this._pendingRescue = null;
@@ -780,6 +828,11 @@ export class RealtimeClient {
 
   // The gateway keeps the funnel stage fresh → thread-following stays out of the Teil-3 roleplay.
   setStage(idx) { if (typeof idx === 'number') this._stageIdx = idx; }
+
+  // The gateway calls this after every scored answer so the model sees the SAME clock the rigid
+  // completion counter runs on (ROADMAP #15). Values only — the counter itself and every timing
+  // knob stay untouched; consumed fresh each respond() via pacingLine().
+  setPacing(pacing) { this._pacing = (pacing && typeof pacing === 'object') ? pacing : null; }
 
   // The gateway calls this after two broken answers → soften the NEXT boss turn.
   requestRescue(reason = 'weak') { this._pendingRescue = reason; }

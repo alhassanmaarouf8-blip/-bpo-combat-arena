@@ -5,7 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn } from './realtimeClient.js';
+import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn, pacingLine, silenceRescueStep } from './realtimeClient.js';
 
 const base = { freshTerms: ['Reiseleiterin'], wordCount: 20, stageIdx: 0, used: 0, cooldown: 0, busy: false };
 
@@ -133,4 +133,55 @@ test('sanitizeOneTurn roleplay: the self-answer newline-marker backstop still fi
 
 test('sanitizeOneTurn default (interview stages): still one question max — roleplay laxness must not leak', () => {
   assert.equal(sanitizeOneTurn('Was war Ihre Rolle? Und was haben Sie gelernt?'), 'Was war Ihre Rolle?');
+});
+
+// ── pacingLine (ROADMAP #15): the model must see the counter's clock, exactly as the gateway set it ──
+
+test('pacingLine: mid-interview → Teil + remaining, no last-question framing', () => {
+  const l = pacingLine({ teil: 2, label: 'Erfahrung', remaining: 4 });
+  assert.ok(l.includes('Teil 2') && l.includes('Erfahrung') && l.includes('4 Antworten'), `got: ${l}`);
+  assert.ok(!/LETZTE/i.test(l), 'must not announce the ending early');
+});
+
+test('pacingLine: one answer left → announce the last question, forbid new topics', () => {
+  const l = pacingLine({ teil: 3, label: 'Rollenspiel', remaining: 1 });
+  assert.ok(/LETZTE/.test(l) && l.includes('Eine letzte Frage noch'), `got: ${l}`);
+  assert.ok(/KEIN neues Thema/i.test(l), `got: ${l}`);
+});
+
+test('pacingLine: unset/garbage pacing → empty string (nothing is injected)', () => {
+  assert.equal(pacingLine(null), '');
+  assert.equal(pacingLine({}), '');
+  assert.equal(pacingLine({ teil: 'x', remaining: 'y' }), '');
+});
+
+// ── silenceRescueStep (ROADMAP #17): 2nd consecutive empty turn fires, once per Teil ──
+
+test('silenceRescueStep: a single empty turn never fires', () => {
+  const r = silenceRescueStep(undefined, 0);
+  assert.equal(r.fire, false);
+  assert.equal(r.state.emptyTurns, 1);
+});
+
+test('silenceRescueStep: the 2nd consecutive empty turn fires and resets the counter', () => {
+  const first = silenceRescueStep(undefined, 1);
+  const second = silenceRescueStep(first.state, 1);
+  assert.equal(second.fire, true);
+  assert.equal(second.state.emptyTurns, 0);
+  assert.equal(second.state.rescuedStage, 1);
+});
+
+test('silenceRescueStep: only one lifeline per Teil — a new Teil earns a fresh one', () => {
+  let s = silenceRescueStep(undefined, 1).state;
+  s = silenceRescueStep(s, 1).state;                    // fired for Teil 1
+  let r = silenceRescueStep(s, 1); s = r.state;
+  r = silenceRescueStep(s, 1); s = r.state;
+  assert.equal(r.fire, false, 'same Teil must not fire twice');
+  // A stage change only happens after a REAL answer, which resets emptyTurns (gateway does
+  // `ctx._silence = { ...s, emptyTurns: 0 }` on every non-empty transcript) — model that:
+  s = { ...s, emptyTurns: 0 };
+  r = silenceRescueStep(s, 2); s = r.state;
+  assert.equal(r.fire, false, 'first empty in the new Teil is still just a pause');
+  r = silenceRescueStep(s, 2);
+  assert.equal(r.fire, true, 'the next Teil gets its own lifeline');
 });
