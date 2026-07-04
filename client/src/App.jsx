@@ -281,6 +281,12 @@ function stopBossVoice() {
 // session start and played the instant the boss starts "thinking". The mic is OFF during that window
 // (half-duplex), so this is echo-safe. Separate audio channel from the boss line so the two never fight.
 let _fillerAudio = null;
+// THINKING FILLER — DISABLED 2026-07-04. The pre-synthesized "Mhm./Verstehe./Also." clips replayed
+// every turn were the #1 robotic tell (owner: "no 'Mhm', not every time — be natural"). Only 4 clips
+// existed, so the ear recognised the loop as canned. The boss's real, varied, content-reactive reply
+// now streams in as the ONLY voice; a natural half-second pause reads like a human considering the
+// answer, a recording reads like a machine. Flip to true to restore the old bridge-sound behaviour.
+const THINKING_FILLER_ENABLED = false;
 function stopFiller() {
   try {
     if (_fillerAudio) {
@@ -291,6 +297,7 @@ function stopFiller() {
   } catch {}
 }
 function playFiller(urls) {
+  if (!THINKING_FILLER_ENABLED) return;   // owner 07-04: no canned bridge-sound; the streamed boss reply is the only voice
   if (!urls || !urls.length || _fillerAudio) return;   // nothing cached, or one already bridging
   try {
     const url = urls[Math.floor(Math.random() * urls.length)];   // vary it so it's not the same word every turn
@@ -3131,7 +3138,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // Pre-generate short thinking sounds in THIS interviewer's own voice so the dead-air gap can be
           // filled instantly (mic off → echo-safe). Fire-and-forget; stays silent until ready. Revokes the
           // previous session's blobs first so they don't leak.
-          if (!ttsMutedRef.current) {
+          if (THINKING_FILLER_ENABLED && !ttsMutedRef.current) {
             precacheFillers({
               apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current,
               forceful: f >= 0.6,
