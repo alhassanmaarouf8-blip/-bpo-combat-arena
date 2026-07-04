@@ -44,11 +44,17 @@ const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 // ear-test that is just his account. Widen the env var to open it up once he validates it live.
 const GEMINI_LIVE_EMAILS = (process.env.GEMINI_LIVE_EMAILS || process.env.ADMIN_EMAIL || '')
   .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
-const geminiEmailAllowed = (email) => {
-  // TEMP: accept all emails to diagnose the gate. If Gemini works with this, email mismatch was the issue.
-  if (true) return true;  // FIXME: revert after testing
-  return !!email && GEMINI_LIVE_EMAILS.includes(String(email).toLowerCase());
-};
+// GEMINI PATH DISABLED (2026-07-04). The paid native-audio path was the source of the owner's
+// "7 seconds to respond": Gemini's own end-of-turn VAD adds ~2–7s between the candidate going
+// quiet and the boss replying (measured live — the boss BRAIN is fast, ~0.6–1s; the lag is turn-
+// taking). It is also the only paid piece of the app. The $0 Groq path is faster and, with early-
+// sentence TTS, feels snappier. Gemini code is kept in-tree (owner rule: unused code stays in git,
+// don't run it). A prior debug line (`if (true) return true // FIXME`) had also leaked the PAID
+// path to every user — this removes that too. Re-enable by flipping GEMINI_LIVE_DISABLED to false
+// (then only GEMINI_LIVE_EMAILS accounts get it).
+const GEMINI_LIVE_DISABLED = true;
+const geminiEmailAllowed = (email) =>
+  !GEMINI_LIVE_DISABLED && !!email && GEMINI_LIVE_EMAILS.includes(String(email).toLowerCase());
 // BARGE-IN: when ON (default), the user's mic keeps streaming while the boss speaks, so Gemini's native
 // VAD hears the interruption and yields — the real "let me cut in" feel. Requires headphones (open mic +
 // loudspeaker = the boss hears itself). Set GEMINI_BARGE_IN=0 for echo-safe half-duplex (mic muted while
