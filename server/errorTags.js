@@ -15,19 +15,24 @@ import { hasLesson } from './lessons.config.js';
 // "<ltRuleId> <ltCategoryId> <rule> <explanation>" of each flagged grammar error.
 const KEYWORD_MAP = [
   [/konjunktiv|subjunctive/,                                           'konjunktiv-2'],
+  [/reflexiv/,                                                         'reflexive-verben'],
   [/dativ|akkusativ|kasus|genitiv|fallfehler|\bcase\b/,                'dativ-akkusativ'],
   [/trennbar|separable/,                                               'trennbare-verben'],
   [/passiv|passive/,                                                   'passiv'],
   [/futur/,                                                            'futur-1'],
   [/komparativ|superlativ|steigerung|comparison/,                      'komparativ-superlativ'],
   [/relativ/,                                                          'relativsaetze'],
+  // Perfekt/participle BEFORE the generic tense bucket, or "zeitform" swallows every Perfekt slip.
+  [/perfekt|partizip|participle|hilfsverb|auxiliary/,                  'perfekt'],
   [/präteritum|prateritum|imperfekt|zeitform|\btense\b/,               'praeteritum'],
   [/fragewort|w-?frage|frageform/,                                     'w-fragen'],
   [/negation|verneinung/,                                              'negation'],
   [/adjektiv|kongruenz|agreement|deklination|übereinstimmung/,         'adjektivendungen'],
   [/modalverb|modal_/,                                                 'modalverben'],
-  [/artikel|\barticle\b/,                                              'dativ-akkusativ'],
-  [/wortstellung|verbstellung|satzstellung|word_?order|wortreihenfolge|verbposition/, 'relativsaetze'],
+  [/präposition|praeposition|preposition/,                             'wechselpraepositionen'],
+  [/imperativ|imperative/,                                             'imperativ-sie'],
+  [/artikel|\barticle\b/,                                              'artikel-genus'],
+  [/wortstellung|verbstellung|satzstellung|word_?order|wortreihenfolge|verbposition/, 'verbstellung-nebensatz'],
 ];
 
 const MAX_PER_ITEM = 10; // bound: a single rule can't flood the tally

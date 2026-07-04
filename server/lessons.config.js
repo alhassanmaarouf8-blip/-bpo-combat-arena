@@ -294,6 +294,98 @@ export const LESSONS = [
       { question_de: 'Höfliche Ablehnung:', question_ar_hint: 'رفض مهذّب', options: ['Leider ist das im Moment nicht möglich.', 'Nein.', 'Geht nicht.', 'Auf keinen Fall.'], correctIndex: 0 },
     ],
   },
+
+  // ── 07-04 expansion (+8): the missing Arabic-L1-wall lessons + high-value BPO grammar.
+  //    title_ar / question_ar_hint are OWNER-AR slots (never authored here — the owner-ar
+  //    sheet picks up the empty strings; the UI hides empty Arabic lines). ─────────────────
+  {
+    ruleId: 'verbstellung-nebensatz',
+    title_de: 'Verb ans Ende! (weil, dass, wenn …)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Welcher Satz ist korrekt?', question_ar_hint: '', options: ['Ich bin spät dran, weil der Bus nicht gekommen ist.', 'Ich bin spät dran, weil der Bus ist nicht gekommen.', 'Ich bin spät dran, weil ist der Bus nicht gekommen.', 'Ich bin spät dran, weil der Bus nicht ist gekommen.'], correctIndex: 0 },
+      { question_de: 'Wie sagt man es richtig?', question_ar_hint: '', options: ['Ich glaube, dass ich das Problem lösen kann.', 'Ich glaube, dass ich kann das Problem lösen.', 'Ich glaube, dass kann ich das Problem lösen.', 'Ich glaube, dass ich das Problem kann lösen.'], correctIndex: 0 },
+      { question_de: 'Wenn der Kunde anruft, ___', question_ar_hint: '', options: ['notiere ich zuerst die Kundennummer.', 'ich notiere zuerst die Kundennummer.', 'zuerst ich notiere die Kundennummer.', 'ich zuerst notiere die Kundennummer.'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'perfekt',
+    title_de: 'Perfekt (Ich habe … gemacht / Ich bin … gefahren)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: '„arbeiten" im Perfekt: „Ich ___ drei Jahre im Callcenter ___."', question_ar_hint: '', options: ['habe … gearbeitet', 'bin … gearbeitet', 'habe … arbeiten', 'bin … arbeitete'], correctIndex: 0 },
+      { question_de: 'Welches Verb bildet das Perfekt mit „sein"?', question_ar_hint: '', options: ['fahren', 'kaufen', 'machen', 'schreiben'], correctIndex: 0 },
+      { question_de: 'Welcher Satz ist korrektes Perfekt?', question_ar_hint: '', options: ['Ich habe den Kunden gestern angerufen.', 'Ich habe den Kunden gestern anrufen.', 'Ich bin den Kunden gestern angerufen.', 'Ich habe den Kunden gestern angeruft.'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'artikel-genus',
+    title_de: 'der, die, das (Wörter IMMER mit Artikel lernen)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Wie heißt es richtig?', question_ar_hint: '', options: ['das Problem', 'der Problem', 'die Problem', 'den Problem'], correctIndex: 0 },
+      { question_de: '___ Rechnung ist falsch.', question_ar_hint: '', options: ['Die', 'Der', 'Das', 'Den'], correctIndex: 0 },
+      { question_de: 'Welche Gruppe ist komplett richtig?', question_ar_hint: '', options: ['der Vertrag, die Frage, das Team', 'die Vertrag, der Frage, das Team', 'das Vertrag, die Frage, der Team', 'der Vertrag, das Frage, die Team'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'wechselpraepositionen',
+    title_de: 'Wechselpräpositionen (in, an, auf + Dativ/Akkusativ)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Ich arbeite ___ Büro. (wo? → Dativ)', question_ar_hint: '', options: ['im', 'ins', 'in den', 'auf das'], correctIndex: 0 },
+      { question_de: 'Ich gehe ___ Besprechung. (wohin? → Akkusativ)', question_ar_hint: '', options: ['in die', 'in der', 'im', 'am'], correctIndex: 0 },
+      { question_de: 'Die Notiz steht ___ Rechnung. (wo?)', question_ar_hint: '', options: ['auf der', 'auf die', 'auf dem', 'auf den'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'konnektoren',
+    title_de: 'Konnektoren (deshalb, trotzdem, außerdem)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Das System war ausgefallen, ___ konnte ich nicht buchen.', question_ar_hint: '', options: ['deshalb', 'trotzdem', 'obwohl', 'außerdem'], correctIndex: 0 },
+      { question_de: 'Der Kunde war unhöflich, ___ bin ich ruhig geblieben.', question_ar_hint: '', options: ['trotzdem', 'deshalb', 'denn', 'sonst'], correctIndex: 0 },
+      { question_de: 'Nach „deshalb" steht …', question_ar_hint: '', options: ['zuerst das Verb, dann das Subjekt', 'zuerst das Subjekt, dann das Verb', 'das Verb ganz am Ende', 'kein Verb'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'indirekte-fragen',
+    title_de: 'Indirekte Fragen (Könnten Sie mir sagen, wann …?)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Direkt: „Wann kommt die Lieferung?" → Indirekt:', question_ar_hint: '', options: ['Könnten Sie mir sagen, wann die Lieferung kommt?', 'Könnten Sie mir sagen, wann kommt die Lieferung?', 'Könnten Sie mir sagen, die Lieferung wann kommt?', 'Könnten Sie mir sagen, wann die Lieferung kommt sie?'], correctIndex: 0 },
+      { question_de: 'Ja/Nein-Frage indirekt: „Ist die Rechnung bezahlt?" →', question_ar_hint: '', options: ['Wissen Sie, ob die Rechnung bezahlt ist?', 'Wissen Sie, ist die Rechnung bezahlt?', 'Wissen Sie, dass die Rechnung bezahlt ist?', 'Wissen Sie, ob ist die Rechnung bezahlt?'], correctIndex: 0 },
+      { question_de: 'In der indirekten Frage steht das Verb …', question_ar_hint: '', options: ['am Ende des Nebensatzes', 'direkt nach dem Fragewort', 'an zweiter Stelle', 'am Satzanfang'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'imperativ-sie',
+    title_de: 'Höfliche Anweisungen (Geben Sie mir bitte …)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Höfliche Anweisung am Telefon:', question_ar_hint: '', options: ['Nennen Sie mir bitte Ihre Kundennummer.', 'Nenn mir deine Kundennummer.', 'Sie nennen mir die Kundennummer!', 'Kundennummer, bitte, du.'], correctIndex: 0 },
+      { question_de: '„warten" als Sie-Imperativ:', question_ar_hint: '', options: ['Warten Sie bitte einen Moment.', 'Warte Sie bitte einen Moment.', 'Sie warten bitte!', 'Bitte du wartest.'], correctIndex: 0 },
+      { question_de: 'Welche Form ist im Kundengespräch angemessen?', question_ar_hint: '', options: ['Schicken Sie mir bitte ein Foto des Geräts.', 'Schick mir mal ein Foto.', 'Foto schicken, sofort.', 'Du schickst jetzt ein Foto.'], correctIndex: 0 },
+    ],
+  },
+  {
+    ruleId: 'reflexive-verben',
+    title_de: 'Reflexive Verben (sich kümmern, sich melden)',
+    title_ar: '',
+    youtubeId_de: 'PLACEHOLDER_DE', youtubeId_ar: 'PLACEHOLDER_AR', teacherName: '', teacherChannelUrl: '',
+    quiz: [
+      { question_de: 'Ich kümmere ___ sofort um Ihr Anliegen.', question_ar_hint: '', options: ['mich', 'mir', 'sich', 'mich selbst um'], correctIndex: 0 },
+      { question_de: '„Wir melden ___ morgen bei Ihnen."', question_ar_hint: '', options: ['uns', 'sich', 'wir', 'unser'], correctIndex: 0 },
+      { question_de: 'Höfliche Entschuldigung mit Reflexivverb:', question_ar_hint: '', options: ['Ich entschuldige mich für die Wartezeit.', 'Ich entschuldige für die Wartezeit.', 'Ich entschuldige sich für die Wartezeit.', 'Ich mich entschuldige für die Wartezeit.'], correctIndex: 0 },
+    ],
+  },
 ];
 
 // The hardcoded starter path for brand-new users with no error history (used by Phase 2).

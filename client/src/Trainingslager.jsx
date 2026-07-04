@@ -266,7 +266,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 10 }}>
       <div>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 800, color: 'var(--action)', lineHeight: 1.3 }}>{lesson.title_de}</div>
-        <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{lesson.title_ar}</div>
+        {lesson.title_ar ? <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{lesson.title_ar}</div> : null}
       </div>
       <button onClick={onClose} style={ghost}>✕</button>
     </div>
@@ -310,7 +310,7 @@ function LessonScreen({ token, apiUrl, lang, ruleId, onClose, onPassed, onPlanRe
         return (
           <div key={qi} style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 12.5, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 2 }}>{qi + 1}. {q.question_de}</div>
-            <div dir="rtl" style={{ fontSize: 11, color: '#94a3b8', marginBottom: 7 }}>{q.question_ar_hint}</div>
+            {q.question_ar_hint ? <div dir="rtl" style={{ fontSize: 11, color: '#94a3b8', marginBottom: 7 }}>{q.question_ar_hint}</div> : null}
             <div style={{ display: 'grid', gap: 6 }}>
               {order.map((origIdx, pos) => {
                 const isChosen = chosen === origIdx;

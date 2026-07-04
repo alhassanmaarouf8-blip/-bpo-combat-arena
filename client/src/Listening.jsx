@@ -64,7 +64,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     // phone:true → route the caller through a telephone-band filter. The job is on the PHONE, so clean
     // studio audio over-prepares on the wrong channel. Shadowing stays clean; only this caller line is phoned.
     try { stopVoiceRef.current?.(); } catch { /* ignore */ }
-    stopVoiceRef.current = playNative({ apiUrl, token, text: item.audioText, rate: Math.min(1.7, baseRate + idx * 0.12), phone: true });
+    // Each item carries its own server-assigned Aura-2 German voice (a different human per caller —
+    // real inbound work is a parade of voices). Older payloads without `voice` use the default.
+    stopVoiceRef.current = playNative({ apiUrl, token, text: item.audioText, voice: item.voice || undefined, rate: Math.min(1.7, baseRate + idx * 0.12), phone: true });
     setTtsOk(true);
     setPlayed((p) => p + 1);
   };
