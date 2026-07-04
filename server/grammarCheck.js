@@ -152,6 +152,12 @@ export async function buildGrammar(utterances) {
     if (canon(matched) === canon(repl)) continue;                 // replacement == original span → no real change
     if (spacingOrCaseOnly(matched, repl)) continue;               // STT orthography artifact → skip
     if (punctSpacingCaseOnly(matched, repl)) continue;            // comma/punctuation/casing-only → NOT a spoken error
+
+    // STT-mishearing guard: on short turns, a single-token “inflection” replacement is usually
+    // LanguageTool fixing a non-word the STT invented (e.g. "abpassen" → "abpasse"). Longer
+    // sentences get the benefit of the doubt; very short turns don’t.
+    const segLen = (seg.text || '').split(/\s+/).filter(Boolean).length;
+    if (segLen <= 4 && String(matched).split(/\s+/).filter(Boolean).length === 1 && String(repl).split(/\s+/).filter(Boolean).length === 1) continue;
     const wrong   = seg.text;
     const right   = seg.text.slice(0, local) + repl + seg.text.slice(local + mt.length);
     if (canon(wrong) === canon(right)) continue;                  // identical sentence → NOT an error

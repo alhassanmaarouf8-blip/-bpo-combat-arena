@@ -5,6 +5,7 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
+import { topStructureWins } from './scoring/structureWins.js';
 import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { textFeatures, hireReadinessFor } from './hireReadiness.js';
@@ -611,12 +612,29 @@ export class WebSocketManager {
                   }
                   ctx.geminiActive = false;
                   this._send(ctx, { type: S.BOSS_SPEECH_DONE });   // boss finished → client clears the "speaking" state
+                  // The goodbye turn just finished → the interview is over. End via the single
+                  // authoritative path so the debrief arrives on the Gemini path too (before this,
+                  // completePending was only ever consumed in the Groq onBossSpeechDone — which
+                  // never fires when Gemini owns the conversation → the session never ended and
+                  // the candidate never saw ANY feedback).
+                  if (ctx._geminiClosingSent) {
+                    // Only end on a turn where the boss actually SPOKE (the goodbye) — a
+                    // user-only turn completion must not cut the goodbye off; the 30s backstop
+                    // still ends the session if the goodbye never arrives at all.
+                    if (bossFull && !ctx.closed) this._endSession(ctx, 'completed');
+                    return;
+                  }
                   // The boss transcript was already streamed chunk-by-chunk (LIVE_BOSS_TRANSCRIPT); do
                   // NOT re-send the full line (that double-printed it). Score the user's answer WITHOUT
                   // firing a Groq boss reply — Gemini already voiced this turn (skipRespond = no 2nd brain).
                   // durationMs:0 = unknown → WpM intentionally not faked for the full-duplex path.
+                  // Scoring is what sets completePending — so the goodbye check runs AFTER it resolves.
                   if (userFull.length >= 2) {
-                    this._handleAnswer(ctx, { text: userFull, durationMs: 0 }, { skipRespond: true });
+                    Promise.resolve(this._handleAnswer(ctx, { text: userFull, durationMs: 0 }, { skipRespond: true }))
+                      .catch((e) => console.error(`[wsManager] gemini answer scoring failed session=${ctx.sessionId}: ${e.message}`))
+                      .finally(() => this._maybeRequestGeminiClosing(ctx));
+                  } else {
+                    this._maybeRequestGeminiClosing(ctx);   // the time cap can set completePending without a fresh answer
                   }
                 } else {
                   ctx.geminiBossParts.push(chunk);
@@ -687,6 +705,8 @@ export class WebSocketManager {
         // GRACEFUL end: stop after the boss finishes its current turn (no mid-sentence cut)…
         console.log(`[wsManager] live-minute/cap soft-limit (${Math.round(capMs / 1000)}s) — graceful close  session=${ctx.sessionId}`);
         ctx.completePending = true;
+        // Even a time-capped interview deserves a human goodbye, not a mid-thought cut.
+        try { ctx.realtimeClient?.requestClosing?.(topStructureWins(ctx.utterances)); } catch { /* wins are optional */ }
         // …with a hard backstop if the boss never wraps (e.g. the user keeps talking).
         ctx.hardCapTimer = setTimeout(() => { if (!ctx.closed) this._endSession(ctx, 'time_limit'); }, GRACE_CLOSE_MS);
         ctx.hardCapTimer.unref?.();
@@ -734,6 +754,7 @@ export class WebSocketManager {
     if (ctx.accountLocked) { this._activeFightUsers.delete(ctx.accountLocked); ctx.accountLocked = null; }
     // Gracefully close Gemini Live proxy if active
     if (ctx.geminiProxy) { try { ctx.geminiProxy.close(); } catch {} ctx.geminiProxy = null; ctx.geminiActive = false; }
+    if (ctx._geminiCloseTimer) { clearTimeout(ctx._geminiCloseTimer); ctx._geminiCloseTimer = null; }
   }
 
   // Add this fight's wall-seconds to the user's daily live-minute usage (Cairo day, persisted).
@@ -887,6 +908,37 @@ export class WebSocketManager {
     }
     ctx._lastWords = words;   // threaded to TRANSCRIPT_DONE for the confidence heat-map
     this._handleAnswer(ctx, { text, durationMs });
+  }
+
+  // Once the interview is complete on the Gemini path, ask Gemini to deliver the human HR
+  // goodbye (one verified observation, tactful, no new question). The NEXT __TURN_COMPLETE__
+  // then ends the session; a backstop timer ends it even if that event never arrives.
+  _maybeRequestGeminiClosing(ctx) {
+    if (!ctx.completePending || ctx.closed || ctx.ending || ctx._geminiClosingSent) return;
+    if (!ctx.geminiProxy) return;   // fell back to the Groq path → its own closing turn handles it
+    ctx._geminiClosingSent = true;
+
+    let winsClause = 'Erwähnen Sie dabei KEINE Bewertung und erfinden Sie KEIN Lob — die Auswertung übernimmt das schriftliche Feedback.';
+    try {
+      const wins = topStructureWins(ctx.utterances);
+      if (wins.length) {
+        const lines = wins.map((w) => w.quote ? `${w.phrase} (z. B. „${w.quote}…")` : w.phrase).join(' · ');
+        winsClause = `Erwähnen Sie beiläufig und natürlich GENAU EINE dieser VERIFIZIERTEN positiven Beobachtungen (in eigenen Worten): ${lines}. Erfinden Sie kein weiteres Lob.`;
+      }
+    } catch (e) { console.error('[wsManager] structureWins failed:', e.message); }
+
+    const sent = ctx.geminiProxy.sendText(
+      `(Das Interview ist hiermit beendet — dies ist Ihr LETZTER Redebeitrag. Verabschieden Sie sich wie eine ` +
+      `erfahrene, menschliche HR-Person: bedanken Sie sich kurz und persönlich für das Gespräch. ${winsClause} ` +
+      `Keine Kritik in der Verabschiedung. Sagen Sie in einem halben Satz, dass die detaillierte Auswertung gleich ` +
+      `am Bildschirm erscheint, und verabschieden Sie sich professionell und warm. Stellen Sie KEINE weitere Frage. ` +
+      `Höchstens drei kurze Sätze, auf Deutsch.)`
+    );
+    console.log(`[wsManager] Gemini closing requested  sent=${sent}  session=${ctx.sessionId}`);
+    if (!sent) { this._endSession(ctx, 'completed'); return; }
+    // Backstop: if the goodbye's TURN_COMPLETE never arrives, the debrief must still happen.
+    ctx._geminiCloseTimer = setTimeout(() => { if (!ctx.closed) this._endSession(ctx, 'completed'); }, 30_000);
+    ctx._geminiCloseTimer.unref?.();
   }
 
   async _handleStopFight(ctx) {
@@ -1644,6 +1696,13 @@ export class WebSocketManager {
     // session then ends in onBossSpeechDone, so the boss's final line is always shown.
     if (ctx.stageIdx === 2 && (ctx.scoredAnswers - STAGE_AFTER[1]) >= ROLEPLAY_EXCHANGES) {
       ctx.completePending = true;
+      // The boss's one closing turn (fired right after this in _handleAnswer) must be a real
+      // human HR goodbye — grounded ONLY in deterministically verified observations — instead
+      // of yet another question. Harmless on the Gemini path (respond() is never called there;
+      // the Gemini goodbye is driven by _maybeRequestGeminiClosing instead).
+      let wins = [];
+      try { wins = topStructureWins(ctx.utterances); } catch (e) { console.error('[wsManager] structureWins failed:', e.message); }
+      ctx.realtimeClient?.requestClosing?.(wins);
     }
   }
 

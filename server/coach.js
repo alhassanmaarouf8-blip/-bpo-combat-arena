@@ -459,17 +459,24 @@ function buildLesson(utterances, metrics, grammar, grammarUnavailable = false) {
 // ── "Fix it now" drills — derived from LanguageTool grammar errors (zero API cost) ─
 // Each drill gives the user one sentence to repair: the wrong form they actually said,
 // the correct form, and a terse instruction. Max 3 drills, one per top grammar rule.
+// De-duped by rule + canonical example so duplicate cards can never appear even if LT
+// reports the same correction multiple times across repeated utterances.
 function buildDrills(grammar) {
   const drills = [];
-  for (const g of (Array.isArray(grammar) ? grammar : []).slice(0, 3)) {
+  const seen = new Set();
+  for (const g of (Array.isArray(grammar) ? grammar : [])) {
+    if (drills.length >= 3) break;
     const ex = (g.summaryExamples || [])[0] || (g.allExamples || [])[0];
     if (!ex || !ex.wrong || !ex.right) continue;
+    const key = `${String(g.rule ?? '').trim()}:${_canon(ex.wrong)}→${_canon(ex.right)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     drills.push({
       rule:   String(g.rule ?? ''),
-      before: String(ex.wrong),
-      after:  String(ex.right),
-      de:     `Sag es richtig: „${ex.wrong}"`,
-      ar:     `قوله صح: „${ex.wrong}"`,
+      before: String(ex.wrongFragment || ex.wrong),
+      after:  String(ex.rightFragment || ex.right),
+      de:     `Sag es richtig: „${ex.wrongFragment || ex.wrong}"`,
+      ar:     `قوله صح: „${ex.wrongFragment || ex.wrong}"`,
     });
   }
   return drills;

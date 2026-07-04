@@ -39,10 +39,22 @@ const MAX_TURN_TOKENS = 90;   // was 200 then 110 — tighter cap = faster LLM r
 // budget (~100K/day Groq + ~1M/day Cerebras ≈ 1.1M/day). A provider only activates if
 // its API key env is set, so adding CEREBRAS_API_KEY is all it takes to switch failover on.
 //
-//
 //   GROQ:     GROQ_API_KEY (already set) · llama-3.1-8b-instant (fastest free model, sub-200ms first token on warm)
-//   CEREBRAS: NOT configured in .env — removed from live failover until a key is added.
+//   CEREBRAS: CEREBRAS_API_KEY · gpt-oss-120b — a REASONING model, so it gets extra token
+//             headroom + reasoning_effort:'low' (verified: clean formal German, ~0.6s).
 const PROVIDERS = [
+  {
+    name:  'cerebras',
+    base:  process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
+    key:   process.env.CEREBRAS_API_KEY,
+    model: process.env.CEREBRAS_INTERVIEW_MODEL || 'gpt-oss-120b',
+    // Reasoning model: max_tokens covers reasoning + visible text, so it needs headroom or the
+    // whole budget goes to thinking and the visible reply comes back EMPTY (the empty-completion
+    // guard in callBoss/callBossStreaming then fails over to Groq). Brevity is enforced by
+    // TURN_RULE, latency by Cerebras' ~1k tok/s — not by this cap.
+    maxTokens: 380,
+    extra: { temperature: 0.7, reasoning_effort: 'low' },
+  },
   {
     name:  'groq',
     base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
@@ -51,8 +63,6 @@ const PROVIDERS = [
     maxTokens: MAX_TURN_TOKENS,
     extra: { temperature: 0.7 },
   },
-  // When CEREBRAS_API_KEY is added to .env, uncomment below to re-enable Cerebras failover:
-  // { name:'cerebras', base:'https://api.cerebras.ai/v1', key:process.env.CEREBRAS_API_KEY, model:'gpt-oss-120b', maxTokens:MAX_TURN_TOKENS, extra:{temperature:0.7} },
 ].filter(p => p.key);                     // only providers whose key is configured
 
 const PROVIDER_COOLDOWN_MS = 10 * 60 * 1000;   // after a 429, skip a provider for 10 min
@@ -87,6 +97,12 @@ export function earlySafeSentence(s1) {
   if (!t || t.replace(/[^\p{L}\p{N}]/gu, '').length < 3) return false;
   if (/(^|\n)\s*(Kandidat|Bewerber|Bewerberin|Candidate|Du|Sie sagen|Antwort des Kandidaten)\s*[:：]/i.test(t)) return false;
   if (/nicht\s+(ganz\s+)?(akustisch\s+)?verstanden|akustisch\s+nicht|nicht\s+verstehen|könnten?\s+sie\s+das\s+(bitte\s+)?(noch\s*mal|wiederholen)|wiederholen\s+sie/i.test(t)) return false;
+  // Reasoning-model leak guard: if a provider ever streams chain-of-thought into content
+  // (gpt-oss Harmony channel markers, or English deliberation tokens a German interviewer
+  // would never say), it must NEVER be spoken aloud early. The full line still goes through
+  // sanitizeOneTurn; this only protects the already-speaking early path.
+  if (/<\|channel\|>|<\|message\|>|\bassistantfinal\b|^analysis\b/i.test(t)) return false;
+  if (/\b(the user|we need to|let's|should respond|as an interviewer|I will)\b/i.test(t)) return false;
   return true;
 }
 
@@ -107,15 +123,24 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
   for (const p of order) {
     try {
       const ctrl = new AbortController();
-      const abortTimer = setTimeout(() => ctrl.abort(new Error(`${p.name} timeout (${LLM_TIMEOUT_MS}ms)`)), LLM_TIMEOUT_MS);
+      // The timeout must cover the WHOLE stream, not just the headers: a provider that stalls
+      // mid-stream (network hang, reasoning phase gone silent) would otherwise hang respond()
+      // forever — _responding stays true and every following user answer is silently dropped
+      // (a dead interview until the cap timer fires). Re-armed on every received chunk.
+      let abortTimer = setTimeout(() => ctrl.abort(new Error(`${p.name} timeout (${LLM_TIMEOUT_MS}ms)`)), LLM_TIMEOUT_MS);
+      const armStallTimer = () => {
+        clearTimeout(abortTimer);
+        abortTimer = setTimeout(() => ctrl.abort(new Error(`${p.name} stream stall (${LLM_TIMEOUT_MS}ms)`)), LLM_TIMEOUT_MS);
+      };
       const res = await fetch(`${p.base}/chat/completions`, {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${p.key}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify({ model: p.model, temperature: 0.7, max_tokens: p.maxTokens, messages: turnMsgs, ...p.extra, stream: true }),
         signal:  ctrl.signal,
       });
-      clearTimeout(abortTimer);
+      armStallTimer();
       if (res.status === 429) {
+        clearTimeout(abortTimer);
         _providerCooldownUntil[p.name] = Date.now() + PROVIDER_COOLDOWN_MS;
         const body = await res.text().catch(() => '');
         lastErr = Object.assign(new Error(`${p.name} 429 ${body.slice(0, 120)}`), { status: 429 });
@@ -123,6 +148,10 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
         continue;
       }
       if (!res.ok) {
+        clearTimeout(abortTimer);
+        // A bad/expired key (401/403) fails IDENTICALLY on every turn — without a cooldown the
+        // primary provider adds a wasted round-trip of latency to every single boss turn.
+        if (res.status === 401 || res.status === 403) _providerCooldownUntil[p.name] = Date.now() + PROVIDER_COOLDOWN_MS;
         const body = await res.text().catch(() => '');
         lastErr = Object.assign(new Error(`${p.name} ${res.status} ${body.slice(0, 160)}`), { status: res.status });
         console.warn(`[interviewClient] ${p.name} ${res.status} → trying next  session=${sessionId}`);
@@ -131,10 +160,11 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
       let full = '', earlyDecided = false, buf = '';
       const dec = new TextDecoder();
       const reader = res.body?.getReader?.();
-      if (!reader) throw new Error(`${p.name} stream unsupported`);
+      if (!reader) { clearTimeout(abortTimer); throw new Error(`${p.name} stream unsupported`); }
       for (;;) {
         const { done, value } = await reader.read();
-        if (done) break;
+        armStallTimer();
+        if (done) { clearTimeout(abortTimer); break; }
         const chunk = value;
         buf += dec.decode(chunk, { stream: true });
         let nl;
@@ -157,7 +187,14 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
           }
         }
       }
-      if (!earlyDecided && onEarly && full.trim()) {
+      // Empty completion (a reasoning model can burn its whole budget thinking) counts as a
+      // provider failure — fail over instead of returning a silent boss turn.
+      if (!full.trim()) {
+        lastErr = new Error(`${p.name} empty completion`);
+        console.warn(`[interviewClient] ${p.name} empty completion → trying next  session=${sessionId}`);
+        continue;
+      }
+      if (!earlyDecided && onEarly) {
         const s1 = scrubForeignScript(full.replace(BOSS_LABEL_RE, '')).trim();
         if (earlySafeSentence(s1)) { try { onEarly(s1); } catch {} }
       }
@@ -199,7 +236,13 @@ async function callBoss(turnMsgs, sessionId) {
         continue;
       }
       const data = await res.json();
-      return { content: data.choices?.[0]?.message?.content ?? '', provider: p.name };
+      const content = data.choices?.[0]?.message?.content ?? '';
+      if (!String(content).trim()) {   // reasoning ate the budget → treat as failure, fail over
+        lastErr = new Error(`${p.name} empty completion`);
+        console.warn(`[interviewClient] ${p.name} empty completion → trying next  session=${sessionId}`);
+        continue;
+      }
+      return { content, provider: p.name };
     } catch (err) {
       lastErr = err;
       console.warn(`[interviewClient] ${p.name} error → trying next  session=${sessionId}: ${err.message}`);
@@ -522,6 +565,7 @@ export class RealtimeClient {
     this._closed             = false;
     this._pendingRescue      = null;
     this._pendingCorrection  = null;   // label → probe for specifics on next turn
+    this._pendingClosing     = null;   // wins[] → next turn is the human HR goodbye
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
     this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
     this._stageIdx           = 0;      // funnel stage (gateway keeps it fresh) → thread-following only in Teil 1–2
@@ -598,7 +642,7 @@ export class RealtimeClient {
       stageIdx:  this._stageIdx,
       used:      this._threadNudges,
       cooldown:  this._threadCooldown,
-      busy:      !!this._pendingRescue || this._pendingCorrection !== null,
+      busy:      !!this._pendingRescue || this._pendingCorrection !== null || this._pendingClosing != null,
     });
     if (nudge) {
       turnMsgs.push({ role: 'system', content: nudge });
@@ -617,6 +661,10 @@ export class RealtimeClient {
     if (recentOpeners.length) {
       turnMsgs.push({ role: 'system', content: `Beginne deinen Redebeitrag NICHT mit denselben Worten wie zuvor. Vermeide diese Anfänge: ${recentOpeners.map((o) => `„${o}…"`).join(', ')}.` });
     }
+    // The goodbye outranks rescue/correction probes — a real HR person doesn't drill into a
+    // weakness while saying goodbye. (Emotion tone and the claim-ledger callback stay: they are
+    // exactly what makes the goodbye personal.)
+    if (this._pendingClosing != null) { this._pendingRescue = null; this._pendingCorrection = null; }
     if (this._pendingRescue) {
       turnMsgs.push({ role: 'system', content: this._rescueInstruction(this._pendingRescue) });
       this._pendingRescue = null;
@@ -645,6 +693,11 @@ export class RealtimeClient {
         `ein Wort, dessen Bedeutung dir unklar ist.` });
     }
     if (this._extraRules) turnMsgs.push({ role: 'system', content: this._extraRules });
+    // LAST system message = strongest: the human HR goodbye replaces the usual one-question turn.
+    if (this._pendingClosing != null) {
+      turnMsgs.push({ role: 'system', content: this._closingInstruction(this._pendingClosing) });
+      this._pendingClosing = null;
+    }
 
     let line = '';
     let content, provider;   // MUST be declared: in an ES module, assigning to undeclared names
@@ -711,6 +764,12 @@ export class RealtimeClient {
   // The gateway calls this after two broken answers → soften the NEXT boss turn.
   requestRescue(reason = 'weak') { this._pendingRescue = reason; }
 
+  // The gateway calls this once the interview is complete → the NEXT boss turn is the human
+  // HR goodbye instead of another question. `wins` are VERIFIED observations from
+  // scoring/structureWins.js — the only praise material the boss may use (owner law #2:
+  // nothing shown or said to the learner may be invented).
+  requestClosing(wins = []) { this._pendingClosing = Array.isArray(wins) ? wins : []; }
+
   // The gateway calls this after 2 weak answers with the same error → probe for specifics.
   // The boss stays in character: no metalinguistic comment, just a targeted follow-up question.
   requestCorrection(label = '') { this._pendingCorrection = label; }
@@ -756,6 +815,30 @@ export class RealtimeClient {
     const tense = (label === 'wuetend') ? ' Die Lage ist angespannt: bestimmt und direkt, aber beherrscht — niemals beleidigend.' : '';
     const out = (base + tense).trim();
     return out ? `AFFEKT (nur Ton/Lieferung, NICHT die Bewertung): ${out}` : '';
+  }
+
+  // The last boss turn: end the interview like an experienced, tactful, HUMAN HR person.
+  // Verified wins (deterministic detectors) may be mentioned; anything else may not — the
+  // written debrief carries the criticism, the goodbye carries the humanity.
+  _closingInstruction(wins) {
+    const winLines = (Array.isArray(wins) ? wins : [])
+      .filter((w) => w && w.phrase)
+      .map((w) => w.quote ? `${w.phrase} (der Kandidat sagte z. B.: „${w.quote}…")` : w.phrase);
+    const observation = winLines.length
+      ? `Erwähne dabei beiläufig und natürlich GENAU EINE dieser VERIFIZIERTEN Beobachtungen (wähle die stärkste, ` +
+        `formuliere sie in deinen eigenen Worten, z. B. "Mir ist positiv aufgefallen, dass …"): ` +
+        `${winLines.join(' · ')}. Nenne NUR diese — erfinde kein weiteres Lob.`
+      : `Bleibe wertschätzend und menschlich, aber erfinde KEIN Lob und gib KEINE Bewertung ab — ` +
+        `die Auswertung übernimmt das schriftliche Feedback.`;
+    return (
+      `DAS INTERVIEW IST JETZT ZU ENDE — dies ist dein LETZTER Redebeitrag. Beende das Gespräch so, ` +
+      `wie eine erfahrene, menschliche HR-Person es tun würde: bedanke dich kurz und persönlich für das ` +
+      `Gespräch (greife, wenn es natürlich passt, EIN konkretes Thema aus dem Gespräch auf). ${observation} ` +
+      `Kritisiere NICHTS in der Verabschiedung — kein Grammatik-Kommentar, keine Schwächen-Liste; das gehört ` +
+      `in die schriftliche Auswertung, die dem Kandidaten gleich angezeigt wird (sage genau das in einem ` +
+      `halben Satz: die detaillierte Auswertung erscheint gleich am Bildschirm). Verabschiede dich dann ` +
+      `professionell und warm. Stelle KEINE weitere Frage. Höchstens drei kurze Sätze.`
+    );
   }
 
   _correctionInstruction(label) {

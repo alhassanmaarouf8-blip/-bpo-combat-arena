@@ -203,3 +203,29 @@ session prompt with the day's one focus (from the debrief's stored next step). N
 no notifications (zero cost, no permissions).
 **DoD:** pure date-boundary helper unit-tested (Cairo timezone); design-lint green (still ONE
 orange object); gates green.
+
+### 12. QUEUED — Debrief card: "Strukturen, die Sie schon beherrschen" (structureWins)
+**Why (predicted after the 07-04 human-HR-closing ship, owner laws #5/#6):** the interviewer now
+SPEAKS one verified positive observation (Konjunktiv II / verb-final / Perfekt, from
+`server/scoring/structureWins.js`) in the goodbye — but the written debrief still shows only
+errors + model-written strengths. The owner will ask why the praised structure isn't IN the
+written feedback loop. Positive recognition must also persist (law #5: the drills should know
+what the learner already masters).
+**What:** a small debrief section fed by `topStructureWins(ctx.utterances)` (already computed at
+session end — pass it through the DEBRIEF payload next to `l1Pattern`), rendered like the
+l1Pattern card. German copy exists in `WIN_COPY`; Arabic lines are OWNER-AR slots (empty until
+the owner fills them — render German-only meanwhile). Also write a `drill-event` style marker so
+SRS/Trainingslager can down-prioritize mastered structures.
+**DoD:** unit test that the payload includes wins only when count ≥2 and quotes stay
+honesty-gated; design-lint green; no fabricated Arabic; gates green.
+
+### 13. QUEUED — Gemini path: announce the final exchange (no dangling last question)
+**Why (predicted from the 07-04 Gemini closing fix):** on the Gemini Live path the "interview
+complete" signal is only known AFTER Gemini has already replied to the candidate's last answer —
+so Gemini may ask one more question and then immediately say goodbye when the closing directive
+lands. A real interviewer signals the end BEFORE the last exchange ("Eine letzte Frage noch …").
+**What:** when `scoredAnswers` is ONE short of the completion threshold on the Gemini path, send
+a lightweight directive (`proxy.sendText`, same mechanism as the greeting kick and the goodbye)
+telling the interviewer the NEXT question is the last one and to frame it that way.
+**DoD:** no double-directives (idempotent flag like `_geminiClosingSent`); classic path
+untouched; gates green.
