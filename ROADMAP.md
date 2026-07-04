@@ -219,7 +219,7 @@ SRS/Trainingslager can down-prioritize mastered structures.
 **DoD:** unit test that the payload includes wins only when count ≥2 and quotes stay
 honesty-gated; design-lint green; no fabricated Arabic; gates green.
 
-### 13. QUEUED — Gemini path: announce the final exchange (no dangling last question)
+### 13. SHIPPED — verified 2026-07-04 (`9963e5d`) — Gemini path: announce the final exchange (no dangling last question)
 **Why (predicted from the 07-04 Gemini closing fix):** on the Gemini Live path the "interview
 complete" signal is only known AFTER Gemini has already replied to the candidate's last answer —
 so Gemini may ask one more question and then immediately say goodbye when the closing directive
@@ -243,7 +243,7 @@ bug, not variety.
 **DoD:** per-drill decision table in the commit message (character vs narrator); no new cost
 (same cached /api/tts-stream); gates green.
 
-### 15. QUEUED — Funnel/model pacing sync: tell the boss which Teil the counter is in
+### 15. SHIPPED — verified 2026-07-04 (`9963e5d`) — Funnel/model pacing sync: tell the boss which Teil the counter is in
 **Why (07-04 adversarial audit, top structural finding):** the stage funnel + ending are a rigid
 counter (`stageForAnswers`, complete at 8 scored answers) while the system prompt orders the model
 to linger on threads — two unsynchronized clocks. A talkative candidate can be forced into the
@@ -267,7 +267,7 @@ via factors (never the 'keine Antwort' label) and advance `scoredAnswers`. HP da
 **DoD:** unit tests: "Sofort." typed in roleplay → scored + funnel advances; a 2-word VAD fragment
 mid-stream → still ignored; suite green.
 
-### 17. QUEUED — Silence gets an in-character lifeline (wire the dead 'silence' rescue)
+### 17. SHIPPED — verified 2026-07-04 (`9963e5d`) — Silence gets an in-character lifeline (wire the dead 'silence' rescue)
 **Why (07-04 audit):** `requestRescue('silence')` exists but is never called — an empty turn
 short-circuits before scoring, so a frozen candidate (the most common real failure) faces an
 endlessly reopening mic with zero acknowledgment, up to 60s, forever.
