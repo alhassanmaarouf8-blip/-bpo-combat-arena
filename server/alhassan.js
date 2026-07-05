@@ -318,7 +318,7 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
 
     let reply;
     try {
-      reply = await callModel(messages, { maxTokens: 200, temperature: 0.75 });
+      reply = await callModel(messages, { maxTokens: 150, temperature: 0.75 });
       // SCRIPT-SANITY GATE (owner-reported 2026-07-02, LIVE: a reply contained "兄" — a raw
       // Chinese character — and separately a stray Indonesian word "aku"; a temperature-induced
       // token glitch, the same failure class already fixed for the generated drills tonight
@@ -328,7 +328,7 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
       // already uses — never show the student an unreadable mixed-script reply.
       if (reply && !isCleanArabicOrGermanText(reply)) {
         console.warn(`[alhassan] reply failed script-sanity, retrying once: "${reply.slice(0, 80)}"`);
-        reply = await callModel(messages, { maxTokens: 200, temperature: 0.6 });
+        reply = await callModel(messages, { maxTokens: 150, temperature: 0.6 });
         if (reply && !isCleanArabicOrGermanText(reply)) {
           console.error(`[alhassan] retry ALSO failed script-sanity, falling back: "${reply.slice(0, 80)}"`);
           reply = '';
