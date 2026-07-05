@@ -56,14 +56,19 @@ try {
       </RootBoundary>
     </StrictMode>,
   );
-  // Tiny build stamp (bottom-right) so the LIVE Vercel deploy is visually verifiable —
-  // mirrors the server /health "build". Commit is injected at build time by Vite.
+  // Build stamp (bottom-right) — HIDDEN for real users: a "build 4cc5277" tag on every screen read as
+  // unfinished/beta to a novel user. Still available on demand for deploy verification via ?debug (or on
+  // localhost); the canonical, always-on check is the <meta name="build"> in index.html (curl-grep'd),
+  // which is unchanged. Commit is injected at build time by Vite.
   try {
-    const bid = (typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
-    const tag = document.createElement('div');
-    tag.textContent = 'build ' + bid;
-    tag.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:2147483647;font:10px/1 monospace;color:#334155;opacity:0.55;pointer-events:none;user-select:none';
-    document.body.appendChild(tag);
+    const showStamp = location.hostname === 'localhost' || /[?&](debug|build)\b/.test(location.search);
+    if (showStamp) {
+      const bid = (typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
+      const tag = document.createElement('div');
+      tag.textContent = 'build ' + bid;
+      tag.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:2147483647;font:10px/1 monospace;color:#334155;opacity:0.55;pointer-events:none;user-select:none';
+      document.body.appendChild(tag);
+    }
   } catch { /* ignore */ }
 } catch (err) {
   paintError('App konnte nicht starten', err?.stack || err?.message || err);

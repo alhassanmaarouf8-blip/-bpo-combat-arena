@@ -3919,9 +3919,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const isActive     = phase === 'active';
   const isConnecting = phase === 'connecting';
   const canStart     = phase === 'idle' || phase === 'error';
-  // A novel user = ready, never interviewed (no local flag), no training streak, no result this session.
-  // Collapses the home to just the hero + Interview-starten button (progressive disclosure).
-  const firstRun     = canStart && !seenInterview && !streak && !data;
+  // A novel user = ready, never interviewed (no local flag), no training streak. Collapses the home to
+  // just the hero + Interview-starten button (progressive disclosure). NOTE: do NOT reference `data`
+  // here — the fight-result object lives in a child component, not this scope (it crashed the home).
+  // seenInterview (set at beginSession) already covers the "has interviewed" case, so `data` is redundant.
+  const firstRun     = canStart && !seenInterview && !streak;
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
 
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
