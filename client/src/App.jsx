@@ -15,9 +15,7 @@ import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
-import { WeeklyBriefing } from './WeeklyBriefing.jsx';
 import { InviteCard } from './InviteCard.jsx';
-import { DailyMission } from './DailyMission.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
@@ -4776,22 +4774,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           }} />
         )}
 
-        {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only).
-            Hidden when the live brain is active — the brain is the single source of "what to do next"
-            (no two competing routers). Hidden on first-run — the mission gauge reads empty before the
-            first interview, and its inner Einstufung CTA would compete with the hero. */}
-        {canStart && !firstRun && !BRAIN_GUIDE_LIVE && (
-          <DailyMission token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-            name={auth.account?.name || (auth.account?.email || '').split('@')[0]}
-            onOpen={(drill) => {
-              if (drill === 'interview') beginSession();   // first-timer's mission → the real interview
-              else if (drill === 'fluency') setFluencyOpen(true);
-              else if (drill === 'spoken') setSpokenReviewOpen(true);
-              else if (drill === 'pressure') setPressureOpen(true);
-              else if (drill === 'listening') setListeningOpen(true);
-            }} />
-        )}
-
         {/* The LIVE BRAIN: one next step + the journey toward the goal + an honest aha (GET /api/brain).
             OFF until the masri in BrainGuide.jsx is authored (BRAIN_GUIDE_LIVE). Hidden on first-run — its
             first-timer prescription is just "do your diagnose interview", a redundant SECOND CTA next to
@@ -4808,14 +4790,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             else if (p.action === 'assessment') setAssessmentOpen(true);
             else if (p.action === 'apply') setZielplanOpen(true);
           }} />
-        )}
-
-        {/* ELITE-ONLY premium: the deep weekly briefing. HIDDEN (owner 2026-07-05: "not relevant, talks
-            too much, not congruent with the interview — otherwise move it"). Kept in-tree, fully reversible:
-            flip `false &&`→`true &&` once it's rebuilt to spec (tight, and strictly tied to the last
-            interview's real result — no generic talk). */}
-        {false && canStart && auth.account?.entitlement?.plan === 'elite' && (
-          <WeeklyBriefing token={auth.token} apiUrl={API_URL} />
         )}
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
