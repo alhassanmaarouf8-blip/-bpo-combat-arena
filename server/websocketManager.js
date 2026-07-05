@@ -695,7 +695,9 @@ export class WebSocketManager {
           await proxy.start({
             apiKey: process.env.GEMINI_API_KEY,
             model:   process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest',
-            voiceName: process.env.GEMINI_LIVE_VOICE || BOSS_GEMINI_VOICES[ctx.bossId] || 'Charon',
+            // Per-persona map WINS over the GEMINI_LIVE_VOICE env: a single env voice (e.g. Aoede)
+            // would otherwise voice ALL six — the three men included — with one female voice.
+            voiceName: BOSS_GEMINI_VOICES[ctx.bossId] || process.env.GEMINI_LIVE_VOICE || 'Charon',
             // The full persona prompt PLUS the per-turn humanity discipline. The Groq path re-sends
             // TURN_RULE on every respond(); Gemini gets no per-turn injection, so the rule must live
             // in the session instruction — without it the premium path parrots ("Sie haben also…"),
