@@ -16,7 +16,6 @@ import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { InviteCard } from './InviteCard.jsx';
 import { Alhassan } from './Alhassan.jsx';
-import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
@@ -1283,15 +1282,15 @@ function RankLadder({ rank }) {
 // The one-tap interview→drill handoff: the hire-readiness judge names the ONE blocking skill,
 // this maps it to the drill that trains exactly that skill (drill key + on-screen name kept
 // together so the button label can never drift from what actually opens). `confidence`
-// (hesitation/latency) trains with the 4-3-2 fluency drill; `complexity` (Satzbau/Nebensätze)
-// lives in the Trainingslager lessons until the dedicated Satzbau drill ships.
+// (hesitation/latency) trains with the 4-3-2 fluency drill; `grammar`/`complexity`
+// (Satzbau/Nebensätze — the verb-final wall) train with the dedicated Satzbau-Schmiede drill.
 const TRAIN_FOR_SKILL = {
-  fluency:         { drill: 'fluency',        label: 'FLUENCY 4-3-2' },
-  confidence:      { drill: 'fluency',        label: 'FLUENCY 4-3-2' },
-  intelligibility: { drill: 'shadowing',      label: 'SHADOWING' },
-  deescalation:    { drill: 'pressure',       label: 'DRUCK-LEITER' },
-  grammar:         { drill: 'trainingslager', label: 'TRAININGSLAGER' },
-  complexity:      { drill: 'trainingslager', label: 'TRAININGSLAGER' },
+  fluency:         { drill: 'fluency',   label: 'FLUENCY 4-3-2' },
+  confidence:      { drill: 'fluency',   label: 'FLUENCY 4-3-2' },
+  intelligibility: { drill: 'shadowing', label: 'SHADOWING' },
+  deescalation:    { drill: 'pressure',  label: 'DRUCK-LEITER' },
+  grammar:         { drill: 'satzbau',   label: 'SATZBAU-SCHMIEDE' },
+  complexity:      { drill: 'satzbau',   label: 'SATZBAU-SCHMIEDE' },
 };
 
 // The honest hire-readiness verdict — ONE source of truth, used on BOTH the post-interview results
@@ -1349,7 +1348,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   );
 }
 
-function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager, studentName, onOpenGuide, onTrainSkill }) {
+function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, studentName, onOpenGuide, onTrainSkill }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -1996,10 +1995,6 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
             <FirstFightCard token={token} apiUrl={API_URL} />
           )}
 
-          {/* Trainingslager next-step teaser on the results screen */}
-          {token && apiUrl && (
-            <GameMapCompact token={token} apiUrl={apiUrl} lang={lang} onOpen={onOpenTrainingslager} />
-          )}
 
           {/* Honesty disclaimer: this is training feedback, NOT a recognized German certificate. */}
           <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, ...rtl,
@@ -2476,12 +2471,12 @@ const inputStyle = {
 // Prices + minutes come from plans.config.js via /api/billing/status (single source).
 const PERKS_DE = {
   basic: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'Arabisch-Feedback', 'alle Bosse',
-                 'unbegrenzte Drills, Shadowing & Wiederholung', 'volles Trainingslager — auf deine Fehler zugeschnitten'],
+                 'unbegrenzte Drills — auf deine Fehler zugeschnitten'],
   elite: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'monatliche Neu-Einstufung',
-                 'rollen-spezifischer Gegner', 'alles aus Basic (inkl. volles Trainingslager)'],
+                 'rollen-spezifischer Gegner', 'alles aus Basic'],
 };
 const SUB_AR = {
-  basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + Trainingslager كامل متفصّل على أخطائك + تمارين بلا حدود.`,
+  basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
 };
 
@@ -2912,7 +2907,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     fetch(`${API_URL}/api/assessment/status`, { headers: { Authorization: `Bearer ${auth.token}` } })
       .then((r) => r.json()).then((d) => { if (d && !d.used) setAssessmentOpen(true); }).catch(() => {});
   }, []);   // once, on first mount after signup
-  const [trainingslagerOpen, setTrainingslagerOpen] = useState(false); // study game-map route
   const [videoLessonsOpen, setVideoLessonsOpen] = useState(false);     // $0 video-lesson engine (animated slides + native TTS)
 
   const phaseRef       = useRef('idle');
@@ -3830,7 +3824,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     [guideOpen, setGuideOpen], [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
     [satzbauOpen, setSatzbauOpen],
-    [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen],
+    [pressureOpen, setPressureOpen],
     [videoLessonsOpen, setVideoLessonsOpen],
     [dailyOpen, setDailyOpen],
     [showBriefing, setShowBriefing],
@@ -3839,7 +3833,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // redundant SECOND close AND it overlapped each drill's title (top-left collision). Hide it for
   // those; keep it only for the live interview (which has no own close) + panels without one.
   const ownCloseOverlay = guideOpen || assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
-    || spokenReviewOpen || satzbauOpen || pressureOpen || trainingslagerOpen || videoLessonsOpen;
+    || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen;
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
     for (const [o, close] of _overlays) { if (o) { close(false); return; } }   // close the top-most overlay
@@ -3977,13 +3971,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <VideoLessons token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setVideoLessonsOpen(false)} />
       )}
 
-      {/* Trainingslager game-map route (study mode — never a Realtime session) */}
-      {trainingslagerOpen && (
-        <Trainingslager token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setTrainingslagerOpen(false)}
-          onChallengeBoss={() => { setTrainingslagerOpen(false); beginSession('bosstor'); }}
-          onGoPricing={() => { setTrainingslagerOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
-      )}
 
       {/* One-time "plan activated 🎉" celebration after the owner activates the payment */}
       {billing?.justActivated && (
@@ -4018,8 +4005,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           onOpenGuide={() => setGuideOpen(true)}
           onTrainSkill={(drill) => ({ fluency: setFluencyOpen, shadowing: setShadowingOpen,
-            pressure: setPressureOpen, trainingslager: setTrainingslagerOpen }[drill]?.(true))}
-          token={auth.token} apiUrl={API_URL} onOpenTrainingslager={() => setTrainingslagerOpen(true)} />
+            pressure: setPressureOpen, satzbau: setSatzbauOpen }[drill]?.(true))}
+          token={auth.token} apiUrl={API_URL} />
       )}
 
       {/* No-session state: user opened the interview and closed it without speaking → an honest
@@ -4631,7 +4618,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {canStart && !firstRun && hireReadiness && (
           <HireVerdict h={hireReadiness} compact onTrain={(drill) => {
             const OPEN = { fluency: setFluencyOpen, shadowing: setShadowingOpen, pressure: setPressureOpen,
-              trainingslager: setTrainingslagerOpen, listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
+              listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
             (OPEN[drill] || (() => {}))(true);
           }} />
         )}
@@ -4674,13 +4661,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
             Niveau noch unbekannt? <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Einstufung machen (gratis)</span> · تقييم مستواك →
           </button>
-        )}
-
-        {/* Trainingslager study-map teaser (idle only) → opens the full game-map route. Hidden on
-            first-run — the study map is meaningless before there's any progress on it. */}
-        {canStart && !firstRun && (
-          <GameMapCompact token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-            onOpen={() => setTrainingslagerOpen(true)} />
         )}
 
         {/* ÜBUNGEN GRID (uplift): the 7-button drill wall becomes one titled card with icon tiles —
