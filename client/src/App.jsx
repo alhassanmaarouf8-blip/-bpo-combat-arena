@@ -281,9 +281,25 @@ function Icon({ name, size = 20, color = 'currentColor', style }) {
 // total failure the line is shown on screen with no audio, but never the robotic voice.
 let _bossAudio = null;
 let _streamSeq = 0;   // bumped to cancel an in-flight streamed (multi-sentence) boss line
+
+// ── THE reused, gesture-unlocked boss audio element (iOS-bulletproof, "TalkPal-style") ──
+// iOS Safari reliably plays audio ONLY through an element that was unlocked inside a real user
+// gesture. Minting `new Audio(url)` per boss line meant each new element was un-unlocked, so iOS
+// blocked it ~half the time → "sometimes it speaks, sometimes it doesn't." The cure every polished
+// web voice app uses: ONE element, unlocked once in the start tap, and EVERY boss line replays
+// through that same element (just swap .src). _bossWd centralizes the stall watchdog so a new line
+// or a stop always kills the previous watcher (no leaked intervals when we reuse one element).
+let _bossEl = null;
+let _bossWd = null;
+function getBossEl() {
+  if (!_bossEl && typeof Audio !== 'undefined') { _bossEl = new Audio(); _bossEl.preload = 'auto'; }
+  return _bossEl;
+}
+function _clearBossWd() { if (_bossWd) { clearInterval(_bossWd); _bossWd = null; } }
 function stopBossVoice() {
   _streamSeq++;        // cancel any sentence-stream in progress
   _earlyBoss = null;   // an in-flight early first sentence is superseded too (seq guard makes stale callbacks inert)
+  _clearBossWd();      // kill the previous line's stall watchdog before the element is reused
   // Null handlers BEFORE clearing src. Clearing src causes the browser to fire onerror/onemptied
   // on the element; if handlers are still attached they call onEnd() → setBossSpeak(false) on
   // the OLD audio, which races with a newly-started audio and clears bossSpeak prematurely.
@@ -292,7 +308,9 @@ function stopBossVoice() {
       const a = _bossAudio;
       _bossAudio = null;
       a.onplay = null; a.onended = null; a.onerror = null; a.onstalled = null; a.onwaiting = null;
-      a.pause(); a.src = '';
+      // Pause + rewind, but DO NOT drop the reference (_bossEl stays alive & unlocked for the next
+      // line). Clearing .src on some iOS builds re-locks the element, so we only rewind it.
+      try { a.pause(); a.currentTime = 0; } catch {}
     }
   } catch {}
   stopFiller();   // a real boss line is starting (or we're tearing down) → kill any thinking-sound bridge
@@ -309,11 +327,15 @@ function stopBossVoice() {
 let _sharedAC = null;   // reused so the Gemini-audio path + priming share one unlocked context
 function unlockAudioPlayback() {
   try {
-    // 1) Unlock the HTMLAudioElement path (all boss TTS uses `new Audio().play()`).
-    const el = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAAAAAA');
-    el.volume = 0;
-    const p = el.play();
-    if (p && typeof p.then === 'function') p.then(() => { try { el.pause(); } catch {} }).catch(() => {});
+    // 1) Unlock THE ONE reused boss element by playing a silent clip through it, inside the gesture.
+    //    Every later boss line replays through this same (now-unlocked) element — the iOS fix.
+    const el = getBossEl();
+    if (el) {
+      el.muted = true;
+      el.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAAAAAA';
+      const p = el.play();
+      if (p && typeof p.then === 'function') p.then(() => { try { el.pause(); el.currentTime = 0; el.muted = false; } catch {} }).catch(() => { try { el.muted = false; } catch {} });
+    }
   } catch {}
   try {
     // 2) Unlock/resume a shared Web-Audio context (Gemini native-audio path + general priming).
@@ -417,16 +439,20 @@ function playClipFromUrl(url, onStart, onEnd) {
   let ended = false;
   const done = () => { if (ended) return; ended = true; try { onEnd?.(); } catch {} };
   try {
-    const audio = new Audio(url);
-    audio.volume = 1.0;
+    const audio = getBossEl();
+    if (!audio) { done(); return; }
+    _clearBossWd();                                             // kill any prior watcher on this shared element
+    audio.onplay = audio.onended = audio.onerror = audio.onstalled = audio.onwaiting = null;
+    try { audio.pause(); } catch {}
+    audio.muted = false; audio.volume = 1.0;                    // undo the muted state left by the gesture-unlock prime
+    audio.src = url;
     _bossAudio = audio;
-    let wd = null;
-    const cleanup = () => { if (wd) { clearInterval(wd); wd = null; } try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; };
+    const cleanup = () => { _clearBossWd(); try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; };
     audio.onplay = () => {
       try { onStart?.(); } catch {}
       let last = -1, stuck = 0;
-      wd = setInterval(() => {
-        if (ended) { clearInterval(wd); wd = null; return; }
+      _bossWd = setInterval(() => {
+        if (ended) { _clearBossWd(); return; }
         const ct = audio.currentTime;
         if (ct === last) { if (++stuck >= 4) { try { audio.pause(); } catch {} cleanup(); done(); } }
         else { stuck = 0; last = ct; }
@@ -487,13 +513,19 @@ async function speakBossStreamed({ apiUrl, token, voice, text, onStart, onEnd })
 // voice-agnostic.
 function playProgressiveAudio(url, onStart, onEnd) {
   return new Promise((resolve) => {
-    const audio = new Audio(url);
+    const audio = getBossEl();
+    if (!audio) { onEnd?.(); resolve(false); return; }
+    _clearBossWd();                                            // kill any prior watcher on this shared element
+    audio.onplay = audio.onended = audio.onerror = audio.onstalled = audio.onwaiting = null;
+    try { audio.pause(); } catch {}
+    audio.muted = false; audio.volume = 1.0;                   // undo the muted state left by the gesture-unlock prime
+    audio.src = url;
     _bossAudio = audio;
     let started = false, resolved = false, stallInterval = null;
     const finish = (fallback) => {
       if (resolved) return;
       resolved = true;
-      if (stallInterval) { clearInterval(stallInterval); stallInterval = null; }
+      if (stallInterval) { const si = stallInterval; clearInterval(si); stallInterval = null; if (_bossWd === si) _bossWd = null; }
       clearTimeout(guard);
       resolve(fallback);
     };
@@ -509,7 +541,7 @@ function playProgressiveAudio(url, onStart, onEnd) {
       // server-side stream hung. Catches mid-play hangs without false-firing during initial buffering.
       let lastTime = -1, stuckCount = 0;
       stallInterval = setInterval(() => {
-        if (resolved) { clearInterval(stallInterval); stallInterval = null; return; }
+        if (resolved) { const si = stallInterval; clearInterval(si); stallInterval = null; if (_bossWd === si) _bossWd = null; return; }
         const ct = audio.currentTime;
         if (ct === lastTime) {
           stuckCount++;
@@ -520,6 +552,7 @@ function playProgressiveAudio(url, onStart, onEnd) {
           }
         } else { stuckCount = 0; lastTime = ct; }
       }, 1500);
+      _bossWd = stallInterval;   // register so stopBossVoice()/a new line clears this watcher on the shared element
     };
     audio.onended = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
     audio.onerror = () => {
