@@ -37,6 +37,63 @@
 
     <!-- PWA: installable to the home screen / Google Play (via TWA wrap) — see manifest for icons. -->
     <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- ON-SCREEN DEBUG RECORDER (owner tool). OFF for everyone unless the URL has ?debug=1
+         (which also persists via localStorage; ?debug=0 turns it off). Captures every console
+         log/warn/error + uncaught errors on BOTH laptop and phone, with a COPY button so the
+         owner can paste the full trace to Claude. Zero effect on normal users. Runs as a classic
+         script (executes before the deferred app module) so it captures logs from first paint. -->
+    <script>
+    (function(){
+      try {
+        var q = location.search || '';
+        if (/[?&]debug=1/.test(q)) { try { localStorage.setItem('bpo_debug','1'); } catch(e){} }
+        if (/[?&]debug=0/.test(q)) { try { localStorage.removeItem('bpo_debug'); } catch(e){} }
+        var on = false; try { on = localStorage.getItem('bpo_debug') === '1'; } catch(e){}
+        if (!on) return;
+        var t0 = Date.now(), logs = [], listEl = null;
+        function ts(){ return ((Date.now()-t0)/1000).toFixed(2)+'s'; }
+        function push(kind, args){
+          var msg;
+          try { msg = Array.prototype.map.call(args, function(a){ return (a && typeof a==='object') ? JSON.stringify(a) : String(a); }).join(' '); }
+          catch(e){ msg = '[unstringifiable]'; }
+          var line = ts()+' ['+kind+'] '+msg;
+          logs.push(line); if (logs.length > 800) logs.shift();
+          if (listEl){ var d=document.createElement('div');
+            d.textContent = line;
+            d.style.cssText = 'padding:1px 0;border-bottom:1px solid rgba(255,255,255,0.05);color:'+(kind==='ERR'?'#fca5a5':kind==='WARN'?'#fcd34d':'#cbd5e1');
+            listEl.appendChild(d); listEl.scrollTop = listEl.scrollHeight; }
+        }
+        ['log','info','warn','error'].forEach(function(k){
+          var orig = console[k] ? console[k].bind(console) : function(){};
+          console[k] = function(){ try { push(k==='error'?'ERR':k==='warn'?'WARN':'LOG', arguments); } catch(e){} return orig.apply(console, arguments); };
+        });
+        window.addEventListener('error', function(e){ push('ERR','window.onerror: '+(e && e.message)+' @'+(e && e.filename)+':'+(e && e.lineno)); });
+        window.addEventListener('unhandledrejection', function(e){ var r=e && e.reason; push('ERR','unhandledrejection: '+((r && (r.message||r.stack))||r)); });
+        function build(){
+          var box = document.createElement('div');
+          box.style.cssText='position:fixed;left:0;right:0;bottom:0;height:40vh;z-index:2147483647;background:rgba(2,4,9,0.95);border-top:2px solid #2563EB;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;display:flex;flex-direction:column';
+          var bar = document.createElement('div');
+          bar.style.cssText='display:flex;gap:6px;align-items:center;padding:5px 6px;background:#0b1220;flex-wrap:wrap';
+          var title = document.createElement('b'); title.textContent='OMNI DEBUG'; title.style.color='#60a5fa'; bar.appendChild(title);
+          function mkbtn(label, fn){ var b=document.createElement('button'); b.textContent=label; b.style.cssText='font:11px ui-monospace,monospace;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:5px;padding:5px 10px;cursor:pointer'; b.onclick=fn; return b; }
+          bar.appendChild(mkbtn('COPY ALL', function(){ var txt=logs.join('\n');
+            if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(function(){ alert('Copied '+logs.length+' lines — paste to Claude'); }, function(){ window.prompt('Select all + copy, then paste to Claude:', txt); }); }
+            else { window.prompt('Select all + copy, then paste to Claude:', txt); } }));
+          bar.appendChild(mkbtn('CLEAR', function(){ logs.length=0; listEl.innerHTML=''; }));
+          bar.appendChild(mkbtn('HIDE', function(){ box.style.display='none'; }));
+          box.appendChild(bar);
+          listEl = document.createElement('div');
+          listEl.style.cssText='flex:1;overflow-y:auto;padding:4px 6px;-webkit-overflow-scrolling:touch';
+          box.appendChild(listEl);
+          document.body.appendChild(box);
+          logs.slice().forEach(function(l){ var d=document.createElement('div'); d.textContent=l; d.style.cssText='padding:1px 0;color:#cbd5e1'; listEl.appendChild(d); });
+        }
+        if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
+        push('LOG','OMNI debug recorder armed. Reproduce the bug, then tap COPY ALL and paste to Claude.');
+      } catch(e){}
+    })();
+    </script>
     <title>OMNI-PERFORM — Deutsch-Interview-Training per Sprache</title>
     <!-- Critical: dark background from the very first paint (no white flash before React/CSS load) -->
     <style>

@@ -165,7 +165,7 @@ export class AudioRecorder {
       this._startVolumePoll();
 
       this._state = 'recording';
-      console.log('[audioRecorder] Started  sampleRate=', this._ctx.sampleRate);
+      console.log('[DIAG-MIC] recorder STARTED  sampleRate=', this._ctx.sampleRate, ' ctxState=', this._ctx.state, ' shared=', !this._ownsCtx);
 
     } catch (err) {
       this._cleanup();

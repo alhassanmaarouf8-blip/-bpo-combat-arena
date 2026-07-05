@@ -291,12 +291,14 @@ let _streamSeq = 0;   // bumped to cancel an in-flight streamed (multi-sentence)
 // or a stop always kills the previous watcher (no leaked intervals when we reuse one element).
 let _bossEl = null;
 let _bossWd = null;
+function _dbgA(tag, extra) { try { console.log('[DIAG-AUDIO] ' + tag + (extra != null ? ' ' + extra : '')); } catch {} }
 function getBossEl() {
   if (!_bossEl && typeof Audio !== 'undefined') { _bossEl = new Audio(); _bossEl.preload = 'auto'; }
   return _bossEl;
 }
 function _clearBossWd() { if (_bossWd) { clearInterval(_bossWd); _bossWd = null; } }
 function stopBossVoice() {
+  _dbgA('■ stopBossVoice  seq→' + (_streamSeq + 1));
   _streamSeq++;        // cancel any sentence-stream in progress
   _earlyBoss = null;   // an in-flight early first sentence is superseded too (seq guard makes stale callbacks inert)
   _clearBossWd();      // kill the previous line's stall watchdog before the element is reused
@@ -360,6 +362,7 @@ function unlockAudioPlayback() {
   // 3) Unlock the mic-CAPTURE context in the SAME gesture so every later hands-free turn can
   //    auto-listen without a tap (the "it doesn't hear me until I click" fix).
   getSharedMicAC();
+  _dbgA('unlockAudioPlayback', 'micAC=' + (_sharedMicAC && _sharedMicAC.state) + ' playAC=' + (_sharedAC && _sharedAC.state));
 }
 
 // ── Dead-air "thinking" filler ──────────────────────────────────────────────────
@@ -452,10 +455,11 @@ async function fetchTtsUrl(apiUrl, token, voice, text) {
 // never leave the boss stuck silent — the same guarantee the single-shot path had.
 function playClipFromUrl(url, onStart, onEnd) {
   let ended = false;
-  const done = () => { if (ended) return; ended = true; try { onEnd?.(); } catch {} };
+  const done = () => { if (ended) return; ended = true; _dbgA('⏹ end(clip)'); try { onEnd?.(); } catch {} };
   try {
     const audio = getBossEl();
     if (!audio) { done(); return; }
+    _dbgA('▶ play(clip)', 'seq=' + _streamSeq);
     _clearBossWd();                                             // kill any prior watcher on this shared element
     audio.onplay = audio.onended = audio.onerror = audio.onstalled = audio.onwaiting = null;
     try { audio.pause(); } catch {}
@@ -530,6 +534,7 @@ function playProgressiveAudio(url, onStart, onEnd) {
   return new Promise((resolve) => {
     const audio = getBossEl();
     if (!audio) { onEnd?.(); resolve(false); return; }
+    _dbgA('▶ play(stream)', 'seq=' + _streamSeq + ' …' + String(url).slice(-24));
     _clearBossWd();                                            // kill any prior watcher on this shared element
     audio.onplay = audio.onended = audio.onerror = audio.onstalled = audio.onwaiting = null;
     try { audio.pause(); } catch {}
@@ -540,6 +545,7 @@ function playProgressiveAudio(url, onStart, onEnd) {
     const finish = (fallback) => {
       if (resolved) return;
       resolved = true;
+      _dbgA('⏹ end(stream)', 'started=' + started + ' fellBack=' + fallback);
       if (stallInterval) { const si = stallInterval; clearInterval(si); stallInterval = null; if (_bossWd === si) _bossWd = null; }
       clearTimeout(guard);
       resolve(fallback);
@@ -3294,8 +3300,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
           // Without this, the mic restarts immediately and can get stuck in transcribing=true.
           if (!geminiModeRef.current) setBossThinking(true);   // (filler already started at turn-end for zero perceived gap; no replay here). Gemini already voiced the reply → no "thinking" wait.
-          const id = ++_lineId;
-          setTranscript(prev => [...prev.slice(-39), { id, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] }]);
+          setTranscript(prev => {
+            // Guard against a double-committed turn (a straggler TRANSCRIPT_DONE, or a re-fire)
+            // stacking an identical "DU" bubble: if the last line is the same player text, replace
+            // it in place instead of appending a duplicate.
+            const line = { id: ++_lineId, speaker: 'player', text: msg.transcript, partial: false, words: msg.words ?? [] };
+            const last = prev[prev.length - 1];
+            if (last && last.speaker === 'player' && (last.text || '').trim() === String(msg.transcript).trim()) {
+              return [...prev.slice(0, -1), line];
+            }
+            return [...prev.slice(-39), line];
+          });
         }
         break;
       }
@@ -3614,6 +3629,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const startHandsFreeTurn = useCallback(async () => {
     if (geminiModeRef.current) return;   // Gemini owns the mic continuously — the client VAD must never open a second one
     if (hfActiveRef.current || recording || transcribing) return;
+    _dbgA('[MIC] hands-free turn START  micAC=' + (_sharedMicAC && _sharedMicAC.state));
     hfActiveRef.current = true;
     try {
       clipRecRef.current = new ClipRecorder({
@@ -4514,7 +4530,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           {/* transcript log */}
           <div style={{ flex:1, minHeight:0, padding:'0 6px 6px' }}>
             <TranscriptPanel
-              lines={liveTranscript
+              lines={liveTranscript && recording
                 ? [...transcript, { id: 'live', speaker: 'player', text: liveTranscript, partial: true }]
                 : transcript}
               userSpeak={userSpeak}
