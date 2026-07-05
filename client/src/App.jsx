@@ -3170,6 +3170,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // ── Gemini Live native-audio path ──────────────────────────────────────
       case S.BOSS_AUDIO_DELTA:
         // Boss voice (PCM16@24k) over the WS → play it. (Barge-in flush arrives via BOSS_INTERRUPTED.)
+        setError(e => (e === 'realtime_error' ? null : e));   // boss replied → the transient error is stale (see BOSS_SPEECH_EARLY)
         if (!geminiModeRef.current || !geminiPlayerRef.current) break;
         geminiPlayerRef.current.enqueue(msg.data);
         // Voice-first ordering: the transcript held back for this turn is released only now, when
@@ -3254,6 +3255,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.BOSS_SPEECH_EARLY: {
         // First sentence of the boss's reply, streamed ahead of the full line — start SPEAKING it
         // now. The full line still arrives via BOSS_SPEECH(+DONE), which splices in the remainder.
+        // The reply itself is proof the interviewer link works — clear a stale transient error
+        // banner (a provider hiccup that failover already recovered; it told the user to restart
+        // a working interview). Terminal errors close the session and never reach here.
+        setError(e => (e === 'realtime_error' ? null : e));
         if (geminiModeRef.current) break;              // Gemini path: boss voice is PCM over the WS, never MP3
         if (!msg.text || ttsMutedRef.current) break;   // muted → the normal text-only path handles it
         setBossSpeak(true);        // immediately, like BOSS_SPEECH — keeps the auto-mic gate closed (no echo window)
@@ -3270,6 +3275,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       }
 
       case S.BOSS_SPEECH: {
+        setError(e => (e === 'realtime_error' ? null : e));   // boss replied → the transient error is stale (see BOSS_SPEECH_EARLY)
         if (geminiModeRef.current) break;   // Gemini path: boss text arrives via LIVE_BOSS_TRANSCRIPT, voice via BOSS_AUDIO_DELTA
         if (!msg.text) break;
         setBossSpeak(true);
