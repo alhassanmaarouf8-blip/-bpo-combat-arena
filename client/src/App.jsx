@@ -210,17 +210,21 @@ function recordThinkPause(ms) {                        // a pause the user resum
 }
 function userPauseCeiling() {                          // p85 of THIS user's think-pauses; sane default until enough data
   const s = _pauseSamples.filter((x) => x >= 200 && x <= 4000).sort((a, b) => a - b);
-  if (s.length < 4) return 1000;                       // cold start: a middle value, adapts within a few turns
+  if (s.length < 4) return 1250;                       // cold start: patient by default — the audience is L2 (Arabic-L1)
   const p85 = s[Math.min(s.length - 1, Math.floor(s.length * 0.85))];
-  return Math.max(500, Math.min(2200, p85));
+  return Math.max(700, Math.min(2600, p85));
 }
 function adaptiveNeedSilence(cls, words) {             // the per-user wait, scaled by how finished the sentence sounds
+  // PATIENCE DOCTRINE (owner 07-05, "it cuts me off — it has to be natural"): the audience are
+  // Arabic-L1 German learners who pause mid-answer to find the next word. Being cut off mid-thought
+  // is the #1 unnaturalness; an extra ~half-second of silence is not. Windows widened + a hard 750ms
+  // floor so a Deepgram period on a partial can never end the turn in under 3/4 of a second.
   const ceil = userPauseCeiling();
-  let ms = cls === 'complete'   ? Math.round(ceil * 0.55)         // finished sentence → send well before their max pause
-         : cls === 'incomplete' ? Math.round(ceil * 1.25) + 250   // trailing cue → clearly mid-thought, extra margin
-         :                        Math.round(ceil * 0.95) + 120;  // default → just clear their own typical pause
-  if (words > 0 && words < 6) ms += 200;              // tiny opening grace for an early pause right after the boss's question
-  return Math.max(450, Math.min(2600, ms));
+  let ms = cls === 'complete'   ? Math.round(ceil * 0.75)         // finished sentence → still give real breathing room
+         : cls === 'incomplete' ? Math.round(ceil * 1.35) + 300   // trailing cue → clearly mid-thought, generous margin
+         :                        Math.round(ceil * 1.05) + 200;  // default → more than clear their own typical pause
+  if (words > 0 && words < 6) ms += 350;              // early short answer right after the question → don't rush them
+  return Math.max(750, Math.min(3200, ms));
 }
 
 function classifyTurnDE(partial) {
