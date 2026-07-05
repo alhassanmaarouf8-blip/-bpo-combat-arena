@@ -324,7 +324,19 @@ function stopBossVoice() {
 // silent," so this reads as BOTH bugs. Fix: the instant the user taps "Interview starten", play a
 // silent clip AND resume a Web-Audio context — both inside the gesture. That satisfies the gesture
 // requirement so every later boss `new Audio().play()` is allowed. Idempotent; safe to call on every start.
-let _sharedAC = null;   // reused so the Gemini-audio path + priming share one unlocked context
+let _sharedAC = null;      // reused so the Gemini-audio path + priming share one unlocked context
+let _sharedMicAC = null;   // ONE 24kHz mic-CAPTURE context, unlocked in the start tap & reused every
+                           // turn — a per-turn context created outside a gesture stays suspended on
+                           // mobile, so the mic "doesn't hear me until I tap." Unlock once → auto-listen.
+function getSharedMicAC() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!_sharedMicAC || _sharedMicAC.state === 'closed') _sharedMicAC = new AC({ sampleRate: 24000 });
+    if (_sharedMicAC.state === 'suspended') _sharedMicAC.resume().catch(() => {});
+    return _sharedMicAC;
+  } catch { return null; }
+}
 function unlockAudioPlayback() {
   try {
     // 1) Unlock THE ONE reused boss element by playing a silent clip through it, inside the gesture.
@@ -345,6 +357,9 @@ function unlockAudioPlayback() {
       if (_sharedAC.state === 'suspended') _sharedAC.resume().catch(() => {});
     }
   } catch {}
+  // 3) Unlock the mic-CAPTURE context in the SAME gesture so every later hands-free turn can
+  //    auto-listen without a tap (the "it doesn't hear me until I click" fix).
+  getSharedMicAC();
 }
 
 // ── Dead-air "thinking" filler ──────────────────────────────────────────────────
@@ -3580,7 +3595,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     }
     // start recording
     try {
-      clipRecRef.current = new ClipRecorder({ onVolume: (v) => { volRef.current = v; } });
+      clipRecRef.current = new ClipRecorder({ onVolume: (v) => { volRef.current = v; }, sharedContext: getSharedMicAC() });
       await clipRecRef.current.start();
       setRecording(true);
     } catch {
@@ -3603,6 +3618,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     try {
       clipRecRef.current = new ClipRecorder({
         onVolume: (v) => { volRef.current = v; },
+        sharedContext: getSharedMicAC(),   // reuse the gesture-unlocked capture context → auto-listen, no tap
         // Stream each PCM chunk live to the server → Deepgram LiveTranscription.
         // This eliminates the ~750ms REST round-trip latency of the old upload path.
         onChunk: (b64) => {

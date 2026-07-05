@@ -10,7 +10,7 @@ import { AudioRecorder } from './audioRecorder.js';
 const SAMPLE_RATE = 24_000;
 
 export class ClipRecorder {
-  constructor({ onVolume, onChunk } = {}) {
+  constructor({ onVolume, onChunk, sharedContext = null } = {}) {
     this._chunks = [];
     this._rec = new AudioRecorder({
       onChunk:  (b64) => {
@@ -19,6 +19,7 @@ export class ClipRecorder {
       },
       onVolume: onVolume || (() => {}),
       onError:  () => {},
+      sharedContext,   // a gesture-unlocked 24kHz context reused across turns → mobile auto-listen
     });
     this._startedAt = 0;
   }

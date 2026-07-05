@@ -43,10 +43,12 @@ export class AudioRecorder {
    *   onError:  (err: Error)    => void,
    * }} callbacks
    */
-  constructor({ onChunk, onVolume, onError }) {
+  constructor({ onChunk, onVolume, onError, sharedContext = null }) {
     this._onChunk  = onChunk;
     this._onVolume = onVolume;
     this._onError  = onError;
+    this._sharedCtx = sharedContext;   // reuse a gesture-unlocked context across turns (mobile auto-listen)
+    this._ownsCtx   = false;
 
     this._ctx          = null;
     this._stream       = null;
@@ -100,20 +102,36 @@ export class AudioRecorder {
         });
       }
 
-      // 2. AudioContext locked to 24 kHz (webkit-prefixed on older iOS Safari — matches
-      //    checkAudioSupport(), which accepts either, so we must be able to construct either here).
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      this._ctx = new AudioCtx({ sampleRate: SAMPLE_RATE });
-      if (this._ctx.state === 'suspended') await this._ctx.resume();
+      // 2. AudioContext locked to 24 kHz. PREFER a context already unlocked inside the start tap
+      //    (sharedContext) and REUSE it every turn. On mobile a per-turn context created outside a
+      //    user gesture stays SUSPENDED → no audio is captured until the user taps the screen (the
+      //    "it doesn't hear me until I click" bug). One context, unlocked once and kept running,
+      //    captures automatically turn after turn. (webkit-prefixed fallback for older iOS Safari.)
+      if (this._sharedCtx) {
+        this._ctx = this._sharedCtx;
+        this._ownsCtx = false;
+      } else {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        this._ctx = new AudioCtx({ sampleRate: SAMPLE_RATE });
+        this._ownsCtx = true;
+      }
+      if (this._ctx.state === 'suspended') { try { await this._ctx.resume(); } catch {} }
 
-      // Resume if tab goes background then foreground
-      this._ctx.addEventListener('statechange', () => {
-        if (this._ctx?.state === 'suspended') this._ctx.resume().catch(() => {});
-      });
+      // Resume if tab goes background then foreground (only for a context we own; the shared one
+      // is kept alive across turns by App and resumed in the start gesture).
+      if (this._ownsCtx) {
+        this._ctx.addEventListener('statechange', () => {
+          if (this._ctx?.state === 'suspended') this._ctx.resume().catch(() => {});
+        });
+      }
 
-      // 3. Register AudioWorklet from Blob URL
-      this._blobUrl = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' }));
-      await this._ctx.audioWorklet.addModule(this._blobUrl);
+      // 3. Register the AudioWorklet ONCE per context (a reused shared context keeps it registered;
+      //    calling addModule again would throw "pcm16-processor already registered").
+      if (!this._ctx.__pcm16Registered) {
+        this._blobUrl = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' }));
+        await this._ctx.audioWorklet.addModule(this._blobUrl);
+        this._ctx.__pcm16Registered = true;
+      }
 
       // 4. Build audio graph
       //    MediaStreamSource ──┬── AnalyserNode  (volume tap, no output)
@@ -180,7 +198,9 @@ export class AudioRecorder {
     try { this._worklet?.disconnect(); } catch {}
     try { this._analyser?.disconnect(); } catch {}
 
-    if (this._ctx && this._ctx.state !== 'closed') {
+    // Close ONLY a context we created. A shared (gesture-unlocked) context must stay alive &
+    // running so the NEXT turn can capture without another tap — closing it re-introduces the bug.
+    if (this._ctx && this._ownsCtx && this._ctx.state !== 'closed') {
       await this._ctx.close().catch(() => {});
     }
 
