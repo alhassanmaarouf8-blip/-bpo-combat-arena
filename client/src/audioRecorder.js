@@ -67,17 +67,29 @@ export class AudioRecorder {
     if (this._state === 'recording') return;
 
     try {
-      // 1. Mic access — echoCancellation prevents boss audio looping back
-      this._stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate:       { ideal: SAMPLE_RATE },
-          channelCount:     { exact: 1 },
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl:  true,
-        },
-        video: false,
-      });
+      // 1. Mic access — echoCancellation prevents boss audio looping back.
+      //    Constraints are IDEAL, never `exact`: some mobile / Bluetooth mics reject a hard
+      //    mono constraint with OverconstrainedError, which used to hang the session on
+      //    "reaching for the mic" with no audio. The worklet reads only channel 0 and the
+      //    24 kHz AudioContext resamples any mic rate, so relaxing these is loss-free. If a
+      //    device still refuses the constraints, fall back to a bare mic so it works on ANY phone.
+      const micConstraints = {
+        sampleRate:       { ideal: SAMPLE_RATE },
+        channelCount:     { ideal: 1 },
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl:  true,
+      };
+      try {
+        this._stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints, video: false });
+      } catch (constraintErr) {
+        if (constraintErr && constraintErr.name === 'OverconstrainedError') {
+          console.warn('[audioRecorder] mic rejected constraints → retrying with bare audio');
+          this._stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } else {
+          throw constraintErr;
+        }
+      }
 
       // Detect the mic being revoked / unplugged MID-session: the track fires 'ended'.
       // Surface it as a coded error so the app can end the fight and stop billing.
@@ -88,8 +100,10 @@ export class AudioRecorder {
         });
       }
 
-      // 2. AudioContext locked to 24 kHz
-      this._ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+      // 2. AudioContext locked to 24 kHz (webkit-prefixed on older iOS Safari — matches
+      //    checkAudioSupport(), which accepts either, so we must be able to construct either here).
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this._ctx = new AudioCtx({ sampleRate: SAMPLE_RATE });
       if (this._ctx.state === 'suspended') await this._ctx.resume();
 
       // Resume if tab goes background then foreground
