@@ -48,6 +48,17 @@ const CORPUS = [
   // subtle verb-final errors that MUST still be caught after the fix
   { t: 'Ich denke, dass ich bin sehr motiviert.',                    expect: 'verb-final' },
   { t: 'weil ich muss jeden Tag arbeiten',                           expect: 'verb-final' },
+  // ── verb-final recall bump (2026-07-05 accuracy-probe): verbs the finite-list had missed ──
+  { t: 'Ich schicke die Bewerbung, damit ich bekomme eine Antwort.', expect: 'verb-final' },
+  { t: 'Ich bin zufrieden, weil ich verdiene gut hier.',             expect: 'verb-final' },
+  { t: 'Ich hoffe, dass ich bleibe lange im Team.',                  expect: 'verb-final' },
+  { t: 'Ich sage das, weil ich bringe viel Erfahrung mit.',          expect: 'verb-final' },
+  // ── guard-negatives: the SAME new verbs used CORRECTLY (clause-final) → must NEVER flag ──
+  { t: 'Ich freue mich, weil ich eine Antwort bekomme.',             expect: null },
+  { t: 'Ich bleibe gern, weil ich hier gut verdiene.',               expect: null },
+  { t: 'Ich glaube, dass ich viel Erfahrung mitbringe.',             expect: null },
+  { t: 'Ich suche eine Stelle, die mich wirklich fordert.',          expect: null },
+  { t: 'Es ist gut, dass ich mich hier wohlfühle.',                  expect: null },
   // ── gender / article (RECALL GAP as of 2026-07-05 — detector lexicon too narrow; to be expanded) ──
   { t: 'Ich habe die Problem gelöst.',                               expect: 'gender' },
   { t: 'Das war eine Problem für mich.',                             expect: 'gender' },

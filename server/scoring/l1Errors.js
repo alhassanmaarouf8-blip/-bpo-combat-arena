@@ -29,7 +29,11 @@ const FINITE_VERB = '(?:habe|hast|hat|haben|bin|bist|ist|sind|war|warst|waren|we
   'kann|kannst|können|muss|musst|müssen|will|willst|wollen|soll|sollst|sollen|darf|dürfen|möchte|möchtest|möchten|' +
   'mache|machst|macht|machen|gehe|gehst|geht|gehen|komme|kommst|kommt|kommen|arbeite|arbeitest|arbeitet|arbeiten|' +
   'brauche|brauchst|braucht|brauchen|sage|sagst|sagt|sagen|spreche|sprichst|spricht|sprechen|verstehe|verstehst|versteht|verstehen|' +
-  'gebe|gibst|gibt|geben|nehme|nimmst|nimmt|nehmen|finde|findest|findet|finden|lerne|lernst|lernt|lernen|wohne|wohnst|wohnt|wohnen)';
+  'gebe|gibst|gibt|geben|nehme|nimmst|nimmt|nehmen|finde|findest|findet|finden|lerne|lernst|lernt|lernen|wohne|wohnst|wohnt|wohnen|' +
+  // 2026-07-05 recall bump (accuracy-probe): high-frequency interview verbs the list missed. Chosen to
+  // NOT take dass-complements, so they can never false-flag "weil ich <verb>, dass …" (guard-verified).
+  'bekomme|bekommst|bekommt|bekommen|verdiene|verdienst|verdient|verdienen|bringe|bringst|bringt|bringen|' +
+  'bleibe|bleibst|bleibt|bleiben|suche|suchst|sucht|suchen|fühle|fühlst|fühlt|fühlen)';
 // After the misplaced verb there must be REAL clause content (not the clause ending).
 const V2_IN_SUB = new RegExp(
   `\\b(${SUB_CONJ})\\s+(${SUBJECT})\\s+(${FINITE_VERB})\\s+([a-zäöüß]+(?:\\s+[a-zäöüß]+)*)`, 'gi');
