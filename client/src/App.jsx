@@ -561,16 +561,21 @@ function playProgressiveAudio(url, onStart, onEnd) {
       // Detect a stream stall: if currentTime stops advancing for 6s after playback began, the
       // server-side stream hung. Catches mid-play hangs without false-firing during initial buffering.
       let lastTime = -1, stuckCount = 0;
+      const endNow = () => { if (_bossAudio === audio) _bossAudio = null; try { onEnd?.(); } catch {} finish(false); };
       stallInterval = setInterval(() => {
         if (resolved) { const si = stallInterval; clearInterval(si); stallInterval = null; if (_bossWd === si) _bossWd = null; return; }
-        const ct = audio.currentTime;
+        const ct = audio.currentTime, dur = audio.duration;
+        // GENUINE end → finish immediately (even if the browser never fired 'ended', common for
+        // chunked/streamed MP3). This is the ONLY thing that should clear "boss speaking": if we
+        // guessed "done" early (a slow-network buffer freeze), bossSpeak cleared while he was still
+        // faintly playing → the mic opened → his voice echoed in → false turn → 15s "denkt nach".
+        if (audio.ended || (isFinite(dur) && dur > 0 && ct >= dur - 0.35)) { endNow(); return; }
         if (ct === lastTime) {
           stuckCount++;
-          if (stuckCount >= 4) { // 4 × 1.5s = 6s frozen → stall confirmed
-            if (_bossAudio === audio) _bossAudio = null;
-            try { onEnd?.(); } catch {}
-            finish(false);
-          }
+          // Frozen but NOT at the end = buffering on a slow connection, NOT finished. Be patient so
+          // we never cut the interviewer off or open the mic mid-sentence; only give up after a long
+          // freeze (the 40s guard is the final backstop).
+          if (stuckCount >= 8) endNow();   // 8 × 1.5s = 12s truly frozen mid-file → dead stream
         } else { stuckCount = 0; lastTime = ct; }
       }, 1500);
       _bossWd = stallInterval;   // register so stopBossVoice()/a new line clears this watcher on the shared element
@@ -3746,7 +3751,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // own opening ("spoke over himself"). bossSpeakClearsThenReopens on every later turn as normal.
     if (!bossHasSpokenRef.current) return;
     if (recording || transcribing || bossThinking || bossSpeak || hfActiveRef.current) return;
-    const t = setTimeout(() => startHandsFreeTurn(), 150);
+    // Let the speaker's echo/reverb tail die before the mic opens — otherwise the tail of the boss's
+    // own voice bleeds into the fresh mic and self-triggers a false turn ("Chef denkt nach" for 15s).
+    // 450ms is imperceptible to a human but clears the acoustic tail on a laptop/phone speaker.
+    const t = setTimeout(() => startHandsFreeTurn(), 450);
     return () => clearTimeout(t);
   }, [handsFree, phase, geminiMode, recording, transcribing, bossThinking, bossSpeak, startHandsFreeTurn]);
 
