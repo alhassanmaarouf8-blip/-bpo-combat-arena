@@ -39,22 +39,25 @@ const countFillers = (text) => ((text || '').match(FILLER_RE) ?? []).length;
 // Gemini Live native-audio path is active only when explicitly enabled. Defined here (not just in
 // server.js) because the fight-start path references it — a bare reference would ReferenceError.
 const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
-// PAID-PATH GATE: Gemini Live costs money, so it is NOT for all users. It runs only for accounts on
-// this allowlist (GEMINI_LIVE_EMAILS, comma-separated; falls back to ADMIN_EMAIL). During the owner's
-// ear-test that is just his account. Widen the env var to open it up once he validates it live.
-const GEMINI_LIVE_EMAILS = (process.env.GEMINI_LIVE_EMAILS || process.env.ADMIN_EMAIL || '')
-  .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
-// GEMINI PATH DISABLED (2026-07-04). The paid native-audio path was the source of the owner's
-// "7 seconds to respond": Gemini's own end-of-turn VAD adds ~2–7s between the candidate going
-// quiet and the boss replying (measured live — the boss BRAIN is fast, ~0.6–1s; the lag is turn-
-// taking). It is also the only paid piece of the app. The $0 Groq path is faster and, with early-
-// sentence TTS, feels snappier. Gemini code is kept in-tree (owner rule: unused code stays in git,
-// don't run it). A prior debug line (`if (true) return true // FIXME`) had also leaked the PAID
-// path to every user — this removes that too. Re-enable by flipping GEMINI_LIVE_DISABLED to false
-// (then only GEMINI_LIVE_EMAILS accounts get it).
-const GEMINI_LIVE_DISABLED = true;
-const geminiEmailAllowed = (email) =>
-  !GEMINI_LIVE_DISABLED && !!email && GEMINI_LIVE_EMAILS.includes(String(email).toLowerCase());
+// Gemini Live (native-audio speech-to-speech) is ENABLED FOR ALL USERS — owner-authorized 2026-07-05.
+// The 07-04 "2–7s, disabled" note is STALE: the config was re-tuned afterward (native-audio model +
+// thinkingBudget:0 + 400ms end-of-turn VAD → ~1.1s measured) but the switch was never flipped back.
+// MONEY SAFE: the hard $5/month cap (geminiBudget) is checked BEFORE every session and mid-session;
+// past it, every session SILENTLY falls back to the free Deepgram→Groq path — never a surprise bill,
+// well inside the $300 GCP credit so the card is never touched. Kill switch: env GEMINI_LIVE_DISABLED=1.
+const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_DISABLED === '1';
+const geminiEmailAllowed = () => !GEMINI_LIVE_DISABLED;
+// Per-persona native-audio voice, gender + character matched. Without this map every interviewer
+// would share ONE voice ('Charon', male) — voicing the women with a man. Gemini prebuilt voices; a
+// first pass to validate by ear (the free path's Deepgram Aura voices don't exist on Gemini).
+const BOSS_GEMINI_VOICES = {
+  yasmin:           'Aoede',   // warm, professional woman
+  karim:            'Charon',  // measured man
+  hana:             'Leda',    // gentle, younger woman
+  tarek:            'Fenrir',  // firm, pressing man
+  'frau-mona-adel': 'Kore',    // firm, no-nonsense woman
+  lukas:            'Puck',    // upbeat, casual man
+};
 // BARGE-IN: when ON (default), the user's mic keeps streaming while the boss speaks, so Gemini's native
 // VAD hears the interruption and yields — the real "let me cut in" feel. Requires headphones (open mic +
 // loudspeaker = the boss hears itself). Set GEMINI_BARGE_IN=0 for echo-safe half-duplex (mic muted while
@@ -692,7 +695,7 @@ export class WebSocketManager {
           await proxy.start({
             apiKey: process.env.GEMINI_API_KEY,
             model:   process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest',
-            voiceName: process.env.GEMINI_LIVE_VOICE || 'Charon',
+            voiceName: process.env.GEMINI_LIVE_VOICE || BOSS_GEMINI_VOICES[ctx.bossId] || 'Charon',
             // The full persona prompt PLUS the per-turn humanity discipline. The Groq path re-sends
             // TURN_RULE on every respond(); Gemini gets no per-turn injection, so the rule must live
             // in the session instruction — without it the premium path parrots ("Sie haben also…"),
