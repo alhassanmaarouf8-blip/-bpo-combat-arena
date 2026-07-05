@@ -3009,6 +3009,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
+  const bossHasSpokenRef = useRef(false);  // has the interviewer delivered its FIRST line yet? The
+                                           // auto-mic must NOT open before the opening plays, or the
+                                           // opening bleeds into a live mic → VAD self-triggers → the
+                                           // boss replies over its own greeting ("spoke over himself").
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
   const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss; gated on BARGE_IN_LIVE)
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
@@ -3324,6 +3328,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setError(e => (e === 'realtime_error' ? null : e));
         if (geminiModeRef.current) break;              // Gemini path: boss voice is PCM over the WS, never MP3
         if (!msg.text || ttsMutedRef.current) break;   // muted → the normal text-only path handles it
+        bossHasSpokenRef.current = true;   // the interviewer is now speaking → the auto-mic may open after it finishes
         setBossSpeak(true);        // immediately, like BOSS_SPEECH — keeps the auto-mic gate closed (no echo window)
         setBossThinking(false);
         setShowBriefing(false);
@@ -3339,6 +3344,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.BOSS_SPEECH: {
         setError(e => (e === 'realtime_error' ? null : e));   // boss replied → the transient error is stale (see BOSS_SPEECH_EARLY)
+        bossHasSpokenRef.current = true;   // interviewer has spoken → the auto-mic may open once it finishes
         if (geminiModeRef.current) break;   // Gemini path: boss text arrives via LIVE_BOSS_TRANSCRIPT, voice via BOSS_AUDIO_DELTA
         if (!msg.text) break;
         setBossSpeak(true);
@@ -3495,6 +3501,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     pendingDurationRef.current = 0;
     partialIdRef.current = null;
     bossPartialIdRef.current = null;
+    bossHasSpokenRef.current = false;   // mic stays shut until the interviewer's opening line plays
 
     setPhaseSync('connecting');
     startingRef.current = false;   // phaseRef now guards re-entry
@@ -3733,6 +3740,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // capturing after a short settle. Does nothing while handsFree is off.
   useEffect(() => {
     if (!handsFree || phase !== 'active' || geminiMode) return;   // Gemini owns the mic continuously → never run the client VAD
+    // NEVER open the mic before the interviewer has delivered its opening line. At session start
+    // bossSpeak is briefly false (the opening hasn't arrived yet); opening the mic in that window
+    // made the greeting bleed into the live mic → VAD self-triggered → the boss replied over its
+    // own opening ("spoke over himself"). bossSpeakClearsThenReopens on every later turn as normal.
+    if (!bossHasSpokenRef.current) return;
     if (recording || transcribing || bossThinking || bossSpeak || hfActiveRef.current) return;
     const t = setTimeout(() => startHandsFreeTurn(), 150);
     return () => clearTimeout(t);
