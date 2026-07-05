@@ -4295,8 +4295,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <div style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
               border:'var(--glass-border)', boxShadow:'var(--e2), var(--glass-highlight)',
               backdropFilter:'blur(14px) saturate(1.1)' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-                <div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', marginBottom:12 }}>
+                <div style={{ minWidth:0 }}>
                   <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-h1)', color:'var(--text)', lineHeight:1.1 }}>
                     Dein Interview
                   </div>
