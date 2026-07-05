@@ -4773,8 +4773,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         )}
 
         {/* The LIVE BRAIN: one next step + the journey toward the goal + an honest aha (GET /api/brain).
-            OFF until the masri in BrainGuide.jsx is authored (BRAIN_GUIDE_LIVE). */}
-        {BRAIN_GUIDE_LIVE && canStart && (
+            OFF until the masri in BrainGuide.jsx is authored (BRAIN_GUIDE_LIVE). Hidden on first-run — its
+            first-timer prescription is just "do your diagnose interview", a redundant SECOND CTA next to
+            the orange Interview-starten button. It earns its place once there's real data to route on. */}
+        {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
           <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d) => {
             const p = d?.prescription || {};
             const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
