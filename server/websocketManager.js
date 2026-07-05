@@ -43,9 +43,12 @@ const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 // The 07-04 "2–7s, disabled" note is STALE: the config was re-tuned afterward (native-audio model +
 // thinkingBudget:0 + 400ms end-of-turn VAD → ~1.1s measured) but the switch was never flipped back.
 // MONEY SAFE: the hard $5/month cap (geminiBudget) is checked BEFORE every session and mid-session;
-// past it, every session SILENTLY falls back to the free Deepgram→Groq path — never a surprise bill,
-// well inside the $300 GCP credit so the card is never touched. Kill switch: env GEMINI_LIVE_DISABLED=1.
-const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_DISABLED === '1';
+// past it, every session SILENTLY falls back to the free Deepgram→Groq path — never a surprise bill.
+// ROLLED BACK TO THE FREE PATH BY DEFAULT (2026-07-05 owner ear-test): Gemini's Live session dropped
+// near the END of the interview → fell back mid-fight (the voice CHANGED) and the closing handoff hung
+// / hallucinated — demo-fatal. The $0 Groq path is stable. Re-enable with env GEMINI_LIVE_ENABLED=1
+// once the Gemini endgame (session-drop fallback + goodbye handoff) is hardened.
+const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_ENABLED !== '1';
 const geminiEmailAllowed = () => !GEMINI_LIVE_DISABLED;
 // Per-persona native-audio voice, gender + character matched. Without this map every interviewer
 // would share ONE voice ('Charon', male) — voicing the women with a man. Gemini prebuilt voices; a
