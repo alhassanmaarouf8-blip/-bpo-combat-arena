@@ -298,6 +298,33 @@ function stopBossVoice() {
   stopFiller();   // a real boss line is starting (or we're tearing down) → kill any thinking-sound bridge
 }
 
+// ── Mobile audio unlock (fixes "captions show, no voice" + "no reply after I speak" on phones) ──
+// Mobile browsers (iOS Safari most strictly) reject any .play() that isn't started INSIDE a real
+// user gesture, and the code silently swallows the rejection — so the boss's TTS, which plays
+// asynchronously ~1s AFTER the start tap (once the WS reply lands), was being blocked every turn:
+// text appeared, no sound. The user's ear can't tell "boss didn't reply" from "boss replied but
+// silent," so this reads as BOTH bugs. Fix: the instant the user taps "Interview starten", play a
+// silent clip AND resume a Web-Audio context — both inside the gesture. That satisfies the gesture
+// requirement so every later boss `new Audio().play()` is allowed. Idempotent; safe to call on every start.
+let _sharedAC = null;   // reused so the Gemini-audio path + priming share one unlocked context
+function unlockAudioPlayback() {
+  try {
+    // 1) Unlock the HTMLAudioElement path (all boss TTS uses `new Audio().play()`).
+    const el = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQQAAAAAAAAA');
+    el.volume = 0;
+    const p = el.play();
+    if (p && typeof p.then === 'function') p.then(() => { try { el.pause(); } catch {} }).catch(() => {});
+  } catch {}
+  try {
+    // 2) Unlock/resume a shared Web-Audio context (Gemini native-audio path + general priming).
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      if (!_sharedAC || _sharedAC.state === 'closed') _sharedAC = new AC();
+      if (_sharedAC.state === 'suspended') _sharedAC.resume().catch(() => {});
+    }
+  } catch {}
+}
+
 // ── Dead-air "thinking" filler ──────────────────────────────────────────────────
 // Real interviewers don't sit in dead silence for 1-2s while they think — they go "Mhm…", "Also…".
 // Ours used to: the gap between the candidate finishing and the boss's reply arriving was pure silence,
@@ -3742,6 +3769,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
   const beginSession = useCallback(async (mode) => {
+    unlockAudioPlayback();   // MUST run synchronously inside the tap — unlocks mobile audio so boss TTS can play
     fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
