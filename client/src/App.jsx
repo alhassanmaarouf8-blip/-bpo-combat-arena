@@ -18,7 +18,6 @@ import { InviteCard } from './InviteCard.jsx';
 import { Alhassan } from './Alhassan.jsx';
 import { Trainingslager, GameMapCompact } from './Trainingslager.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
-import Trainingsnachweis from './Trainingsnachweis.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -1274,89 +1273,6 @@ function RankLadder({ rank }) {
       ) : (
         <div style={{ fontSize:10.5, color:'var(--player-2)', marginTop:9, textAlign:'center', fontWeight:600 }}>🏆 Höchster Rang erreicht — Interview-Bereit!</div>
       )}
-    </div>
-  );
-}
-
-// ── Component: WeeklyLeaderboard ─────────────────────────────────────────────
-// Social accountability (Duolingo leagues research): ranking peers in a weekly
-// cohort drives daily return rate without requiring chat or social features.
-function WeeklyLeaderboard({ token, apiUrl, myId, data, onLoad, onClose }) {
-  const [err, setErr] = useState('');
-  useEffect(() => {
-    if (data) return;
-    (async () => {
-      try {
-        const r = await fetch(`${apiUrl}/api/leaderboard`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!r.ok) throw new Error('failed');
-        onLoad(await r.json());
-      } catch { setErr('Tabelle konnte nicht geladen werden.'); }
-    })();
-  }, [apiUrl, token, data, onLoad]);
-
-  const entries = data?.entries ?? [];
-  const me = entries.find(e => e.id === (data?.myId ?? myId));
-
-  return (
-    <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
-      background:'rgba(2,4,9,0.98)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 10px' }}>
-        <div>
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:17, letterSpacing:'0.1em',
-            color:'var(--action)', textShadow:'0 0 14px rgba(249,115,22,0.5)' }}>🏆 DIESE WOCHE</div>
-          <div style={{ fontSize:9, color:'var(--text-faint)', letterSpacing:'0.08em' }}>TOP 15 · ÜBUNGEN + TÄGLICHE TRAININGS</div>
-        </div>
-        <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:12, padding:'7px 11px',
-          borderRadius:'var(--r-sm)', cursor:'pointer', border:'1px solid var(--line)', background:'transparent', color:'var(--text-dim)' }}>✕</button>
-      </div>
-
-      <div style={{ flex:1, overflowY:'auto', padding:'0 16px 18px', display:'flex', flexDirection:'column', gap:6 }}>
-        {err && <div style={{ fontSize:12, color:'#fca5a5', textAlign:'center', marginTop:20 }}>⚠ {err}</div>}
-        {!data && !err && (
-          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-dim)', fontSize:12 }}>Lade…</div>
-        )}
-
-        {me && (
-          <div style={{ padding:'8px 12px', borderRadius:'var(--r-sm)', marginBottom:4,
-            background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.3)',
-            fontSize:11, color:'var(--accent)', fontFamily:'var(--font-display)', fontWeight:700, textAlign:'center' }}>
-            DU · RANG #{me.rank} · {me.liveSessions} Kämpfe + {me.dailyDays} Tage Training
-          </div>
-        )}
-
-        {entries.map((e) => {
-          const isMe = e.id === (data?.myId ?? myId);
-          return (
-            <div key={e.rank} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px',
-              borderRadius:'var(--r-sm)',
-              background: isMe ? 'rgba(59,130,246,0.07)' : e.rank === 1 ? 'rgba(249,115,22,0.08)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${isMe ? 'rgba(59,130,246,0.35)' : e.rank === 1 ? 'rgba(249,115,22,0.35)' : 'var(--line)'}` }}>
-              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13,
-                color: e.rank === 1 ? 'var(--action)' : e.rank === 2 ? '#94a3b8' : e.rank === 3 ? '#cd7f32' : 'var(--text-dim)',
-                minWidth:24, textAlign:'center' }}>
-                {e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : `#${e.rank}`}
-              </span>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:11,
-                  color: isMe ? 'var(--accent)' : '#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {e.masked}{isMe ? ' 👈' : ''}
-                </div>
-                <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:1 }}>
-                  {e.liveSessions} Kämpfe · {e.dailyDays} Tage · {e.streak > 0 ? `${e.streak}🔥` : ''}
-                </div>
-              </div>
-              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:12, color:'var(--action)' }}>{e.score}</span>
-            </div>
-          );
-        })}
-
-        {data && !entries.length && (
-          <div style={{ textAlign:'center', marginTop:30, fontSize:12, color:'var(--text-dim)', lineHeight:1.6 }}>
-            Noch keine Aktivität diese Woche.<br />
-            <span dir="rtl">مفيش نشاط الأسبوع ده لسه — كن أول واحد!</span>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -2957,11 +2873,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
   const [hireReadiness, setHireReadiness] = useState(null); // honest "am I hireable + my one wall" verdict (server-computed), shown on the home
-  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [leaderboard, setLeaderboard]         = useState(null); // { entries, myId }
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
-  const [nachweisOpen, setNachweisOpen] = useState(false); // Trainingsnachweis (progress cert)
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
@@ -3917,9 +3830,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     [guideOpen, setGuideOpen], [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
     [satzbauOpen, setSatzbauOpen],
-    [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen], [nachweisOpen, setNachweisOpen],
+    [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen],
     [videoLessonsOpen, setVideoLessonsOpen],
-    [leaderboardOpen, setLeaderboardOpen], [dailyOpen, setDailyOpen],
+    [dailyOpen, setDailyOpen],
     [showBriefing, setShowBriefing],
   ];
   // Every drill/panel overlay has its OWN close ("Schließen ✕"), so the global back arrow was a
@@ -3987,30 +3900,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onClose={() => setDailyOpen(false)}
             onComplete={(s) => setDaily(prev => ({ ...prev, streak: s.streak ?? 0, completedToday: true, streakShield: s.streakShield ?? prev.streakShield, best: Math.max(prev.best ?? 0, s.streak ?? 0) }))} />
-        </OverlayBoundary>
-      )}
-
-      {/* Trainingsnachweis — printable progress certificate */}
-      {nachweisOpen && (
-        <OverlayBoundary onClose={() => setNachweisOpen(false)}>
-          <Trainingsnachweis
-            email={auth.account?.email ?? ''}
-            sessions={rank?.sessions ?? 0}
-            rank={rank}
-            daily={daily}
-            totals={totals}
-            onClose={() => setNachweisOpen(false)} />
-        </OverlayBoundary>
-      )}
-
-      {/* Weekly leaderboard overlay */}
-      {leaderboardOpen && (
-        <OverlayBoundary onClose={() => setLeaderboardOpen(false)}>
-          <WeeklyLeaderboard
-            token={auth.token} apiUrl={API_URL}
-            myId={auth.account?.id}
-            data={leaderboard} onLoad={setLeaderboard}
-            onClose={() => setLeaderboardOpen(false)} />
         </OverlayBoundary>
       )}
 
@@ -4772,8 +4661,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             interview. Hidden on first-run — asking for a referral before any value is premature. */}
         {canStart && !firstRun && <InviteCard accountId={auth.account?.id} />}
 
-        {/* (uplift) Trainingsnachweis + Diese Woche + Fortschritt now live in ONE quiet footer list
-            card BELOW the Übungen grid — check-in-later items, no per-row color chrome. */}
+        {/* Quiet footer: the "Fortschritt & Wiederholung" progress view — one check-in-later row
+            below the Übungen grid. (Musk-cut: the PDF cert + weekly leaderboard were vanity, off the
+            get-hired loop — deleted.) */}
 
         {/* Einstufung — DUPLICATE KILLED (uplift): this was the second, orange-screaming EINSTUFUNG
             button competing with the one inside the mission card. Now a quiet text link; the hero
@@ -4838,13 +4728,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         )}
 
         {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting.
-            Hidden on first-run — progress/Nachweis/leaderboard are all empty before the first interview. */}
+            Hidden on first-run — progress is empty before the first interview. */}
         {canStart && !firstRun && (
           <div style={{ marginTop:10, borderRadius:'var(--r-lg)', background:'var(--surface)', border:'1px solid var(--line)', overflow:'hidden' }}>
             {[
               { icon:'chartUp',   de:'Fortschritt & Wiederholung', ar:'',                     open: openDashboard },
-              { icon:'fileBadge', de:'Trainingsnachweis',           ar:'اطبع تقدمك كـPDF',     open: () => setNachweisOpen(true) },
-              { icon:'trophy',    de:'Diese Woche',                 ar:'مين بيتدرب أكتر؟',     open: () => { setLeaderboardOpen(true); setLeaderboard(null); } },
             ].map((r, i) => (
               <button key={i} onClick={r.open} style={{ width:'100%', minHeight:48, padding:'12px 14px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:11, textAlign:'left', background:'none', border:'none',
