@@ -4810,8 +4810,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           }} />
         )}
 
-        {/* ELITE-ONLY premium: Alhassan's deep weekly briefing (self-hides for non-Elite / no data). */}
-        {canStart && auth.account?.entitlement?.plan === 'elite' && (
+        {/* ELITE-ONLY premium: the deep weekly briefing. HIDDEN (owner 2026-07-05: "not relevant, talks
+            too much, not congruent with the interview — otherwise move it"). Kept in-tree, fully reversible:
+            flip `false &&`→`true &&` once it's rebuilt to spec (tight, and strictly tied to the last
+            interview's real result — no generic talk). */}
+        {false && canStart && auth.account?.entitlement?.plan === 'elite' && (
           <WeeklyBriefing token={auth.token} apiUrl={API_URL} />
         )}
 
