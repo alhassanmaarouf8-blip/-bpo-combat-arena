@@ -1381,6 +1381,61 @@ const TRAIN_FOR_SKILL = {
   complexity:      { drill: 'trainingslager', label: 'TRAININGSLAGER' },
 };
 
+// The honest hire-readiness verdict — ONE source of truth, used on BOTH the post-interview results
+// screen AND the home, so "am I hireable yet?" is answered where the user actually asks it (every
+// session on the home), not only once after a fight. Honest by construction: tri-state (BEREIT / FAST
+// BEREIT / your biggest lever), shows how many of the 9 signals were really measured, and returns null
+// rather than guess. `compact` = the calmer home variant (no entrance animation). See hireReadiness.js.
+function HireVerdict({ h, onTrain, compact = false }) {
+  if (!h) return null;
+  const SKILL = {
+    fluency:         { de: 'Flüssigkeit — sprich in ganzen Sätzen, ohne lange Pausen', ar: 'الطلاقة — اتكلم بجمل كاملة من غير وقفات طويلة' },
+    grammar:         { de: 'Grammatik — zu viele Fehler pro Antwort', ar: 'القواعد — أخطاء كتير في كل إجابة' },
+    intelligibility: { de: 'Verständlichkeit — deine Aussprache kommt noch nicht klar an', ar: 'وضوح النطق — نطقك لسه مش واصل بوضوح' },
+    confidence:      { de: 'Sicherheit — weniger zögern, schneller antworten', ar: 'الثقة — تردد أقل ورد أسرع' },
+    deescalation:    { de: 'Deeskalation — wütende Kunden ruhig und sicher auffangen', ar: 'التهدئة — استيعاب العميل الغضبان بهدوء وثقة' },
+    complexity:      { de: 'Satzbau & Wortschatz — mehr Nebensätze, mehr Vielfalt', ar: 'تركيب الجمل والمفردات — جمل مركّبة أكتر وتنوّع أكبر' },
+  }[h.limitingSkill] || null;
+  const levelOk = { B1: 1, B2: 1, C1: 1 }[h.level] === 1;
+  let v = null;
+  if (h.hireReady === true) {
+    v = { label: 'INTERVIEW-BEREIT', color: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)',
+          de: 'Alle gemessenen Einstellungs-Signale sind im grünen Bereich — du bist bereit für ein echtes Interview.',
+          ar: 'كل إشارات التوظيف المتقاسة في النطاق الأخضر — انت جاهز لمقابلة حقيقية.' };
+  } else if (h.hireReady === false && levelOk && SKILL) {
+    v = { label: 'FAST INTERVIEW-BEREIT', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
+          de: `Was dich gerade am stärksten blockiert: ${SKILL.de}`, ar: `أكتر حاجة بتعطّلك دلوقتي: ${SKILL.ar}` };
+  } else if (SKILL) {
+    v = { label: 'DEIN GRÖSSTER HEBEL', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
+          de: SKILL.de, ar: SKILL.ar };
+  }
+  if (!v) return null;   // no verdict AND no measurable lever → say nothing rather than guess
+  const T = TRAIN_FOR_SKILL[h.limitingSkill];
+  return (
+    <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:v.bg, border:`1px solid ${v.border}`,
+      animation: compact ? 'none' : 'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
+      <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:v.color, marginBottom:6 }}>
+        🎯 INTERVIEW-BEREITSCHAFT · {v.label}
+      </div>
+      <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{v.de}</div>
+      <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{v.ar}</div>
+      {(h.partial || h.readyCaveat) && (
+        <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
+          vorläufig · {h.measuredSignals}/{h.totalSignals} Signale gemessen{h.readyCaveat ? ' · Aussprache als klar angenommen' : ''}
+        </div>
+      )}
+      {SKILL && onTrain && T && (
+        <button onClick={() => onTrain(T.drill)}
+          style={{ width:'100%', marginTop:10, padding:'12px', minHeight:46, cursor:'pointer',
+            fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', fontWeight:700,
+            borderRadius:9, border:`1px solid ${v.border}`, color:v.color, background:'rgba(0,0,0,0.25)' }}>
+          ▶ JETZT GEZIELT TRAINIEREN: {T.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, onOpenTrainingslager, studentName, onOpenGuide, onTrainSkill }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
@@ -1566,59 +1621,9 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
                 signals and names the ONE skill blocking hire-readiness. Honest by construction: it
                 shows how many of the 9 signals were really measured, never guesses the missing ones,
                 and only says "fast bereit" when the level gate (B1+) is actually met. ── */}
-          {HIRE_VERDICT_LIVE && !gradeUnavailable && data?.progress?.hireReadiness && (() => {
-            const h = data.progress.hireReadiness;
-            const SKILL = {
-              fluency:         { de: 'Flüssigkeit — sprich in ganzen Sätzen, ohne lange Pausen', ar: 'الطلاقة — اتكلم بجمل كاملة من غير وقفات طويلة' },
-              grammar:         { de: 'Grammatik — zu viele Fehler pro Antwort', ar: 'القواعد — أخطاء كتير في كل إجابة' },
-              intelligibility: { de: 'Verständlichkeit — deine Aussprache kommt noch nicht klar an', ar: 'وضوح النطق — نطقك لسه مش واصل بوضوح' },
-              confidence:      { de: 'Sicherheit — weniger zögern, schneller antworten', ar: 'الثقة — تردد أقل ورد أسرع' },
-              deescalation:    { de: 'Deeskalation — wütende Kunden ruhig und sicher auffangen', ar: 'التهدئة — استيعاب العميل الغضبان بهدوء وثقة' },
-              complexity:      { de: 'Satzbau & Wortschatz — mehr Nebensätze, mehr Vielfalt', ar: 'تركيب الجمل والمفردات — جمل مركّبة أكتر وتنوّع أكبر' },
-            }[h.limitingSkill] || null;
-            // Tri-state, honest: BEREIT / FAST BEREIT (level gate met, one signal short) / else the
-            // biggest lever. hireReady === null (a gating signal unmeasured) → only show the lever.
-            const levelOk = { B1: 1, B2: 1, C1: 1 }[h.level] === 1;
-            let v = null;
-            if (h.hireReady === true) {
-              v = { label: 'INTERVIEW-BEREIT', color: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)',
-                    de: 'Alle gemessenen Einstellungs-Signale sind im grünen Bereich — du bist bereit für ein echtes Interview.',
-                    ar: 'كل إشارات التوظيف المتقاسة في النطاق الأخضر — انت جاهز لمقابلة حقيقية.' };
-            } else if (h.hireReady === false && levelOk && SKILL) {
-              v = { label: 'FAST INTERVIEW-BEREIT', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
-                    de: `Was dich gerade am stärksten blockiert: ${SKILL.de}`,
-                    ar: `أكتر حاجة بتعطّلك دلوقتي: ${SKILL.ar}` };
-            } else if (SKILL) {
-              v = { label: 'DEIN GRÖSSTER HEBEL', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
-                    de: SKILL.de, ar: SKILL.ar };
-            }
-            if (!v) return null;   // no verdict AND no measurable lever → say nothing rather than guess
-            return (
-              <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:v.bg, border:`1px solid ${v.border}`,
-                animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:v.color, marginBottom:6 }}>
-                  🎯 INTERVIEW-BEREITSCHAFT · {v.label}
-                </div>
-                <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{v.de}</div>
-                <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{v.ar}</div>
-                {(h.partial || h.readyCaveat) && (
-                  <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
-                    vorläufig · {h.measuredSignals}/{h.totalSignals} Signale gemessen{h.readyCaveat ? ' · Aussprache als klar angenommen' : ''}
-                  </div>
-                )}
-                {/* One-tap handoff: the drill that trains EXACTLY the blocking skill opens on top of
-                    this screen (drills stack above the debrief); closing it returns to the results. */}
-                {SKILL && onTrainSkill && TRAIN_FOR_SKILL[h.limitingSkill] && (
-                  <button onClick={() => onTrainSkill(TRAIN_FOR_SKILL[h.limitingSkill].drill)}
-                    style={{ width:'100%', marginTop:10, padding:'12px', minHeight:46, cursor:'pointer',
-                      fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', fontWeight:700,
-                      borderRadius:9, border:`1px solid ${v.border}`, color:v.color, background:'rgba(0,0,0,0.25)' }}>
-                    ▶ JETZT GEZIELT TRAINIEREN: {TRAIN_FOR_SKILL[h.limitingSkill].label}
-                  </button>
-                )}
-              </div>
-            );
-          })()}
+          {HIRE_VERDICT_LIVE && !gradeUnavailable && data?.progress?.hireReadiness && (
+            <HireVerdict h={data.progress.hireReadiness} onTrain={onTrainSkill} />
+          )}
 
           {/* ── WOCHENFOKUS — the ONE thing to drill this week (amber anchor) ── */}
           {data?.priorityFix && (data.priorityFix.de || data.priorityFix.ar) && (
@@ -2954,6 +2959,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
+  const [hireReadiness, setHireReadiness] = useState(null); // honest "am I hireable + my one wall" verdict (server-computed), shown on the home
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [leaderboard, setLeaderboard]         = useState(null); // { entries, myId }
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
@@ -3910,6 +3916,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && data.daily) setDaily(prev => ({ streak: 0, completedToday: false, streakShield: false, best: 0, ...prev, ...data.daily }));
         if (!cancelled && typeof data.trainedToday === 'boolean') setTrainedToday(data.trainedToday);
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
+        if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
       } catch { /* keep cached value */ }
     })();
     return () => { cancelled = true; };
@@ -4755,6 +4762,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Secondary home menu. On a phone it's a normal single-column stack; on a laptop it flows into
             2–3 columns (side-by-side, no endless scroll). See .home-grid in index.html. */}
         <div className="home-grid">
+
+        {/* "AM I HIREABLE YET?" — the honest hire-readiness verdict, now on the HOME (not only on the
+            post-interview results screen). This is the question a job-seeker asks every session; the app
+            already computes it honestly (hireReadiness.js: names the ONE blocking skill, shows X/9 signals
+            measured, returns null rather than guess). Returning users only — a novel user has no signals
+            yet, and the component self-hides when there's nothing measurable. */}
+        {canStart && !firstRun && hireReadiness && (
+          <HireVerdict h={hireReadiness} compact onTrain={(drill) => {
+            const OPEN = { fluency: setFluencyOpen, shadowing: setShadowingOpen, pressure: setPressureOpen,
+              trainingslager: setTrainingslagerOpen, listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
+            (OPEN[drill] || (() => {}))(true);
+          }} />
+        )}
 
         {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only).
             Hidden when the live brain is active — the brain is the single source of "what to do next"
