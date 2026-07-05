@@ -2946,6 +2946,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [showHowto, setShowHowto] = useState(() => { try { return !localStorage.getItem('bpo_howto_seen'); } catch { return false; } });
   const dismissHowto = () => { try { localStorage.setItem('bpo_howto_seen', '1'); } catch {} setShowHowto(false); };
   const [streak, setStreak] = useState(loadStreakCache); // (legacy fight streak, kept)
+  // First-run: a brand-new user (never started an interview, no streak, no result yet) gets a
+  // deliberately BARE home — hero + ONE button — instead of the full 8-drill wall + mission + map +
+  // footer. Everything reveals after their first interview. (owner: "make my app very simple to
+  // navigate for a novel user.") Based on flicker-free signals only (localStorage flag + cached streak).
+  const [seenInterview, setSeenInterview] = useState(() => { try { return localStorage.getItem('ff_interviewed') === '1'; } catch { return false; } });
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
@@ -3026,7 +3031,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const pendingFightRef = useRef(null); // {planId, stepId} when a fight was launched from a Zielplan step
 
   const setPhaseSync = useCallback((p) => { phaseRef.current = p; setPhase(p); }, []);
-  const chooseLevel  = useCallback((l) => { levelRef.current = l; setLevel(l); }, []);
+  const chooseLevel  = useCallback((l) => {
+    levelRef.current = l; setLevel(l);
+    // Level-gate the interviewer: if the currently-picked boss outranks the new level, fall back to
+    // Auto so a beginner can't start a fight against a locked (too-hard) persona. (owner: "why is a
+    // C1 interviewer even an option for an A2/B1 user?")
+    const order = ['a2-b1', 'b2', 'c1'];
+    const MIN = { hana: 'b2', tarek: 'b2', 'frau-mona-adel': 'c1', lukas: 'c1' };
+    const cur = bossPickRef.current;
+    if (cur && MIN[cur] && order.indexOf(l) < order.indexOf(MIN[cur])) { bossPickRef.current = ''; setBossPick(''); }
+  }, []);
   const chooseBoss   = useCallback((b) => { bossPickRef.current = b; setBossPick(b); }, []);
 
   // The SERVER is the single source of truth for whether the session is over.
@@ -3837,6 +3851,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     }
     // Straight into the interview. The typed AUFWÄRMEN pre-fight warm-up was removed: it re-drilled the
     // same SRS due-items as SAG ES RICHTIG (spoken) and Daily Training (typed) — off-mission redundancy.
+    try { localStorage.setItem('ff_interviewed', '1'); } catch {}   // first interview started → reveal the full home
+    setSeenInterview(true);
     start();
   }, [start, auth.account]);
 
@@ -3903,6 +3919,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const isActive     = phase === 'active';
   const isConnecting = phase === 'connecting';
   const canStart     = phase === 'idle' || phase === 'error';
+  // A novel user = ready, never interviewed (no local flag), no training streak, no result this session.
+  // Collapses the home to just the hero + Interview-starten button (progressive disclosure).
+  const firstRun     = canStart && !seenInterview && !streak && !data;
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
 
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
@@ -4222,8 +4241,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         ) : (
           <div style={{ marginBottom:12 }}>
-            {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. No card walls. */}
-            <button onClick={() => setDailyOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
+            {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. Hidden on first-run
+                (a novel user has no streak/habit to repeat yet — it'd be a second CTA above the hero). */}
+            {!firstRun && <button onClick={() => setDailyOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
               display:'flex', alignItems:'center', gap:10, marginBottom:10, padding:'10px 14px', minHeight:44,
               borderRadius:'var(--r-pill)', background:'var(--surface)',
               border:`1px solid ${daily.completedToday ? 'rgba(59,130,246,0.35)' : streak > 0 ? 'rgba(249,115,22,0.4)' : 'var(--line)'}`,
@@ -4250,7 +4270,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 border: daily.completedToday ? '1px solid var(--accent-dim)' : 'none' }}>
                 {daily.completedToday ? '✓' : 'START ▸'}
               </span>
-            </button>
+            </button>}
             {/* Loss-aversion (evidence-based retention): the pending LOSS, framed gently, drives return. */}
             {streak > 0 && !trainedToday && (
               <div style={{ marginTop:-4, marginBottom:10, padding:'6px 10px', borderRadius:8,
@@ -4299,8 +4319,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 {{ 'a2-b1':'Langsamer · verzeiht Fehler', 'b2':'Natürliches Tempo · komplex', 'c1':'Schweizer Niveau · formell' }[level]}
               </div>
 
-            {/* Interviewer picker — ALWAYS visible: choosing WHO you face is core to the app, not a hidden
-                setting. (It was buried behind "Optionen" during the declutter → users only ever saw Yasmin.) */}
+            {/* Interviewer picker — ALWAYS visible, but LEVEL-GATED: a beginner never gets a too-hard boss
+                as a pickable option. Higher tiers show LOCKED (🔒 · ab B2/C1, disabled) so the ladder stays
+                visible and aspirational instead of vanishing. (owner: "why is Frau Mona Adel (C1) open as an
+                option for an A2/B1 user?") */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap',
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
@@ -4308,12 +4330,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
-                <option value="yasmin">Yasmin — warm (L1)</option>
-                <option value="karim">Karim — sachlich (L2)</option>
-                <option value="hana">Hana — skeptisch (L3)</option>
-                <option value="tarek">Tarek — Hochdruck (L4)</option>
-                <option value="frau-mona-adel">Frau Mona Adel — streng (L5)</option>
-                <option value="lukas">Lukas — casual Berlin 🆕 (L6)</option>
+                {[
+                  { id:'yasmin',         label:'Yasmin — warm',           L:1, min:'a2-b1' },
+                  { id:'karim',          label:'Karim — sachlich',        L:2, min:'a2-b1' },
+                  { id:'hana',           label:'Hana — skeptisch',        L:3, min:'b2' },
+                  { id:'tarek',          label:'Tarek — Hochdruck',       L:4, min:'b2' },
+                  { id:'frau-mona-adel', label:'Frau Mona Adel — streng', L:5, min:'c1' },
+                  { id:'lukas',          label:'Lukas — casual Berlin',   L:6, min:'c1' },
+                ].map((b) => {
+                  const order = ['a2-b1', 'b2', 'c1'];
+                  const locked = order.indexOf(level) < order.indexOf(b.min);
+                  const tag = { 'a2-b1':'', b2:'ab B2', c1:'ab C1' }[b.min];
+                  return (
+                    <option key={b.id} value={b.id} disabled={locked}>
+                      {locked ? `🔒 ${b.label} · ${tag}` : `${b.label} (L${b.L})`}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -4708,14 +4741,24 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         ) : null}
 
+        {/* First-run reassurance: a novel user's whole home is just the hero + this one button. A short,
+            low-stakes note lowers the "live German interview" fear. (Arabic left as an OWNER-AR slot; the
+            quiet "Einstufung machen · تقييم مستواك" link below is the already-approved bilingual alternative.) */}
+        {firstRun && (
+          <div style={{ marginTop:12, textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-dim)', lineHeight:1.55 }}>
+            ⏱ ~7 Min · dein Niveau wird automatisch erkannt — einfach anfangen.
+          </div>
+        )}
+
         {/* Secondary home menu. On a phone it's a normal single-column stack; on a laptop it flows into
             2–3 columns (side-by-side, no endless scroll). See .home-grid in index.html. */}
         <div className="home-grid">
 
         {/* Hire-Readiness gauge + today's one mission, auto-routed to the weakest area (idle only).
             Hidden when the live brain is active — the brain is the single source of "what to do next"
-            (no two competing routers). */}
-        {canStart && !BRAIN_GUIDE_LIVE && (
+            (no two competing routers). Hidden on first-run — the mission gauge reads empty before the
+            first interview, and its inner Einstufung CTA would compete with the hero. */}
+        {canStart && !firstRun && !BRAIN_GUIDE_LIVE && (
           <DailyMission token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             name={auth.account?.name || (auth.account?.email || '').split('@')[0]}
             onOpen={(drill) => {
@@ -4751,8 +4794,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
         {canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
 
-        {/* Referral loop: invite a friend → both get +3 trial days when the friend finishes their first interview. */}
-        {canStart && <InviteCard accountId={auth.account?.id} />}
+        {/* Referral loop: invite a friend → both get +3 trial days when the friend finishes their first
+            interview. Hidden on first-run — asking for a referral before any value is premature. */}
+        {canStart && !firstRun && <InviteCard accountId={auth.account?.id} />}
 
         {/* (uplift) Trainingsnachweis + Diese Woche + Fortschritt now live in ONE quiet footer list
             card BELOW the Übungen grid — check-in-later items, no per-row color chrome. */}
@@ -4768,16 +4812,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         )}
 
-        {/* Trainingslager study-map teaser (idle only) → opens the full game-map route */}
-        {canStart && (
+        {/* Trainingslager study-map teaser (idle only) → opens the full game-map route. Hidden on
+            first-run — the study map is meaningless before there's any progress on it. */}
+        {canStart && !firstRun && (
           <GameMapCompact token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onOpen={() => setTrainingslagerOpen(true)} />
         )}
 
         {/* ÜBUNGEN GRID (uplift): the 7-button drill wall becomes one titled card with icon tiles —
             2 columns, real SVG icons, every tile the same quiet weight (the #ef4444 red is gone;
-            Druck-Leiter carries a neutral SCHWER badge instead). */}
-        {canStart && (
+            Druck-Leiter carries a neutral SCHWER badge instead). Hidden on first-run — an 8-tile drill
+            wall before the first interview is choice-overload; the interview routes them to the right
+            drill afterwards. */}
+        {canStart && !firstRun && (
           <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginBottom:3 }}>
@@ -4816,8 +4863,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         )}
 
-        {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting. */}
-        {canStart && (
+        {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting.
+            Hidden on first-run — progress/Nachweis/leaderboard are all empty before the first interview. */}
+        {canStart && !firstRun && (
           <div style={{ marginTop:10, borderRadius:'var(--r-lg)', background:'var(--surface)', border:'1px solid var(--line)', overflow:'hidden' }}>
             {[
               { icon:'chartUp',   de:'Fortschritt & Wiederholung', ar:'',                     open: openDashboard },
@@ -4853,8 +4901,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </button>
         )}
 
-        {/* Permanent feedback button (idle only) */}
-        {canStart && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
+        {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
+        {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
         {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
         </div>{/* /home-grid */}
 
