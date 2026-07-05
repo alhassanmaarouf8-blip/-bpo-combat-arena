@@ -426,12 +426,13 @@ export class WebSocketManager {
       // persistent mistakes, an absence — so the boss acts like a returning interviewer who
       // watched this candidate grow. Deterministic, never fabricated; see bossMemory.js.
       memory = buildBossMemory(prof);
-      // Name recall from the guide profile (detectName in alhassan.js stores it when the candidate
-      // says their name in chat). If we have it, the opening line will address them naturally.
-      try {
-        const guide = await loadGuide(account.id);
-        candidateName = guide?.name || null;
-      } catch {}
+      // Name recall is DISABLED (2026-07-05). The name was auto-captured from STT of the candidate's
+      // own speech — unreliable, especially for Arabic names — and a single mis-capture ("Firo") then
+      // made the boss greet a WRONG name in turn 1 for EVERY persona, on every future interview. The
+      // trust cost of a wrong name far outweighs the charm of a right one, so the interview no longer
+      // addresses the candidate by a heuristically-captured name. Re-enable ONLY with a high-confidence
+      // source (an explicit "Wie heißen Sie?" onboarding field), not STT guesses. candidateName stays null.
+      candidateName = null;
     } catch {}
 
     // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
@@ -1493,7 +1494,11 @@ export class WebSocketManager {
       try {
         const guide = await loadGuide(ctx.userId);
         if (guide && !guide.name) {
-          const m = transcript.match(/\b(?:ich heiße|mein name ist|ich bin)\s+([A-Za-zÄÖÜäöüß]{2,20})/i);
+          // ONLY explicit name markers ("ich heiße X" / "mein Name ist X"). The bare "ich bin X" branch
+          // was REMOVED: a self-intro is usually "ich bin fertig / Deutschlehrer / wirklich froh …", so it
+          // captured a state, profession, or STT fragment as a "name" and poisoned the profile — the root
+          // of the "Firo" wrong-name bug. Explicit markers are almost always followed by the real name.
+          const m = transcript.match(/\b(?:ich heiße|mein name ist)\s+([A-Za-zÄÖÜäöüß]{2,20})/i);
           const cand = m?.[1];
           // Guard the classic false positive that made the boss greet "Guten Tag. Al,/Bereit,…":
           // "ich bin BEREIT/müde/fertig/…" is a STATE, not a name, and 2-letter STT fragments ("Al"
