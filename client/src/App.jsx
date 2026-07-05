@@ -3,7 +3,6 @@ import { AudioRecorder } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
-import Zielplan from './Zielplan.jsx';
 import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { Assessment } from './Assessment.jsx';
@@ -2962,7 +2961,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [leaderboard, setLeaderboard]         = useState(null); // { entries, myId }
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
-  const [zielplanOpen, setZielplanOpen] = useState(false); // Zielplan (goal-plan) overlay
   const [nachweisOpen, setNachweisOpen] = useState(false); // Trainingsnachweis (progress cert)
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
@@ -3032,7 +3030,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const prevBossHpRef  = useRef(100);
   const prevPlayerHpRef = useRef(100);
   const prevIdxRef     = useRef(0);   // tracks the round index to detect advances
-  const pendingFightRef = useRef(null); // {planId, stepId} when a fight was launched from a Zielplan step
 
   const setPhaseSync = useCallback((p) => { phaseRef.current = p; setPhase(p); }, []);
   const chooseLevel  = useCallback((l) => {
@@ -3212,15 +3209,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setDebriefPending(false);
         if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
         if (typeof msg.progress?.trainedToday === 'boolean') setTrainedToday(msg.progress.trainedToday);
-        // If this fight was launched from a Zielplan Mock-Kampf step, mark that step done.
-        if (pendingFightRef.current) {
-          const { planId, stepId } = pendingFightRef.current;
-          pendingFightRef.current = null;
-          fetch(`${API_URL}/api/plans/${planId}/steps/${stepId}`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.token}` },
-            body: JSON.stringify({ done: true }),
-          }).catch(() => {});
-        }
         break;
 
       case S.NO_SESSION:
@@ -3860,14 +3848,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     start();
   }, [start, auth.account]);
 
-  // Launch a real Mock-Kampf from a Zielplan fight step. The step is marked done once the
-  // debrief arrives (see the DEBRIEF handler). Goes through the normal paywall/entitlement gate.
-  const startFightForStep = useCallback((planId, stepId) => {
-    pendingFightRef.current = { planId, stepId };
-    setZielplanOpen(false);
-    beginSession();
-  }, [beginSession]);
-
   const openDashboard = useCallback(async () => {
     setDashboard({ data: null, loading: true });
     try {
@@ -3939,14 +3919,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     [satzbauOpen, setSatzbauOpen],
     [pressureOpen, setPressureOpen], [trainingslagerOpen, setTrainingslagerOpen], [nachweisOpen, setNachweisOpen],
     [videoLessonsOpen, setVideoLessonsOpen],
-    [leaderboardOpen, setLeaderboardOpen], [zielplanOpen, setZielplanOpen], [dailyOpen, setDailyOpen],
+    [leaderboardOpen, setLeaderboardOpen], [dailyOpen, setDailyOpen],
     [showBriefing, setShowBriefing],
   ];
   // Every drill/panel overlay has its OWN close ("Schließen ✕"), so the global back arrow was a
   // redundant SECOND close AND it overlapped each drill's title (top-left collision). Hide it for
   // those; keep it only for the live interview (which has no own close) + panels without one.
   const ownCloseOverlay = guideOpen || assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
-    || spokenReviewOpen || satzbauOpen || pressureOpen || trainingslagerOpen || videoLessonsOpen || zielplanOpen;
+    || spokenReviewOpen || satzbauOpen || pressureOpen || trainingslagerOpen || videoLessonsOpen;
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
     for (const [o, close] of _overlays) { if (o) { close(false); return; } }   // close the top-most overlay
@@ -3999,13 +3979,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {paywall && (
         <PaywallScreen token={auth.token} info={paywall} lang={feedbackLang}
           onUpgraded={handleUpgraded} onClose={() => setPaywall(null)} />
-      )}
-
-      {/* Zielplan (goal plan) — a separate coaching section layered over the arena */}
-      {zielplanOpen && (
-        <OverlayBoundary onClose={() => setZielplanOpen(false)}>
-          <Zielplan token={auth.token} apiUrl={API_URL} onClose={() => setZielplanOpen(false)} lang={feedbackLang} onStartFight={startFightForStep} />
-        </OverlayBoundary>
       )}
 
       {/* Tägliches Training — the cheap daily habit loop */}
@@ -4788,7 +4761,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             if (p.action === 'drill') { const fn = OPEN[p.drill]; fn ? fn(true) : beginSession(); }
             else if (p.action === 'interview' || p.action === 'measure') beginSession();
             else if (p.action === 'assessment') setAssessmentOpen(true);
-            else if (p.action === 'apply') setZielplanOpen(true);
+            else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
           }} />
         )}
 
@@ -4889,18 +4862,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* Standalone TYPED "Wiederholung" button removed — it drilled the same SRS items as
             SAG ES RICHTIG above, just by typing. One review surface (spoken, on-mission) instead of
             two that looked identical. Due-card count now shows on the SAG ES RICHTIG flow itself. */}
-
-        {/* Zielplan (goal plan) access — HIDDEN as low-value clutter (strategy audit): a goal-planner
-            is meta-work that forks the "what do I open today" decision. Flip `false &&`→`true &&` to
-            restore; code/route left intact so it's fully reversible. */}
-        {false && canStart && (
-          <button onClick={() => setZielplanOpen(true)} style={{ width:'100%', marginTop:8, padding:'12px 10px', minHeight:44,
-            cursor:'pointer', fontFamily:'var(--font-display)', fontSize:10, letterSpacing:'0.14em',
-            borderRadius:8, border:'1px solid rgba(59,130,246,0.4)', color:'var(--accent)',
-            background:'rgba(59,130,246,0.06)' }}>
-            🎯  ZIELPLAN — DEIN TRAININGSPLAN
-          </button>
-        )}
 
         {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
         {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
