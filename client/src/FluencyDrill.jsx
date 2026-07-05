@@ -181,7 +181,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
           {T(lang, 'DEINE FRAGE — DREIMAL, JEDES MAL SCHNELLER', 'سؤالك — تلت مرات، كل مرة أسرع')}
         </div>
         <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{prompt?.de}</div>
-        <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{prompt?.ar}</div>
+        <div dir="auto" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{prompt?.ar}</div>
         {focus && (
           <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(249,115,22,0.2)',
             ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>

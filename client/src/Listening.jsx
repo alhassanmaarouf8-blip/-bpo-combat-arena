@@ -112,7 +112,12 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     </div>
   );
 
-  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+  if (phase === 'loading') return shell(<>{header}
+    <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 8 }}>{T(lang, 'Hör-Übungen werden erstellt …', 'بنجهّزلك تمارين استماع …')}</div>
+      <div style={{ fontSize: 13, color: '#94a3b8' }}>{T(lang, 'Frische Anrufe für dich — einen Moment.', 'مكالمات جديدة ليك — لحظة واحدة.')}</div>
+      <div style={{ marginTop: 18, fontSize: 22, letterSpacing: 6, color: 'var(--accent-2)', animation: 'pulse 1.2s infinite' }}>● ● ●</div>
+    </div></>);
 
   if (phase === 'error') return shell(<>
     {header}

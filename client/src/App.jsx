@@ -3916,7 +3916,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     [leaderboardOpen, setLeaderboardOpen], [zielplanOpen, setZielplanOpen], [dailyOpen, setDailyOpen],
     [showBriefing, setShowBriefing],
   ];
-  const canGoBack = _overlays.some(([o]) => o) || !!funnel || isActive || isConnecting;
+  // Every drill/panel overlay has its OWN close ("Schließen ✕"), so the global back arrow was a
+  // redundant SECOND close AND it overlapped each drill's title (top-left collision). Hide it for
+  // those; keep it only for the live interview (which has no own close) + panels without one.
+  const ownCloseOverlay = guideOpen || assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
+    || spokenReviewOpen || satzbauOpen || pressureOpen || trainingslagerOpen || videoLessonsOpen || zielplanOpen;
+  const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
     for (const [o, close] of _overlays) { if (o) { close(false); return; } }   // close the top-most overlay
     if (funnel || isActive || isConnecting) {                                    // in a live interview → clean exit
