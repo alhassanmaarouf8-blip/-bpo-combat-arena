@@ -1,0 +1,20 @@
+{
+  "name": "OMNI-PERFORM — German Interview Trainer",
+  "short_name": "OMNI-PERFORM",
+  "description": "Practice real German job interviews out loud and get instant feedback. Your pocket interview coach.",
+  "id": "/",
+  "start_url": "/?src=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020409",
+  "theme_color": "#020409",
+  "lang": "de",
+  "dir": "ltr",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
