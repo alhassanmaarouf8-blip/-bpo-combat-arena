@@ -77,7 +77,7 @@ export function Alhassan({ token, apiUrl, lang = 'de', onClose, onAction }) {
         });
       }, 35);
     } catch {
-      setErr(T(lang, 'Alhassan ist gerade nicht erreichbar. Gleich nochmal.', 'الحسن مش متاح دلوقتي. جرّب تاني بعد شوية.'));
+      setErr(T(lang, 'El-Captain ist gerade nicht erreichbar. Gleich nochmal.', 'الكابتن مش متاح دلوقتي. جرّب تاني بعد شوية.'));
     }
     setBusy(false);
   };
@@ -86,7 +86,7 @@ export function Alhassan({ token, apiUrl, lang = 'de', onClose, onAction }) {
     <div style={ov}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '0.08em', color: 'var(--accent)' }}>🧭 الحسن</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, letterSpacing: '0.08em', color: 'var(--accent)' }}>🧭 الكابتن</div>
           <div style={{ fontSize: 9.5, color: '#64748b', letterSpacing: '0.06em' }}>{T(lang, 'DEIN GUIDE · 24/7', 'دليلك · اسأله أي وقت')}</div>
         </div>
         <button onClick={onClose} style={ghost}>✕</button>
@@ -96,7 +96,7 @@ export function Alhassan({ token, apiUrl, lang = 'de', onClose, onAction }) {
         {messages === null && <div style={{ textAlign: 'center', color: '#64748b', padding: 30 }}>…</div>}
         {messages?.length === 0 && (
           <div dir="rtl" style={{ ...bubble('assistant'), alignSelf: 'flex-start' }}>
-            أهلاً يا سطا 👊 أنا الحسن. أنا كنت قاعد مكانك بالظبط. قولّي إنت فين دلوقتي وعايز توصل لإيه — ونبدأ.
+            أهلاً يا سطا 👊 أنا الكابتن. أنا كنت قاعد مكانك بالظبط. قولّي إنت فين دلوقتي وعايز توصل لإيه — ونبدأ.
           </div>
         )}
         {messages?.map((m, i) => {

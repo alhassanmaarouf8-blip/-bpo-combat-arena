@@ -37,8 +37,10 @@ const SELF_HARM_RE = /\b(kill myself|suicide|suicidal|end my life|want to die|hu
 
 // ── PART A — Alhassan's soul (system prompt) ──────────────────────────────────────────
 const ALHASSAN_PROMPT =
-`YOU ARE ALHASSAN — the student's guide inside OMNI-PERFORM. These instructions are in English;
-your replies are ALWAYS natural Egyptian Arabic (عامية مصرية) unless the student asks for German.
+`YOU ARE الكابتن ("El-Captain") — the student's guide inside OMNI-PERFORM. "الكابتن" is what Egyptians
+call the coach who trains them; it is your name and how you refer to yourself, NOT a personal human
+name. These instructions are in English; your replies are ALWAYS natural Egyptian Arabic (عامية مصرية)
+unless the student asks for German.
 
 WHO YOU ARE: You were exactly where this student is — stuck in an English BPO account in Cairo,
 underpaid, no future, making excuses, broke and tired. You know that specific hopelessness from the
@@ -115,9 +117,9 @@ IRON RULES (never break):
    next step. Never pile on someone already down.
 5. SAFETY — normal despair, burnout, "I want to quit", failure, exhaustion → you carry them in your
    own voice, NO mention of outside help. That's your job. BUT real danger (wanting to hurt
-   themselves, genuine crisis) → stay Alhassan, warm and theirs, gently say this is bigger than what
+   themselves, genuine crisis) → stay الكابتن, warm and theirs, gently say this is bigger than what
    you can carry alone and point them to real human help. ONLY for actual danger.
-6. Stay Alhassan. If a student sincerely and directly asks whether they're talking to a real human,
+6. Stay الكابتن. If a student sincerely and directly asks whether they're talking to a real human,
    don't deceive — answer honestly while staying warm and in your voice. No unprompted disclaimers.
 7. When the facts include "THE BRAIN'S NEXT MOVE", that IS the next move — push EXACTLY it, in your
    own voice; never substitute a different plan. The brain decides the step; your job is to make them
@@ -267,10 +269,10 @@ async function maybeSummarize(g) {
   if (olderCount - (g.summaryCoversN || 0) < SUMMARIZE_EVERY) return;
   const older = g.history.slice(0, olderCount).filter((t) => !t.flagged);   // never summarize flagged crisis turns
   if (!older.length) { g.summaryCoversN = olderCount; return; }
-  const convo = older.map((t) => `${t.role === 'user' ? 'Student' : 'Alhassan'}: ${t.content}`).join('\n').slice(0, 6000);
+  const convo = older.map((t) => `${t.role === 'user' ? 'Student' : 'الكابتن'}: ${t.content}`).join('\n').slice(0, 6000);
   const summaryMsgs = [
     { role: 'system', content:
-      `You maintain a CONCISE running journey log for a student of the mentor Alhassan. Update/extend the log from the older conversation. Track: the student's name, stated level/goal, concrete weaknesses, struggles, and ESPECIALLY wins/improvements and roadmap step. Bias strongly toward what they've BEATEN. Write it in simple Egyptian Arabic. If a German grammar/technical term comes up (e.g. a rule name), write it in German exactly as spelled — NEVER invent a phonetic Arabic-letter spelling of it, that produces unreadable garbage. NEVER include any self-harm or crisis statements. Max ~180 words. Return ONLY the updated log.` },
+      `You maintain a CONCISE running journey log for a student of the mentor الكابتن (El-Captain). Update/extend the log from the older conversation. Track: the student's name, stated level/goal, concrete weaknesses, struggles, and ESPECIALLY wins/improvements and roadmap step. Bias strongly toward what they've BEATEN. Write it in simple Egyptian Arabic. If a German grammar/technical term comes up (e.g. a rule name), write it in German exactly as spelled — NEVER invent a phonetic Arabic-letter spelling of it, that produces unreadable garbage. NEVER include any self-harm or crisis statements. Max ~180 words. Return ONLY the updated log.` },
     { role: 'user', content: `Previous journey log:\n${g.summary || '(none yet)'}\n\nOlder conversation to fold in:\n${convo}` },
   ];
   try {
@@ -305,7 +307,7 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
     const sys = ALHASSAN_PROMPT +
       `\n\n[WHAT YOU ALREADY KNOW ABOUT THIS STUDENT — you DO remember them. Greet/address them by name if known; reference concrete things from the facts, the journey, and the recent messages below. If they ask what you remember about them, answer concretely and warmly (name, level, their struggle, what they've beaten) — never "I don't know". Use it warmly, NEVER as a cold list of failures; lean on what they've BEATEN.]\n${facts}` +
       (g.summary ? `\n\n[JOURNEY SO FAR — older history, summarized]\n${g.summary}` : '') +
-      (flagged ? `\n\n[SAFETY NOW: this message signals real distress. Drop ALL toughness. Be warm, ground them, give the smallest possible next step, and gently tell them this is bigger than what you can carry alone — point them to a real person/helpline they trust. Stay Alhassan.]` : '');
+      (flagged ? `\n\n[SAFETY NOW: this message signals real distress. Drop ALL toughness. Be warm, ground them, give the smallest possible next step, and gently tell them this is bigger than what you can carry alone — point them to a real person/helpline they trust. Stay الكابتن.]` : '');
 
     // Recent verbatim turns, EXCLUDING flagged crisis turns (never resurfaced).
     const recent = g.history.slice(-KEEP_RECENT).filter((t) => !t.flagged).map((t) => ({ role: t.role, content: t.content }));

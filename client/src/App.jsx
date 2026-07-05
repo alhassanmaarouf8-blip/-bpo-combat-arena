@@ -2106,7 +2106,7 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           <button onClick={onOpenGuide} style={{ width:'100%', fontFamily:'var(--font-display)', fontWeight:700,
             fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
             border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
-            🧭 {lang === 'ar' ? 'مش فاهم نتيجتك؟ اسأل الحسن' : 'Frag Alhassan — was bedeutet das für mich?'}
+            🧭 {lang === 'ar' ? 'مش فاهم نتيجتك؟ اسأل الكابتن' : 'Frag El-Captain — was bedeutet das für mich?'}
           </button>
         </div>
       )}
@@ -2291,7 +2291,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
             <button onClick={onOpenGuide} style={{ width:'100%', marginTop:8, fontFamily:'var(--font-display)', fontSize:11,
               letterSpacing:'0.1em', padding:'11px', borderRadius:8, cursor:'pointer',
               border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
-              🧭 الحسن · اسأل دليلك
+              🧭 الكابتن · اسأل دليلك
             </button>
           )}
 
@@ -4867,7 +4867,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
                 { icon:'gauge',        de:'Druck-Leiter',   ar:'سُلّم الضغط',   open:() => setPressureOpen(true), badge:'SCHWER' },
                 { icon:'play',         de:'Video-Lektionen', ar:'دروس فيديو',   open:() => setVideoLessonsOpen(true), badge:'NEU' },
-                { icon:'compass',      de:'الحسن — dein Guide', ar:'اسأل دليلك', open:() => setGuideOpen(true) },
+                { icon:'compass',      de:'الكابتن — dein Guide', ar:'اسأل دليلك', open:() => setGuideOpen(true) },
               ].map((t, i) => (
                 <button key={i} onClick={t.open} style={{ minHeight:88, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
