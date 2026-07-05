@@ -3414,7 +3414,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const start = useCallback(async () => {
     // phaseRef only flips to 'connecting' AFTER the awaits below, so a rapid double-click
     // could slip two starts through. startingRef is a synchronous lock that closes that gap.
-    if (phaseRef.current !== 'idle' || startingRef.current) return;
+    // 'error' must be restartable: ws.onclose sets phase='error' and the START button stays on
+    // screen telling the user to try again — rejecting 'error' here made that button a silent
+    // no-op after ANY dropped connection (the only way out was a full page reload).
+    if ((phaseRef.current !== 'idle' && phaseRef.current !== 'error') || startingRef.current) return;
     startingRef.current = true;
 
     // Turn-based text interview: no mic needed to START (typing works everywhere).
