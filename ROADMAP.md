@@ -204,7 +204,7 @@ no notifications (zero cost, no permissions).
 **DoD:** pure date-boundary helper unit-tested (Cairo timezone); design-lint green (still ONE
 orange object); gates green.
 
-### 12. QUEUED — Debrief card: "Strukturen, die Sie schon beherrschen" (structureWins)
+### 12. SHIPPED — verified 2026-07-04 (`78d5422`) — Debrief card: "Strukturen, die Sie schon beherrschen" (structureWins)
 **Why (predicted after the 07-04 human-HR-closing ship, owner laws #5/#6):** the interviewer now
 SPEAKS one verified positive observation (Konjunktiv II / verb-final / Perfekt, from
 `server/scoring/structureWins.js`) in the goodbye — but the written debrief still shows only

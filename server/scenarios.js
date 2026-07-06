@@ -404,7 +404,29 @@ function deliveryBlock(levelId, mood, clarificationRate = 0) {
  * @returns {{ instructions:string, openingLine:string, level:{id:string,label:string},
  *             behavioral:string, csScenario:object, stages:Array<{id,label,prompt}> }}
  */
-export function buildSessionScript({ persona, displayName, greeting, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '' }) {
+// ── Opening pair picker (ROADMAP #19) — pure, exported for tests ────────────────────────────
+// Seeded pick of ONE greeting variant (per-boss pool, so the product's first sentence is no
+// longer its most-repeated sentence) + ONE intro variant whose SCENE does not contradict it:
+// an in-person greeting ("Setzen Sie sich…") never pairs with a phone-framed intro ("Die
+// Verbindung steht…") and vice versa. Accepts a plain string greeting for back-compat.
+export function pickOpeningPair(greetings, intros, sessionSeed = '') {
+  const norm = (x) => (typeof x === 'string' ? { text: x, scene: /setzen sie sich|nehmen sie (doch )?platz|komm rein/i.test(x) ? 'person' : 'neutral' } : x);
+  const gPool = (Array.isArray(greetings) ? greetings : [greetings]).filter(Boolean).map(norm);
+  const iPool = (Array.isArray(intros) ? intros : [intros]).filter(Boolean).map(norm);
+  if (!gPool.length) gPool.push({ text: 'Guten Tag.', scene: 'neutral' });
+
+  let h = 2166136261 >>> 0;
+  for (const ch of String(sessionSeed || 'x')) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const g = gPool[(h >>> 0) % gPool.length];
+
+  const conflict = (a, b) => (a === 'person' && b === 'phone') || (a === 'phone' && b === 'person');
+  const fits = iPool.filter((i) => !conflict(g.scene, i.scene));
+  const use  = fits.length ? fits : iPool;
+  const i    = use[(Math.imul(h ^ 0x9e3779b9, 2654435761) >>> 0) % use.length] || { text: '', scene: 'neutral' };
+  return { greeting: g.text, intro: i.text, scenes: { greeting: g.scene, intro: i.scene } };
+}
+
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '' }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -532,27 +554,29 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
   // connection check, the "your file is in front of me" beat, the time-pressure beat) — seeded per
   // session so a returning candidate hears a different, but always natural, opening. None of them
   // ends dangling: each flows straight into the self-introduction request.
+  // Scene-tagged (ROADMAP #19): 'phone' intros mention the connection; they must never follow an
+  // in-person greeting ("Setzen Sie sich…") — ~22% of sessions used to contradict the scene inside
+  // one breath. pickOpeningPair() filters conflicting pairs.
   const INTRO_VARIANTS = {
     'sharp-monday': [
-      'Fangen wir direkt an: Stellen Sie sich bitte kurz vor — wer sind Sie, und warum sollten wir mit Ihnen weitermachen?',
-      'Die Verbindung steht, ich höre Sie klar — dann los: Stellen Sie sich kurz vor, und sagen Sie mir gleich, warum genau Sie.',
-      'Ich habe gleich den nächsten Termin, also nutzen wir die Zeit: Wer sind Sie, und was können Sie für uns tun?',
+      { text: 'Fangen wir direkt an: Stellen Sie sich bitte kurz vor — wer sind Sie, und warum sollten wir mit Ihnen weitermachen?', scene: 'neutral' },
+      { text: 'Die Verbindung steht, ich höre Sie klar — dann los: Stellen Sie sich kurz vor, und sagen Sie mir gleich, warum genau Sie.', scene: 'phone' },
+      { text: 'Ich habe gleich den nächsten Termin, also nutzen wir die Zeit: Wer sind Sie, und was können Sie für uns tun?', scene: 'neutral' },
     ],
     'neutral': [
-      'Erzählen Sie mir zu Beginn ein wenig über sich — Ihr Hintergrund und warum Sie zu uns passen.',
-      'Ich habe Ihre Unterlagen hier vor mir liegen — aber erzählen Sie es mir lieber selbst: Wer sind Sie, und was bringt Sie zu uns?',
-      'Schön, dass die Verbindung klappt. Beginnen wir ganz entspannt: Erzählen Sie mir ein wenig über sich und Ihren Weg.',
+      { text: 'Erzählen Sie mir zu Beginn ein wenig über sich — Ihr Hintergrund und warum Sie zu uns passen.', scene: 'neutral' },
+      { text: 'Ich habe Ihre Unterlagen hier vor mir liegen — aber erzählen Sie es mir lieber selbst: Wer sind Sie, und was bringt Sie zu uns?', scene: 'neutral' },
+      { text: 'Schön, dass die Verbindung klappt. Beginnen wir ganz entspannt: Erzählen Sie mir ein wenig über sich und Ihren Weg.', scene: 'phone' },
     ],
     'tired-friday': [
-      'Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.',
-      'So, Ihre Unterlagen habe ich hier — aber erzählen Sie mal selbst: Wer sind Sie, und was hat Sie hierhergeführt?',
-      'Langer Tag heute, aber für Sie bin ich ganz Ohr: Stellen Sie sich kurz vor.',
+      { text: 'Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.', scene: 'neutral' },
+      { text: 'So, Ihre Unterlagen habe ich hier — aber erzählen Sie mal selbst: Wer sind Sie, und was hat Sie hierhergeführt?', scene: 'neutral' },
+      { text: 'Langer Tag heute, aber für Sie bin ich ganz Ohr: Stellen Sie sich kurz vor.', scene: 'neutral' },
     ],
   };
   const pool = INTRO_VARIANTS[mood] || INTRO_VARIANTS.neutral;
-  let ih = 2166136261 >>> 0;
-  for (const ch of String(sessionSeed || 'x')) { ih ^= ch.charCodeAt(0); ih = Math.imul(ih, 16777619); }
-  const intro = pool[(ih >>> 0) % pool.length];
+  const pair = pickOpeningPair(greetings || greeting, pool, sessionSeed);
+  const intro = pair.intro;
   // Name recall: if we know the candidate's name (from guide chat), weave it into the opener
   // so the boss sounds like a returning interviewer who actually knows who they're talking to.
   // Only weave the name if it's a plausible name (≥3 letters, alphabetic) — defense-in-depth so a
@@ -560,7 +584,7 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
   // name (the "Guten Tag. AL,…" fake-sounding opener). Otherwise open cleanly with no name.
   const nameOk = candidateName && /^[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß-]{2,}$/.test(String(candidateName).trim());
   const namedIntro = nameOk ? `${String(candidateName).trim()}, ${intro.charAt(0).toLowerCase() + intro.slice(1)}` : intro;
-  const openingLine = `${greeting} ${namedIntro}`;
+  const openingLine = `${pair.greeting} ${namedIntro}`;
 
   return {
     instructions,

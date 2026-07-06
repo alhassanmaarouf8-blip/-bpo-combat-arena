@@ -5,7 +5,8 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn, pacingLine, silenceRescueStep } from './realtimeClient.js';
+import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn, pacingLine, silenceRescueStep, GREETINGS } from './realtimeClient.js';
+import { pickOpeningPair, buildSessionScript } from './scenarios.js';
 
 const base = { freshTerms: ['Reiseleiterin'], wordCount: 20, stageIdx: 0, used: 0, cooldown: 0, busy: false };
 
@@ -184,4 +185,51 @@ test('silenceRescueStep: only one lifeline per Teil — a new Teil earns a fresh
   assert.equal(r.fire, false, 'first empty in the new Teil is still just a pause');
   r = silenceRescueStep(s, 2);
   assert.equal(r.fire, true, 'the next Teil gets its own lifeline');
+});
+
+// ── Opening variety + scene consistency (ROADMAP #19): the DoD probe as a test ──────────────
+// 20 seeded sessions per boss × every mood → at least 3 distinct first sentences per boss, and
+// NEVER an in-person greeting ("Setzen Sie sich") followed by a phone-framed intro ("Verbindung").
+
+test('openings: every boss produces ≥3 distinct greetings across seeds; zero scene contradictions', () => {
+  for (const [bossId, pool] of Object.entries(GREETINGS)) {
+    assert.ok(pool.length >= 3, `${bossId}: needs ≥3 greeting variants`);
+    const seen = new Set();
+    for (const mood of ['sharp-monday', 'neutral', 'tired-friday']) {
+      for (let s = 0; s < 20; s++) {
+        const script = buildSessionScript({
+          persona: 'Du bist Interviewer.', displayName: bossId.toUpperCase(),
+          greeting: pool[0].text, greetings: pool,
+          levelId: 'a2-b1', mood, sessionSeed: `${bossId}-${mood}-${s}`,
+        });
+        const line = script.openingLine;
+        seen.add(line.split(/[.!?]/)[0]);
+        const personGreeting = /setzen sie sich|nehmen sie (doch )?platz|komm rein/i.test(line.slice(0, 80));
+        const phoneIntro     = /verbindung/i.test(line);
+        assert.ok(!(personGreeting && phoneIntro), `${bossId}/${mood}/${s}: scene contradiction: ${line}`);
+      }
+    }
+    assert.ok(seen.size >= 3, `${bossId}: only ${seen.size} distinct first sentences across 60 seeded sessions`);
+  }
+});
+
+test('pickOpeningPair: a phone greeting never pairs with an in-person-only intro pool entry', () => {
+  const greetings = [{ text: 'Hey, hörst du mich gut?', scene: 'phone' }];
+  const intros = [
+    { text: 'Setzen Sie sich erst einmal — erzählen Sie.', scene: 'person' },
+    { text: 'Erzählen Sie mir ein wenig über sich.', scene: 'neutral' },
+  ];
+  for (let s = 0; s < 30; s++) {
+    const p = pickOpeningPair(greetings, intros, `seed-${s}`);
+    assert.equal(p.intro, 'Erzählen Sie mir ein wenig über sich.', `seed-${s} paired phone+person`);
+  }
+});
+
+test('pickOpeningPair: back-compat — a plain-string greeting still works and infers its scene', () => {
+  const p = pickOpeningPair('Setzen Sie sich. Ich höre.', [
+    { text: 'Die Verbindung steht — dann los.', scene: 'phone' },
+    { text: 'Erzählen Sie mal.', scene: 'neutral' },
+  ], 'abc');
+  assert.equal(p.scenes.greeting, 'person');
+  assert.equal(p.intro, 'Erzählen Sie mal.');
 });

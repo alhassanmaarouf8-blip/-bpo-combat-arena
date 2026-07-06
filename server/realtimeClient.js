@@ -311,13 +311,41 @@ const DEFAULT_BOSS = 'yasmin';
 // transition. A greeting that also says "fangen wir an" makes the boss say it twice in a
 // row (the karim "Fangen wir direkt an." + sharp-monday "Fangen wir direkt an, Teil eins"
 // collision). Keep these as welcome/atmosphere only.
-const GREETINGS = {
-  'yasmin':         "Schön, dass Sie da sind. Setzen Sie sich, machen Sie es sich bequem.",
-  'karim':          "Guten Tag. Schön, dass es mit dem Termin geklappt hat.",
-  'hana':           "Guten Tag. Danke, dass Sie sich die Zeit nehmen.",
-  'tarek':          "Guten Tag. Setzen Sie sich — viel Zeit haben wir heute nicht.",
-  'frau-mona-adel': "Setzen Sie sich. Ich höre.",
-  'lukas':          "Hey, komm rein. Ich bin Lukas — wir machen das hier locker, kein Stress.",
+// THREE variants per boss (ROADMAP #19: one greeting made the product's FIRST sentence its
+// most-repeated sentence — a bit-identical cached MP3 every session). Seeded per session in
+// pickOpeningPair(); `scene` keeps the pair honest ('person' greetings never precede a
+// phone-framed intro). Register-true per persona: Lukas duzt, Mona is terse, Tarek presses.
+export const GREETINGS = {
+  'yasmin': [
+    { text: 'Schön, dass Sie da sind. Setzen Sie sich, machen Sie es sich bequem.', scene: 'person' },
+    { text: 'Guten Tag, schön, Sie kennenzulernen.', scene: 'neutral' },
+    { text: 'Herzlich willkommen — ich habe mich auf unser Gespräch gefreut.', scene: 'neutral' },
+  ],
+  'karim': [
+    { text: 'Guten Tag. Schön, dass es mit dem Termin geklappt hat.', scene: 'neutral' },
+    { text: 'Guten Tag, danke für Ihre Pünktlichkeit.', scene: 'neutral' },
+    { text: 'Guten Tag, nehmen Sie Platz.', scene: 'person' },
+  ],
+  'hana': [
+    { text: 'Guten Tag. Danke, dass Sie sich die Zeit nehmen.', scene: 'neutral' },
+    { text: 'Guten Tag, ich habe Ihre Bewerbung mit Interesse gelesen.', scene: 'neutral' },
+    { text: 'Guten Tag, nehmen Sie doch Platz.', scene: 'person' },
+  ],
+  'tarek': [
+    { text: 'Guten Tag. Setzen Sie sich — viel Zeit haben wir heute nicht.', scene: 'person' },
+    { text: 'Guten Tag — ich sage es direkt: Ich habe heute wenig Zeit.', scene: 'neutral' },
+    { text: 'Guten Tag, Sie haben Glück — meine letzte Besprechung ist früher zu Ende gegangen.', scene: 'neutral' },
+  ],
+  'frau-mona-adel': [
+    { text: 'Setzen Sie sich. Ich höre.', scene: 'person' },
+    { text: 'Guten Tag. Beeindrucken Sie mich.', scene: 'neutral' },
+    { text: 'Ich mache es kurz und erwarte dasselbe von Ihnen.', scene: 'neutral' },
+  ],
+  'lukas': [
+    { text: 'Hey, komm rein. Ich bin Lukas — wir machen das hier locker, kein Stress.', scene: 'person' },
+    { text: 'Hey! Ich bin Lukas. Schön, dass du da bist — ganz entspannt, ja?', scene: 'neutral' },
+    { text: 'Hey, hörst du mich gut? Ich bin Lukas — wir machen das ganz locker.', scene: 'phone' },
+  ],
 };
 // Gender-correct Deepgram Aura-2 German voice per character (the women must NOT be
 // voiced by the male default). All ids exist in transcribeRouter AURA_DE_VOICES.
@@ -354,7 +382,8 @@ try {
     ].join('');
     BOSS_CONFIGS[c.id] = {
       displayName: String(c.name || c.id).toUpperCase(),
-      greeting:    GREETINGS[c.id] || 'Guten Tag.',
+      greeting:    GREETINGS[c.id]?.[0]?.text || 'Guten Tag.',   // back-compat single form
+      greetings:   GREETINGS[c.id] || null,                      // variant pool (ROADMAP #19)
       persona,
       voice:       VOICES[c.id] || 'aura-2-julius-de',   // Deepgram fallback voice
       elevenVoice: c.elevenVoiceId || '',                 // ElevenLabs primary voice
@@ -575,6 +604,7 @@ export class RealtimeClient {
       persona:     this._boss.persona,
       displayName: this._boss.displayName,
       greeting:    this._boss.greeting,
+      greetings:   this._boss.greetings || null,   // per-boss variant pool (ROADMAP #19)
       levelId:     opts.level,
       dossier:     opts.dossier,
       memory:      opts.memory,   // growth-aware cross-session memory → boss "AKTE" block

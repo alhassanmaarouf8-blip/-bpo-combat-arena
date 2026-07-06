@@ -30,9 +30,9 @@ The LLM proposes; the corpus disposes. Learns like an AI, proves like a test.
 | Functionality | Corpus (input → known output) | ZERO-HARM invariant (must be 0) | Ratchet metric |
 |---|---|---|---|
 | **Grammar** (done: foundation) | learner sentence → error class / correct | flag correct German | recall on error classes |
-| **CEFR grade / verdict** | transcript → known rank+verdict | false "hireable" OR false "fail" flip | grade-match rate |
-| **Bottleneck / priorityFix** | transcript → known #1 weakness | name a weakness that isn't the dominant one | top-1 bottleneck match |
-| **STT trust (law 7)** | transcript+conf → truncated/mis-heard flags | grade a cut-off/mis-heard turn as learner weakness | mis-hear catch rate |
+| **CEFR grade / verdict** (done 07-05: `server/scoring/hireReadinessAccuracy.test.mjs`) | feature-vector → known level+hireReady+limitingSkill | false "hireable" OR false "fail" flip (guards the hire gates) | level + limiting-skill match |
+| **Bottleneck / priorityFix** (done 07-05: `server/scoring/bottleneckAccuracy.test.mjs`) | transcript → known #1 weakness (`topL1Pattern`) | MISDIRECT (name a non-dominant weakness) or HALLUCINATE (invent one) | top-1 bottleneck recall |
+| **STT trust (law 7)** (done 07-05: `server/scoring/sttTrustAccuracy.test.mjs`) | turn text → cut-off flag (`looksTruncatedDE`) | miss a COVERED-class cut-off → graded as learner weakness | fragment-recall + complete-specificity |
 | **Drill targeting** | named weakness → correct drill | drill that doesn't address the weakness | weakness→drill match |
 | **Naturalness / scoring** | utterances → known band | penalize correct/natural speech | band-match rate |
 
