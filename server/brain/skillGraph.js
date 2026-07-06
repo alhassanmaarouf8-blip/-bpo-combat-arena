@@ -22,7 +22,10 @@ export const SKILLS = [
   { id: 'listen-clear',         layer: 0, prereq: [],                                  drill: 'hoer-check',    tier: null },
 
   // Layer 1 — ENTRY tier (B2 floor → "go apply")
-  { id: 'word-order-sub',       layer: 1, prereq: ['praesens-perfekt'],               drill: 'flow-drill',    tier: 'entry' },
+  // word-order-sub → SATZBAU-SCHMIEDE: the drill purpose-built for verb-final order (THE #1
+  // Arabic-L1 wall). It was mapped to flow-drill (a speed drill that never touches word order),
+  // so the brain could not prescribe the one exercise that trains its most common target.
+  { id: 'word-order-sub',       layer: 1, prereq: ['praesens-perfekt'],               drill: 'satzbau-schmiede', tier: 'entry' },
   { id: 'dativ-akkusativ',      layer: 1, prereq: ['praesens-perfekt'],               drill: 'sag-es-richtig',tier: 'entry' },
   { id: 'sie-register',         layer: 1, prereq: ['self-intro'],                     drill: 'srs',           tier: 'entry' },
   { id: 'handle-clear-request', layer: 1, prereq: ['listen-clear', 'core-vocab'],     drill: 'interview',     tier: 'entry' },
