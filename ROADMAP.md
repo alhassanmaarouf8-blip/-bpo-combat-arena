@@ -298,7 +298,7 @@ greetings. TTS cache works per-variant already.
 **DoD:** probe: 20 seeded interviews/boss → ≥3 distinct first sentences, zero scene-contradiction
 pairs; german-check green on new lines; no employer names; gates green.
 
-### 20. QUEUED — Fallback turn integrity: finish_reason guard + deterministic TTS number expansion
+### 20. SHIPPED — verified 2026-07-06 (`0ddd335`) — Fallback turn integrity: finish_reason guard + deterministic TTS number expansion
 **Why (07-04 audit):** Groq-fallback turns (cap 90 tokens) can truncate mid-sentence with no
 `finish_reason==='length'` check — and cleanForTTS then APPENDS a '.' so the voice calmly ends
 mid-thought. Separately, digits/€/abbreviations reach TTS raw on paths without TURN_RULE.
