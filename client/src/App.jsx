@@ -2616,6 +2616,84 @@ const inputStyle = {
 // Prices + minutes come from plans.config.js via /api/billing/status (single source).
 // Outcome-first (value-prop law): every bullet says what it does FOR THE JOB GOAL, not which
 // feature it is. Honest — each line describes something the app verifiably does today.
+// ── WhatsApp opt-in — the app's ONLY $0 re-engagement channel (no email infra, no push).
+// Shown on the home AFTER interview #1 (the learner has just experienced the personal
+// diagnosis, so the value exchange is real), max 2 asks ever, dismissible, hidden forever
+// once saved (the server flag hides it on other devices too). The "persönlich vom Coach,
+// kein Spam" promise is honest by construction: the owner messages by hand — nothing sends
+// automatically anywhere.
+function WhatsAppOptIn({ token, apiUrl }) {
+  const [state, setState] = useState('idle');   // idle | saving | saved | error
+  const [num, setNum] = useState('');
+  const [visible, setVisible] = useState(() => {
+    try {
+      if (localStorage.getItem('bpo_wa_done')) return false;
+      return Number(localStorage.getItem('bpo_wa_asks') || 0) < 2;
+    } catch { return false; }
+  });
+  const shownRef = useRef(false);
+  useEffect(() => {
+    if (!visible || shownRef.current) return;
+    shownRef.current = true;
+    try { localStorage.setItem('bpo_wa_asks', String(Number(localStorage.getItem('bpo_wa_asks') || 0) + 1)); } catch { /* ok */ }
+    beacon('whatsapp_prompt_shown');
+  }, [visible]);
+  if (!visible) return null;
+  const save = async () => {
+    if (state === 'saving') return;
+    setState('saving');
+    try {
+      const r = await fetch(`${apiUrl}/api/auth/whatsapp`, { method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ number: num }) });
+      if (!r.ok) { setState('error'); return; }
+      try { localStorage.setItem('bpo_wa_done', '1'); } catch { /* ok */ }
+      beacon('whatsapp_saved');
+      setState('saved');
+      setTimeout(() => setVisible(false), 2500);
+    } catch { setState('error'); }
+  };
+  return (
+    <div style={{ marginTop: 14, borderRadius: 'var(--r-lg)', padding: '14px', background: 'var(--glass)',
+      border: 'var(--glass-border)', boxShadow: 'var(--e1), var(--glass-highlight)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <Icon name="messageCheck" size={18} />
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 'var(--fs-h2)', color: 'var(--text)' }}>
+          Coach-Erinnerung per WhatsApp
+        </span>
+      </div>
+      {state === 'saved' ? (
+        <div style={{ fontSize: 'var(--fs-label)', color: 'var(--accent-2)' }}>✓ Gespeichert — bis bald!{/* OWNER-AR slot */}</div>
+      ) : (<>
+        <div style={{ fontSize: 'var(--fs-label)', color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 10 }}>
+          Dein Interviewer führt deine Akte. Hinterlass deine Nummer und der Coach erinnert dich persönlich,
+          wenn dein nächster gezielter Test bereit ist. Kein Spam — jederzeit stopp.{/* OWNER-AR slot */}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input value={num} onChange={(e) => setNum(e.target.value)} type="tel" inputMode="tel"
+            placeholder="01X XXX XXXXX"
+            style={{ flex: 1, minWidth: 0, minHeight: 44, padding: '10px 12px', borderRadius: 'var(--r-md)',
+              background: 'rgba(2,6,23,0.5)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 15 }} />
+          <button onClick={save} disabled={state === 'saving'} style={{ minHeight: 44, padding: '0 16px', cursor: 'pointer',
+            borderRadius: 'var(--r-md)', border: '1px solid var(--accent)', color: 'var(--accent-2)',
+            background: 'rgba(59,130,246,0.12)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12 }}>
+            {state === 'saving' ? '…' : 'SPEICHERN'}
+          </button>
+        </div>
+        {state === 'error' && (
+          <div style={{ fontSize: 'var(--fs-meta)', color: '#fca5a5', marginTop: 6 }}>
+            Nummer prüfen (z. B. 01012345678) und nochmal versuchen.{/* OWNER-AR slot */}
+          </div>
+        )}
+        <button onClick={() => setVisible(false)} style={{ marginTop: 6, minHeight: 44, width: '100%', background: 'none',
+          border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 'var(--fs-meta)', fontFamily: 'var(--font-body)' }}>
+          Später{/* OWNER-AR slot */}
+        </button>
+      </>)}
+    </div>
+  );
+}
+
 const PERKS_DE = {
   basic: (m) => [`bis zu ${m} Min ECHTES Live-Interview — jeden Tag, bis es sitzt`,
                  'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
@@ -4974,6 +5052,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </span>
             )}
           </button>
+        )}
+
+        {/* WhatsApp opt-in — after interview #1 only, hidden once opted in (server flag covers
+            other devices). The only $0 comeback channel this product has. */}
+        {canStart && !firstRun && !auth.account?.whatsapp && (
+          <WhatsAppOptIn token={auth.token} apiUrl={API_URL} />
         )}
 
         {/* ÜBUNGEN GRID (uplift): the 7-button drill wall becomes one titled card with icon tiles —

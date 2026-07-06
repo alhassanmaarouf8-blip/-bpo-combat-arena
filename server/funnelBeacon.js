@@ -22,7 +22,7 @@ const ALLOWED = new Set([
   'open', 'open_inapp', 'inapp_escape_tap',
   'assessment_shown', 'start_clicked', 'ws_connected', 'connect_timeout',
   'boss_spoke', 'mic_started', 'mic_failed', 'mic_unsupported', 'debrief_shown',
-  'paywall_shown',
+  'paywall_shown', 'whatsapp_prompt_shown', 'whatsapp_saved',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

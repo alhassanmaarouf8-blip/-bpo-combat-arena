@@ -62,7 +62,8 @@ adminRouter.get('/admin/accounts', async (req, res) => {
         let plan = 'free', trialLeft = null;
         try { plan = planOf(a); } catch {}
         try { const e = entitlement(a); trialLeft = e?.trial?.daysLeft ?? null; } catch {}
-        return { email: a.email, plan, tier: a.subscription?.tier || '—', trialLeft, createdAt: a.createdAt || 0 };
+        return { email: a.email, plan, tier: a.subscription?.tier || '—', trialLeft, createdAt: a.createdAt || 0,
+                 whatsapp: a.whatsapp?.number || null };   // the owner's manual re-engagement channel
       })
       .sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0));
     res.json({ users, total: users.length });
@@ -295,6 +296,7 @@ adminRouter.get('/admin/user-detail', async (req, res) => {
     res.json({
       found: true,
       email: acc.email, id: acc.id, createdAt: acc.createdAt,
+      whatsapp: acc.whatsapp?.number || null,
       plan: planOf(acc), comp: !!acc.subscription?.comp,
       trialActive: trialActive(acc), trialDaysLeft: trialActive(acc) ? trialDaysLeft(acc) : 0,
       referredBy: acc.referredBy || null,

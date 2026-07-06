@@ -356,7 +356,9 @@ export function isAdminEmail(email) {
 }
 
 export function publicAccount(a) {
-  return { id: a.id, email: a.email, subscription: a.subscription, entitlement: entitlement(a), isAdmin: isAdminEmail(a.email) };
+  // whatsapp is exposed as a BOOLEAN only — the client just needs "already opted in?" to hide
+  // the ask-card across devices; the number itself stays server/admin-side.
+  return { id: a.id, email: a.email, subscription: a.subscription, entitlement: entitlement(a), isAdmin: isAdminEmail(a.email), whatsapp: !!a.whatsapp?.number };
 }
 
 // ── Express middleware + routers ─────────────────────────────────────────────
@@ -414,6 +416,24 @@ authRouter.post('/login', rateLimit({ windowMs: 10 * 60 * 1000, max: 10, tag: 'l
 });
 
 authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccount(req.account) }));
+
+// Optional WhatsApp opt-in — the app's ONLY re-engagement channel at $0 (no email infra, no
+// push). The learner leaves a number AFTER experiencing the product (the card shows post-
+// interview #1); the OWNER messages personally — nothing automated sends anywhere, so there is
+// no ban risk and the "kein Spam, persönlich vom Coach" promise is true by construction.
+authRouter.post('/whatsapp', rateLimit({ windowMs: 10 * 60 * 1000, max: 6, tag: 'whatsapp' }), requireAuth, async (req, res) => {
+  const raw = String(req.body?.number || '').replace(/\D/g, '');
+  // Egyptian mobiles: 01XXXXXXXXX (11 digits) or 1XXXXXXXXX (10) normalize to 20…; any other
+  // 10-15 digit international number is accepted as typed (diaspora users).
+  let n = raw;
+  if (/^01[0125]\d{8}$/.test(raw)) n = '2' + raw;
+  else if (/^1[0125]\d{8}$/.test(raw)) n = '20' + raw;
+  if (!/^\d{10,15}$/.test(n)) return res.status(400).json({ error: 'invalid_number' });
+  req.account.whatsapp = { number: n, optInAt: Date.now() };
+  await persist();
+  console.log(`[whatsapp] OPT-IN  user=${req.account.id}  email=${req.account.email ?? '—'}`);
+  res.json({ ok: true });
+});
 
 export const billingRouter = express.Router();
 
