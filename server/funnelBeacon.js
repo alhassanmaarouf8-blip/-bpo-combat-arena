@@ -1,0 +1,61 @@
+/**
+ * funnelBeacon.js — first-party, $0, PII-free funnel counters.
+ *
+ * Built after the 07-06 cohort: 8 real signups, 7 never reached interview #1, and NOTHING could
+ * say where they dropped (in-app browser? cold start? mic?) because the app had zero analytics.
+ * Every next visitor now answers it automatically.
+ *
+ *   POST /api/beacon { e }   — count one allowed event (no auth — it fires pre-signup too)
+ *   GET  /api/diag/funnel    — today + yesterday counters (counts only; safe one-curl read)
+ *
+ * No IPs, no emails, no per-user ids, no cookies — whitelisted event names only, one kv row per
+ * day, flushed at most every 5s. A counter must never 500 or slow the client.
+ */
+import express from 'express';
+import { dbEnabled, kvGet, kvSet } from './db.js';
+import { dayKey } from './time.js';
+
+export const beaconRouter = express.Router();
+
+const NS = 'funnel';
+const ALLOWED = new Set([
+  'open', 'open_inapp', 'inapp_escape_tap',
+  'assessment_shown', 'start_clicked', 'ws_connected', 'connect_timeout',
+  'boss_spoke', 'mic_started', 'mic_failed', 'mic_unsupported', 'debrief_shown',
+]);
+const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
+
+let _cache = { day: null, counts: {} };
+let _flush = null;
+
+async function bump(e) {
+  const day = dayKey();
+  if (_cache.day !== day) {
+    _cache = { day, counts: (dbEnabled() ? await kvGet(NS, day) : null) ?? {} };
+  }
+  _cache.counts[e] = Math.min(DAY_CAP, (_cache.counts[e] || 0) + 1);
+  if (!_flush) {
+    _flush = setTimeout(async () => {
+      _flush = null;
+      try { if (dbEnabled()) await kvSet(NS, _cache.day, _cache.counts); } catch { /* next event retries */ }
+    }, 5000);
+    _flush.unref?.();
+  }
+}
+
+beaconRouter.post('/beacon', async (req, res) => {
+  const e = String(req.body?.e || '');
+  if (!ALLOWED.has(e)) return res.status(400).json({ ok: false });
+  try { await bump(e); } catch { /* counters must never fail the client */ }
+  res.json({ ok: true });
+});
+
+beaconRouter.get('/diag/funnel', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const today = dayKey(), yesterday = dayKey(Date.now() - 86_400_000);
+    const t = _cache.day === today ? _cache.counts : ((dbEnabled() ? await kvGet(NS, today) : null) ?? {});
+    const y = (dbEnabled() ? await kvGet(NS, yesterday) : null) ?? {};
+    res.json({ [today]: t, [yesterday]: y });
+  } catch { res.json({}); }
+});

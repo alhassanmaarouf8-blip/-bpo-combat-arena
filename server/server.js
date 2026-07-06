@@ -11,6 +11,7 @@ import { feedbackRouter }    from './feedback.js';
 import { assessmentRouter }  from './assessment.js';
 import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
+import { beaconRouter }       from './funnelBeacon.js';
 import { adminRouter }        from './admin.js';
 import { shadowingRouter }    from './shadowing.js';
 import { druckLeiterRouter }  from './druckLeiter.js';
@@ -124,6 +125,7 @@ app.post('/api/clienterror', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api', progressRouter);
+app.use('/api', beaconRouter);   // PII-free funnel counters (see funnelBeacon.js)
 app.use('/api', planRouter);
 app.use('/api', dailyRouter);
 app.use('/api', feedbackRouter);

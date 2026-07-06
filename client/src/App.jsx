@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
-import { AudioRecorder } from './audioRecorder.js';
+import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
@@ -54,6 +54,25 @@ const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:
 // API base is injected separately (defaults to the live Render backend in production builds).
 // Fall back to deriving it from the WebSocket URL if the define is ever missing.
 const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replace(/^ws/, 'http');
+// ── First-load instrumentation + pre-warm (module scope = earliest possible moment) ──────────
+// Wake the free Render dyno the second ANYONE loads the page: it sleeps between keep-warm pings,
+// and a cold START click meant up to 60s of "VERBINDE…" — pre-warming moves that wake into the
+// seconds the visitor spends reading/signing up. Fire-and-forget, never blocks boot.
+try { fetch(`${API_URL}/health`).catch(() => {}); } catch { /* never block boot */ }
+// Facebook/Messenger/Instagram in-app browsers break getUserMedia (the mic) — and the 07-06
+// cohort arrived from exactly those links (7 of 8 signups never reached interview #1). Detect
+// once; the shell shows an escape banner and beginSession fails honestly instead of "mic blocked".
+const IN_APP_BROWSER = /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|; wv\)/i.test(
+  (typeof navigator !== 'undefined' && navigator.userAgent) || '');
+// PII-free funnel beacon (counts only — server/funnelBeacon.js). Telemetry must never throw.
+const beacon = (e) => {
+  try {
+    const body = JSON.stringify({ e });
+    if (!navigator.sendBeacon?.(`${API_URL}/api/beacon`, new Blob([body], { type: 'application/json' })))
+      fetch(`${API_URL}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+  } catch { /* telemetry must never break the app */ }
+};
+beacon(IN_APP_BROWSER ? 'open_inapp' : 'open');
 // The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
 // masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
 const BRAIN_GUIDE_LIVE = true;
@@ -91,11 +110,14 @@ const WS_ERROR_TEXT = {
   daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
   ws_connect_failed:    { de: 'Keine Verbindung zum Server. Prüfe dein Internet und starte neu.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
   connection_lost:      { de: 'Verbindung unterbrochen. Bitte starte den Kampf neu.', ar: 'الاتصال اتقطع. من فضلك ابدأ الجولة من جديد.' },
+  // Honest wall for in-app/legacy browsers that CANNOT do mic capture — before this, they got
+  // the misleading "mic blocked, allow it in settings" text for a mic that was never blocked.
+  audio_unsupported:    { de: 'Dieser Browser unterstützt kein Mikrofon (z. B. der Facebook/Messenger-Browser). Öffne die Seite in Chrome oder Safari — dann funktioniert alles.', ar: '' /* OWNER-AR slot */ },
 };
 function wsErrorText(code, lang) {
   const e = WS_ERROR_TEXT[code];
   if (!e) return null;               // not a known code → caller shows the raw message
-  return lang === 'ar' ? e.ar : e.de;
+  return lang === 'ar' ? (e.ar || e.de) : e.de;   // an unfilled OWNER-AR slot falls back to German
 }
 
 // ── Auth storage (token + cached account) ──────────────────────────────────────
@@ -3015,7 +3037,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (!pending) return;
     try { localStorage.removeItem('bpo_pending_assessment'); } catch {}
     fetch(`${API_URL}/api/assessment/status`, { headers: { Authorization: `Bearer ${auth.token}` } })
-      .then((r) => r.json()).then((d) => { if (d && !d.used) setAssessmentOpen(true); }).catch(() => {});
+      .then((r) => r.json()).then((d) => { if (d && !d.used) { setAssessmentOpen(true); beacon('assessment_shown'); } }).catch(() => {});
   }, []);   // once, on first mount after signup
   const [videoLessonsOpen, setVideoLessonsOpen] = useState(false);     // $0 video-lesson engine (animated slides + native TTS)
 
@@ -3043,6 +3065,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                                            // opening bleeds into a live mic → VAD self-triggers → the
                                            // boss replies over its own greeting ("spoke over himself").
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
+  const micStartedBeaconRef = useRef(false); // funnel: report 'mic_started' once per page load
   const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss; gated on BARGE_IN_LIVE)
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
   const stageIdxRef     = useRef(0);       // current funnel stage — 0/1 (intro+behavioral) = patient
@@ -3130,7 +3153,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       if (!geminiModeRef.current) { try { await rec.stop(); } catch { /* already stopped */ } return; }
       geminiMicRef.current = rec;
       setRecording(true);
-    } catch { setError('mic_denied'); }
+    } catch { beacon('mic_failed'); setError('mic_denied'); }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopGeminiMode = useCallback(() => {
@@ -3226,6 +3249,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.DEBRIEF:
         stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
+        beacon('debrief_shown');   // funnel: a full interview reached its results screen
         setDebrief(msg);
         setDebriefPending(false);
         if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
@@ -3357,6 +3381,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setError(e => (e === 'realtime_error' ? null : e));
         if (geminiModeRef.current) break;              // Gemini path: boss voice is PCM over the WS, never MP3
         if (!msg.text || ttsMutedRef.current) break;   // muted → the normal text-only path handles it
+        if (!bossHasSpokenRef.current) beacon('boss_spoke');   // funnel: first boss line reached this client
         bossHasSpokenRef.current = true;   // the interviewer is now speaking → the auto-mic may open after it finishes
         setBossSpeak(true);        // immediately, like BOSS_SPEECH — keeps the auto-mic gate closed (no echo window)
         setBossThinking(false);
@@ -3373,6 +3398,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.BOSS_SPEECH: {
         setError(e => (e === 'realtime_error' ? null : e));   // boss replied → the transient error is stale (see BOSS_SPEECH_EARLY)
+        if (!bossHasSpokenRef.current) beacon('boss_spoke');   // funnel: the interviewer's FIRST line reached this client
         bossHasSpokenRef.current = true;   // interviewer has spoken → the auto-mic may open once it finishes
         if (geminiModeRef.current) break;   // Gemini path: boss text arrives via LIVE_BOSS_TRANSCRIPT, voice via BOSS_AUDIO_DELTA
         if (!msg.text) break;
@@ -3541,11 +3567,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     // Render's free dyno cold-starts (30-60s+); a slow-but-not-failed handshake fires no error and
     // would hang the UI on "VERBINDE…" forever. Hard 60s connect timeout → honest error, not a hang.
     const connectTimer = setTimeout(() => {
-      if (ws.readyState !== WebSocket.OPEN) { try { ws.close(); } catch {} setError((prev) => prev || 'ws_connect_failed'); setPhaseSync('error'); }
+      if (ws.readyState !== WebSocket.OPEN) { beacon('connect_timeout'); try { ws.close(); } catch {} setError((prev) => prev || 'ws_connect_failed'); setPhaseSync('error'); }
     }, 60_000);
 
     ws.onopen = () => {
       clearTimeout(connectTimer);
+      beacon('ws_connected');
       setPhaseSync('active');
       pingRef.current = setInterval(() => ws.send(JSON.stringify({ type: C.PING })), 25_000);
     };
@@ -3651,6 +3678,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       setRecording(true);
     } catch {
       clipRecRef.current = null;
+      beacon('mic_failed');
       setError('mic_denied');
     }
   }, [recording, transcribing, auth.token]);
@@ -3679,7 +3707,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       });
       await clipRecRef.current.start();
       setRecording(true);
-    } catch { clipRecRef.current = null; hfActiveRef.current = false; setError('mic_denied'); return; }
+      if (!micStartedBeaconRef.current) { micStartedBeaconRef.current = true; beacon('mic_started'); }
+    } catch { clipRecRef.current = null; hfActiveRef.current = false; beacon('mic_failed'); setError('mic_denied'); return; }
 
     let spoke = false, volSpoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
     let lastPartial = '', partialStableMs = 0;   // transcript-stopped-growing detector (noisy-mic safety net)
@@ -3906,6 +3935,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
+    beacon('start_clicked');
+    // In-app/legacy browsers CANNOT capture the mic — fail honestly BEFORE a broken session
+    // starts (the old path let the session open, then blamed a "blocked" mic that never existed).
+    if (!checkAudioSupport().supported) { beacon('mic_unsupported'); setError('audio_unsupported'); return; }
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
       setPaywall(auth.account.entitlement); return;
     }
@@ -4023,6 +4056,25 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           color:'#e2e8f0', background:'rgba(2,6,16,0.82)', border:'1px solid var(--line)', backdropFilter:'blur(4px)' }}>
           ‹
         </button>
+      )}
+
+      {/* In-app-browser escape hatch: Facebook/Messenger/Instagram WebViews can't do mic capture,
+          and the 07-06 cohort arrived from exactly those links (7/8 signups never reached the
+          interview). Persistent, quiet-blue (design law), with a one-tap Chrome escape on Android. */}
+      {IN_APP_BROWSER && (
+        <div style={{ padding:'10px 14px', background:'rgba(30,58,138,0.55)', borderBottom:'1px solid var(--accent)',
+          fontSize:12.5, lineHeight:1.6, color:'var(--text)', fontFamily:'var(--font-body)' }}>
+          <b>Wichtig:</b> Der Facebook/Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.
+          Öffne die Seite in <b>Chrome</b> oder <b>Safari</b>: Menü (⋯ oben rechts) → „Im Browser öffnen".{/* OWNER-AR slot */}
+          {/Android/i.test(navigator.userAgent || '') && (
+            <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
+              onClick={() => beacon('inapp_escape_tap')}
+              style={{ display:'inline-block', marginLeft:8, minHeight:44, lineHeight:'32px', padding:'6px 10px',
+                color:'var(--accent-2)', fontWeight:700, textDecoration:'underline', textUnderlineOffset:3 }}>
+              In Chrome öffnen →
+            </a>
+          )}
+        </div>
       )}
 
       {/* Screen flash */}
