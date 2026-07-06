@@ -1,0 +1,56 @@
+name: payment-alert
+
+# $0 watchdog for the hand-cranked cash register: the app promises "activated within 30 minutes",
+# but the only signals a payment arrived were a server console.log and the manually-opened admin
+# page. This cron reads the pendingPayments COUNT from /health (no PII) and opens ONE GitHub issue
+# (@mention → phone notification) while money is waiting; it closes the issue when the queue is
+# empty again. GitHub cron is best-effort (a */15 schedule can slip), but this still turns
+# "whenever the owner happens to look" into "within the hour" at worst.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Check pending payments and manage the alert issue
+        run: |
+          URL="https://bpo-combat-arena.onrender.com/health"
+          # wake-tolerant read (cold dyno may need a retry)
+          for i in 1 2 3; do
+            body=$(curl -s --max-time 40 "$URL" || true)
+            [ -n "$body" ] && break
+            sleep 10
+          done
+          n=$(echo "$body" | grep -o '"pendingPayments":[0-9]*' | grep -o '[0-9]*$' || echo "")
+          echo "pendingPayments=${n:-unknown}"
+          if [ -z "$n" ]; then echo "health unreadable — skipping (no false alerts)"; exit 0; fi
+
+          existing=$(gh issue list --repo "$REPO" --label payment-pending --state open --json number --jq '.[0].number' || echo "")
+          if [ "$n" -gt 0 ]; then
+            if [ -z "$existing" ]; then
+              gh label create payment-pending --repo "$REPO" --color D93F0B --description "money waiting for manual activation" 2>/dev/null || true
+              gh issue create --repo "$REPO" --label payment-pending \
+                --title "💰 $n Zahlung(en) warten auf Aktivierung" \
+                --body "@alhassanmaarouf8-blip — /health meldet **$n pending payment(s)**. Der Kunde wurde 'Aktivierung innerhalb von 30 Minuten' versprochen. Admin-Panel öffnen und aktivieren. (Dieses Issue schließt sich automatisch, sobald die Warteschlange leer ist.)"
+              echo "alert issue created"
+            else
+              echo "alert issue #$existing already open — not duplicating"
+            fi
+          else
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --repo "$REPO" --comment "Warteschlange leer — automatisch geschlossen."
+              echo "alert issue #$existing closed"
+            else
+              echo "queue empty, no open alert — nothing to do"
+            fi
+          fi

@@ -55,11 +55,27 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.get('/health', (_req, res) => {
+// Pending-payments count for /health — lets a $0 external monitor (GitHub Actions cron) alert
+// the owner that money is waiting for manual activation (the app promises "active in 30 min",
+// but the only prior signals were a console.log and the manually-opened admin page). Count only,
+// no PII. Cached 60s so /health stays cheap; a store error must never break the health check.
+let _pendingCache = { n: 0, at: 0 };
+async function pendingPaymentsCount() {
+  if (Date.now() - _pendingCache.at < 60_000) return _pendingCache.n;
+  try {
+    const { loadPayments } = await import('./paymentsStore.js');
+    const all = await loadPayments();
+    _pendingCache = { n: all.filter((p) => p.status === 'pending').length, at: Date.now() };
+  } catch { _pendingCache = { n: _pendingCache.n, at: Date.now() }; }
+  return _pendingCache.n;
+}
+
+app.get('/health', async (_req, res) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
     ts: new Date().toISOString(),
+    pendingPayments: await pendingPaymentsCount(),
     // Existing boss provider chain (failover order) — mirrors PROVIDERS in realtimeClient.js:
     // a provider is listed only if its key env is set. "groq+cerebras" => failover armed.
     // Names only; never exposes a key.
