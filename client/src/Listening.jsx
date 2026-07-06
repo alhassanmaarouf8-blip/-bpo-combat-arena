@@ -97,7 +97,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     else {
       // Feed the brain: a completed Hör-Check set is listening prep (per-answer accuracy already
       // lands in listeningStats server-side; this event is what flips the brain's prep/READY).
-      try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'hoer-check' }) }); } catch { /* fire-and-forget */ }
+      try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'hoer-check' }) }).catch(() => {}); } catch { /* fire-and-forget */ }
       setPhase('done');
     }
   };

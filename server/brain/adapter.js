@@ -81,15 +81,18 @@ export function buildSnapshot(p, now = Date.now()) {
 
   const lastDate = last?.date || 0;
   const after = (at) => (at || 0) > lastDate;
-  // Prep must be ON TARGET to earn the rematch (doctrine D3): when the boss has a targeted rule
-  // (lastTargetRule), only drill work logged against THAT rule counts — a shadowing rep no longer
-  // "earns" a dative rematch. Without a rule-level target (non-grammar bottlenecks), any post-fight
-  // drill still counts, because those drill events carry no ruleId to match against.
   const targetRuleId = p?.lastTargetRule?.ruleId || null;
-  const prepDone = targetRuleId
-    ? (weakLog[targetRuleId]?.drills || []).some((d) => after(d.at))
-    : Object.values(weakLog).some((e) => (e.drills || []).some((d) => after(d.at)))
-      || (p?.drillLog || []).some((d) => after(d.at));
+  // Legacy loose signal: ANY drill activity since the last fight. The ENGINE decides whether that
+  // prep actually addressed the target (doctrine D3) using recentDrillEvents below — matching by
+  // targeted rule OR by the prescribed drill's kind, because most drills (flow-drill, hör-check,
+  // satzbau, druck-leiter, shadowing) report no ruleId, only their kind.
+  const prepDone = Object.values(weakLog).some((e) => (e.drills || []).some((d) => after(d.at)))
+                || (p?.drillLog || []).some((d) => after(d.at));
+  const recentDrillEvents = [
+    ...Object.values(weakLog).flatMap((e) =>
+      (e.drills || []).filter((d) => after(d.at)).map((d) => ({ drill: d.drill || null, ruleId: e.ruleId || null }))),
+    ...(p?.drillLog || []).filter((d) => after(d.at)).map((d) => ({ drill: d.drill || null, ruleId: null })),
+  ];
 
   const tot = (s) => (Array.isArray(s?.grammarRules) ? s.grammarRules.reduce((a, r) => a + (r.count || 0), 0) : null);
   const tl = tot(last), tp = tot(prev);
@@ -103,6 +106,7 @@ export function buildSnapshot(p, now = Date.now()) {
     sessionCount:     sessions.length,
     daysSinceActive:  lastDate ? Math.floor((now - lastDate) / DAY_MS) : 0,
     prepDone,
+    recentDrillEvents,
     globalRegressed:  (tl != null && tp != null && tl > tp),
     // pass-throughs for the UI / masri voice layer (the engine itself stays copy-free)
     level: hr.level, hireReady: hr.hireReady, hireNote: hr.note,

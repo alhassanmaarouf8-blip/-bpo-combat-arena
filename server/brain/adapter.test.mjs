@@ -92,25 +92,45 @@ test('adapter: per-type listeningStats aggregate into listening mastery', () => 
   assert.ok(!masteredSkillsFromProfile(thin).has('listen-phone')); // <5 answered → no claim
 });
 
-// Pins on-target prep (doctrine D3): with a targeted rule, only drills on THAT rule earn the
-// rematch — a rep on a different rule no longer flips READY.
-test('adapter: prepDone requires the drill to land on the targeted rule', () => {
-  const offTarget = {
+// The adapter surfaces recent drill events (with each event's rule identity) so the ENGINE can
+// judge whether prep addressed the target — kind and rule both travel.
+test('adapter: recentDrillEvents carry drill kind + rule identity, only post-fight events', () => {
+  const p = {
     sessions: [{ date: NOW - 2 * DAY, verdict: 'weak' }],
-    lastTargetRule: { ruleId: 'dativ-akkusativ' },
     weakLog: {
-      'dativ-akkusativ': { errCounts: [{ count: 3 }], drills: [] },
-      'konjunktiv-2':    { errCounts: [{ count: 1 }], drills: [{ at: NOW - 1 * DAY, drill: 'sag-es-richtig' }] },
+      'konjunktiv-2': { ruleId: 'konjunktiv-2', errCounts: [{ count: 1 }],
+        drills: [{ at: NOW - 1 * DAY, drill: 'sag-es-richtig' }, { at: NOW - 3 * DAY, drill: 'sag-es-richtig' }] },
     },
+    drillLog: [{ at: NOW - 1 * DAY, drill: 'hoer-check' }],
   };
-  assert.equal(buildSnapshot(offTarget, NOW).prepDone, false);
+  const ev = buildSnapshot(p, NOW).recentDrillEvents;
+  assert.equal(ev.length, 2);   // the pre-fight event is excluded
+  assert.ok(ev.some((e) => e.drill === 'sag-es-richtig' && e.ruleId === 'konjunktiv-2'));
+  assert.ok(ev.some((e) => e.drill === 'hoer-check' && e.ruleId === null));
+});
 
-  const onTarget = {
-    ...offTarget,
-    weakLog: {
-      'dativ-akkusativ': { errCounts: [{ count: 3 }], drills: [{ at: NOW - 1 * DAY, drill: 'sag-es-richtig' }] },
-      'konjunktiv-2':    { errCounts: [{ count: 1 }], drills: [] },
-    },
+// Pins on-target prep (doctrine D3) at the ENGINE: with a concrete target, a drill event earns
+// READY only if it hit the targeted rule OR came from the target's prescribed drill — an
+// unrelated rep (shadowing for a dative target) stays POST_FIGHT even when legacy prepDone=true.
+test('engine: READY only for on-target prep (rule match or prescribed-drill match)', () => {
+  const snap = {
+    masteredSkills: ['praesens-perfekt', 'self-intro', 'core-vocab', 'listen-clear'],
+    weakLog: { 'dativ-akkusativ': { errCounts: [{ count: 3 }, { count: 2 }], drills: [] } },
+    limitingSkill: 'grammar',
+    unmeasuredGates: [],
+    sessionCount: 3,
+    daysSinceActive: 0,
+    globalRegressed: false,
+    prepDone: true,   // the loose legacy signal says yes — the engine must still refuse off-target prep
+    recentDrillEvents: [{ drill: 'shadowing', ruleId: null }],
   };
-  assert.equal(buildSnapshot(onTarget, NOW).prepDone, true);
+  const off = decide(snap);
+  assert.equal(off.target?.skillId, 'dativ-akkusativ');
+  assert.equal(off.state, 'POST_FIGHT');   // off-target rep does NOT earn the rematch
+
+  const ruleMatched = decide({ ...snap, recentDrillEvents: [{ drill: 'sag-es-richtig', ruleId: 'dativ-akkusativ' }] });
+  assert.equal(ruleMatched.state, 'READY');
+
+  const kindMatched = decide({ ...snap, recentDrillEvents: [{ drill: 'sag-es-richtig', ruleId: null }] });
+  assert.equal(kindMatched.state, 'READY');  // a rule-less event from the PRESCRIBED drill counts
 });

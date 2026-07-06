@@ -64,6 +64,7 @@ export function decide(snapshot = {}) {
     masteredSkills = [], weakLog = {}, lastTargetRuleId = null,
     limitingSkill = null, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
+    recentDrillEvents = null,
   } = snapshot;
 
   // Journey toward the goal — handed to the UI so the app REFLECTS step-by-step advancement back to
@@ -98,9 +99,18 @@ export function decide(snapshot = {}) {
   const ev = target && weakLog?.[target.id]?.errCounts?.length || 0;
   const confidence = ev >= 2 ? 'high' : 'low';
 
+  // Prep must plausibly address THE TARGET to earn the rematch (doctrine D3): a drill event
+  // counts if it landed on the targeted rule OR came from the drill this target prescribes
+  // (most drills report only their kind, no ruleId). An unrelated rep — shadowing for a dative
+  // target — no longer flips READY. Older snapshots without recentDrillEvents keep the legacy
+  // loose prepDone behavior.
+  const prepMatched = !target || recentDrillEvents == null
+    ? prepDone
+    : recentDrillEvents.some((e) => (e.ruleId && e.ruleId === target.id) || (e.drill && e.drill === target.drill));
+
   const inactive = daysSinceActive >= 4;
   const state = inactive ? 'PLATEAU'
-    : prepDone           ? 'READY'        // did the prep → earn the targeted rematch
+    : prepMatched        ? 'READY'        // did the prep (on target) → earn the targeted rematch
     : 'POST_FIGHT';                        // fresh debrief → here's the prescription
 
   return {

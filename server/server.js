@@ -62,11 +62,17 @@ app.use(express.json());
 let _pendingCache = { n: 0, at: 0 };
 async function pendingPaymentsCount() {
   if (Date.now() - _pendingCache.at < 60_000) return _pendingCache.n;
+  _pendingCache.at = Date.now();   // claim the slot FIRST so concurrent /health calls don't pile up
   try {
     const { loadPayments } = await import('./paymentsStore.js');
-    const all = await loadPayments();
+    // /health must stay near-instant (deploy verification + keep-warm + payment-alert all read it,
+    // and pg has no default connection timeout) — a stalled DB returns the last-known count.
+    const all = await Promise.race([
+      loadPayments(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('pending_count_timeout')), 2000)),
+    ]);
     _pendingCache = { n: all.filter((p) => p.status === 'pending').length, at: Date.now() };
-  } catch { _pendingCache = { n: _pendingCache.n, at: Date.now() }; }
+  } catch { /* keep last-known n; timestamp already advanced above */ }
   return _pendingCache.n;
 }
 

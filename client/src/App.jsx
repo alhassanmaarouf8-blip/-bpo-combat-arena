@@ -3842,6 +3842,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // back arrow stops treating the ended session as a live interview (its old behavior here
   // was confirm + full page reload).
   const handleDebriefDone = useCallback(() => {
+    stopBossVoice();        // the boss may still be speaking its closing line (debrief pending,
+    setBossSpeak(false);    // screen not yet shown) — home must never render over a talking boss
     setDebrief(null); setDebriefPending(false); setNoSession(false);
     setFunnel(null);
     clearInterval(pingRef.current);
@@ -3995,7 +3997,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen;
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
-    for (const [o, close] of _overlays) { if (o) { close(false); return; } }   // close the top-most overlay
+    // Closing via the bare setter bypasses the onClose wrappers, so clear the why here too —
+    // otherwise the next drill opened from the grid inherits a stale why-you line.
+    for (const [o, close] of _overlays) { if (o) { close(false); setDrillWhy(null); return; } }   // close the top-most overlay
     if (debrief || debriefPending) { handleDebriefDone(); return; }             // debrief → clean home, no reload
     if (funnel || isActive || isConnecting) {                                    // in a live interview → clean exit
       const msg = feedbackLang === 'ar' ? 'تسيب المقابلة وترجع للصفحة الرئيسية؟' : 'Interview verlassen und zurück zur Startseite?';
@@ -4803,8 +4807,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
               'satzbau-schmiede': setSatzbauOpen,
               'srs': setDailyOpen };
-            if (p.action === 'drill') setDrillWhy(why || null);   // the drill opens knowing WHY it was prescribed
-            if (p.action === 'drill') { const fn = OPEN[p.drill]; fn ? fn(true) : beginSession(); }
+            if (p.action === 'drill') {
+              const fn = OPEN[p.drill];
+              // Hand the WHY only to overlays that actually render it ('srs'/Daily doesn't, and the
+              // beginSession fallback isn't a drill) — otherwise the line goes stale and would
+              // reappear on whatever drill opens next (feedback-accuracy doctrine: never mislabel).
+              setDrillWhy(fn && p.drill !== 'srs' ? (why || null) : null);
+              fn ? fn(true) : beginSession();
+            }
             else if (p.action === 'interview' || p.action === 'measure') beginSession();
             else if (p.action === 'assessment') setAssessmentOpen(true);
             else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview

@@ -35,7 +35,8 @@ jobs:
           echo "pendingPayments=${n:-unknown}"
           if [ -z "$n" ]; then echo "health unreadable — skipping (no false alerts)"; exit 0; fi
 
-          existing=$(gh issue list --repo "$REPO" --label payment-pending --state open --json number --jq '.[0].number' || echo "")
+          # `// empty` prints NOTHING (not "null") when no issue exists — the -z test below depends on it
+          existing=$(gh issue list --repo "$REPO" --label payment-pending --state open --json number --jq '.[0].number // empty' || echo "")
           if [ "$n" -gt 0 ]; then
             if [ -z "$existing" ]; then
               gh label create payment-pending --repo "$REPO" --color D93F0B --description "money waiting for manual activation" 2>/dev/null || true
