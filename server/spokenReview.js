@@ -21,6 +21,7 @@ import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, saveUser }  from './store.js';
 import { dueItems, grade, normalize } from './srs.js';
 import { voicedDurationMs }            from './audioGuard.js';
+import { classifyGrammar }             from './errorTags.js';
 
 export const spokenReviewRouter = express.Router();
 
@@ -214,6 +215,24 @@ spokenReviewRouter.post('/spoken-review/grade',
 
       const { correct, expected } = gradeSpoken(item, transcript);
       grade(p, id, correct);                  // advance/reset the spaced schedule
+
+      // Feed the brain (doctrine D3): the brain's prescribed grammar drill reported NOTHING before,
+      // so the drilled→re-tested→improved loop could never close for it. Grammar items land on the
+      // same canonical weakLog spine the interview writes (classifyGrammar), so on-target prep and
+      // the aha can actually fire; non-grammar items go to the general drillLog. Server-side and
+      // atomic with the SRS save — no extra request, nothing for the client to forget.
+      const ev = { at: Date.now(), drill: 'sag-es-richtig', correct };
+      if (item.type === 'grammar' && item.content) {
+        const canon = classifyGrammar([{ rule: item.content, count: 1 }])[0] ?? null;
+        const key = canon || ('lt:' + item.content);
+        p.weakLog = p.weakLog || {};
+        const entry = p.weakLog[key] || { ruleId: canon, ltName: item.content, firstSeen: Date.now(), errCounts: [], drills: [] };
+        entry.drills.push(ev);
+        if (entry.drills.length > 50) entry.drills = entry.drills.slice(-50);
+        p.weakLog[key] = entry;
+      } else {
+        p.drillLog = (p.drillLog || []).concat(ev).slice(-100);
+      }
       await saveUser(p);
 
       console.log(`[spokenReview] user=${req.account.id} id=${id} type=${item.type} correct=${correct} heard="${transcript.slice(0, 50)}"`);

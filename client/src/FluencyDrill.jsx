@@ -114,6 +114,11 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       }
       const next = [...results, d];
       setRes(next);
+      if (isLast) {
+        // Feed the brain: a completed 4-3-2 set is fluency prep (the rounds reported NOTHING
+        // before, so the brain couldn't see that its flow-drill prescription was followed).
+        try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'flow-drill', voicedMs: clip.durationMs }) }); } catch { /* fire-and-forget */ }
+      }
       setPhase(isLast ? 'done' : 'between');
     } catch (e) {
       setErr(e.message === 'no_api_key'

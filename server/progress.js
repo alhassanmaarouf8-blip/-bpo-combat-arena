@@ -17,6 +17,7 @@ import { hireReadinessFor } from './hireReadiness.js';
 import { recentTurns, summary as latencySummary, recordClient, recentClient, clientSummary } from './latencyLog.js';
 import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
+import { classifyGrammar } from './errorTags.js';
 
 export const progressRouter = express.Router();
 
@@ -122,9 +123,15 @@ progressRouter.post('/drill-event', requireAuth, async (req, res) => {
       ...(typeof correct === 'boolean'  ? { correct } : {}),
       ...(Number.isFinite(+voicedMs)    ? { voicedMs: Math.round(+voicedMs) } : {}),
     };
-    const key = ruleId || (typeof rule === 'string' && rule ? 'lt:' + rule : null);
+    // Canonicalize an LT rule NAME to the interview's ruleId (same classifyGrammar the interview
+    // uses at session-persist) so drill events land on the SAME weakLog entry the interview writes —
+    // before this, a 'lt:'-keyed drill event and a canonical-keyed interview error never met, and
+    // the aha loop couldn't see the drill.
+    const canon = !ruleId && typeof rule === 'string' && rule
+      ? (classifyGrammar([{ rule, count: 1 }])[0] ?? null) : null;
+    const key = ruleId || canon || (typeof rule === 'string' && rule ? 'lt:' + rule : null);
     if (key) {
-      const entry = p.weakLog[key] || { ruleId: ruleId || null, ltName: rule || null, firstSeen: Date.now(), errCounts: [], drills: [] };
+      const entry = p.weakLog[key] || { ruleId: ruleId || canon || null, ltName: rule || null, firstSeen: Date.now(), errCounts: [], drills: [] };
       entry.drills.push(ev);
       if (entry.drills.length > 50) entry.drills = entry.drills.slice(-50);
       p.weakLog[key] = entry;
