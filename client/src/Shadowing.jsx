@@ -15,7 +15,7 @@ import { DrillIntro } from './drillIntros.jsx';
 const MAX_SEC = 20;   // a single sentence repeat is short
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
-export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
+export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
   const [sentences, setSen] = useState([]);
   const [idx, setIdx]       = useState(0);
@@ -171,12 +171,22 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing }) 
     </div>
   );
   const header = (
+    <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent-2)' }}>
         🗣️ SHADOWING · ترديد
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
     </div>
+    {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill — the honest,
+        personal reason THIS student is here (owner law 5: all surfaces one organism). */}
+    {why && (
+      <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
+        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        {why}
+      </div>
+    )}
+    </>
   );
 
   if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);

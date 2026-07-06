@@ -132,7 +132,9 @@ export function BrainGuide({ token, apiUrl, onAction }) {
           {whyLine(d)}
         </div>
       )}
-      <button style={cta} onClick={() => onAction?.(d)}>{ctaText}</button>
+      {/* Hand the WHY to the destination too, so the prescribed drill opens carrying the same
+          honest reason (the drill renders it as its why-you bar). */}
+      <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
     </div>
   );
 }

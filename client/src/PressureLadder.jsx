@@ -212,7 +212,7 @@ async function voicedMsFromBlob(blob) {
   } catch { return 0; }
 }
 
-export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
+export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null }) {
   const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
   const [phase, setPhase]   = useState('intro');    // intro | ready | answering | round | done
   const [left, setLeft]     = useState(0);
@@ -323,12 +323,21 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl }) {
     </div>
   );
   const header = (
+    <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
         🔥 DRUCK-LEITER · سُلّم الضغط
       </span>
       <button onClick={() => { cleanup(); onClose?.(); }} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
     </div>
+    {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
+    {why && (
+      <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
+        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        {why}
+      </div>
+    )}
+    </>
   );
   const ladder = (
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>

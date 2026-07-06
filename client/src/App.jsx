@@ -1427,7 +1427,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
         </div>
       )}
       {SKILL && onTrain && T && (
-        <button onClick={() => onTrain(T.drill)}
+        <button onClick={() => onTrain(T.drill, v.de)}
           style={{ width:'100%', marginTop:10, padding:'12px', minHeight:46, cursor:'pointer',
             fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', fontWeight:700,
             borderRadius:9, border:`1px solid ${v.border}`, color:v.color, background:'rgba(0,0,0,0.25)' }}>
@@ -2997,6 +2997,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [satzbauOpen, setSatzbauOpen] = useState(false);           // paid verb-final word-order builder drill route
   const [pressureOpen, setPressureOpen] = useState(false);         // pressure-ladder overload drill (client-only)
   const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
+  // WHY-YOU for a prescribed drill: set when the brain guide / debrief routes into a drill so the
+  // drill opens with the honest personal reason it was prescribed; cleared when the drill closes
+  // (grid-tile opens stay generic — no why is invented for them).
+  const [drillWhy, setDrillWhy] = useState(null);
   const [csBriefing, setCsBriefing] = useState(null);         // {situation, skill, keyPhrases} — shown before boss speaks
   const [showBriefing, setShowBriefing] = useState(false);    // pre-fight briefing card visible
   // ── Gemini Live native-audio path (server opts this account in via SESSION_READY.useGeminiAudio) ──
@@ -4069,42 +4073,42 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Shadowing pronunciation practice (PAID — cheap models + browser TTS, never Realtime) */}
       {shadowingOpen && (
-        <Shadowing token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setShadowingOpen(false)}
-          onGoPricing={() => { setShadowingOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+        <Shadowing token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+          onClose={() => { setShadowingOpen(false); setDrillWhy(null); }}
+          onGoPricing={() => { setShadowingOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* 4-3-2 spoken-fluency drill (PAID — Groq Whisper STT, deterministic feedback) */}
       {fluencyOpen && (
-        <FluencyDrill token={auth.token} apiUrl={API_URL} lang={feedbackLang} level={level}
-          onClose={() => setFluencyOpen(false)}
-          onGoPricing={() => { setFluencyOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+        <FluencyDrill token={auth.token} apiUrl={API_URL} lang={feedbackLang} level={level} why={drillWhy}
+          onClose={() => { setFluencyOpen(false); setDrillWhy(null); }}
+          onGoPricing={() => { setFluencyOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* Listening & live data-capture drill (PAID — browser TTS, deterministic grading, zero cost) */}
       {listeningOpen && (
-        <Listening token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setListeningOpen(false)}
-          onGoPricing={() => { setListeningOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+        <Listening token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+          onClose={() => { setListeningOpen(false); setDrillWhy(null); }}
+          onGoPricing={() => { setListeningOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* Spoken-production SRS — say YOUR own errors correctly, spaced (PAID; Groq Whisper, deterministic) */}
       {spokenReviewOpen && (
-        <SpokenReview token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setSpokenReviewOpen(false)}
-          onGoPricing={() => { setSpokenReviewOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+        <SpokenReview token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+          onClose={() => { setSpokenReviewOpen(false); setDrillWhy(null); }}
+          onGoPricing={() => { setSpokenReviewOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* Satzbau-Schmiede — verb-final word-order builder (PAID; deterministic order grading, zero cost) */}
       {satzbauOpen && (
-        <SatzbauSchmiede token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setSatzbauOpen(false)}
-          onGoPricing={() => { setSatzbauOpen(false); setPaywall(auth.account?.entitlement || {}); }} />
+        <SatzbauSchmiede token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+          onClose={() => { setSatzbauOpen(false); setDrillWhy(null); }}
+          onGoPricing={() => { setSatzbauOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
       )}
 
       {/* Pressure Ladder — overload training (native Aura-2 voice via the server TTS route, zero cost) */}
       {pressureOpen && (
-        <PressureLadder lang={feedbackLang} onClose={() => setPressureOpen(false)} token={auth.token} apiUrl={API_URL} />
+        <PressureLadder lang={feedbackLang} onClose={() => { setPressureOpen(false); setDrillWhy(null); }} token={auth.token} apiUrl={API_URL} why={drillWhy} />
       )}
 
       {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime).
@@ -4160,8 +4164,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           onOpenGuide={() => setGuideOpen(true)}
-          onTrainSkill={(drill) => ({ fluency: setFluencyOpen, shadowing: setShadowingOpen,
-            pressure: setPressureOpen, satzbau: setSatzbauOpen }[drill]?.(true))}
+          onTrainSkill={(drill, why) => { setDrillWhy(why || null);
+            ({ fluency: setFluencyOpen, shadowing: setShadowingOpen,
+              pressure: setPressureOpen, satzbau: setSatzbauOpen }[drill]?.(true)); }}
           token={auth.token} apiUrl={API_URL} />
       )}
 
@@ -4779,9 +4784,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             measured, returns null rather than guess). Returning users only — a novel user has no signals
             yet, and the component self-hides when there's nothing measurable. */}
         {canStart && !firstRun && hireReadiness && (
-          <HireVerdict h={hireReadiness} compact onTrain={(drill) => {
+          <HireVerdict h={hireReadiness} compact onTrain={(drill, why) => {
             const OPEN = { fluency: setFluencyOpen, shadowing: setShadowingOpen, pressure: setPressureOpen,
               listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
+            setDrillWhy(why || null);
             (OPEN[drill] || (() => {}))(true);
           }} />
         )}
@@ -4791,12 +4797,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             first-timer prescription is just "do your diagnose interview", a redundant SECOND CTA next to
             the orange Interview-starten button. It earns its place once there's real data to route on. */}
         {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
-          <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d) => {
+          <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d, why) => {
             const p = d?.prescription || {};
             const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
               'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
               'satzbau-schmiede': setSatzbauOpen,
               'srs': setDailyOpen };
+            if (p.action === 'drill') setDrillWhy(why || null);   // the drill opens knowing WHY it was prescribed
             if (p.action === 'drill') { const fn = OPEN[p.drill]; fn ? fn(true) : beginSession(); }
             else if (p.action === 'interview' || p.action === 'measure') beginSession();
             else if (p.action === 'assessment') setAssessmentOpen(true);

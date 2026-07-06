@@ -19,7 +19,7 @@ import { playNative } from './nativeVoice.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
-export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onClose, onGoPricing }) {
+export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onClose, onGoPricing, why = null }){
   const [mode, setMode]     = useState('432');      // '432' (classic) | 'chunks' (Blitz-Formeln)
   const [phase, setPhase]   = useState('loading'); // loading | ready | practice | scoring | between | done | error
   const [prompt, setPrompt] = useState(null);      // { id, de, ar }
@@ -139,12 +139,21 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     </div>
   );
   const header = (
+    <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
         ⚡ FLOW-DRILL · سرعة الكلام
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
     </div>
+    {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
+    {why && (
+      <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
+        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        {why}
+      </div>
+    )}
+    </>
   );
 
   // Blitz-Formeln mode is its own flow (own fetch + state machine); the 4-3-2 state stays

@@ -13,7 +13,7 @@ import { DrillIntro } from './drillIntros.jsx';
 const MAX_SEC = 18;
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
-export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
+export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
   const [phase, setPhase] = useState('loading'); // loading | practice | empty | done | error
   const [items, setItems] = useState([]);
   const [idx, setIdx]     = useState(0);
@@ -93,12 +93,21 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing 
     </div>
   );
   const header = (
+    <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         🗯️ SAG ES RICHTIG · قولها صح
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
     </div>
+    {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
+    {why && (
+      <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
+        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        {why}
+      </div>
+    )}
+    </>
   );
 
   if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);

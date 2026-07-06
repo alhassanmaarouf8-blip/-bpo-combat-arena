@@ -25,7 +25,7 @@ const TIME_START = 22;   // seconds for the first (shortest) item
 const TIME_FLOOR = 10;   // never ramps below this
 const TIME_STEP  = 2;    // shaved off per subsequent item — the difficulty ramp
 
-export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPricing }) {
+export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
   const [items, setItems]   = useState([]);
   const [idx, setIdx]       = useState(0);
@@ -151,12 +151,21 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     </div>
   );
   const header = (
+    <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         🏗️ SATZBAU-SCHMIEDE
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
     </div>
+    {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
+    {why && (
+      <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
+        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        {why}
+      </div>
+    )}
+    </>
   );
 
   if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
