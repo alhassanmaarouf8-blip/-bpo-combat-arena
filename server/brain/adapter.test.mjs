@@ -74,3 +74,43 @@ test('adapter: globalRegressed when total grammar errors rose last session', () 
   ] };
   assert.equal(buildSnapshot(p, NOW).globalRegressed, true);
 });
+
+// Pins the listeningStats SHAPE fix: listening.js writes PER-TYPE ({ verstehen:{seen,correct}, … }),
+// never a flat {correct,total} — before the aggregation, listening mastery was unreachable forever.
+test('adapter: per-type listeningStats aggregate into listening mastery', () => {
+  const base = { sessions: [
+    { date: NOW - 2 * DAY, verdict: 'pass' },
+    { date: NOW - 1 * DAY, verdict: 'pass' },
+  ] };
+  const good = { ...base, listeningStats: { verstehen: { seen: 4, correct: 4 }, name: { seen: 2, correct: 2 } } };
+  assert.ok(masteredSkillsFromProfile(good).has('listen-phone'));   // 6/6 ≥ 0.8 with ≥5 answered
+
+  const weak = { ...base, listeningStats: { verstehen: { seen: 6, correct: 2 } } };
+  assert.ok(!masteredSkillsFromProfile(weak).has('listen-phone')); // 2/6 < 0.8
+
+  const thin = { ...base, listeningStats: { verstehen: { seen: 3, correct: 3 } } };
+  assert.ok(!masteredSkillsFromProfile(thin).has('listen-phone')); // <5 answered → no claim
+});
+
+// Pins on-target prep (doctrine D3): with a targeted rule, only drills on THAT rule earn the
+// rematch — a rep on a different rule no longer flips READY.
+test('adapter: prepDone requires the drill to land on the targeted rule', () => {
+  const offTarget = {
+    sessions: [{ date: NOW - 2 * DAY, verdict: 'weak' }],
+    lastTargetRule: { ruleId: 'dativ-akkusativ' },
+    weakLog: {
+      'dativ-akkusativ': { errCounts: [{ count: 3 }], drills: [] },
+      'konjunktiv-2':    { errCounts: [{ count: 1 }], drills: [{ at: NOW - 1 * DAY, drill: 'sag-es-richtig' }] },
+    },
+  };
+  assert.equal(buildSnapshot(offTarget, NOW).prepDone, false);
+
+  const onTarget = {
+    ...offTarget,
+    weakLog: {
+      'dativ-akkusativ': { errCounts: [{ count: 3 }], drills: [{ at: NOW - 1 * DAY, drill: 'sag-es-richtig' }] },
+      'konjunktiv-2':    { errCounts: [{ count: 1 }], drills: [] },
+    },
+  };
+  assert.equal(buildSnapshot(onTarget, NOW).prepDone, true);
+});

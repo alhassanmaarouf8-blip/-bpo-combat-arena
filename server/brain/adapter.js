@@ -41,8 +41,20 @@ export function masteredSkillsFromProfile(p) {
   if (functional) ['self-intro', 'core-vocab', 'praesens-perfekt', 'handle-clear-request', 'sie-register'].forEach((s) => mastered.add(s));
 
   // Listening → from listeningStats accuracy when present; else foundation listening for functional users.
+  // listening.js records PER-TYPE stats ({ verstehen:{seen,correct}, name:{seen,correct}, … }) — aggregate
+  // them here. (The old flat {correct,total} read matched nothing the drill ever wrote, so listening
+  // mastery could never be earned no matter how much Hör-Check a student did. Flat shape still honored.)
   const ls = p?.listeningStats;
-  const acc = ls && typeof ls.correct === 'number' && typeof ls.total === 'number' && ls.total >= 5 ? ls.correct / ls.total : null;
+  let lsC = null, lsT = null;
+  if (ls && typeof ls.correct === 'number' && typeof ls.total === 'number') { lsC = ls.correct; lsT = ls.total; }
+  else if (ls && typeof ls === 'object') {
+    let c = 0, t = 0, any = false;
+    for (const v of Object.values(ls)) {
+      if (v && typeof v === 'object' && typeof v.seen === 'number') { c += v.correct || 0; t += v.seen; any = true; }
+    }
+    if (any) { lsC = c; lsT = t; }
+  }
+  const acc = lsT != null && lsT >= 5 ? lsC / lsT : null;
   if (acc != null && acc >= 0.8) { mastered.add('listen-clear'); mastered.add('listen-phone'); }
   else if (functional) mastered.add('listen-clear');
 
@@ -69,8 +81,15 @@ export function buildSnapshot(p, now = Date.now()) {
 
   const lastDate = last?.date || 0;
   const after = (at) => (at || 0) > lastDate;
-  const prepDone = Object.values(weakLog).some((e) => (e.drills || []).some((d) => after(d.at)))
-                || (p?.drillLog || []).some((d) => after(d.at));
+  // Prep must be ON TARGET to earn the rematch (doctrine D3): when the boss has a targeted rule
+  // (lastTargetRule), only drill work logged against THAT rule counts — a shadowing rep no longer
+  // "earns" a dative rematch. Without a rule-level target (non-grammar bottlenecks), any post-fight
+  // drill still counts, because those drill events carry no ruleId to match against.
+  const targetRuleId = p?.lastTargetRule?.ruleId || null;
+  const prepDone = targetRuleId
+    ? (weakLog[targetRuleId]?.drills || []).some((d) => after(d.at))
+    : Object.values(weakLog).some((e) => (e.drills || []).some((d) => after(d.at)))
+      || (p?.drillLog || []).some((d) => after(d.at));
 
   const tot = (s) => (Array.isArray(s?.grammarRules) ? s.grammarRules.reduce((a, r) => a + (r.count || 0), 0) : null);
   const tl = tot(last), tp = tot(prev);
@@ -78,7 +97,7 @@ export function buildSnapshot(p, now = Date.now()) {
   return {
     masteredSkills:   [...masteredSkillsFromProfile(p)],
     weakLog,
-    lastTargetRuleId: p?.lastTargetRule?.ruleId || null,
+    lastTargetRuleId: targetRuleId,
     limitingSkill:    hr.limitingSkill && hr.limitingSkill !== 'none' ? hr.limitingSkill : null,
     unmeasuredGates:  GATING.filter((g) => !measured[g]),
     sessionCount:     sessions.length,
