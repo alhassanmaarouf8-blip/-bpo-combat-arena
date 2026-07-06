@@ -85,6 +85,18 @@ function verifyPassword(pw, stored) {
   } catch { return false; }
 }
 
+// ADMIN support tool: set a new password for an account (manual recovery over WhatsApp).
+// There is no email infrastructure for a self-serve reset, and before this the only "fix"
+// for a locked-out PAYING customer was deleting the account — wiping all their progress.
+export async function adminSetPassword(email, newPassword) {
+  if (String(newPassword || '').length < 8) throw Object.assign(new Error('password_too_short'), { code: 400 });
+  const acc = await getAccountByEmail(email);
+  if (!acc) return null;
+  acc.passwordHash = hashPassword(newPassword);
+  await persist();
+  return acc;
+}
+
 // ── Signed session tokens (HMAC, no external deps) ───────────────────────────
 const hmac = (s) => createHmac('sha256', AUTH_SECRET).update(s).digest('base64url');
 export function signToken(uid) {

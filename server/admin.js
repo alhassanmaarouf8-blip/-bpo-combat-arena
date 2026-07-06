@@ -13,7 +13,7 @@
  */
 import express from 'express';
 import { timingSafeEqual } from 'crypto';
-import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp } from './auth.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp, adminSetPassword } from './auth.js';
 import { loadPayments, savePayments, deletePaymentsFor } from './paymentsStore.js';
 import { deleteUser, loadUser }          from './store.js';
 import { listComp, addComp, removeComp } from './compAccess.js';
@@ -139,6 +139,23 @@ adminRouter.get('/admin/account', async (req, res) => {
       billingPeriodEnd: s.billingPeriodEnd || null, deactivatedAt: s.deactivatedAt || null,
     });
   } catch (e) { console.error('[admin] account lookup error:', e.message); res.status(500).json({ error: 'lookup_failed' }); }
+});
+
+// Manual password recovery (support-over-WhatsApp): there is no email infrastructure for a
+// self-serve reset, so the owner verifies identity in chat and sets a temporary password here.
+// Usage: POST /admin/set-password  { key, email, newPassword }  (newPassword ≥ 8 chars)
+adminRouter.post('/admin/set-password', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const { email, newPassword } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'email_required' });
+    const acc = await adminSetPassword(String(email).trim(), String(newPassword || ''));
+    if (!acc) return res.status(404).json({ error: 'account_not_found' });
+    console.log(`[admin] PASSWORD SET  email=${acc.email}`);
+    res.json({ ok: true, email: acc.email });
+  } catch (e) {
+    res.status(e.code === 400 ? 400 : 500).json({ error: e.code === 400 ? 'password_too_short_min8' : 'set_password_failed' });
+  }
 });
 
 // PERMANENTLY delete an account (admin action) — separate from deactivate. Removes the login

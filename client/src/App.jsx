@@ -326,6 +326,14 @@ let _streamSeq = 0;   // bumped to cancel an in-flight streamed (multi-sentence)
 // or a stop always kills the previous watcher (no leaked intervals when we reuse one element).
 let _bossEl = null;
 let _bossWd = null;
+// Level-based boss PACE: measured Aura-2 output is ~175 WpM (native-fast German) while comfortable
+// A2-B1 listening is ~100-130 — the level picker promised "Langsamer" but only the WORDS were
+// simpler, never the audio. A2-B1 fights now play at 0.9× (≈157 WpM). Browsers preserve pitch by
+// default at these rates (no chipmunk/robot effect), and the owner's robotic floor is 0.8× —
+// 0.9 stays well above it. Loading new media resets playbackRate, so apply AFTER setting .src.
+let _bossPlaybackRate = 1.0;
+function setBossPlaybackRate(r) { _bossPlaybackRate = r; }
+function _applyBossRate(el) { try { el.defaultPlaybackRate = _bossPlaybackRate; el.playbackRate = _bossPlaybackRate; } catch { /* older engines: native pace */ } }
 function _dbgA(tag, extra) { try { console.log('[DIAG-AUDIO] ' + tag + (extra != null ? ' ' + extra : '')); } catch {} }
 function getBossEl() {
   if (!_bossEl && typeof Audio !== 'undefined') { _bossEl = new Audio(); _bossEl.preload = 'auto'; }
@@ -500,6 +508,7 @@ function playClipFromUrl(url, onStart, onEnd) {
     try { audio.pause(); } catch {}
     audio.muted = false; audio.volume = 1.0;                    // undo the muted state left by the gesture-unlock prime
     audio.src = url;
+    _applyBossRate(audio);                                      // level-based pace (set AFTER src — loading resets playbackRate)
     _bossAudio = audio;
     const cleanup = () => { _clearBossWd(); try { URL.revokeObjectURL(url); } catch {} if (_bossAudio === audio) _bossAudio = null; };
     audio.onplay = () => {
@@ -575,6 +584,7 @@ function playProgressiveAudio(url, onStart, onEnd) {
     try { audio.pause(); } catch {}
     audio.muted = false; audio.volume = 1.0;                   // undo the muted state left by the gesture-unlock prime
     audio.src = url;
+    _applyBossRate(audio);                                     // level-based pace (set AFTER src — loading resets playbackRate)
     _bossAudio = audio;
     let started = false, resolved = false, stallInterval = null;
     const finish = (fallback) => {
@@ -3212,6 +3222,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
         bossLineRef.current = '';
+        setBossPlaybackRate(levelRef.current === 'a2-b1' ? 0.9 : 1.0);   // "Langsamer" now includes the AUDIO, not just the words
         wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
         break;
 
@@ -3398,6 +3409,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             }
             return [...prev.slice(-39), line];
           });
+        } else if (!geminiModeRef.current) {
+          // EMPTY commit (a cough/door-slam turn Deepgram couldn't parse): the server sends
+          // TRANSCRIPT_DONE '' and generates NO boss reply — so clear "denkt nach" NOW and let
+          // the auto-mic reopen (~450ms). Before this, the interview froze on "CHEF DENKT NACH…"
+          // for the full 22s watchdog after every noise spike.
+          setBossThinking(false);
         }
         break;
       }
@@ -3886,6 +3903,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [finishSession]);
+
+  // Screen Wake Lock: hands-free means the screen goes untouched for minutes, and Android's
+  // default 30-60s auto-lock then fired the visibility guard above → interview force-ended
+  // (the teardown's #1 blocker). Hold a wake lock while a fight is active; re-acquire when the
+  // tab returns to visible (the OS silently releases it on hide). Unsupported browsers
+  // (older iOS) keep the old behavior — this can only help, never hurt.
+  useEffect(() => {
+    if (phase !== 'active' || !navigator.wakeLock?.request) return;
+    let lock = null, alive = true;
+    const acquire = () => navigator.wakeLock.request('screen')
+      .then((l) => { if (alive) lock = l; else l.release().catch(() => {}); })
+      .catch(() => { /* denied (e.g. battery saver) → pre-wake-lock behavior */ });
+    acquire();
+    const onVis = () => { if (document.visibilityState === 'visible' && alive) acquire(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { alive = false; document.removeEventListener('visibilitychange', onVis); lock?.release?.().catch(() => {}); };
+  }, [phase]);
 
   const handleRestart = useCallback(() => {
     setDebrief(null); setDebriefPending(false); setNoSession(false);
