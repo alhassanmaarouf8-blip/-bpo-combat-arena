@@ -55,3 +55,24 @@ graphify-out/
 # one per worktree). Does NOT unregister the linked worktrees — they keep working.
 # ─────────────────────────────────────────────────────────────
 .claude/worktrees/
+
+# ─────────────────────────────────────────────────────────────
+# QA/tour screenshot artifacts at the repo root (see-app / tour scripts) — regenerable
+# pixels, never for the repo. Anchored to root so client assets are untouched.
+# ─────────────────────────────────────────────────────────────
+/tour-*.png
+/t2-*.png
+/t3-*.png
+/vf-*.png
+/home-mobile.png
+/landing-mobile.png
+/landing-desktop.png
+
+# ─────────────────────────────────────────────────────────────
+# Local AI-session runtime state (OpenClaw / opencode) — machine-local, never for the repo
+# ─────────────────────────────────────────────────────────────
+/.openclaw/
+/.openclaw-attachments/
+/.opencode/
+/.cluster/
+/evolution-drafts/
