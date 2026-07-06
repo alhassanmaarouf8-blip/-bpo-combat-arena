@@ -64,10 +64,19 @@ try { fetch(`${API_URL}/health`).catch(() => {}); } catch { /* never block boot 
 // once; the shell shows an escape banner and beginSession fails honestly instead of "mic blocked".
 const IN_APP_BROWSER = /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|; wv\)/i.test(
   (typeof navigator !== 'undefined' && navigator.userAgent) || '');
+// Channel tag: the owner posts per-group links with ?src=<slug> (e.g. ?src=fb-jobs1); the PWA
+// start_url already carries ?src=pwa. Persisted for the visit so every funnel event reports
+// which channel this visitor came from — a slug the owner chose, never PII.
+let SRC = '';
+try {
+  const q = new URLSearchParams(window.location.search).get('src');
+  if (q) sessionStorage.setItem('bpo_src', q);
+  SRC = (sessionStorage.getItem('bpo_src') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 16);
+} catch { /* tagging is optional */ }
 // PII-free funnel beacon (counts only — server/funnelBeacon.js). Telemetry must never throw.
 const beacon = (e) => {
   try {
-    const body = JSON.stringify({ e });
+    const body = JSON.stringify(SRC ? { e, src: SRC } : { e });
     if (!navigator.sendBeacon?.(`${API_URL}/api/beacon`, new Blob([body], { type: 'application/json' })))
       fetch(`${API_URL}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
   } catch { /* telemetry must never break the app */ }
@@ -2595,11 +2604,17 @@ const inputStyle = {
 
 // ── Component: PaywallScreen = the EGP pricing page (Basic / Elite, daily minutes) ─────
 // Prices + minutes come from plans.config.js via /api/billing/status (single source).
+// Outcome-first (value-prop law): every bullet says what it does FOR THE JOB GOAL, not which
+// feature it is. Honest — each line describes something the app verifiably does today.
 const PERKS_DE = {
-  basic: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'Arabisch-Feedback', 'alle Bosse',
-                 'unbegrenzte Drills — auf deine Fehler zugeschnitten'],
-  elite: (m) => [`bis zu ${m} Min Live-Interview — JEDEN TAG`, 'monatliche Neu-Einstufung',
-                 'rollen-spezifischer Gegner', 'alles aus Basic'],
+  basic: (m) => [`bis zu ${m} Min ECHTES Live-Interview — jeden Tag, bis es sitzt`,
+                 'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
+                 'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
+                 'Feedback auch auf Arabisch — du verstehst genau, was zu tun ist'],
+  elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
+                 'Gegner passend zu DEINER Ziel-Stelle (Kundenservice, Tech-Support …)',
+                 'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
+                 'alles aus Basic'],
 };
 const SUB_AR = {
   basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
@@ -2613,6 +2628,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [yearly, setYearly] = useState(false);
   const [vodafone, setVodafone] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
+  useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
@@ -2754,6 +2770,16 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
             <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
           </div>
 
+          {/* TRUST at the money moment: the buyer is sending cash to a bare number — give it a
+              face, a receipt promise, and the guarantee that already exists on /refund.html.
+              Every claim here is as-built (manual founder verification, live refund policy). */}
+          <div style={{ borderRadius:10, padding:'11px 13px', marginBottom:6, background:'rgba(59,130,246,0.07)',
+            border:'1px solid rgba(59,130,246,0.3)', fontSize:11.5, color:'#cbd5e1', lineHeight:1.65 }}>
+            Du zahlst direkt an <b>Alhassan</b>, den Gründer — kein Zwischenhändler. Du bekommst eine
+            Bestätigung per WhatsApp, und es gilt die <a href="/refund.html" target="_blank" rel="noopener noreferrer"
+            style={{ color:'var(--accent-2)' }}>14-Tage-Geld-zurück-Garantie</a>.{/* OWNER-AR slot */}
+          </div>
+
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
           <button onClick={onPaid} disabled={submitting}
             style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
@@ -2814,7 +2840,11 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         <div style={{ fontSize:34 }}>🥊</div>
         <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, letterSpacing:2,
           color:'var(--action)', textShadow:'0 0 18px rgba(249,115,22,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
-        <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:5, lineHeight:1.6 }}>
+        {/* Outcome first (value-prop law): the buyer pays for the JOB, not for features. */}
+        <div style={{ fontSize:12.5, color:'#e2e8f0', marginTop:6, lineHeight:1.6, fontWeight:600 }}>
+          Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}
+        </div>
+        <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:4, lineHeight:1.6 }}>
           Beide Pläne: Live-Interview JEDEN TAG. Die kostenlose Einstufung bleibt immer frei.
           <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
         </div>

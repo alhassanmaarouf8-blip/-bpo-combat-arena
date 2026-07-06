@@ -22,8 +22,10 @@ const ALLOWED = new Set([
   'open', 'open_inapp', 'inapp_escape_tap',
   'assessment_shown', 'start_clicked', 'ws_connected', 'connect_timeout',
   'boss_spoke', 'mic_started', 'mic_failed', 'mic_unsupported', 'debrief_shown',
+  'paywall_shown',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
+const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)
 
 let _cache = { day: null, counts: {} };
 let _flush = null;
@@ -33,6 +35,7 @@ async function bump(e) {
   if (_cache.day !== day) {
     _cache = { day, counts: (dbEnabled() ? await kvGet(NS, day) : null) ?? {} };
   }
+  if (!(e in _cache.counts) && Object.keys(_cache.counts).length >= MAX_KEYS) return;
   _cache.counts[e] = Math.min(DAY_CAP, (_cache.counts[e] || 0) + 1);
   if (!_flush) {
     _flush = setTimeout(async () => {
@@ -46,7 +49,10 @@ async function bump(e) {
 beaconRouter.post('/beacon', async (req, res) => {
   const e = String(req.body?.e || '');
   if (!ALLOWED.has(e)) return res.status(400).json({ ok: false });
-  try { await bump(e); } catch { /* counters must never fail the client */ }
+  // Optional channel tag (owner posts per-group links with ?src=<slug>): count the plain event
+  // AND a per-source variant, so /api/diag/funnel answers "WHICH group converts", not just "how many".
+  const src = String(req.body?.src || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 16);
+  try { await bump(e); if (src) await bump(`${e}@${src}`); } catch { /* counters must never fail the client */ }
   res.json({ ok: true });
 });
 
