@@ -4732,6 +4732,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             {feedbackLang === 'ar'
               ? 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.'
               : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
+            {/* The daily cap is the highest-intent moment on the home screen (an engaged user who
+                wants MORE) — before this link it said only "come back tomorrow" and sold nothing. */}
+            <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ display:'block', width:'100%',
+              marginTop:8, padding:'10px', minHeight:44, cursor:'pointer', background:'none',
+              border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)' }}>
+              <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Mehr Minuten? Pläne ansehen →</span>{/* OWNER-AR slot */}
+            </button>
           </div>
         ) : canStart ? (
           /* THE BUTTON (uplift): the single orange fill on the whole home — 56px, gradient, mic icon.
@@ -4816,6 +4823,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
             Niveau noch unbekannt? <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Einstufung machen (gratis)</span> · تقييم مستواك →
+          </button>
+        )}
+
+        {/* Pricing is reachable at ANY time (teardown blocker: during the whole trial the paywall
+            was unreachable — a hot day-1 buyer literally could not find a price). Quiet text link
+            per design law (the orange stays on the start button); trial users also see their honest
+            remaining-days count so the upgrade moment isn't a day-4 surprise. */}
+        {canStart && (
+          <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ width:'100%', marginTop:2, padding:'10px',
+            minHeight:44, cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
+            fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
+            <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Preise & Pläne ansehen</span>{/* OWNER-AR slot */}
+            {auth.account?.entitlement?.trial?.active && (
+              <span style={{ display:'block', marginTop:3, fontSize:'var(--fs-meta)', color:'var(--text-faint)' }}>
+                Testphase: noch {auth.account.entitlement.trial.daysLeft} {auth.account.entitlement.trial.daysLeft === 1 ? 'Tag' : 'Tage'} — alles freigeschaltet{/* OWNER-AR slot */}
+              </span>
+            )}
           </button>
         )}
 
