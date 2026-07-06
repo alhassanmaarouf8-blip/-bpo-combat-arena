@@ -287,7 +287,7 @@ the learner, client shows the honest connection-error state (no contradictory do
 **DoD:** unit test the counter + no-score path; feedback-accuracy doctrine check (no learner blame);
 gates green.
 
-### 19. QUEUED — Opening variety + scene-consistent greetings (German content)
+### 19. SHIPPED — verified 2026-07-06 (`5faba23`) — Opening variety + scene-consistent greetings (German content)
 **Why (07-04 audit):** GREETINGS pool = 1 per boss → the first sentence of the product is its
 most-repeated sentence (bit-identical cached MP3); and 4 bosses greet in-person ("Setzen Sie
 sich…") while 2 of 9 intro variants are phone-framed ("Die Verbindung steht…") — ~22% of those

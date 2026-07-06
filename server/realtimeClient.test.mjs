@@ -1,11 +1,11 @@
-/**
+﻿/**
  * realtimeClient.test.mjs — the mechanical thread-following backstop must stay bounded:
  * it fires ONLY on substantive answers that opened a NEW thread, only in Teil 1–2, at most
  * 3× per session, never back-to-back, and never when a rescue/correction owns the turn.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn, pacingLine, silenceRescueStep, GREETINGS } from './realtimeClient.js';
+import { threadNudge, firstSentenceBoundary, earlySafeSentence, sanitizeOneTurn, pacingLine, silenceRescueStep, GREETINGS, trimToCompleteSentence } from './realtimeClient.js';
 import { pickOpeningPair, buildSessionScript } from './scenarios.js';
 
 const base = { freshTerms: ['Reiseleiterin'], wordCount: 20, stageIdx: 0, used: 0, cooldown: 0, busy: false };
@@ -232,4 +232,31 @@ test('pickOpeningPair: back-compat — a plain-string greeting still works and i
   ], 'abc');
   assert.equal(p.scenes.greeting, 'person');
   assert.equal(p.intro, 'Erzählen Sie mal.');
+});
+
+
+// ── Length-cap integrity (ROADMAP #20): a capped turn must end on a REAL sentence ───────────
+
+test('trimToCompleteSentence: capped mid-thought -> ends at the last complete sentence', () => {
+  const capped = 'Gut, das verstehe ich. Erzählen Sie mir mehr über Ihre letzte Stelle und wie Sie dort mit schwier';
+  assert.equal(trimToCompleteSentence(capped), 'Gut, das verstehe ich.');
+});
+
+test('trimToCompleteSentence: keeps every complete sentence, drops only the fragment', () => {
+  const capped = 'Interessant. Das klingt nach Verantwortung. Und wie haben Sie die Übergabe organis';
+  assert.equal(trimToCompleteSentence(capped), 'Interessant. Das klingt nach Verantwortung.');
+});
+
+test('trimToCompleteSentence: a turn capped exactly on a boundary is untouched', () => {
+  assert.equal(trimToCompleteSentence('Verstanden. Warum genau Sie?'), 'Verstanden. Warum genau Sie?');
+});
+
+test('trimToCompleteSentence: an abbreviation dot is never a sentence end', () => {
+  const capped = 'Nennen Sie mir z. B. eine Situation, in der Sie unter Druck arbe';
+  assert.equal(trimToCompleteSentence(capped), '');
+});
+
+test('trimToCompleteSentence: a fragment with no boundary -> empty (caller fails over)', () => {
+  assert.equal(trimToCompleteSentence('Erzählen Sie mir doch bitte etwas mehr über'), '');
+  assert.equal(trimToCompleteSentence(''), '');
 });

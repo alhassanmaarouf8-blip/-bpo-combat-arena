@@ -30,7 +30,11 @@ import { scrubForeignScript } from './langGuard.js';
 // line while making it structurally impossible to run on and answer for the candidate —
 // and since TTS bills per character (the #1 cost), a tighter boss is cheaper AND more
 // disciplined ("say one thing, then stop"). Tunable; raise toward 280 if lines feel clipped.
-const MAX_TURN_TOKENS = 90;   // was 200 then 110 — tighter cap = faster LLM response + lower TTS cost
+// ROADMAP #20: raised 90 → 140 — at llama-3.1-8b-instant's stream rate the extra 50 tokens cost
+// well under 0.2s, and the finish_reason==='length' guard below now makes any truncation safe
+// (trim to the last complete sentence instead of fake-closing a fragment). Brevity still comes
+// from TURN_RULE, not this cap.
+const MAX_TURN_TOKENS = 140;   // was 200 then 110 then 90
 
 // ── Boss LLM providers (OpenAI-compatible) with automatic cap-failover ──────────
 // The boss tries providers in order. When one returns 429 (its daily/rate cap is hit)
@@ -106,6 +110,31 @@ export function earlySafeSentence(s1) {
   return true;
 }
 
+// ── Length-cap integrity (ROADMAP #20) ───────────────────────────────────────────
+// A provider that hits max_tokens (finish_reason 'length') stops MID-SENTENCE — and
+// cleanForTTS then appends a '.', so the voice calmly ends mid-thought. Never fake-close
+// a fragment: trim the capped turn back to its last COMPLETE sentence. Returns '' when
+// no complete sentence exists (caller treats that like an empty completion → failover).
+// Safe with early emission: an emitted first sentence IS a boundary, so the trimmed text
+// always still contains it.
+export function trimToCompleteSentence(text) {
+  const t = String(text || '').trimEnd();
+  if (!t) return '';
+  if (/[.!?…]["'»«“”]?$/u.test(t)) return t;   // capped exactly on a boundary → whole turn is complete
+  const re = /[.!?…]["'»«“”]?(?=\s)/gu;
+  let last = -1, m;
+  while ((m = re.exec(t)) !== null) {
+    const end = m.index + m[0].length;
+    const head = t.slice(0, end).trim();
+    const bare = head.replace(/["'»«“”]$/u, '').replace(/[!?…]$/u, '');
+    if (_DE_ABBREV_TAIL.test(bare)) continue;                    // "z. B." is not a sentence end
+    const rest = t.slice(end).trimStart();
+    if (rest && !/^[\p{Lu}„“"'»«—–…\d(]/u.test(rest)) continue;  // real German sentences start capitalized
+    last = end;
+  }
+  return last === -1 ? '' : t.slice(0, last).trimEnd();
+}
+
 // Leading boss self-label ("Yasmin:", "Interviewer:") — stripped from BOTH the early sentence and
 // the full line (sanitizeOneTurn) so the early prefix always matches the final sanitized line.
 const BOSS_LABEL_RE = /^\s*(Yasmin|Karim|Hana|Tarek|Frau\s+Mona\s+Adel|Frau\s+Adel|Herr\s+Tariq|Frau\s+Müller|Direktor\s+Vogel|Interviewer|HR)\s*[:：]\s*/i;
@@ -157,7 +186,7 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
         console.warn(`[interviewClient] ${p.name} ${res.status} → trying next  session=${sessionId}`);
         continue;
       }
-      let full = '', earlyDecided = false, buf = '';
+      let full = '', earlyDecided = false, buf = '', finishReason = '';
       const dec = new TextDecoder();
       const reader = res.body?.getReader?.();
       if (!reader) { clearTimeout(abortTimer); throw new Error(`${p.name} stream unsupported`); }
@@ -174,7 +203,11 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
           const data = raw.slice(5).trim();
           if (!data || data === '[DONE]') continue;
           let delta = '';
-          try { delta = JSON.parse(data).choices?.[0]?.delta?.content || ''; } catch { continue; }
+          try {
+            const choice = JSON.parse(data).choices?.[0];
+            if (choice?.finish_reason) finishReason = choice.finish_reason;   // arrives in the final chunk
+            delta = choice?.delta?.content || '';
+          } catch { continue; }
           if (!delta) continue;
           full += delta;
           if (!earlyDecided && onEarly) {
@@ -193,6 +226,18 @@ async function callBossStreaming(turnMsgs, sessionId, onEarly) {
         lastErr = new Error(`${p.name} empty completion`);
         console.warn(`[interviewClient] ${p.name} empty completion → trying next  session=${sessionId}`);
         continue;
+      }
+      // Length-capped turn (ROADMAP #20): never let a mid-sentence fragment reach the voice.
+      // Trim to the last complete sentence; a fragment with NO complete sentence fails over.
+      if (finishReason === 'length') {
+        const trimmed = trimToCompleteSentence(full);
+        if (!trimmed) {
+          lastErr = new Error(`${p.name} length-capped fragment (no complete sentence)`);
+          console.warn(`[interviewClient] ${p.name} length-capped fragment → trying next  session=${sessionId}`);
+          continue;
+        }
+        if (trimmed !== full.trimEnd()) console.warn(`[interviewClient] ${p.name} length-capped → trimmed to last complete sentence  session=${sessionId}`);
+        full = trimmed;
       }
       if (!earlyDecided && onEarly) {
         const s1 = scrubForeignScript(full.replace(BOSS_LABEL_RE, '')).trim();
@@ -236,11 +281,22 @@ async function callBoss(turnMsgs, sessionId) {
         continue;
       }
       const data = await res.json();
-      const content = data.choices?.[0]?.message?.content ?? '';
+      let content = data.choices?.[0]?.message?.content ?? '';
       if (!String(content).trim()) {   // reasoning ate the budget → treat as failure, fail over
         lastErr = new Error(`${p.name} empty completion`);
         console.warn(`[interviewClient] ${p.name} empty completion → trying next  session=${sessionId}`);
         continue;
+      }
+      // Length-capped turn (ROADMAP #20): trim to the last complete sentence — never let a
+      // mid-sentence fragment reach the voice; a boundary-less fragment fails over instead.
+      if (data.choices?.[0]?.finish_reason === 'length') {
+        const trimmed = trimToCompleteSentence(content);
+        if (!trimmed) {
+          lastErr = new Error(`${p.name} length-capped fragment (no complete sentence)`);
+          console.warn(`[interviewClient] ${p.name} length-capped fragment → trying next  session=${sessionId}`);
+          continue;
+        }
+        content = trimmed;
       }
       return { content, provider: p.name };
     } catch (err) {
