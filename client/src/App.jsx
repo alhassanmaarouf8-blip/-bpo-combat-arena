@@ -1438,7 +1438,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   );
 }
 
-function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, token, apiUrl, studentName, onOpenGuide, onTrainSkill }) {
+function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onOpenGuide, onTrainSkill }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -2123,6 +2123,20 @@ function Debrief({ data, pending, onRestart, lang = 'de', onLang, bossName, toke
           {copied ? '✓ KOPIERT' : '↗ TEILEN'}
         </button>
       </div>
+
+      {/* The way OUT that isn't another fight: before this button the debrief's only exits were
+          NOCHMAL KÄMPFEN or a full page reload — the home guide (the brain's next step) was
+          unreachable at the exact moment of highest motivation. Quiet by design (law: one accent). */}
+      {onDone && (
+        <div style={{ padding:'0 16px 24px' }}>
+          <button onClick={onDone} style={{ width:'100%', minHeight:48, fontFamily:'var(--font-display)',
+            fontWeight:700, fontSize:12, letterSpacing:'0.08em', padding:'13px', borderRadius:'var(--r-md)',
+            cursor:'pointer', border:'1px solid var(--line)', color:'var(--text-dim)',
+            background:'rgba(255,255,255,0.04)' }}>
+            ✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -3819,6 +3833,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     setTimeout(start, 250);
   }, [start, setPhaseSync]);
 
+  // Debrief "FERTIG" → clean route HOME (not another fight). Clears funnel so the home screen
+  // (and the brain's next-step guide) renders instead of the fight chrome, and so the global
+  // back arrow stops treating the ended session as a live interview (its old behavior here
+  // was confirm + full page reload).
+  const handleDebriefDone = useCallback(() => {
+    setDebrief(null); setDebriefPending(false); setNoSession(false);
+    setFunnel(null);
+    clearInterval(pingRef.current);
+    try { wsRef.current?.close(1000, 'done'); } catch {}
+    wsRef.current = null;
+    setPhaseSync('idle');
+  }, [setPhaseSync]);
+
   // (Removed) HP no longer ends the session — only the server does. A weak run can
   // drain the bar to zero and the interview still plays all three parts to the end.
 
@@ -3965,6 +3992,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
     for (const [o, close] of _overlays) { if (o) { close(false); return; } }   // close the top-most overlay
+    if (debrief || debriefPending) { handleDebriefDone(); return; }             // debrief → clean home, no reload
     if (funnel || isActive || isConnecting) {                                    // in a live interview → clean exit
       const msg = feedbackLang === 'ar' ? 'تسيب المقابلة وترجع للصفحة الرئيسية؟' : 'Interview verlassen und zurück zur Startseite?';
       if (window.confirm(msg)) window.location.reload();
@@ -4128,7 +4156,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Result screen: ONLY when the server has ended the session, and only once the
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && !noSession && (
-        <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart}
+        <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart} onDone={handleDebriefDone}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           onOpenGuide={() => setGuideOpen(true)}
