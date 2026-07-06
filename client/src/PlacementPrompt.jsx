@@ -97,7 +97,7 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
             value={employer} onChange={(e) => setEmployer(e.target.value)}
-            placeholder={ar ? 'مثلاً Majorel، Teleperformance' : 'z. B. Majorel, Teleperformance'}
+            placeholder={ar ? '…' : 'Name der Firma'}
             style={{ flex: 1, minWidth: 160, padding: '8px 10px', borderRadius: 8,
               background: 'rgba(2,6,23,0.5)', border: '1px solid rgba(148,163,184,0.3)',
               color: '#e2e8f0', fontSize: 12, direction: ar ? 'rtl' : 'ltr' }}

@@ -2606,7 +2606,9 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   // WHATSAPP_NUMBER is set on the server. Reduces the post-payment black-box anxiety.
   const copyCode = (code) => { try { navigator.clipboard?.writeText(String(code)); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } };
   const waLink = (code) => {
-    const digits = whatsapp ? String(whatsapp).replace(/\D/g, '') : '';
+    // wa.me needs full international digits — an Egyptian local "01009…" (leading 0, no +20)
+    // produces an invalid link, so normalize the leading 0 to the 20 country code.
+    const digits = (whatsapp ? String(whatsapp).replace(/\D/g, '') : '').replace(/^0/, '20');
     if (!digits) return null;
     const planLabel = pay?.label || (pendingPayment?.plan ? pendingPayment.plan.toUpperCase() : '');
     const msg = ar
@@ -2872,7 +2874,7 @@ function PendingBadge({ pending, whatsapp, lang }) {
   const [open, setOpen] = useState(false);
   const ar = lang === 'ar';
   const code = pending?.referenceCode || '------';
-  const waDigits = whatsapp ? String(whatsapp).replace(/\D/g, '') : '';
+  const waDigits = (whatsapp ? String(whatsapp).replace(/\D/g, '') : '').replace(/^0/, '20');   // wa.me needs intl format, not the local leading-0
   const waLink = waDigits ? `https://wa.me/${waDigits}?text=${encodeURIComponent((ar ? 'كود الدفع: ' : 'Zahlungs-Code: ') + code)}` : null;
   return (
     <div onClick={() => setOpen((o) => !o)} style={{ marginBottom: 8, padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
