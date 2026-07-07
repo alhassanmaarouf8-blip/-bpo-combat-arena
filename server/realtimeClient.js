@@ -73,6 +73,20 @@ const PROVIDER_COOLDOWN_MS = 10 * 60 * 1000;   // after a 429, skip a provider f
 const LLM_TIMEOUT_MS      = 12_000;             // hard ceiling per provider — a hung provider must not freeze the interview
 const _providerCooldownUntil = Object.create(null);   // provider name → epoch ms
 
+// GRACEFUL STALL — what the boss says when the LLM turn genuinely fails (all providers down/capped/
+// timeout). It must NOT be "Bitte fahren Sie fort": that falsely implies the candidate went silent
+// (it was the BOSS that couldn't answer) and reads as a robot when repeated. These are natural, honest
+// short stalls that make sense mid-interview regardless of what the candidate just said, and they
+// ESCALATE to an honest technical note if it keeps failing. Rotated by the consecutive-fail streak so
+// two failures never read identically. (Feedback-accuracy law: never blame a mis-heard turn on the learner.)
+const GRACEFUL_STALLS = [
+  'Entschuldigen Sie bitte den kurzen Moment.',
+  'Verzeihung, die Verbindung hat gerade kurz gestockt. Wo waren wir?',
+  'Einen Augenblick bitte, gleich weiter.',
+];
+const GRACEFUL_STALL_PERSIST =
+  'Es scheint gerade eine kurze technische Verzögerung zu geben. Bleiben Sie bitte dran, wir machen gleich weiter.';
+
 // ── First-sentence early emission (sentence-streaming voice) ─────────────────────
 // The single biggest felt-latency lever: the client can START SPEAKING the boss's first
 // sentence while the rest of the line is still being generated. These helpers find a safe
@@ -707,6 +721,7 @@ export class RealtimeClient {
 
     this._groq               = null;
     this._lastProvider       = null;   // which LLM provider served the last boss turn (failover log)
+    this._bossFailStreak     = 0;      // consecutive all-providers-failed turns → rotate+escalate the graceful stall
     this._history            = [];     // chat messages: system + alternating assistant/user
     this._responding         = false;
     this._closed             = false;
@@ -869,13 +884,21 @@ export class RealtimeClient {
         this._cb.onBossEarly?.(s1);
       }));
       line = content;
+      this._bossFailStreak = 0;   // a real boss line got through → clear the fail streak
     } catch (err) {
       console.error(`[interviewClient] boss error (all providers)  session=${this._sessionId}: ${err.message}`);
       this._responding = false;
       const code = this._classify(err);
       this._cb.onError?.(Object.assign(new Error(err.message || 'boss_error'), { code }));
-      // NEVER leave the client hanging. Always emit a boss line so the interview can continue.
-      const fallback = ['Bitte fahren Sie fort.', 'Erzählen Sie ruhig weiter.', 'Gut — und weiter?'][this._history.length % 3];
+      // NEVER leave the client hanging. Emit an honest, natural stall so the interview can continue —
+      // and PUSH it to _history (the old code returned without doing so, which is why a repeated failure
+      // spoke the IDENTICAL canned line and read as a hallucinating robot). Rotate by the fail streak so
+      // two failures never sound the same; after 3 in a row, say something honest about a technical delay.
+      this._bossFailStreak = (this._bossFailStreak || 0) + 1;
+      const fallback = this._bossFailStreak >= 3
+        ? GRACEFUL_STALL_PERSIST
+        : GRACEFUL_STALLS[(this._bossFailStreak - 1) % GRACEFUL_STALLS.length];
+      this._history.push({ role: 'assistant', content: fallback });
       this._cb.onBossSpeech?.(fallback);
       this._cb.onBossSpeechDone?.();
       return fallback;
@@ -887,7 +910,8 @@ export class RealtimeClient {
 
     line = sanitizeOneTurn(line, { roleplay: this._stageIdx >= 2 });
     // never emit an empty boss turn — and VARY the fallback so a repeat doesn't read as a robot.
-    if (!line) line = ['Bitte fahren Sie fort.', 'Erzählen Sie ruhig weiter.', 'Gut — und weiter?'][this._history.length % 3];
+    // (this path DOES push to _history below, so length-rotation is safe here.)
+    if (!line) line = GRACEFUL_STALLS[this._history.length % GRACEFUL_STALLS.length];
 
     // GUARD: the model sometimes claims it "didn't acoustically understand" even though the
     // candidate gave a perfectly valid (often short) answer like "Gerne." or "Ja, gerne."
