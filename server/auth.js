@@ -130,22 +130,35 @@ export async function getAccountByEmail(email) {
   return id ? s.accounts[id] : null;
 }
 
-export async function createAccount(email, password, ref, phone) {
+// Normalize a raw WhatsApp/phone entry to intl digits, or return null if not a valid number.
+// Egyptian mobiles: 01XXXXXXXXX (11 digits) or 1XXXXXXXXX (10) → prefixed to 20…; any other
+// 10-15 digit international number is accepted as typed (diaspora users). Single source of
+// truth so signup and the /whatsapp opt-in normalize identically.
+export function normalizeWhatsapp(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  let n = digits;
+  if (/^01[0125]\d{8}$/.test(digits)) n = '2' + digits;
+  else if (/^1[0125]\d{8}$/.test(digits)) n = '20' + digits;
+  return /^\d{10,15}$/.test(n) ? n : null;
+}
+
+export async function createAccount(email, password, ref, whatsapp) {
   const s = await load();
   email = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
   if (String(password || '').length < 6)        throw Object.assign(new Error('weak_password'), { code: 400 });
   if (s.emailIndex[email])                       throw Object.assign(new Error('email_taken'),   { code: 409 });
 
-  // OPTIONAL phone (owner 2026-07-08): captured for manual WhatsApp practice-nudges. Never required —
-  // signup is still email+password. Normalized to +digits, capped; empty → null.
-  const phoneN = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
+  // WhatsApp is REQUIRED at signup (owner 2026-07-08): the coach's only $0 re-engagement channel,
+  // captured up-front. One normalized number feeds BOTH `whatsapp` (canonical — admin panel, wa.me
+  // links, opt-in-card hiding all read this) AND the legacy `phone` field kept for back-compat.
+  const waNum = normalizeWhatsapp(whatsapp);
 
   const id = 'a_' + randomBytes(8).toString('hex');
   const refId = typeof ref === 'string' ? ref.trim() : '';
   const account = {
     id, email,
-    phone:        phoneN || null,
+    phone:        waNum || null,
     passwordHash: hashPassword(password),
     createdAt:    Date.now(),
     subscription: { tier: 'trial', trialStartedAt: Date.now(), trialSessionsUsed: 0 },
@@ -153,6 +166,7 @@ export async function createAccount(email, password, ref, phone) {
     // reward is credited later, only when THIS user completes their first interview (creditReferral).
     ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
   };
+  if (waNum) account.whatsapp = { number: waNum, optInAt: Date.now() };
   // Standing comp-access whitelist (server/compAccess.js): an email the owner pre-approved gets
   // its paid plan the INSTANT they sign up — no payment, no request from them, never a paywall.
   try {
@@ -407,8 +421,12 @@ export const authRouter = express.Router();
 
 authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8, tag: 'signup' }), async (req, res) => {
   try {
-    const { email, password, ref, phone } = req.body || {};
-    const acct = await createAccount(email, password, ref, phone);
+    const { email, password, ref, whatsapp } = req.body || {};
+    // WhatsApp is now a required signup field (owner decision 2026-07-08): the re-engagement
+    // channel must be captured up-front, not left to an optional post-interview ask.
+    const waNum = normalizeWhatsapp(whatsapp);
+    if (!waNum) return res.status(400).json({ error: 'invalid_number' });
+    const acct = await createAccount(email, password, ref, waNum);
     res.json({ token: signToken(acct.id), account: publicAccount(acct) });
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
@@ -427,13 +445,8 @@ authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccou
 // interview #1); the OWNER messages personally — nothing automated sends anywhere, so there is
 // no ban risk and the "kein Spam, persönlich vom Coach" promise is true by construction.
 authRouter.post('/whatsapp', rateLimit({ windowMs: 10 * 60 * 1000, max: 6, tag: 'whatsapp' }), requireAuth, async (req, res) => {
-  const raw = String(req.body?.number || '').replace(/\D/g, '');
-  // Egyptian mobiles: 01XXXXXXXXX (11 digits) or 1XXXXXXXXX (10) normalize to 20…; any other
-  // 10-15 digit international number is accepted as typed (diaspora users).
-  let n = raw;
-  if (/^01[0125]\d{8}$/.test(raw)) n = '2' + raw;
-  else if (/^1[0125]\d{8}$/.test(raw)) n = '20' + raw;
-  if (!/^\d{10,15}$/.test(n)) return res.status(400).json({ error: 'invalid_number' });
+  const n = normalizeWhatsapp(req.body?.number);
+  if (!n) return res.status(400).json({ error: 'invalid_number' });
   req.account.whatsapp = { number: n, optInAt: Date.now() };
   await persist();
   console.log(`[whatsapp] OPT-IN  user=${req.account.id}  email=${req.account.email ?? '—'}`);

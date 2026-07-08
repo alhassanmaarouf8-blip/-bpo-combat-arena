@@ -160,6 +160,7 @@ function persistAuth(auth) {
 function authErrText(code) {
   return ({
     invalid_email:       { de: 'Ungültige E-Mail-Adresse.',            ar: 'الإيميل مش صح.' },
+    invalid_number:      { de: 'Bitte gib eine gültige WhatsApp-Nummer ein.', ar: 'من فضلك دخّل رقم واتساب صحيح.' },
     weak_password:       { de: 'Passwort muss mind. 6 Zeichen haben.', ar: 'الباسورد لازم ٦ حروف على الأقل.' },
     email_taken:         { de: 'Diese E-Mail ist bereits registriert.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
     invalid_credentials: { de: 'E-Mail oder Passwort ist falsch.',     ar: 'الإيميل أو الباسورد غلط.' },
@@ -2397,7 +2398,7 @@ function AuthScreen({ onAuth }) {
   const [mode, setMode]   = useState('signup');   // cold link-clickers are NEW visitors → show signup first (conversion)
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
-  const [phone, setPhone] = useState('');   // OPTIONAL — for daily WhatsApp practice-nudges (owner 07-08)
+  const [wa, setWa]       = useState('');          // WhatsApp — REQUIRED at signup (owner decision 2026-07-08)
   const [err, setErr]     = useState('');
   const [busy, setBusy]   = useState(false);
   // Public ratings (owner 2026-07-02: show real user ratings publicly). Honest by construction —
@@ -2415,11 +2416,16 @@ function AuthScreen({ onAuth }) {
   const submit = async () => {
     if (busy) return;
     if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
+    // WhatsApp is required to sign up — the coach reaches you here (kein Spam). Validate client-side
+    // so the user gets an instant hint; the server re-validates as the source of truth.
+    if (mode === 'signup' && String(wa).replace(/\D/g, '').length < 10) {
+      setErr(authErrText('invalid_number')); return;
+    }
     setErr(''); setBusy(true);
     try {
       const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode(), phone } : {}) }),
+        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode(), whatsapp: wa } : {}) }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -2586,10 +2592,19 @@ function AuthScreen({ onAuth }) {
           autoComplete="email" className="uplift-input" style={inputStyle} />
         <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="Passwort (min. 6 Zeichen)"
           autoComplete={mode==='signup'?'new-password':'current-password'}
-          onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
-        {mode==='signup' && (
-          <input type="tel" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="WhatsApp-Nummer (optional) — für tägliche Übungs-Erinnerungen"
-            autoComplete="tel" className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+          onKeyDown={(e)=>{ if(e.key!=='Enter') return; if(mode==='signup') return; submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+
+        {/* WhatsApp — required at signup only. The coach reaches the learner here (the app's only
+            $0 re-engagement channel); the "kein Spam" promise is honest — the owner messages by hand. */}
+        {mode === 'signup' && (
+          <>
+            <input type="tel" value={wa} onChange={(e)=>setWa(e.target.value)} placeholder="WhatsApp-Nummer (z. B. 010…)"
+              autoComplete="tel" inputMode="tel"
+              onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:6, lineHeight:1.5 }}>
+              Für persönliche Coach-Erinnerungen — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
+            </div>
+          </>
         )}
 
         {err && (
