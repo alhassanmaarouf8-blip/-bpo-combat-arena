@@ -256,21 +256,30 @@ function recordThinkPause(ms) {                        // a pause the user resum
 }
 function userPauseCeiling() {                          // p85 of THIS user's think-pauses; sane default until enough data
   const s = _pauseSamples.filter((x) => x >= 200 && x <= 4000).sort((a, b) => a - b);
-  if (s.length < 4) return 1250;                       // cold start: patient by default — the audience is L2 (Arabic-L1)
+  if (s.length < 4) return 1400;                       // cold start: patient by default — the audience is L2 (Arabic-L1)
   const p85 = s[Math.min(s.length - 1, Math.floor(s.length * 0.85))];
-  return Math.max(700, Math.min(2600, p85));
+  return Math.max(800, Math.min(2600, p85));
 }
-function adaptiveNeedSilence(cls, words) {             // the per-user wait, scaled by how finished the sentence sounds
-  // PATIENCE DOCTRINE (owner 07-05, "it cuts me off — it has to be natural"): the audience are
-  // Arabic-L1 German learners who pause mid-answer to find the next word. Being cut off mid-thought
-  // is the #1 unnaturalness; an extra ~half-second of silence is not. Windows widened + a hard 750ms
-  // floor so a Deepgram period on a partial can never end the turn in under 3/4 of a second.
+function adaptiveNeedSilence(cls, words, patienceMs = 0, stageIdx = 0) {   // the per-user wait, scaled by how finished the sentence sounds
+  // PATIENCE DOCTRINE (owner 07-05 + 07-09 "it doesn't even allow 5 sentences — it interrupts and probes
+  // aggressively; make it ASCEND from Yasmin up"): the audience are Arabic-L1 German learners who pause
+  // mid-answer AND between the sentences of a multi-sentence answer (a self-introduction is 4–6 sentences
+  // with 1s+ thinking gaps). Being cut off mid-build is the #1 unnaturalness; an extra second of silence is
+  // not — the instant thinking-filler masks it anyway. A single completed sentence is usually just the FIRST
+  // of several, so even "complete" gets generous room.
   const ceil = userPauseCeiling();
-  let ms = cls === 'complete'   ? Math.round(ceil * 0.75)         // finished sentence → still give real breathing room
-         : cls === 'incomplete' ? Math.round(ceil * 1.35) + 300   // trailing cue → clearly mid-thought, generous margin
-         :                        Math.round(ceil * 1.05) + 200;  // default → more than clear their own typical pause
-  if (words > 0 && words < 6) ms += 350;              // early short answer right after the question → don't rush them
-  return Math.max(750, Math.min(3200, ms));
+  let ms = cls === 'complete'   ? Math.round(ceil * 0.9)          // finished sentence → likely just sentence 1 of many; wait
+         : cls === 'incomplete' ? Math.round(ceil * 1.4) + 350    // trailing cue → clearly mid-thought, generous margin
+         :                        Math.round(ceil * 1.1) + 250;   // default → more than clear their own typical pause
+  if (words > 0 && words < 6) ms += 400;              // early short answer right after the question → don't rush them
+  // ASCENDING DIFFICULTY at the turn-taking layer (owner 07-09): a gentle interviewer (Yasmin) hands over
+  // the floor much later than a forceful one (Tarek). This is what makes the LEVEL felt in the pacing —
+  // previously bossPatienceRef was computed but never applied, so every persona cut you off identically.
+  ms += Math.max(0, Math.round(patienceMs || 0));
+  // Self-introduction (Teil 1 / stage 0) is inherently multi-sentence — give the MOST room so the boss never
+  // cuts a "Ich heiße… Ich komme aus… Ich habe … Jahre Erfahrung…" build after the first sentence.
+  if (stageIdx === 0) ms += 600;
+  return Math.max(900, Math.min(4200, ms));
 }
 
 function classifyTurnDE(partial) {
@@ -3419,12 +3428,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           bossVoiceRef.current = msg.voice || VOICE_BY_BOSS[msg.bossId] || 'aura-2-julius-de';
           bossElevenVoiceRef.current = msg.elevenVoice || '';   // ElevenLabs voice for this character
           const f = typeof msg.forcefulness === 'number' ? msg.forcefulness : 0.4;
-          // Turn-taking patience scales with persona (easier interviewer → a bit more grace). RAISED
-          // 07-02 (450→700, owner: SMOOTH > fast — he was still being talked over mid-sentence): a
-          // gentle interviewer now adds ~0.6s, a forceful one ~0.04s. Even the most forceful persona
-          // must never grab the floor inside a thinking pause — forcefulness shows in WORDS, not in
+          // Turn-taking patience scales with persona so DIFFICULTY ASCENDS from Yasmin up (owner 07-09:
+          // "ascending from the least Yasmin, higher the higher the HR level"). RAISED 07-09 (700→1200)
+          // AND now actually applied in the turn loop — previously this value was computed but never read,
+          // so every persona cut the candidate off identically ("unsensibly aggressive at every level").
+          // Yasmin (f=0.12) adds ~1.0s of extra grace; Tarek (f=0.9) adds ~0.06s. Even the most forceful
+          // persona never grabs the floor inside a thinking pause — forcefulness shows in WORDS, not by
           // stealing the turn.
-          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 700);
+          bossPatienceRef.current = Math.round(Math.pow(1 - f, 1.3) * 1200);
           // Pre-generate short thinking sounds in THIS interviewer's own voice so the dead-air gap can be
           // filled instantly (mic off → echo-safe). Fire-and-forget; stays silent until ready. Revokes the
           // previous session's blobs first so they don't leak.
@@ -3965,7 +3976,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       // windows + per-persona patience so the wait fits every speaker — never one person's standard.
       const cls = classifyTurnDE(livePartialRef.current);
       const turnWords = (livePartialRef.current.trim().match(/\S+/g) || []).length;
-      let needSilence = adaptiveNeedSilence(cls, turnWords);
+      // patience = per-persona floor-hand-over grace (gentle interviewer waits longer → difficulty ascends);
+      // stage 0 = the self-introduction, which is inherently multi-sentence and gets the most room.
+      let needSilence = adaptiveNeedSilence(cls, turnWords, bossPatienceRef.current, stageIdxRef.current);
       // End the turn when: silence-after-speech hits the adaptive window, OR the transcript froze
       // (noisy-mic safety net — they've stopped, volume just isn't registering it), OR the hard cap.
       // The frozen-transcript net must be CLASSIFICATION-AWARE: a flat 1800ms silently capped every
