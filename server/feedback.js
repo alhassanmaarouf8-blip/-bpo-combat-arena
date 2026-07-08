@@ -134,6 +134,69 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
   }
 });
 
+// ── Public feedback submission (NO login) — the shareable-link form ─────────────
+// Owner (2026-07-08): a link to send on Messenger/WhatsApp so people who never reach the
+// in-app feedback button can still leave detailed feedback. Feeds the SAME store as the
+// authed route, so a rating>=4 with text flows into /feedback/public (avg + testimonials)
+// on the next cache cycle. Unauthenticated → these guards matter: a honeypot (silent-drop
+// bots), a per-IP rate limit, hard length caps, and a require-some-signal check so empty
+// spam is rejected. No userId/email is ever attached (there's no logged-in user here).
+const pubRate = new Map();                 // ip -> [timestamps]; in-memory soft cap, resets on restart
+const PUB_WINDOW_MS = 60 * 60 * 1000;      // 1 hour
+const PUB_MAX = 6;                         // max public submissions per IP per hour
+function pubRateOk(ip) {
+  const now = Date.now();
+  const arr = (pubRate.get(ip) || []).filter((t) => now - t < PUB_WINDOW_MS);
+  if (arr.length >= PUB_MAX) { pubRate.set(ip, arr); return false; }
+  arr.push(now); pubRate.set(ip, arr); return true;
+}
+
+feedbackRouter.post('/feedback/public', async (req, res) => {
+  try {
+    const { rating, liked, disliked, name, hp } = req.body || {};
+    // Honeypot: real users never fill this hidden field. Report ok so bots don't retry, but store nothing.
+    if (typeof hp === 'string' && hp.trim()) return res.json({ ok: true });
+
+    const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+    if (!pubRateOk(ip)) return res.status(429).json({ error: 'rate_limited' });
+
+    const r         = Number.isFinite(+rating) ? Math.max(0, Math.min(5, Math.round(+rating))) : null;
+    const likedT    = typeof liked === 'string'    ? liked.slice(0, 1000).trim()    : '';
+    const dislikedT = typeof disliked === 'string' ? disliked.slice(0, 1000).trim() : '';
+    const nm        = typeof name === 'string'     ? name.slice(0, 40).trim()       : '';
+    // Require a real signal — a star rating OR some words. Nothing to store → reject.
+    if (!r && !likedT && !dislikedT) return res.status(400).json({ error: 'empty' });
+
+    const entry = {
+      userId:       null,
+      email:        null,
+      name:         nm || null,
+      source:       'public-link',
+      timestamp:    new Date().toISOString(),
+      sessionCount: null,
+      level:        null,
+      screen:       'public-link',
+      rating:       r,
+      answers:      { liked: likedT || null, disliked: dislikedT || null },
+      // Public testimonials (rating>=4) render `text` — put the POSITIVE part there; the
+      // critical "besser machen" note stays in answers for the owner's admin view only.
+      text:         likedT,
+    };
+
+    const all = await loadFeedback();
+    all.push(entry);
+    await saveFeedback(all);
+
+    console.log(`[feedback] PUBLIC · ip=${ip} · rating=${entry.rating ?? '—'} · name=${nm || 'anon'} · ` +
+      `liked="${likedT.replace(/\s+/g, ' ').slice(0, 80)}" · disliked="${dislikedT.replace(/\s+/g, ' ').slice(0, 80)}"`);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[feedback] public post error:', err.message);
+    res.status(500).json({ error: 'feedback_failed' });
+  }
+});
+
 // NOTE: the placement loop (POST/GET /api/placement, the hire KPI) lives in placement.js —
 // the single source of truth. A legacy duplicate handler used to live HERE and, because this
 // router mounts first, it SHADOWED placement.js: the client sends {status, employer} but this
@@ -163,7 +226,7 @@ feedbackRouter.get('/feedback/admin', requireAuth, async (req, res) => {
     const summary = { total: all.length, avgRating, ratingCount: ratings.length, priceCounts, feltRealYes, feltRealNo };
     const entries = all.slice(-200).reverse().map((e) => ({
       timestamp: e.timestamp, screen: e.screen, rating: e.rating ?? null,
-      answers: e.answers ?? null, text: e.text ?? '', email: e.email ?? null,
+      answers: e.answers ?? null, text: e.text ?? '', email: e.email ?? null, name: e.name ?? null,
       sessionCount: e.sessionCount, level: e.level,
     }));
 

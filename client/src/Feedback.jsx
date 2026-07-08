@@ -239,12 +239,13 @@ export function AdminFeedback({ token, apiUrl }) {
                 {data.entries.map((e, i) => (
                   <div key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '7px 0', fontSize: 11, color: '#cbd5e1' }}>
                     <div style={{ color: '#64748b', fontSize: 9.5 }}>
-                      {(e.timestamp || '').slice(0, 16).replace('T', ' ')} · {e.screen} · {e.email || 'anon'}
+                      {(e.timestamp || '').slice(0, 16).replace('T', ' ')} · {e.screen === 'public-link' ? '🔗 Link' : e.screen} · {e.name || e.email || 'anon'}
                     </div>
                     {e.rating ? <span style={{ color: 'var(--action)' }}>⭐ {e.rating} </span> : null}
                     {e.answers?.feltReal != null && <span>· echt: {e.answers.feltReal ? '✓' : '✗'} </span>}
                     {e.answers?.price && <span dir="rtl">· {e.answers.price} </span>}
-                    {e.text ? <div style={{ color: '#94a3b8', marginTop: 2, overflowWrap: 'anywhere' }}>„{e.text}"</div> : null}
+                    {(e.answers?.liked || e.text) ? <div style={{ color: '#94a3b8', marginTop: 2, overflowWrap: 'anywhere' }}>👍 „{e.answers?.liked || e.text}"</div> : null}
+                    {e.answers?.disliked ? <div style={{ color: 'var(--action-2)', marginTop: 2, overflowWrap: 'anywhere' }}>🔧 „{e.answers.disliked}"</div> : null}
                   </div>
                 ))}
               </>

@@ -1,6 +1,11 @@
 import { StrictMode, Component } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import PublicFeedback from './PublicFeedback.jsx';
+
+// A shareable link (?feedback) lands directly on the standalone feedback page — no login,
+// no hunting for the in-app button. Everything else renders the full app as before.
+const IS_FEEDBACK = /[?&]feedback\b/.test(window.location.search);
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
@@ -52,7 +57,7 @@ try {
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       <RootBoundary>
-        <App />
+        {IS_FEEDBACK ? <PublicFeedback /> : <App />}
       </RootBoundary>
     </StrictMode>,
   );

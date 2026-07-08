@@ -1,0 +1,178 @@
+/**
+ * PublicFeedback.jsx — the shareable feedback page (no login).
+ *
+ * Rendered by main.jsx when the URL carries `?feedback` — a link the owner can drop into
+ * Messenger/WhatsApp so people who never reach the in-app feedback button can still leave
+ * detailed feedback (what they liked · what to improve · a star rating · optional name).
+ *
+ * On submit it POSTs to /api/feedback/public, which writes to the SAME store the app reads
+ * for its live rating + testimonials (/api/feedback/public GET) — so a 4-5★ note becomes
+ * public social proof on the app. Self-contained: defines its own palette (the app's CSS
+ * vars live inside App.jsx, which is NOT mounted on this route) using the brand pair —
+ * blue #3b82f6 + orange #f97316 — and Inter, matching the app.
+ */
+import { useEffect, useState } from 'react';
+
+const BACKEND = (import.meta.env.VITE_WS_URL || 'ws://localhost:3001').replace(/^ws/, 'http');
+const APP_URL = 'https://bpo-combat-arena.vercel.app';
+
+// Brand palette (mirrors App.jsx :root — kept literal so this page renders without the app).
+const C = {
+  bg0: '#0a0f1a', bg1: '#0f1626', bg2: '#172033',
+  blue: '#3b82f6', blue2: '#60a5fa', orange: '#f97316', orange2: '#fb923c',
+  text: '#e8eef6', dim: '#9aa7bd', faint: '#64748b',
+  line: 'rgba(255,255,255,0.09)', surface: 'rgba(255,255,255,0.04)',
+  font: "'Inter',system-ui,sans-serif",
+};
+
+export default function PublicFeedback() {
+  const [rating, setRating]     = useState(0);
+  const [hover, setHover]       = useState(0);
+  const [liked, setLiked]       = useState('');
+  const [disliked, setDisliked] = useState('');
+  const [name, setName]         = useState('');
+  const [hp, setHp]             = useState('');   // honeypot — hidden from humans
+  const [busy, setBusy]         = useState(false);
+  const [sent, setSent]         = useState(false);
+  const [err, setErr]           = useState('');
+  const [proof, setProof]       = useState(null); // { available, avgRating, ratingCount }
+
+  // Live social proof so the page itself shows the rating this feedback feeds into.
+  useEffect(() => {
+    fetch(`${BACKEND}/api/feedback/public`).then((r) => r.json()).then(setProof).catch(() => {});
+  }, []);
+
+  const canSend = rating > 0 || liked.trim() || disliked.trim();
+
+  const submit = async () => {
+    if (busy || !canSend) return;
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch(`${BACKEND}/api/feedback/public`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, liked, disliked, name, hp }),
+      });
+      if (r.ok) { setSent(true); return; }
+      const d = await r.json().catch(() => ({}));
+      setErr(d.error === 'rate_limited'
+        ? 'Zu viele Einsendungen von diesem Gerät. Bitte später erneut.'
+        : 'Konnte nicht senden. Bitte erneut versuchen.');
+    } catch {
+      setErr('Netzwerkfehler. Bitte erneut versuchen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={S.page}>
+      <div style={S.card}>
+        <div style={S.brand}>OMNI<span style={{ color: C.orange }}>·</span>PERFORM</div>
+
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '18px 0' }}>
+            <div style={{ fontSize: 44, lineHeight: 1 }}>🙏</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: C.blue2, margin: '14px 0 6px' }}>Danke!</div>
+            <div style={{ fontSize: 14, color: C.dim, lineHeight: 1.6 }}>
+              Dein Feedback ist jetzt Teil von OMNI-PERFORM und hilft, das Training besser zu machen.
+            </div>
+            <a href={APP_URL} style={{ ...S.btn, display: 'inline-block', textDecoration: 'none', marginTop: 20 }}>
+              App öffnen →
+            </a>
+          </div>
+        ) : (
+          <>
+            <h1 style={S.h1}>Wie war deine Erfahrung?</h1>
+            <p style={S.sub}>
+              Deine ehrliche Meinung zählt — sag uns, was gut war und was besser sein könnte.
+              <br /><span style={{ color: C.faint, fontSize: 12 }}>Your honest feedback shapes the app.</span>
+            </p>
+
+            {proof?.available && (
+              <div style={S.proof}>
+                <span style={{ color: C.orange2, fontWeight: 800 }}>★ {proof.avgRating}</span>
+                <span style={{ color: C.dim }}> · {proof.ratingCount} {proof.ratingCount === 1 ? 'Bewertung' : 'Bewertungen'}</span>
+              </div>
+            )}
+
+            {/* stars */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '18px 0 6px' }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" aria-label={`${n} Sterne`}
+                  onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 34, lineHeight: 1, padding: 2,
+                    filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.35)', transition: 'filter .15s', transform: (hover || rating) >= n ? 'scale(1.05)' : 'none' }}>
+                  ⭐
+                </button>
+              ))}
+            </div>
+
+            <label style={S.label}>Was hat dir gefallen? 👍</label>
+            <textarea value={liked} onChange={(e) => setLiked(e.target.value)} maxLength={1000}
+              placeholder="Was hat dir am Training geholfen oder Spaß gemacht?" style={S.textarea} />
+
+            <label style={S.label}>Was können wir besser machen? 🔧</label>
+            <textarea value={disliked} onChange={(e) => setDisliked(e.target.value)} maxLength={1000}
+              placeholder="Was hat gefehlt oder gestört?" style={S.textarea} />
+
+            <label style={S.label}>Dein Name <span style={{ color: C.faint }}>(optional)</span></label>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40}
+              placeholder="z. B. Mohamed" style={S.input} />
+
+            {/* honeypot — off-screen, not for humans */}
+            <input value={hp} onChange={(e) => setHp(e.target.value)} tabIndex={-1} autoComplete="off"
+              aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
+
+            {err && <div style={{ color: '#f87171', fontSize: 12.5, marginTop: 12 }}>{err}</div>}
+
+            <button type="button" onClick={submit} disabled={busy || !canSend}
+              style={{ ...S.btn, marginTop: 18, opacity: (busy || !canSend) ? 0.45 : 1, cursor: (busy || !canSend) ? 'default' : 'pointer' }}>
+              {busy ? 'Senden…' : 'Feedback senden'}
+            </button>
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <a href={APP_URL} style={S.appLink}>Zur App →</a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const S = {
+  page: {
+    minHeight: '100vh', width: '100%', boxSizing: 'border-box',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    background: `radial-gradient(120% 90% at 50% 0%, ${C.bg2} 0%, ${C.bg0} 60%)`,
+    fontFamily: C.font, color: C.text,
+  },
+  card: {
+    position: 'relative', width: '100%', maxWidth: 440, boxSizing: 'border-box',
+    padding: '26px 22px 22px', borderRadius: 18,
+    background: `linear-gradient(180deg, ${C.bg1}, ${C.bg0})`,
+    border: `1px solid ${C.line}`, boxShadow: '0 24px 64px -16px rgba(2,6,17,0.7)',
+  },
+  brand: { textAlign: 'center', fontSize: 13, fontWeight: 800, letterSpacing: '0.18em', color: C.dim, marginBottom: 14 },
+  h1: { textAlign: 'center', fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 8px' },
+  sub: { textAlign: 'center', fontSize: 14, color: C.dim, lineHeight: 1.6, margin: '0 0 4px' },
+  proof: { textAlign: 'center', fontSize: 15, marginTop: 10, padding: '7px 0', borderRadius: 10, background: C.surface, border: `1px solid ${C.line}` },
+  label: { display: 'block', fontSize: 13, fontWeight: 600, color: C.text, margin: '16px 0 6px' },
+  textarea: {
+    width: '100%', boxSizing: 'border-box', minHeight: 74, padding: 12, borderRadius: 10, resize: 'vertical',
+    background: C.surface, color: C.text, fontFamily: C.font, fontSize: 14.5, lineHeight: 1.5,
+    border: `1px solid ${C.line}`, outline: 'none',
+  },
+  input: {
+    width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: 10,
+    background: C.surface, color: C.text, fontFamily: C.font, fontSize: 14.5,
+    border: `1px solid ${C.line}`, outline: 'none',
+  },
+  btn: {
+    width: '100%', boxSizing: 'border-box', padding: '14px', borderRadius: 12, border: 'none',
+    fontFamily: C.font, fontSize: 15, fontWeight: 800, color: '#04070d',
+    background: `linear-gradient(180deg, ${C.orange2}, ${C.orange})`,
+    boxShadow: '0 8px 24px -6px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
+  },
+  appLink: { fontSize: 13, color: C.blue2, textDecoration: 'none', fontWeight: 600 },
+};
