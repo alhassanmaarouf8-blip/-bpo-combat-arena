@@ -151,23 +151,48 @@ function adminKeyOk(req) {
   try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
 }
 
+// Core daily send + a ONE-PER-DAY guard (kv 'config'/'lastDailyPush' = Cairo day-key). Both the
+// admin endpoint and the self-trigger call this; the guard means it can never double-send in a day.
+export async function runDailyReminders({ force = false } = {}) {
+  if (!(await pushReady())) return { ok: false, reason: 'push_unconfigured' };
+  const today = dayKey();
+  if (!force) {
+    try { if (dbEnabled() && (await kvGet('config', 'lastDailyPush')) === today) return { ok: true, alreadySent: true }; } catch {}
+  }
+  const accounts = (await listAllAccounts() || []).filter((a) => a && a.email && !/@example\.com$/i.test(a.email));
+  let sent = 0, skipped = 0, pruned = 0;
+  for (const a of accounts) {
+    let p; try { p = await loadUser(a.id); } catch { continue; }
+    if (!p.pushSub) continue;
+    if (!force && lastActiveDay(p) === today) { skipped++; continue; }   // already practiced today — don't nag
+    const r = await sendPush(p.pushSub);
+    if (r.expired) { p.pushSub = null; await saveUser(p); pruned++; }
+    else if (r.ok) sent++;
+  }
+  try { if (dbEnabled()) await kvSet('config', 'lastDailyPush', today); } catch {}
+  console.log(`[push] daily reminder → sent=${sent} skipped(active today)=${skipped} pruned=${pruned}`);
+  return { ok: true, sent, skipped, pruned };
+}
+
+// Self-trigger: fired (fire-and-forget) on incoming requests. The keep-warm cron pings /health every
+// ~10 min, so during the reminder window the server is awake and this runs — NO GitHub secret, no
+// external cron needed. Throttled to one check/minute; the per-day guard above does the real work.
+const REMINDER_HOUR_UTC = 17;   // 19:00 Africa/Cairo
+let _lastCheck = 0, _dailyRunning = false;
+export function maybeRunDaily() {
+  const now = Date.now();
+  if (now - _lastCheck < 60_000) return;
+  _lastCheck = now;
+  if (new Date(now).getUTCHours() !== REMINDER_HOUR_UTC) return;
+  if (_dailyRunning) return;
+  _dailyRunning = true;
+  runDailyReminders({ force: false }).catch((e) => console.error('[push] self-trigger failed:', e.message))
+    .finally(() => { _dailyRunning = false; });
+}
+
 pushRouter.post('/admin/push/daily', async (req, res) => {
   if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });
-  if (!(await pushReady())) return res.status(503).json({ error: 'push_unconfigured' });
-  try {
-    const today = dayKey();
-    const force = String(req.query.force || '') === '1';   // send even to those already active today (for testing)
-    const accounts = (await listAllAccounts() || []).filter((a) => a && a.email && !/@example\.com$/i.test(a.email));
-    let sent = 0, skipped = 0, pruned = 0;
-    for (const a of accounts) {
-      let p; try { p = await loadUser(a.id); } catch { continue; }
-      if (!p.pushSub) continue;
-      if (!force && lastActiveDay(p) === today) { skipped++; continue; }   // already practiced today — don't nag
-      const r = await sendPush(p.pushSub);
-      if (r.expired) { p.pushSub = null; await saveUser(p); pruned++; }
-      else if (r.ok) sent++;
-    }
-    console.log(`[push] daily reminder → sent=${sent} skipped(active today)=${skipped} pruned=${pruned}`);
-    res.json({ ok: true, sent, skipped, pruned });
-  } catch (e) { console.error('[push] daily error:', e.message); res.status(500).json({ error: 'daily_failed' }); }
+  const r = await runDailyReminders({ force: String(req.query.force || '') === '1' });
+  if (r.reason === 'push_unconfigured') return res.status(503).json({ error: 'push_unconfigured' });
+  res.json(r);
 });

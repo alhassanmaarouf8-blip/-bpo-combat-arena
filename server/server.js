@@ -9,7 +9,7 @@ import { planRouter }        from './plans.js';
 import { dailyRouter }       from './daily.js';
 import { feedbackRouter }    from './feedback.js';
 import { engagementRouter }  from './engagement.js';
-import { pushRouter }        from './push.js';
+import { pushRouter, maybeRunDaily } from './push.js';
 import { assessmentRouter }  from './assessment.js';
 import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
@@ -57,6 +57,11 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Self-triggering daily push reminder: fire-and-forget on every request (throttled to 1 check/min
+// inside). The keep-warm cron pings /health every ~10 min, so the server is awake during the evening
+// reminder window and sends then — no external cron, no secret. Never blocks the request.
+app.use((req, _res, next) => { try { maybeRunDaily(); } catch {} next(); });
 
 // Pending-payments count for /health — lets a $0 external monitor (GitHub Actions cron) alert
 // the owner that money is waiting for manual activation (the app promises "active in 30 min",
