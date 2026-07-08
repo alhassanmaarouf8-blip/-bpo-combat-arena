@@ -333,6 +333,27 @@ export async function activatePlan(account, plan, billingPeriod) {
   return account;
 }
 
+// Grant a plan that AUTO-EXPIRES after `days` days — a real time-limited pass (e.g. a 2-day
+// goodwill Basic). Unlike comp (permanent, immune to billingPeriodEnd), this is a normal
+// paid-plan shape WITH a billing end date and comp:false, so planOf() reverts the account to
+// 'free' by itself the moment it lapses — NO cron, NO manual removal. On lapse the user simply
+// meets the normal paywall ("pay to keep training"). Owner 2026-07-08: give the 18 re-engaged
+// leads Basic for exactly 2 days, then it ends on its own.
+export async function grantPlanForDays(account, plan, days) {
+  if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
+  const now = Date.now();
+  const d = Math.max(1, Math.min(60, Math.floor(Number(days) || 0)));
+  account.subscription = {
+    ...account.subscription,
+    plan, comp: false,                          // NOT comp → subject to expiry
+    planSetAt: now,
+    billingPeriodEnd: now + d * DAY,
+    activatedNoticePending: true,
+  };
+  await persist();
+  return account;
+}
+
 // Manually REVOKE a paid plan (admin action). Reverts the account to free immediately:
 // clears the explicit plan, drops any legacy pro/team grant (tier→trial), and expires the
 // billing window so planOf() returns 'free' on the very next request. Note: an ADMIN_EMAIL

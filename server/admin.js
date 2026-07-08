@@ -13,7 +13,7 @@
  */
 import express from 'express';
 import { timingSafeEqual } from 'crypto';
-import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp, adminSetPassword } from './auth.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp, grantPlanForDays, adminSetPassword } from './auth.js';
 import { loadPayments, savePayments, deletePaymentsFor } from './paymentsStore.js';
 import { deleteUser, loadUser }          from './store.js';
 import { listComp, addComp, removeComp } from './compAccess.js';
@@ -215,6 +215,23 @@ adminRouter.post('/admin/comp/add', async (req, res) => {
     console.log(`[admin] COMP ADD  email=${email}  plan=${plan}  appliedNow=${!!acc}`);
     res.json({ ok: true, entry, appliedNow: !!acc });
   } catch (e) { console.error('[admin] comp add error:', e.message); res.status(e.code || 500).json({ error: e.message || 'comp_add_failed' }); }
+});
+
+// Grant a plan for EXACTLY N days, then it auto-expires to free (no cron, no manual removal).
+// Drops any permanent comp first so the expiry actually applies. Used for the 2-day goodwill Basic.
+adminRouter.post('/admin/grant-days', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const email = String(req.body?.email || '').trim();
+    const plan  = PLANS[req.body?.plan] ? req.body.plan : 'basic';
+    const days  = Math.max(1, Math.min(60, Math.floor(Number(req.body?.days) || 2)));
+    const acc = await getAccountByEmail(email);
+    if (!acc) return res.json({ found: false });
+    await removeComp(email);                    // drop permanent comp so billingPeriodEnd governs
+    await grantPlanForDays(acc, plan, days);
+    console.log(`[admin] GRANT-DAYS email=${email} plan=${plan} days=${days} ends=${new Date(acc.subscription.billingPeriodEnd).toISOString()}`);
+    res.json({ ok: true, email, plan, days, billingPeriodEnd: acc.subscription.billingPeriodEnd });
+  } catch (e) { console.error('[admin] grant-days error:', e.message); res.status(e.code || 500).json({ error: e.message || 'grant_days_failed' }); }
 });
 
 adminRouter.post('/admin/comp/remove', async (req, res) => {
