@@ -1,0 +1,30 @@
+name: daily-reminder
+
+# $0 daily practice nudge. Once a day it wakes the Render free-tier backend, then asks it to send a
+# web-push reminder to every user who OPTED IN and hasn't trained that day (the server skips anyone
+# already active today, and prunes dead subscriptions). No SMS, no cost. Auth via the ADMIN_KEY repo
+# secret, sent as a header (not in the URL, so it never lands in a server access log). If the secret
+# isn't set, the job no-ops — safe to merge before the secret exists.
+on:
+  schedule:
+    - cron: '0 17 * * *'   # 17:00 UTC = 19:00 Afric/Cairo — an evening "practice before bed" nudge
+  workflow_dispatch: {}      # allow a manual run (e.g. to test)
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Wake backend, then send daily reminders
+        env:
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          BASE="https://bpo-combat-arena.onrender.com"
+          # Cold dyno: wake it and wait for a healthy response before triggering the send.
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 40 "$BASE/health" || echo 000)
+            echo "wake attempt $i → HTTP $code"; [ "$code" = "200" ] && break; sleep 8
+          done
+          if [ -z "$ADMIN_KEY" ]; then echo "ADMIN_KEY secret not set — skipping send (no-op)."; exit 0; fi
+          echo "sending daily reminders…"
+          curl -s --max-time 90 -X POST "$BASE/admin/push/daily" -H "x-admin-key: $ADMIN_KEY" -w '\nHTTP %{http_code}\n'
