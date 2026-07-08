@@ -5405,6 +5405,112 @@ function BackendGate({ children }) {
 }
 
 // ── Root: cold-start gate → auth gate → arena ─────────────────────────────────
+// FULL-SCREEN, UN-SKIPPABLE in-app-browser gate. The 07-08 funnel proved the disaster: 22/23 opens
+// were inside Messenger/Facebook's browser, the boss voice played 16× but the mic started only 4× —
+// people HEARD the interviewer and couldn't answer, then left without a word (that's why "nobody
+// gave feedback"). A scroll-past banner wasn't enough. This blocks the ENTIRE app until the visitor
+// moves to a real browser. Three escape routes, most-reliable first: (1) Copy link — works on EVERY
+// phone/OS even when the Chrome shortcut fails; (2) one-tap Open-in-Chrome (Android intent); (3) the
+// native APK (mic works regardless of browser). A tiny "continue anyway" remains as a safety valve
+// so a false-positive detection can never hard-trap a user whose mic actually works.
+// OWNER-AR slots — the owner fills these masri lines (I must never author Egyptian Arabic). Empty =
+// the Arabic simply doesn't render; German + English + the button icons still carry the meaning.
+const AR_GATE = { headline: '', copySteps: '', ios: '' };
+function InAppBrowserGate({ onContinue }) {
+  const [copied, setCopied] = useState(false);
+  const url = 'https://bpo-combat-arena.vercel.app';
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  useEffect(() => { beacon('inapp_gate_shown'); }, []);
+  const copyLink = async () => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(url); ok = true; } catch { /* fallback */ }
+    if (!ok) { try { const t = document.createElement('textarea'); t.value = url; t.style.position = 'fixed'; t.style.opacity = '0'; document.body.appendChild(t); t.focus(); t.select(); ok = document.execCommand('copy'); t.remove(); } catch { /* last resort: manual select below */ } }
+    beacon('inapp_gate_copy');
+    setCopied(true); setTimeout(() => setCopied(false), 5000);
+  };
+  const btn = { display:'flex', alignItems:'center', justifyContent:'center', gap:8, width:'100%',
+    minHeight:56, borderRadius:14, textDecoration:'none', fontFamily:'Inter, system-ui, sans-serif',
+    fontWeight:700, fontSize:16, cursor:'pointer', border:'none', boxSizing:'border-box' };
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:99999, background:'#060a12', color:'#e2e8f0',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+      padding:'28px 22px', overflowY:'auto', fontFamily:'Inter, system-ui, sans-serif' }}>
+      <div style={{ width:'100%', maxWidth:400, textAlign:'center' }}>
+        <div style={{ width:72, height:72, margin:'0 auto 20px', borderRadius:20, display:'flex',
+          alignItems:'center', justifyContent:'center', background:'rgba(59,130,246,0.12)',
+          border:'1px solid rgba(59,130,246,0.4)', fontSize:36 }}>🎤</div>
+        <div style={{ fontSize:23, fontWeight:800, lineHeight:1.25, marginBottom:10 }}>
+          Zum Sprechen: in Chrome öffnen
+        </div>
+        {AR_GATE.headline && (
+          <div dir="rtl" style={{ fontSize:18, fontWeight:700, color:'#93c5fd', marginBottom:10 }}>
+            {AR_GATE.headline}{/* OWNER-AR: "To speak: open the page in Chrome (not in Messenger)" */}
+          </div>
+        )}
+        <div style={{ fontSize:14.5, lineHeight:1.6, color:'#94a3b8', marginBottom:8 }}>
+          Der Facebook-/Messenger-Browser blockiert das Mikrofon. Das Interview braucht deine Stimme —
+          in Chrome oder Safari läuft alles.
+        </div>
+        <div style={{ fontSize:13.5, lineHeight:1.6, color:'#64748b', marginBottom:20 }}>
+          The Facebook / Messenger browser blocks the microphone. Open this page in Chrome or Safari.
+        </div>
+
+        {/* The URL, selectable, so manual copy always works even if the button is blocked */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 14px', marginBottom:16,
+          borderRadius:12, background:'#0d1424', border:'1px solid #1e293b', userSelect:'all',
+          fontSize:13.5, wordBreak:'break-all', color:'#cbd5e1' }}>{url}</div>
+
+        {/* PRIMARY — Copy link. The single orange object on this screen (design law). Works everywhere. */}
+        <button onClick={copyLink} style={{ ...btn, marginBottom:12,
+          background: copied ? 'linear-gradient(135deg,#60a5fa,#3b82f6)' : 'linear-gradient(135deg,#fb923c,#f97316)', color:'#0a0f1a' }}>
+          {copied ? '✓ Kopiert! Jetzt Chrome öffnen & einfügen' : '📋 Link kopieren'}
+        </button>
+        {copied && (
+          <div style={{ fontSize:13, color:'#93c5fd', marginBottom:14, lineHeight:1.55 }}>
+            1) Chrome (or Safari) öffnen → 2) in die Adresszeile tippen → 3) einfügen & öffnen.
+            {AR_GATE.copySteps && <><br/><span dir="rtl">{AR_GATE.copySteps}{/* OWNER-AR: "Open Chrome, paste the link at the top, and open it." */}</span></>}
+          </div>
+        )}
+
+        {/* Android one-tap Chrome escape */}
+        {isAndroid && (
+          <a href={`intent://${url.replace(/^https?:\/\//,'')}#Intent;scheme=https;package=com.android.chrome;end`}
+            onClick={() => beacon('inapp_escape_tap')}
+            style={{ ...btn, marginBottom:12, background:'linear-gradient(135deg,#60a5fa,#3b82f6)', color:'#04070d' }}>
+            🌐 Direkt in Chrome öffnen
+          </a>
+        )}
+
+        {/* Android native app — mic works regardless of browser */}
+        {isAndroid && (
+          <a href="/OMNI-PERFORM.apk" download onClick={() => beacon('inapp_gate_apk')}
+            style={{ ...btn, marginBottom:12, background:'transparent', color:'#93c5fd',
+              border:'1px solid rgba(59,130,246,0.5)', fontSize:14.5 }}>
+            📲 Oder die App installieren
+          </a>
+        )}
+
+        {/* iOS route (no intent scheme exists on iOS) */}
+        {isIOS && (
+          <div style={{ fontSize:14, lineHeight:1.6, color:'#93c5fd', marginBottom:12, fontWeight:600 }}>
+            iPhone: Menü (⋯ oben) → „In Safari öffnen" · iPhone: menu (⋯ top) → "Open in Safari"
+            {AR_GATE.ios && <><br/><span dir="rtl">{AR_GATE.ios}{/* OWNER-AR: "iPhone: from the top menu → open in Safari" */}</span></>}
+          </div>
+        )}
+
+        {/* Safety valve — never hard-trap a false-positive whose mic actually works */}
+        <button onClick={() => { beacon('inapp_gate_bypass'); onContinue(); }}
+          style={{ background:'none', border:'none', color:'#475569', fontSize:12, marginTop:10,
+            cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
+          Trotzdem hier fortfahren / continue anyway
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   // Inject the global CSS once, app-wide, so the cold-start + auth screens are styled too.
   useEffect(() => {
@@ -5413,5 +5519,9 @@ export default function App() {
     document.head.prepend(el);
     return () => el.remove();
   }, []);
+  // In-app-browser gate BEFORE anything else — signup, cold-start, everything. The visitor must reach
+  // a real browser (or the native app) or the mic is dead and they leave silently (07-08 funnel proof).
+  const [bypassGate, setBypassGate] = useState(false);
+  if (IN_APP_BROWSER && !bypassGate) return <InAppBrowserGate onContinue={() => setBypassGate(true)} />;
   return <BackendGate><AuthedApp /></BackendGate>;
 }
