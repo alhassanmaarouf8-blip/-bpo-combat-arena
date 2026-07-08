@@ -176,13 +176,24 @@ spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
     const due = dueItems(p, Date.now(), 50)
       .sort((a, b) => gravityRank(b) - gravityRank(a) || (a.due - b.due))
       .slice(0, 8);
-    const items = due.map((i) => ({
-      id:     i.id,
-      type:   i.type,
-      rule:   i.content,
-      prompt: i.type === 'grammar' ? 'Sag den Satz KORREKT laut.' : (i.prompt || 'Sag es auf Deutsch.'),
-      wrong:  i.type === 'grammar' ? (i.example?.wrong || '') : '',   // their own sentence to fix
-    }));
+    const items = due.map((i) => {
+      const grammar = i.type === 'grammar';
+      return {
+        id:     i.id,
+        type:   i.type,
+        // Grammar: i.content is the LanguageTool RULE label (safe to show as the tiny chip).
+        // Phrase/vocab: i.content IS the German answer (seedBPOPhrases stores content = p.de) —
+        // NEVER send it, or the blue chip leaks exactly what the learner must produce out loud.
+        // (This file's header promises "answers stay server-side"; it was silently false for
+        // phrase items until now, which trapped learners into reading the answer / the English.)
+        rule:   grammar ? i.content : '',
+        // Grammar: fixed instruction. Phrase/vocab: the ENGLISH meaning (i.prompt = p.en) — a
+        // MEANING to render into German, NOT a line to read aloud (Whisper is pinned to de, so
+        // reading the English gets mis-transcribed and false-failed).
+        prompt: grammar ? 'Sag den Satz KORREKT laut.' : (i.prompt || ''),
+        wrong:  grammar ? (i.example?.wrong || '') : '',   // their own sentence to fix
+      };
+    });
     res.json({ items });
   } catch (e) {
     console.error('[spokenReview] load error:', e.message);

@@ -132,31 +132,45 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   // PRACTICE
   return shell(<>
     {header}
-    <DrillIntro drillKey="spokenreview" />
+    <DrillIntro drillKey={item?.type === 'grammar' ? 'spokenreview' : 'spokenreview_phrase'} />
     <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
-      {T(lang, 'DEINE FEHLER', 'أخطاؤك')} · {idx + 1} / {items.length}
+      {item?.type === 'grammar' ? T(lang, 'DEINE FEHLER', 'أخطاؤك') : 'CALL-CENTER-SÄTZE'/* OWNER-AR slot */} · {idx + 1} / {items.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
     </div>
 
     <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)' }}>
-      <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item?.rule}</div>
-      <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
-      {item?.wrong && (
-        <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
-          {/* Clarified 2026-07-02 (owner: "just a crossed-out line that doesn't represent
-              anything"): the strikethrough sentence is the learner's OWN past error, resurfaced
-              for active recall — say the CORRECTED version from memory, not read this aloud.
-              Explaining that explicitly closes the "why am I looking at this" gap. */}
-          {/* German only — OWNER-AR slot (never authoring Arabic here); falls back to German
-              under the Arabic toggle until the owner writes the masri translation. */}
-          <span style={{ fontSize: 9, color: '#64748b' }}>DAS HAST DU FRÜHER FALSCH GESAGT (durchgestrichen):</span><br />
-          <span style={{ textDecoration: 'line-through', opacity: 0.85 }}>{item.wrong}</span>
-          <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 6 }}>
-            → Sag jetzt die richtige Version aus dem Gedächtnis — nicht ablesen, sondern erinnern.
-          </div>
-        </div>
+      {item?.type === 'grammar' ? (
+        <>
+          <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item?.rule}</div>
+          <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
+          {item?.wrong && (
+            <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
+              {/* Clarified 2026-07-02 (owner: "just a crossed-out line that doesn't represent
+                  anything"): the strikethrough sentence is the learner's OWN past error, resurfaced
+                  for active recall — say the CORRECTED version from memory, not read this aloud.
+                  Explaining that explicitly closes the "why am I looking at this" gap. */}
+              {/* German only — OWNER-AR slot (never authoring Arabic here); falls back to German
+                  under the Arabic toggle until the owner writes the masri translation. */}
+              <span style={{ fontSize: 9, color: '#64748b' }}>DAS HAST DU FRÜHER FALSCH GESAGT (durchgestrichen):</span><br />
+              <span style={{ textDecoration: 'line-through', opacity: 0.85 }}>{item.wrong}</span>
+              <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 6 }}>
+                → Sag jetzt die richtige Version aus dem Gedächtnis — nicht ablesen, sondern erinnern.
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* PHRASE / VOCAB: produce the German for this English MEANING. The German answer is
+              never sent to the client now (server sends rule='' for non-grammar items), so there
+              is nothing to read off — the task is to SAY it in German from the meaning. German-only
+              labels; Arabic is an OWNER-AR slot (never authored here). */}
+          <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 8 }}>🎙️ AUF DEUTSCH SAGEN</div>
+          <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '0.1em', marginBottom: 4 }}>BEDEUTUNG (ENGLISCH):</div>
+          <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{item?.prompt}</div>
+        </>
       )}
     </div>
 

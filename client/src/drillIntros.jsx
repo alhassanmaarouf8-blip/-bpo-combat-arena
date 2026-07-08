@@ -14,6 +14,7 @@ const DRILL_INTROS = {
   fluency: 'Dieselbe Antwort dreimal, immer kürzer — dein Sprechtempo steigt automatisch, wie beim Interview.',
   listening: 'Ein echter Anrufer-Satz, einmal gehört — trainiert das Zuhören, das reines Sprechen nicht abdeckt.',
   spokenreview: 'Das hier ist dein EIGENER früherer Fehler (durchgestrichen) — sag jetzt die korrekte Version aus dem Gedächtnis. So schließt du genau die Lücken, die das Interview bei dir gefunden hat.',
+  spokenreview_phrase: 'Ein echter Call-Center-Satz: sag ihn AUF DEUTSCH — die englische Bedeutung steht darunter, die deutsche Antwort nicht. So werden die Standard-Sätze automatisch, bevor das echte Interview kommt.',
   pressure: 'Ein Kunde eskaliert Stufe für Stufe — bereitet dich auf den härtesten Teil des echten Interviews vor: Teil 3.',
   satzbau: 'Baue den Satz Wort für Wort — das Verb gehört ans Ende. Genau die Struktur, die im Interview über flüssig oder holprig entscheidet.',
 };
