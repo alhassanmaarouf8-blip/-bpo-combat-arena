@@ -24,38 +24,69 @@ import { timingSafeEqual } from 'crypto';
 import { dayKey } from './time.js';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, listAllAccounts } from './auth.js';
+import { dbEnabled, kvGet, kvSet } from './db.js';
 
 export const pushRouter = express.Router();
 
-const PUB  = process.env.VAPID_PUBLIC_KEY  || '';
-const PRIV = process.env.VAPID_PRIVATE_KEY || '';   // pkcs8, base64
-const SUB  = process.env.VAPID_SUBJECT     || 'mailto:info@omni-perform.app';
+const SUBJECT = process.env.VAPID_SUBJECT || 'mailto:info@omni-perform.app';
+const b64u    = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64u = (s)  => Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64');
 
-let privKey = null;
-try { if (PUB && PRIV) privKey = crypto.createPrivateKey({ key: Buffer.from(PRIV, 'base64'), format: 'der', type: 'pkcs8' }); }
-catch (e) { console.error('[push] VAPID private key invalid — push disabled:', e.message); privKey = null; }
+// Self-provisioning VAPID keys — NO manual env step, NO secret in anyone's transcript. Priority:
+//   1) explicit VAPID_* env (if the owner ever wants to pin them)
+//   2) a keypair persisted in the DB (stable across restarts — prod has DATABASE_URL)
+//   3) generate once + persist. Only step 3's "no DB" branch is ephemeral (dev only).
+let _keys = null, _keysPromise = null;
+async function ensureKeys() {
+  if (_keys) return _keys;
+  if (_keysPromise) return _keysPromise;
+  _keysPromise = (async () => {
+    const mk = (pub, privPkcs8) => ({ pub, priv: crypto.createPrivateKey({ key: Buffer.from(privPkcs8, 'base64'), format: 'der', type: 'pkcs8' }) });
+    // 1) env override
+    if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+      try { _keys = mk(process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY); return _keys; }
+      catch (e) { console.error('[push] env VAPID invalid, ignoring:', e.message); }
+    }
+    // 2) persisted keypair
+    if (dbEnabled()) {
+      try { const s = await kvGet('config', 'vapid'); if (s?.pub && s?.privPkcs8) { _keys = mk(s.pub, s.privPkcs8); return _keys; } }
+      catch (e) { console.error('[push] load persisted VAPID failed:', e.message); }
+    }
+    // 3) generate + persist
+    try {
+      const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+      const jwk = publicKey.export({ format: 'jwk' });
+      const pub = b64u(Buffer.concat([Buffer.from([4]), fromB64u(jwk.x), fromB64u(jwk.y)]));
+      const privPkcs8 = privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
+      if (dbEnabled()) { try { await kvSet('config', 'vapid', { pub, privPkcs8 }); } catch (e) { console.error('[push] persist VAPID failed:', e.message); } }
+      _keys = mk(pub, privPkcs8);
+      return _keys;
+    } catch (e) { console.error('[push] VAPID generation failed — push disabled:', e.message); _keys = null; return null; }
+  })();
+  return _keysPromise;
+}
 
-export function pushEnabled() { return !!(PUB && privKey); }
-
-const b64u = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+// Server-wide "is push usable?" — resolves the keys (provisioning them if needed).
+export async function pushReady() { return !!(await ensureKeys()); }
 
 // A VAPID Authorization header for one push endpoint (aud = its origin). ES256 JWT, 12h expiry.
-function vapidAuth(endpoint) {
+function vapidAuth(endpoint, keys) {
   const aud = new URL(endpoint).origin;
   const header  = b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' }));
-  const payload = b64u(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: SUB }));
+  const payload = b64u(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: SUBJECT }));
   const input = `${header}.${payload}`;
-  const sig = crypto.sign('SHA256', Buffer.from(input), { key: privKey, dsaEncoding: 'ieee-p1363' });
-  return `vapid t=${input}.${b64u(sig)}, k=${PUB}`;
+  const sig = crypto.sign('SHA256', Buffer.from(input), { key: keys.priv, dsaEncoding: 'ieee-p1363' });
+  return `vapid t=${input}.${b64u(sig)}, k=${keys.pub}`;
 }
 
 // Send one bodyless push. Returns { ok, status, expired }. Never throws.
 async function sendPush(sub) {
-  if (!pushEnabled() || !sub?.endpoint) return { ok: false, status: 0, expired: false };
+  const keys = await ensureKeys();
+  if (!keys || !sub?.endpoint) return { ok: false, status: 0, expired: false };
   try {
     const r = await fetch(sub.endpoint, {
       method: 'POST',
-      headers: { Authorization: vapidAuth(sub.endpoint), TTL: '86400', 'Content-Length': '0' },
+      headers: { Authorization: vapidAuth(sub.endpoint, keys), TTL: '86400', 'Content-Length': '0' },
     });
     // 404/410 → the subscription is dead (app uninstalled / permission revoked) → prune it.
     return { ok: r.status >= 200 && r.status < 300, status: r.status, expired: r.status === 404 || r.status === 410 };
@@ -75,8 +106,11 @@ function lastActiveDay(p) {
   return last;
 }
 
-// ── Public: VAPID key for the client ──
-pushRouter.get('/api/push/key', (_req, res) => res.json({ enabled: pushEnabled(), key: pushEnabled() ? PUB : null }));
+// ── Public: VAPID key for the client (provisions the keypair on first hit) ──
+pushRouter.get('/api/push/key', async (_req, res) => {
+  const keys = await ensureKeys();
+  res.json({ enabled: !!keys, key: keys?.pub || null });
+});
 
 // ── Save / clear a subscription on the user's profile ──
 pushRouter.post('/api/push/subscribe', requireAuth, async (req, res) => {
@@ -97,7 +131,7 @@ pushRouter.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
 
 // ── Test push to the caller — proves the whole chain (permission → sub → server → device) ──
 pushRouter.post('/api/push/test', requireAuth, async (req, res) => {
-  if (!pushEnabled()) return res.status(503).json({ error: 'push_unconfigured' });
+  if (!(await pushReady())) return res.status(503).json({ error: 'push_unconfigured' });
   try {
     const p = await loadUser(req.account.id);
     if (!p.pushSub) return res.status(400).json({ error: 'not_subscribed' });
@@ -119,7 +153,7 @@ function adminKeyOk(req) {
 
 pushRouter.post('/admin/push/daily', async (req, res) => {
   if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });
-  if (!pushEnabled()) return res.status(503).json({ error: 'push_unconfigured' });
+  if (!(await pushReady())) return res.status(503).json({ error: 'push_unconfigured' });
   try {
     const today = dayKey();
     const force = String(req.query.force || '') === '1';   // send even to those already active today (for testing)
