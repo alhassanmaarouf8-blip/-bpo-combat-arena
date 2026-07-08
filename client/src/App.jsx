@@ -64,6 +64,19 @@ try { fetch(`${API_URL}/health`).catch(() => {}); } catch { /* never block boot 
 // once; the shell shows an escape banner and beginSession fails honestly instead of "mic blocked".
 const IN_APP_BROWSER = /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|; wv\)/i.test(
   (typeof navigator !== 'undefined' && navigator.userAgent) || '');
+// A getUserMedia failure means different things in different shells, so the message must match the
+// real cause. In an in-app browser (Messenger/Facebook/Instagram/WebView) the mic can NEVER be
+// granted — sending the user to "allow it in browser settings" (mic_denied) is a dead end. Some of
+// these shells report the capture APIs as present (so checkAudioSupport passes and the session
+// opens), then throw only when the mic is actually opened. Route those to the honest "open in
+// Chrome/Safari" guidance. A real browser with no device → mic_not_found; anything else → a genuine
+// permission block.
+function micErrorCode(err) {
+  if (IN_APP_BROWSER) return 'audio_unsupported';
+  const name = (err && err.name) || '';
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError' || name === 'OverconstrainedError') return 'mic_not_found';
+  return 'mic_denied';
+}
 // Channel tag: the owner posts per-group links with ?src=<slug> (e.g. ?src=fb-jobs1); the PWA
 // start_url already carries ?src=pwa. Persisted for the visit so every funnel event reports
 // which channel this visitor came from — a slug the owner chose, never PII.
@@ -3299,7 +3312,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       if (!geminiModeRef.current) { try { await rec.stop(); } catch { /* already stopped */ } return; }
       geminiMicRef.current = rec;
       setRecording(true);
-    } catch { beacon('mic_failed'); setError('mic_denied'); }
+    } catch (err) { beacon('mic_failed'); setError(micErrorCode(err)); }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopGeminiMode = useCallback(() => {
@@ -3829,10 +3842,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       clipRecRef.current = new ClipRecorder({ onVolume: (v) => { volRef.current = v; }, sharedContext: getSharedMicAC() });
       await clipRecRef.current.start();
       setRecording(true);
-    } catch {
+    } catch (err) {
       clipRecRef.current = null;
       beacon('mic_failed');
-      setError('mic_denied');
+      setError(micErrorCode(err));
     }
   }, [recording, transcribing, auth.token]);
 
@@ -3861,7 +3874,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       await clipRecRef.current.start();
       setRecording(true);
       if (!micStartedBeaconRef.current) { micStartedBeaconRef.current = true; beacon('mic_started'); }
-    } catch { clipRecRef.current = null; hfActiveRef.current = false; beacon('mic_failed'); setError('mic_denied'); return; }
+    } catch (err) { clipRecRef.current = null; hfActiveRef.current = false; beacon('mic_failed'); setError(micErrorCode(err)); return; }
 
     let spoke = false, volSpoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
     let lastPartial = '', partialStableMs = 0;   // transcript-stopped-growing detector (noisy-mic safety net)
@@ -4836,6 +4849,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
             color:'#fca5a5', fontSize:11 }}>
             ⚠ {wsErrorText(error, feedbackLang) ?? error}
+            {/* The in-app browser can't do mic. The top escape banner scrolls off on a tall
+                interview screen — so repeat the one-tap Chrome escape HERE, right where the user
+                is looking for the mic and hit the failure. */}
+            {error === 'audio_unsupported' && IN_APP_BROWSER && /Android/i.test(navigator.userAgent || '') && (
+              <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
+                onClick={() => beacon('inapp_escape_tap')}
+                style={{ display:'inline-block', marginLeft:8, minHeight:44, lineHeight:'24px',
+                  color:'var(--accent-2)', fontWeight:700, textDecoration:'underline', textUnderlineOffset:3 }}>
+                In Chrome öffnen →
+              </a>
+            )}
           </div>
         )}
 
