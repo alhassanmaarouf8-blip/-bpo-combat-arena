@@ -340,6 +340,7 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
   <button class="tabbtn" data-tab="health" onclick="showTab('health')">📊 App-Gesundheit</button>
   <button class="tabbtn" data-tab="users" onclick="showTab('users')">👤 Nutzer</button>
   <button class="tabbtn" data-tab="mission" onclick="showTab('mission')">🎯 Mission & Feedback</button>
+  <button class="tabbtn" data-tab="engage" onclick="showTab('engage')">📈 Engagement</button>
 </div>
 
 <div id="tab-pay" class="tabpane active">
@@ -387,6 +388,16 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
   <h2>FEEDBACK (letzte 100)</h2><div id="feedbackSummary"></div><div id="feedbackList"></div>
 </div>
 
+<div id="tab-engage" class="tabpane">
+  <div style="font-size:11px;color:#64748b;margin-bottom:8px">
+    Wie viele <b>Tage</b> hat jeder Nutzer wirklich trainiert — und wie viele <b>Minuten</b>?
+    Nur echte Daten. „Min: ?" = noch nicht erfasst (Zähler erst seit dem Update aktiv), nicht null.
+    Sortiert nach aktiven Tagen. <span id="engToggle" style="color:#3b82f6;cursor:pointer" onclick="toggleEngPlan()">[nur Trials ▾]</span>
+  </div>
+  <div id="engageSummary" class="stats"></div>
+  <div id="engageList"><div class="empty">Lädt…</div></div>
+</div>
+
 <script>
 var KEY=new URLSearchParams(location.search).get('key')||'';
 var loadedTabs={};
@@ -404,6 +415,7 @@ function showTab(name){
     if(name==='comp') loadComp();
     else if(name==='health') loadHealth();
     else if(name==='mission') loadMission();
+    else if(name==='engage') loadEngagement();
   }
 }
 function load(){
@@ -461,6 +473,43 @@ function removeCompEmail(email,btn){
       else{showErr('Fehlgeschlagen: '+((d&&d.error)||'?'));}
     }).catch(function(){btn.disabled=false;btn.textContent=label;showErr('Netzwerkfehler.');});
 }
+// ── Engagement (real per-user days + minutes; honest about untracked minutes) ──
+var engPlanFree=true;
+function toggleEngPlan(){engPlanFree=!engPlanFree;document.getElementById('engToggle').textContent=engPlanFree?'[nur Trials ▾]':'[alle Nutzer ▾]';loadEngagement();}
+function loadEngagement(){
+  var box=document.getElementById('engageList');box.innerHTML='<div class="empty">Lädt…</div>';
+  var url='/admin/engagement?key='+encodeURIComponent(KEY)+(engPlanFree?'&plan=free':'');
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    var us=d.users||[];
+    var a1=us.filter(function(u){return u.activeDays>=1;}).length;
+    var a3=us.filter(function(u){return u.activeDays>=3;}).length;
+    var sum=document.getElementById('engageSummary');sum.innerHTML='';
+    [['Nutzer',us.length],['≥1 Tag aktiv',a1],['≥3 Tage aktiv',a3],['0 Tage (nie benutzt)',us.length-a1]].forEach(function(kv){
+      var div=document.createElement('div');div.className='stat';
+      var n=document.createElement('div');n.className='n';n.textContent=kv[1];
+      var l=document.createElement('div');l.className='l';l.textContent=kv[0];
+      div.appendChild(n);div.appendChild(l);sum.appendChild(div);
+    });
+    if(!us.length){box.innerHTML='<div class="empty">Keine Nutzer.</div>';return;}
+    var t=document.createElement('table');
+    t.innerHTML='<tr><th>Nutzer</th><th>Aktive Tage</th><th>Interviews</th><th>Daily-Tage</th><th>Streak</th><th>Minuten</th><th>Zuletzt</th></tr>';
+    us.forEach(function(u){
+      var tr=document.createElement('tr');
+      function c(x,col){var td=document.createElement('td');td.textContent=x;if(col)td.style.color=col;return td;}
+      var dayCol=u.activeDays>=3?'#4ade80':(u.activeDays>=1?'#e2e8f0':'#f87171');
+      tr.appendChild(c(u.name||u.email));
+      tr.appendChild(c(u.activeDays,dayCol));
+      tr.appendChild(c(u.interviews));
+      tr.appendChild(c(u.dailyDrillDays));
+      tr.appendChild(c(u.dailyStreak));
+      tr.appendChild(c(u.minutesTracked?(u.minutesTotal+' min'):'?',u.minutesTracked?'#93c5fd':'#64748b'));
+      tr.appendChild(c(u.lastActive||'—'));
+      t.appendChild(tr);
+    });
+    box.innerHTML='';box.appendChild(t);
+  }).catch(function(){box.innerHTML='<div class="empty">Fehler beim Laden.</div>';});
+}
+
 // ── App health ───────────────────────────────────────────────────────────────
 function loadHealth(){
   fetch('/admin/health-stats?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
