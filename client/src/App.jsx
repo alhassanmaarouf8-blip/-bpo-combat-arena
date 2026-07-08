@@ -2758,6 +2758,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [pendingPayment, setPendingPayment] = useState(null); // server source of truth
   const [paymentRejected, setPaymentRejected] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [trialEnded, setTrialEnded] = useState(false);   // had a time-limited plan that has now lapsed
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
@@ -2767,6 +2768,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         setOffer(d.offer?.active ? d.offer : null);   // deal shows ONLY when the server honors it
         setVodafone(d.vodafoneNumber || null); setWhatsapp(d.whatsappNumber || null);
         setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
+        // "Your free trial ended" — true when a non-comp, time-limited plan (e.g. the 2-day Basic
+        // pass) has passed its billing end. Drives the honest expiry banner below.
+        const s = d.account?.subscription;
+        setTrialEnded(!!(s && s.plan && s.billingPeriodEnd && s.billingPeriodEnd < Date.now() && !s.comp));
       })
       .catch(() => {});
   }, [token]);
@@ -2973,6 +2978,22 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
         </div>
       </div>
+
+      {/* Expiry alert — shown the moment a lapsed-trial user (e.g. the 2-day Basic pass) hits the
+          paywall: the honest "pay or lose" moment. Action-colored (single accent on the paywall). */}
+      {trialEnded && (
+        <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:10, textAlign:'center',
+          background:'linear-gradient(135deg, rgba(249,115,22,0.16), rgba(249,115,22,0.05))', border:'1px solid var(--action)' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13.5, color:'var(--action)' }}>
+            Deine kostenlose Testphase ist vorbei
+          </div>
+          <div style={{ fontSize:11, color:'#e2e8f0', marginTop:4, lineHeight:1.55 }}>
+            Zahle, um weiter für dein echtes Interview zu trainieren.<br/>
+            <span style={{ color:'#94a3b8' }}>Your free trial ended — pay to keep training.</span>
+            {/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}
+          </div>
+        </div>
+      )}
 
       {paymentRejected && (
         <div style={{ fontSize:10.5, color:'#fca5a5', textAlign:'center', lineHeight:1.6, marginBottom:10,
