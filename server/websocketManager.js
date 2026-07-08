@@ -787,7 +787,15 @@ export class WebSocketManager {
       const p = await loadUser(ctx.userId);
       const today = dayKey();
       if (!p.liveUsage || p.liveUsage.day !== today) p.liveUsage = { day: today, sec: 0 };
-      p.liveUsage.sec += Math.round(wallSec);
+      const add = Math.round(wallSec);
+      p.liveUsage.sec += add;
+      // Durable per-day history: liveUsage (above) resets each Cairo day, so it can't answer
+      // "how many days did they train, and for how many minutes each?". usageDays does — keyed by
+      // day, capped to ~180 days. This is the mechanism that makes engagement analytics real.
+      if (!p.usageDays || typeof p.usageDays !== 'object') p.usageDays = {};
+      p.usageDays[today] = (p.usageDays[today] || 0) + add;
+      const days = Object.keys(p.usageDays).sort();
+      if (days.length > 180) for (const k of days.slice(0, days.length - 180)) delete p.usageDays[k];
       await saveUser(p);
     } catch (e) { console.error('[wsManager] live usage record failed:', e.message); }
   }

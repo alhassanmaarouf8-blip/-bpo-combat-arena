@@ -40,6 +40,7 @@ export function defaultProfile(userId) {
     recommendedCounted:  [], // Trainingslager: ruleIds already counted in the global recommend stat
     neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
     liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
+    usageDays:        {},  // DURABLE per-day live seconds { 'YYYY-MM-DD': sec } — liveUsage resets daily, this does NOT (engagement analytics: days-active + minutes-each)
     drillsSeen:       {},  // per-drill seen-id sets → never-repeat for every standalone drill
     recentErrors:     [],  // top error labels from the last session (cross-session boss memory)
     lastTopics:       [],  // salient words the candidate SAID last session (claim-ledger) → content memory ("Sie erwähnten letztes Mal …")
