@@ -130,17 +130,22 @@ export async function getAccountByEmail(email) {
   return id ? s.accounts[id] : null;
 }
 
-export async function createAccount(email, password, ref) {
+export async function createAccount(email, password, ref, phone) {
   const s = await load();
   email = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
   if (String(password || '').length < 6)        throw Object.assign(new Error('weak_password'), { code: 400 });
   if (s.emailIndex[email])                       throw Object.assign(new Error('email_taken'),   { code: 409 });
 
+  // OPTIONAL phone (owner 2026-07-08): captured for manual WhatsApp practice-nudges. Never required —
+  // signup is still email+password. Normalized to +digits, capped; empty → null.
+  const phoneN = String(phone || '').replace(/[^\d+]/g, '').slice(0, 20);
+
   const id = 'a_' + randomBytes(8).toString('hex');
   const refId = typeof ref === 'string' ? ref.trim() : '';
   const account = {
     id, email,
+    phone:        phoneN || null,
     passwordHash: hashPassword(password),
     createdAt:    Date.now(),
     subscription: { tier: 'trial', trialStartedAt: Date.now(), trialSessionsUsed: 0 },
@@ -402,8 +407,8 @@ export const authRouter = express.Router();
 
 authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8, tag: 'signup' }), async (req, res) => {
   try {
-    const { email, password, ref } = req.body || {};
-    const acct = await createAccount(email, password, ref);
+    const { email, password, ref, phone } = req.body || {};
+    const acct = await createAccount(email, password, ref, phone);
     res.json({ token: signToken(acct.id), account: publicAccount(acct) });
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });

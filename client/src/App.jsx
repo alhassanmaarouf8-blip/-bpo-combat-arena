@@ -5,6 +5,7 @@ import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
 import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
+import { PushReminder } from './PushReminder.jsx';
 import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
 import { FluencyDrill } from './FluencyDrill.jsx';
@@ -2396,6 +2397,7 @@ function AuthScreen({ onAuth }) {
   const [mode, setMode]   = useState('signup');   // cold link-clickers are NEW visitors → show signup first (conversion)
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
+  const [phone, setPhone] = useState('');   // OPTIONAL — for daily WhatsApp practice-nudges (owner 07-08)
   const [err, setErr]     = useState('');
   const [busy, setBusy]   = useState(false);
   // Public ratings (owner 2026-07-02: show real user ratings publicly). Honest by construction —
@@ -2417,7 +2419,7 @@ function AuthScreen({ onAuth }) {
     try {
       const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode() } : {}) }),
+        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode(), phone } : {}) }),
       });
       const data = await r.json();
       if (!r.ok) {
@@ -2585,6 +2587,10 @@ function AuthScreen({ onAuth }) {
         <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="Passwort (min. 6 Zeichen)"
           autoComplete={mode==='signup'?'new-password':'current-password'}
           onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+        {mode==='signup' && (
+          <input type="tel" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="WhatsApp-Nummer (optional) — für tägliche Übungs-Erinnerungen"
+            autoComplete="tel" className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+        )}
 
         {err && (
           <div style={{ marginTop:10 }}>
@@ -5181,6 +5187,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             two that looked identical. Due-card count now shows on the SAG ES RICHTIG flow itself. */}
 
         {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
+        {canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL} />}
         {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
         {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
         </div>{/* /home-grid */}

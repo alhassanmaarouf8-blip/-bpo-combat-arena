@@ -9,6 +9,7 @@ import { planRouter }        from './plans.js';
 import { dailyRouter }       from './daily.js';
 import { feedbackRouter }    from './feedback.js';
 import { engagementRouter }  from './engagement.js';
+import { pushRouter }        from './push.js';
 import { assessmentRouter }  from './assessment.js';
 import { trainingslagerRouter } from './trainingslager.js';
 import { paymentsRouter }     from './payments.js';
@@ -142,6 +143,7 @@ app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', transcribeRouter);  // POST /api/transcribe — spoken-answer STT (Groq Whisper / Deepgram)
 app.use(engagementRouter);  // /admin/engagement — ADMIN_KEY-gated per-user engagement analytics (paths absolute)
+app.use(pushRouter);        // /api/push/* (opt-in) + /admin/push/daily (cron) — web-push reminders; paths absolute
 app.use(placementRouter);   // /api/placement (user) + /admin/placements (founder KPI) — paths are absolute
 app.use(adminRouter);   // /admin (HTML panel + actions), gated by ADMIN_KEY — not under /api
 

@@ -20,6 +20,24 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+// ── Web Push: daily practice reminder (payload-less; the text lives here) ──────
+self.addEventListener('push', (e) => {
+  const body = 'Zeit für dein Deutsch-Training! Schon 5 Minuten bringen dich näher zum Job. 🇩🇪';
+  e.waitUntil(self.registration.showNotification('OMNI-PERFORM', {
+    body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
+    tag: 'daily-reminder', renotify: true, data: { url: '/' },
+  }));
+});
+// Tapping the notification focuses an open tab or opens the app.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) { if ('focus' in c) { c.navigate?.('/'); return c.focus(); } }
+    if (self.clients.openWindow) return self.clients.openWindow('/');
+  })());
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   // Only same-origin GETs. Everything else (API, WebSocket upgrade, POST) passes straight through.
