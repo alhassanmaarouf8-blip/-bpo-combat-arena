@@ -4249,20 +4249,43 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* In-app-browser escape hatch: Facebook/Messenger/Instagram WebViews can't do mic capture,
           and the 07-06 cohort arrived from exactly those links (7/8 signups never reached the
-          interview). Persistent, quiet-blue (design law), with a one-tap Chrome escape on Android. */}
+          interview). A prominent blue card (design law: blue keeps the home's single orange object —
+          the START button — intact), shown on EVERY screen so the user meets it BEFORE the broken-mic
+          moment. Android gets a one-tap Chrome escape; iOS gets the manual Safari route. */}
       {IN_APP_BROWSER && (
-        <div style={{ padding:'10px 14px', background:'rgba(30,58,138,0.55)', borderBottom:'1px solid var(--accent)',
-          fontSize:12.5, lineHeight:1.6, color:'var(--text)', fontFamily:'var(--font-body)' }}>
-          <b>Wichtig:</b> Der Facebook/Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.
-          Öffne die Seite in <b>Chrome</b> oder <b>Safari</b>: Menü (⋯ oben rechts) → „Im Browser öffnen".{/* OWNER-AR slot */}
-          {/Android/i.test(navigator.userAgent || '') && (
-            <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
-              onClick={() => beacon('inapp_escape_tap')}
-              style={{ display:'inline-block', marginLeft:8, minHeight:44, lineHeight:'32px', padding:'6px 10px',
-                color:'var(--accent-2)', fontWeight:700, textDecoration:'underline', textUnderlineOffset:3 }}>
-              In Chrome öffnen →
-            </a>
-          )}
+        <div style={{ padding:'12px 16px', background:'var(--bg-1)', borderBottom:'1px solid var(--line-strong)' }}>
+          <div style={{ display:'flex', gap:12, alignItems:'flex-start',
+            background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.35)',
+            borderRadius:'var(--r-lg)', padding:'14px 16px', boxShadow:'var(--e2)' }}>
+            <div style={{ flex:'0 0 auto', width:38, height:38, borderRadius:'var(--r-md)', color:'var(--accent)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              background:'rgba(59,130,246,0.14)', border:'1px solid rgba(59,130,246,0.3)' }}>
+              <Icon name="mic" size={20} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-h2)',
+                color:'var(--text)', marginBottom:4 }}>
+                Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}
+              </div>
+              <div style={{ fontSize:'var(--fs-label)', lineHeight:1.55, color:'var(--text-dim)' }}>
+                Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR slot */}
+              </div>
+              {/Android/i.test(navigator.userAgent || '') ? (
+                <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
+                  onClick={() => beacon('inapp_escape_tap')}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:12,
+                    minHeight:48, borderRadius:'var(--r-md)', textDecoration:'none',
+                    background:'linear-gradient(135deg, var(--accent-2), var(--accent))', color:'#04070d',
+                    fontFamily:'var(--font-display)', fontWeight:700, fontSize:15 }}>
+                  In Chrome öffnen <Icon name="chevronRight" size={18} />
+                </a>
+              ) : (
+                <div style={{ marginTop:10, fontSize:'var(--fs-label)', lineHeight:1.55, color:'var(--accent-2)', fontWeight:600 }}>
+                  Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
