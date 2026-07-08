@@ -4286,14 +4286,25 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR slot */}
               </div>
               {/Android/i.test(navigator.userAgent || '') ? (
-                <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
-                  onClick={() => beacon('inapp_escape_tap')}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:12,
-                    minHeight:48, borderRadius:'var(--r-md)', textDecoration:'none',
-                    background:'linear-gradient(135deg, var(--accent-2), var(--accent))', color:'#04070d',
-                    fontFamily:'var(--font-display)', fontWeight:700, fontSize:15 }}>
-                  In Chrome öffnen <Icon name="chevronRight" size={18} />
-                </a>
+                <>
+                  {/* Bulletproof native path first: the app holds the mic itself, so it NEVER depends on
+                      which browser the user has. Then the Chrome escape as the no-install fallback. */}
+                  <a href="/OMNI-PERFORM.apk" download onClick={() => beacon('inapp_apk_tap')}
+                    style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:12,
+                      minHeight:48, borderRadius:'var(--r-md)', textDecoration:'none',
+                      background:'linear-gradient(135deg, var(--accent-2), var(--accent))', color:'#04070d',
+                      fontFamily:'var(--font-display)', fontWeight:700, fontSize:15 }}>
+                    📲 App installieren — Ton funktioniert immer{/* OWNER-AR slot */}
+                  </a>
+                  <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
+                    onClick={() => beacon('inapp_escape_tap')}
+                    style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:8,
+                      minHeight:44, borderRadius:'var(--r-md)', textDecoration:'none',
+                      border:'1px solid rgba(59,130,246,0.5)', color:'var(--accent-2)',
+                      fontFamily:'var(--font-display)', fontWeight:600, fontSize:13.5 }}>
+                    Oder: in Chrome öffnen <Icon name="chevronRight" size={16} />
+                  </a>
+                </>
               ) : (
                 <div style={{ marginTop:10, fontSize:'var(--fs-label)', lineHeight:1.55, color:'var(--accent-2)', fontWeight:600 }}>
                   Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}
