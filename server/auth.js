@@ -17,7 +17,7 @@ import { fileURLToPath }              from 'url';
 import express                        from 'express';
 import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
 import { dbEnabled, kvGet, kvSet }    from './db.js';
-import { PLANS }                       from './plans.config.js';
+import { PLANS, OFFER, offerActive, offerPrice } from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
 import { loadUser }                    from './store.js';
 import { dayKey }                      from './time.js';
@@ -449,7 +449,17 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
   res.json({
     account:    publicAccount(req.account),
     // The paid plans straight from plans.config.js (EGP prices + daily minutes — ONE source).
-    plans: [PLANS.basic, PLANS.elite],
+    // Each plan also carries its discounted price while the launch offer is live, and `offer`
+    // tells the client whether to show the deal — so the client never hardcodes the discount and
+    // the ad can't outlive the actual price (offer flips off automatically after endsAt).
+    plans: [PLANS.basic, PLANS.elite].map((pl) => ({
+      ...pl,
+      offerPriceEGP:  offerPrice(pl.priceEGP),
+      offerYearlyEGP: offerPrice(pl.yearlyEGP),
+    })),
+    offer: offerActive()
+      ? { active: true, pct: OFFER.pct, endsAt: OFFER.endsAt, label: OFFER.label }
+      : { active: false },
     // Manual payment details — ONLY from env (never hardcoded). Each is null/hidden if unset.
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
     instapayAddress: process.env.INSTAPAY_ADDRESS || null,

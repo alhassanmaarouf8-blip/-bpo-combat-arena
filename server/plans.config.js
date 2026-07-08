@@ -43,3 +43,24 @@ export const PLANS = {
 // Convenience accessors (kept in ONE place).
 export const FREE_ASSESSMENTS = PLANS.free.assessments;
 export const PLAN_IDS = Object.keys(PLANS); // ['free','basic','elite']
+
+// ── Limited-time launch offer — the SINGLE source of truth for the discount ──────────────────
+// When active, BOTH the payable amount (payments.js) and the pricing page (billing/status) use the
+// discounted price. Time-boxed: it flips OFF automatically after `endsAt` — no code change or
+// deploy needed to end it. The client shows the deal ONLY when the server reports it active, so the
+// advertised price and the charged amount can never disagree (no "advertised 50% but charged full"
+// half-deployed state). Applies to BOTH plans, monthly AND yearly.
+export const OFFER = {
+  active: true,
+  pct:    50,                                    // percent off
+  // 3-day window. Ends 23:59:59 Africa/Cairo (UTC+3 in July DST) on 2026-07-11.
+  endsAt: Date.parse('2026-07-11T20:59:59Z'),
+  label:  '50% Start-Angebot',
+};
+export function offerActive(now = Date.now()) {
+  return !!OFFER.active && Number.isFinite(OFFER.endsAt) && now < OFFER.endsAt;
+}
+// Discounted EGP, rounded to whole pounds, when the offer is live; the original price otherwise.
+export function offerPrice(egp, now = Date.now()) {
+  return offerActive(now) ? Math.round(Number(egp) * (100 - OFFER.pct) / 100) : Number(egp);
+}

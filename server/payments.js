@@ -13,7 +13,7 @@
 import express from 'express';
 import { randomBytes } from 'crypto';
 import { requireAuth } from './auth.js';
-import { PLANS }       from './plans.config.js';
+import { PLANS, offerPrice } from './plans.config.js';
 import { loadPayments, savePayments, refCodeFor } from './paymentsStore.js';
 
 export const paymentsRouter = express.Router();
@@ -26,8 +26,13 @@ paymentsRouter.post('/billing/pay', requireAuth, async (req, res) => {
     const billingPeriod = req.body?.billingPeriod === 'yearly' ? 'yearly' : 'monthly';
     if (plan !== 'basic' && plan !== 'elite') return res.status(400).json({ error: 'invalid_plan' });
 
-    // Amount is derived SERVER-side from the config — never trust a client-sent price.
-    const amountEGP = billingPeriod === 'yearly' ? PLANS[plan].yearlyEGP : PLANS[plan].priceEGP;
+    // Amount is derived SERVER-side from the config — never trust a client-sent price. The
+    // limited-time launch offer (plans.config.OFFER) is applied HERE so the payable amount and
+    // the advertised price share one source of truth. offerPrice() returns the full price once
+    // the 3-day window closes, so this needs no follow-up to end.
+    const baseEGP      = billingPeriod === 'yearly' ? PLANS[plan].yearlyEGP : PLANS[plan].priceEGP;
+    const amountEGP    = offerPrice(baseEGP);
+    const offerApplied = amountEGP < baseEGP;
     const referenceCode = refCodeFor(acc.id);
 
     const all = await loadPayments();
@@ -36,14 +41,14 @@ paymentsRouter.post('/billing/pay', requireAuth, async (req, res) => {
     const rec = {
       id: 'pay_' + randomBytes(6).toString('hex'),
       userId: acc.id, email: acc.email || null,
-      plan, billingPeriod, amountEGP, referenceCode,
+      plan, billingPeriod, amountEGP, baseEGP, offerApplied, referenceCode,
       status: 'pending', createdAt: Date.now(),
     };
     kept.push(rec);
     await savePayments(kept);
 
-    console.log(`[payments] PENDING  user=${acc.id}  email=${acc.email ?? '—'}  plan=${plan}  period=${billingPeriod}  amount=${amountEGP}EGP  ref=${referenceCode}`);
-    res.json({ ok: true, referenceCode, amountEGP, plan, billingPeriod }); // NO access granted here
+    console.log(`[payments] PENDING  user=${acc.id}  email=${acc.email ?? '—'}  plan=${plan}  period=${billingPeriod}  amount=${amountEGP}EGP${offerApplied ? ` (50% off ${baseEGP})` : ''}  ref=${referenceCode}`);
+    res.json({ ok: true, referenceCode, amountEGP, baseEGP, offerApplied, plan, billingPeriod }); // NO access granted here
   } catch (err) {
     console.error('[payments] pay error:', err.message);
     res.status(500).json({ error: 'pay_failed' });

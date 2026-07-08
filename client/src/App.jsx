@@ -2713,6 +2713,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [email, setEmail]   = useState('');
   const [accountId, setAccountId] = useState('');
   const [plans, setPlans]   = useState(null);
+  const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
   const [yearly, setYearly] = useState(false);
   const [vodafone, setVodafone] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
@@ -2729,6 +2730,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       .then((d) => {
         setEmail(d.account?.email || ''); setAccountId(d.account?.id || '');
         if (Array.isArray(d.plans)) setPlans(d.plans);
+        setOffer(d.offer?.active ? d.offer : null);   // deal shows ONLY when the server honors it
         setVodafone(d.vodafoneNumber || null); setWhatsapp(d.whatsappNumber || null);
         setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
       })
@@ -2946,6 +2948,26 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         </div>
       )}
 
+      {/* limited-time offer banner — rendered ONLY when the server reports the offer active, so the
+          ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}
+      {offer?.active && (() => {
+        const ends     = new Date(offer.endsAt);
+        const endsTxt  = ends.toLocaleDateString('de-DE', { day: '2-digit', month: 'long' });
+        const daysLeft = Math.max(1, Math.ceil((offer.endsAt - Date.now()) / 86400000));
+        return (
+          <div style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, textAlign:'center',
+            background:'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(249,115,22,0.05))',
+            border:'1px solid var(--action)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:14, letterSpacing:'0.04em', color:'var(--action)' }}>
+              🔥 {offer.pct}% RABATT · {offer.label}
+            </div>
+            <div style={{ fontSize:11, color:'#e2e8f0', marginTop:3 }}>
+              Nur noch {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'} — endet {endsTxt}.
+            </div>
+          </div>
+        );
+      })()}
+
       {/* monthly / yearly toggle */}
       <div style={{ display:'flex', gap:6, marginBottom:12 }}>
         {toggleBtn(false, ar ? 'شهري' : 'MONATLICH')}
@@ -2954,7 +2976,9 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
 
       <div style={{ flex:1, display:'flex', flexDirection:'column', gap:11 }}>
         {(plans || []).map((p) => {
-          const price  = yearly ? p.yearlyEGP : p.priceEGP;
+          const on     = !!offer?.active;   // discounted prices come from the server (offerPriceEGP)
+          const base   = yearly ? p.yearlyEGP : p.priceEGP;
+          const price  = on ? (yearly ? (p.offerYearlyEGP ?? base) : (p.offerPriceEGP ?? base)) : base;
           const period = yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
           const saving = (p.priceEGP * 12) - p.yearlyEGP;
           const elite  = p.id === 'elite';
@@ -2971,7 +2995,11 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
               )}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
                 <span style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:900, color:accent }}>{p.label?.toUpperCase()}</span>
-                <span style={{ fontSize:14, color:'#e2e8f0', fontWeight:700 }}>{fmt(price)} EGP<span style={{ fontSize:10, color:'#94a3b8' }}>{period}</span></span>
+                <span style={{ fontSize:14, color:'#e2e8f0', fontWeight:700, display:'inline-flex', alignItems:'baseline', gap:6 }}>
+                  {on && <span style={{ fontSize:11, fontWeight:600, color:'#64748b', textDecoration:'line-through' }}>{fmt(base)}</span>}
+                  <span style={{ color: on ? 'var(--good)' : '#e2e8f0' }}>{fmt(price)} EGP</span>
+                  <span style={{ fontSize:10, color:'#94a3b8' }}>{period}</span>
+                </span>
               </div>
               {yearly && (
                 <div style={{ fontSize:9.5, color:'var(--accent)', marginBottom:7 }}>
@@ -2982,7 +3010,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
                 <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
-              <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: yearly ? p.yearlyEGP : p.priceEGP, period: yearly ? 'yearly' : 'monthly' })}
+              <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: price, period: yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:'pointer',
                   fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
                   border:`1px solid ${accent}`, color:'#04070d', background:accent }}>
