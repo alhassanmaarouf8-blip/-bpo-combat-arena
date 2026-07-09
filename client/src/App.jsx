@@ -1505,7 +1505,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   );
 }
 
-function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onOpenGuide, onTrainSkill }) {
+function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onOpenGuide, onTrainSkill, ent, onSeePlans }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -2176,6 +2176,32 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
         </div>
       )}
 
+      {/* THE OFFER AT THE PEAK — they just read their own errors corrected; this is the moment of
+          highest belief in the product (elite-marketer teardown 2026-07-10: only 8 of ~120 openers
+          ever SAW a price — the paywall lived behind a quiet link and trial expiry). Shown only to
+          non-paying accounts. Quiet blue by design — the screen's single orange stays on the rank. */}
+      {onSeePlans && ent && (ent.plan || 'free') === 'free' && !pending && data && (
+        <div style={{ margin:'2px 16px 0', padding:'13px 15px', borderRadius:'var(--r-md)',
+          background:'rgba(59,130,246,0.08)', border:'1px solid var(--accent)' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)', lineHeight:1.5 }}>
+            {typeof data.progress?.sessionCount === 'number' && data.progress.sessionCount > 0
+              ? `Das war Interview Nr. ${data.progress.sessionCount}.` : 'Das war dein Interview.'}{' '}
+            Bleib dran bis zum Job.{/* OWNER-AR slot */}
+          </div>
+          {ent.trial?.active && ent.trial.daysLeft > 0 && (
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4 }}>
+              Testphase: noch {ent.trial.daysLeft} {ent.trial.daysLeft === 1 ? 'Tag' : 'Tage'} — danach entscheidest du.
+            </div>
+          )}
+          <button onClick={onSeePlans} style={{ marginTop:10, width:'100%', minHeight:44, cursor:'pointer',
+            fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.06em',
+            padding:'11px', borderRadius:'var(--r-md)', border:'1px solid var(--accent)',
+            color:'var(--accent)', background:'transparent' }}>
+            PLÄNE ANSEHEN →{/* OWNER-AR slot */}
+          </button>
+        </div>
+      )}
+
       <div style={{ padding:'10px 16px 20px', display:'flex', gap:10 }}>
         <button onClick={onRestart} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
           letterSpacing:'0.1em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
@@ -2410,6 +2436,13 @@ function AuthScreen({ onAuth }) {
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
   const [wa, setWa]       = useState('');          // WhatsApp — REQUIRED at signup (owner decision 2026-07-08)
+  const [forgotOpen, setForgotOpen] = useState(false);  // "Passwort vergessen" helper (manual WhatsApp reset)
+  const [forgotWa, setForgotWa]     = useState(null);   // owner's WhatsApp from /api/auth/reset-info (env-only, never hardcoded)
+  const openForgot = () => {
+    setForgotOpen(true);
+    fetch(`${API_URL}/api/auth/reset-info`).then((r) => r.json())
+      .then((d) => setForgotWa(d?.whatsapp || null)).catch(() => setForgotWa(null));
+  };
   const [err, setErr]     = useState('');
   const [busy, setBusy]   = useState(false);
   // Public ratings (owner 2026-07-02: show real user ratings publicly). Honest by construction —
@@ -2625,6 +2658,36 @@ function AuthScreen({ onAuth }) {
           </div>
         )}
 
+        {/* Password reset, the $0 way: message the coach's WhatsApp FROM the registered number
+            (possession of that number is the identity proof); the owner resets by hand via admin.
+            Before this, a locked-out user — including a PAYING one — was simply lost. */}
+        {mode === 'login' && !forgotOpen && (
+          <button onClick={openForgot} style={{ display:'block', margin:'10px auto 0', padding:'6px 10px',
+            background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)',
+            fontSize:'var(--fs-meta)', color:'var(--text-dim)', textDecoration:'underline', textUnderlineOffset:3 }}>
+            Passwort vergessen? · نسيت كلمة السر؟
+          </button>
+        )}
+        {mode === 'login' && forgotOpen && (
+          <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
+            border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
+            <div>
+              Schreib uns per WhatsApp <b style={{ color:'var(--text)' }}>von deiner registrierten Nummer</b>:
+              „Passwort vergessen“ + deine E-Mail. Wir setzen es zurück — meist in wenigen Stunden.
+            </div>
+            <div dir="rtl" style={{ marginTop:4 }}>{/* OWNER-AR slot */}</div>
+            {forgotWa ? (
+              <a href={`https://wa.me/${forgotWa.replace(/\D/g, '').replace(/^0/, '20')}?text=${encodeURIComponent('Passwort vergessen: ')}`}
+                target="_blank" rel="noreferrer"
+                style={{ display:'inline-block', marginTop:8, color:'var(--accent)', fontWeight:600 }}>
+                WhatsApp öffnen → {forgotWa}
+              </a>
+            ) : (
+              <div style={{ marginTop:8, color:'var(--text-faint)' }}>Nummer lädt…</div>
+            )}
+          </div>
+        )}
+
         <button onClick={submit} disabled={busy}
           style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:busy?'wait':'pointer',
             fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em', borderRadius:14,
@@ -2748,10 +2811,15 @@ const PERKS_DE = {
                  'Gegner passend zu DEINER Ziel-Stelle (Kundenservice, Tech-Support …)',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'alles aus Basic'],
+  job:   (m) => ['EINE Zahlung — kein monatliches Abo, keine Verlängerung',
+                 `bis zu ${m} Min ECHTES Live-Interview — jeden Tag, 12 Monate lang`,
+                 'unbegrenzte Drills — auf DEINE Fehler zugeschnitten',
+                 'trainiere in deinem Tempo, bis du den Job hast'],
 };
 const SUB_AR = {
   basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
+  // job: OWNER-AR slot — masri line for the one-time plan (never authored here).
 };
 
 function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
@@ -2874,7 +2942,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         <div style={{ fontSize:30 }}>📲</div>
         <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:900, letterSpacing:1.5, color:'var(--accent-2)' }}>VODAFONE CASH</div>
         <div style={{ fontSize:11, color:'#cbd5e1', marginTop:4 }}>
-          {pay.label?.toUpperCase()} — <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
+          {pay.label?.toUpperCase()} — <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'once' ? (ar?'مرة واحدة':'einmalig') : pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
         </div>
       </div>
 
@@ -3043,9 +3111,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       <div style={{ flex:1, display:'flex', flexDirection:'column', gap:11 }}>
         {(plans || []).map((p) => {
           const on     = !!offer?.active;   // discounted prices come from the server (offerPriceEGP)
-          const base   = yearly ? p.yearlyEGP : p.priceEGP;
-          const price  = on ? (yearly ? (p.offerYearlyEGP ?? base) : (p.offerPriceEGP ?? base)) : base;
-          const period = yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
+          const once   = !!p.once;          // one-time plan: no monthly/yearly toggle, pay once
+          const base   = (yearly && !once) ? p.yearlyEGP : p.priceEGP;
+          const price  = on ? ((yearly && !once) ? (p.offerYearlyEGP ?? base) : (p.offerPriceEGP ?? base)) : base;
+          const period = once ? (ar ? 'مرة واحدة' : 'einmalig') : yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
           const saving = (p.priceEGP * 12) - p.yearlyEGP;
           const elite  = p.id === 'elite';
           const accent = elite ? 'var(--action)' : 'var(--accent-2)';
@@ -3067,16 +3136,21 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
                   <span style={{ fontSize:10, color:'#94a3b8' }}>{period}</span>
                 </span>
               </div>
-              {yearly && (
+              {yearly && !once && (
                 <div style={{ fontSize:9.5, color:'var(--accent)', marginBottom:7 }}>
                   {ar ? `شهرين هدية · وفّر ${fmt(saving)} جنيه` : `2 Monate geschenkt · spare ${fmt(saving)} EGP`}
+                </div>
+              )}
+              {once && (
+                <div style={{ fontSize:9.5, color:'var(--accent)', marginBottom:7 }}>
+                  {ar ? '' : 'Einmal zahlen — 12 Monate trainieren. Kein Abo.'}{/* OWNER-AR slot */}
                 </div>
               )}
               {(PERKS_DE[p.id]?.(p.dailyLiveMinutes) || []).map((perk) => (
                 <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
-              <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: price, period: yearly ? 'yearly' : 'monthly' })}
+              <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:'pointer',
                   fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
                   border:`1px solid ${accent}`, color:'#04070d', background:accent }}>
@@ -4509,6 +4583,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart} onDone={handleDebriefDone}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
+          ent={auth.account?.entitlement}
+          onSeePlans={() => setPaywall(auth.account?.entitlement || { plan: 'free' })}
           onOpenGuide={() => setGuideOpen(true)}
           onTrainSkill={(drill, why) => { setDrillWhy(why || null);
             ({ fluency: setFluencyOpen, shadowing: setShadowingOpen,

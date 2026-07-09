@@ -326,7 +326,10 @@ export async function grantComp(account, plan) {
 export async function activatePlan(account, plan, billingPeriod) {
   if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
   const now = Date.now();
-  const periodMs = billingPeriod === 'yearly' ? 365 * DAY : 30 * DAY;
+  // 'once' = a one-time plan (PLANS[plan].once): access runs its configured duration, then
+  // planOf()'s normal billingPeriodEnd check lapses it to free — same mechanics, longer window.
+  const periodMs = billingPeriod === 'once'   ? (PLANS[plan].onceDurationDays || 365) * DAY
+                 : billingPeriod === 'yearly' ? 365 * DAY : 30 * DAY;
   // activatedNoticePending → the user sees a one-time "your plan is active 🎉" message.
   account.subscription = { ...account.subscription, plan, planSetAt: now, billingPeriodEnd: now + periodMs, activatedNoticePending: true };
   await persist();
@@ -476,6 +479,15 @@ authRouter.post('/login',
 
 authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccount(req.account) }));
 
+// Password reset, the $0 way: the user messages the owner's WhatsApp FROM THEIR REGISTERED
+// NUMBER (possession of the number they signed up with IS the identity proof) and the owner
+// sets a new password via the admin panel (/admin/set-password). This endpoint only exposes
+// where to write — a number that is already public on the payment screen. No token flows, no
+// email infra, nothing automated to abuse. A locked-out PAYING user was previously lost forever.
+authRouter.get('/reset-info', rateLimit({ windowMs: 10 * 60 * 1000, max: 30, tag: 'reset-info' }), (_req, res) => {
+  res.json({ whatsapp: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null });
+});
+
 // Optional WhatsApp opt-in — the app's ONLY re-engagement channel at $0 (no email infra, no
 // push). The learner leaves a number AFTER experiencing the product (the card shows post-
 // interview #1); the OWNER messages personally — nothing automated sends anywhere, so there is
@@ -506,10 +518,10 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     // Each plan also carries its discounted price while the launch offer is live, and `offer`
     // tells the client whether to show the deal — so the client never hardcodes the discount and
     // the ad can't outlive the actual price (offer flips off automatically after endsAt).
-    plans: [PLANS.basic, PLANS.elite].map((pl) => ({
+    plans: [PLANS.basic, PLANS.elite, PLANS.job].map((pl) => ({
       ...pl,
       offerPriceEGP:  offerPrice(pl.priceEGP),
-      offerYearlyEGP: offerPrice(pl.yearlyEGP),
+      offerYearlyEGP: pl.yearlyEGP != null ? offerPrice(pl.yearlyEGP) : null,
     })),
     offer: offerActive()
       ? { active: true, pct: OFFER.pct, endsAt: OFFER.endsAt, label: OFFER.label }
