@@ -3211,6 +3211,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [totals, setTotals] = useState({});                // from /api/progress totals
+  const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
   const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
   const [handsFree, setHandsFree] = useState(true);        // Freisprech: auto start/stop/send — ON by default
@@ -4212,6 +4213,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     setPaywall(null);
   }, [onAccountUpdate]);
 
+  // One-shot: the proof card is dismissed locally first (instant), then the server flips seen —
+  // if the POST fails the worst case is the card showing once more, never a lost dismissal.
+  const dismissLastDebrief = useCallback(() => {
+    setLastDebrief(null);
+    fetch(`${API_URL}/api/progress/debrief-seen`, { method: 'POST', headers: authHeaders() }).catch(() => {});
+  }, [authHeaders]);
+
   // ── Cleanup on unmount ────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
@@ -4236,6 +4244,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && typeof data.trainedToday === 'boolean') setTrainedToday(data.trainedToday);
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
         if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
+        if (!cancelled && data.lastDebrief) setLastDebrief(data.lastDebrief);         // one-shot proof card (server clears it after debrief-seen)
       } catch { /* keep cached value */ }
     })();
     return () => { cancelled = true; };
@@ -5112,6 +5121,44 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {firstRun && (
           <div style={{ marginTop:12, textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-dim)', lineHeight:1.55 }}>
             ⏱ ~7 Min · dein Niveau wird automatisch erkannt — einfach anfangen.
+          </div>
+        )}
+
+        {/* THE PROOF CARD — feedback from an interview whose debrief the user never saw (they closed
+            the tab / lost connection before it arrived; funnel 07-09: 31 starts → 4 debriefs seen).
+            This is the product's core promise ("your German moved") delivered late rather than never.
+            Corrections are LanguageTool-verified from the user's OWN sentences — the server stores
+            none when there were none, so this card can never show invented noise. Quiet blue surface:
+            the start button above keeps the screen's single orange. */}
+        {canStart && lastDebrief && (
+          <div style={{ marginTop:14, padding:'14px 16px', borderRadius:'var(--r-md)',
+            background:'var(--surface)', border:'1px solid var(--accent)', textAlign:'left' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:700,
+              color:'var(--accent)', marginBottom:8 }}>
+              Aus deinem letzten Interview{/* OWNER-AR slot */}
+            </div>
+            {lastDebrief.abandoned && (
+              <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:10, lineHeight:1.5 }}>
+                Du warst weg, bevor dein Feedback ankam — hier ist es.{/* OWNER-AR slot */}
+              </div>
+            )}
+            {(lastDebrief.corrections || []).map((c, i) => (
+              <div key={i} style={{ marginBottom:8, fontSize:'var(--fs-label)', lineHeight:1.6, fontFamily:'var(--font-body)' }}>
+                <span style={{ color:'var(--bad)', textDecoration:'line-through', textDecorationThickness:1 }}>{c.wrong}</span>
+                {' → '}
+                <span style={{ color:'var(--text)', fontWeight:600 }}>{c.right}</span>
+              </div>
+            ))}
+            {lastDebrief.win?.title && (
+              <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.5 }}>
+                ✓ {lastDebrief.win.title}{lastDebrief.win.quote ? ` — „${lastDebrief.win.quote}“` : ''}
+              </div>
+            )}
+            <button onClick={dismissLastDebrief} style={{ marginTop:10, padding:'8px 14px', minHeight:40,
+              borderRadius:'var(--r-pill)', border:'1px solid var(--line)', background:'transparent',
+              color:'var(--text-dim)', fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)', cursor:'pointer' }}>
+              Verstanden{/* OWNER-AR slot */}
+            </button>
           </div>
         )}
 

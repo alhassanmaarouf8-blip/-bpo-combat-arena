@@ -1250,6 +1250,35 @@ export class WebSocketManager {
         };
       }
 
+      // Carry the proof to the NEXT visit. Most trial users never see their debrief (they close the
+      // tab mid-interview and the socket is dead when it's ready), so the one thing they came for —
+      // evidence their German moved — evaporated. Persist a tiny snapshot the home screen can show
+      // once. Corrections come ONLY from LanguageTool-verified summaryExamples (real errors in the
+      // candidate's own words — never style/"could be better" noise); if there are none, we store
+      // none rather than invent one.
+      {
+        const corrections = (debrief.grammar || [])
+          .flatMap((g) => (g.summaryExamples || []).map((ex) => ({ wrong: ex.wrong, right: ex.right, label: g.label || null })))
+          .filter((c) => c.wrong && c.right && c.wrong !== c.right)
+          .slice(0, 2);
+        let win = null;
+        try {
+          const w = debriefStructureWins(ctx.utterances)[0];
+          if (w?.title) win = { title: w.title, quote: w.quote || null };
+        } catch { /* wins are optional */ }
+        if (corrections.length || win) {
+          p.lastDebrief = {
+            date: now,
+            bossId: ctx.bossId,
+            abandoned: !!ctx._abandoned,
+            words: metrics.words || 0,
+            corrections,
+            win,             // one verified positive (quote-gated), or null
+            seen: false,     // home shows it once, then flips this
+          };
+        }
+      }
+
       await saveUser(p);
 
       // REFERRAL: a real first completed interview is the qualifying event — credit the inviter +
@@ -2007,6 +2036,19 @@ export class WebSocketManager {
     await ctx.realtimeClient?.close().catch(() => {});
     ctx.dgStreamer?.close(); ctx.dgStreamer = null;   // prevent stale Deepgram socket after disconnect
     if (ctx._commitTimer) { clearTimeout(ctx._commitTimer); ctx._commitTimer = null; }
+
+    // A candidate who closes the tab / locks the phone / drops network mid-interview used to get
+    // NOTHING: the minutes above were billed and the session was deleted without ever generating
+    // feedback. They spoke real German and left with no proof they improved — the single biggest
+    // reason a trial never becomes a payment (funnel 2026-07-09: 31 starts → 4 debriefs).
+    // _finishSession applies its own MIN_REAL_ANSWERS/MIN_REAL_WORDS floor, and _send() is a no-op
+    // on a dead socket (readyState !== 1), so this only PERSISTS — it never writes to the socket.
+    if (!ctx.debriefSent && ctx.fightStartedAt) {
+      ctx._abandoned = true;
+      try { await this._finishSession(ctx); }
+      catch (e) { console.error(`[wsManager] abandoned-session debrief failed  session=${ctx.sessionId}:`, e.message); }
+    }
+
     this._sessions.delete(ctx.sessionId);
   }
 

@@ -96,6 +96,9 @@ function buildDashboard(p) {
     },
     masteredRules: p.masteredRules || [],
     vocabLearned:  p.vocabLearned || [],
+    // One-shot proof card from the last interview whose debrief the user never saw (they closed the
+    // tab before it arrived). null once seen. Corrections are LanguageTool-verified only.
+    lastDebrief:   p.lastDebrief && !p.lastDebrief.seen ? p.lastDebrief : null,
   };
 }
 
@@ -170,6 +173,18 @@ progressRouter.get('/progress', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[progress] dashboard error:', err.message);
     res.status(500).json({ error: 'dashboard_failed' });
+  }
+});
+
+// The home shows the last unseen debrief snapshot exactly once; this flips it off. Idempotent.
+progressRouter.post('/progress/debrief-seen', requireAuth, async (req, res) => {
+  try {
+    const p = await loadUser(req.account.id);
+    if (p.lastDebrief && !p.lastDebrief.seen) { p.lastDebrief.seen = true; await saveUser(p); }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[progress] debrief-seen error:', err.message);
+    res.status(500).json({ error: 'debrief_seen_failed' });
   }
 });
 
