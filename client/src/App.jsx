@@ -2509,6 +2509,9 @@ function AuthScreen({ onAuth }) {
           { icon:'mic',     ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
           { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
           { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Sieh deinen Fortschritt Woche für Woche — bis zum Job' },
+          // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
+          // REAL hiring bar. Arabic = OWNER-AR slot (empty renders nothing until filled).
+          { icon:'fileBadge', ar:'', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, Wortschatz für 90+ Konto-Typen' },
         ].map((b, i) => (
           <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
             <div style={{ width:36, height:36, borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)',
@@ -2751,15 +2754,17 @@ function WhatsAppOptIn({ token, apiUrl }) {
 const PERKS_DE = {
   basic: (m) => [`bis zu ${m} Min ECHTES Live-Interview — jeden Tag, bis es sitzt`,
                  'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
+                 'Szenarien nach echten deutschen Konto-Typen (Mobilfunk, Bank, Airline …)',
                  'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'Feedback auch auf Arabisch — du verstehst genau, was zu tun ist'],
   elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
                  'Gegner passend zu DEINER Ziel-Stelle (Kundenservice, Tech-Support …)',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
+                 'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
                  'alles aus Basic'],
   job:   (m) => ['EINE Zahlung — kein monatliches Abo, keine Verlängerung',
                  `bis zu ${m} Min ECHTES Live-Interview — jeden Tag, 12 Monate lang`,
-                 'unbegrenzte Drills — auf DEINE Fehler zugeschnitten',
+                 'Wortschatz für 90+ echte Konto-Typen — vom Mobilfunk bis zur Airline',
                  'trainiere in deinem Tempo, bis du den Job hast'],
 };
 const SUB_AR = {
