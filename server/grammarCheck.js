@@ -37,6 +37,11 @@ const SKIP_CATEGORIES = new Set([
 const SKIP_ISSUE_TYPES = new Set([
   'style', 'register', 'typographical', 'whitespace', 'characters',
   'non-conformance', 'locale-violation', 'misspelling',
+  // Owner-reported 2026-07-10: "es ging es ging → es ging" surfaced as a GRAMMAR weakness.
+  // A repeated word in SPEECH is a stutter — or the transcriber double-writing a turn — never
+  // grammar knowledge. Classifying disfluency as error violates the accuracy doctrine
+  // ("never blame a mis-heard turn on the learner").
+  'duplication',
 ]);
 
 // Canonicalize for the identical-correction guard: collapse whitespace + drop a trailing
@@ -143,6 +148,9 @@ export async function buildGrammar(utterances) {
     if (catId && SKIP_CATEGORIES.has(catId)) continue;            // STT/style noise → skip
     const issueType = mt.rule?.issueType;
     if (issueType && SKIP_ISSUE_TYPES.has(issueType)) continue;   // low-confidence type → skip
+    // Belt + braces for the stutter class: some LT word-repeat rules carry no issueType, so the
+    // rule ID is screened too (GERMAN_WORD_REPEAT_RULE, WORD_REPEAT_BEGINNING_RULE, …).
+    if (/WORD_REPEAT|WIEDERHOL/i.test(mt.rule?.id || '')) continue;
 
     const seg = segments.find((s) => mt.offset >= s.start && (mt.offset + mt.length) <= s.end);
     if (!seg) continue;                                           // spans a boundary → skip

@@ -1257,8 +1257,19 @@ export class WebSocketManager {
       // candidate's own words — never style/"could be better" noise); if there are none, we store
       // none rather than invent one.
       {
+        // Owner-reported 2026-07-10: the card showed FULL sentences, so a one-letter fix drowned
+        // in 40 identical words — and every OTHER unfixed defect in that long utterance paraded
+        // as "correct". The pipeline already builds DISPLAY FRAGMENTS (4 words of context around
+        // the exact change) for precisely this reason — the card must use them, like the debrief does.
         const corrections = (debrief.grammar || [])
-          .flatMap((g) => (g.summaryExamples || []).map((ex) => ({ wrong: ex.wrong, right: ex.right, label: g.label || null })))
+          .flatMap((g) => (g.summaryExamples || []).map((ex) => ({
+            // Same display contract as the debrief screen: the minimal changed words first,
+            // the fragment as quiet context. Never the raw full sentence.
+            wrong: ex.wrongWord || ex.wrongFragment || ex.wrong,
+            right: ex.rightWord || ex.rightFragment || ex.right,
+            ctx:   ex.wrongFragment || null,
+            label: g.label || null,
+          })))
           .filter((c) => c.wrong && c.right && c.wrong !== c.right)
           .slice(0, 2);
         let win = null;
