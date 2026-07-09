@@ -85,6 +85,12 @@ export const BPO_SCREENING_QUESTIONS = [
   'Wo sehen Sie sich beruflich in zwei bis drei Jahren — eher in der Kundenbetreuung, im Qualitätsbereich oder in einer Teamleitung?',
   'Wie lang wäre Ihr Arbeitsweg zu uns, und wie zuverlässig kommen Sie auch zu einer Frühschicht um sechs Uhr?',
   'Haben Sie schon einmal im Schichtsystem gearbeitet? Wenn ja: Was war für Sie das Schwierigste daran?',
+  // Floor-language screening (KB v1 §4): real TL interviews test whether the candidate knows how a
+  // call center is actually measured — and the learner must UNDERSTAND these words on day one.
+  'In diesem Job wird Ihre durchschnittliche Bearbeitungszeit gemessen — die sogenannte AHT. Wie gehen Sie damit um, wenn ein Kunde viel Zeit braucht, Ihre Zeit aber begrenzt ist?',
+  'Ihre Gespräche werden zur Qualitätssicherung aufgezeichnet und bewertet. Wie stehen Sie dazu, regelmäßig Feedback aus einem Coaching-Gespräch umzusetzen?',
+  'Wir arbeiten mit einem Gesprächsleitfaden. Wie schaffen Sie es, einem Skript zu folgen und trotzdem natürlich zu klingen?',
+  'Was tun Sie, wenn die Warteschleife voll ist und gleichzeitig ein Kunde im Gespräch einfach nicht zum Ende kommt?',
 ];
 
 // ── C1 Behavioral questions — Swiss/formal BPO register, STAR-method expected ──
@@ -225,6 +231,184 @@ export const CS_SCENARIOS = [
       'Sie bekommen von mir noch heute eine Bestätigung mit der Sendungsnummer.',
     ],
   },
+
+  // ── Industry-deep scenarios (KB v1, docs/kb/GERMAN-BPO-KB.md, 2026-07-10) ──────────────────
+  // One per real German account TYPE run from Cairo & the nearshore hubs (telecom, e-commerce,
+  // fintech, airline, delivery, logistics, energy, insurance, streaming, B2B ads). Brands stay
+  // anonymous (owner doctrine) — the TERMINOLOGY is the point: a learner who lands on any of the
+  // 90+ real accounts has already spoken its vocabulary here. Unseen-first selection makes this
+  // depth surface automatically; no new feature.
+  {
+    id:        'telecom-kuendigung',
+    customer:  'ein entschlossener Kunde, der seinen Mobilfunkvertrag kündigen will, weil die Konkurrenz billiger ist',
+    opening:   'Ich möchte meinen Vertrag kündigen, und zwar zum nächstmöglichen Termin! Die Konkurrenz bietet mir das gleiche Datenvolumen für die Hälfte. Schicken Sie mir die Kündigungsbestätigung!',
+    situation: 'Kündigungswunsch wegen eines besseren Konkurrenzangebots — Rückgewinnung versuchen, ohne aufdringlich zu werden.',
+    skill:     'Kundenrückgewinnung: zuhören, Mehrwert anbieten, Kündigungsrecht respektieren',
+    keyPhrases: [
+      'Aus Datenschutzgründen bestätige ich zuerst kurz Ihre Identität — nennen Sie mir bitte Ihre Service-PIN?',
+      'Ich sehe, Ihre Kündigungsfrist läuft zum Monatsende — darf ich Ihnen vorher ein Angebot machen?',
+      'Ich kann Ihnen eine Vertragsverlängerung mit doppeltem Datenvolumen zum gleichen Preis anbieten.',
+      'Wenn Sie trotzdem kündigen möchten, leite ich das selbstverständlich sofort für Sie ein.',
+    ],
+  },
+  {
+    id:        'telecom-portierung',
+    customer:  'ein nervöser Kunde, dessen Rufnummernmitnahme zum neuen Anbieter seit Tagen feststeckt',
+    opening:   'Meine Nummer sollte längst portiert sein! Seit vier Tagen bin ich nicht erreichbar — meine Kunden rufen ins Leere! Wo hängt die Portierung fest?',
+    situation: 'Die Rufnummernmitnahme verzögert sich, der Kunde ist beruflich auf die Nummer angewiesen.',
+    skill:     'Technischen Prozess erklären + verbindlichen Termin geben',
+    keyPhrases: [
+      'Ich prüfe sofort den Status Ihrer Portierung — einen Moment bitte.',
+      'Die Freigabe Ihres alten Anbieters liegt vor; die Umschaltung erfolgt morgen bis zwölf Uhr.',
+      'Sie erhalten von mir eine SMS, sobald Ihre Rufnummer aktiv ist.',
+    ],
+  },
+  {
+    id:        'tech-router-stoerung',
+    customer:  'ein Kunde im Homeoffice, dessen Internet seit dem Morgen ausfällt und der schon alles probiert hat',
+    opening:   'Mein Internet fällt ständig aus, ich habe den Router schon dreimal neu gestartet! Ich arbeite im Homeoffice — noch ein Tag so, und ich habe ein ernstes Problem mit meinem Chef!',
+    situation: 'Wiederkehrende Verbindungsabbrüche; die üblichen Neustarts haben nicht geholfen — strukturierte Störungsdiagnose nötig.',
+    skill:     'Technische Diagnose Schritt für Schritt + Erwartungen steuern',
+    keyPhrases: [
+      'Ich sehe in der Leitungsmessung eine Störung an Ihrem Anschluss.',
+      'Bitte setzen Sie den Router einmal auf Werkseinstellungen zurück — ich bleibe währenddessen in der Leitung.',
+      'Falls das nicht hilft, vereinbare ich sofort einen Techniker-Termin für morgen früh.',
+    ],
+  },
+  {
+    id:        'ecommerce-retoure',
+    customer:  'eine genervte Kundin, deren Retourenlabel nicht funktioniert und deren Erstattung seit drei Wochen aussteht',
+    opening:   'Ihr Retourenlabel lässt sich nicht ausdrucken, und auf meine Erstattung warte ich seit DREI Wochen! Dreihundert Euro! Langsam frage ich mich, ob ich mein Geld je wiedersehe.',
+    situation: 'Defektes Retourenlabel + ausstehende Erstattung — zwei Probleme in einem Anruf, Vertrauen ist angeschlagen.',
+    skill:     'Mehrere Anliegen strukturieren + konkreten Erstattungstermin nennen',
+    keyPhrases: [
+      'Ich sende Ihnen sofort ein neues Retourenlabel per E-Mail.',
+      'Ihre Rücksendung ist bei uns eingegangen — die Erstattung veranlasse ich jetzt manuell.',
+      'Das Geld ist innerhalb von drei bis fünf Werktagen auf Ihrem Konto.',
+    ],
+  },
+  {
+    id:        'fintech-doppelbuchung',
+    customer:  'ein alarmierter Kunde, dem derselbe Betrag zweimal abgebucht wurde und der Betrug vermutet',
+    opening:   'Auf meinem Konto ist dieselbe Lastschrift ZWEIMAL abgebucht — 89 Euro doppelt! Ist mein Konto gehackt? Ich will das Geld sofort zurück und wissen, was da los ist!',
+    situation: 'Doppelte Abbuchung, der Kunde vermutet Betrug — Sicherheit prüfen, Rückbuchung einleiten, beruhigen.',
+    skill:     'Sicherheitsbedenken ernst nehmen + Rückbuchung sauber erklären',
+    keyPhrases: [
+      'Ich verstehe Ihre Sorge — ich prüfe die Buchung sofort mit Ihnen zusammen.',
+      'Es handelt sich um eine technische Doppelbuchung, kein unbefugter Zugriff auf Ihr Konto.',
+      'Ich leite die Rückbuchung jetzt ein; zur Sicherheit empfehle ich Ihnen, Ihr Passwort zu ändern.',
+    ],
+  },
+  {
+    id:        'fintech-kontosperrung',
+    customer:  'ein verzweifelter Kunde, dessen Konto nach der Identitätsprüfung gesperrt bleibt, obwohl seine Miete fällig ist',
+    opening:   'Mein Konto ist seit fünf Tagen gesperrt! Ich habe die Video-Identifizierung doch längst gemacht! Morgen wird meine Miete abgebucht — wenn das platzt, haben SIE ein Problem!',
+    situation: 'Kontosperrung trotz abgeschlossener Verifizierung; eine dringende Zahlung steht an.',
+    skill:     'Dringlichkeit anerkennen + Prüfprozess transparent machen, nichts versprechen, was Compliance verbietet',
+    keyPhrases: [
+      'Bevor ich auf Ihr Konto schaue, muss ich aus Datenschutzgründen Ihre Identität prüfen.',
+      'Ich sehe, Ihre Verifizierung ist eingegangen und liegt bei unserem Prüfteam.',
+      'Ich markiere Ihren Fall als dringend, weil eine Mietzahlung ansteht.',
+      'Die Prüfung kann ich nicht überspringen, aber ich melde mich heute noch mit einem Zwischenstand.',
+    ],
+  },
+  {
+    id:        'airline-umbuchung',
+    customer:  'eine gestresste Kundin, deren Flug gestrichen wurde und die morgen zu einer Beerdigung muss',
+    opening:   'Mein Flug morgen früh wurde einfach GESTRICHEN! Ich muss zu einer Beerdigung — verstehen Sie das? Ich MUSS morgen dort sein, egal wie!',
+    situation: 'Flugstreichung vor einem emotional wichtigen Termin — Umbuchung finden, Fluggastrechte kennen, mit Gefühl kommunizieren.',
+    skill:     'Empathie in einer emotionalen Ausnahmesituation + schnelle Umbuchung',
+    keyPhrases: [
+      'Das tut mir sehr leid — ich suche Ihnen jetzt sofort die schnellste Alternative.',
+      'Ich kann Sie kostenlos auf den Flug um 6:15 Uhr über München umbuchen.',
+      'Ihre Entschädigungsansprüche nach der EU-Fluggastrechteverordnung prüfe ich im Anschluss für Sie.',
+    ],
+  },
+  {
+    id:        'airline-gepaeck',
+    customer:  'ein aufgebrachter Kunde, dessen Koffer seit der Landung verschwunden ist — mit Medikamenten darin',
+    opening:   'Mein Koffer ist nicht angekommen! Da sind meine Medikamente drin, die ich TÄGLICH brauche. Am Schalter hat man mich einfach weggeschickt — was machen Sie jetzt?',
+    situation: 'Gepäckverlust mit dringend benötigten Medikamenten — Sofortmaßnahmen plus Verlustmeldung.',
+    skill:     'Dringendes vom Formalen trennen: erst die Medikamente, dann der Prozess',
+    keyPhrases: [
+      'Das Wichtigste zuerst: Notwendige Ersatzkäufe wie Medikamente können Sie einreichen — heben Sie die Belege auf.',
+      'Ich erfasse jetzt Ihre Verlustmeldung mit der Gepäcknummer von Ihrem Abschnitt.',
+      'Ihr Koffer ist lokalisiert und wird Ihnen morgen bis 14 Uhr an Ihre Adresse zugestellt.',
+    ],
+  },
+  {
+    id:        'delivery-fehlende-artikel',
+    customer:  'ein hungriger, wütender Kunde, dessen Lieferung kalt ankam und bei dem die Hälfte fehlt',
+    opening:   'Meine Bestellung kam eine Stunde zu spät, das Essen ist EISKALT, und die Getränke fehlen komplett! Und jetzt bietet mir Ihre App fünf Euro Gutschrift an? Das ist doch ein Witz!',
+    situation: 'Verspätete, unvollständige und kalte Lieferung; die automatische Kulanz der App empfand der Kunde als Beleidigung.',
+    skill:     'Kulanz menschlich machen: neu bewerten statt Standardgutschrift verteidigen',
+    keyPhrases: [
+      'Da ist heute wirklich einiges schiefgelaufen — das sehe ich genauso wie Sie.',
+      'Ich erstatte Ihnen die fehlenden Artikel vollständig und die Liefergebühr dazu.',
+      'Zusätzlich lege ich Ihnen eine Gutschrift für die nächste Bestellung ins Konto.',
+    ],
+  },
+  {
+    id:        'logistik-zustellversuch',
+    customer:  'ein verärgerter Kunde, der den ganzen Tag zu Hause war und trotzdem eine "nicht angetroffen"-Karte im Briefkasten fand',
+    opening:   'Ich war den GANZEN Tag zu Hause, und trotzdem steckt eine Karte im Briefkasten: „Leider nicht angetroffen"! Der Fahrer hat nicht einmal geklingelt! Und jetzt liegt mein Paket irgendwo in einer Filiale?',
+    situation: 'Angeblich erfolgloser Zustellversuch; das Paket wartet in der Abholstation — der Kunde fühlt sich belogen.',
+    skill:     'Ärger validieren, ohne den Kollegen schlechtzumachen + bequemste Lösung anbieten',
+    keyPhrases: [
+      'Das ist verständlicherweise frustrierend — ich gebe Ihre Rückmeldung an das Zustellteam weiter.',
+      'Ihr Paket liegt in der Abholstation und ist dort noch sieben Werktage für Sie hinterlegt.',
+      'Alternativ beauftrage ich für morgen einen erneuten Zustellversuch an Ihre Adresse.',
+    ],
+  },
+  {
+    id:        'energie-nachzahlung',
+    customer:  'eine geschockte Kundin, deren Jahresabrechnung eine Nachzahlung von 480 Euro verlangt',
+    opening:   'Ich habe gerade meine Jahresabrechnung geöffnet: 480 Euro NACHZAHLUNG! Das kann überhaupt nicht stimmen, wir haben sogar gespart! Erklären Sie mir das — sofort!',
+    situation: 'Hohe Nachzahlung in der Jahresabrechnung; möglicherweise beruht sie auf einem geschätzten Zählerstand.',
+    skill:     'Abrechnung verständlich erklären + Ratenzahlung als Ausweg anbieten',
+    keyPhrases: [
+      'Ich gehe die Abrechnung jetzt Schritt für Schritt mit Ihnen durch.',
+      'Ihr Zählerstand wurde geschätzt — bitte geben Sie mir den aktuellen Stand durch, dann korrigiere ich die Rechnung.',
+      'Falls eine Restsumme bleibt, kann ich Ihnen eine Ratenzahlung ohne Zusatzkosten einrichten.',
+    ],
+  },
+  {
+    id:        'versicherung-schaden',
+    customer:  'ein ungeduldiger Kunde, dessen Wasserschaden-Meldung seit sechs Wochen unbearbeitet liegt',
+    opening:   'Ich habe den Wasserschaden vor SECHS Wochen gemeldet! Die Wand schimmelt inzwischen, und von Ihnen kommt nichts außer automatischen E-Mails! Wann wird mein Schaden endlich reguliert?',
+    situation: 'Schadensmeldung liegt seit Wochen ohne Rückmeldung; der Schaden verschlimmert sich sichtbar.',
+    skill:     'Verzögerung ehrlich einräumen + den Fall aktiv eskalieren',
+    keyPhrases: [
+      'Sechs Wochen ohne Rückmeldung sind zu lang — dafür entschuldige ich mich.',
+      'Ich sehe, es fehlen noch Fotos für den Sachbearbeiter; die können Sie mir direkt hier hochladen.',
+      'Ich eskaliere Ihre Schadensmeldung heute an die Fachabteilung und Sie erhalten bis Freitag eine Entscheidung.',
+    ],
+  },
+  {
+    id:        'streaming-abbuchung',
+    customer:  'ein empörter Kunde, dem nach seiner Kündigung trotzdem der Monatsbeitrag abgebucht wurde',
+    opening:   'Ich habe mein Abo letzten Monat GEKÜNDIGT — und heute buchen Sie mir schon wieder 14,99 Euro ab! Machen Sie das rückgängig, sonst lasse ich jede weitere Abbuchung von meiner Bank zurückholen!',
+    situation: 'Abbuchung nach Kündigung — vermutlich lief die Kündigung erst zum Periodenende, was der Kunde nicht wusste.',
+    skill:     'Missverständnis über Kündigungsfristen klären, ohne belehrend zu klingen',
+    keyPhrases: [
+      'Zu Ihrer Sicherheit gleiche ich zuerst Ihr Kundenkennwort ab, bevor ich Buchungen einsehe.',
+      'Ich prüfe Ihre Kündigung — sie ist eingegangen und zum Ende der Laufzeit wirksam.',
+      'Die letzte Abbuchung deckt den bereits angefangenen Zeitraum ab — das erkläre ich Ihnen gern genauer.',
+      'Aus Kulanz erstatte ich Ihnen den Betrag und stelle das Konto sofort auf beendet.',
+    ],
+  },
+  {
+    id:        'b2b-werbekonto',
+    customer:  'eine Geschäftsinhaberin, deren Werbekonto mitten in ihrer wichtigsten Verkaufswoche gesperrt wurde',
+    opening:   'Mein Werbekonto wurde heute Morgen gesperrt — angeblich ein Richtlinienverstoß, aber es steht nirgends, WELCHER! Meine Kampagnen stehen still, mitten im Weihnachtsgeschäft! Jede Stunde kostet mich Umsatz!',
+    situation: 'B2B-Fall: gesperrtes Werbekonto ohne klare Begründung; wirtschaftlicher Druck ist real und stündlich.',
+    skill:     'B2B-Register halten + Prüfprozess konkret machen, ohne Schuld einzugestehen',
+    keyPhrases: [
+      'Ich verstehe, dass jede Stunde zählt — ich schaue mir die Sperrung sofort an.',
+      'Die Prüfung betrifft eine Anzeige vom Dienstag; ich reiche Ihren Widerspruch jetzt mit Priorität ein.',
+      'Sie erhalten die Entscheidung des Prüfteams innerhalb von 24 Stunden per E-Mail.',
+    ],
+  },
 ];
 
 // ── The winning behavior the roleplay rewards ───────────────────────────────────
@@ -238,7 +422,16 @@ export const CS_RUBRIC =
   `"Ich kann Ihren Ärger sehr gut nachvollziehen", "Darf ich kurz zusammenfassen?", ` +
   `"Ich nehme Ihr Anliegen sehr ernst", "Was ich konkret für Sie tun kann, ist Folgendes:", ` +
   `"Ich kann zwar das Geschehene nicht rückgängig machen, aber…", "Bleiben wir bitte sachlich", ` +
-  `"Ich verspreche Ihnen, dass ich persönlich dranbleibe".`;
+  `"Ich verspreche Ihnen, dass ich persönlich dranbleibe". ` +
+  // QA-scorecard alignment (KB §8C, 2026-07-10): real floors grade the CLOSING pair and hold
+  // etiquette explicitly, and treat a wrong binding promise as an auto-fail-class error. The boss
+  // rewards/punishes these IN the roleplay; the deterministic scorer stays untouched.
+  `Belohne außerdem den professionellen GESPRÄCHSABSCHLUSS — eine kurze Zusammenfassung PLUS die ` +
+  `Abschlussfrage („Kann ich sonst noch etwas für Sie tun?") — und korrekte WARTESCHLEIFEN-Etikette: ` +
+  `um Erlaubnis fragen („Darf ich Sie kurz in die Warteschleife legen?"), eine Zeitangabe machen, ` +
+  `nach dem Warten danken. Reagiere dagegen spürbar verärgert, wenn der Kandidat etwas verbindlich ` +
+  `zusagt, das er nicht halten kann — ein falsches Versprechen zu Fristen oder Erstattungen wiegt ` +
+  `auf einem echten Floor schwerer als jeder Grammatikfehler.`;
 
 // ── Datenschutz / identity-verification rubric (GDPR realism on a German line) ───
 // On a real German customer line the agent may NOT touch account data before
@@ -316,6 +509,34 @@ export const BPO_PHRASES = [
   { de: 'Damit ich Ihnen schneller helfen kann, brauche ich kurz Ihre Kundennummer.', en: 'So that I can help you faster, I briefly need your customer number.', drill: 'Formuliere höflich eine Bitte um Information mit „Damit ich …".' },
   { de: 'Ich verspreche Ihnen, dass ich dranbleibe, bis das Problem gelöst ist.', en: 'I promise you that I will stay on it until the problem is solved.', drill: 'Übe eine verbindliche Zusage, die Vertrauen schafft.' },
   { de: 'Habe ich Sie richtig verstanden, dass …?', en: 'Have I understood you correctly that …?', drill: 'Stelle eine Rückfrage, um ein Missverständnis zu klären.' },
+
+  // ── Industry terminology (KB v1, docs/kb/GERMAN-BPO-KB.md) — the words real German accounts
+  // run on (telecom, e-commerce, fintech, airline, delivery, logistics, energy, insurance,
+  // tech support, B2B). Seeded into the same SRS pool; drills deepen automatically. ──
+  { de: 'Ihre Kündigungsfrist läuft zum Ende des Monats.', en: 'Your cancellation notice period runs until the end of the month.', drill: 'Mobilfunk-Wortschatz: erkläre einem Kunden „Kündigungsfrist" in einem Satz.' },
+  { de: 'Ich kann Ihnen eine Vertragsverlängerung mit besseren Konditionen anbieten.', en: 'I can offer you a contract renewal with better conditions.', drill: 'Übe das Rückgewinnungsangebot: nenne EINEN konkreten Vorteil dazu.' },
+  { de: 'Die Rufnummernmitnahme dauert in der Regel drei Werktage.', en: 'Porting your phone number usually takes three working days.', drill: 'Sag den Satz und ersetze „in der Regel" durch „normalerweise".' },
+  { de: 'Ihr Datenvolumen ist aufgebraucht, deshalb ist die Geschwindigkeit gedrosselt.', en: 'Your data volume is used up, which is why the speed is throttled.', drill: 'Erkläre „Drosselung" so, dass es auch ein Laie versteht.' },
+  { de: 'Ich sende Ihnen ein neues Retourenlabel per E-Mail zu.', en: 'I will email you a new return label.', drill: 'E-Commerce: verbinde den Satz mit einer Zeitangabe („innerhalb von …").' },
+  { de: 'Sobald die Rücksendung eingeht, veranlassen wir die Erstattung.', en: 'As soon as the return arrives, we initiate the refund.', drill: 'Übe die „sobald …"-Struktur mit zwei eigenen Beispielen.' },
+  { de: 'Laut Sendungsverfolgung wurde das Paket heute Morgen zugestellt.', en: 'According to the tracking, the parcel was delivered this morning.', drill: 'Beginne drei Sätze mit „Laut …" (Sendungsverfolgung, System, Kollege).' },
+  { de: 'Auf dieses Gerät haben Sie noch zwölf Monate Gewährleistung.', en: 'You still have twelve months of statutory warranty on this device.', drill: 'Erkläre den Unterschied: Gewährleistung (gesetzlich) vs. Garantie (freiwillig).' },
+  { de: 'Ich leite die Rückbuchung des doppelt abgebuchten Betrags ein.', en: 'I am initiating the chargeback of the amount that was debited twice.', drill: 'Fintech: sage dem Kunden auch, WANN das Geld zurück ist.' },
+  { de: 'Zur Sicherheit müssen wir zuerst Ihre Identität verifizieren.', en: 'For security, we first need to verify your identity.', drill: 'Bitte höflich um zwei Angaben zur Identitätsprüfung.' },
+  { de: 'Ihr Konto wurde vorübergehend gesperrt, um es zu schützen.', en: 'Your account was temporarily locked in order to protect it.', drill: 'Übe die beruhigende Begründung: „…, um … zu …".' },
+  { de: 'Bitte geben Sie die Zahlung niemals telefonisch mit Ihrer TAN frei.', en: 'Please never approve the payment over the phone with your TAN.', drill: 'Warne einen Kunden freundlich vor Phishing — zwei Sätze.' },
+  { de: 'Ich kann Sie kostenlos auf einen früheren Flug umbuchen.', en: 'I can rebook you onto an earlier flight free of charge.', drill: 'Airline: biete zwei Alternativen an („entweder … oder …").' },
+  { de: 'Bei einer Verspätung über drei Stunden steht Ihnen eine Entschädigung zu.', en: 'For a delay of more than three hours you are entitled to compensation.', drill: 'Übe „Ihnen steht … zu" mit Erstattung und Entschädigung.' },
+  { de: 'Ihre Verlustmeldung für das Gepäck habe ich aufgenommen.', en: 'I have recorded your lost-luggage report.', drill: 'Fasse zusammen: Was wurde gemeldet, was passiert als Nächstes?' },
+  { de: 'Die fehlenden Artikel erstatte ich Ihnen selbstverständlich vollständig.', en: 'Of course I will fully refund the missing items.', drill: 'Delivery: kombiniere Erstattung + Gutschrift in einem Satz.' },
+  { de: 'Ihr Paket liegt sieben Werktage in der Abholstation für Sie bereit.', en: 'Your parcel will be held for you at the pickup point for seven working days.', drill: 'Logistik: erkläre einem Kunden den Weg zur Packstation.' },
+  { de: 'Ich beauftrage für morgen einen erneuten Zustellversuch.', en: 'I am arranging another delivery attempt for tomorrow.', drill: 'Übe „beauftragen" in zwei Service-Sätzen.' },
+  { de: 'Bitte teilen Sie mir Ihren aktuellen Zählerstand mit.', en: 'Please give me your current meter reading.', drill: 'Energie: bitte um den Zählerstand UND erkläre wofür.' },
+  { de: 'Ihre Abschlagszahlung passe ich an Ihren tatsächlichen Verbrauch an.', en: 'I am adjusting your monthly installment to your actual consumption.', drill: 'Erkläre „Abschlag" und „Jahresabrechnung" in je einem Satz.' },
+  { de: 'Für die Nachzahlung kann ich Ihnen eine Ratenzahlung einrichten.', en: 'I can set up an installment plan for the outstanding amount.', drill: 'Biete die Ratenzahlung als Entlastung an — freundlich, nicht förmlich.' },
+  { de: 'Ihre Schadensmeldung ist eingegangen und wird von der Fachabteilung geprüft.', en: 'Your damage claim has been received and is being reviewed by the specialist department.', drill: 'Versicherung: nenne dem Kunden die nächsten zwei Schritte.' },
+  { de: 'Bitte setzen Sie den Router einmal auf die Werkseinstellungen zurück.', en: 'Please reset the router to factory settings once.', drill: 'Tech-Support: führe den Kunden in drei kurzen Schritten durch den Reset.' },
+  { de: 'Ich reiche Ihren Widerspruch gegen die Kontosperrung mit Priorität ein.', en: 'I am submitting your appeal against the account suspension with priority.', drill: 'B2B: bestätige Dringlichkeit + nenne die Antwortfrist.' },
 ];
 
 // ── Funnel stages (for the UI tracker) ──────────────────────────────────────────
