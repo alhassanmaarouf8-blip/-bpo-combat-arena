@@ -5200,6 +5200,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 <span style={{ color:'var(--bad)', textDecoration:'line-through', textDecorationThickness:1 }}>{c.wrong}</span>
                 {' → '}
                 <span style={{ color:'var(--text)', fontWeight:600 }}>{c.right}</span>
+                {/* the fragment gives the minimal word-pair its sentence context (same pattern as the debrief) */}
+                {c.ctx && c.ctx !== c.wrong && (
+                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', fontStyle:'italic', marginTop:2 }}>{c.ctx}</div>
+                )}
               </div>
             ))}
             {lastDebrief.win?.title && (
