@@ -3500,6 +3500,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // Boss voice (PCM16@24k) over the WS → play it. (Barge-in flush arrives via BOSS_INTERRUPTED.)
         setError(e => (e === 'realtime_error' ? null : e));   // boss replied → the transient error is stale (see BOSS_SPEECH_EARLY)
         if (!geminiModeRef.current || !geminiPlayerRef.current) break;
+        // boss_spoke was only emitted on the text path (BOSS_SPEECH never arrives on Gemini fights),
+        // so the funnel undercounted: 07-09 read ws_connected=42 / boss_spoke=23 — half the fights
+        // LOOKED silent when they were Gemini fights speaking fine. First audio byte = boss spoke.
+        if (!bossHasSpokenRef.current) beacon('boss_spoke');
+        bossHasSpokenRef.current = true;
         geminiPlayerRef.current.enqueue(msg.data);
         // Voice-first ordering: the transcript held back for this turn is released only now, when
         // her voice is actually audible — the text follows the speech, never announces it.
