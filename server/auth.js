@@ -417,11 +417,13 @@ export async function requireAuth(req, res, next) {
 // (read from X-Forwarded-For since Render runs behind a proxy). In-memory is sufficient for
 // a single instance and simply resets on restart — an acceptable trade-off here.
 const _rl = new Map(); // key -> [timestamps]
-function rateLimit({ windowMs, max, tag }) {
+function rateLimit({ windowMs, max, tag, keyExtra }) {
   return (req, res, next) => {
     const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
             || req.socket?.remoteAddress || 'unknown';
-    const key = `${tag}:${ip}`;
+    // keyExtra narrows the bucket below the IP (e.g. per-account for login) so strict limits can
+    // coexist with CGNAT: hundreds of REAL Egyptian users share one carrier IP.
+    const key = `${tag}:${ip}${keyExtra ? ':' + keyExtra(req) : ''}`;
     const now = Date.now();
     const hits = (_rl.get(key) || []).filter((t) => now - t < windowMs);
     if (hits.length >= max) {
@@ -440,7 +442,13 @@ function rateLimit({ windowMs, max, tag }) {
 
 export const authRouter = express.Router();
 
-authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8, tag: 'signup' }), async (req, res) => {
+// CGNAT reality (found 2026-07-10 when the per-IP guard blocked QA): Egyptian mobile carriers put
+// hundreds of users behind ONE public IP. At max:8/hour, a successful Facebook post lets 8 people
+// in and shows everyone else on that carrier IP "Zu viele Versuche" at the moment of highest
+// intent. Signup is not a brute-force target (it CREATES accounts; email uniqueness + trial limits
+// bound the abuse), so the per-IP cap only needs to stop scripted floods — 60/hour does that while
+// surviving a real launch burst.
+authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 60, tag: 'signup' }), async (req, res) => {
   try {
     const { email, password, ref, whatsapp } = req.body || {};
     // WhatsApp is now a required signup field (owner decision 2026-07-08): the re-engagement
@@ -452,7 +460,14 @@ authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 8, tag: 's
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
 
-authRouter.post('/login', rateLimit({ windowMs: 10 * 60 * 1000, max: 10, tag: 'login' }), async (req, res) => {
+// Login keeps brute-force protection but must survive CGNAT (see signup note): the per-IP cap is
+// generous (80/10min — a burst of REAL users on one carrier IP), while a second, strict limiter is
+// keyed per IP+account (8/10min) so credential-stuffing any one mailbox is still blocked.
+authRouter.post('/login',
+  rateLimit({ windowMs: 10 * 60 * 1000, max: 80, tag: 'login' }),
+  rateLimit({ windowMs: 10 * 60 * 1000, max: 8,  tag: 'login-acct',
+              keyExtra: (req) => String(req.body?.email || '').toLowerCase().slice(0, 80) }),
+  async (req, res) => {
   const { email, password } = req.body || {};
   const acct = await authenticate(email, password);
   if (!acct) return res.status(401).json({ error: 'invalid_credentials' });
