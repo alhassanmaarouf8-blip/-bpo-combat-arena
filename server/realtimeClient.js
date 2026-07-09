@@ -24,6 +24,7 @@ import { fileURLToPath } from 'url';
 import { buildSessionScript } from './scenarios.js';
 import { seededIdiolect } from './idiolect.js';
 import { scrubForeignScript } from './langGuard.js';
+import { createLedger, noteTurn, findContradiction } from './claimLedger.js';
 
 // Hard cap per boss turn. A single question is ~20–60 tokens; a Teil-3 customer
 // complaint with scenario context is longer. 200 still leaves room for a vivid customer
@@ -63,9 +64,18 @@ const PROVIDERS = [
     name:  'groq',
     base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
     key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
-    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.1-8b-instant',
+    // 2026-07-09: upgraded the DEFAULT boss model 8B → 70B on the SAME free Groq key (no new key,
+    // no account, no env var to set). The 8B model was chosen for raw latency, but it reads dumb/
+    // robotic in nuanced German HR roleplay — the #1 "feels garbage" cause. 70B is far sharper and
+    // still fast on Groq; the sentence-streaming early-emission below hides the small latency cost.
+    // Still env-overridable: set GROQ_INTERVIEW_MODEL=llama-3.1-8b-instant to revert if needed.
+    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
     maxTokens: MAX_TURN_TOKENS,
-    extra: { temperature: 0.7 },
+    // Groq-ONLY naturalness tune (naturalness doctrine Lane 1 — NOT applied to the Cerebras reasoning
+    // model). Mild repetition penalties + a small temp bump make the small 8B model vary its phrasing
+    // instead of falling into the same rhythm every turn. Conservative on purpose: too high destabilises
+    // German grammar on an 8B model. Owner: verify feel with hear-voice before trusting.
+    extra: { temperature: 0.78, frequency_penalty: 0.3, presence_penalty: 0.2 },
   },
 ].filter(p => p.key);                     // only providers whose key is configured
 
@@ -716,6 +726,8 @@ export class RealtimeClient {
     this._pacing             = null;   // { teil, label, remaining } — the funnel clock (ROADMAP #15)
     this._pendingEmotion     = null;   // affect label → tone directive for the NEXT boss turn (delivery only)
     this._ledger             = [];     // claim-ledger: salient terms the candidate said → verbatim callbacks ("it listens")
+    this._numLedger          = createLedger();  // numeric claims → self-contradiction detection ("vorhin 3 Jahre, jetzt 5")
+    this._turnIdx            = 0;
     this._stageIdx           = 0;      // funnel stage (gateway keeps it fresh) → thread-following only in Teil 1–2
     this._threadNudges       = 0;      // thread-following nudges used this session (cap 3)
     this._threadCooldown     = 0;      // ≥1 → no nudge this turn (never on consecutive turns)
@@ -780,6 +792,16 @@ export class RealtimeClient {
 
     // Per-turn instruction: the one-turn rule, plus optional rescue softener or correction probe.
     const turnMsgs = [...this._history, { role: 'system', content: TURN_RULE }];
+
+    // SELF-CONTRADICTION (naturalness): a real interviewer catches "vorhin drei Jahre, jetzt fünf".
+    // Deterministic + honesty-gated (claimLedger). Delivery only — the scorer never sees this.
+    noteTurn(this._numLedger, { text: answer }, this._turnIdx++);
+    const _contra = findContradiction(this._numLedger);
+    if (_contra) {
+      turnMsgs.push({ role: 'system', content:
+        `Der Kandidat hat sich gerade widersprochen: vorhin „${_contra.earlier.raw}", jetzt „${_contra.now.raw}". ` +
+        `Sprich das EINMAL ruhig und natürlich an („Sie sagten vorhin …, jetzt …?") und lass ihn kurz erklären — nicht belehrend.` });
+    }
 
     // Mechanical thread-following: a substantive answer that OPENED a new thread pins the next
     // boss turn to that thread (deterministic backstop for the ÜBERGÄNGE "don't jump" rules).
