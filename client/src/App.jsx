@@ -256,9 +256,9 @@ function recordThinkPause(ms) {                        // a pause the user resum
 }
 function userPauseCeiling() {                          // p85 of THIS user's think-pauses; sane default until enough data
   const s = _pauseSamples.filter((x) => x >= 200 && x <= 4000).sort((a, b) => a - b);
-  if (s.length < 4) return 1400;                       // cold start: patient by default — the audience is L2 (Arabic-L1)
+  if (s.length < 4) return 1000;                       // cold start (07-09 latency fix: was 1400) — still patient for L2
   const p85 = s[Math.min(s.length - 1, Math.floor(s.length * 0.85))];
-  return Math.max(800, Math.min(2600, p85));
+  return Math.max(550, Math.min(1600, p85));           // 07-09 latency fix: ceiling 2600→1600, floor 800→550
 }
 function adaptiveNeedSilence(cls, words, patienceMs = 0, stageIdx = 0) {   // the per-user wait, scaled by how finished the sentence sounds
   // PATIENCE DOCTRINE (owner 07-05 + 07-09 "it doesn't even allow 5 sentences — it interrupts and probes
@@ -268,18 +268,20 @@ function adaptiveNeedSilence(cls, words, patienceMs = 0, stageIdx = 0) {   // th
   // not — the instant thinking-filler masks it anyway. A single completed sentence is usually just the FIRST
   // of several, so even "complete" gets generous room.
   const ceil = userPauseCeiling();
-  let ms = cls === 'complete'   ? Math.round(ceil * 0.9)          // finished sentence → likely just sentence 1 of many; wait
-         : cls === 'incomplete' ? Math.round(ceil * 1.4) + 350    // trailing cue → clearly mid-thought, generous margin
-         :                        Math.round(ceil * 1.1) + 250;   // default → more than clear their own typical pause
-  if (words > 0 && words < 6) ms += 400;              // early short answer right after the question → don't rush them
+  // 07-09 LATENCY FIX: lead time felt "unhuman" (up to ~4.2s of silence before a turn committed).
+  // Finished-sounding sentences now hand over FAST; only clearly-trailing turns keep generous margin.
+  let ms = cls === 'complete'   ? Math.round(ceil * 0.6)          // finished sentence → hand over quickly (was 0.9)
+         : cls === 'incomplete' ? Math.round(ceil * 1.1) + 250    // trailing cue → still patient, but less (was 1.4+350)
+         :                        Math.round(ceil * 0.85) + 150;  // default (was 1.1+250)
+  if (words > 0 && words < 6) ms += 250;              // early short answer → small cushion (was 400)
   // ASCENDING DIFFICULTY at the turn-taking layer (owner 07-09): a gentle interviewer (Yasmin) hands over
   // the floor much later than a forceful one (Tarek). This is what makes the LEVEL felt in the pacing —
   // previously bossPatienceRef was computed but never applied, so every persona cut you off identically.
   ms += Math.max(0, Math.round(patienceMs || 0));
   // Self-introduction (Teil 1 / stage 0) is inherently multi-sentence — give the MOST room so the boss never
   // cuts a "Ich heiße… Ich komme aus… Ich habe … Jahre Erfahrung…" build after the first sentence.
-  if (stageIdx === 0) ms += 600;
-  return Math.max(900, Math.min(4200, ms));
+  if (stageIdx === 0) ms += 300;                      // 07-09: self-intro cushion halved (was 600)
+  return Math.max(600, Math.min(2400, ms));           // 07-09 latency fix: worst case 4200→2400ms
 }
 
 function classifyTurnDE(partial) {

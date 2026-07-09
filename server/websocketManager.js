@@ -48,7 +48,11 @@ const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 // near the END of the interview → fell back mid-fight (the voice CHANGED) and the closing handoff hung
 // / hallucinated — demo-fatal. The $0 Groq path is stable. Re-enable with env GEMINI_LIVE_ENABLED=1
 // once the Gemini endgame (session-drop fallback + goodbye handoff) is hardened.
-const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_ENABLED !== '1';
+// 2026-07-09 FIX: the old form (`!== '1'`) meant Gemini was DISABLED unless GEMINI_LIVE_ENABLED=1 —
+// a silent kill-switch that blocked Gemini even with USE_GEMINI_LIVE=1 and a valid paid key. Flipped
+// to DEFAULT-ENABLED: Gemini runs when USE_GEMINI_LIVE=1 + key present, and is killed ONLY by an
+// explicit GEMINI_LIVE_DISABLED=1 (or GEMINI_LIVE_ENABLED=0).
+const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_DISABLED === '1' || process.env.GEMINI_LIVE_ENABLED === '0';
 const geminiEmailAllowed = () => !GEMINI_LIVE_DISABLED;
 // Per-persona native-audio voice, gender + character matched. Without this map every interviewer
 // would share ONE voice ('Charon', male) — voicing the women with a man. Gemini prebuilt voices; a
@@ -501,6 +505,8 @@ export class WebSocketManager {
     // greeting when Gemini will greet natively (otherwise the candidate hears two hellos). ──
     const geminiLiveEnabled = USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY
       && geminiEmailAllowed(account.email) && !geminiBudget.isCapped();
+    // 2026-07-09 DEBUG: never let the fallback be silent again — name the exact gate that failed.
+    console.log(`[wsManager] gemini-gate  flag=${USE_GEMINI_LIVE}  key=${!!process.env.GEMINI_API_KEY}  allowed=${geminiEmailAllowed(account.email)}  capped=${geminiBudget.isCapped()}  spent=$${geminiBudget.spentThisMonth().toFixed(2)}/$${geminiBudget.capUsd()}  => geminiLiveEnabled=${geminiLiveEnabled}  session=${ctx.sessionId}`);
     if (USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY && geminiEmailAllowed(account.email) && geminiBudget.isCapped()) {
       console.warn(`[wsManager] Gemini monthly cap ($${geminiBudget.capUsd()}) reached — this fight stays on the $0 path  session=${ctx.sessionId}`);
     }

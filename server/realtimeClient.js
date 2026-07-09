@@ -48,34 +48,28 @@ const MAX_TURN_TOKENS = 140;   // was 200 then 110 then 90
 //   CEREBRAS: CEREBRAS_API_KEY · gpt-oss-120b — a REASONING model, so it gets extra token
 //             headroom + reasoning_effort:'low' (verified: clean formal German, ~0.6s).
 const PROVIDERS = [
+  // 2026-07-09 LATENCY FIX (evidence: server log "[LAT] llm=2359ms  boss on cerebras" — the reasoning
+  // model was adding ~2.4s of "thinking" to EVERY turn). Groq 70B is now PRIMARY: on Groq's LPU it
+  // replies in ~0.3–0.5s, cutting ~1.8s per turn. Cerebras gpt-oss-120b drops to FAILOVER (still smart,
+  // used only if Groq is rate-limited). Also removed the frequency/presence penalties that were
+  // degrading the German. To restore Cerebras-primary, swap these two blocks back.
+  {
+    name:  'groq',
+    base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
+    key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
+    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
+    maxTokens: MAX_TURN_TOKENS,
+    extra: { temperature: 0.7 },
+  },
   {
     name:  'cerebras',
     base:  process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
     key:   process.env.CEREBRAS_API_KEY,
     model: process.env.CEREBRAS_INTERVIEW_MODEL || 'gpt-oss-120b',
-    // Reasoning model: max_tokens covers reasoning + visible text, so it needs headroom or the
-    // whole budget goes to thinking and the visible reply comes back EMPTY (the empty-completion
-    // guard in callBoss/callBossStreaming then fails over to Groq). Brevity is enforced by
-    // TURN_RULE, latency by Cerebras' ~1k tok/s — not by this cap.
+    // Reasoning model → SLOW (adds ~2s of thinking). FAILOVER ONLY now. Needs token headroom or the
+    // visible reply comes back EMPTY (reasoning eats the budget) → fails over to Groq.
     maxTokens: 380,
     extra: { temperature: 0.7, reasoning_effort: 'low' },
-  },
-  {
-    name:  'groq',
-    base:  process.env.INTERVIEW_BASE_URL || 'https://api.groq.com/openai/v1',
-    key:   process.env.INTERVIEW_API_KEY  || process.env.GROQ_API_KEY,
-    // 2026-07-09: upgraded the DEFAULT boss model 8B → 70B on the SAME free Groq key (no new key,
-    // no account, no env var to set). The 8B model was chosen for raw latency, but it reads dumb/
-    // robotic in nuanced German HR roleplay — the #1 "feels garbage" cause. 70B is far sharper and
-    // still fast on Groq; the sentence-streaming early-emission below hides the small latency cost.
-    // Still env-overridable: set GROQ_INTERVIEW_MODEL=llama-3.1-8b-instant to revert if needed.
-    model: process.env.GROQ_INTERVIEW_MODEL || 'llama-3.3-70b-versatile',
-    maxTokens: MAX_TURN_TOKENS,
-    // Groq-ONLY naturalness tune (naturalness doctrine Lane 1 — NOT applied to the Cerebras reasoning
-    // model). Mild repetition penalties + a small temp bump make the small 8B model vary its phrasing
-    // instead of falling into the same rhythm every turn. Conservative on purpose: too high destabilises
-    // German grammar on an 8B model. Owner: verify feel with hear-voice before trusting.
-    extra: { temperature: 0.78, frequency_penalty: 0.3, presence_penalty: 0.2 },
   },
 ].filter(p => p.key);                     // only providers whose key is configured
 
