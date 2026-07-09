@@ -23,6 +23,11 @@ const ALLOWED = new Set([
   'assessment_shown', 'start_clicked', 'ws_connected', 'connect_timeout',
   'boss_spoke', 'mic_started', 'mic_failed', 'mic_unsupported', 'debrief_shown',
   'paywall_shown', 'whatsapp_prompt_shown', 'whatsapp_saved',
+  // Voice-path health (2026-07-09): a fight that silently drops from Gemini native audio to the
+  // text pipeline feels transcript-gated and laggy, and until now NOTHING recorded it happening.
+  // gemini_fight = the second session_ready flagged useGeminiAudio; gemini_fallback = GEMINI_ENDED
+  // reached the client mid-fight. start_clicked − gemini_fight = fights that never got Gemini.
+  'gemini_fight', 'gemini_fallback',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

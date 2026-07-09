@@ -3366,6 +3366,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       if (!geminiModeRef.current) { try { await rec.stop(); } catch { /* already stopped */ } return; }
       geminiMicRef.current = rec;
       setRecording(true);
+      if (!micStartedBeaconRef.current) { micStartedBeaconRef.current = true; beacon('mic_started'); }   // was only emitted on the $0 path — the funnel was blind to mic health on Gemini fights
     } catch (err) { beacon('mic_failed'); setError(micErrorCode(err)); }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3390,7 +3391,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // WITH useGeminiAudio once the Gemini native-audio session is live for this account. The 2nd
         // one must NOT re-start the fight (that errors 'fight_already_active') — it switches the
         // client to the Gemini voice path.
-        if (msg.useGeminiAudio) { enterGeminiMode(); break; }
+        if (msg.useGeminiAudio) { beacon('gemini_fight'); enterGeminiMode(); break; }
         setBossHp(msg.bossHp ?? 100);
         setPlayerHp(msg.playerHp ?? 100);
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
@@ -3546,6 +3547,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.GEMINI_ENDED:
         // Paid path ended mid-fight (budget cap or error) → leave Gemini mode so the normal $0
         // hands-free flow resumes (mic re-opens via the VAD effect; boss replies return via MP3).
+        beacon('gemini_fallback');   // voice-path health: silent downgrades must be countable in /diag/funnel
         stopGeminiMode();
         break;
 
