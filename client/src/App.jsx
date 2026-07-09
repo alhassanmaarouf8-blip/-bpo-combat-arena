@@ -2473,7 +2473,7 @@ function AuthScreen({ onAuth }) {
           أول تدريب إنترفيو ألماني مصمم خصيصًا للعرب — علشان توصل للشغل في كول سنتر ألماني.
         </div>
         <div style={{ fontSize:'var(--fs-body)', color:'var(--text-dim)', marginTop:12, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
-          Das erste deutsche Interview-Trainer für Arabisch-Sprechende — optimiert für den ägyptischen BPO-Markt.
+          Der erste deutsche Interview-Trainer für Arabisch-Sprechende — optimiert für den ägyptischen BPO-Markt.
         </div>
         <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:4, marginTop:16,
           padding:'9px 16px', borderRadius:'var(--r-pill)', border:'1px solid var(--action-dim)',
