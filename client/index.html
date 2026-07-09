@@ -106,7 +106,12 @@
       .app-shell, .auth-shell{ width:100%; max-width:440px; margin:0 auto; }
       @media (min-width:900px){
         .app-shell{ max-width:none; width:80vw; zoom:1.15; }   /* rendered ≈ 92vw — fills the laptop */
-        .auth-shell{ max-width:560px; zoom:1.25; }              /* login stays a card, just bigger */
+        /* Landing/auth gets a REAL desktop layout (aesthetic pass 2026-07-10). The old 560px+zoom
+           clamp squeezed the already-existing two-column .landing-grid into a phone column: the
+           Arabic hero shattered into 1-2 words per line, the ★-rating and legal links scattered
+           into stray grid cells, and input placeholders truncated. Wide shell + zoom 1 lets the
+           grid do its job: hero left, ratings/signup right. */
+        .auth-shell{ max-width:1160px; zoom:1; padding-inline:36px; }
         .home-grid{ column-count:2; column-gap:16px; }
         .home-grid > *{ break-inside:avoid; }                  /* keep each card whole across columns */
       }
