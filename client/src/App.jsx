@@ -748,15 +748,6 @@ const EMOTIONS = {
 };
 
 // Per-expression facial parameters (driven into the SVG below).
-const FACE_PARAMS = {
-  composed:  { browTilt:  6, browLift:  0, eyeOpen: 1.0,  mouthCurve: -0.10, mouthOpen: 0.00 },
-  skeptical: { browTilt: 13, browLift: -5, eyeOpen: 0.80, mouthCurve: -0.16, mouthOpen: 0.05, smirk: true },
-  smug:      { browTilt:  3, browLift: -3, eyeOpen: 0.85, mouthCurve:  0.34, mouthOpen: 0.04, smirk: true },
-  impressed: { browTilt: -9, browLift: -9, eyeOpen: 1.18, mouthCurve:  0.14, mouthOpen: 0.20 },
-  furious:   { browTilt: 20, browLift:  2, eyeOpen: 0.62, mouthCurve: -0.42, mouthOpen: 0.55 },
-  shaken:    { browTilt:-12, browLift:-10, eyeOpen: 1.25, mouthCurve: -0.05, mouthOpen: 0.55 },
-};
-
 // Per-emotion posture — a subtle whole-body transform so the mood reads in his stance,
 // not just the badge. (Composed = neutral, skeptical = head-tilt, impressed = sits back,
 // furious = looms forward.)
@@ -902,96 +893,39 @@ const GLOBAL_CSS = `
 `;
 
 // ── Component: BossAvatar (designed SVG interviewer that emotes) ───────────────
-function _eyePath(cx, cy, open) {
-  const ry = 9 * open;
-  return `M ${cx-15} ${cy} Q ${cx} ${cy-ry} ${cx+15} ${cy} Q ${cx} ${cy+ry} ${cx-15} ${cy} Z`;
-}
-function _mouthPath(cx, cy, curve, open) {
-  const w = 22, mid = cy + curve * 26, h = open * 22;
-  return `M ${cx-w} ${cy} Q ${cx} ${mid} ${cx+w} ${cy} Q ${cx} ${mid + h} ${cx-w} ${cy} Z`;
-}
-
-function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--accent-2)' }) {
-  const p = FACE_PARAMS[emotion] || FACE_PARAMS.composed;
-  const eyeCY = 102, browY = 80 + p.browLift, mouthCY = 150;
-
+function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--accent-2)', name = '' }) {
+  // Premium initials ring (aesthetic pass 2026-07-10, owner-approved): the hand-drawn cartoon face
+  // read as a MALE with a tie under "YASMIN" (female voice) — hearing a woman while seeing a man
+  // broke exactly the illusion the naturalness work builds, and clip-art clashed with the glass
+  // system everywhere else. The ring matches the landing's own mockup ("Y · HR"). Emotion still
+  // reaches the screen: the ring carries the live emotion color and its glow strength; only the
+  // SPEAKING halo animates (one meaningful loop — never an idle pulse).
+  const glow = ({ composed: 0.45, skeptical: 0.5, smug: 0.5, impressed: 0.7, furious: 0.9, shaken: 0.7 })[emotion] ?? 0.45;
+  const initial = (name || '?').trim().charAt(0).toUpperCase();
   return (
-    <svg viewBox="0 0 220 244" style={{ width:'100%', height:'100%', display:'block', overflow:'visible' }}>
-      <defs>
-        <radialGradient id="ba-spot" cx="50%" cy="34%" r="64%">
-          <stop offset="0%"  stopColor={color} stopOpacity="0.30" />
-          <stop offset="55%" stopColor={color} stopOpacity="0.05" />
-          <stop offset="100%" stopColor="#000" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="ba-skin" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#c49a6c" /><stop offset="55%" stopColor="#9b6f42" /><stop offset="100%" stopColor="#7a5030" />
-        </linearGradient>
-        <linearGradient id="ba-hair" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#120808" /><stop offset="100%" stopColor="#060202" />
-        </linearGradient>
-        <linearGradient id="ba-suit" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0c1218" /><stop offset="100%" stopColor="#040609" />
-        </linearGradient>
-        <filter id="ba-soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2" /></filter>
-      </defs>
-
-      <rect x="0" y="0" width="220" height="244" fill="url(#ba-spot)" />
-
-      {/* suit + shirt + tie */}
-      <path d="M 28 244 Q 28 196 70 183 L 150 183 Q 192 196 192 244 Z" fill="url(#ba-suit)" stroke={color} strokeOpacity="0.28" strokeWidth="1.5" />
-      <path d="M 92 183 L 110 210 L 128 183 Z" fill="#0b1119" />
-      <path d="M 92 183 L 110 206 M 128 183 L 110 206" stroke={color} strokeOpacity="0.55" strokeWidth="2" fill="none" />
-      <path d="M 104 187 L 116 187 L 120 232 L 110 244 L 100 232 Z" fill={color} fillOpacity="0.5" />
-
-      {/* neck + head */}
-      <rect x="96" y="156" width="28" height="34" rx="11" fill="url(#ba-skin)" />
-      <ellipse cx="110" cy="108" rx="60" ry="70" fill="url(#ba-skin)" />
-      <ellipse cx="110" cy="108" rx="60" ry="70" fill="none" stroke={color} strokeOpacity="0.5" strokeWidth="1.5" filter="url(#ba-soft)" />
-      <ellipse cx="110" cy="150" rx="40" ry="24" fill="#10161f" opacity="0.45" />
-
-      {/* hair */}
-      <path d="M 50 98 Q 46 36 110 34 Q 174 36 170 98 Q 150 68 110 68 Q 70 68 50 98 Z" fill="url(#ba-hair)" />
-      <path d="M 50 98 Q 46 36 110 34 Q 174 36 170 98" fill="none" stroke={color} strokeOpacity="0.4" strokeWidth="1.5" />
-
-      {/* ears + call-center headset (themed) */}
-      <circle cx="48" cy="114" r="12" fill="url(#ba-skin)" />
-      <circle cx="172" cy="114" r="12" fill="url(#ba-skin)" />
-      <path d="M 40 112 Q 40 42 110 40 Q 180 42 180 112" fill="none" stroke="#1a2430" strokeWidth="7" strokeLinecap="round" />
-      <path d="M 40 112 Q 40 42 110 40 Q 180 42 180 112" fill="none" stroke={color} strokeOpacity="0.45" strokeWidth="2" />
-      <rect x="33" y="105" width="16" height="22" rx="6" fill="#0c131c" stroke={color} strokeWidth="1.5" />
-      <circle cx="41" cy="116" r="2.6" fill={color}>
-        <animate attributeName="opacity" values="1;0.25;1" dur="1.5s" repeatCount="indefinite" />
-      </circle>
-      <path d="M 35 124 Q 28 152 64 158" fill="none" stroke="#1a2430" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="64" cy="158" r="4.5" fill={color} fillOpacity="0.7" />
-
-      {/* brows */}
-      <g fill={color}>
-        <rect x="73"  y={browY-4} width="34" height="9" rx="4" transform={`rotate(${p.browTilt} 90 ${browY})`} />
-        <rect x="113" y={browY-4} width="34" height="9" rx="4" transform={`rotate(${-p.browTilt} 130 ${browY})`} />
-      </g>
-
-      {/* eyes — wrapped so they blink occasionally */}
-      <g className="boss-blink">
-        <path d={_eyePath(90, eyeCY, p.eyeOpen)}  fill="#e6edf5" />
-        <path d={_eyePath(130, eyeCY, p.eyeOpen)} fill="#e6edf5" />
-        <circle cx="90"  cy={eyeCY} r="5" fill="#1a0c05" />
-        <circle cx="130" cy={eyeCY} r="5" fill="#1a0c05" />
-        <circle cx="88.5"  cy={eyeCY-1.5} r="1.5" fill={color} />
-        <circle cx="128.5" cy={eyeCY-1.5} r="1.5" fill={color} />
-      </g>
-
-      {/* nose */}
-      <path d="M 110 110 L 103 133 Q 110 138 117 133 Z" fill="#10161f" opacity="0.65" />
-      <ellipse cx="110" cy="163" rx="13" ry="4" fill="#0a0605" opacity="0.35" />
-
-      {/* mouth (lip-syncs while the boss speaks) */}
-      <g className={speaking ? 'boss-talk' : ''}>
-        <path d={_mouthPath(110, mouthCY, p.mouthCurve, p.mouthOpen)} fill="#0a0f16" stroke={color} strokeOpacity="0.55" strokeWidth="1.2" />
-      </g>
-    </svg>
+    <div style={{ width:'100%', height:'100%', display:'grid', placeItems:'center' }}>
+      <div style={{ position:'relative', width:'min(62%, 190px)', aspectRatio:'1', display:'grid', placeItems:'center' }}>
+        {speaking && (
+          <div style={{ position:'absolute', inset:-14, borderRadius:'50%',
+            border:`2px solid ${color}`, opacity:0.5, animation:'pulse 1.1s ease-in-out infinite' }} />
+        )}
+        <div style={{ position:'absolute', inset:0, borderRadius:'50%',
+          border:`2.5px solid ${color}`,
+          boxShadow:`0 0 ${Math.round(28 * glow + 12)}px ${color}${speaking ? 'aa' : '55'}, inset 0 0 22px ${color}22`,
+          transition:'box-shadow 0.6s var(--ease), border-color 0.6s' }} />
+        <div style={{ position:'absolute', inset:10, borderRadius:'50%',
+          background:'radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,0.09), rgba(6,10,18,0.92) 60%)',
+          border:'1px solid rgba(255,255,255,0.08)', display:'grid', placeItems:'center' }}>
+          <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:'clamp(44px, 16vw, 72px)',
+            color:'#fff', textShadow:`0 0 24px ${color}88`, lineHeight:1, transform:'translateY(-4px)' }}>{initial}</span>
+        </div>
+        <div style={{ position:'absolute', bottom:'15%', fontFamily:'var(--font-display)', fontWeight:600,
+          fontSize:10, letterSpacing:'0.22em', color, opacity:0.85 }}>HR</div>
+      </div>
+    </div>
   );
 }
+
 
 // ── Component: HpBar ──────────────────────────────────────────────────────────
 // Smoothly tweens a displayed integer toward `target` with rAF (cubic ease-out).
@@ -1024,9 +958,13 @@ function HpBar({ label, value, isPlayer, reason }) {
   const shown = useAnimatedNumber(pct);
   const low   = pct <= 25;
   // Palette tracks the design tokens; solid hexes kept where glow math needs string concat.
+  // Aesthetic pass 2026-07-10: the boss bar opened every fight as a full-width RED wall (red
+  // reserved for true errors; a job-interview screen shouldn't look like a raid). Boss now reads
+  // blue (composed) → orange (you're breaking through) — progress feels warm, not alarming.
+  // Player keeps red ONLY at critical (<25) — that IS a genuine warning.
   const solid = isPlayer
     ? (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : '#ef4444')
-    : (pct > 50 ? '#ef4444' : pct > 25 ? '#f97316' : '#dc2626');
+    : (pct > 50 ? '#3b82f6' : pct > 25 ? '#f97316' : '#fb923c');
   const glow   = solid + '66';
   const rColor = isPlayer ? '#f87171' : 'var(--accent)';   // player loss = red, gain = green
   const rSign  = isPlayer ? '−' : '+';
@@ -1136,7 +1074,7 @@ function ComboMeter({ combo }) {
   return (
     <div style={{ textAlign:'center', minWidth:64 }}>
       <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.12em',
-        color:'var(--text-dim)', marginBottom:3 }}>KOMBO</div>
+        color:'var(--text-dim)', marginBottom:3 }}>SERIE</div>
       {active ? (
         <div key={combo} style={{ fontFamily:'var(--font-display)', fontWeight:700,
           fontSize: 14 + intensity * 1.5, lineHeight:1,
@@ -2586,6 +2524,13 @@ function AuthScreen({ onAuth }) {
       </div>
       </div>
 
+      {/* Column 2 of the desktop landing-grid. Without this wrapper the grid treated the ratings,
+          the auth card, and the legal links as SEPARATE grid children — on ≥900px they scattered
+          into whichever cell came next (the ★-rating floated beside the hero, legal links hung in
+          mid-air beside the form: the broken desktop landing, aesthetic pass 2026-07-10). One
+          column div = hero left, everything actionable right. Phones unaffected (grid is ≥900 only). */}
+      <div>
+
       {/* PUBLIC RATINGS (owner 2026-07-02: real user ratings, publicly shown) — only renders once
           the server confirms a real, non-thin sample exists (never a placeholder/fabricated stat).
           The average is always computed over EVERY rating ever submitted, not just the quotes
@@ -2710,7 +2655,8 @@ function AuthScreen({ onAuth }) {
           </span>
         ))}
       </div>
-      </div>
+      </div>{/* /column 2 */}
+      </div>{/* /landing-grid */}
     </div>
   );
 }
@@ -3045,7 +2991,8 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
 
   return shell(<>
       <div style={{ textAlign:'center', marginBottom:10 }}>
-        <div style={{ fontSize:34 }}>🥊</div>
+        {/* was a 🥊 emoji — emoji is never chrome (design law); Icon renders in the accent like everywhere else */}
+        <div style={{ marginBottom:6, color:'var(--accent)' }}><Icon name="fileBadge" size={30} /></div>
         <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, letterSpacing:2,
           color:'var(--action)', textShadow:'0 0 18px rgba(249,115,22,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
         {/* Outcome first (value-prop law): the buyer pays for the JOB, not for features. */}
@@ -3251,6 +3198,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const fillerUrlsRef = useRef([]);                  // pre-cached "thinking" sounds (this persona's voice) for the dead-air gap
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
+  const [typeOpen, setTypeOpen]       = useState(false);  // hands-free: typing is a quiet fallback behind "Lieber tippen?", not the main act
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
   const [recording, setRecording]     = useState(false);   // mic clip in progress
   const [transcribing, setTranscribing] = useState(false); // clip → text in flight
@@ -3487,6 +3435,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           idx:         0,
           levelLabel:  msg.levelLabel ?? '',
           displayName: msg.displayName ?? 'HERR TARIQ',
+          bossId:      msg.bossId ?? '',   // drives the persona-true trait chip on the stage
         });
         // Pre-fight scenario briefing (shown while boss is loading, dismissed on first BOSS_SPEECH)
         if (msg.csBriefing?.keyPhrases?.length) {
@@ -4906,11 +4855,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:2,
             background:'radial-gradient(135% 100% at 50% 32%, transparent 38%, rgba(0,0,0,0.82) 100%)' }} />
 
-          {/* ENDGEGNER ribbon */}
+          {/* Stage ribbon (aesthetic pass 2026-07-10): was a RED "⚔ ENDGEGNER" pill — red chrome
+              (two-color law: red = errors only) + gaming jargon meaningless to a job-seeker. Plain
+              blue, plain German. */}
           <div style={{ position:'absolute', top:10, left:12, zIndex:5,
             fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.16em',
-            color:'#fca5a5', padding:'3px 9px', borderRadius:'var(--r-pill)',
-            background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)' }}>⚔ ENDGEGNER</div>
+            color:'var(--accent-2)', padding:'3px 9px', borderRadius:'var(--r-pill)',
+            background:'rgba(59,130,246,0.10)', border:'1px solid rgba(59,130,246,0.35)' }}>LIVE-INTERVIEW</div>
           {/* emotion badge — the boss's state */}
           <div style={{ position:'absolute', top:10, right:12, zIndex:5,
             fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.12em',
@@ -4932,7 +4883,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               transform: `${userSpeak ? 'translateY(9px) scale(1.05)' : ''} ${POSTURE[emotion] || ''}`.trim() || 'none',
               transition:'transform 0.5s var(--ease)' }}>
               <div className={userSpeak ? 'listening' : (isActive && !bossSpeak ? 'breathe' : '')} style={{ width:'100%', height:'100%' }}>
-                <BossAvatar emotion={boss.face} speaking={bossSpeak} color={boss.color} />
+                <BossAvatar emotion={boss.face} speaking={bossSpeak} color={boss.color} name={funnel?.displayName} />
               </div>
             </div>
           </div>
@@ -4949,7 +4900,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </div>
             {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interview-Gegner wartet.</div>}
             <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:7 }}>
-              {[['◆','HOCHDRUCK'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
+              {/* Persona-TRUE trait chip (aesthetic pass 2026-07-10): "HOCHDRUCK" was hardcoded for
+                  every boss — under warm Yasmin it directly contradicted the home picker's own
+                  "Langsamer · verzeiht Fehler". One word per persona, same words the picker uses. */}
+              {[['◆', ({ yasmin:'GEDULDIG', karim:'SACHLICH', hana:'SKEPTISCH', tarek:'HOCHDRUCK', 'frau-mona-adel':'STRENG', lukas:'LOCKER' })[funnel?.bossId] || 'PROFESSIONELL'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
                 <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 9px',
                   borderRadius:'var(--r-pill)', letterSpacing:'0.1em', display:'inline-flex', alignItems:'center', gap:5,
                   background:`${boss.color}12`, border:`1px solid ${boss.color}55`, color:'#e2e8f0', boxShadow:`0 0 10px ${boss.color}22` }}>
@@ -5072,6 +5026,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 background:'rgba(59,130,246,0.05)', animation:'pulse 1.2s infinite' }}>
                 {funnel?.displayName ?? 'Der Chef'} denkt nach…
               </div>
+            ) : (handsFree && !typeOpen) ? (
+              /* Voice-first (aesthetic pass 2026-07-10): in hands-free the mic owns the turn, but a
+                 large empty textarea + disabled SENDEN dominated the screen while a caption said
+                 "just speak" — two competing instructions at once (the owner's own confusion:
+                 "what's the correlation between me speaking and the words showing"). The typing
+                 path stays one quiet tap away — it's the mic-broken fallback, not the main act. */
+              <button onClick={() => setTypeOpen(true)} style={{ display:'block', margin:'0 auto',
+                padding:'8px 12px', minHeight:40, background:'none', border:'none', cursor:'pointer',
+                fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)', color:'var(--text-faint)',
+                textDecoration:'underline', textUnderlineOffset:3 }}>
+                ⌨ Lieber tippen?{/* OWNER-AR slot */}
+              </button>
             ) : (
               <>
                 <textarea
@@ -5140,7 +5106,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
           )}
           {isActive && !bossThinking && (
-            <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>Tippe deine Antwort auf Deutsch — oder nimm sie per 🎤 auf</div>
+            <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>
+              {handsFree && !typeOpen
+                ? 'Sprich einfach auf Deutsch — ich höre zu und sende automatisch.'
+                : 'Tippe deine Antwort auf Deutsch — oder sprich sie ein.'}
+            </div>
           )}
           {isConnecting && (
             <div style={{ fontSize:9.5, color:'var(--action)', marginTop:4, lineHeight:1.4 }}>
@@ -5466,12 +5436,12 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
 
       {!failed ? (
         <>
-          {/* spinner ring + boxing glove */}
+          {/* spinner ring + mic (was a pulsing 🥊 — emoji is never chrome; the product is an interview, not a match) */}
           <div style={{ position:'relative', width:74, height:74, display:'grid', placeItems:'center' }}>
             <div style={{ position:'absolute', inset:0, borderRadius:'50%',
               border:'3px solid rgba(59,130,246,0.16)', borderTopColor:'var(--accent)',
               animation:'spin 0.9s linear infinite' }} />
-            <div style={{ fontSize:30, animation:'pulse 1.4s ease-in-out infinite' }}>🥊</div>
+            <div style={{ color:'var(--accent)', animation:'pulse 1.4s ease-in-out infinite', display:'grid', placeItems:'center' }}><Icon name="mic" size={28} /></div>
           </div>
 
           {/* bilingual status (Arabic prominent, German below) */}
