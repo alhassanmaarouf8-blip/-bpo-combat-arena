@@ -53,6 +53,7 @@ export const PLANS = {
     dailySessions:    3,
     sessionMinutes:   5,
     dailyLiveMinutes: 15,
+    zielStelle:       true,   // owner 2026-07-10: this buyer has a REAL target interview — perk included
   },
 };
 
