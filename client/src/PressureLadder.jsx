@@ -214,7 +214,7 @@ async function voicedMsFromBlob(blob) {
 
 export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null }) {
   const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
-  const [phase, setPhase]   = useState('intro');    // intro | ready | answering | round | done
+  const [phase, setPhase]   = useState('intro');    // intro | ready | answering | scoring | round | done
   const [left, setLeft]     = useState(0);
   const [survived, setSurvived] = useState(0);      // rungs 1..5 survived
   const [froze, setFroze]   = useState(false);
@@ -273,6 +273,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     clearInterval(tickRef.current); tickRef.current = null;
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
     cancelVoice();
+    setPhase('scoring');   // pending state while the clip is analyzed + the server grades (was: frozen countdown)
     let kept = false, voicedMs = 0, clipBlob = null;
     // "Survived" = they ACTUALLY kept talking. Blob SIZE is wrong (uncompressed WAV is huge even for
     // silence → always "survived"). Measure real VOICED time from the recorded PCM instead.
@@ -292,6 +293,9 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
           method: 'POST',
           headers: { 'Content-Type': 'audio/wav', Authorization: `Bearer ${token}` },
           body: clipBlob,
+          // Bounded wait: the UI now shows a pending state during this call — a hung server must
+          // degrade to the voiced-time verdict (the catch below), never hold the spinner forever.
+          signal: AbortSignal.timeout(12000),
         });
         if (r.ok) { const d = await r.json(); wasSouveraen = !!d.souveraen; }
       } catch { /* graceful: fall back to the voiced-time verdict */ }
@@ -390,6 +394,18 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, color: left <= 5 ? '#ef4444' : 'var(--action)', fontVariantNumeric: 'tabular-nums' }}>00:{String(left).padStart(2, '0')}</div>
       <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4, letterSpacing: '0.05em' }}>{T(lang, '🔴 REDE WEITER — NICHT EINFRIEREN', '🔴 اتكلم — متجمدش')}</div>
       <button onClick={endRound} style={{ ...ghostBtnWide, width: '100%', marginTop: 16 }}>{T(lang, 'Fertig', 'خلصت')}</button>
+    </div>
+  </>);
+
+  // Scoring round-trip (recorder stop → voiced-time read → server souverän check): a visible pending
+  // state instead of the frozen countdown. Same spinner pattern as the Debrief (App.jsx). The label
+  // stays honest — it says what is happening, promises nothing. Arabic = OWNER-AR slot (German shown).
+  if (phase === 'scoring') return shell(<>
+    {header}{ladder}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '48px 0' }}>
+      <div className="spin" style={{ width: 34, height: 34, borderRadius: '50%',
+        border: '3px solid rgba(59,130,246,0.2)', borderTopColor: 'var(--accent)' }} />
+      <div style={{ fontSize: 12, color: '#94a3b8' }}>{T(lang, 'Deine Antwort wird ausgewertet…', 'Deine Antwort wird ausgewertet…' /* OWNER-AR slot */)}</div>
     </div>
   </>);
 
