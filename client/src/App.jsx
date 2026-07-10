@@ -16,7 +16,6 @@ import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { InviteCard } from './InviteCard.jsx';
-import { Alhassan } from './Alhassan.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
@@ -1442,7 +1441,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   );
 }
 
-function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onOpenGuide, onTrainSkill, ent, onSeePlans }) {
+function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -2166,17 +2165,6 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
         </div>
       )}
 
-      {/* Reach the mentor RIGHT HERE — the debrief (esp. a loss) is the moment a student feels most
-          lost; Alhassan is warm + honest + remembers this session. Don't make them hunt for help. */}
-      {onOpenGuide && (
-        <div style={{ padding:'2px 16px 0' }}>
-          <button onClick={onOpenGuide} style={{ width:'100%', fontFamily:'var(--font-display)', fontWeight:700,
-            fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
-            border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
-            🧭 {lang === 'ar' ? 'مش فاهم نتيجتك؟ اسأل الكابتن' : 'Frag El-Captain — was bedeutet das für mich?'}
-          </button>
-        </div>
-      )}
 
       {/* THE OFFER AT THE PEAK — they just read their own errors corrected; this is the moment of
           highest belief in the product (elite-marketer teardown 2026-07-10: only 8 of ~120 openers
@@ -2310,7 +2298,7 @@ function Sparkline({ data, color = 'var(--accent)', invert = false, height = 34 
 }
 
 // ── Component: Dashboard (return-to progress view) ────────────────────────────
-function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpenGuide }) {
+function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
   const t   = data?.totals ?? {};
   const lp  = data?.levelProgress ?? { level: 1, pct: 0, intoLevel: 0, perLevel: 120 };
   const acc = data?.account ?? account;
@@ -2395,15 +2383,6 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, onOpen
             </button>
           )}
 
-          {/* Ask the mentor — reachable from the dashboard too, where a student reviewing their numbers
-              is exactly the moment they want to ask "what do I do about this?" */}
-          {onOpenGuide && (
-            <button onClick={onOpenGuide} style={{ width:'100%', marginTop:8, fontFamily:'var(--font-display)', fontSize:11,
-              letterSpacing:'0.1em', padding:'11px', borderRadius:8, cursor:'pointer',
-              border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
-              🧭 الكابتن · اسأل دليلك
-            </button>
-          )}
 
           {/* Trends */}
           <Section title="FLÜSSIGKEIT ÜBER ZEIT" color="var(--accent)">
@@ -2508,10 +2487,10 @@ function AuthScreen({ onAuth }) {
         </div>
         {/* Arabic-first positioning — our biggest moat: no other German trainer serves Arabic speakers */}
         <div dir="rtl" style={{ fontSize:'var(--fs-hero)', fontWeight:700, color:'#f8fafc', marginTop:16, lineHeight:1.35, maxWidth:520, marginInline:'auto' }}>
-          أول تدريب إنترفيو ألماني مصمم خصيصًا للعرب — علشان توصل للشغل في كول سنتر ألماني.
+          أول تدريب إنترفيو ألماني مصمم خصيصًا للمصريين — علشان توصل للشغل في كول سنتر ألماني أو شغل ريموت بالألماني.{/* OWNER-AR pass invited (niche fix: Egyptians + remote, owner order 07-10) */}
         </div>
         <div style={{ fontSize:'var(--fs-body)', color:'var(--text-dim)', marginTop:12, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
-          Der erste deutsche Interview-Trainer für Arabisch-Sprechende — optimiert für den ägyptischen BPO-Markt.
+          Der erste deutsche Interview-Trainer, gebaut für Ägypten — für den BPO-Markt in Kairo und deutsche Remote-Jobs.
         </div>
         <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:4, marginTop:16,
           padding:'9px 16px', borderRadius:'var(--r-pill)', border:'1px solid var(--action-dim)',
@@ -2578,7 +2557,7 @@ function AuthScreen({ onAuth }) {
           { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Die App führt dich Schritt für Schritt — und du siehst deinen Fortschritt bis zum Job' },
           // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
           // REAL hiring bar. Masri verified per masri-verification-law (أكونت = owner's canon).
-          { icon:'fileBadge', ar:'بندرّبك على مستوى الشغل الحقيقي: التحقق من بيانات العميل، معايير الجودة، ومفردات 90+ أكونت حقيقي — من الموبايل لشركات الطيران', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, der Wortschatz von 90+ echten Konten' },
+          { icon:'fileBadge', ar:'بندرّبك على مستوى الشغل الحقيقي: التحقق من بيانات العميل، معايير الجودة، ومصطلحات الأكونتات الألمانية الحقيقية — من الموبايل لشركات الطيران', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien und die Sprache echter deutscher Konten — vom Mobilfunk bis zur Airline' },
         ].map((b, i) => (
           <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
             <div style={{ width:36, height:36, borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)',
@@ -2843,7 +2822,7 @@ const PERKS_DE = {
   job:   (m) => ['EINE Zahlung — kein monatliches Abo, keine Verlängerung',
                  `bis zu ${m} Min ECHTES Live-Interview — jeden Tag, 12 Monate lang`,
                  'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
-                 'der Wortschatz von 90+ echten Konten — vom Mobilfunk bis zur Airline',
+                 'Szenarien und Fachvokabular echter deutscher Konten — Mobilfunk, Bank, Airline und mehr',
                  'trainiere in deinem Tempo — volle 12 Monate Zugang, ohne Abo-Druck'],
 };
 const SUB_AR = {
@@ -3342,7 +3321,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
   const [satzbauOpen, setSatzbauOpen] = useState(false);           // paid verb-final word-order builder drill route
   const [pressureOpen, setPressureOpen] = useState(false);         // pressure-ladder overload drill (client-only)
-  const [guideOpen, setGuideOpen] = useState(false);           // Alhassan mentor chat
   // WHY-YOU for a prescribed drill: set when the brain guide / debrief routes into a drill so the
   // drill opens with the honest personal reason it was prescribed; cleared when the drill closes
   // (grid-tile opens stay generic — no why is invented for them).
@@ -4395,7 +4373,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
   // overlay/drill; inside a live interview it offers a clean exit to the home screen. ──
   const _overlays = [
-    [guideOpen, setGuideOpen], [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
+    [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
     [satzbauOpen, setSatzbauOpen],
     [pressureOpen, setPressureOpen],
@@ -4406,7 +4384,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // Every drill/panel overlay has its OWN close ("Schließen ✕"), so the global back arrow was a
   // redundant SECOND close AND it overlapped each drill's title (top-left collision). Hide it for
   // those; keep it only for the live interview (which has no own close) + panels without one.
-  const ownCloseOverlay = guideOpen || assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
+  const ownCloseOverlay = assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
     || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen;
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
@@ -4530,8 +4508,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Progress dashboard */}
       {dashboard && (
         <Dashboard data={dashboard.data} loading={dashboard.loading} account={auth.account}
-          onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout}
-          onOpenGuide={() => { setDashboard(null); setGuideOpen(true); }} />
+          onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
       )}
 
       {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session) */}
@@ -4581,20 +4558,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <PressureLadder lang={feedbackLang} onClose={() => { setPressureOpen(false); setDrillWhy(null); }} token={auth.token} apiUrl={API_URL} why={drillWhy} />
       )}
 
-      {/* Alhassan mentor chat (persistent memory; cheap text model; never Realtime).
-          onAction: the mentor's "do THIS next" becomes a tappable chip → jumps straight into the
-          named surface (the brain→mentor→action loop closes instead of dying in the chat). */}
-      {guideOpen && (
-        <Alhassan token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setGuideOpen(false)}
-          onAction={(id) => {
-            setGuideOpen(false);
-            const go = { interview: () => beginSession(), review: () => setSpokenReviewOpen(true),
-              shadowing: () => setShadowingOpen(true), fluency: () => setFluencyOpen(true),
-              listening: () => setListeningOpen(true), spokenreview: () => setSpokenReviewOpen(true),
-              pressure: () => setPressureOpen(true), assessment: () => setAssessmentOpen(true) }[id];
-            go?.();
-          }} />
-      )}
+      {/* (El-Captain mentor chat DELETED on owner order 2026-07-10: the LLM's Egyptian Arabic was
+          provably broken — mixed foreign tokens, garbled grammar terms — an active trust-killer.
+          The deterministic BrainGuide remains the single guidance voice.) */}
 
       {/* Video lessons — the $0 "video" engine: animated slides + native German narration */}
       {videoLessonsOpen && (
@@ -4635,7 +4601,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           ent={auth.account?.entitlement}
           onSeePlans={() => setPaywall(auth.account?.entitlement || { plan: 'free' })}
-          onOpenGuide={() => setGuideOpen(true)}
           onTrainSkill={(drill, why) => { setDrillWhy(why || null);
             ({ fluency: setFluencyOpen, shadowing: setShadowingOpen,
               pressure: setPressureOpen, satzbau: setSatzbauOpen }[drill]?.(true)); }}
@@ -5486,7 +5451,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
                 { icon:'gauge',        de:'Druck-Leiter',   ar:'سُلّم الضغط',   open:() => setPressureOpen(true), badge:'SCHWER' },
                 { icon:'play',         de:'Video-Lektionen', ar:'دروس فيديو',   open:() => setVideoLessonsOpen(true), badge:'NEU' },
-                { icon:'compass',      de:'الكابتن — dein Guide', ar:'اسأل دليلك', open:() => setGuideOpen(true) },
               ].map((t, i) => (
                 <button key={i} onClick={t.open} style={{ minHeight:88, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
