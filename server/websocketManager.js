@@ -616,17 +616,10 @@ export class WebSocketManager {
               },
               onBossAudio: (buf) => {
                 // Boss voice PCM16 @24kHz → base64 to the browser for Web-Audio playback.
-                // [LAT] The Gemini path recorded NOTHING into /diag/latency (only the $0 path did) —
-                // the owner's "why does it wait" reports were un-measurable. Record the FELT gap:
-                // last user-transcript chunk → first audio byte of the boss's NEXT turn. Guarded on
-                // !geminiActive (first chunk of a turn) so mid-speech chunks and barge-in overlap
-                // never log a bogus near-zero gap; the greeting logs nothing (no user text yet).
-                if (!ctx.geminiActive && ctx._gLastUserTextMs) {
-                  const gapMs = Date.now() - ctx._gLastUserTextMs;
-                  ctx._gLastUserTextMs = null;
-                  try { recordTurn({ flushMs: 0, prepMs: 0, llmMs: gapMs, serverTotalMs: gapMs, provider: 'gemini-live' }); } catch { /* diagnostics must never break the fight */ }
-                  console.log(`[LAT] gemini transcript→firstAudio=${gapMs}ms session=${ctx.sessionId}`);
-                }
+                // [LAT] The turn gap is recorded in the '[INTERVIEWER SPRICHT]' marker branch below,
+                // NOT here: the proxy fires that marker one tick BEFORE this first audio byte and it
+                // sets geminiActive=true, so a !geminiActive guard here could never win — it recorded
+                // ZERO turns for weeks, leaving the owner's "why does it wait" un-measurable.
                 ctx.geminiActive = true;
                 ctx.geminiGreeted = true;
                 this._send(ctx, { type: S.BOSS_AUDIO_DELTA, data: buf.toString('base64') });
@@ -635,7 +628,19 @@ export class WebSocketManager {
               onBossText: (chunk) => {
                 // The proxy emits '[INTERVIEWER SPRICHT]' as a "boss started talking" marker — it is
                 // NOT real transcript text, so never forward it as one.
-                if (chunk === '[INTERVIEWER SPRICHT]') { ctx.geminiActive = true; ctx.geminiGreeted = true; return; }
+                if (chunk === '[INTERVIEWER SPRICHT]') {
+                  // [LAT] This marker is the boss's TRUE onset — one tick before the first audio byte.
+                  // Record the felt gap HERE (last user-transcript chunk → boss starts speaking) BEFORE
+                  // geminiActive flips. Guarded on !geminiActive (turn start, not mid-speech) + prior
+                  // user text (the greeting has none → logs nothing, correctly).
+                  if (!ctx.geminiActive && ctx._gLastUserTextMs) {
+                    const gapMs = Date.now() - ctx._gLastUserTextMs;
+                    ctx._gLastUserTextMs = null;
+                    try { recordTurn({ flushMs: 0, prepMs: 0, llmMs: gapMs, serverTotalMs: gapMs, provider: 'gemini-live' }); } catch { /* diagnostics must never break the fight */ }
+                    console.log(`[LAT] gemini transcript→bossOnset=${gapMs}ms session=${ctx.sessionId}`);
+                  }
+                  ctx.geminiActive = true; ctx.geminiGreeted = true; return;
+                }
                 if (chunk === '__TURN_COMPLETE__') {
                   const bossFull = ctx.geminiBossParts.join('').trim();
                   const userFull = ctx.geminiUserParts.join('').trim();
