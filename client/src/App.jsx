@@ -1453,6 +1453,19 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
   // verdict, the readiness judge, and the plan for today — everything else (17 sections of analysis)
   // lives behind one toggle for the learner who wants to dig.
   const [showDetails, setShowDetails] = useState(false);
+  // THE REVEAL (R2, WOW plan): on the FIRST debrief only, the diagnosis becomes a ceremony — named
+  // Baustellen + the journey ahead. Brain fetch mirrors BrainGuide's (fail-silent: no fake card).
+  const isFirstDebrief = data?.progress?.sessionCount === 1;
+  const [revealJourney, setRevealJourney] = useState(null);
+  useEffect(() => {
+    if (!isFirstDebrief || !token) return;
+    let alive = true;
+    fetch(`${apiUrl}/api/brain`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.directive?.journey) setRevealJourney(d.directive.journey); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isFirstDebrief, token, apiUrl]);
   const m = data?.metrics ?? {};
   const r = data?.result ?? {};
   const ar = lang === 'ar';
@@ -1547,6 +1560,44 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
         </div>
       ) : (
         <div style={{ flex:1, overflowY:'auto', padding:'16px 16px 16px', display:'flex', flexDirection:'column', gap:14 }}>
+
+          {/* ── THE REVEAL (R2): first debrief = the diagnosis ceremony. Named Baustellen come ONLY
+              from the deterministic grammar data (never invented); the journey bar only renders when
+              the brain answered (fail-silent). This is the "it understands me and will lead me"
+              moment, staged once. ── */}
+          {isFirstDebrief && (
+            <div style={{ padding:'14px 16px', borderRadius:'var(--r-lg)', background:'rgba(59,130,246,0.08)',
+              border:'1px solid var(--accent)', textAlign:'left' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, letterSpacing:'0.08em', color:'var(--accent)' }}>
+                DIAGNOSE ABGESCHLOSSEN{nm ? ` — ${nm.toUpperCase()}` : ''}{/* OWNER-AR slot */}
+              </div>
+              {(data?.grammar || []).filter((g) => g.summaryExamples?.length).slice(0, 3).length > 0 && (
+                <div style={{ marginTop:8 }}>
+                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Deine Baustellen — gemessen, nicht geraten:{/* OWNER-AR slot */}</div>
+                  {(data.grammar || []).filter((g) => g.summaryExamples?.length).slice(0, 3).map((g, i) => (
+                    <div key={i} style={{ fontSize:'var(--fs-label)', color:'var(--text)', marginTop:4 }}>
+                      {i + 1}. {g.rule}{g.count > 1 ? ` · ${g.count}×` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {revealJourney && (
+                <div style={{ marginTop:10 }}>
+                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:4 }}>
+                    Dein Weg zum Interview-Niveau: {revealJourney.entryDone ?? 0}/{revealJourney.entryTotal ?? 0} Schritte geschafft{/* OWNER-AR slot */}
+                  </div>
+                  <div style={{ height:8, borderRadius:6, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, revealJourney.pctToApply || 0))}%`,
+                      background:'linear-gradient(90deg,var(--accent),var(--accent-2))' }} />
+                  </div>
+                </div>
+              )}
+              <div style={{ fontSize:'var(--fs-label)', color:'var(--text)', marginTop:10, lineHeight:1.6 }}>
+                Ab jetzt führe ich dich: <b>ein</b> Problem, <b>ein</b> Training, dann der Beweis im Interview.
+                Du musst den Weg nicht kennen — nur den nächsten Schritt gehen.{/* OWNER-AR slot */}
+              </div>
+            </div>
+          )}
 
           {/* ── Cinematic outcome + rank reveal ─────────────────────────────── */}
           <div style={{ textAlign:'center', padding:'8px 0 4px' }}>
@@ -1986,6 +2037,12 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
                   </div>
                 );
               })}
+              {/* The receipts (R7): the accuracy moat, stated where the student READS corrections.
+                  Every claim in this line is true by construction (feedback-accuracy doctrine). */}
+              <div style={{ fontSize:9.5, color:'var(--text-faint)', marginTop:8, lineHeight:1.5, fontStyle:'italic' }}>
+                Jede Korrektur stammt aus deinem eigenen Satz — deterministisch geprüft, nie erfunden.
+                Gelobt wird nur, was du wörtlich gesagt hast.{/* OWNER-AR slot */}
+              </div>
             </Section>
           )}
 
@@ -2508,7 +2565,7 @@ function AuthScreen({ onAuth }) {
         {[
           { icon:'mic',     ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
           { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
-          { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Sieh deinen Fortschritt Woche für Woche — bis zum Job' },
+          { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Die App führt dich Schritt für Schritt — und du siehst deinen Fortschritt bis zum Job' },
           // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
           // REAL hiring bar. Arabic = OWNER-AR slot (empty renders nothing until filled).
           { icon:'fileBadge', ar:'', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, Wortschatz für 90+ Konto-Typen' },
@@ -2524,6 +2581,10 @@ function AuthScreen({ onAuth }) {
             </div>
           </div>
         ))}
+        {/* The anti-chatbot line (R7): the accuracy moat, stated where a skeptic decides. */}
+        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', lineHeight:1.6, marginTop:4, textAlign:'center' }}>
+          Kein Chatbot: Korrekturen kommen aus DEINEN Sätzen und werden geprüft — die App schmeichelt nie und rät nie.{/* OWNER-AR slot */}
+        </div>
       </div>
       </div>
 
@@ -3234,6 +3295,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
+  const [etaSessions, setEtaSessions] = useState(null);    // honest velocity: server-computed, null below the evidence floor (never a guess)
   const [hireReadiness, setHireReadiness] = useState(null); // honest "am I hireable + my one wall" verdict (server-computed), shown on the home
   const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
@@ -4278,6 +4340,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && data.daily) setDaily(prev => ({ streak: 0, completedToday: false, streakShield: false, best: 0, ...prev, ...data.daily }));
         if (!cancelled && typeof data.trainedToday === 'boolean') setTrainedToday(data.trainedToday);
         if (!cancelled && data.rank) setRank(data.rank);      // interview-readiness rank
+        if (!cancelled && Number.isFinite(data.etaSessions) && data.etaSessions > 0) setEtaSessions(data.etaSessions);   // velocity (R3) — server returns null below 2 measured sessions
         if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
         if (!cancelled && data.lastDebrief) setLastDebrief(data.lastDebrief);         // one-shot proof card (server clears it after debrief-seen)
       } catch { /* keep cached value */ }
@@ -4690,6 +4753,39 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 </div>
                 {rank && <RankLadder rank={rank} />}
               </div>
+
+              {/* Honest velocity (R3): measured pace only — the server returns etaSessions null
+                  below 2 xp-measured sessions (D4: below the evidence floor, say NOTHING). */}
+              {canStart && !firstRun && Number.isFinite(etaSessions) && (
+                <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', margin:'0 0 10px', textAlign:'center' }}>
+                  Auf deinem Tempo: noch ~{etaSessions} {etaSessions === 1 ? 'Session' : 'Sessions'} bis zum nächsten Level.{/* OWNER-AR slot */}
+                </div>
+              )}
+
+              {/* THE FATHER LEADS (R1, WOW plan 2026-07-10): the live brain's ONE next step is the
+                  FIRST actionable thing a returning user sees — above level/interviewer choices.
+                  Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
+                  first-run (its prescription would duplicate the diagnosis-interview CTA). */}
+              {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
+                <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d, why) => {
+                  const p = d?.prescription || {};
+                  const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
+                    'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
+                    'satzbau-schmiede': setSatzbauOpen,
+                    'srs': setDailyOpen };
+                  if (p.action === 'drill') {
+                    const fn = OPEN[p.drill];
+                    // Hand the WHY only to overlays that actually render it ('srs'/Daily doesn't, and the
+                    // beginSession fallback isn't a drill) — otherwise the line goes stale and would
+                    // reappear on whatever drill opens next (feedback-accuracy doctrine: never mislabel).
+                    setDrillWhy(fn && p.drill !== 'srs' ? (why || null) : null);
+                    fn ? fn(true) : beginSession();
+                  }
+                  else if (p.action === 'interview' || p.action === 'measure') beginSession();
+                  else if (p.action === 'assessment') setAssessmentOpen(true);
+                  else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
+                }} />
+              )}
 
               {/* Level — segmented control (was three shouting cards) */}
               <div style={{ display:'flex', gap:0, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3, marginBottom:8 }}>
@@ -5239,31 +5335,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
             setDrillWhy(why || null);
             (OPEN[drill] || (() => {}))(true);
-          }} />
-        )}
-
-        {/* The LIVE BRAIN: one next step + the journey toward the goal + an honest aha (GET /api/brain).
-            OFF until the masri in BrainGuide.jsx is authored (BRAIN_GUIDE_LIVE). Hidden on first-run — its
-            first-timer prescription is just "do your diagnose interview", a redundant SECOND CTA next to
-            the orange Interview-starten button. It earns its place once there's real data to route on. */}
-        {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
-          <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d, why) => {
-            const p = d?.prescription || {};
-            const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
-              'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
-              'satzbau-schmiede': setSatzbauOpen,
-              'srs': setDailyOpen };
-            if (p.action === 'drill') {
-              const fn = OPEN[p.drill];
-              // Hand the WHY only to overlays that actually render it ('srs'/Daily doesn't, and the
-              // beginSession fallback isn't a drill) — otherwise the line goes stale and would
-              // reappear on whatever drill opens next (feedback-accuracy doctrine: never mislabel).
-              setDrillWhy(fn && p.drill !== 'srs' ? (why || null) : null);
-              fn ? fn(true) : beginSession();
-            }
-            else if (p.action === 'interview' || p.action === 'measure') beginSession();
-            else if (p.action === 'assessment') setAssessmentOpen(true);
-            else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
           }} />
         )}
 

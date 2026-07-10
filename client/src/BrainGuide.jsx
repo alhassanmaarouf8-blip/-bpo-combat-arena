@@ -114,6 +114,18 @@ export function BrainGuide({ token, apiUrl, onAction }) {
         <div style={ahaBox}>
           <div style={{ fontWeight: 800, color: 'var(--accent)' }}>{BRAIN_COPY.ahaTitle}</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(ruleLabel(d.aha.ruleId), d.aha.before, d.aha.after)}</div>
+          {/* The tell-everyone moment (R4, WOW plan): the aha is engine-verified truth (D3 closed
+              loop), so sharing it can never brag a lie. Quiet link — the aha stays the hero. */}
+          <button
+            onClick={() => {
+              const text = `${ruleLabel(d.aha.ruleId)}: von ${d.aha.before} Fehlern auf ${d.aha.after} — mit echten Live-Interviews auf Deutsch. https://bpo-combat-arena.vercel.app/?src=aha`;
+              if (navigator.share) navigator.share({ text }).catch(() => {});
+              else navigator.clipboard?.writeText(text).catch(() => {});
+            }}
+            style={{ marginTop: 8, padding: '6px 10px', minHeight: 36, background: 'none', cursor: 'pointer',
+              border: 'none', color: 'var(--accent-2)', fontSize: 12, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            ↗ شارك النتيجة{/* OWNER-AR slot — refine wording */}
+          </button>
         </div>
       )}
 
