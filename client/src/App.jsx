@@ -2571,7 +2571,7 @@ function AuthScreen({ onAuth }) {
           { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Die App führt dich Schritt für Schritt — und du siehst deinen Fortschritt bis zum Job' },
           // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
           // REAL hiring bar. Masri verified per masri-verification-law (أكونت = owner's canon).
-          { icon:'fileBadge', ar:'بندرّبك على مستوى الشغل الحقيقي: التحقق من بيانات العميل، معايير الجودة، ومفردات 90+ نوع أكونت', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, Wortschatz für 90+ Konto-Typen' },
+          { icon:'fileBadge', ar:'بندرّبك على مستوى الشغل الحقيقي: التحقق من بيانات العميل، معايير الجودة، ومفردات 90+ أكونت حقيقي — من الموبايل لشركات الطيران', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, der Wortschatz von 90+ echten Konten' },
         ].map((b, i) => (
           <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
             <div style={{ width:36, height:36, borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)',
@@ -2832,7 +2832,7 @@ const PERKS_DE = {
                  'alles aus Basic'],
   job:   (m) => ['EINE Zahlung — kein monatliches Abo, keine Verlängerung',
                  `bis zu ${m} Min ECHTES Live-Interview — jeden Tag, 12 Monate lang`,
-                 'Wortschatz für 90+ echte Konto-Typen — vom Mobilfunk bis zur Airline',
+                 'der Wortschatz von 90+ echten Konten — vom Mobilfunk bis zur Airline',
                  'trainiere in deinem Tempo — volle 12 Monate Zugang, ohne Abo-Druck'],
 };
 const SUB_AR = {
@@ -3004,7 +3004,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
             border:'1px solid rgba(59,130,246,0.3)', fontSize:11.5, color:'#cbd5e1', lineHeight:1.65 }}>
             Du zahlst direkt an <b>Alhassan</b>, den Gründer — kein Zwischenhändler. Du bekommst eine
             Bestätigung per WhatsApp, und es gilt die <a href="/refund.html" target="_blank" rel="noopener noreferrer"
-            style={{ color:'var(--accent-2)' }}>14-Tage-Geld-zurück-Garantie</a>.{/* OWNER-AR slot */}
+            style={{ color:'var(--accent-2)' }}>14-Tage-Geld-zurück-Garantie auf den ersten Kauf</a>.{/* OWNER-AR slot */}
           </div>
 
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
@@ -5132,10 +5132,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'#64748b', background:'none', border:'none', padding:'2px 4px' }}>✕</button>
             </div>
             <div style={{ fontSize:11, color:'#cbd5e1', lineHeight:1.55 }}>
-              1) Niveau wählen · 2) „INTERVIEW STARTEN" drücken und laut Deutsch sprechen · 3) Am Ende sofortiges Feedback.
+              1) „INTERVIEW STARTEN" drücken und laut Deutsch sprechen · 2) dein Niveau wird automatisch erkannt · 3) am Ende sofortiges Feedback.
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:4 }}>
-              ١) اختار المستوى · ٢) دوس «ابدأ» واتكلم ألماني بصوت عالي · ٣) في الآخر هتاخد تقييم وتصحيح فوري.
+              ١) دوس «ابدأ» واتكلم ألماني بصوت عالي · ٢) مستواك بيتحدد أوتوماتيك · ٣) في الآخر هتاخد تقييم وتصحيح فوري.
             </div>
           </div>
         )}
@@ -5319,7 +5319,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 Du warst weg, bevor dein Feedback ankam — hier ist es. <span dir="rtl">خرجت قبل ما الفيدباك يوصلك — أهو وصل دلوقتي.</span>
               </div>
             )}
-            {(lastDebrief.corrections || []).map((c, i) => (
+            {(lastDebrief.corrections || []).filter((c) => String(c.wrong || '').length <= 80).map((c, i) => (
               <div key={i} style={{ marginBottom:8, fontSize:'var(--fs-label)', lineHeight:1.6, fontFamily:'var(--font-body)' }}>
                 <span style={{ color:'var(--bad)', textDecoration:'line-through', textDecorationThickness:1 }}>{c.wrong}</span>
                 {' → '}
@@ -5394,7 +5394,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Preise & Pläne ansehen</span>{/* OWNER-AR slot */}
             {auth.account?.entitlement?.trial?.active && (
               <span style={{ display:'block', marginTop:3, fontSize:'var(--fs-meta)', color:'var(--text-faint)' }}>
-                Testphase: noch {auth.account.entitlement.trial.daysLeft} {auth.account.entitlement.trial.daysLeft === 1 ? 'Tag' : 'Tage'} — alles freigeschaltet{/* OWNER-AR slot */}
+                Testphase: noch {auth.account.entitlement.trial.daysLeft} {auth.account.entitlement.trial.daysLeft === 1 ? 'Tag' : 'Tage'} — alle Funktionen freigeschaltet{/* OWNER-AR slot */}
               </span>
             )}
           </button>
