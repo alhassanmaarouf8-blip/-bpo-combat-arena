@@ -223,6 +223,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   const [curLine, setCurLine] = useState('');
 
   const recRef = useRef(null); const tickRef = useRef(null); const barbRefs = useRef([]);
+  const endingRef = useRef(false);          // re-entrancy guard: timer + Fertig can both fire endRound
   const seenLinesRef = useRef(new Set());   // lines already shown this session → no repeats
   const endless = idx >= LEVELS.length;
   const L = endless
@@ -270,6 +271,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   };
 
   const endRound = async () => {
+    if (endingRef.current) return; endingRef.current = true;   // second trigger (timer vs Fertig) is a no-op
     clearInterval(tickRef.current); tickRef.current = null;
     barbRefs.current.forEach(clearTimeout); barbRefs.current = [];
     cancelVoice();
@@ -295,7 +297,9 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
           body: clipBlob,
           // Bounded wait: the UI now shows a pending state during this call — a hung server must
           // degrade to the voiced-time verdict (the catch below), never hold the spinner forever.
-          signal: AbortSignal.timeout(12000),
+          // Feature-guarded: on old Safari/Chrome (no AbortSignal.timeout) the check still runs.
+          ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+            ? { signal: AbortSignal.timeout(12000) } : {}),
         });
         if (r.ok) { const d = await r.json(); wasSouveraen = !!d.souveraen; }
       } catch { /* graceful: fall back to the voiced-time verdict */ }
@@ -308,6 +312,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       if (endless) setEndlessStreak((n) => n + 1);
       else setSurvived((n) => Math.max(n, idx + 1));
     }
+    endingRef.current = false;
     setPhase('round');
   };
 
