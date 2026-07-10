@@ -1,5 +1,19 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 ELITE-NIGHT SPRINT (2026-07-10, late) — `00b9d80` all verified live
+Owner rage-cycle answered ship-by-ship: (1) `abbd9f2` Bis-zum-Job plan KILLED (owner veto, deletion
+pinned by test PLANS.job===undefined); (2) `e92c379` signup UNBROKEN — craft pass had labeled
+WhatsApp "(optional)" while server requires it → every no-number signup failed for hours; probe
+caught it; foot-gun #42 recorded (half-side contract change); (3) `042a3fb` fight screen de-arcaded
+(hairline meters, no flying numbers, no drifting grid, quiet monogram/chips/turn-state);
+(4) `9c434ac` EMAIL password reset (owner: "reset is done through email") — sha256 token 45min
+single-use, no-enumeration (fire-and-forget send), CGNAT-shaped limits; DORMANT until owner sets
+SMTP_USER+SMTP_PASS (Gmail App Password) in Render env — until then client says "nicht verfügbar";
+WhatsApp-reset copy DEAD. (5) THE ELITE PROMPT written into design-system SKILL.md (9 laws).
+MEASURED live (speech probe, 4 turns): user-quiet→boss-audio gap 1.34–1.57s, DENKT-NACH fills it.
+NEXT: owner sets Gmail App Password → verify ONE real reset mail from Render; craft pass continues
+(home, debrief, paywall); flagged ship: reset must invalidate old sessions (tokenV in requireAuth).
+
 ## 🔥 GEMINI TRUTH+FEEL FIX (2026-07-10, night) — `fd9e042`, verify-live in flight
 Owner reported twice: dead-air wait after speaking (words frozen mid-screen), then pasted transcript
 proof of SCORED hallucinations (Telugu-script "German", "Hallo."×5, boss-echo lines as DU). Shipped
