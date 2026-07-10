@@ -2650,7 +2650,7 @@ function AuthScreen({ onAuth }) {
               autoComplete="tel" inputMode="tel"
               onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={inputStyle} />
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:6, lineHeight:1.5 }}>
-              Für Coach-Erinnerungen und Passwort-Reset — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
+              Für Coach-Erinnerungen — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
             </div>
           </>
         )}

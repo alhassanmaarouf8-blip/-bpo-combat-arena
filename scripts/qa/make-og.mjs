@@ -17,7 +17,7 @@ body{width:1200px;height:630px;overflow:hidden;
 .url{position:absolute;bottom:54px;right:86px;font-size:22px;color:#64748b;letter-spacing:.04em}
 </style></head><body>
 <div class="kick">OMNI-PERFORM</div>
-<div class="title">Werde eingestellt.</div>
+<div class="title">Sei bereit fürs Interview.</div>
 <div class="de">Dein deutsches Job-Interview — als Live-Training.</div>
 <div class="ar">درّب على مقابلة الشغل الألماني بصوتك — وخُد تقييم فوري</div>
 <div class="row"><div class="chip">SPRICH</div><div class="chip">WERDE BEWERTET</div><div class="chip o">JOB</div></div>
@@ -26,6 +26,6 @@ body{width:1200px;height:630px;overflow:hidden;
 const b = await chromium.launch();
 const p = await (await b.newContext({ viewport:{width:1200,height:630}, deviceScaleFactor:1 })).newPage();
 await p.setContent(html, { waitUntil:'networkidle' });
-await p.screenshot({ path:'C:/Users/lenovo/OneDrive/Desktop/bpo-combat-arena/.claude/worktrees/apply-batch/client/public/og.png' });
+await p.screenshot({ path:'C:/Users/lenovo/OneDrive/Desktop/bpo-combat-arena/client/public/og.png' });
 await b.close();
 console.log('og.png written');
