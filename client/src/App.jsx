@@ -4703,8 +4703,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div style={{ marginBottom:12 }}>
             {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. Hidden on first-run
                 (a novel user has no streak/habit to repeat yet — it'd be a second CTA above the hero). */}
-            {!firstRun && <button onClick={() => setDailyOpen(true)} style={{ width:'100%', textAlign:'left', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:10, marginBottom:10, padding:'10px 14px', minHeight:44,
+            {!firstRun && <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+            <button onClick={() => setDailyOpen(true)} style={{ flex:1, minWidth:0, textAlign:'left', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:10, padding:'10px 14px', minHeight:44,
               borderRadius:'var(--r-pill)', background:'var(--surface)',
               border:`1px solid ${daily.completedToday ? 'rgba(59,130,246,0.35)' : streak > 0 ? 'rgba(249,115,22,0.4)' : 'var(--line)'}`,
               transition:'all var(--dur-slow)' }}>
@@ -4723,14 +4724,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   {daily.completedToday ? '✓ Heute erledigt' : 'Tägliches Training · 3–5 Min'}
                 </span>
               </div>
+              {/* Quiet chip (designer pass 2026-07-10): was an ORANGE 'START ▸' — a second orange CTA
+                  on the same screen as Interview starten, competing with the one job. Blue outline now;
+                  the home's single orange belongs to the interview. */}
               <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-meta)', whiteSpace:'nowrap',
                 padding:'6px 12px', borderRadius:'var(--r-pill)',
-                color: daily.completedToday ? 'var(--accent-2)' : '#081019',
-                background: daily.completedToday ? 'transparent' : 'var(--grad-action)',
-                border: daily.completedToday ? '1px solid var(--accent-dim)' : 'none' }}>
-                {daily.completedToday ? '✓' : 'START ▸'}
+                color:'var(--accent-2)', background:'transparent', border:'1px solid var(--accent-dim)' }}>
+                {daily.completedToday ? '✓' : '▸'}
               </span>
-            </button>}
+            </button>
+            {/* Progress, one tap from the top (designer pass): the dashboard was buried in the tile
+                grid below the fold — sophistication = the important things are simply WHERE you expect. */}
+            <button onClick={openDashboard} title="Fortschritt" aria-label="Fortschritt"
+              style={{ flex:'0 0 auto', width:44, minHeight:44, display:'grid', placeItems:'center', cursor:'pointer',
+                borderRadius:'var(--r-pill)', background:'var(--surface)', border:'1px solid var(--line)', color:'var(--accent-2)' }}>
+              <Icon name="chartUp" size={17} />
+            </button>
+            </div>}
             {/* Loss-aversion (evidence-based retention): the pending LOSS, framed gently, drives return. */}
             {streak > 0 && !trainedToday && (
               <div style={{ marginTop:-4, marginBottom:10, padding:'6px 10px', borderRadius:8,
@@ -4771,7 +4781,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
                   first-run (its prescription would duplicate the diagnosis-interview CTA). */}
               {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
-                <BrainGuide token={auth.token} apiUrl={API_URL} onAction={(d, why) => {
+                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta onAction={(d, why) => {
                   const p = d?.prescription || {};
                   const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
                     'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
@@ -4791,6 +4801,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 }} />
               )}
 
+
+
+
+
+            {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
+            <div style={{ textAlign:'center', marginTop:10 }}>
+              <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
+                fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'4px 6px', fontFamily:'inherit' }}>
+                {showOpts ? '▾' : '▸'} Optionen · Niveau {({ 'a2-b1':'A2–B1', 'b2':'B2', 'c1':'C1' })[level]} · خيارات
+              </button>
+            </div>
+            {showOpts && (
+            <>
+            {/* Level + interviewer moved behind Optionen (designer pass 2026-07-10): returning
+                users rarely change them (auto-detect + auto-boss exist), so the home keeps ONE job.
+                D2: open doors, one tap away, never locked. */}
               {/* Level — segmented control (was three shouting cards) */}
               <div style={{ display:'flex', gap:0, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3, marginBottom:8 }}>
                 {[['a2-b1','A2–B1'],['b2','B2'],['c1','C1']].map(([id, lbl]) => {
@@ -4811,7 +4837,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <div style={{ textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:10, minHeight:15 }}>
                 {{ 'a2-b1':'Langsamer · verzeiht Fehler', 'b2':'Natürliches Tempo · komplex', 'c1':'Schweizer Niveau · formell' }[level]}
               </div>
-
             {/* Interviewer picker — ALWAYS visible, but LEVEL-GATED: a beginner never gets a too-hard boss
                 as a pickable option. Higher tiers show LOCKED (🔒 · ab B2/C1, disabled) so the ladder stays
                 visible and aspirational instead of vanishing. (owner: "why is Frau Mona Adel (C1) open as an
@@ -4843,15 +4868,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </select>
             </div>
 
-            {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
-            <div style={{ textAlign:'center', marginTop:10 }}>
-              <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
-                fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'4px 6px', fontFamily:'inherit' }}>
-                {showOpts ? '▾' : '▸'} Optionen · خيارات
-              </button>
-            </div>
-            {showOpts && (
-            <>
             {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}
             <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,
               cursor: canStart ? 'pointer' : 'default', userSelect:'none' }}>
