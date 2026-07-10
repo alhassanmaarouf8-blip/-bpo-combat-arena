@@ -13,6 +13,7 @@
  */
 
 import { looksTruncatedDE, looksLikeTrustworthyCorrection } from './scoring/turnQuality.js';
+import { classifyGrammar, AR_EXPLANATIONS } from './errorTags.js';
 
 const LT_URL     = process.env.LANGUAGETOOL_URL ?? 'https://api.languagetool.org/v2/check';
 const LT_TIMEOUT = 12_000;
@@ -201,11 +202,16 @@ export async function buildGrammar(utterances) {
       const k = canon(e.wrong) + '→' + canon(e.right);
       if (seen.has(k)) return false; seen.add(k); return true;
     });
+    // Arabic explanation from the deterministic class map (adversarial audit 2026-07-10): the
+    // Basic perk promises "Feedback auch auf Arabisch", but LT messages are German — without this
+    // an Arabic-mode user's core feedback rendered entirely in German. Class-level, authored,
+    // never LLM-translated; unmapped classes keep the honest German fallback.
+    const arCls = classifyGrammar([{ ltRuleId: g.ltRuleId, ltCategoryId: g.ltCategoryId, rule: g.rule, explanation: g.explanation, count: 1 }])[0];
     return {
       rule:            g.rule,
       count:           examples.length,
       explanation:     g.explanation,
-      explanation_ar:  g.explanation_ar,
+      explanation_ar:  g.explanation_ar || AR_EXPLANATIONS[arCls] || '',
       ltRuleId:        g.ltRuleId,
       ltCategoryId:    g.ltCategoryId,
       summaryExamples: examples.slice(0, 2),
