@@ -1,5 +1,16 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## ✅ MUSK-CULL PASS (2026-07-10, evening) — `385d8b9` VERIFIED LIVE (all three proofs)
+Owner: "cut anything unnecessary, Musk is beside me." THE FIND: the a92c9ec Trainingslager-UI cut
+left a dead limb — the Elite perk still SOLD "das komplette Trainingslager" (3rd phantom perk of
+the day), the Boss-Tor gate demanded stations with no UI (locked door for cached clients), and
+trainingslagerUnlocked had zero consumers. All cut; reviewer SHIP (verified Elite still justifies
+its price: 2× minutes + Ziel-Stelle). KEPT deliberately: VideoLessons (only teaching layer),
+Alhassan (warmth layer), Invite/Placement/Push (on-loop). Full ledger + the deferred server-orphan
+list (trainingslagerRouter+engine files, /leaderboard route, dead mode payload field — blocked on
+the foreign server/server.js WIP) in memory `omni-perform-feature-cull-musk`. Lesson recorded:
+amputation needs a nerve-sweep (copy/gates/flags/routes).
+
 ## 🔶 ZIEL-STELLE MATCHING SHIPPED (2026-07-10, afternoon) — `3b38d7f`, VERIFY-LIVE in flight
 Owner picked THE full-price feature ("something they'd pay full price for on its own") and said go:
 the phantom Elite perk from audit #2, built for real. profile targetIndustry (10 KB industries) →
