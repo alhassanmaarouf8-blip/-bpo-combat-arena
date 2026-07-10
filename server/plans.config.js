@@ -38,27 +38,16 @@ export const PLANS = {
     dailyLiveMinutes:       30,    // 6 × 5 — hard daily spend cap
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
   },
-  // ONE-TIME plan (elite-marketer teardown 2026-07-10, owner-approved): one payment, "train until
-  // you're hired". Kills the monthly manual-Vodafone re-decision — with manual rails, every renewal
-  // is a fresh sale. `once: true` ⇒ no monthly/yearly toggle; access runs `onceDurationDays`, then
-  // lapses to free via the normal planOf() date check — no cron, no manual step. Basic-level daily
-  // limits keep the worst-case per-user Gemini audio cost bounded over the year.
-  job: {
-    id:               'job',
-    label:            'Bis zum Job',
-    priceEGP:         2000,   // ONE-TIME; the launch OFFER discounts it like the other plans
-    once:             true,
-    onceDurationDays: 365,    // "until hired", honestly bounded — 12 months of daily training
-    dailySessions:    3,
-    sessionMinutes:   5,
-    dailyLiveMinutes: 15,
-    zielStelle:       true,   // owner 2026-07-10: this buyer has a REAL target interview — perk included
-  },
+  // "Bis zum Job" one-time plan: KILLED by owner order 2026-07-10 evening ("cancel that shit",
+  // he saw the live card and vetoed the whole tier — outranks the morning teardown's approval).
+  // The generic `once`/`onceDurationDays` machinery (auth.js grantPlan / paywall render) stays:
+  // it is plan-agnostic and a future one-time plan may use it. Accounts that ever got plan:'job'
+  // lapse safely to free via planOf()'s PLANS[s.plan] existence check.
 };
 
 // Convenience accessors (kept in ONE place).
 export const FREE_ASSESSMENTS = PLANS.free.assessments;
-export const PLAN_IDS = Object.keys(PLANS); // ['free','basic','elite','job']
+export const PLAN_IDS = Object.keys(PLANS); // ['free','basic','elite']
 
 // ── Limited-time launch offer — the SINGLE source of truth for the discount ──────────────────
 // When active, BOTH the payable amount (payments.js) and the pricing page (billing/status) use the

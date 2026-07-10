@@ -2794,16 +2794,12 @@ const PERKS_DE = {
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
                  'alles aus Basic'],
-  job:   (m) => ['EINE Zahlung — kein monatliches Abo, keine Verlängerung',
-                 `bis zu ${m} Min ECHTES Live-Interview — jeden Tag, 12 Monate lang`,
-                 'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
-                 'Szenarien und Fachvokabular echter deutscher Konten — Mobilfunk, Bank, Airline und mehr',
-                 'trainiere in deinem Tempo — volle 12 Monate Zugang, ohne Abo-Druck'],
+  // 'job' (Bis zum Job one-time plan): owner-vetoed 2026-07-10 evening — plan deleted server-side
+  // (plans.config.js); its perks/sub-lines die with it (phantom-perk law: no copy without a plan).
 };
 const SUB_AR = {
   basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
-  job:   (m) => `دفعة واحدة من غير اشتراك شهري — لحد ${m} دقيقة إنترفيو مباشر كل يوم، لمدة 12 شهر.`,
 };
 
 function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
@@ -4866,7 +4862,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>
-                Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · mit Elite / „Bis zum Job“</span>}
+                Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · mit Elite</span>}
               </span>
               <select value={billing?.targetIndustry || ''} disabled={!canStart}
                 onChange={(e) => {

@@ -23,7 +23,7 @@ paymentsRouter.post('/billing/pay', requireAuth, async (req, res) => {
   try {
     const acc  = req.account;
     const plan = req.body?.plan;
-    if (plan !== 'basic' && plan !== 'elite' && plan !== 'job') return res.status(400).json({ error: 'invalid_plan' });
+    if (plan !== 'basic' && plan !== 'elite') return res.status(400).json({ error: 'invalid_plan' });
     // A one-time plan's period is ALWAYS 'once' — server-decided, so a client can neither turn a
     // one-time plan into a subscription nor a subscription into a one-time purchase.
     const billingPeriod = PLANS[plan].once ? 'once' : (req.body?.billingPeriod === 'yearly' ? 'yearly' : 'monthly');
