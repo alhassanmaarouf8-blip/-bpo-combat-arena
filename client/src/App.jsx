@@ -5108,6 +5108,37 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', borderRadius:'var(--r-md)',
           background:'linear-gradient(180deg, rgba(0,22,44,0.55), rgba(0,8,18,0.85))',
           border:'1px solid var(--line)', boxShadow:'inset 0 0 30px rgba(0,0,0,0.45)', overflow:'hidden' }}>
+          {geminiMode ? (
+            /* ── PURE VOICE CALL (owner mandate 2026-07-11: "cut off the transcript … i wana a voice
+               to voice thing"). The Gemini fight is a real-time voice conversation. Painting the live
+               ASR of the candidate's German — which the native-audio model mis-hears and spells as
+               English — made it feel like "the voice waits for my text to be written before it
+               answers." A phone call has no subtitles: presence + whose-turn only. Voice in, voice
+               out. The spoken words still reach the post-fight debrief silently; nothing is shown
+               here, so there is no text↔voice discrepancy left to see. ── */
+            <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column',
+              alignItems:'center', justifyContent:'center', gap:15, padding:'22px 16px', textAlign:'center' }}>
+              <div aria-hidden style={{ position:'relative', width:78, height:78, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ position:'absolute', inset:0, borderRadius:'50%',
+                  border:`2px solid ${bossSpeak ? boss.color : 'var(--player)'}`,
+                  opacity: isActive ? 0.9 : 0.35,
+                  animation: isActive ? 'pulse 1.8s ease-in-out infinite' : 'none',
+                  boxShadow: bossSpeak ? `0 0 24px ${boss.color}66` : userSpeak ? '0 0 24px rgba(59,130,246,0.45)' : 'none',
+                  transition:'border-color 0.4s, box-shadow 0.4s' }} />
+                <span style={{ fontSize:31 }}>{bossSpeak ? '🔊' : '🎙'}</span>
+              </div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:12.5, letterSpacing:'0.16em',
+                color: bossSpeak ? boss.color : isActive ? 'var(--player)' : 'var(--text-dim)', transition:'color 0.3s' }}>
+                {isConnecting ? 'VERBINDE…'
+                  : bossSpeak ? `${funnel?.displayName ?? 'CHEF'} SPRICHT`
+                  : isActive ? 'SPRICH — ICH HÖRE ZU' : 'INTERVIEW'}
+              </div>
+              <div style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, maxWidth:264 }}>
+                Sprich ganz normal — wie ein echtes Telefongespräch.
+              </div>
+            </div>
+          ) : (
+          <>
           {/* who is speaking + live score flash */}
           <div style={{ padding:'6px 12px', display:'flex', alignItems:'center', gap:8,
             borderBottom:'1px solid var(--line)', background:'rgba(0,0,0,0.25)' }}>
@@ -5151,6 +5182,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               bossName={(funnel?.displayName || '').toUpperCase()}
             />
           </div>
+          </>
+          )}
         </div>
       </div>
       )}
