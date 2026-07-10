@@ -12,9 +12,11 @@
  * CREDIT-ONLY, LENIENT detection: we only ever ADD credit for a de-escalation move we can positively
  * see in the transcript. ABSENCE is never treated as failure (Whisper drops words, especially fast/
  * accented speech) — on absence the client's taught KONTER phrase simply stands and `tip` TEACHES the
- * pro sequence. So we can never falsely tell a learner they got it wrong. `souveraen` is true as soon
- * as ONE real move is detected. The boss's own barbs are STRIPPED first (they're the interviewer's
- * words leaking into the mic, not the learner's).
+ * pro sequence. So we can never falsely tell a learner they got it wrong. `souveraen` requires a real
+ * CONTENT move (acknowledgment or a concrete solution) — formal register (stayedSie) supports but
+ * never earns the badge alone — and a positively-detected insult blocks it (both directions rest on
+ * POSITIVE detections, so the never-fail-on-absence rule still holds). The boss's own barbs are
+ * STRIPPED first (they're the interviewer's words leaking into the mic, not the learner's).
  *
  * Drills are UNLIMITED: authed only, NOT gated on plan/interview minutes. Adds no new paid API.
  */
@@ -26,7 +28,7 @@ export const druckLeiterRouter = express.Router();
 
 // Parse the rung's barbs from the query (JSON-encoded array, or a repeated/array param). Best-effort:
 // anything unparseable → no barbs (we simply strip nothing). Never throws.
-function parseBarbs(raw) {
+export function parseBarbs(raw) {
   try {
     if (Array.isArray(raw)) return raw.filter((b) => typeof b === 'string');
     if (typeof raw === 'string' && raw.trim()) {
@@ -39,7 +41,7 @@ function parseBarbs(raw) {
 
 // Remove the boss's barbs from the transcript (case-insensitive, literal). They're the interviewer's,
 // not the learner's, so they must not earn — or cost — the learner anything.
-function stripBarbs(text, barbs) {
+export function stripBarbs(text, barbs) {
   let out = String(text || '');
   for (const b of barbs) {
     const t = String(b).trim();
@@ -51,18 +53,33 @@ function stripBarbs(text, barbs) {
 }
 
 // CREDIT-ONLY de-escalation detection. Each move is a POSITIVE signal; absence proves nothing (STT may
-// have missed it), so absence is never scored against the learner.
-function detectMoves(cleaned) {
-  const acknowledged   = /verstehe|tut mir leid|nachvollziehen|ärger|verständlich/i.test(cleaned);
-  const offeredSolution = /kümmere|für sie|lösung|sofort|prüfe|kläre|schlage vor/i.test(cleaned);
+// have missed it), so absence is never scored against the learner. The formula lists mirror the
+// KONTER phrases the drill itself teaches (PressureLadder.jsx) — the grader MUST credit its own
+// model answers ("Ich löse das…" → lös; "melde mich in zehn Minuten" → melde mich), unit-enforced.
+export function detectMoves(cleaned) {
+  const acknowledged   = /verstehe|tut mir leid|nachvollziehen|ärger|verständlich|entschuldig|bedaure/i.test(cleaned);
+  const offeredSolution = /kümmere|für sie|lös|sofort|prüfe|kläre|schlage vor|melde mich|schritt für schritt|erstatte/i.test(cleaned);
   // Formal register held: uses Sie/Ihnen (kept case-sensitive — the formal pronoun is capitalised) AND
   // no informal "du"-slip. If we see neither pronoun we simply don't credit it (never a penalty).
   const usedFormal = /\bSie\b/.test(cleaned) || /\bIhnen\b/.test(cleaned);
   const duSlip     = /\bdu\b/i.test(cleaned) || /\bdich\b/i.test(cleaned) || /\bdein/i.test(cleaned);
   const stayedSie  = usedFormal && !duSlip;
   // No insult thrown back at the boss. Default TRUE (professional) — only flips off on a clear insult.
-  const noInsult = !/\b(idiot|idioten|blöd|bl(ö|oe)dmann|dumm|dumme|halt(?:'s| die)? klappe|halts? maul|arschloch|arschl(ö|oe)cher|verpiss|scheisse|scheiße|spinnst|spinner|depp|trottel)\b/i.test(cleaned);
+  // Since this now BLOCKS the badge (judgeSouveraen), it must only fire on unambiguous insults:
+  // name-calling / vulgarity always; the everyday adjectives "blöd/dumm" only when DIRECTED at a
+  // person ("Sie sind blöd") — "das ist blöd gelaufen" describes the situation and stays clean.
+  const noInsult = !(/\b(idiot|idioten|bl(ö|oe)dmann|halt(?:'s| die)? klappe|halts? maul|arschloch|arschl(ö|oe)cher|verpiss|scheisse|scheiße|spinnst|spinner|depp|trottel)\b/i.test(cleaned)
+    || /\b(sie sind|du bist|ihr seid)\s+(blöd|dumm)\b/i.test(cleaned));   // \b: "dummerweise/blöderweise" must never block
   return { acknowledged, offeredSolution, stayedSie, noInsult };
+}
+
+// The badge rule, cause-labeled by `moves`: a real CONTENT move (acknowledgment or concrete solution)
+// earns "souverän"; formal register alone does not (it supports, it isn't de-escalation); a positively
+// detected insult blocks the badge (the client then shows the still-positive "Standgehalten" verdict —
+// never a fabricated failure). Tightened 2026-07-10 (ROADMAP #5): the old rule let `stayedSie` alone —
+// i.e. merely saying "Sie" — light the badge, and an insult couldn't block it.
+export function judgeSouveraen(moves) {
+  return (moves.acknowledged || moves.offeredSolution) && moves.noInsult;
 }
 
 druckLeiterRouter.post('/druck-leiter/score',
@@ -93,10 +110,9 @@ druckLeiterRouter.post('/druck-leiter/score',
       }
 
       const moves = detectMoves(cleaned);
-      // "Souverän" = at least ONE real de-escalation move positively detected.
-      const souveraen = moves.acknowledged || moves.offeredSolution || moves.stayedSie;
+      const souveraen = judgeSouveraen(moves);
 
-      console.log(`[druck-leiter] user=${req.account.id} souveraen=${souveraen} ack=${moves.acknowledged} sol=${moves.offeredSolution} sie=${moves.stayedSie}`);
+      console.log(`[druck-leiter] user=${req.account.id} souveraen=${souveraen} ack=${moves.acknowledged} sol=${moves.offeredSolution} sie=${moves.stayedSie} noInsult=${moves.noInsult}`);
       return res.json({ transcript, souveraen, moves, tip: teachTip(souveraen) });
     } catch (err) {
       console.error('[druck-leiter] score error:', err.message);
