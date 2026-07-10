@@ -12,9 +12,12 @@ import { PLANS } from './plans.config.js';
 
 test('the plans that ADVERTISE Ziel-Stelle actually carry the flag (perk must never be a phantom again)', () => {
   assert.equal(PLANS.elite.zielStelle, true);
-  assert.equal(PLANS.job.zielStelle,   true);   // owner 2026-07-10: the "Bis zum Job" buyer has a real target interview
   assert.ok(!PLANS.free.zielStelle);
   assert.ok(!PLANS.basic.zielStelle);
+  // 'Bis zum Job' one-time plan: owner-vetoed the same evening it shipped — the plan (and its
+  // Ziel-Stelle perk) no longer exists. Pin the deletion so a future session can't resurrect it
+  // without a fresh owner order.
+  assert.equal(PLANS.job, undefined);
 });
 
 const byIndustry = (key) => CS_SCENARIOS.filter((s) => s.industry === key);

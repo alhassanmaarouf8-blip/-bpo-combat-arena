@@ -518,7 +518,7 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     // Each plan also carries its discounted price while the launch offer is live, and `offer`
     // tells the client whether to show the deal — so the client never hardcodes the discount and
     // the ad can't outlive the actual price (offer flips off automatically after endsAt).
-    plans: [PLANS.basic, PLANS.elite, PLANS.job].map((pl) => ({
+    plans: [PLANS.basic, PLANS.elite].map((pl) => ({
       ...pl,
       offerPriceEGP:  offerPrice(pl.priceEGP),
       offerYearlyEGP: pl.yearlyEGP != null ? offerPrice(pl.yearlyEGP) : null,
