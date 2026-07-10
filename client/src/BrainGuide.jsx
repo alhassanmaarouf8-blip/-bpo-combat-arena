@@ -81,7 +81,10 @@ function whyLine(d) {
 }
 
 // onAction(directive) — the parent launches the prescribed thing (drill / interview / assessment / apply).
-export function BrainGuide({ token, apiUrl, onAction }) {
+// externalInterviewCta: the host screen already shows THE interview button (the home's single
+// orange) — when the prescription IS the interview, the guide keeps its why + journey but hides
+// its own button instead of duplicating the CTA (designer pass 2026-07-10: one job, one button).
+export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false }) {
   const [data, setData] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -148,7 +151,9 @@ export function BrainGuide({ token, apiUrl, onAction }) {
       )}
       {/* Hand the WHY to the destination too, so the prescribed drill opens carrying the same
           honest reason (the drill renders it as its why-you bar). */}
-      <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
+      {!(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
+        <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
+      )}
     </div>
   );
 }
