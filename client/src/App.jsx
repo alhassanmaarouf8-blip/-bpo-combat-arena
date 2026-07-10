@@ -2409,16 +2409,49 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
 function AuthScreen({ onAuth }) {
-  const [mode, setMode]   = useState('signup');   // cold link-clickers are NEW visitors → show signup first (conversion)
+  // cold link-clickers are NEW visitors → signup first (conversion); a ?reset= link → login context
+  const [mode, setMode]   = useState(() => { try { return new URLSearchParams(window.location.search).get('reset') ? 'login' : 'signup'; } catch { return 'signup'; } });
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
   const [wa, setWa]       = useState('');          // WhatsApp — REQUIRED at signup (owner decision 2026-07-08)
-  const [forgotOpen, setForgotOpen] = useState(false);  // "Passwort vergessen" helper (manual WhatsApp reset)
-  const [forgotWa, setForgotWa]     = useState(null);   // owner's WhatsApp from /api/auth/reset-info (env-only, never hardcoded)
-  const openForgot = () => {
-    setForgotOpen(true);
-    fetch(`${API_URL}/api/auth/reset-info`).then((r) => r.json())
-      .then((d) => setForgotWa(d?.whatsapp || null)).catch(() => setForgotWa(null));
+  // Self-serve EMAIL password reset (owner order 2026-07-10 — the WhatsApp-manual flow is dead).
+  // forgotState: null → closed · 'form' → email input · 'sent' → link on its way ·
+  // 'unavailable' → SMTP not configured yet (honest, no false promise, no WhatsApp copy).
+  const [forgotState, setForgotState] = useState(null);
+  const [forgotBusy, setForgotBusy]   = useState(false);
+  // A ?reset=<token> URL (from the reset e-mail) switches the card into "new password" mode.
+  const [resetToken] = useState(() => { try { return new URLSearchParams(window.location.search).get('reset') || ''; } catch { return ''; } });
+  const sendForgot = async () => {
+    if (forgotBusy) return;
+    if (!email) { setErr({ de: 'Bitte gib oben deine E-Mail ein.', ar: 'اكتب إيميلك الأول فوق.' }); return; }
+    setErr(''); setForgotBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/auth/forgot`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+      });
+      const d = await r.json().catch(() => null);
+      setForgotState(d?.ok ? 'sent' : 'unavailable');
+    } catch { setErr({ de: 'Server nicht erreichbar. Bitte versuche es gleich erneut.', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); }
+    setForgotBusy(false);
+  };
+  const submitReset = async () => {
+    if (busy) return;
+    if (String(pw).length < 6) { setErr({ de: 'Neues Passwort: mindestens 6 Zeichen.', ar: 'الباسورد الجديد لازم ٦ حروف على الأقل.' }); return; }
+    setErr(''); setBusy(true);
+    try {
+      const r = await fetch(`${API_URL}/api/auth/reset`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: resetToken, password: pw }),
+      });
+      const d = await r.json().catch(() => null);
+      if (!r.ok) {
+        setErr(d?.error === 'invalid_or_expired'
+          ? { de: 'Der Link ist abgelaufen oder wurde schon benutzt.', ar: 'اللينك خلص أو اتستخدم قبل كده.', expired: true }
+          : authErrText(d?.error));
+        setBusy(false); return;
+      }
+      try { window.history.replaceState(null, '', window.location.pathname); } catch { /* cosmetic */ }
+      onAuth({ token: d.token, account: d.account });
+    } catch { setErr({ de: 'Server nicht erreichbar. Bitte versuche es gleich erneut.', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); setBusy(false); }
   };
   const [err, setErr]     = useState('');
   const [busy, setBusy]   = useState(false);
@@ -2583,6 +2616,14 @@ function AuthScreen({ onAuth }) {
       <div style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
         background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3), var(--glass-highlight)',
         backdropFilter:'blur(14px) saturate(1.1)', ...rise(4) }}>
+        {resetToken ? (
+          <div style={{ marginBottom:4 }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, color:'var(--text)' }}>Neues Passwort setzen</div>
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.5 }}>
+              Privater Link aus deiner E-Mail — wähle unten dein neues Passwort. <span dir="rtl">اختار الباسورد الجديد.</span>
+            </div>
+          </div>
+        ) : (
         <div style={{ display:'flex', gap:0, marginBottom:18, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3 }}>
           {['login','signup'].map((m) => (
             <button key={m} onClick={() => { setMode(m); setErr(''); }}
@@ -2593,17 +2634,22 @@ function AuthScreen({ onAuth }) {
             </button>
           ))}
         </div>
+        )}
 
         {/* Craft pass #7 — visible labels (placeholder-only inputs are a trust-killer: the label
             vanishes the moment you type). WhatsApp stays REQUIRED (owner decision 2026-07-08;
             the server rejects signups without it — the label must never claim otherwise). */}
-        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'0 2px 5px' }}>E-MAIL</div>
-        <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@gmail.com"
-          autoComplete="email" className="uplift-input" style={inputStyle} />
-        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>PASSWORT</div>
+        {!resetToken && (
+          <>
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'0 2px 5px' }}>E-MAIL</div>
+            <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@gmail.com"
+              autoComplete="email" className="uplift-input" style={inputStyle} />
+          </>
+        )}
+        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>{resetToken ? 'NEUES PASSWORT' : 'PASSWORT'}</div>
         <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="mind. 6 Zeichen"
-          autoComplete={mode==='signup'?'new-password':'current-password'}
-          onKeyDown={(e)=>{ if(e.key!=='Enter') return; if(mode==='signup') return; submit(); }} className="uplift-input" style={inputStyle} />
+          autoComplete={mode==='signup' || resetToken ? 'new-password' : 'current-password'}
+          onKeyDown={(e)=>{ if(e.key!=='Enter') return; if(resetToken) { submitReset(); return; } if(mode==='signup') return; submit(); }} className="uplift-input" style={inputStyle} />
 
         {mode === 'signup' && (
           <>
@@ -2623,46 +2669,63 @@ function AuthScreen({ onAuth }) {
           <div style={{ marginTop:10 }}>
             <div style={{ color:'#fca5a5', fontSize:12 }}>⚠ {err.de}</div>
             {err.ar && <div dir="rtl" style={{ color:'#fca5a5', fontSize:12, marginTop:2 }}>{err.ar}</div>}
+            {/* Expired-link escape hatch (review catch): in reset mode every other control is
+                hidden — without this button a stale-link user had literally no way forward. */}
+            {err.expired && (
+              <button onClick={() => { window.location.href = window.location.pathname; }}
+                style={{ display:'block', marginTop:8, padding:'8px 0', minHeight:40, width:'100%', cursor:'pointer',
+                  background:'none', border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)',
+                  color:'var(--accent)', textDecoration:'underline', textUnderlineOffset:3 }}>
+                Neuen Link anfordern → zurück zur Anmeldung
+              </button>
+            )}
           </div>
         )}
 
-        {/* Password reset, the $0 way: message the coach's WhatsApp FROM the registered number
-            (possession of that number is the identity proof); the owner resets by hand via admin.
-            Before this, a locked-out user — including a PAYING one — was simply lost. */}
-        {mode === 'login' && !forgotOpen && (
-          <button onClick={openForgot} style={{ display:'block', margin:'10px auto 0', padding:'6px 10px',
+        {/* Self-serve password reset via e-mail (owner order 2026-07-10 — the WhatsApp-manual
+            instructions are dead: "the reset password is done through email"). The link mails a
+            single-use, 45-minute token; ?reset=<token> switches this card into new-password mode. */}
+        {mode === 'login' && !resetToken && !forgotState && (
+          <button onClick={() => setForgotState('form')} style={{ display:'block', margin:'10px auto 0', padding:'6px 10px',
             background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-meta)', color:'var(--text-dim)', textDecoration:'underline', textUnderlineOffset:3 }}>
             Passwort vergessen? · نسيت كلمة السر؟
           </button>
         )}
-        {mode === 'login' && forgotOpen && (
+        {mode === 'login' && !resetToken && forgotState === 'form' && (
           <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
             border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
-            <div>
-              Schreib uns per WhatsApp <b style={{ color:'var(--text)' }}>von deiner registrierten Nummer</b>:
-              „Passwort vergessen“ + deine E-Mail. Wir setzen es zurück — meist in wenigen Stunden.
-            </div>
-            <div dir="rtl" style={{ marginTop:4 }}>ابعتلنا واتساب من رقمك المسجّل وقول «نسيت الباسورد» + إيميلك — وهنظبطهالك في أسرع وقت.</div>
-            {forgotWa ? (
-              <a href={`https://wa.me/${forgotWa.replace(/\D/g, '').replace(/^0/, '20')}?text=${encodeURIComponent('Passwort vergessen: ')}`}
-                target="_blank" rel="noreferrer"
-                style={{ display:'inline-block', marginTop:8, color:'var(--accent)', fontWeight:600 }}>
-                WhatsApp öffnen → {forgotWa}
-              </a>
-            ) : (
-              <div style={{ marginTop:8, color:'var(--text-faint)' }}>Nummer lädt…</div>
-            )}
+            <div>Wir schicken dir einen Link an deine E-Mail-Adresse (oben eintragen) — damit setzt du dein Passwort selbst zurück.</div>
+            <div dir="rtl" style={{ marginTop:4 }}>هنبعتلك لينك على إيميلك تغيّر بيه الباسورد بنفسك.</div>
+            <button onClick={sendForgot} disabled={forgotBusy}
+              style={{ display:'block', width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:forgotBusy?'wait':'pointer',
+                fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, letterSpacing:'0.06em', borderRadius:9,
+                border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)', opacity:forgotBusy?0.6:1 }}>
+              {forgotBusy ? '…' : 'RESET-LINK SENDEN'}
+            </button>
+          </div>
+        )}
+        {mode === 'login' && !resetToken && forgotState === 'sent' && (
+          <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
+            border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
+            <div>Wenn ein Konto mit dieser Adresse existiert, ist der Link unterwegs — <b style={{ color:'var(--text)' }}>Posteingang und Spam-Ordner</b> prüfen. Gültig 45 Minuten.</div>
+            <div dir="rtl" style={{ marginTop:4 }}>لو في حساب بالإيميل ده، اللينك في السكة — بص في الإنبوكس والسبام. صالح ٤٥ دقيقة.</div>
+          </div>
+        )}
+        {mode === 'login' && !resetToken && forgotState === 'unavailable' && (
+          <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
+            border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
+            Der automatische Reset ist gerade nicht verfügbar — bitte versuch es in Kürze noch einmal.
           </div>
         )}
 
         {/* Craft pass #6 — machined, not inflated: solid fill, tight radius, no glow bloom. */}
-        <button onClick={submit} disabled={busy}
+        <button onClick={resetToken ? submitReset : submit} disabled={busy}
           style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:busy?'wait':'pointer',
             fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.04em', borderRadius:11,
             border:'none', color:'#081019', background:'var(--action)',
             opacity:busy?0.6:1, transition:'transform 100ms var(--ease)' }}>
-          {busy ? '…' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
+          {busy ? '…' : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
         </button>
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
           Kostenlos starten: Niveau-Einstufung · كل ده بالعربي · مجاني للبداية

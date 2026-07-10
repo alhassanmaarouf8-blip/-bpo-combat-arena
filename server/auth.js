@@ -15,7 +15,8 @@ import { existsSync }                 from 'fs';
 import path                           from 'path';
 import { fileURLToPath }              from 'url';
 import express                        from 'express';
-import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'crypto';
+import { randomBytes, scryptSync, timingSafeEqual, createHmac, createHash } from 'crypto';
+import { mailerConfigured, sendResetMail } from './mailer.js';
 import { dbEnabled, kvGet, kvSet }    from './db.js';
 import { PLANS, OFFER, offerActive, offerPrice } from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
@@ -93,6 +94,7 @@ export async function adminSetPassword(email, newPassword) {
   const acc = await getAccountByEmail(email);
   if (!acc) return null;
   acc.passwordHash = hashPassword(newPassword);
+  delete acc.resetToken;   // an outstanding emailed reset link must die with a support reset
   await persist();
   return acc;
 }
@@ -479,13 +481,57 @@ authRouter.post('/login',
 
 authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccount(req.account) }));
 
-// Password reset, the $0 way: the user messages the owner's WhatsApp FROM THEIR REGISTERED
-// NUMBER (possession of the number they signed up with IS the identity proof) and the owner
-// sets a new password via the admin panel (/admin/set-password). This endpoint only exposes
-// where to write — a number that is already public on the payment screen. No token flows, no
-// email infra, nothing automated to abuse. A locked-out PAYING user was previously lost forever.
-authRouter.get('/reset-info', rateLimit({ windowMs: 10 * 60 * 1000, max: 30, tag: 'reset-info' }), (_req, res) => {
-  res.json({ whatsapp: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null });
+// ── Self-serve password reset via E-MAIL (owner order 2026-07-10: "the reset password is done
+// through email" — the WhatsApp-manual flow is dead; adminSetPassword stays as a support tool).
+// Design: 32 random bytes; only the sha256 of the token is stored (a leaked store can't burn a
+// live link); 45 min TTL; single-use; /forgot answers ok:true whether or not the account exists
+// (no account enumeration) and never reveals a send failure. emailConfigured:false is the ONE
+// honest exception — until the owner sets SMTP_USER/SMTP_PASS the client must not promise mail.
+const APP_URL = process.env.APP_URL || 'https://bpo-combat-arena.vercel.app';
+const RESET_TTL_MS = 45 * 60 * 1000;
+
+// Rate shape mirrors /login's CGNAT lesson (hundreds of real users share one carrier IP):
+// generous per-IP + strict per-EMAIL. The per-email cap doubles as the Gmail-quota fuse —
+// no attacker can bomb one inbox or drain the 500/day free quota from a single address.
+authRouter.post('/forgot',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 40, tag: 'forgot' }),
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 3, tag: 'forgot-acct',
+              keyExtra: (req) => String(req.body?.email || '').toLowerCase().slice(0, 80) }),
+  async (req, res) => {
+  if (!mailerConfigured()) return res.json({ ok: false, emailConfigured: false });
+  const acc = await getAccountByEmail(req.body?.email);
+  if (acc) {
+    // Resend cooldown: a link issued <2 min ago is still in flight — don't burn another mail.
+    const issuedAt = acc.resetToken ? acc.resetToken.exp - RESET_TTL_MS : 0;
+    if (Date.now() - issuedAt > 2 * 60 * 1000) {
+      const raw = randomBytes(32).toString('hex');
+      acc.resetToken = { hash: createHash('sha256').update(raw).digest('hex'), exp: Date.now() + RESET_TTL_MS };
+      await persist();
+      // Fire-and-forget (review catch): awaiting the SMTP round-trip made existing accounts
+      // answer 1-3s slower than unknown ones — a timing oracle that defeated the uniform
+      // response shape. The client gets ok:true immediately either way.
+      sendResetMail(acc.email, `${APP_URL}/?reset=${raw}`)
+        .catch((e) => console.error(`[forgot] send failed for ${acc.email}: ${e.message}`));
+    }
+  }
+  res.json({ ok: true });
+});
+
+authRouter.post('/reset', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, tag: 'reset' }), async (req, res) => {
+  const { token, password } = req.body || {};
+  if (String(password || '').length < 6) return res.status(400).json({ error: 'password_too_short' });
+  if (typeof token !== 'string' || token.length < 40) return res.status(400).json({ error: 'invalid_token' });
+  const h = createHash('sha256').update(token).digest('hex');
+  const s = await load();
+  const acc = Object.values(s.accounts || {}).find((a) => a.resetToken?.hash === h);
+  if (!acc || !acc.resetToken || Date.now() > acc.resetToken.exp) {
+    return res.status(400).json({ error: 'invalid_or_expired' });
+  }
+  acc.passwordHash = hashPassword(password);
+  delete acc.resetToken;               // single-use — the link dies with the change
+  await persist();
+  console.log(`[reset] password reset via email link  user=${acc.id}`);
+  res.json({ token: signToken(acc.id), account: publicAccount(acc) });   // straight back in
 });
 
 // Optional WhatsApp opt-in — the app's ONLY re-engagement channel at $0 (no email infra, no

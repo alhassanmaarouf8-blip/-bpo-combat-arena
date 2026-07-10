@@ -1,0 +1,58 @@
+/**
+ * mailer.js — the app's ONLY outbound e-mail (self-serve password reset), $0 via Gmail SMTP.
+ *
+ * Owner order 2026-07-10: "the reset password is done through email" — the WhatsApp-manual flow
+ * is dead. Transport: the owner's Gmail with an App Password (free, 500 mails/day, real-Gmail
+ * deliverability — no domain, no paid ESP). Configured entirely by env:
+ *   SMTP_USER = the Gmail address to send from
+ *   SMTP_PASS = a Google "App Password" (Google Account → Security → 2-Step → App passwords)
+ *   SMTP_HOST (optional, default smtp.gmail.com) — swap-in seam for any future provider.
+ * Until both are set, mailerConfigured() is false and /auth/forgot tells the client honestly.
+ */
+import nodemailer from 'nodemailer';
+
+export function mailerConfigured() {
+  return !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+let _tx = null;
+function tx() {
+  if (!_tx) {
+    _tx = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // Tight timeouts (review catch): nodemailer's defaults (2 min connect, 10 min socket)
+      // would let a blackholed SMTP connection pin resources far too long.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+    });
+  }
+  return _tx;
+}
+
+/** Send the password-reset link. Plain, professional, bilingual — no marketing. */
+export async function sendResetMail(to, link) {
+  const text = [
+    'Hallo,',
+    '',
+    'jemand (hoffentlich du) hat ein neues Passwort für dein OMNI-PERFORM-Konto angefordert.',
+    'Der Link ist 45 Minuten gültig und funktioniert genau einmal:',
+    '',
+    link,
+    '',
+    'Wenn du das nicht warst, ignoriere diese E-Mail — dein Passwort bleibt unverändert.',
+    '',
+    'لو انت اللي طلبت تغيير الباسورد، افتح اللينك — صالح ٤٥ دقيقة. لو مش انت، تجاهل الرسالة.',
+  ].join('\n');
+  await tx().sendMail({
+    from: `"OMNI-PERFORM" <${process.env.SMTP_USER}>`,
+    to,
+    subject: 'Passwort zurücksetzen · OMNI-PERFORM',
+    text,
+  });
+}
+
+export default { mailerConfigured, sendResetMail };
