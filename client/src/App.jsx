@@ -103,6 +103,9 @@ const BRAIN_GUIDE_LIVE = true;
 // differs on a phone speaker vs headphones, so it stays OFF until the owner phone-tests + tunes the
 // sensitivity (rule 2.5). When false, NO extra mic stream is even opened. Flip to true to test on device.
 const BARGE_IN_LIVE = false;
+// How long the Gemini mic stays gated AFTER the boss voice ends, to swallow the speaker→mic echo/reverb
+// tail before the candidate's turn reopens (see the HALF-DUPLEX ECHO GATE in enterGeminiMode's onChunk).
+const ECHO_TAIL_MS = 350;
 // INTERVIEW-BEREITSCHAFT card in the debrief: the hire-readiness judge's verdict (ready / almost +
 // the ONE blocking skill). Honest — it names how many of the 9 signals were really measured and
 // says "vorläufig" when pronunciation wasn't. Flip to false to hide the card in one line.
@@ -3389,6 +3392,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiBossLineRef = useRef('');
   const geminiPendingTextRef = useRef('');   // transcript chunks held back until the boss's VOICE starts
   const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
+  const micEchoTailRef       = useRef(0);     // Date.now() until which the mic stays gated AFTER the boss voice ends (echo/reverb tail)
   const geminiThinkTimerRef  = useRef(null);  // debounce: your transcript goes quiet → "CHEF DENKT NACH…"
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
@@ -3477,7 +3481,19 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     try {
       const rec = new ClipRecorder({
         onVolume: (v) => { volRef.current = v; },
-        onChunk:  (b64) => { try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ } },
+        onChunk:  (b64) => {
+          // ── HALF-DUPLEX ECHO GATE (2026-07-11) ────────────────────────────────────────────────
+          // While Yasmin's voice is audible (+ a short reverb tail), do NOT stream the mic to Gemini.
+          // Gemini Live does NO input echo-cancellation, and the boss voice plays via Web Audio, which
+          // the browser's AEC cannot reference — so on a SPEAKER her voice re-enters the mic, Gemini's
+          // server VAD scores it as the candidate, and she interrupts herself while real answers land
+          // late. Gating the mic during her turn is the state-of-the-art fix for a speaker + direct-
+          // Gemini setup. Cost by design: no mid-sentence barge-in (the mic reopens ~ECHO_TAIL after
+          // she stops). geminiVoiceOnRef flips false at turn-complete; the tail covers the audio flush.
+          if (geminiVoiceOnRef.current) { micEchoTailRef.current = Date.now() + ECHO_TAIL_MS; return; }
+          if (Date.now() < micEchoTailRef.current) return;
+          try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ }
+        },
       });
       await rec.start();
       // Teardown may have raced the await above (e.g. GEMINI_ENDED or session close while the mic
