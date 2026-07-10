@@ -69,7 +69,7 @@ export function detectMoves(cleaned) {
   // name-calling / vulgarity always; the everyday adjectives "blöd/dumm" only when DIRECTED at a
   // person ("Sie sind blöd") — "das ist blöd gelaufen" describes the situation and stays clean.
   const noInsult = !(/\b(idiot|idioten|bl(ö|oe)dmann|halt(?:'s| die)? klappe|halts? maul|arschloch|arschl(ö|oe)cher|verpiss|scheisse|scheiße|spinnst|spinner|depp|trottel)\b/i.test(cleaned)
-    || /\b(sie sind|du bist|ihr seid)\s+(blöd|dumm)/i.test(cleaned));
+    || /\b(sie sind|du bist|ihr seid)\s+(blöd|dumm)\b/i.test(cleaned));   // \b: "dummerweise/blöderweise" must never block
   return { acknowledged, offeredSolution, stayedSie, noInsult };
 }
 

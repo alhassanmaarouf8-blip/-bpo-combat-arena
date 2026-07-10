@@ -72,6 +72,16 @@ test('undirected everyday "blöd/dumm" does NOT block (situation, not person)', 
   assert.equal(judgeSouveraen(moves), true);
   assert.equal(detectMoves('Eine dumme Situation, ich prüfe das.').noInsult, true);
 });
+test('adverbs starting with dumm/blöd never block — the reviewer-proven false-block', () => {
+  const a = detectMoves('Sie sind dummerweise falsch verbunden, ich kümmere mich darum.');
+  assert.equal(a.noInsult, true);
+  assert.equal(judgeSouveraen(a), true);
+  const b = detectMoves('Sie sind blöderweise im falschen System, ich prüfe das.');
+  assert.equal(b.noInsult, true);
+  assert.equal(judgeSouveraen(b), true);
+  // …while the genuinely directed insult still blocks (boundary right next door):
+  assert.equal(detectMoves('Sie sind blöd.').noInsult, false);
+});
 
 // ── Absence never fails (credit-only floor) ──────────────────────────────────────────────────
 test('empty / contentless transcript: no badge, but noInsult stays professional-by-default', () => {
