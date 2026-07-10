@@ -869,7 +869,7 @@ const GLOBAL_CSS = `
   @keyframes wave-bar { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }
   .uplift-input:focus { box-shadow: var(--ring-focus); border-color: var(--accent); }
   @media (min-width: 900px) {
-    .landing-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:48px; align-items:center; }
+    .landing-grid { display:grid; grid-template-columns: 1.1fr 0.9fr; gap:48px; align-items:start; }
   }
   .shake  { animation: shake 0.4s ease; }
   .hurt   { animation: boss-hurt 0.55s ease; }
@@ -2444,9 +2444,9 @@ function AuthScreen({ onAuth }) {
   const submit = async () => {
     if (busy) return;
     if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
-    // WhatsApp is required to sign up — the coach reaches you here (kein Spam). Validate client-side
-    // so the user gets an instant hint; the server re-validates as the source of truth.
-    if (mode === 'signup' && String(wa).replace(/\D/g, '').length < 10) {
+    // WhatsApp is OPTIONAL at signup (craft pass #7 — demanding a phone number at first touch was
+    // the page's biggest trust/friction wall). Validate the format only when one was entered.
+    if (mode === 'signup' && String(wa).trim() && String(wa).replace(/\D/g, '').length < 10) {
       setErr(authErrText('invalid_number')); return;
     }
     setErr(''); setBusy(true);
@@ -2476,81 +2476,50 @@ function AuthScreen({ onAuth }) {
   return (
     <div className="auth-shell" style={{ minHeight:'100svh', display:'flex', flexDirection:'column',
       justifyContent:'center', padding:'24px', position:'relative', overflow:'hidden' }}>
-      {/* one ultra-soft blue orb — the only background decoration */}
-      <div style={{ position:'fixed', top:-180, right:-180, width:600, height:600, borderRadius:'50%', pointerEvents:'none',
-        background:'radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 65%)' }} />
+      {/* Craft pass #10 — a DECIDED atmosphere: one light source (top-left, behind the hero) and a
+          whisper of grain. Depth that's felt, never noticed. */}
+      <div style={{ position:'fixed', top:-220, left:-160, width:680, height:680, borderRadius:'50%', pointerEvents:'none',
+        background:'radial-gradient(circle, rgba(59,130,246,0.11) 0%, transparent 62%)' }} />
+      <div style={{ position:'fixed', inset:0, pointerEvents:'none', opacity:0.028, mixBlendMode:'overlay',
+        backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
       <div className="landing-grid" style={{ maxWidth:1120, margin:'0 auto', width:'100%' }}>
       <div>
       <div style={{ textAlign:'center', marginBottom:20, ...rise(0) }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:600, letterSpacing:'0.04em', color:'var(--text-dim)' }}>
-          OMNI-PERFORM <span style={{ color:'var(--text-faint)' }}>· Sprachtraining</span>
+        {/* Craft pass #9 — the mark (owner yes/no pending): two voice bars in a machined square. */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:9 }}>
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+            <rect x="0.75" y="0.75" width="20.5" height="20.5" rx="5" fill="none" stroke="rgba(148,163,184,0.45)" strokeWidth="1.5" />
+            <rect x="7" y="7.5" width="2.6" height="7" rx="1.3" fill="var(--accent)" />
+            <rect x="12.4" y="5.5" width="2.6" height="11" rx="1.3" fill="var(--action)" />
+          </svg>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.08em', color:'var(--text)' }}>
+            OMNI-PERFORM
+          </div>
         </div>
-        {/* Arabic-first positioning — our biggest moat: no other German trainer serves Arabic speakers */}
-        <div dir="rtl" style={{ fontSize:'var(--fs-hero)', fontWeight:700, color:'#f8fafc', marginTop:16, lineHeight:1.35, maxWidth:520, marginInline:'auto' }}>
-          أول تدريب إنترفيو ألماني — علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited (niche = the BPO industry IN Egypt, not nationality — owner order 07-10) */}
+        {/* Craft pass #4 — ONE short line carries the page (real Arabic display face, set like a
+            headline); everything below steps down. Niche = the BPO industry IN Egypt (owner 07-10). */}
+        <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', marginTop:22, lineHeight:1.3 }}>
+          أول تدريب إنترفيو ألماني
         </div>
-        <div style={{ fontSize:'var(--fs-body)', color:'var(--text-dim)', marginTop:12, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
+        <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
+          علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}
+        </div>
+        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:10, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
           Der erste deutsche Interview-Trainer für die BPO- und Call-Center-Branche in Ägypten — und für deutsche Remote-Jobs.
         </div>
-        <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:4, marginTop:16,
-          padding:'9px 16px', borderRadius:'var(--r-pill)', border:'1px solid var(--action-dim)',
-          background:'rgba(249,115,22,0.08)' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:7, fontSize:13, color:'var(--action)' }}>
-            <Icon name="target" size={14} /> Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
-          </div>
-          <span dir="rtl" style={{ fontSize:12, color:'var(--action)' }}>بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
+        {/* Craft pass #3 — the assessment promise, demoted from a shouting orange chip to one quiet line. */}
+        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:14, lineHeight:1.7 }}>
+          Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
+          {' '}<span dir="rtl">بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
         </div>
       </div>
 
-      {/* $0 PRODUCT PROOF — a CSS phone showing the actual fight UI (blue player vs orange boss).
-          Pure divs, zero assets. The boss line is VERBATIM from scenarios.js (german-checked). */}
-      <div style={{ display:'flex', justifyContent:'center', margin:'26px 0 30px', perspective:'1200px', ...rise(1) }}>
-        <div style={{ width:240, borderRadius:34, padding:9, background:'#0f1626', boxShadow:'var(--e3)',
-          transform:'rotate(-4deg)', border:'1px solid rgba(255,255,255,0.08)', position:'relative' }}>
-          <div style={{ position:'absolute', left:'50%', bottom:-26, transform:'translateX(-50%)', width:190, height:30,
-            borderRadius:'50%', background:'radial-gradient(ellipse, rgba(59,130,246,0.25), transparent 70%)', filter:'blur(6px)' }} />
-          <div style={{ borderRadius:26, overflow:'hidden', background:'linear-gradient(180deg,#0a0f1a,#0d1424)', padding:'10px 12px 14px' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:8, color:'var(--text-faint)', marginBottom:10 }}>
-              <span>09:41</span><span>●●●</span>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-              <div style={{ width:30, height:30, borderRadius:'50%', background:'rgba(249,115,22,0.18)', border:'1px solid rgba(249,115,22,0.5)',
-                display:'grid', placeItems:'center', fontSize:12, fontWeight:700, color:'var(--boss-2)' }}>Y</div>
-              <div>
-                <div style={{ fontSize:10, fontWeight:600, color:'var(--text)' }}>Yasmin · HR</div>
-                <div style={{ fontSize:8, color:'var(--text-faint)' }}>Live-Interview</div>
-              </div>
-            </div>
-            <div style={{ height:5, borderRadius:3, background:'rgba(255,255,255,0.07)', marginBottom:5 }}>
-              <div style={{ width:'64%', height:'100%', borderRadius:3, background:'var(--boss)' }} />
-            </div>
-            <div style={{ height:5, borderRadius:3, background:'rgba(255,255,255,0.07)', marginBottom:12 }}>
-              <div style={{ width:'88%', height:'100%', borderRadius:3, background:'var(--player)' }} />
-            </div>
-            <div style={{ borderRadius:'10px 10px 10px 3px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)',
-              padding:'8px 9px', fontSize:9.5, lineHeight:1.5, color:'var(--text)', marginBottom:8 }}>
-              Gut. Erzählen Sie mir zuerst kurz, wer Sie sind und was Sie mitbringen.
-            </div>
-            <div style={{ borderRadius:'10px 10px 3px 10px', background:'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.3)',
-              padding:'8px 10px', marginLeft:34, marginBottom:10, display:'flex', gap:3, alignItems:'center', justifyContent:'center', height:30 }}>
-              {[0,1,2,3,4].map((i) => (
-                <div key={i} style={{ width:3, height:14, borderRadius:2, background:'var(--accent-2)', transformOrigin:'center',
-                  animation:`wave-bar 1.1s ease-in-out ${i * 90}ms infinite` }} />
-              ))}
-            </div>
-            <div style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:8.5, fontWeight:600, color:'var(--accent-2)',
-              background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.3)', borderRadius:'var(--r-pill)', padding:'3px 8px' }}>
-              +12 · Grammatik
-            </div>
-          </div>
-        </div>
-      </div>
-      <div style={{ textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:-16, marginBottom:22, ...rise(2) }}>
-        Echtes Live-Interview — Ton an. {/* OWNER-AR slot */}
-      </div>
+      {/* (Craft pass #1: the CSS fake-phone mockup CUT — an illustration of an app reads as
+          template fakery under the trust law. Typography carries the page; a REAL product
+          screenshot may return later as the replacement.) */}
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
-      <div style={{ maxWidth:420, margin:'0 auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
+      <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(2) }}>
         {[
           { icon:'mic',     ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
           { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
@@ -2590,11 +2559,10 @@ function AuthScreen({ onAuth }) {
           shown below — that's what keeps a curated quote sample honest rather than cherry-picked. */}
       {publicRatings && (
         <div style={{ maxWidth:420, margin:'0 auto 22px', ...rise(3.5) }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginBottom:14 }}>
-            <span style={{ color:'var(--action)', fontSize:15, fontWeight:700 }}>★ {publicRatings.avgRating.toFixed(1)}</span>
-            <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)' }}>
-              · {publicRatings.ratingCount} echte Bewertungen {/* OWNER-AR slot */}
-            </span>
+          {/* Craft pass #2: the ★ line no longer shouts in orange from empty space — one quiet,
+              honest line above the real quotes (the quotes carry the proof, not the numeral). */}
+          <div style={{ textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:12 }}>
+            ★ {publicRatings.avgRating.toFixed(1)} · {publicRatings.ratingCount} echte Bewertungen{/* OWNER-AR slot */}
           </div>
           {publicRatings.comments.length > 0 && (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -2630,21 +2598,27 @@ function AuthScreen({ onAuth }) {
           ))}
         </div>
 
-        <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="E-Mail"
+        {/* Craft pass #7 — visible labels (placeholder-only inputs are a trust-killer: the label
+            vanishes the moment you type), and WhatsApp demoted to OPTIONAL: the number is asked,
+            never demanded, at the very first touch. Server already treats it as optional. */}
+        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'0 2px 5px' }}>E-MAIL</div>
+        <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@gmail.com"
           autoComplete="email" className="uplift-input" style={inputStyle} />
-        <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="Passwort (min. 6 Zeichen)"
+        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>PASSWORT</div>
+        <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="mind. 6 Zeichen"
           autoComplete={mode==='signup'?'new-password':'current-password'}
-          onKeyDown={(e)=>{ if(e.key!=='Enter') return; if(mode==='signup') return; submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+          onKeyDown={(e)=>{ if(e.key!=='Enter') return; if(mode==='signup') return; submit(); }} className="uplift-input" style={inputStyle} />
 
-        {/* WhatsApp — required at signup only. The coach reaches the learner here (the app's only
-            $0 re-engagement channel); the "kein Spam" promise is honest — the owner messages by hand. */}
         {mode === 'signup' && (
           <>
-            <input type="tel" value={wa} onChange={(e)=>setWa(e.target.value)} placeholder="WhatsApp-Nummer (z. B. 010…)"
+            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>
+              WHATSAPP <span style={{ fontWeight:400, letterSpacing:0, textTransform:'none' }}>(optional)</span>
+            </div>
+            <input type="tel" value={wa} onChange={(e)=>setWa(e.target.value)} placeholder="010…"
               autoComplete="tel" inputMode="tel"
-              onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={{ ...inputStyle, marginTop:10 }} />
+              onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={inputStyle} />
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:6, lineHeight:1.5 }}>
-              Für persönliche Coach-Erinnerungen — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
+              Für Coach-Erinnerungen und Passwort-Reset — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
             </div>
           </>
         )}
@@ -2686,10 +2660,11 @@ function AuthScreen({ onAuth }) {
           </div>
         )}
 
+        {/* Craft pass #6 — machined, not inflated: solid fill, tight radius, no glow bloom. */}
         <button onClick={submit} disabled={busy}
           style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:busy?'wait':'pointer',
-            fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em', borderRadius:14,
-            border:'none', color:'#081019', background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
+            fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.04em', borderRadius:11,
+            border:'none', color:'#081019', background:'var(--action)',
             opacity:busy?0.6:1, transition:'transform 100ms var(--ease)' }}>
           {busy ? '…' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
         </button>
