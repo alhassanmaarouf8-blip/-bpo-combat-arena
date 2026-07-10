@@ -89,7 +89,7 @@ keeps the single orange; note_ar OWNER-AR slot). 17 unit tests incl. false-posit
 Suite 165/165, lint, design-lint, client build green; german-check: learner-visible strings
 clean (6 flags = regex source internals, not shown to learners).
 
-### 4. QUEUED — Druck-Leiter scoring spinner
+### 4. IN PROGRESS — feature/druck-spinner — Druck-Leiter scoring spinner
 **Why:** the scoring round-trip currently shows nothing while the grade computes (known
 follow-up from the drills wave).
 **What:** small client-side pending state (existing spinner pattern) for Druck-Leiter's scoring
