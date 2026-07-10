@@ -4795,8 +4795,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </div>
 
               {/* Honest velocity (R3): measured pace only — the server returns etaSessions null
-                  below 2 xp-measured sessions (D4: below the evidence floor, say NOTHING). */}
-              {canStart && !firstRun && Number.isFinite(etaSessions) && (
+                  below 2 xp-measured sessions (D4: below the evidence floor, say NOTHING).
+                  Audit S16: unbounded, a slow learner could see "noch ~480 Sessions" — accurate
+                  but demotivating-screenshot material; beyond 30 the number stops being guidance. */}
+              {canStart && !firstRun && Number.isFinite(etaSessions) && etaSessions <= 30 && (
                 <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', margin:'0 0 10px', textAlign:'center' }}>
                   Auf deinem Tempo: noch ~{etaSessions} {etaSessions === 1 ? 'Session' : 'Sessions'} bis zum nächsten Level. <span dir="rtl">فاضلك حوالي {etaSessions} سيشن للمستوى الجاي.</span>
                 </div>
@@ -4980,8 +4982,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           the hero card + the one orange button ARE the invitation now. */}
       {funnel && (
       <div style={{ padding:'4px 14px 0' }}>
-        {/* BOSS HP — top frame */}
-        <HpBar label="BOSS HP" value={bossHp} isPlayer={false} reason={bossReason} />
+        {/* BOSS HP — top frame. paddingLeft clears the global fixed back button (top:10/left:10,
+            z:400) which floated OVER the label — the "sloppy app" screenshot class (audit S23). */}
+        <div style={{ paddingLeft:44 }}>
+          <HpBar label="BOSS HP" value={bossHp} isPlayer={false} reason={bossReason} />
+        </div>
 
         <div className={bossHurt ? 'hurt' : ''} style={{ marginTop:5, borderRadius:16, position:'relative', overflow:'hidden',
           height:'min(50vh, 400px)', minHeight:300,

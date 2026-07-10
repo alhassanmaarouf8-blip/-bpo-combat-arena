@@ -134,11 +134,17 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
         </div>
       )}
 
-      {/* The journey — makes step-by-step progress toward the goal VISIBLE (reflected back). */}
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
-        {BRAIN_COPY.journeyLabel} · {j.entryDone ?? 0}/{j.entryTotal ?? 0}{j.stepsToApply > 0 ? ` · ${BRAIN_COPY.stepsLeft(j.stepsToApply)}` : ''}
-      </div>
-      <div style={track}><div style={{ ...fill, width: `${pct}%` }} /></div>
+      {/* The journey — makes step-by-step progress toward the goal VISIBLE (reflected back).
+          Hidden entirely when the graph reports no steps (audit S14: a "0/0" line is a
+          screenshot-able zero-state that reads as broken). */}
+      {(j.entryTotal ?? 0) > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+            {BRAIN_COPY.journeyLabel} · {j.entryDone ?? 0}/{j.entryTotal}{j.stepsToApply > 0 ? ` · ${BRAIN_COPY.stepsLeft(j.stepsToApply)}` : ''}
+          </div>
+          <div style={track}><div style={{ ...fill, width: `${pct}%` }} /></div>
+        </>
+      )}
 
       {/* The ONE next step. */}
       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 12 }}>{BRAIN_COPY.nextStepLabel}</div>
