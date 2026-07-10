@@ -256,8 +256,7 @@ export function entitlement(account) {
     dailyLiveMinutes:      mins,
     drillsUnlocked:        drillsUnlocked(account),
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
-    trainingslagerUnlocked: !!feat.trainingslagerUnlocked || trial,   // trial gives the full taste
-    zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — same trial taste
+    zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — trial gives the full taste
     unlimited:             isAdminEmail(account?.email),
   };
 }
