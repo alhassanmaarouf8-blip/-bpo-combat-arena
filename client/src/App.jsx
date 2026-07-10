@@ -2822,8 +2822,11 @@ const PERKS_DE = {
                  'Szenarien nach echten deutschen Konto-Typen (Mobilfunk, Bank, Airline …)',
                  'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'Feedback auch auf Arabisch — du verstehst genau, was zu tun ist'],
+  // Adversarial audit #2 (2026-07-10): "Gegner passend zu DEINER Ziel-Stelle" was a PHANTOM —
+  // no mechanism existed anywhere in the code. Replaced with the TRUE Elite exclusive that was
+  // never advertised (plans.config: trainingslagerUnlocked is Elite-only and real).
   elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
-                 'Gegner passend zu DEINER Ziel-Stelle (Kundenservice, Tech-Support …)',
+                 'das komplette Trainingslager — alle Lektionen deines Niveaus freigeschaltet',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
                  'alles aus Basic'],
