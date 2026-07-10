@@ -154,7 +154,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
         '٥ أسئلة قصيرة، بترد عليها بالألماني بصوتك (٦٠ ثانية لكل سؤال). في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
     </p>
     <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
-      {T(lang, 'كل ده مجاني — مرة واحدة لكل حساب.', 'كل ده مجاني — مرة واحدة لكل حساب.')}
+      {T(lang, 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.', 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.')}
     </div>
     <button onClick={() => setPhase('question')} style={{ ...primaryBtn, marginTop: 18 }}>
       {T(lang, 'Los geht’s', 'يلا نبدأ')} ▸
