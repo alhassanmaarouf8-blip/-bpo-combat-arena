@@ -56,3 +56,28 @@ NEVER author Arabic/masri copy. German learner-facing content must pass
 
 ## Gates before "done" (run all, from repo root)
 `npm run lint` · `npm run design-lint` · `(cd client && npm run build)` · german-check if German changed.
+
+## ★ THE CRAFT LAW (owner, 2026-07-10 — outranks taste): TRUST · AUTHORITY · COMPETENCE
+Owner verdict on the old landing: "looks cheap AI-made, zero care and intentionality behind the
+details." Every surface must radiate the three words above. The anti-AI-slop checklist distilled
+from the elite-architect 10-point pass (shipped `1242802`):
+1. **No fakery, ever** — a CSS/fake phone mockup or invented-looking UI reads as template slop;
+   show a REAL product screenshot or let typography carry the page.
+2. **One loud object per screen** (the orange CTA). Anything else orange gets demoted to quiet
+   text. An orphaned element floating in empty space (the old ★-rating) reads as accidental —
+   anchor every element to a neighbor.
+3. **Hero = ONE short line, huge; everything else steps down two sizes.** A 6-line same-weight
+   headline is a wall, not authority. Arabic display text uses a REAL Arabic face:
+   'IBM Plex Sans Arabic' (loaded in index.html, weights 500/700) — never a Latin font's fallback.
+4. **Visible labels on every input** (placeholder-only = trust-killer); never demand a phone
+   number at first touch (WhatsApp = optional at signup; ask again after value is felt).
+5. **Machined, not inflated**: CTAs solid fill, tight radius (~11px), no glow bloom, exact padding.
+6. **Decided atmosphere**: exactly ONE light source (top-left radial) + 2.8% SVG grain overlay —
+   depth felt, never noticed. Default flat dark = anonymous.
+7. **Bilingual rhythm rule**: primary language large, secondary always smaller and consistently
+   placed. The eye must never ping-pong between scripts.
+8. **Copy niche law**: never nationality framing — always the JOB MARKET ("للشغل في الكول سنتر
+   الألماني في مصر" / "BPO- und Call-Center-Branche in Ägypten" + Remote-Jobs). Numerals that can
+   be misread ("Wortschatz von 90+ Konten") lose to concrete nouns ("vom Mobilfunk bis zur Airline").
+9. **The mark**: monogram = two voice bars in a machined square (blue+orange SVG inline in the
+   App.jsx hero) — owner yes/no pending; if kept, it appears consistently, never redesigned ad hoc.
