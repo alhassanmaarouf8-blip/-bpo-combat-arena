@@ -2827,7 +2827,7 @@ const PERKS_DE = {
   job:   (m) => ['EINE Zahlung — kein monatliches Abo, keine Verlängerung',
                  `bis zu ${m} Min ECHTES Live-Interview — jeden Tag, 12 Monate lang`,
                  'Wortschatz für 90+ echte Konto-Typen — vom Mobilfunk bis zur Airline',
-                 'trainiere in deinem Tempo, bis du den Job hast'],
+                 'trainiere in deinem Tempo — volle 12 Monate Zugang, ohne Abo-Druck'],
 };
 const SUB_AR = {
   basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
