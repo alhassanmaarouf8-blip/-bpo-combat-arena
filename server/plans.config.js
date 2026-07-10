@@ -36,7 +36,6 @@ export const PLANS = {
     dailySessions:          6,     // 6 focused sessions/day (fewer-longer beats 10×3 — less fatigue, fuller arc)
     sessionMinutes:         5,
     dailyLiveMinutes:       30,    // 6 × 5 — hard daily spend cap
-    trainingslagerUnlocked: true,  // full Trainingslager lessons unlocked
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
   },
   // ONE-TIME plan (elite-marketer teardown 2026-07-10, owner-approved): one payment, "train until

@@ -18,7 +18,7 @@ import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeS
 import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight, creditReferral } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
-import { refreshRecommendations, allRecommendedDone } from './trainingslager.js';
+import { refreshRecommendations } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
 import { activeFightUsers }       from './liveFights.js';
@@ -411,7 +411,8 @@ export class WebSocketManager {
 
     ctx.userId   = account.id;
     const level  = ['b2', 'c1'].includes(msg.level) ? msg.level : 'a2-b1';
-    const viaBossTor = msg.mode === 'bosstor';
+    // (Boss-Tor mode Musk-cut 2026-07-10: no client ever sent mode='bosstor' — the gate it fed
+    // demanded Trainingslager stations whose UI was deleted in a92c9ec. msg.mode is now ignored.)
 
     // Boss is chosen by the user's progression (warm-up → standard → final boss).
     let bossId = 'yasmin';
@@ -467,11 +468,6 @@ export class WebSocketManager {
     // Spend the one-time free fight now that it's actually starting (so it's granted exactly once).
     if (freeFightSec > 0) { try { await consumeFreeFight(account); } catch {} }
 
-    // Boss-Tor gate: challenging the next boss requires the recommended lessons done. The
-    // normal daily fight (no mode) is NEVER gated by lessons. (Payment is the minute gate above.)
-    if (viaBossTor && !allRecommendedDone(prof)) {
-      this._releaseFight(ctx); this._sendError(ctx, 'lessons_incomplete'); return;
-    }
 
     ctx.bossId = bossId;
     // STT ACCENT-BOOST list (general accuracy, not a one-word patch): the words we KNOW will occur this
@@ -503,7 +499,7 @@ export class WebSocketManager {
     const targetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
     if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
-    console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  mode=${viaBossTor ? 'bosstor' : 'daily'}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
+    console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
     // ── Should THIS fight run on paid Gemini Live? Flag on + key present + account allowlisted +
     // the monthly $ cap not yet reached. Decided BEFORE connect() so we can suppress the Groq opening

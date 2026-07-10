@@ -128,7 +128,6 @@ const WS_ERROR_TEXT = {
   mic_denied:           { de: 'Mikrofon-Zugriff wurde blockiert. Erlaube das Mikrofon in den Browser-Einstellungen (Schloss-Symbol neben der Adresse) und starte neu.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
   mic_not_found:        { de: 'Kein Mikrofon gefunden. Schließe ein Mikrofon an oder erlaube es und starte neu.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
   mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Der Kampf wurde beendet — bitte starte neu.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
-  lessons_incomplete:   { de: 'Schließe zuerst deine Trainingslager-Stationen ab, um das Boss-Tor zu öffnen.', ar: 'خلّص محطات الـTrainingslager الأول عشان تفتح بوابة التحدي.' },
   plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
   daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
   ws_connect_failed:    { de: 'Keine Verbindung zum Server. Prüfe dein Internet und starte neu.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
@@ -2833,9 +2832,11 @@ const PERKS_DE = {
   // Adversarial audit #2 (2026-07-10): "Gegner passend zu DEINER Ziel-Stelle" was a PHANTOM —
   // then BUILT for real the same day (owner order): scenarios.js pickCsScenario + BEWERBUNGSZIEL
   // framing, entitlement-gated (plans.config zielStelle). The perk is TRUE again.
+  // Musk-cull (same day): the replacement perk "das komplette Trainingslager" was ITSELF a phantom —
+  // the Trainingslager UI was deleted in a92c9ec; its server engine has zero client consumers.
+  // Perk law: every line here must name a mechanism a buyer can reach (perk-truth-pinning memory).
   elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
                  'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
-                 'das komplette Trainingslager — alle Lektionen deines Niveaus freigeschaltet',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
                  'alles aus Basic'],
@@ -3378,7 +3379,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
   const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
   const bossPickRef    = useRef('');         // boss-picker selection, read when sending START_FIGHT
-  const fightModeRef   = useRef('daily');   // 'daily' | 'bosstor' — read when sending START_FIGHT
+  const fightModeRef   = useRef('daily');   // always 'daily' — Boss-Tor mode was Musk-cut (no caller ever passed it)
   const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
   const wsRef          = useRef(null);
   const recorderRef    = useRef(null);
@@ -4300,9 +4301,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [authHeaders]);
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
-  const beginSession = useCallback(async (mode) => {
+  const beginSession = useCallback(async () => {
     unlockAudioPlayback();   // MUST run synchronously inside the tap — unlocks mobile audio so boss TTS can play
-    fightModeRef.current = (mode === 'bosstor') ? 'bosstor' : 'daily';
+    fightModeRef.current = 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
     beacon('start_clicked');
