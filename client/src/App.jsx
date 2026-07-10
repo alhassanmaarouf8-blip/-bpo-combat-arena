@@ -914,8 +914,11 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--acc
         <div style={{ position:'absolute', inset:10, borderRadius:'50%',
           background:'radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,0.09), rgba(6,10,18,0.92) 60%)',
           border:'1px solid rgba(255,255,255,0.08)', display:'grid', placeItems:'center' }}>
-          <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:'clamp(44px, 16vw, 72px)',
-            color:'#fff', textShadow:`0 0 24px ${color}88`, lineHeight:1, transform:'translateY(-4px)' }}>{initial}</span>
+          {/* Elite pass: weight 800 + white glow read as a placeholder shouting. A lighter, smaller
+              glyph with air around it reads as a deliberate monogram (fashion-house rule: negative
+              space is the luxury). */}
+          <span style={{ fontFamily:'var(--font-display)', fontWeight:500, fontSize:'clamp(34px, 12vw, 54px)',
+            color:'rgba(255,255,255,0.92)', lineHeight:1, transform:'translateY(-4px)', letterSpacing:'0.02em' }}>{initial}</span>
         </div>
         <div style={{ position:'absolute', bottom:'15%', fontFamily:'var(--font-display)', fontWeight:600,
           fontSize:10, letterSpacing:'0.22em', color, opacity:0.85 }}>HR</div>
@@ -963,7 +966,6 @@ function HpBar({ label, value, isPlayer, reason }) {
   const solid = isPlayer
     ? (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : '#ef4444')
     : (pct > 50 ? '#3b82f6' : pct > 25 ? '#f97316' : '#fb923c');
-  const glow   = solid + '66';
   const rColor = isPlayer ? '#f87171' : 'var(--accent)';   // player loss = red, gain = green
   const rSign  = isPlayer ? '−' : '+';
 
@@ -971,40 +973,31 @@ function HpBar({ label, value, isPlayer, reason }) {
     <div style={{ marginBottom: 'var(--sp-2)', position:'relative' }}>
       {reason && (
         <div key={reason.id} style={{ position:'absolute', right:0, top:-15, zIndex:6, pointerEvents:'none',
-          fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, color:rColor,
-          textShadow:`0 0 8px ${rColor}99`, whiteSpace:'nowrap',
-          animation:'hp-reason 2s var(--ease-out) forwards' }}>
+          fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, color:rColor,
+          whiteSpace:'nowrap', animation:'hp-reason 2s var(--ease-out) forwards' }}>
           {rSign}{reason.amount} {reason.label}
         </div>
       )}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:5 }}>
-        <span style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:600, letterSpacing:'0.16em',
-          color:solid, textShadow:`0 0 9px ${glow}` }}>
+        <span style={{ fontFamily:'var(--font-display)', fontSize:10, fontWeight:600, letterSpacing:'0.18em',
+          color:'var(--text-dim)' }}>
           {label}
         </span>
-        <span style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:700, color:solid,
-          textShadow:`0 0 8px ${glow}`, fontVariantNumeric:'tabular-nums' }}>
-          {shown}<span style={{ opacity:0.45, fontSize:10 }}> / 100</span>
+        <span style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, color:solid,
+          fontVariantNumeric:'tabular-nums', transition:'color 0.4s' }}>
+          {shown}<span style={{ opacity:0.4, fontSize:10, color:'#94a3b8' }}> / 100</span>
         </span>
       </div>
-      {/* weighty track */}
-      <div className={low ? 'hp-low-pulse' : ''} style={{ height:15, borderRadius:'var(--r-sm)',
-        background:'linear-gradient(180deg, rgba(0,0,0,0.5), rgba(255,255,255,0.03))',
-        border:`1px solid ${glow}`, overflow:'hidden', position:'relative',
-        boxShadow:`inset 0 2px 6px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.4)` }}>
-        {/* fill — spring-eased width */}
+      {/* Elite pass (owner: "doesn't feel elite"): the 15px candy gauge — segment ticks, moving
+          sheen, glowing colored labels — was the screen's loudest video-game tell. Same mechanic,
+          instrument voice: a 5px hairline meter, flat fill, quiet dim label. Color still carries
+          the state (blue → orange → red), the low-pulse warning stays (genuine alarm). */}
+      <div className={low ? 'hp-low-pulse' : ''} style={{ height:5, borderRadius:99,
+        background:'rgba(255,255,255,0.07)', overflow:'hidden', position:'relative',
+        border:'1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ position:'absolute', inset:0, width:`${pct}%`, borderRadius:'inherit',
-          background:`linear-gradient(90deg, ${solid}99, ${solid})`,
-          boxShadow:`0 0 12px ${glow}, inset 0 1px 0 rgba(255,255,255,0.35)`,
-          transition:'width 0.55s var(--ease-spring), background 0.4s var(--ease)' }}>
-          {/* moving sheen on the fill */}
-          <div style={{ position:'absolute', top:0, bottom:0, width:'30%',
-            background:'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)',
-            filter:'blur(2px)', animation:'hp-sheen 2.6s var(--ease) infinite' }} />
-        </div>
-        {/* segment ticks for that weighty, gauge-like read */}
-        <div style={{ position:'absolute', inset:0, pointerEvents:'none',
-          background:'repeating-linear-gradient(90deg,transparent,transparent 17px,rgba(0,0,0,0.28) 17px,rgba(0,0,0,0.28) 19px)' }} />
+          background:solid,
+          transition:'width 0.55s var(--ease-spring), background 0.4s var(--ease)' }} />
       </div>
     </div>
   );
@@ -3245,7 +3238,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [screenFlash, setScreenFlash] = useState(null); // 'green' | 'red' | null
   const [bossHurt, setBossHurt]   = useState(false);
   const [shakeScreen, setShakeScreen] = useState(false);
-  const [bossDmgFloat, setBossDmgFloat] = useState(null); // {id, amount} flying damage number
   const [bossReason, setBossReason]     = useState(null); // {id, amount, label} why boss lost HP
   const [playerReason, setPlayerReason] = useState(null); // {id, amount, label} why player lost HP
   const [liveWpm, setLiveWpm]   = useState(0);   // live HUD — all backend-supplied, display-only
@@ -3811,12 +3803,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           setScoreFlash({ score: msg.score, damage: msg.damage });
           setTimeout(() => setScoreFlash(null), 2800);
 
-          // Fly a damage number off the boss when the player lands a hit.
-          if (msg.bossDamage > 0) {
-            const fid = ++_lineId;
-            setBossDmgFloat({ id: fid, amount: msg.bossDamage });
-            setTimeout(() => setBossDmgFloat(f => (f && f.id === fid ? null : f)), 1000);
-          }
+          // (Elite pass: the flying 48px damage number died — the HpBar reason float below
+          // already carries the same information in instrument language.)
         }
 
         // Tiny floating reason labels next to each HP bar — the SPECIFIC cause of the
@@ -3875,7 +3863,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     setErrorDetail('');
     setBossHp(100); setPlayerHp(100);
     setBossText(''); setTranscript([]);
-    setEmotion('idle'); setScoreFlash(null); setBossDmgFloat(null);
+    setEmotion('idle'); setScoreFlash(null);
     setFunnel(null); setDebrief(null); setDebriefPending(false); setNoSession(false);
     setAnswerText(''); setBossThinking(false); setRecording(false); setTranscribing(false);
     pendingDurationRef.current = 0;
@@ -4990,10 +4978,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:1,
             background:`radial-gradient(${bossSpeak ? '52% 70%' : '46% 62%'} at 50% -4%, ${boss.color}${bossSpeak ? '5a' : '2e'}, transparent ${bossSpeak ? '68%' : '62%'})`,
             animation:`portrait-glow ${bossSpeak ? '1.6s' : '3.5s'} ease-in-out infinite`, transition:'background 0.45s' }} />
-          {/* drifting depth grid */}
-          <div style={{ position:'absolute', inset:0, opacity:0.045, pointerEvents:'none', zIndex:1,
-            backgroundImage:'linear-gradient(rgba(0,255,200,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,0.5) 1px,transparent 1px)',
-            backgroundSize:'30px 30px', animation:'grid-drift 6s linear infinite' }} />
+          {/* Elite pass: the drifting teal sci-fi grid died — motion without meaning, and the only
+              green in a blue room. The light cone + vignette carry the atmosphere alone. */}
           {/* edge vignette — the dark interview room */}
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:2,
             background:'radial-gradient(135% 100% at 50% 32%, transparent 38%, rgba(0,0,0,0.82) 100%)' }} />
@@ -5012,13 +4998,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
             textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
 
-          {/* flying damage number */}
-          {bossDmgFloat && (
-            <div key={bossDmgFloat.id} style={{ position:'absolute', left:'50%', top:'30%', zIndex:7, transform:'translateX(-50%)',
-              pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:900, fontSize:48,
-              color:'var(--accent)', textShadow:'0 0 22px rgba(59,130,246,0.95), 0 0 6px #fff',
-              animation:'dmg-float 1s ease-out forwards' }}>−{bossDmgFloat.amount}</div>
-          )}
+          {/* Elite pass: the 48px flying "−12" arcade number died — the HpBar's quiet signed
+              annotation (±N + reason) already tells the same story in instrument language. */}
 
           {/* the lit opponent — leans in to listen while YOU speak; posture shifts with mood */}
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:56, zIndex:3 }}>
@@ -5038,7 +5019,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           {/* name + tags at the base of the stage */}
           <div style={{ position:'absolute', left:0, right:0, bottom:10, zIndex:6, textAlign:'center', padding:'0 12px' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:700, color:'#fff',
-              letterSpacing:'0.04em', lineHeight:1, textShadow:`0 0 18px ${boss.color}aa, 0 2px 10px rgba(0,0,0,0.9)`, transition:'text-shadow 0.5s' }}>
+              letterSpacing:'0.04em', lineHeight:1, textShadow:'0 2px 12px rgba(0,0,0,0.9)' }}>
               {funnel?.displayName ?? 'DEIN GEGNER'}
             </div>
             {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interview-Gegner wartet.</div>}
@@ -5046,11 +5027,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               {/* Persona-TRUE trait chip (aesthetic pass 2026-07-10): "HOCHDRUCK" was hardcoded for
                   every boss — under warm Yasmin it directly contradicted the home picker's own
                   "Langsamer · verzeiht Fehler". One word per persona, same words the picker uses. */}
-              {[['◆', ({ yasmin:'GEDULDIG', karim:'SACHLICH', hana:'SKEPTISCH', tarek:'HOCHDRUCK', 'frau-mona-adel':'STRENG', lukas:'LOCKER' })[funnel?.bossId] || 'PROFESSIONELL'], ['◈',`NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`], ['✦','NUR DEUTSCH']].map(([ic, t]) => (
-                <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 9px',
-                  borderRadius:'var(--r-pill)', letterSpacing:'0.1em', display:'inline-flex', alignItems:'center', gap:5,
-                  background:`${boss.color}12`, border:`1px solid ${boss.color}55`, color:'#e2e8f0', boxShadow:`0 0 10px ${boss.color}22` }}>
-                  <span style={{ color:boss.color, fontSize:7 }}>{ic}</span>{t}
+              {/* Elite pass: dingbat icons (◆◈✦) + colored glow borders read as game badges. Neutral
+                  hairline chips — the emotion badge (top right) is the ONE colored element here. */}
+              {[({ yasmin:'GEDULDIG', karim:'SACHLICH', hana:'SKEPTISCH', tarek:'HOCHDRUCK', 'frau-mona-adel':'STRENG', lukas:'LOCKER' })[funnel?.bossId] || 'PROFESSIONELL', `NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`, 'NUR DEUTSCH'].map((t) => (
+                <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 10px',
+                  borderRadius:'var(--r-pill)', letterSpacing:'0.12em',
+                  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.13)', color:'#cbd5e1' }}>
+                  {t}
                 </span>
               ))}
             </div>
@@ -5239,12 +5222,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {isConnecting && <WaveformRing volRef={volRef} active={isActive} bossSpeak={bossSpeak} />}
 
         <div style={{ margin:'6px 0 12px' }}>
+          {/* Elite pass: the turn state jumped 13px→24px with a blue glow — a slot machine
+              announcing your turn. Fixed size (no layout shift between states), no glow; a small
+              live dot carries the state color. Quiet authority over shouting. */}
           {(isActive || isConnecting) && (
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.18em',
-            fontSize: (isActive && !bossSpeak && !userSpeak) ? 24 : 13,
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:600, letterSpacing:'0.22em',
+            fontSize:12.5, display:'flex', alignItems:'center', justifyContent:'center', gap:8,
             color: bossSpeak ? boss.color : isActive ? 'var(--accent)' : 'var(--warn)',
-            textShadow: (isActive && !bossSpeak) ? '0 0 16px rgba(59,130,246,0.6)' : bossSpeak ? `0 0 12px ${boss.color}` : 'none',
-            transition:'all 0.3s' }}>
+            transition:'color 0.3s' }}>
+            <span aria-hidden style={{ width:6, height:6, borderRadius:'50%', flex:'0 0 auto',
+              background:'currentColor', opacity:0.9,
+              animation: isActive && !bossThinking ? 'pulse 2.2s ease-in-out infinite' : 'none' }} />
             {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : bossSpeak ? `${funnel?.displayName ?? 'GEGNER'} SPRICHT` : 'DU BIST DRAN') : 'VERBINDE…'}
           </div>
           )}
