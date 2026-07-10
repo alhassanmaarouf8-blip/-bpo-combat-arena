@@ -1569,11 +1569,11 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
             <div style={{ padding:'14px 16px', borderRadius:'var(--r-lg)', background:'rgba(59,130,246,0.08)',
               border:'1px solid var(--accent)', textAlign:'left' }}>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, letterSpacing:'0.08em', color:'var(--accent)' }}>
-                DIAGNOSE ABGESCHLOSSEN{nm ? ` — ${nm.toUpperCase()}` : ''}{/* OWNER-AR slot */}
+                DIAGNOSE ABGESCHLOSSEN{nm ? ` — ${nm.toUpperCase()}` : ''} · التشخيص خلص
               </div>
               {(data?.grammar || []).filter((g) => g.summaryExamples?.length).slice(0, 3).length > 0 && (
                 <div style={{ marginTop:8 }}>
-                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Deine Baustellen — gemessen, nicht geraten:{/* OWNER-AR slot */}</div>
+                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Deine Baustellen — gemessen, nicht geraten: <span dir="rtl">دي نقط ضعفك — متقاسة مش تخمين:</span></div>
                   {(data.grammar || []).filter((g) => g.summaryExamples?.length).slice(0, 3).map((g, i) => (
                     <div key={i} style={{ fontSize:'var(--fs-label)', color:'var(--text)', marginTop:4 }}>
                       {i + 1}. {g.rule}{g.count > 1 ? ` · ${g.count}×` : ''}
@@ -1594,7 +1594,7 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
               )}
               <div style={{ fontSize:'var(--fs-label)', color:'var(--text)', marginTop:10, lineHeight:1.6 }}>
                 Ab jetzt führe ich dich: <b>ein</b> Problem, <b>ein</b> Training, dann der Beweis im Interview.
-                Du musst den Weg nicht kennen — nur den nächsten Schritt gehen.{/* OWNER-AR slot */}
+                Du musst den Weg nicht kennen — nur den nächsten Schritt gehen. <span dir="rtl">من دلوقتي أنا معاك خطوة بخطوة: مشكلة واحدة، تمرين واحد، وبعدها الدليل في الإنترفيو.</span>
               </div>
             </div>
           )}
@@ -2181,7 +2181,10 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
           <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)', lineHeight:1.5 }}>
             {typeof data.progress?.sessionCount === 'number' && data.progress.sessionCount > 0
               ? `Das war Interview Nr. ${data.progress.sessionCount}.` : 'Das war dein Interview.'}{' '}
-            Bleib dran bis zum Job.{/* OWNER-AR slot */}
+            Bleib dran bis zum Job.
+          </div>
+          <div dir="rtl" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.6 }}>
+            كمّل تدريب — انت في السكة الصح.
           </div>
           {ent.trial?.active && ent.trial.daysLeft > 0 && (
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4 }}>
@@ -2567,8 +2570,8 @@ function AuthScreen({ onAuth }) {
           { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
           { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Die App führt dich Schritt für Schritt — und du siehst deinen Fortschritt bis zum Job' },
           // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
-          // REAL hiring bar. Arabic = OWNER-AR slot (empty renders nothing until filled).
-          { icon:'fileBadge', ar:'', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, Wortschatz für 90+ Konto-Typen' },
+          // REAL hiring bar. Masri verified per masri-verification-law (أكونت = owner's canon).
+          { icon:'fileBadge', ar:'بندرّبك على مستوى الشغل الحقيقي: التحقق من بيانات العميل، معايير الجودة، ومفردات 90+ نوع أكونت', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien, Wortschatz für 90+ Konto-Typen' },
         ].map((b, i) => (
           <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
             <div style={{ width:36, height:36, borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)',
@@ -2684,7 +2687,7 @@ function AuthScreen({ onAuth }) {
               Schreib uns per WhatsApp <b style={{ color:'var(--text)' }}>von deiner registrierten Nummer</b>:
               „Passwort vergessen“ + deine E-Mail. Wir setzen es zurück — meist in wenigen Stunden.
             </div>
-            <div dir="rtl" style={{ marginTop:4 }}>{/* OWNER-AR slot */}</div>
+            <div dir="rtl" style={{ marginTop:4 }}>ابعتلنا واتساب من رقمك المسجّل وقول «نسيت الباسورد» + إيميلك — وهنظبطهالك في أسرع وقت.</div>
             {forgotWa ? (
               <a href={`https://wa.me/${forgotWa.replace(/\D/g, '').replace(/^0/, '20')}?text=${encodeURIComponent('Passwort vergessen: ')}`}
                 target="_blank" rel="noreferrer"
@@ -2832,7 +2835,7 @@ const PERKS_DE = {
 const SUB_AR = {
   basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
-  // job: OWNER-AR slot — masri line for the one-time plan (never authored here).
+  job:   (m) => `دفعة واحدة من غير اشتراك شهري — لحد ${m} دقيقة إنترفيو مباشر كل يوم، لمدة 12 شهر.`,
 };
 
 function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
@@ -4759,7 +4762,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   below 2 xp-measured sessions (D4: below the evidence floor, say NOTHING). */}
               {canStart && !firstRun && Number.isFinite(etaSessions) && (
                 <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', margin:'0 0 10px', textAlign:'center' }}>
-                  Auf deinem Tempo: noch ~{etaSessions} {etaSessions === 1 ? 'Session' : 'Sessions'} bis zum nächsten Level.{/* OWNER-AR slot */}
+                  Auf deinem Tempo: noch ~{etaSessions} {etaSessions === 1 ? 'Session' : 'Sessions'} bis zum nächsten Level. <span dir="rtl">فاضلك حوالي {etaSessions} سيشن للمستوى الجاي.</span>
                 </div>
               )}
 
@@ -5138,7 +5141,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 padding:'8px 12px', minHeight:40, background:'none', border:'none', cursor:'pointer',
                 fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)', color:'var(--text-faint)',
                 textDecoration:'underline', textUnderlineOffset:3 }}>
-                ⌨ Lieber tippen?{/* OWNER-AR slot */}
+                ⌨ Lieber tippen? · تحب تكتب؟
               </button>
             ) : (
               <>
@@ -5290,11 +5293,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'var(--surface)', border:'1px solid var(--accent)', textAlign:'left' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:700,
               color:'var(--accent)', marginBottom:8 }}>
-              Aus deinem letzten Interview{/* OWNER-AR slot */}
+              Aus deinem letzten Interview · من آخر إنترفيو ليك
             </div>
             {lastDebrief.abandoned && (
               <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:10, lineHeight:1.5 }}>
-                Du warst weg, bevor dein Feedback ankam — hier ist es.{/* OWNER-AR slot */}
+                Du warst weg, bevor dein Feedback ankam — hier ist es. <span dir="rtl">خرجت قبل ما الفيدباك يوصلك — أهو وصل دلوقتي.</span>
               </div>
             )}
             {(lastDebrief.corrections || []).map((c, i) => (
@@ -5316,7 +5319,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <button onClick={dismissLastDebrief} style={{ marginTop:10, padding:'8px 14px', minHeight:40,
               borderRadius:'var(--r-pill)', border:'1px solid var(--line)', background:'transparent',
               color:'var(--text-dim)', fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)', cursor:'pointer' }}>
-              Verstanden{/* OWNER-AR slot */}
+              Verstanden · تمام
             </button>
           </div>
         )}
