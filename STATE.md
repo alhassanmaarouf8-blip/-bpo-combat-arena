@@ -1,5 +1,23 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 TRUST-PASS + OUTREACH LIVE (2026-07-10, evening) — `8235ceb` verified (Vercel+Guardian+prod grep)
+**NEW APP LAW (owner, answered explicitly): every detail must radiate TRUST · AUTHORITY · COMPETENCE
+— scope: the whole app.** Shipped under it: (1) El-Captain mentor chat DELETED (owner pasted its
+broken masri — foreign tokens, garbled terms; all 9 client sites + Alhassan.jsx removed, bundle
+385→378 kB; server alhassan.js = orphan, deferred); (2) niche fixed: للعرب→للمصريين everywhere +
+German hero "gebaut für Ägypten… BPO-Markt in Kairo und deutsche Remote-Jobs" + the confusing
+"Wortschatz von 90+ Konten" copy → concrete industries. AR edits minimal/canon-based — HIS pass
+invited (marked).
+**LINKEDIN OUTREACH EXECUTED (owner: "go do the outreach yourself… not email"):** 3 DMs delivered ✓
+(Dina Zakaria TP-recruitment / Nikolay Matanov BPO-accounts KPI-lens / Nareman Osama TA-warm) +
+3 invites Pending (Moaz Saleh TaskUs, Rana Khattab, Bola Osama). LENS LAW recorded in
+browser-workflows (rule 9): reverse-engineer each message to the recipient's ONE KPI. NEXT SESSION:
+check LinkedIn Messaging for replies (message 2 = trainee-batch/Ziel-Stelle expansion, docs/
+B2B-OUTREACH-KIT); continue daily connect batches (~8, next = search page 2); NEVER re-message.
+**QUEUED (owner orders, not yet done):** VideoLessons narration "must not sound robotic";
+the whole-app craft pass under the trust law (surface-by-surface, screenshot-grounded);
+on-site-training cost research to arm the B2B message-2 comparison.
+
 ## ✅ MUSK-CULL PASS (2026-07-10, evening) — `385d8b9` VERIFIED LIVE (all three proofs)
 Owner: "cut anything unnecessary, Musk is beside me." THE FIND: the a92c9ec Trainingslager-UI cut
 left a dead limb — the Elite perk still SOLD "das komplette Trainingslager" (3rd phantom perk of

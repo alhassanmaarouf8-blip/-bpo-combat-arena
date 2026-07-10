@@ -77,3 +77,7 @@ groups answering candidate questions — the helpful ones are the warm ones.
 ## Log every send here (the compounding loop)
 | date | who | channel | msg # | reply? | note |
 |---|---|---|---|---|---|
+| 07-10 | Dina Zakaria — Recruitment Supervisor, Teleperformance | LinkedIn DM (1st°) | 1 | — | recruiter lens, delivered ✓ 4:43 PM |
+| 07-10 | Nikolay Matanov — Global Account Sr. Mgr, CX & BPO | LinkedIn DM (1st°) | 1 | — | KPI lens (AHT/QM/escalations), delivered ✓ 4:45 PM |
+| 07-10 | Nareman Osama — Senior TA (warm: pitched a German role before) | LinkedIn DM (1st°) | 1 | — | submissions lens, delivered ✓ 4:48 PM |
+| 07-10 | Moaz Saleh (TaskUs) · Rana Khattab · Bola Osama | LinkedIn invite | — | — | Pending; DM once accepted |
