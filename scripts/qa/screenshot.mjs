@@ -27,9 +27,12 @@ await shoot('landing-mobile', 390, 844);
 await shoot('landing-desktop', 1280, 800);
 if (SIGNUP) {
   await shoot('home-mobile', 390, 844, async (p) => {
-    await p.getByPlaceholder(/mail/i).fill(`qa${Date.now()}@example.com`);
-    await p.getByPlaceholder(/[Pp]asswort/).fill('qatest12345');
-    await p.locator('button', { hasText: 'KONTO ERSTELLEN' }).click().catch(() => {});
+    // Form has visible labels (not placeholders) + REQUIRED WhatsApp since 2026-07-08/10 —
+    // select by input type, and match the real button text ("Konto erstellen").
+    await p.locator('input[type="email"]').fill(`qa${Date.now()}@example.com`);
+    await p.locator('input[type="password"]').fill('qatest12345');
+    await p.locator('input[type="tel"]').fill('01012345678');
+    await p.locator('button', { hasText: 'Konto erstellen' }).click().catch(() => {});
     await p.waitForTimeout(7000);
     await p.keyboard.press('Escape').catch(() => {});
     await p.reload({ waitUntil: 'domcontentloaded' }); await p.waitForTimeout(5000);

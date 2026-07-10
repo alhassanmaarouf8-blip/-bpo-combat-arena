@@ -1308,55 +1308,45 @@ function CatBar({ label, value, color }) {
 }
 
 // ── Component: RankLadder (interview-readiness, backend-computed) ─────────────
+// Elite-prompt pass 2026-07-10: instrument, never arcade. Blue/neutral only (the home's one
+// orange belongs to the CTA), no glow/pulse/emoji, type floor 11px, header collision-proofed
+// (label + rank used to touch at 390px). Semantics unchanged — same tiers, same numbers.
 function RankLadder({ rank }) {
   if (!rank?.ranks?.length) return null;
   const tier = rank.tier ?? 0;
-  const cur  = tier >= 4 ? 'var(--accent)' : 'var(--action)';
   return (
     <div style={{ padding:'10px 12px', borderRadius:'var(--r-md)', background:'rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:9 }}>
-        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.14em', color:'var(--text-dim)' }}>INTERVIEW-BEREITSCHAFT</span>
-        <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, color:cur, textShadow:`0 0 10px ${cur}99` }}>{rank.label}</span>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:10, flexWrap:'wrap', marginBottom:9 }}>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-meta)', letterSpacing:'0.1em', color:'var(--text-dim)' }}>INTERVIEW-BEREITSCHAFT</span>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)' }}>{rank.label}</span>
       </div>
       <div style={{ display:'flex', alignItems:'center' }}>
         {rank.ranks.map((r, i) => (
           <div key={r} style={{ display:'flex', alignItems:'center', flex: i < rank.ranks.length - 1 ? 1 : '0 0 auto' }}>
-            <div title={r} style={{ width:15, height:15, borderRadius:'50%', flexShrink:0,
-              background: i < tier ? 'var(--player)' : i === tier ? cur : 'rgba(255,255,255,0.08)',
-              border:`2px solid ${i < tier ? 'var(--player)' : i === tier ? cur : '#334155'}`,
-              boxShadow: i === tier ? `0 0 10px ${cur}` : 'none',
-              animation: i === tier ? 'pulse 2s ease-in-out infinite' : 'none' }} />
+            <div title={r} style={{ width:9, height:9, borderRadius:'50%', flexShrink:0, boxSizing:'border-box',
+              background: i < tier ? 'var(--accent-dim)' : i === tier ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+              border: i === tier ? '1.5px solid var(--accent-2)' : '1px solid rgba(255,255,255,0.10)' }} />
             {i < rank.ranks.length - 1 && (
-              <div style={{ flex:1, height:2, margin:'0 3px', borderRadius:1,
-                background: i < tier ? 'var(--player)' : 'rgba(255,255,255,0.08)' }} />
+              <div style={{ flex:1, height:1, margin:'0 4px',
+                background: i < tier ? 'var(--accent-dim)' : 'rgba(255,255,255,0.08)' }} />
             )}
           </div>
         ))}
       </div>
       {rank.nextLabel ? (
         <div style={{ marginTop:9 }}>
-          <div style={{ height:6, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(0,0,0,0.45)', border:'1px solid var(--line)' }}>
+          <div style={{ height:3, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(255,255,255,0.07)' }}>
             <div style={{ height:'100%', width:`${rank.toNextPct}%`, borderRadius:'inherit',
-              background:`linear-gradient(90deg, ${cur}, var(--accent))`, boxShadow:`0 0 8px ${cur}66`,
-              transition:'width 0.7s var(--ease-out)' }} />
+              background:'var(--accent)', transition:'width 0.7s var(--ease-out)' }} />
           </div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:3 }}>
-            <span style={{ fontSize:9, color:'var(--text-faint)' }}>
-              {rank.nextBy === 'sessions'
-                ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
-                : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
-            </span>
-            {/* Near-miss psychology (Griffiths 1991): within 15% of next tier activates reward circuits */}
-            {rank.nextBy !== 'sessions' && rank.toNextPct >= 85 && (
-              <span style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:9, letterSpacing:'0.1em',
-                color:'var(--action)', textShadow:'0 0 8px rgba(249,115,22,0.6)', animation:'pulse 1.8s ease-in-out infinite' }}>
-                SO NAH! 🔥
-              </span>
-            )}
+          <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:5 }}>
+            {rank.nextBy === 'sessions'
+              ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
+              : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
           </div>
         </div>
       ) : (
-        <div style={{ fontSize:10.5, color:'var(--player-2)', marginTop:9, textAlign:'center', fontWeight:600 }}>🏆 Höchster Rang erreicht — Interview-Bereit!</div>
+        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:9, fontWeight:600 }}>Höchster Rang erreicht — interview-bereit.</div>
       )}
     </div>
   );
@@ -1413,7 +1403,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
     <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:v.bg, border:`1px solid ${v.border}`,
       animation: compact ? 'none' : 'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
       <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:v.color, marginBottom:6 }}>
-        🎯 INTERVIEW-BEREITSCHAFT · {v.label}
+        INTERVIEW-BEREITSCHAFT · {v.label}
       </div>
       <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{v.de}</div>
       <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{v.ar}</div>
