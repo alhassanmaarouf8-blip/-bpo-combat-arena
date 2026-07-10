@@ -240,6 +240,7 @@ export const CS_SCENARIOS = [
   // depth surface automatically; no new feature.
   {
     id:        'telecom-kuendigung',
+    industry:  'telecom',
     customer:  'ein entschlossener Kunde, der seinen Mobilfunkvertrag kündigen will, weil die Konkurrenz billiger ist',
     opening:   'Ich möchte meinen Vertrag kündigen, und zwar zum nächstmöglichen Termin! Die Konkurrenz bietet mir das gleiche Datenvolumen für die Hälfte. Schicken Sie mir die Kündigungsbestätigung!',
     situation: 'Kündigungswunsch wegen eines besseren Konkurrenzangebots — Rückgewinnung versuchen, ohne aufdringlich zu werden.',
@@ -253,6 +254,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'telecom-portierung',
+    industry:  'telecom',
     customer:  'ein nervöser Kunde, dessen Rufnummernmitnahme zum neuen Anbieter seit Tagen feststeckt',
     opening:   'Meine Nummer sollte längst portiert sein! Seit vier Tagen bin ich nicht erreichbar — meine Kunden rufen ins Leere! Wo hängt die Portierung fest?',
     situation: 'Die Rufnummernmitnahme verzögert sich, der Kunde ist beruflich auf die Nummer angewiesen.',
@@ -265,6 +267,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'tech-router-stoerung',
+    industry:  'telecom',
     customer:  'ein Kunde im Homeoffice, dessen Internet seit dem Morgen ausfällt und der schon alles probiert hat',
     opening:   'Mein Internet fällt ständig aus, ich habe den Router schon dreimal neu gestartet! Ich arbeite im Homeoffice — noch ein Tag so, und ich habe ein ernstes Problem mit meinem Chef!',
     situation: 'Wiederkehrende Verbindungsabbrüche; die üblichen Neustarts haben nicht geholfen — strukturierte Störungsdiagnose nötig.',
@@ -277,6 +280,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'ecommerce-retoure',
+    industry:  'ecommerce',
     customer:  'eine genervte Kundin, deren Retourenlabel nicht funktioniert und deren Erstattung seit drei Wochen aussteht',
     opening:   'Ihr Retourenlabel lässt sich nicht ausdrucken, und auf meine Erstattung warte ich seit DREI Wochen! Dreihundert Euro! Langsam frage ich mich, ob ich mein Geld je wiedersehe.',
     situation: 'Defektes Retourenlabel + ausstehende Erstattung — zwei Probleme in einem Anruf, Vertrauen ist angeschlagen.',
@@ -289,6 +293,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'fintech-doppelbuchung',
+    industry:  'fintech',
     customer:  'ein alarmierter Kunde, dem derselbe Betrag zweimal abgebucht wurde und der Betrug vermutet',
     opening:   'Auf meinem Konto ist dieselbe Lastschrift ZWEIMAL abgebucht — 89 Euro doppelt! Ist mein Konto gehackt? Ich will das Geld sofort zurück und wissen, was da los ist!',
     situation: 'Doppelte Abbuchung, der Kunde vermutet Betrug — Sicherheit prüfen, Rückbuchung einleiten, beruhigen.',
@@ -301,6 +306,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'fintech-kontosperrung',
+    industry:  'fintech',
     customer:  'ein verzweifelter Kunde, dessen Konto nach der Identitätsprüfung gesperrt bleibt, obwohl seine Miete fällig ist',
     opening:   'Mein Konto ist seit fünf Tagen gesperrt! Ich habe die Video-Identifizierung doch längst gemacht! Morgen wird meine Miete abgebucht — wenn das platzt, haben SIE ein Problem!',
     situation: 'Kontosperrung trotz abgeschlossener Verifizierung; eine dringende Zahlung steht an.',
@@ -314,6 +320,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'airline-umbuchung',
+    industry:  'airline',
     customer:  'eine gestresste Kundin, deren Flug gestrichen wurde und die morgen zu einer Beerdigung muss',
     opening:   'Mein Flug morgen früh wurde einfach GESTRICHEN! Ich muss zu einer Beerdigung — verstehen Sie das? Ich MUSS morgen dort sein, egal wie!',
     situation: 'Flugstreichung vor einem emotional wichtigen Termin — Umbuchung finden, Fluggastrechte kennen, mit Gefühl kommunizieren.',
@@ -326,6 +333,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'airline-gepaeck',
+    industry:  'airline',
     customer:  'ein aufgebrachter Kunde, dessen Koffer seit der Landung verschwunden ist — mit Medikamenten darin',
     opening:   'Mein Koffer ist nicht angekommen! Da sind meine Medikamente drin, die ich TÄGLICH brauche. Am Schalter hat man mich einfach weggeschickt — was machen Sie jetzt?',
     situation: 'Gepäckverlust mit dringend benötigten Medikamenten — Sofortmaßnahmen plus Verlustmeldung.',
@@ -338,6 +346,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'delivery-fehlende-artikel',
+    industry:  'delivery',
     customer:  'ein hungriger, wütender Kunde, dessen Lieferung kalt ankam und bei dem die Hälfte fehlt',
     opening:   'Meine Bestellung kam eine Stunde zu spät, das Essen ist EISKALT, und die Getränke fehlen komplett! Und jetzt bietet mir Ihre App fünf Euro Gutschrift an? Das ist doch ein Witz!',
     situation: 'Verspätete, unvollständige und kalte Lieferung; die automatische Kulanz der App empfand der Kunde als Beleidigung.',
@@ -350,6 +359,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'logistik-zustellversuch',
+    industry:  'logistik',
     customer:  'ein verärgerter Kunde, der den ganzen Tag zu Hause war und trotzdem eine "nicht angetroffen"-Karte im Briefkasten fand',
     opening:   'Ich war den GANZEN Tag zu Hause, und trotzdem steckt eine Karte im Briefkasten: „Leider nicht angetroffen"! Der Fahrer hat nicht einmal geklingelt! Und jetzt liegt mein Paket irgendwo in einer Filiale?',
     situation: 'Angeblich erfolgloser Zustellversuch; das Paket wartet in der Abholstation — der Kunde fühlt sich belogen.',
@@ -362,6 +372,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'energie-nachzahlung',
+    industry:  'energie',
     customer:  'eine geschockte Kundin, deren Jahresabrechnung eine Nachzahlung von 480 Euro verlangt',
     opening:   'Ich habe gerade meine Jahresabrechnung geöffnet: 480 Euro NACHZAHLUNG! Das kann überhaupt nicht stimmen, wir haben sogar gespart! Erklären Sie mir das — sofort!',
     situation: 'Hohe Nachzahlung in der Jahresabrechnung; möglicherweise beruht sie auf einem geschätzten Zählerstand.',
@@ -374,6 +385,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'versicherung-schaden',
+    industry:  'versicherung',
     customer:  'ein ungeduldiger Kunde, dessen Wasserschaden-Meldung seit sechs Wochen unbearbeitet liegt',
     opening:   'Ich habe den Wasserschaden vor SECHS Wochen gemeldet! Die Wand schimmelt inzwischen, und von Ihnen kommt nichts außer automatischen E-Mails! Wann wird mein Schaden endlich reguliert?',
     situation: 'Schadensmeldung liegt seit Wochen ohne Rückmeldung; der Schaden verschlimmert sich sichtbar.',
@@ -386,6 +398,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'streaming-abbuchung',
+    industry:  'streaming',
     customer:  'ein empörter Kunde, dem nach seiner Kündigung trotzdem der Monatsbeitrag abgebucht wurde',
     opening:   'Ich habe mein Abo letzten Monat GEKÜNDIGT — und heute buchen Sie mir schon wieder 14,99 Euro ab! Machen Sie das rückgängig, sonst lasse ich jede weitere Abbuchung von meiner Bank zurückholen!',
     situation: 'Abbuchung nach Kündigung — vermutlich lief die Kündigung erst zum Periodenende, was der Kunde nicht wusste.',
@@ -399,6 +412,7 @@ export const CS_SCENARIOS = [
   },
   {
     id:        'b2b-werbekonto',
+    industry:  'b2b',
     customer:  'eine Geschäftsinhaberin, deren Werbekonto mitten in ihrer wichtigsten Verkaufswoche gesperrt wurde',
     opening:   'Mein Werbekonto wurde heute Morgen gesperrt — angeblich ein Richtlinienverstoß, aber es steht nirgends, WELCHER! Meine Kampagnen stehen still, mitten im Weihnachtsgeschäft! Jede Stunde kostet mich Umsatz!',
     situation: 'B2B-Fall: gesperrtes Werbekonto ohne klare Begründung; wirtschaftlicher Druck ist real und stündlich.',
@@ -565,6 +579,40 @@ function pickFresh(arr, seen, idOf) {
   return { item, id: idOf(item), reset };
 }
 
+// ── Ziel-Stelle (owner-approved 2026-07-10): the industries a candidate can target ────────────
+// Keys match the `industry` tags on the KB scenarios below; labels are learner-visible German.
+// Source: docs/kb/GERMAN-BPO-KB.md — the 10 account types actually run from Cairo/nearshore hubs.
+// Brands stay anonymous everywhere (owner doctrine): industries, never company names.
+export const INDUSTRIES = {
+  telecom:      'Telekommunikation & Internet',
+  ecommerce:    'E-Commerce & Handel',
+  fintech:      'Banken & Fintech',
+  airline:      'Airlines & Reisen',
+  delivery:     'Lieferdienste',
+  logistik:     'Logistik & Versand',
+  energie:      'Energie',
+  versicherung: 'Versicherungen',
+  streaming:    'Streaming & Abo-Dienste',
+  b2b:          'B2B & Werbekonten',
+};
+
+// Ziel-Stelle-aware scenario pick, layered on the same pickFresh no-repeat rule:
+// 1) unseen scenarios of the TARGET industry first (the paid promise: "your account type"),
+// 2) then unseen from the global pool (variety beats repetition once the industry is exhausted),
+// 3) only when EVERYTHING is seen, cycle — inside the target industry again.
+// No target (or unknown key) ⇒ byte-identical behavior to the old global pickFresh.
+export function pickCsScenario(recentCs, targetIndustry = null) {
+  // hasOwn guard (defense in depth vs. already-stored prototype keys): an inherited key would
+  // filter to an empty pool anyway, but keep the contract explicit — unknown key ⇒ global pick.
+  const pool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+    ? CS_SCENARIOS.filter((s) => s.industry === targetIndustry) : [];
+  if (!pool.length) return pickFresh(CS_SCENARIOS, recentCs, (x) => x.id);
+  const seen = new Set(recentCs || []);
+  if (pool.some((s) => !seen.has(s.id)))         return pickFresh(pool,         recentCs, (x) => x.id);
+  if (CS_SCENARIOS.some((s) => !seen.has(s.id))) return pickFresh(CS_SCENARIOS, recentCs, (x) => x.id);
+  return pickFresh(pool, recentCs, (x) => x.id);
+}
+
 // ── Phase 1: realism delivery block (prosody, native disfluencies, seeded mood) ──────
 // Pure INSTRUCTION TEXT — it never affects the audio pipeline, VAD, scoring, or gates.
 // REALISM SCALES WITH LEVEL: beginners get patient, clearly-enunciated, encouraging delivery;
@@ -647,7 +695,7 @@ export function pickOpeningPair(greetings, intros, sessionSeed = '') {
   return { greeting: g.text, intro: i.text, scenes: { greeting: g.scene, intro: i.scene } };
 }
 
-export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '' }) {
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -655,7 +703,7 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   const behPool    = levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS;
   const behPick    = pickFresh(behPool,              recent.behavioral, (x) => x);
   const scrPick    = pickFresh(BPO_SCREENING_QUESTIONS, recent.screening, (x) => x);
-  const csPick     = pickFresh(CS_SCENARIOS,         recent.cs,         (x) => x.id);
+  const csPick     = pickCsScenario(recent.cs, targetIndustry);   // Ziel-Stelle: target-industry-first
   const behavioral = behPick.item;
   const screening  = scrPick.item;
   const cs         = csPick.item;
@@ -689,6 +737,14 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   // two situations that naturally test exactly that lesson. EXACTLY one injected line.
   const focusLine = focusTitle ? `\nBaue zwei Situationen ein, die ${focusTitle} natürlich testen.\n` : '';
 
+  // Ziel-Stelle (Elite): the candidate targets a specific account TYPE — the roleplay scenario is
+  // already picked from that industry (pickCsScenario above); this line makes the boss FRAME the
+  // whole interview as a hiring conversation for exactly that account. Industries only, never a
+  // company name (owner doctrine).
+  const zielLine = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+    ? `\nBEWERBUNGSZIEL: Der Kandidat bewirbt sich gezielt für ein Konto im Bereich ${INDUSTRIES[targetIndustry]}. Behandle ihn wie einen Bewerber für genau diesen Konto-Typ und nutze im Rollenspiel die branchentypische Terminologie. Nenne dabei NIEMALS einen echten Firmennamen.\n`
+    : '';
+
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
     { ...STAGE_META[1], prompt: behavioral },
@@ -721,7 +777,7 @@ Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz u
 Wenn der Kandidat dich beleidigt oder respektlos wird, beende das Gespräch SOFORT professionell und ruhig („Ich beende das Gespräch.“) — zeige niemals Wut.
 Achte auf natürliche Prosodie: Sag nur einen Gedanken pro Redebeitrag, mach natürlich Pausen, vermeide zusammengepresste Wörter.
 ${level.speechStyle}
-${delivery}${dossierLine}${memoryLine}${focusLine}
+${delivery}${dossierLine}${memoryLine}${focusLine}${zielLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - GESPROCHENE SPRACHE, KEIN vorgelesener Text (wichtigster Natürlichkeits-Hebel): Sprich in lockerer, gesprochener Hochsprache — mit Kontraktionen ("ich hab", "gibt's", "so was", "ne?") — und beginne deine Reaktion oft mit einem kurzen, echten mündlichen Marker, wie ein Mensch am Telefon ("Gut.", "Okay.", "Aha.", "Na gut.", "Also,", "Mhm,"). Variiere diese Marker, wiederhole nicht denselben. So klingt deine Stimme nach einem echten Menschen, nicht nach abgelesenem Schriftdeutsch.

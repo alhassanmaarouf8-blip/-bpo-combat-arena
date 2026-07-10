@@ -105,6 +105,18 @@ stamp verified live. No scoring-logic change; Arabic label = OWNER-AR slot.
 deterministic and cause-labeled (every HP change stays explainable).
 **DoD:** boundary unit tests; no change to HP caps or damage balance; gates green.
 
+### 5b. SHIPPED — 2026-07-10 — Ziel-Stelle matching (owner-ordered same day: "go")
+**Why (owner decision 2026-07-10):** the one standalone-full-price feature the app never had — the
+buyer with an interview scheduled rehearses THE interview they actually face. Was the phantom Elite
+perk (killed in adversarial audit #2); now built for real.
+**Shipped as:** `INDUSTRIES` (10 account types) + `industry` tags on the 14 KB scenarios +
+`pickCsScenario` (target-industry-first unseen pick, honest fallbacks) + BEWERBUNGSZIEL boss framing
+(company names never) in scenarios.js; `zielStelle` entitlement (Elite + trial taste) in
+plans.config/auth; wsManager gate + pass-through; `POST /api/progress/target-industry` (+ billing
+/state exposure); home Optionen "Ziel-Stelle" picker (honest "ab Elite" tag, OWNER-AR label slot);
+Elite perk restored, now TRUE. 7 unit tests (industry-first, fallback, cycle, no-target contract,
+prompt injection).
+
 ### 6. QUEUED — Rückfrage-Reflex: the repair-language drill
 **Why (elite-conversationalist review 07-02):** real German phone work is ~a third clarification
 and repair — „Habe ich Sie richtig verstanden, dass …?", „Meinen Sie damit …?", „Könnten Sie mir

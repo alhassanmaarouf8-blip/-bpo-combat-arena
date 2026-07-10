@@ -37,6 +37,7 @@ export const PLANS = {
     sessionMinutes:         5,
     dailyLiveMinutes:       30,    // 6 × 5 — hard daily spend cap
     trainingslagerUnlocked: true,  // full Trainingslager lessons unlocked
+    zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
   },
   // ONE-TIME plan (elite-marketer teardown 2026-07-10, owner-approved): one payment, "train until
   // you're hired". Kills the monthly manual-Vodafone re-decision — with manual rails, every renewal

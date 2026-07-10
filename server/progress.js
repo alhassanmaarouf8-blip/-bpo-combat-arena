@@ -18,6 +18,7 @@ import { recentTurns, summary as latencySummary, recordClient, recentClient, cli
 import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
 import { classifyGrammar } from './errorTags.js';
+import { INDUSTRIES } from './scenarios.js';
 
 export const progressRouter = express.Router();
 
@@ -99,6 +100,7 @@ function buildDashboard(p) {
     // One-shot proof card from the last interview whose debrief the user never saw (they closed the
     // tab before it arrived). null once seen. Corrections are LanguageTool-verified only.
     lastDebrief:   p.lastDebrief && !p.lastDebrief.seen ? p.lastDebrief : null,
+    targetIndustry: p.targetIndustry || null,   // Ziel-Stelle: current target account type (or null)
   };
 }
 
@@ -173,6 +175,26 @@ progressRouter.get('/progress', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[progress] dashboard error:', err.message);
     res.status(500).json({ error: 'dashboard_failed' });
+  }
+});
+
+// Ziel-Stelle: store the target account type (INDUSTRIES key from scenarios.js, or null = Auto).
+// Storing is open to every plan (aspiration is free); the interview only USES it when the plan's
+// entitlement carries zielStelle — enforced at fight start in websocketManager, not here.
+progressRouter.post('/progress/target-industry', requireAuth, async (req, res) => {
+  try {
+    const raw = req.body?.industry;
+    const industry = raw === null || raw === '' || raw === undefined ? null : String(raw);
+    // Object.hasOwn, not a truthy lookup: '__proto__'/'constructor'/'toString' inherit through
+    // INDUSTRIES[key] and would validate — then leak Function source into the boss prompt.
+    if (industry !== null && !Object.hasOwn(INDUSTRIES, industry)) return res.status(400).json({ error: 'unknown_industry' });
+    const p = await loadUser(req.account.id);
+    p.targetIndustry = industry;
+    await saveUser(p);
+    res.json({ ok: true, targetIndustry: industry });
+  } catch (err) {
+    console.error('[progress] target-industry error:', err.message);
+    res.status(500).json({ error: 'target_industry_failed' });
   }
 });
 

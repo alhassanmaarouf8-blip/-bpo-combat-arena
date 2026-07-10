@@ -2831,9 +2831,10 @@ const PERKS_DE = {
                  'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'Feedback auch auf Arabisch — du verstehst genau, was zu tun ist'],
   // Adversarial audit #2 (2026-07-10): "Gegner passend zu DEINER Ziel-Stelle" was a PHANTOM —
-  // no mechanism existed anywhere in the code. Replaced with the TRUE Elite exclusive that was
-  // never advertised (plans.config: trainingslagerUnlocked is Elite-only and real).
+  // then BUILT for real the same day (owner order): scenarios.js pickCsScenario + BEWERBUNGSZIEL
+  // framing, entitlement-gated (plans.config zielStelle). The perk is TRUE again.
   elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
+                 'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
                  'das komplette Trainingslager — alle Lektionen deines Niveaus freigeschaltet',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
@@ -4893,6 +4894,34 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                     </option>
                   );
                 })}
+              </select>
+            </div>
+
+            {/* Ziel-Stelle (Elite perk, server-enforced): the target account TYPE steers the roleplay
+                scenario + boss framing. Storing the pick is free (aspiration + upsell); the row says
+                honestly when it only becomes active with Elite. Keys mirror server INDUSTRIES. */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
+              padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
+              <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>
+                Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · ab Elite</span>}
+              </span>
+              <select value={billing?.targetIndustry || ''} disabled={!canStart}
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  setBilling((b) => (b ? { ...b, targetIndustry: v } : b));
+                  fetch(`${API_URL}/api/progress/target-industry`, { method:'POST',
+                    headers:{ 'Content-Type':'application/json', ...authHeaders() },
+                    body: JSON.stringify({ industry: v }) })
+                    .then((r) => { if (!r.ok) loadBilling(); })      // 401/400 → resync, never show a lie
+                    .catch(() => loadBilling());
+                }}
+                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
+                  color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
+                <option value="">Auto (gemischt)</option>
+                {[['telecom','Telekommunikation & Internet'],['ecommerce','E-Commerce & Handel'],['fintech','Banken & Fintech'],
+                  ['airline','Airlines & Reisen'],['delivery','Lieferdienste'],['logistik','Logistik & Versand'],
+                  ['energie','Energie'],['versicherung','Versicherungen'],['streaming','Streaming & Abo-Dienste'],
+                  ['b2b','B2B & Werbekonten']].map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
               </select>
             </div>
 
