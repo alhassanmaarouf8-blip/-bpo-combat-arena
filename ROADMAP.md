@@ -99,7 +99,7 @@ never lose the souverän read on old devices); endingRef re-entrancy guard (time
 could overwrite a survived verdict). Independent reviewer verdict: SHIP. Guardian green, Vercel
 stamp verified live. No scoring-logic change; Arabic label = OWNER-AR slot.
 
-### 5. QUEUED — 'Souverän' heuristic tuning
+### 5. IN PROGRESS — feature/souveraen-tuning — 'Souverän' heuristic tuning
 **Why:** known follow-up — the heuristic reads too coarse.
 **What:** tighten the heuristic in the scorer with unit tests around the boundary cases; keep it
 deterministic and cause-labeled (every HP change stays explainable).
