@@ -181,21 +181,21 @@ export const ITEMS = [
   // vocabulary on every real German account. Same capture contract as above.
   // question_ar mirrors German for now — OWNER-AR slots (never authored here).
   { type: 'nummer', audioText: 'Kurzes Team-Update: Unsere durchschnittliche Bearbeitungszeit, also die AHT, liegt aktuell bei sieben Minuten — das Ziel für diesen Monat sind sechs Minuten.',
-    question_de: 'Wie viele Minuten beträgt die Ziel-AHT?', question_ar: 'Wie viele Minuten beträgt die Ziel-AHT?' /* OWNER-AR */, answer: '6' },
+    question_de: 'Wie viele Minuten beträgt die Ziel-AHT?', question_ar: 'كام دقيقة الـ AHT المطلوبة؟', answer: '6' },
   { type: 'nummer', audioText: 'Zur Erinnerung: Unser Servicelevel ist achtzig zwanzig — achtzig Prozent der Anrufe müssen innerhalb von zwanzig Sekunden angenommen werden.',
-    question_de: 'Innerhalb wie vieler Sekunden müssen die Anrufe angenommen werden?', question_ar: 'Innerhalb wie vieler Sekunden müssen die Anrufe angenommen werden?' /* OWNER-AR */, answer: '20' },
+    question_de: 'Innerhalb wie vieler Sekunden müssen die Anrufe angenommen werden?', question_ar: 'لازم يترد على المكالمات في كام ثانية؟', answer: '20' },
   { type: 'nummer', audioText: 'Bitte haltet die Nachbearbeitungszeit unter neunzig Sekunden, sonst leidet unsere Erreichbarkeit in der Warteschleife.',
-    question_de: 'Wie viele Sekunden Nachbearbeitungszeit sind maximal erlaubt?', question_ar: 'Wie viele Sekunden Nachbearbeitungszeit sind maximal erlaubt?' /* OWNER-AR */, answer: '90' },
+    question_de: 'Wie viele Sekunden Nachbearbeitungszeit sind maximal erlaubt?', question_ar: 'كام ثانية أقصى وقت مسموح بيه بعد المكالمة؟', answer: '90' },
   { type: 'nummer', audioText: 'Denkt bitte daran: Beschwerden zur Rechnung gehen ab sofort direkt an die Eskalationsstufe zwei, nicht mehr an Stufe eins.',
-    question_de: 'An welche Eskalationsstufe gehen Rechnungsbeschwerden jetzt?', question_ar: 'An welche Eskalationsstufe gehen Rechnungsbeschwerden jetzt?' /* OWNER-AR */, answer: '2' },
+    question_de: 'An welche Eskalationsstufe gehen Rechnungsbeschwerden jetzt?', question_ar: 'شكاوى الفواتير بتتبعت لأنهي مستوى تصعيد دلوقتي؟', answer: '2' },
   { type: 'nummer', audioText: 'Diese Woche werden vier eurer Gespräche vom Qualitätsmonitoring bewertet — den Bewertungsbogen findet ihr wie immer im Portal.',
-    question_de: 'Wie viele Gespräche werden vom Qualitätsmonitoring bewertet?', question_ar: 'Wie viele Gespräche werden vom Qualitätsmonitoring bewertet?' /* OWNER-AR */, answer: '4' },
+    question_de: 'Wie viele Gespräche werden vom Qualitätsmonitoring bewertet?', question_ar: 'كام مكالمة هيقيّمها فريق الجودة؟', answer: '4' },
   { type: 'nummer', audioText: 'Unsere Erstlösungsquote liegt im Moment bei zweiundsiebzig Prozent — das Ziel bleibt fünfundachtzig Prozent.',
-    question_de: 'Wie hoch ist die Ziel-Erstlösungsquote in Prozent?', question_ar: 'Wie hoch ist die Ziel-Erstlösungsquote in Prozent?' /* OWNER-AR */, answer: '85' },
+    question_de: 'Wie hoch ist die Ziel-Erstlösungsquote in Prozent?', question_ar: 'كام في المية النسبة المطلوبة لحل المشكلة من أول مكالمة؟', answer: '85' },
   { type: 'datum', audioText: 'Dein Coaching-Gespräch mit dem Qualitätsteam ist am fünfzehnten April, direkt nach deiner Schicht.',
-    question_de: 'An welchem Tag ist das Coaching-Gespräch? (z. B. 05.11)', question_ar: 'An welchem Tag ist das Coaching-Gespräch? (z. B. 05.11)' /* OWNER-AR */, answer: '15.04' },
+    question_de: 'An welchem Tag ist das Coaching-Gespräch? (z. B. 05.11)', question_ar: 'إمتى ميعاد جلسة الكوتشينج؟ (مثلاً 05.11)', answer: '15.04' },
   { type: 'nummer', audioText: 'Und bitte achtet auf eure Adhärenz, also die Einhaltung des Schichtplans: mindestens fünfundneunzig Prozent sind gefordert.',
-    question_de: 'Wie viel Prozent Adhärenz ist gefordert?', question_ar: 'Wie viel Prozent Adhärenz ist gefordert?' /* OWNER-AR */, answer: '95' },
+    question_de: 'Wie viel Prozent Adhärenz ist gefordert?', question_ar: 'كام في المية الالتزام بالشيفت المطلوب؟', answer: '95' },
 ];
 
 // ── COMPREHENSION items (owner's #1): understand COMPLEX native German, not just catch a number. ──

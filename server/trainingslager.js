@@ -113,7 +113,7 @@ function reasonFor(node) {
   // until the owner authors the masri (OWNER-AR).
   if (node.weakCount > 0) {
     return { de: `Deine gemessene Schwäche — ${node.weakCount}× zuletzt in deinen Interviews.`,
-             ar: `Deine gemessene Schwäche — ${node.weakCount}× zuletzt in deinen Interviews.` /* OWNER-AR */ };
+             ar: `نقطة ضعفك اللي اتقاست — غلطت فيها ${node.weakCount} مرّة في آخر إنترفيوهاتك.` };
   }
   return node.started
     ? { de: `Vertiefung — nächste Stufe (${band}).`, ar: `تعميق — المستوى الأعلى (${band}).` }
