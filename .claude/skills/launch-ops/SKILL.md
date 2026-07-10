@@ -50,6 +50,12 @@ local sessions support the owner's go-to-market actions. This file is the map.
   `945c340`, produced NO backend redeploy; uptime kept growing). For client-only ships, verify
   the FRONTEND meta build + Guardian and don't burn 10 minutes polling Render — note "backend
   stamp unchanged by design" instead. Backend-touching ships still require the stamp match.
+- **Render free-tier deploys can FAIL with "Timed out" — silently from outside** (observed
+  2026-07-10, `fbb2ee4`): auto-deploy started, died 16 min later, the OLD instance kept serving
+  (uptime keeps growing, stamp frozen) and nothing external says "failed". If the stamp hasn't
+  advanced ~15 min after a server/ push, don't keep polling — open dashboard.render.com (owner's
+  Chrome session) → service `-bpo-combat-arena` → Events: a red "Deploy failed … Timed out" means
+  transient; **Manual Deploy → Deploy latest commit** fixed it in one retry (~7 min to live).
 - **Shared tree:** other sessions edit live (check `git status` + `find -newermt '45 minutes
   ago'` first). Stage files BY NAME — never `git add -A`/`-u`. Repo-wide `npm run lint` may be
   red from OTHER sessions' untracked scratch files; lint your changed files explicitly and say so

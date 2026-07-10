@@ -1,5 +1,25 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔶 ZIEL-STELLE MATCHING SHIPPED (2026-07-10, afternoon) — `3b38d7f`, VERIFY-LIVE in flight
+Owner picked THE full-price feature ("something they'd pay full price for on its own") and said go:
+the phantom Elite perk from audit #2, built for real. profile targetIndustry (10 KB industries) →
+Elite/trial fights pick Teil-3 scenarios industry-first (`pickCsScenario`, unseen→global→cycle) +
+BEWERBUNGSZIEL boss framing (never company names); POST /api/progress/target-industry; home
+Optionen "Ziel-Stelle" row (honest "ab Elite" tag, OWNER-AR label slot); Elite perk restored TRUE.
+Reviewer NO-SHIP→fixed: Object.hasOwn vs '__proto__'/'constructor' bypass (Function source would
+have reached the boss prompt!), 401-resync on picker POST. 8 tests. Suite 256/257 (1 = foreign WIP).
+**VERIFY-LIVE: /health must show `3b38d7f` (server touched). Render timed out ONCE today on
+`fbb2ee4` — if stamp frozen ~15 min, dashboard → Manual Deploy → Deploy latest commit (playbook
+now in launch-ops).** OWNER CALLS pending: (1) should the "Bis zum Job" one-time plan also get
+zielStelle? (its buyer is exactly the person with a target interview — reviewer flag); (2) cull
+target (Zielplan dead code / Video-slides) — he said "go" on the build, never picked a cull;
+(3) tag the 10 legacy generic scenarios with industries to deepen 1-scenario industries.
+
+## ✅ ROADMAP #5 SHIPPED + VERIFIED (2026-07-10, midday): souverän tuning — `fbb2ee4` live
+Badge = (ack || solution) && noInsult (register alone no longer earns it; insults block; taught
+KONTER phrases unit-enforced to earn it). Reviewer catches: trailing \b ("dummerweise" never
+blocks), AbortSignal feature-guard. 15 tests. Render deploy REQUIRED the manual retry (see above).
+
 ## ✅ ROADMAP #4 SHIPPED (2026-07-10, midday): Druck-Leiter scoring spinner — `bbc8807` verified live
 "continue" resolved to the top QUEUED ROADMAP item (all STATE NEXT items are owner-only). Shipped:
 `scoring` phase in PressureLadder.jsx (endRound's recorder-stop + score-fetch round-trip showed a
