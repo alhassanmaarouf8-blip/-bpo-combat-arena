@@ -8,12 +8,14 @@ BEWERBUNGSZIEL boss framing (never company names); POST /api/progress/target-ind
 Optionen "Ziel-Stelle" row (honest "ab Elite" tag, OWNER-AR label slot); Elite perk restored TRUE.
 Reviewer NO-SHIP→fixed: Object.hasOwn vs '__proto__'/'constructor' bypass (Function source would
 have reached the boss prompt!), 401-resync on picker POST. 8 tests. Suite 256/257 (1 = foreign WIP).
-**VERIFY-LIVE: /health must show `3b38d7f` (server touched). Render timed out ONCE today on
-`fbb2ee4` — if stamp frozen ~15 min, dashboard → Manual Deploy → Deploy latest commit (playbook
-now in launch-ops).** OWNER CALLS pending: (1) should the "Bis zum Job" one-time plan also get
-zielStelle? (its buyer is exactly the person with a target interview — reviewer flag); (2) cull
-target (Zielplan dead code / Video-slides) — he said "go" on the build, never picked a cull;
-(3) tag the 10 legacy generic scenarios with industries to deepen 1-scenario industries.
+✅ VERIFIED LIVE: `3b38d7f` on all three proofs (Render health / Vercel meta / Guardian) + prod
+route probe 401. THEN owner: "yes give bis zum job the ziel-stelle too" → `ba84734` SHIPPED +
+VERIFIED (PLANS.job zielStelle:true, job perk line, honest upsell tag "mit Elite / Bis zum Job",
+plans-flag test pins all four plans; reviewer SHIP; perk lapses with the 365d plan by design).
+OWNER CALLS still pending: (1) cull target (Zielplan dead code / Video-slides) — he approved the
+principle, never picked; (2) masri label for the Ziel-Stelle picker (OWNER-AR slot in App.jsx);
+(3) tag the 10 legacy generic scenarios with industries to deepen 1-scenario industries (7 of 10
+industries have exactly one matched scenario today).
 
 ## ✅ ROADMAP #5 SHIPPED + VERIFIED (2026-07-10, midday): souverän tuning — `fbb2ee4` live
 Badge = (ack || solution) && noInsult (register alone no longer earns it; insults block; taught
