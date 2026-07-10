@@ -185,7 +185,9 @@ progressRouter.post('/progress/target-industry', requireAuth, async (req, res) =
   try {
     const raw = req.body?.industry;
     const industry = raw === null || raw === '' || raw === undefined ? null : String(raw);
-    if (industry !== null && !INDUSTRIES[industry]) return res.status(400).json({ error: 'unknown_industry' });
+    // Object.hasOwn, not a truthy lookup: '__proto__'/'constructor'/'toString' inherit through
+    // INDUSTRIES[key] and would validate — then leak Function source into the boss prompt.
+    if (industry !== null && !Object.hasOwn(INDUSTRIES, industry)) return res.status(400).json({ error: 'unknown_industry' });
     const p = await loadUser(req.account.id);
     p.targetIndustry = industry;
     await saveUser(p);

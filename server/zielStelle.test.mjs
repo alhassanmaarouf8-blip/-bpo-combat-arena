@@ -55,6 +55,21 @@ test('no target (or unknown key) → identical contract to the old global pick',
   }
 });
 
+test('prototype keys never validate or reach the prompt (reviewer-proven bypass)', () => {
+  for (const evil of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+    // Picker: inherited key ⇒ treated as no-target (global pick), never an empty-pool crash.
+    const pick = pickCsScenario([], evil);
+    assert.ok(pick.item && pick.id, `picker survives target=${evil}`);
+    // Prompt: no BEWERBUNGSZIEL line, and no Function source leaking into the boss brief.
+    const script = buildSessionScript({
+      persona: 'Du bist eine strenge Interviewerin.', displayName: 'Test', greeting: 'Guten Tag.',
+      levelId: 'b2', recent: {}, sessionSeed: 's', targetIndustry: evil,
+    });
+    assert.ok(!script.instructions.includes('BEWERBUNGSZIEL'), `no ziel line for ${evil}`);
+    assert.ok(!script.instructions.includes('native code'), `no Function source for ${evil}`);
+  }
+});
+
 test('buildSessionScript with a target: scenario is industry-true + BEWERBUNGSZIEL line present', () => {
   const script = buildSessionScript({
     persona: 'Du bist eine strenge Interviewerin.', displayName: 'Test', greeting: 'Guten Tag.',

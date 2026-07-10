@@ -2834,7 +2834,7 @@ const PERKS_DE = {
   // then BUILT for real the same day (owner order): scenarios.js pickCsScenario + BEWERBUNGSZIEL
   // framing, entitlement-gated (plans.config zielStelle). The perk is TRUE again.
   elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
-                 'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deinem Konto-Typ',
+                 'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
                  'das komplette Trainingslager — alle Lektionen deines Niveaus freigeschaltet',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
@@ -4911,7 +4911,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   setBilling((b) => (b ? { ...b, targetIndustry: v } : b));
                   fetch(`${API_URL}/api/progress/target-industry`, { method:'POST',
                     headers:{ 'Content-Type':'application/json', ...authHeaders() },
-                    body: JSON.stringify({ industry: v }) }).catch(() => loadBilling());   // resync on failure
+                    body: JSON.stringify({ industry: v }) })
+                    .then((r) => { if (!r.ok) loadBilling(); })      // 401/400 → resync, never show a lie
+                    .catch(() => loadBilling());
                 }}
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>

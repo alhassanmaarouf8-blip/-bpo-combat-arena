@@ -602,7 +602,10 @@ export const INDUSTRIES = {
 // 3) only when EVERYTHING is seen, cycle — inside the target industry again.
 // No target (or unknown key) ⇒ byte-identical behavior to the old global pickFresh.
 export function pickCsScenario(recentCs, targetIndustry = null) {
-  const pool = targetIndustry ? CS_SCENARIOS.filter((s) => s.industry === targetIndustry) : [];
+  // hasOwn guard (defense in depth vs. already-stored prototype keys): an inherited key would
+  // filter to an empty pool anyway, but keep the contract explicit — unknown key ⇒ global pick.
+  const pool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+    ? CS_SCENARIOS.filter((s) => s.industry === targetIndustry) : [];
   if (!pool.length) return pickFresh(CS_SCENARIOS, recentCs, (x) => x.id);
   const seen = new Set(recentCs || []);
   if (pool.some((s) => !seen.has(s.id)))         return pickFresh(pool,         recentCs, (x) => x.id);
@@ -738,7 +741,7 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   // already picked from that industry (pickCsScenario above); this line makes the boss FRAME the
   // whole interview as a hiring conversation for exactly that account. Industries only, never a
   // company name (owner doctrine).
-  const zielLine = targetIndustry && INDUSTRIES[targetIndustry]
+  const zielLine = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
     ? `\nBEWERBUNGSZIEL: Der Kandidat bewirbt sich gezielt für ein Konto im Bereich ${INDUSTRIES[targetIndustry]}. Behandle ihn wie einen Bewerber für genau diesen Konto-Typ und nutze im Rollenspiel die branchentypische Terminologie. Nenne dabei NIEMALS einen echten Firmennamen.\n`
     : '';
 
