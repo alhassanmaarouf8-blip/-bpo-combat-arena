@@ -10,6 +10,7 @@ import { isSpeakableRule } from './grammarCheck.js';
 import { gradeTranscript } from './scoring/panelscorer.mjs';
 import { textFeatures, hireReadinessFor } from './hireReadiness.js';
 import { recordTurn } from './latencyLog.js';
+import { isGarbageUserTurn, latinFraction } from './transcriptGuard.js';
 import { loadUser, saveUser } from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
@@ -615,6 +616,17 @@ export class WebSocketManager {
               },
               onBossAudio: (buf) => {
                 // Boss voice PCM16 @24kHz → base64 to the browser for Web-Audio playback.
+                // [LAT] The Gemini path recorded NOTHING into /diag/latency (only the $0 path did) —
+                // the owner's "why does it wait" reports were un-measurable. Record the FELT gap:
+                // last user-transcript chunk → first audio byte of the boss's NEXT turn. Guarded on
+                // !geminiActive (first chunk of a turn) so mid-speech chunks and barge-in overlap
+                // never log a bogus near-zero gap; the greeting logs nothing (no user text yet).
+                if (!ctx.geminiActive && ctx._gLastUserTextMs) {
+                  const gapMs = Date.now() - ctx._gLastUserTextMs;
+                  ctx._gLastUserTextMs = null;
+                  try { recordTurn({ flushMs: 0, prepMs: 0, llmMs: gapMs, serverTotalMs: gapMs, provider: 'gemini-live' }); } catch { /* diagnostics must never break the fight */ }
+                  console.log(`[LAT] gemini transcript→firstAudio=${gapMs}ms session=${ctx.sessionId}`);
+                }
                 ctx.geminiActive = true;
                 ctx.geminiGreeted = true;
                 this._send(ctx, { type: S.BOSS_AUDIO_DELTA, data: buf.toString('base64') });
@@ -630,6 +642,11 @@ export class WebSocketManager {
                   ctx.geminiBossParts = [];
                   ctx.geminiUserParts = [];
                   ctx._geminiTurnStartMs = 0;
+                  // Echo guard needs the boss line the user was ANSWERING (the one whose speaker
+                  // audio could bleed into the mic) — captured BEFORE this turn's fresh boss reply
+                  // is pushed below. Comparing against the fresh reply would both miss the real
+                  // echo case and drop genuine short answers the boss then mirrors back.
+                  const prevBossLine = [...ctx.dialogue].reverse().find((d) => d.role === 'boss')?.text || '';
                   // Record the boss turn into the ordered dialogue for the debrief.
                   if (bossFull) {
                     ctx.dialogue.push({ role: 'boss', text: bossFull, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
@@ -653,7 +670,18 @@ export class WebSocketManager {
                   // firing a Groq boss reply — Gemini already voiced this turn (skipRespond = no 2nd brain).
                   // durationMs:0 = unknown → WpM intentionally not faked for the full-duplex path.
                   // Scoring is what sets completePending — so the goodbye check runs AFTER it resolves.
-                  if (userFull.length >= 2) {
+                  // TRANSCRIPT GUARD (owner field report 07-10): Gemini's input transcriber
+                  // hallucinated Telugu-script "German", "Hallo."×5 loops, and AEC-residue echoes
+                  // of the boss's own line — and every one was SCORED as a learner answer. A
+                  // deterministic filter (see transcriptGuard.js) drops those turns from scoring
+                  // and the debrief dialogue; the boss's spoken reply is untouched.
+                  const guard = userFull.length >= 2
+                    ? isGarbageUserTurn(userFull, prevBossLine)
+                    : { garbage: false, reason: null };
+                  if (guard.garbage) {
+                    console.log(`[wsManager] transcriptGuard dropped a hallucinated turn reason=${guard.reason} len=${userFull.length} session=${ctx.sessionId}`);
+                    this._maybeRequestGeminiClosing(ctx);
+                  } else if (userFull.length >= 2) {
                     Promise.resolve(this._handleAnswer(ctx, { text: userFull, durationMs: 0 }, { skipRespond: true }))
                       .catch((e) => console.error(`[wsManager] gemini answer scoring failed session=${ctx.sessionId}: ${e.message}`))
                       .finally(() => { this._maybeRequestGeminiClosing(ctx); this._maybeAnnounceGeminiLastQuestion(ctx); });
@@ -667,6 +695,11 @@ export class WebSocketManager {
               },
               onUserText: (chunk) => {
                 ctx.geminiUserParts.push(chunk);
+                ctx._gLastUserTextMs = Date.now();   // [LAT] gemini gap clock: your words transcribed → boss's first audio byte
+                // Wrong-alphabet chunks (Telugu/Arabic hallucinations of echo/noise) must never
+                // paint the live mid-screen subtitle. Raw parts still accumulate above — the
+                // commit-time guard judges the WHOLE turn; this only spares the learner's eyes.
+                if (latinFraction(chunk) < 0.5 && /\p{L}/u.test(chunk)) return;
                 this._send(ctx, { type: S.LIVE_USER_TRANSCRIPT_PARTIAL, text: chunk });
               },
               onInterrupted: () => {
