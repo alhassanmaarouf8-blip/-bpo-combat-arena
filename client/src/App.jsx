@@ -1901,6 +1901,14 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
                   <span style={{ color:'var(--action)' }}> · {data.progress.dueReviews} Wiederholung(en) fällig</span>
                 )}
               </div>
+              {/* Deep audit D20: the server has always sent notCounted for too-short sessions — the
+                  client showed a silent +0 XP with no reason. Say it honestly. */}
+              {data.progress.notCounted && (
+                <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.5 }}>
+                  Zu kurz gesprochen, um zu zählen — XP und Serie gibt es ab einer echten Antwort.
+                  {' '}<span dir="rtl">الجلسة كانت قصيرة — اتكلم إجابة حقيقية عشان النقط تتحسب.</span>
+                </div>
+              )}
               {data.progress.levelProgress && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
                   <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.06)' }}>
@@ -3308,7 +3316,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
-  const [level, setLevel]         = useState('a2-b1');     // chosen before start: 'a2-b1' | 'b2'
+  // Deep audit D10 (2026-07-10): the level was NEVER persisted (a B2 user restarted at slow A2–B1
+  // German every visit) and "dein Niveau wird automatisch erkannt" had no mechanism behind it.
+  // Now: a manual pick persists; with no manual pick, the assessment's MEASURED estimatedLevel
+  // sets it (mount effect below) — the claim is finally true.
+  const [level, setLevel]         = useState(() => { try { return ['a2-b1','b2','c1'].includes(localStorage.getItem('omni_level')) ? localStorage.getItem('omni_level') : 'a2-b1'; } catch { return 'a2-b1'; } });
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
   const [handsFree, setHandsFree] = useState(true);        // Freisprech: auto start/stop/send — ON by default
   const [showOpts, setShowOpts]   = useState(false);       // idle home: advanced options (interviewer/freisprech/lang) collapsed by default — declutter
@@ -3346,7 +3358,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (!pending) return;
     try { localStorage.removeItem('bpo_pending_assessment'); } catch {}
     fetch(`${API_URL}/api/assessment/status`, { headers: { Authorization: `Bearer ${auth.token}` } })
-      .then((r) => r.json()).then((d) => { if (d && !d.used) { setAssessmentOpen(true); beacon('assessment_shown'); } }).catch(() => {});
+      .then((r) => r.json()).then((d) => {
+        if (d && !d.used) { setAssessmentOpen(true); beacon('assessment_shown'); }
+        // D10 — "dein Niveau wird automatisch erkannt", now real: with no manual pick stored, the
+        // assessment's MEASURED level drives the interview level. A manual pick always outranks it.
+        try {
+          if (!localStorage.getItem('omni_level') && d?.result?.estimatedLevel) {
+            const mapped = ({ A1:'a2-b1', A2:'a2-b1', B1:'a2-b1', B2:'b2', C1:'c1', C2:'c1' })[d.result.estimatedLevel];
+            if (mapped) { levelRef.current = mapped; setLevel(mapped); }
+          }
+        } catch { /* private mode */ }
+      }).catch(() => {});
   }, []);   // once, on first mount after signup
   const [videoLessonsOpen, setVideoLessonsOpen] = useState(false);     // $0 video-lesson engine (animated slides + native TTS)
 
@@ -3387,6 +3409,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const setPhaseSync = useCallback((p) => { phaseRef.current = p; setPhase(p); }, []);
   const chooseLevel  = useCallback((l) => {
     levelRef.current = l; setLevel(l);
+    try { localStorage.setItem('omni_level', l); } catch { /* private mode */ }   // D10: a manual pick sticks across visits (and outranks auto-set)
     // Level-gate the interviewer: if the currently-picked boss outranks the new level, fall back to
     // Auto so a beginner can't start a fight against a locked (too-hard) persona. (owner: "why is a
     // C1 interviewer even an option for an A2/B1 user?")
