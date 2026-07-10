@@ -2487,10 +2487,10 @@ function AuthScreen({ onAuth }) {
         </div>
         {/* Arabic-first positioning — our biggest moat: no other German trainer serves Arabic speakers */}
         <div dir="rtl" style={{ fontSize:'var(--fs-hero)', fontWeight:700, color:'#f8fafc', marginTop:16, lineHeight:1.35, maxWidth:520, marginInline:'auto' }}>
-          أول تدريب إنترفيو ألماني مصمم خصيصًا للمصريين — علشان توصل للشغل في كول سنتر ألماني أو شغل ريموت بالألماني.{/* OWNER-AR pass invited (niche fix: Egyptians + remote, owner order 07-10) */}
+          أول تدريب إنترفيو ألماني — علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited (niche = the BPO industry IN Egypt, not nationality — owner order 07-10) */}
         </div>
         <div style={{ fontSize:'var(--fs-body)', color:'var(--text-dim)', marginTop:12, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
-          Der erste deutsche Interview-Trainer, gebaut für Ägypten — für den BPO-Markt in Kairo und deutsche Remote-Jobs.
+          Der erste deutsche Interview-Trainer für die BPO- und Call-Center-Branche in Ägypten — und für deutsche Remote-Jobs.
         </div>
         <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:4, marginTop:16,
           padding:'9px 16px', borderRadius:'var(--r-pill)', border:'1px solid var(--action-dim)',
