@@ -67,9 +67,14 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
         // auth, never 1007 schema). The boss already replies to raw audio — this only fixes the text.
         speechConfig: { languageCode: 'de-DE', ...(voiceName ? { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } : {}) },
       },
-      // Faster end-of-turn: detect the candidate finishing sooner (interview turns are short);
-      // 400ms silence + high end sensitivity measured setup-valid with no latency penalty.
-      realtimeInputConfig: { automaticActivityDetection: { endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH', silenceDurationMs: 400 } },
+      // Faster end-of-turn: detect the candidate finishing sooner (interview turns are short). The
+      // owner's felt 4–5s wait = Gemini being slow to CONCLUDE he stopped (the probe pipe is ~1.4s, so
+      // the rest is end-of-turn detection, not network). 250ms silence + high end-sensitivity commits
+      // sooner. Floor kept at 250 so a natural mid-clause breath doesn't cut him off (the old
+      // complaint); if it still cuts or still lags, the real fix is client-driven activityEnd (the
+      // client's own mic VAD), not a lower number here. Only the proven silenceDurationMs value is
+      // touched (was 400, schema-valid) — no new/unproven fields that could 1007 the whole setup.
+      realtimeInputConfig: { automaticActivityDetection: { endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH', silenceDurationMs: 250 } },
       systemInstruction: { parts: [{ text: systemInstruction }] },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
