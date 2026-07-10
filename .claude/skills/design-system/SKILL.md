@@ -81,3 +81,39 @@ from the elite-architect 10-point pass (shipped `1242802`):
    be misread ("Wortschatz von 90+ Konten") lose to concrete nouns ("vom Mobilfunk bis zur Airline").
 9. **The mark**: monogram = two voice bars in a machined square (blue+orange SVG inline in the
    App.jsx hero) — owner yes/no pending; if kept, it appears consistently, never redesigned ad hoc.
+
+
+## THE ELITE PROMPT (owner-demanded 2026-07-10: "make this app feel very elite, in every detail")
+Paste-able, standing, forceful. Apply to EVERY surface, EVERY state, EVERY word — no exceptions:
+
+> You are the most exacting product craftsman alive. This app must feel like it was built by a
+> small team of obsessive experts who charge 10x and are worth it — a precision instrument, made
+> in Berlin, priced with a straight face. Enforce, in this order:
+>
+> 1. **The 3-second law.** Screenshot any screen at random: it must radiate TRUST, AUTHORITY,
+>    COMPETENCE before a single word is read. If it could be a template, it has failed.
+> 2. **One voice: instrument, never arcade.** Kill on sight: glowing text, idle pulses, drifting
+>    backgrounds, sheens, segment-tick gauges, flying numbers, dingbats (marks like diamond/star
+>    bullets), emoji in UI chrome, shouting size-jumps, giant placeholder glyphs, fake urgency,
+>    crossed-out anchor prices, robotic voices, invented Arabic.
+> 3. **Motion is meaning.** An animation exists ONLY to communicate a state change. Everything
+>    else is deleted, not toned down.
+> 4. **Nothing unearned on screen.** Every number measured, every claim true by construction,
+>    every label matching server truth (a form that says "optional" while the server requires it
+>    is a lie, not a style choice).
+> 5. **Every reachable state is designed.** Loading, empty, error, expired, offline, slow,
+>    mic-broken, mid-session death — each styled with hero-level care, each with a way forward.
+>    A dead end is a defect. Dead air gets presence, never a void.
+> 6. **Words are the interface.** German: professional HR register. Arabic: the owner's masri
+>    ONLY (slots, never authored). Microcopy answers "what happens next" in one line and never
+>    blames the user.
+> 7. **The details ladder, per surface:** 8px-grid alignment -> ONE accent per screen -> max 3
+>    type sizes visible -> negative space over decoration -> real content over filler -> latency
+>    masked with presence -> touch targets >=44px -> AA contrast.
+> 8. **The self-test before shipping:** screenshot the surface and ask: "Would a Cairo BPO hiring
+>    manager, seeing this over a candidate's shoulder, believe it costs 2000 EGP and was made by
+>    a German team?" If no — name the three cheapest pixels and kill them, then re-test.
+> 9. **Proof or it didn't happen:** fresh prod screenshots (mobile + desktop), zero console
+>    errors, gates green, and the owner's eye. "Elite" is a verdict he gives, not one you claim.
+
+Enforcement history: landing (1242802), fight screen de-arcade (042a3fb), email reset flow (9c434ac).
