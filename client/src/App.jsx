@@ -3345,6 +3345,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiBossLineRef = useRef('');
   const geminiPendingTextRef = useRef('');   // transcript chunks held back until the boss's VOICE starts
   const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
+  const geminiThinkTimerRef  = useRef(null);  // debounce: your transcript goes quiet → "CHEF DENKT NACH…"
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
   const bossHasSpokenRef = useRef(false);  // has the interviewer delivered its FIRST line yet? The
@@ -3455,6 +3456,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     geminiBossLineRef.current = '';
     geminiPendingTextRef.current = '';
     geminiVoiceOnRef.current = false;
+    if (geminiThinkTimerRef.current) { clearTimeout(geminiThinkTimerRef.current); geminiThinkTimerRef.current = null; }
+    setBossThinking(false);   // never carry a Gemini "denkt nach" into the $0 fallback path
     setRecording(false);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3586,6 +3589,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // her voice is actually audible — the text follows the speech, never announces it.
         if (!geminiVoiceOnRef.current) {
           geminiVoiceOnRef.current = true;
+          // The voice is here — a pending "denkt nach" timer must never fire mid-speech.
+          if (geminiThinkTimerRef.current) { clearTimeout(geminiThinkTimerRef.current); geminiThinkTimerRef.current = null; }
           if (geminiPendingTextRef.current) {
             geminiBossLineRef.current += geminiPendingTextRef.current;
             geminiPendingTextRef.current = '';
@@ -3613,7 +3618,23 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       case S.LIVE_USER_TRANSCRIPT_PARTIAL:
         // Your words, as Gemini transcribes them → live subtitle (committed later via TRANSCRIPT_DONE).
-        if (geminiModeRef.current) setLiveTranscript((prev) => (prev || '') + (msg.text || ''));
+        if (geminiModeRef.current) {
+          setLiveTranscript((prev) => (prev || '') + (msg.text || ''));
+          // DEAD-AIR FIX (owner, 07-10, second report): on the Gemini path the boss formulates for
+          // ~1-2s while the screen shows your words frozen mid-screen and NO sign he heard you —
+          // setBossThinking(true) was deliberately skipped for this path (see TRANSCRIPT_DONE). The
+          // $0 path masks the same gap with a filler; the premium path masked nothing. Transcript
+          // chunks going QUIET = Gemini heard the whole turn and is now composing: 600ms after the
+          // last chunk — and only while this turn's voice hasn't started — light the existing
+          // "CHEF DENKT NACH…" state. First audio byte clears it (BOSS_AUDIO_DELTA), the 22s
+          // watchdog covers a dead session, and the Gemini mic ignores bossThinking entirely.
+          setBossThinking(false);   // a fresh chunk = still transcribing → listening, not thinking yet
+          if (geminiThinkTimerRef.current) clearTimeout(geminiThinkTimerRef.current);
+          geminiThinkTimerRef.current = setTimeout(() => {
+            geminiThinkTimerRef.current = null;
+            if (geminiModeRef.current && !geminiVoiceOnRef.current) setBossThinking(true);
+          }, 600);
+        }
         break;
 
       case S.LIVE_USER_TRANSCRIPT_DONE:
