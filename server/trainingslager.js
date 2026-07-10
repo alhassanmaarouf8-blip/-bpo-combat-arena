@@ -63,9 +63,28 @@ function studentTier(profile) {
   return Math.min(tier, maxReadyTier());   // never beyond the highest tier with REAL content
 }
 
-// ── Adaptive path: undone stations at/below the student's tier, DEEPEN-first then BROADEN ──────
+// The student's MEASURED weakness classes → { lessonRuleId: recentErrorCount }. Deterministic:
+// sums the last few real error counts per canonical class from the weakLog spine (written after
+// every fight by _persistProgress; entry.ruleId = classifyGrammar's canonical lesson id). This
+// closes the "Phase 2" promise in lessons.config.js — the lesson path finally READS the student's
+// own errors (owner mission 2026-07-10: lessons must cohere with the INDIVIDUAL student;
+// god-verification catalogue #40: a signal written but never read behaves as a constant).
+function measuredWeakClasses(profile) {
+  const out = {};
+  for (const entry of Object.values(profile?.weakLog || {})) {
+    const id = entry?.ruleId;
+    if (!id) continue;
+    const recent = (entry.errCounts || []).slice(-5).reduce((s, e) => s + (e?.count || 0), 0);
+    if (recent > 0) out[id] = (out[id] || 0) + recent;
+  }
+  return out;
+}
+
+// ── Adaptive path: MEASURED weakness first, then undone stations at/below the student's tier,
+//    DEEPEN-first then BROADEN ──────
 function buildAdaptivePath(profile) {
   const tier = studentTier(profile);
+  const weak = measuredWeakClasses(profile);
   const deepen = [], fresh = [];
   for (const s of LAGER_SECTIONS) {
     if ((s.minTier || 1) > tier) continue;                       // section not unlocked at this level yet
@@ -75,17 +94,27 @@ function buildAdaptivePath(profile) {
       if (t.tier > tier) continue;                                // tier above the student's level → locked for now
       const id = `${s.id}:${t.tier}`;
       if (isDone(profile, id)) continue;                          // NEVER REPEAT a completed station
-      const node = { ruleId: id, section: s, t, started };
+      const node = { ruleId: id, section: s, t, started, weakCount: weak[s.id] || 0 };
       (started ? deepen : fresh).push(node);
     }
   }
-  deepen.sort((a, b) => a.t.tier - b.t.tier);                                          // continue started sections, lowest undone tier first
-  fresh.sort((a, b) => (a.section.minTier || 1) - (b.section.minTier || 1) || a.t.tier - b.t.tier);
+  // Measured weakness leads (most recent real errors → front); the old tier/continuity order
+  // remains the tie-breaker, so students with no measured errors see exactly the previous path.
+  deepen.sort((a, b) => b.weakCount - a.weakCount || a.t.tier - b.t.tier);
+  fresh.sort((a, b) => b.weakCount - a.weakCount
+    || (a.section.minTier || 1) - (b.section.minTier || 1) || a.t.tier - b.t.tier);
   return { stations: [...deepen, ...fresh].slice(0, MAX_STATIONS), tier };
 }
 
 function reasonFor(node) {
   const band = node.t.band || '';
+  // The honest, measured reason wins: the station is here BECAUSE the student's own interviews
+  // proved the weakness (count = real recent error sum, never invented). Arabic mirrors German
+  // until the owner authors the masri (OWNER-AR).
+  if (node.weakCount > 0) {
+    return { de: `Deine gemessene Schwäche — ${node.weakCount}× zuletzt in deinen Interviews.`,
+             ar: `Deine gemessene Schwäche — ${node.weakCount}× zuletzt in deinen Interviews.` /* OWNER-AR */ };
+  }
   return node.started
     ? { de: `Vertiefung — nächste Stufe (${band}).`, ar: `تعميق — المستوى الأعلى (${band}).` }
     : { de: `Neue Station für dein Niveau (${band}).`, ar: `محطة جديدة على مستواك (${band}).` };

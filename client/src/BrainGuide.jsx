@@ -10,21 +10,22 @@
 import { useEffect, useState } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// OWNER: replace every string below with real Egyptian masri. Keep the {slots}; the engine fills them
-// with TRUE values. These are PLACEHOLDERS so the structure renders — do NOT ship them as final copy.
+// The guide's masri voice. Owner-ordered to finish 2026-07-10 ("go do them, the eight brain copy —
+// finish the job"): authored best-effort warm Cairo masri, SHIPPED on his explicit instruction.
+// The {slots} carry TRUE engine values only. Owner: give it a native pass whenever convenient —
+// the words are yours to sharpen, the structure stays.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 const BRAIN_COPY = {
   nextStepLabel: 'خطوتك الجاية',
   journeyLabel:  'طريقك للشغل الألماني',
-  stepsLeft:     (n) => `فاضلّك ${n} خطوة`,
+  stepsLeft:     (n) => `فاضلّك ${n} ${n === 1 ? 'خطوة واحدة' : 'خطوات'} بس`,
   drill:         (id) => DRILL_LABEL[id] || id,
   startCta:      'يلا بينا',
-  apply:         '🎉 برافو يا وحش! بقيت جاهز للخط الألماني — قدّم دلوقتي وانت واثق.',
-  measure:       'قبل ما نكمّل، محتاج أقيس نقطة واحدة عشان أظبّط مسارك صح — يلا نعملها بسرعة.',
-  ahaTitle:      'بص بنفسك — اللي درّبت عليه بيدّي نتيجة:',
-  ahaBody:       (label, before, after) => `${label}: كنت بتغلط فيها ${before} مرّة، دلوقتي ${after} بس. ده انت اللي عملت ده.`,
+  apply:         '🎉 برافو يا وحش! انت دلوقتي جاهز للخط الألماني — قدّم في الوظايف وانت واثق من نفسك.',
+  measure:       'قبل ما نكمّل، محتاج أقيس حاجة واحدة عشان أظبّط طريقك صح — يلا نعملها في دقيقتين.',
+  ahaTitle:      'شوف بنفسك — تدريبك جاب نتيجة:',
+  ahaBody:       (label, before, after) => `${label}: كنت بتغلط فيها ${before} مرّة، دلوقتي ${after} بس — ده مجهودك انت، مش صدفة.`,
 };
-// NOTE (owner): masri above is grounded best-effort — give it a native pass; the {slots} stay, the words are yours.
 const DRILL_LABEL = {
   'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL',
   'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG', 'interview': 'INTERVIEW',

@@ -2814,6 +2814,7 @@ function WhatsAppOptIn({ token, apiUrl }) {
 
 const PERKS_DE = {
   basic: (m) => [`bis zu ${m} Min ECHTES Live-Interview — jeden Tag, bis es sitzt`,
+                 'die App führt dich: Diagnose → EIN Training → Beweis im Interview',
                  'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
                  'Szenarien nach echten deutschen Konto-Typen (Mobilfunk, Bank, Airline …)',
                  'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
