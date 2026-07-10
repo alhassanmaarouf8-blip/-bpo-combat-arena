@@ -497,6 +497,11 @@ export class WebSocketManager {
       screening:  Array.isArray(prof?.screeningSeen)  ? prof.screeningSeen  : [],
       cs:         Array.isArray(prof?.csSeen)         ? prof.csSeen         : [],
     };
+    // Ziel-Stelle (Elite/trial): the stored target account type steers the roleplay scenario pick
+    // + the boss framing. Entitlement-gated HERE (single enforcement point) — a free user with a
+    // stored preference simply gets the normal global rotation, never an error.
+    const targetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
+    if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
     console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  mode=${viaBossTor ? 'bosstor' : 'daily'}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
@@ -521,6 +526,7 @@ export class WebSocketManager {
         focusTitle,
         candidateName,
         recent,
+        targetIndustry,
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
         // that follows, so it can judge whether the candidate actually answered what was asked.

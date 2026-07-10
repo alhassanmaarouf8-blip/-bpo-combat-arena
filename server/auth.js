@@ -257,6 +257,7 @@ export function entitlement(account) {
     drillsUnlocked:        drillsUnlocked(account),
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
     trainingslagerUnlocked: !!feat.trainingslagerUnlocked || trial,   // trial gives the full taste
+    zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — same trial taste
     unlimited:             isAdminEmail(account?.email),
   };
 }
@@ -546,10 +547,11 @@ billingRouter.get('/state', requireAuth, async (req, res) => {
   const plan    = planOf(account);
   const minutes = dailyMinutesFor(account);
 
-  let usedSec = 0;
+  let usedSec = 0, targetIndustry = null;
   try {
     const p = await loadUser(account.id);
     if (p.liveUsage?.day === dayKey()) usedSec = p.liveUsage.sec || 0;
+    targetIndustry = p.targetIndustry || null;   // Ziel-Stelle: current pick for the home Optionen panel
   } catch (e) { console.error('[billing] state usage lookup failed:', e.message); }
   const remainingSec = Math.max(0, minutes * 60 - usedSec);
 
@@ -569,6 +571,10 @@ billingRouter.get('/state', requireAuth, async (req, res) => {
     justActivated,
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
+    // Ziel-Stelle: entitlement flag + the stored pick, so the home Optionen panel renders honestly
+    // (flag false ⇒ the picker labels itself "ab Elite" — stored aspiration, not yet active).
+    zielStelle: entitlement(account).zielStelle,
+    targetIndustry,
   });
 });
 

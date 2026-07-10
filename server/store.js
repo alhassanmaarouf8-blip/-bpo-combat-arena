@@ -49,6 +49,8 @@ export function defaultProfile(userId) {
     // German-speaking BPO role? status: none|applying|interviewing|offer|hired|not_hired.
     // history is the audit trail; lastPromptedAt throttles the "any job news?" nudge to weekly.
     placement: { status: 'none', employer: '', role: '', updatedAt: null, history: [], lastPromptedAt: null },
+    targetIndustry: null,  // Ziel-Stelle: INDUSTRIES key (scenarios.js) the candidate is applying for, or null
+
   };
 }
 
