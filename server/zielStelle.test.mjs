@@ -8,6 +8,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CS_SCENARIOS, INDUSTRIES, pickCsScenario, buildSessionScript } from './scenarios.js';
+import { PLANS } from './plans.config.js';
+
+test('the plans that ADVERTISE Ziel-Stelle actually carry the flag (perk must never be a phantom again)', () => {
+  assert.equal(PLANS.elite.zielStelle, true);
+  assert.equal(PLANS.job.zielStelle,   true);   // owner 2026-07-10: the "Bis zum Job" buyer has a real target interview
+  assert.ok(!PLANS.free.zielStelle);
+  assert.ok(!PLANS.basic.zielStelle);
+});
 
 const byIndustry = (key) => CS_SCENARIOS.filter((s) => s.industry === key);
 
