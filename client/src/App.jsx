@@ -2444,9 +2444,12 @@ function AuthScreen({ onAuth }) {
   const submit = async () => {
     if (busy) return;
     if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
-    // WhatsApp is OPTIONAL at signup (craft pass #7 — demanding a phone number at first touch was
-    // the page's biggest trust/friction wall). Validate the format only when one was entered.
-    if (mode === 'signup' && String(wa).trim() && String(wa).replace(/\D/g, '').length < 10) {
+    // WhatsApp is REQUIRED at signup — standing owner decision 2026-07-08 (the re-engagement
+    // channel is captured up-front) and the server rejects without it (auth.js invalid_number).
+    // Craft pass #7 wrongly labeled it optional CLIENT-side only: every no-number signup then
+    // failed on prod with the field claiming "(optional)" — a lying form. Client and server must
+    // always agree on required-ness; the server is the source of truth.
+    if (mode === 'signup' && String(wa).replace(/\D/g, '').length < 10) {
       setErr(authErrText('invalid_number')); return;
     }
     setErr(''); setBusy(true);
@@ -2599,8 +2602,8 @@ function AuthScreen({ onAuth }) {
         </div>
 
         {/* Craft pass #7 — visible labels (placeholder-only inputs are a trust-killer: the label
-            vanishes the moment you type), and WhatsApp demoted to OPTIONAL: the number is asked,
-            never demanded, at the very first touch. Server already treats it as optional. */}
+            vanishes the moment you type). WhatsApp stays REQUIRED (owner decision 2026-07-08;
+            the server rejects signups without it — the label must never claim otherwise). */}
         <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'0 2px 5px' }}>E-MAIL</div>
         <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@gmail.com"
           autoComplete="email" className="uplift-input" style={inputStyle} />
@@ -2612,7 +2615,7 @@ function AuthScreen({ onAuth }) {
         {mode === 'signup' && (
           <>
             <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>
-              WHATSAPP <span style={{ fontWeight:400, letterSpacing:0, textTransform:'none' }}>(optional)</span>
+              WHATSAPP
             </div>
             <input type="tel" value={wa} onChange={(e)=>setWa(e.target.value)} placeholder="010…"
               autoComplete="tel" inputMode="tel"
