@@ -17,6 +17,8 @@ Owner's hard rule: **never show a learner anything inaccurate or generic.** A fa
 6. **Personalize from their own data, not flattery.** The "aha" = their real quote → what was missing vs the actual question/rubric → the one fix that gets them hired; plus a deterministic progress line from their own past sessions ("fillers 7→2 since session 1"). Never two competing hireability verdicts on screen — reconcile with any existing score→label decision.
 7. **Never blame the learner for the system's failure (truncation-awareness).** The half-duplex, silence-timer interview can CUT OFF a turn mid-sentence; an interrupted or STT-garbled turn is stored identically to a freely-chosen short one. NEVER let a scorer read app-truncation as the learner "freezing / collapsing under pressure / having no result / no example / being unsicher" — that is a false, disqualifying verdict for the app's bug. Detect cut-off turns deterministically from the text (`server/scoring/turnQuality.js`: `looksTruncatedDE` — dangling aux/conj/article/prep, "habe ich", 1–2-word scrap; `sessionSubstance` → `tooThinToJudge`). Then: mark cut-off turns in any transcript sent to a model + instruct it to judge ONLY completed turns; never quote a fragment back; don't send fragments to LanguageTool; and on a too-thin/mostly-cut-off session, emit an HONEST "too short/interrupted to judge — do a full run" (metrics + grammar, still one next step) instead of a manufactured verdict/luecke.
 
+8. **Never score what the machine hallucinated (ASR-hallucination guard, 2026-07-10).** Gemini Live's input transcriber invents "user" turns from speaker echo and noise: German written phonetically in the WRONG SCRIPT (Telugu/Arabic), repeat-loops ("Hallo."x5), and verbatim echoes of the boss's own line (AEC residue). Every one was scored as a learner answer until `server/transcriptGuard.js` (wrong_script <50% Latin letters / repeat_loop >=4 tokens <=2 distinct / boss_echo = normalized verbatim containment vs the PREVIOUS boss line only). Rules must stay conservative — keep when in doubt; a clarifying human rephrase or "Nein, nein, nein" must never be filtered. Wiring gotcha: capture the previous boss line BEFORE pushing this turn's reply, or the echo rule compares against the wrong line and eats mirrored genuine answers (review-caught).
+
 ## Build/audit checklist
 - [ ] Every number computed from the learner's own input (not invented)?
 - [ ] Corrections LanguageTool-backed; empty when unavailable?
@@ -24,6 +26,7 @@ Owner's hard rule: **never show a learner anything inaccurate or generic.** A fa
 - [ ] No label overclaims (pronunciation-from-text, faster-from-mic-on-time)?
 - [ ] Feedback ties to the hiring outcome (a concrete fix), not generic praise?
 - [ ] Cut-off / fragmentary turns detected and NEVER scored as a weakness/collapse (law 7)? Too-thin session → honest "do a full run", not a manufactured verdict?
+- [ ] Hallucinated/echoed turns filtered BEFORE scoring (law 8, transcriptGuard) — and the filter tested for false positives on genuine turns?
 - [ ] Fallback path returns a valid, honest shape when model/key is down?
 - [ ] Nothing on screen says "OpenAI"/"gpt" (owner directive).
 

@@ -1,5 +1,18 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 GEMINI TRUTH+FEEL FIX (2026-07-10, night) — `fd9e042`, verify-live in flight
+Owner reported twice: dead-air wait after speaking (words frozen mid-screen), then pasted transcript
+proof of SCORED hallucinations (Telugu-script "German", "Hallo."×5, boss-echo lines as DU). Shipped
+two bounded commits: (1) `9d9d442` client — CHEF DENKT NACH lights 600ms after your transcript goes
+quiet on the Gemini path (was: zero sign the boss heard you; $0 path had a filler, premium had
+nothing); (2) `ff48fc8` server — transcriptGuard (wrong_script/repeat_loop/boss_echo, conservative,
+15 tests) drops hallucinated turns from scoring+debrief, non-Latin chunks never paint the live
+subtitle, and /api/diag/latency finally records the Gemini gap (provider gemini-live; was ZERO
+instrumentation). Reviewer caught echo-vs-wrong-boss-line wiring bug → fixed+regression-pinned.
+ChatGPT-live question answered again: NO — VAD silence exists on every provider; measure first
+(diag/latency now can), mask the rest. NEXT: owner runs one interview → read
+/api/diag/latency for the real gemini-live numbers; if p95 ≫ 2s, then investigate region/model.
+
 ## 🔥 TRUST-PASS + OUTREACH LIVE (2026-07-10, evening) — `8235ceb` verified (Vercel+Guardian+prod grep)
 **NEW APP LAW (owner, answered explicitly): every detail must radiate TRUST · AUTHORITY · COMPETENCE
 — scope: the whole app.** Shipped under it: (1) El-Captain mentor chat DELETED (owner pasted its
