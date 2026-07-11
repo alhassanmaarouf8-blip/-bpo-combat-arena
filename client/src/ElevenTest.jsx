@@ -42,12 +42,22 @@ function ElevenInner({ apiUrl }) {
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [playerHp, setPlayerHp] = useState(100);
   const [bossHp, setBossHp]     = useState(100);
-  const fullRef    = useRef([]);
-  const startMsRef = useRef(0);
+  const fullRef        = useRef([]);
+  const startMsRef      = useRef(0);
+  const userEndedRef    = useRef(false);   // did the USER tap Beenden (clean end) vs an abnormal drop?
+  const fetchDebriefRef = useRef(null);    // stable handle so onDisconnect can debrief without stale closures
 
   const conv = useConversation({
     onConnect:    () => { startMsRef.current = Date.now(); setStatus('connected'); },
-    onDisconnect: () => setStatus('ended'),
+    onDisconnect: () => {
+      setStatus('ended');
+      // Abnormal drop mid-interview (ElevenLabs down / half-open socket, foot-gun #47) — never leave the
+      // user at a silent "Beendet": say so, still give feedback on what they said, and offer the normal path.
+      if (!userEndedRef.current) {
+        setErr('Die Verbindung wurde unterbrochen. Du kannst das normale Interview nutzen.');
+        try { fetchDebriefRef.current?.(); } catch { /* no partial to score */ }
+      }
+    },
     onError:      (e) => setErr(String(e?.message || e)),
     onMessage:    (m) => {
       if (!m?.message) return;
@@ -86,9 +96,10 @@ function ElevenInner({ apiUrl }) {
     } catch (e) { setErr('debrief: ' + String(e?.message || e)); }
     finally { setDebriefLoading(false); }
   }, [apiUrl]);
+  fetchDebriefRef.current = fetchDebrief;   // keep the ref current for onDisconnect (abnormal-drop path)
 
   const start = useCallback(async () => {
-    setErr(''); setLines([]); setDebrief(null); setPlayerHp(100); setBossHp(100); setStatus('connecting');
+    setErr(''); setLines([]); setDebrief(null); setPlayerHp(100); setBossHp(100); userEndedRef.current = false; setStatus('connecting');
     try {
       const token = localStorage.getItem('bpo_token') || '';
       const r = await fetch(`${apiUrl}/api/eleven/session?boss=${encodeURIComponent(boss)}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -99,7 +110,7 @@ function ElevenInner({ apiUrl }) {
     } catch (e) { setErr(String(e?.message || e)); setStatus('idle'); }
   }, [apiUrl, conv, boss]);
 
-  const stop = useCallback(() => { try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); fetchDebrief(); }, [conv, fetchDebrief]);
+  const stop = useCallback(() => { userEndedRef.current = true; try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); fetchDebrief(); }, [conv, fetchDebrief]);
 
   // Fallback (foot-gun #8/#47): if ElevenLabs won't connect (down / capped / half-open socket), never
   // leave the user stuck — surface the error + a route to the normal interview ($0/Gemini path in the app).
