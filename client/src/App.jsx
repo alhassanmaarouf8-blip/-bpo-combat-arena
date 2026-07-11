@@ -840,8 +840,30 @@ const GLOBAL_CSS = `
     overflow-x: hidden;
     overflow-y: auto;
   }
+  /* Ambient aurora (07-11) — a slow-drifting field of blue depth with ONE faint orange ember,
+     so the app never reads as a flat dead screen. Fixed behind all content, pointer-events off,
+     brand palette only. GPU-composited transform (cheap on phones); freezes under reduce-motion. */
+  body::before {
+    content:'';
+    position: fixed;
+    inset: -25%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(40% 46% at 18% 14%, rgba(59,130,246,0.30), transparent 70%),
+      radial-gradient(36% 42% at 86% 28%, rgba(96,165,250,0.20), transparent 72%),
+      radial-gradient(32% 38% at 64% 92%, rgba(249,115,22,0.14), transparent 72%);
+    animation: aurora-drift 36s var(--ease) infinite alternate;
+    will-change: transform;
+  }
+  #root { position: relative; z-index: 1; }
+  @keyframes aurora-drift {
+    0%   { transform: translate3d(-3%, -2%, 0) scale(1.06); }
+    50%  { transform: translate3d(2.5%, 1.5%, 0) scale(1.13); }
+    100% { transform: translate3d(3%, -1%, 0) scale(1.07); }
+  }
   /* CRT scanline overlay REMOVED (07-02 uplift) — premium surfaces are clean; the gamer-HUD
-     texture read as a toy. (body::before + .scanline are gone on purpose.) */
+     texture read as a toy. (the old scanline body::before is gone; this one is the aurora.) */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.25); border-radius: 2px; }
@@ -5594,9 +5616,18 @@ function AuthedApp() {
     if (!auth) return;
     let cancelled = false;
     fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${auth.token}` } })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('unauth'))))
-      .then((d) => { if (!cancelled) { const a = { token: auth.token, account: d.account }; persistAuth(a); setAuth(a); } })
-      .catch(() => { if (!cancelled) { persistAuth(null); setAuth(null); } });
+      .then(async (r) => {
+        if (r.ok) {
+          // Token valid → refresh the cached account.
+          const d = await r.json();
+          if (!cancelled) { const a = { token: auth.token, account: d.account }; persistAuth(a); setAuth(a); }
+        } else if (r.status === 401 || r.status === 403) {
+          // Token genuinely rejected → this is the ONLY case that logs you out.
+          if (!cancelled) { persistAuth(null); setAuth(null); }
+        }
+        // Any other status (5xx, Render cold-start error page, etc.) → keep the cached session; the token is almost certainly still good.
+      })
+      .catch(() => { /* network error / offline / cold-start timeout → keep the cached session, do NOT log out */ });
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
