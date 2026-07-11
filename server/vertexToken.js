@@ -44,8 +44,35 @@ export async function getVertexAccessToken() {
   if (cached.token && now < cached.exp - 300) return cached.token;
 
   const sa = loadServiceAccount();
-  if (!sa?.client_email || !sa?.private_key) {
-    throw new Error('vertexToken: no usable service-account key (set GOOGLE_SA_KEY_JSON or GOOGLE_APPLICATION_CREDENTIALS)');
+  if (!sa) {
+    throw new Error('vertexToken: no usable credentials (set GOOGLE_SA_KEY_JSON or GOOGLE_APPLICATION_CREDENTIALS)');
+  }
+
+  // authorized_user (gcloud ADC file) support: refresh-token grant instead of a signed JWT.
+  // Lets the owner's own gcloud credentials run Render until a real service account exists.
+  // NOTE: user creds carry OWNER-level project access — a scoped service account is the
+  // better long-term key; swap when one exists (revoke: myaccount.google.com/permissions).
+  if (sa.type === 'authorized_user' || (sa.refresh_token && !sa.private_key)) {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: sa.client_id,
+        client_secret: sa.client_secret,
+        refresh_token: sa.refresh_token,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`vertexToken: refresh-token exchange failed ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    }
+    const j = await res.json();
+    cached = { token: j.access_token, exp: now + (j.expires_in || 3600) };
+    return cached.token;
+  }
+
+  if (!sa.client_email || !sa.private_key) {
+    throw new Error('vertexToken: credentials file is neither a service-account key nor an authorized_user file');
   }
 
   const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
