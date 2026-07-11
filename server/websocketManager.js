@@ -186,6 +186,8 @@ const C = {
   ANSWER:       'answer',
   AUDIO_CHUNK:  'audio_chunk',   // b64-encoded linear16 PCM chunk (hands-free streaming)
   AUDIO_END:    'audio_end',     // client: VAD silence detected — finalize the stream
+  ACTIVITY_START: 'activity_start', // Gemini manual VAD: candidate started speaking
+  ACTIVITY_END:   'activity_end',   // Gemini manual VAD: candidate yielded the turn
   EXPORT_TRANSCRIPT: 'export_transcript',   // client asks for the accurate conversation PDF (end of fight)
   PING:         'ping',
 };
@@ -369,6 +371,15 @@ export class WebSocketManager {
         // Routed inside _handleAudioChunk: the Gemini proxy (resampled 24→16 kHz) when this fight is
         // on the native-audio path, else Deepgram streaming STT for the $0 pipeline.
         this._handleAudioChunk(ctx, msg);
+        break;
+
+      case C.ACTIVITY_START:
+        // Explicit Gemini turn boundaries are accepted only for an active native-audio fight.
+        ctx.geminiProxy?.sendActivityStart();
+        break;
+
+      case C.ACTIVITY_END:
+        ctx.geminiProxy?.sendActivityEnd();
         break;
 
       case C.EXPORT_TRANSCRIPT:

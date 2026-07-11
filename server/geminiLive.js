@@ -67,13 +67,10 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
         // auth, never 1007 schema). The boss already replies to raw audio — this only fixes the text.
         speechConfig: { languageCode: 'de-DE', ...(voiceName ? { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } : {}) },
       },
-      // Faster end-of-turn: detect the candidate finishing sooner (interview turns are short). The
-      // 400ms silence + high end-sensitivity. REVERTED from a 250ms experiment: lowering it made the
-      // VAD twitchy — it flickered speech/silence ("DENKT NACH on and off") and turns failed to complete
-      // cleanly, which combined with the mic-gate to hang the call ~8s. 400ms is the stable value; the
-      // real latency fix is client-driven activityEnd (the client's own mic VAD signalling turn-end),
-      // NOT a lower silence threshold here.
-      realtimeInputConfig: { automaticActivityDetection: { endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH', silenceDurationMs: 400 } },
+      // The browser owns turn boundaries. Its adaptive mic VAD sends explicit activityStart/activityEnd,
+      // avoiding Gemini's server-side end-of-speech/finalization wait. The browser state machine has a
+      // max-turn backstop; do not re-enable automatic VAD in parallel or the two detectors will race.
+      realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
       systemInstruction: { parts: [{ text: systemInstruction }] },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
@@ -117,6 +114,16 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
     sendAudioChunk(base64Pcm16k) {
       if (ws.readyState !== 1) return false;
       ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64Pcm16k }] } }));
+      return true;
+    },
+    sendActivityStart() {
+      if (ws.readyState !== 1) return false;
+      ws.send(JSON.stringify({ realtimeInput: { activityStart: {} } }));
+      return true;
+    },
+    sendActivityEnd() {
+      if (ws.readyState !== 1) return false;
+      ws.send(JSON.stringify({ realtimeInput: { activityEnd: {} } }));
       return true;
     },
     // Send a text user turn (used for testing + typed fallback).

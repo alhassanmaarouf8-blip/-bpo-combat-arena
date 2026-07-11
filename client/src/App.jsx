@@ -209,6 +209,8 @@ const C = {
   ANSWER:       'answer',
   AUDIO_CHUNK:  'audio_chunk',   // b64 linear16 PCM chunk (hands-free streaming)
   AUDIO_END:    'audio_end',     // VAD silence — finalize the Deepgram stream
+  ACTIVITY_START: 'activity_start', // Gemini manual VAD: candidate started speaking
+  ACTIVITY_END:   'activity_end',   // Gemini manual VAD: candidate yielded the turn
   PING:         'ping',
 };
 
@@ -3400,6 +3402,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const micSpeakingRef       = useRef(false); // is the candidate currently speaking (energy above threshold)
   const micBelowSinceRef     = useRef(0);     // Date.now() the energy first dropped below the threshold this dip
   const userStopMsRef        = useRef(0);     // Date.now() the candidate is judged to have STOPPED (turn end)
+  const micStartFramesRef    = useRef(0);     // consecutive speech frames; rejects single-frame clicks/noise
+  const micTurnStartedRef    = useRef(false); // activityStart sent, waiting for exactly one activityEnd
+  const micTurnStartMsRef    = useRef(0);     // max-turn safety clock
+  const micTurnCappedRef     = useRef(false); // suppress immediate re-open after the safety cap
+  const micPrerollRef        = useRef([]);    // audio retained until speech start is confirmed (no clipped first syllable)
   const geminiThinkTimerRef  = useRef(null);  // debounce: your transcript goes quiet → "CHEF DENKT NACH…"
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
@@ -3492,19 +3499,54 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // ── Turn-end detection for the live latency counter ───────────────────────────────────
           // Only while the mic is actually open (not echo-gated during the boss's turn — otherwise the
           // boss's own leaked voice would register as the candidate speaking).
-          if (Date.now() < micEchoTailRef.current) { micSpeakingRef.current = false; micBelowSinceRef.current = 0; return; }
+          const now = Date.now();
+          if (now < micEchoTailRef.current) {
+            micSpeakingRef.current = false; micBelowSinceRef.current = 0; micStartFramesRef.current = 0;
+            micTurnCappedRef.current = false;
+            micPrerollRef.current = [];
+            return;
+          }
           const peak = micPeakRef.current = Math.max(micPeakRef.current * 0.99, v);
           const speaking = v > Math.max(0.03, peak * 0.28);   // adaptive: 28% of the decaying peak, scale-free
+          if (micTurnCappedRef.current) {
+            if (!speaking) micTurnCappedRef.current = false;
+            return;
+          }
           if (speaking) {
+            micStartFramesRef.current += 1;
             micBelowSinceRef.current = 0;
             micSpeakingRef.current = true;
+            // Three consecutive animation frames (~50ms) reject clicks but still feel immediate.
+            // Flush the short pre-roll only AFTER activityStart so Gemini includes the first syllable.
+            if (!micTurnStartedRef.current && micStartFramesRef.current >= 3) {
+              try {
+                wsRef.current?.send(JSON.stringify({ type: C.ACTIVITY_START }));
+                for (const data of micPrerollRef.current) wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data }));
+              } catch { /* socket closing */ }
+              micPrerollRef.current = [];
+              micTurnStartedRef.current = true;
+              micTurnStartMsRef.current = now;
+            }
           } else if (micSpeakingRef.current) {
-            if (!micBelowSinceRef.current) micBelowSinceRef.current = Date.now();
-            else if (Date.now() - micBelowSinceRef.current > 300) {   // 300ms below threshold = turn ended
+            micStartFramesRef.current = 0;
+            if (!micBelowSinceRef.current) micBelowSinceRef.current = now;
+            else if (micTurnStartedRef.current && now - micBelowSinceRef.current > 650) {
               micSpeakingRef.current = false;
               userStopMsRef.current = micBelowSinceRef.current;       // backdate to the true moment of silence
               micBelowSinceRef.current = 0;
+              try { wsRef.current?.send(JSON.stringify({ type: C.ACTIVITY_END })); } catch { /* socket closing */ }
+              micTurnStartedRef.current = false;
+              micTurnStartMsRef.current = 0;
             }
+          } else {
+            micStartFramesRef.current = 0;
+          }
+          // A pathological noise floor or uninterrupted monologue must never leave Gemini waiting forever.
+          if (micTurnStartedRef.current && now - micTurnStartMsRef.current >= 45_000) {
+            userStopMsRef.current = now;
+            try { wsRef.current?.send(JSON.stringify({ type: C.ACTIVITY_END })); } catch { /* socket closing */ }
+            micTurnStartedRef.current = false; micTurnStartMsRef.current = 0; micBelowSinceRef.current = 0;
+            micSpeakingRef.current = false; micStartFramesRef.current = 0; micTurnCappedRef.current = true;
           }
         },
         onChunk:  (b64) => {
@@ -3519,6 +3561,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           // gated on geminiVoiceOnRef, which a missing turn-complete left stuck true → mic shut forever
           // → the 8-second silent hangs.) Cost by design: no mid-sentence barge-in.
           if (Date.now() < micEchoTailRef.current) return;
+          if (micTurnCappedRef.current) return;
+          // Before confirmed speech, retain only a short rolling pre-roll. This prevents ambient silence
+          // from reaching Gemini while preserving speech that arrived just before the 3-frame confirmation.
+          if (!micTurnStartedRef.current) {
+            micPrerollRef.current.push(b64);
+            if (micPrerollRef.current.length > 3) micPrerollRef.current.shift();
+            return;
+          }
           try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ }
         },
       });
@@ -3543,6 +3593,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     geminiBossLineRef.current = '';
     geminiPendingTextRef.current = '';
     geminiVoiceOnRef.current = false;
+    micTurnStartedRef.current = false;
+    micTurnStartMsRef.current = 0;
+    micTurnCappedRef.current = false;
+    micStartFramesRef.current = 0;
+    micBelowSinceRef.current = 0;
+    micPrerollRef.current = [];
     if (geminiThinkTimerRef.current) { clearTimeout(geminiThinkTimerRef.current); geminiThinkTimerRef.current = null; }
     setBossThinking(false);   // never carry a Gemini "denkt nach" into the $0 fallback path
     setRecording(false);
