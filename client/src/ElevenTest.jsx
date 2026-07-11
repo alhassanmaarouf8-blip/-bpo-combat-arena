@@ -6,8 +6,13 @@
  * through the app's REAL pipeline on the accurate transcript (MUST #2). Uses the app's design tokens
  * (--accent etc.) so it reads as the same product.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
+
+// In-app browsers (Messenger/FB/Instagram/WeChat/Line WebView) BLOCK getUserMedia — the mic is dead by
+// design (foot-gun #34). Detect and gate BEFORE the interview so the user isn't stuck with a silent mic.
+const IN_APP_BROWSER = /(FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|;wv|Line\/|MicroMessenger|GSA\/)/i.test(
+  typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '');
 
 const BOSSES = [
   { id: 'yasmin', name: 'Yasmin', color: '#f59e0b' }, { id: 'karim', name: 'Karim', color: '#3b82f6' },
@@ -96,6 +101,38 @@ function ElevenInner({ apiUrl }) {
 
   const stop = useCallback(() => { try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); fetchDebrief(); }, [conv, fetchDebrief]);
 
+  // Fallback (foot-gun #8/#47): if ElevenLabs won't connect (down / capped / half-open socket), never
+  // leave the user stuck — surface the error + a route to the normal interview ($0/Gemini path in the app).
+  useEffect(() => {
+    if (status !== 'connecting') return;
+    const t = setTimeout(() => { setErr('Verbindung dauert zu lange. Du kannst das normale Interview nutzen.'); setStatus('idle'); }, 18000);
+    return () => clearTimeout(t);
+  }, [status]);
+  const goNormal = () => { window.location.href = '/'; };
+
+  // In-app browser → the mic can't work here; show the escape instead of a dead interview.
+  if (IN_APP_BROWSER) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#04070d', color: '#e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', gap: 16, fontFamily: 'system-ui,sans-serif' }}>
+        <div style={{ fontSize: 40 }}>🎙</div>
+        <div style={{ fontSize: 17, fontWeight: 700 }}>Öffne die Seite in Chrome</div>
+        <div style={{ fontSize: 14, color: '#94a3b8', maxWidth: 340, lineHeight: 1.6 }}>
+          Der In-App-Browser (Messenger/Facebook) blockiert dein Mikrofon. Kopiere den Link und öffne ihn in Chrome.
+        </div>
+        <button onClick={() => { try { navigator.clipboard?.writeText(window.location.href); } catch { /* clipboard blocked */ } }}
+          style={{ padding: '13px 26px', fontSize: 15, fontWeight: 700, borderRadius: 12, border: 'none', cursor: 'pointer', background: 'var(--grad-action,linear-gradient(135deg,#f59e0b,#f97316))', color: '#081019' }}>
+          🔗 Link kopieren
+        </button>
+        {/Android/i.test(navigator.userAgent || '') && (
+          <a href={`intent://${window.location.host}${window.location.pathname}${window.location.search}#Intent;scheme=https;package=com.android.chrome;end`}
+            style={{ color: 'var(--accent-2,#60a5fa)', fontWeight: 700, textDecoration: 'underline', fontSize: 14 }}>
+            In Chrome öffnen →
+          </a>
+        )}
+      </div>
+    );
+  }
+
   const speaking = conv.isSpeaking;
   const active = status === 'connected';
   const b = BOSSES.find((x) => x.id === boss) || BOSSES[0];
@@ -160,7 +197,14 @@ function ElevenInner({ apiUrl }) {
         </button>
       )}
 
-      {err && <div style={{ maxWidth: 440, fontSize: 12, color: '#fca5a5', background: '#1a0a0a', padding: 12, borderRadius: 8, wordBreak: 'break-word' }}>⚠ {err}</div>}
+      {err && (
+        <div style={{ maxWidth: 440, width: '100%', fontSize: 12, color: '#fca5a5', background: '#1a0a0a', padding: 12, borderRadius: 8, wordBreak: 'break-word', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div>⚠ {err}</div>
+          <button onClick={goNormal} style={{ alignSelf: 'flex-start', padding: '7px 14px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--accent,#3b82f6)', background: 'rgba(59,130,246,0.1)', color: '#93c5fd' }}>
+            → Zum normalen Interview
+          </button>
+        </div>
+      )}
 
       {/* subtitle / transcript */}
       {lines.length > 0 && (
