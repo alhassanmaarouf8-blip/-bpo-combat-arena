@@ -3268,6 +3268,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [bossIsCorrection, setBossIsCorrection] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [bossSpeak, setBossSpeak] = useState(false);
+  const [lastTurnLatencyMs, setLastTurnLatencyMs] = useState(null);   // measured stop→boss-voice gap, shown live during the Gemini fight
   const [userSpeak, setUserSpeak] = useState(false);
   // Boss voice (browser TTS) on/off — persisted; default ON so the boss speaks.
   const [ttsMuted, setTtsMuted] = useState(() => {
@@ -3393,6 +3394,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiPendingTextRef = useRef('');   // transcript chunks held back until the boss's VOICE starts
   const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
   const micEchoTailRef       = useRef(0);     // Date.now() until which the mic stays gated AFTER the boss voice ends (echo/reverb tail)
+  // ── Live turn-latency measurement (owner's felt "4-5s"): from the moment mic energy drops to silence
+  //    (candidate stopped) to the first boss audio byte, measured on the REAL device with the REAL voice.
+  const micPeakRef           = useRef(0);     // decaying peak mic volume → adaptive speech/silence threshold
+  const micSpeakingRef       = useRef(false); // is the candidate currently speaking (energy above threshold)
+  const micBelowSinceRef     = useRef(0);     // Date.now() the energy first dropped below the threshold this dip
+  const userStopMsRef        = useRef(0);     // Date.now() the candidate is judged to have STOPPED (turn end)
   const geminiThinkTimerRef  = useRef(null);  // debounce: your transcript goes quiet → "CHEF DENKT NACH…"
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
@@ -3480,7 +3487,26 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
     try {
       const rec = new ClipRecorder({
-        onVolume: (v) => { volRef.current = v; },
+        onVolume: (v) => {
+          volRef.current = v;
+          // ── Turn-end detection for the live latency counter ───────────────────────────────────
+          // Only while the mic is actually open (not echo-gated during the boss's turn — otherwise the
+          // boss's own leaked voice would register as the candidate speaking).
+          if (Date.now() < micEchoTailRef.current) { micSpeakingRef.current = false; micBelowSinceRef.current = 0; return; }
+          const peak = micPeakRef.current = Math.max(micPeakRef.current * 0.99, v);
+          const speaking = v > Math.max(0.03, peak * 0.28);   // adaptive: 28% of the decaying peak, scale-free
+          if (speaking) {
+            micBelowSinceRef.current = 0;
+            micSpeakingRef.current = true;
+          } else if (micSpeakingRef.current) {
+            if (!micBelowSinceRef.current) micBelowSinceRef.current = Date.now();
+            else if (Date.now() - micBelowSinceRef.current > 300) {   // 300ms below threshold = turn ended
+              micSpeakingRef.current = false;
+              userStopMsRef.current = micBelowSinceRef.current;       // backdate to the true moment of silence
+              micBelowSinceRef.current = 0;
+            }
+          }
+        },
         onChunk:  (b64) => {
           // ── HALF-DUPLEX ECHO GATE (2026-07-11, hardened) ──────────────────────────────────────
           // While Yasmin's voice is audible (+ a short reverb tail), do NOT stream the mic to Gemini.
@@ -3654,6 +3680,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // her voice is actually audible — the text follows the speech, never announces it.
         if (!geminiVoiceOnRef.current) {
           geminiVoiceOnRef.current = true;
+          // Live latency: from when the candidate STOPPED (mic went silent) to this first boss byte.
+          if (userStopMsRef.current) {
+            setLastTurnLatencyMs(Date.now() - userStopMsRef.current);
+            userStopMsRef.current = 0;
+          }
           // The voice is here — a pending "denkt nach" timer must never fire mid-speech.
           if (geminiThinkTimerRef.current) { clearTimeout(geminiThinkTimerRef.current); geminiThinkTimerRef.current = null; }
           if (geminiPendingTextRef.current) {
@@ -5157,6 +5188,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <div style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, maxWidth:264 }}>
                 Sprich ganz normal — wie ein echtes Telefongespräch.
               </div>
+              {lastTurnLatencyMs != null && (
+                <div style={{ fontFamily:'var(--font-display)', fontSize:11.5, letterSpacing:'0.08em', marginTop:2,
+                  color: lastTurnLatencyMs <= 1800 ? 'var(--accent)' : lastTurnLatencyMs <= 3000 ? 'var(--warn)' : '#f87171' }}>
+                  ⏱ {(lastTurnLatencyMs / 1000).toFixed(1)}s
+                </div>
+              )}
             </div>
           ) : (
           <>
