@@ -85,18 +85,6 @@ export class GeminiLiveProxy {
     catch { return false; }
   }
 
-  sendActivityStart() {
-    if (!this._session?.isOpen?.()) return false;
-    try { return this._session.sendActivityStart(); }
-    catch { return false; }
-  }
-
-  sendActivityEnd() {
-    if (!this._session?.isOpen?.()) return false;
-    try { return this._session.sendActivityEnd(); }
-    catch { return false; }
-  }
-
   sendText(text) {
     if (!this._session?.isOpen?.()) return false;
     try { this._session.sendText(text); return true; }
