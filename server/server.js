@@ -22,6 +22,7 @@ import { listeningRouter }     from './listening.js';
 import { satzbauRouter }       from './satzbauSchmiede.js';
 import { spokenReviewRouter }  from './spokenReview.js';
 import { guideRouter }         from './alhassan.js';
+import { phase0Router }        from './phase0Eleven.js';   // TEMPORARY — ElevenLabs Phase-0 proof; remove after
 import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
 import { dbEnabled }            from './db.js';
@@ -46,6 +47,19 @@ if (!hasGroq && !hasGeminiLive) {
 const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 
 const app = express();
+
+// Security headers — production hardening (Layer 13). Zero-dependency, deliberately WITHOUT a
+// Content-Security-Policy: this backend serves an API + the ADMIN_KEY-gated HTML panel + WS, and a
+// strict CSP would risk breaking the panel/websocket without a real attack surface to justify it.
+// HSTS is safe (Render terminates TLS); X-Frame-Options SAMEORIGIN keeps the admin panel usable
+// while blocking clickjacking embeds; nosniff + referrer-policy are universally safe.
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  next();
+});
 
 app.use(cors({
   origin(origin, cb) {
@@ -129,6 +143,7 @@ app.post('/api/clienterror', (req, res) => {
   res.json({ ok: true });
 });
 
+app.use('/api/_phase0', phase0Router);   // TEMPORARY — ElevenLabs Phase-0 proof; remove after
 app.use('/api/auth', authRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api', progressRouter);
