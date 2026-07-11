@@ -895,6 +895,21 @@ const GLOBAL_CSS = `
     0%   { transform: translate3d(12%, 0, 0); }
     100% { transform: translate3d(-12%, 0, 0); }
   }
+  /* Edutainment (07-11): flying damage numbers — punch in, hang, drift up and fade. */
+  @keyframes dmg-pop {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.5); }
+    12%  { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1.18); }
+    24%  { transform: translateX(-50%) translateY(0) scale(1); }
+    70%  { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-34px) scale(0.92); }
+  }
+  @keyframes combo-pop {
+    0%   { opacity: 0; transform: translateX(-50%) scale(0.6); }
+    18%  { opacity: 1; transform: translateX(-50%) scale(1.1); }
+    30%  { transform: translateX(-50%) scale(1); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) scale(1); }
+  }
   /* CRT scanline overlay REMOVED (07-02 uplift) — premium surfaces are clean; the gamer-HUD
      texture read as a toy. (the old scanline body::before is gone; this one is the aurora.) */
   ::-webkit-scrollbar { width: 4px; }
@@ -3937,11 +3952,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // and just displayed here — the client never invents it.
         if (msg.emotion) { setEmotion(msg.emotion); emotionRef.current = msg.emotion; }
         if (msg.score !== undefined) {
-          setScoreFlash({ score: msg.score, damage: msg.damage });
-          setTimeout(() => setScoreFlash(null), 2800);
-
-          // (Elite pass: the flying 48px damage number died — the HpBar reason float below
-          // already carries the same information in instrument language.)
+          // Edutainment pass (07-11, owner: "go all in"): the flying damage number is BACK.
+          // hit = damage YOU dealt to the boss (strong answer), taken = damage you took.
+          // Both come straight from the server's deterministic scorer — never invented here.
+          const fid = ++_lineId;
+          setScoreFlash({ id: fid, score: msg.score, hit: msg.bossDamage || 0, taken: msg.damage || 0,
+            combo: Number.isFinite(msg.combo) ? msg.combo : 0 });
+          setTimeout(() => setScoreFlash(f => (f && f.id === fid ? null : f)), 2200);
         }
 
         // Tiny floating reason labels next to each HP bar — the SPECIFIC cause of the
@@ -5135,8 +5152,27 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
             textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
 
-          {/* Elite pass: the 48px flying "−12" arcade number died — the HpBar's quiet signed
-              annotation (±N + reason) already tells the same story in instrument language. */}
+          {/* Edutainment pass (07-11): flying damage numbers over the stage — the interview IS a
+              match you can feel yourself winning. Blue burst = your answer landed (boss lost HP);
+              orange burst = you slipped. Values come from the server's deterministic scorer. */}
+          {scoreFlash && scoreFlash.hit > 0 && (
+            <div key={`h${scoreFlash.id}`} style={{ position:'absolute', top:'26%', left:'50%', zIndex:7,
+              transform:'translateX(-50%)', pointerEvents:'none',
+              fontFamily:'var(--font-display)', fontWeight:800, fontSize:44, lineHeight:1,
+              color:'#93c5fd', textShadow:'0 0 18px rgba(59,130,246,0.9), 0 2px 6px rgba(0,0,0,0.8)',
+              animation:'dmg-pop 2.2s var(--ease) forwards' }}>
+              −{scoreFlash.hit}
+            </div>
+          )}
+          {scoreFlash && scoreFlash.combo >= 2 && scoreFlash.hit > 0 && (
+            <div key={`c${scoreFlash.id}`} style={{ position:'absolute', top:'44%', left:'50%', zIndex:7,
+              transform:'translateX(-50%)', pointerEvents:'none',
+              fontFamily:'var(--font-display)', fontWeight:700, fontSize:15, letterSpacing:'0.2em',
+              color:'#fdba74', textShadow:'0 0 12px rgba(249,115,22,0.8)',
+              animation:'combo-pop 2.2s var(--ease) forwards' }}>
+              COMBO ×{scoreFlash.combo}
+            </div>
+          )}
 
           {/* the lit opponent — leans in to listen while YOU speak; posture shifts with mood */}
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:56, zIndex:3 }}>
@@ -5178,8 +5214,18 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         </div>
 
         {/* DEINE HP — bottom frame */}
-        <div style={{ marginTop:6 }}>
+        <div style={{ marginTop:6, position:'relative' }}>
           <HpBar label="DEINE HP" value={playerHp} isPlayer={true} reason={playerReason} />
+          {/* damage you took this turn — orange burst rising off your own bar */}
+          {scoreFlash && scoreFlash.taken > 0 && (
+            <div key={`t${scoreFlash.id}`} style={{ position:'absolute', top:-8, right:18, zIndex:7,
+              pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:800, fontSize:26,
+              lineHeight:1, color:'#fdba74',
+              textShadow:'0 0 14px rgba(249,115,22,0.85), 0 2px 5px rgba(0,0,0,0.8)',
+              animation:'dmg-pop 2.2s var(--ease) forwards' }}>
+              −{scoreFlash.taken}
+            </div>
+          )}
         </div>
       </div>
       )}
