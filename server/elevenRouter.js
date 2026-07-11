@@ -107,7 +107,8 @@ elevenRouter.post('/debrief', async (req, res) => {
 elevenRouter.get('/_turn', async (req, res) => {
   if (req.query.token !== 'p0_elabs_9f3k2x7q_prove_2026') return res.status(403).json({ error: 'forbidden' });
   const key = process.env.ELEVENLABS_API_KEY;
-  const timeout = parseFloat(req.query.timeout || '2');
+  const timeout = parseFloat(req.query.timeout || '1.5');
+  const eagerness = req.query.eagerness || 'eager';
   const out = {};
   try {
     const g = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${AGENT_ID}`, { headers: { 'xi-api-key': key } });
@@ -115,7 +116,7 @@ elevenRouter.get('/_turn', async (req, res) => {
     out.currentTurn = gj?.conversation_config?.turn ?? gj?.conversation_config?.agent?.turn ?? '(not found)';
     const p = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${AGENT_ID}`, {
       method: 'PATCH', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_config: { turn: { turn_timeout: timeout, turn_model: 'turn_v3' } } }),
+      body: JSON.stringify({ conversation_config: { turn: { turn_timeout: timeout, turn_model: 'turn_v3', turn_eagerness: eagerness } } }),
     });
     out.patchStatus = p.status;
     out.patchBody = (await p.text()).slice(0, 400);
