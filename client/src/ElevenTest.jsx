@@ -112,6 +112,10 @@ function ElevenInner({ apiUrl }) {
 
   const stop = useCallback(() => { userEndedRef.current = true; try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); fetchDebrief(); }, [conv, fetchDebrief]);
 
+  // Pre-warm the backend (foot-gun #3: Render free dyno sleeps → 20-40s on the first session mint). Fired
+  // on mount so the dyno wakes while the user reads the screen / picks a persona → start is fast, not frozen.
+  useEffect(() => { fetch(`${apiUrl}/health`).catch(() => {}); }, [apiUrl]);
+
   // Fallback (foot-gun #8/#47): if ElevenLabs won't connect (down / capped / half-open socket), never
   // leave the user stuck — surface the error + a route to the normal interview ($0/Gemini path in the app).
   useEffect(() => {

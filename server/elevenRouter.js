@@ -120,27 +120,8 @@ elevenRouter.post('/debrief', async (req, res) => {
   }
 });
 
-// TEMP: read + tune the agent's turn-taking so end-of-turn is driven by VOICE silence, fast (owner: "my
-// voice is the only indicator I've finished — the HR must have nothing to do with the text"). Remove after.
-elevenRouter.get('/_turn', async (req, res) => {
-  if (req.query.token !== 'p0_elabs_9f3k2x7q_prove_2026') return res.status(403).json({ error: 'forbidden' });
-  const key = process.env.ELEVENLABS_API_KEY;
-  const timeout = parseFloat(req.query.timeout || '1.5');
-  const eagerness = req.query.eagerness || 'eager';
-  const out = {};
-  try {
-    const g = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${AGENT_ID}`, { headers: { 'xi-api-key': key } });
-    const gj = await g.json().catch(() => ({}));
-    out.currentTurn = gj?.conversation_config?.turn ?? gj?.conversation_config?.agent?.turn ?? '(not found)';
-    const p = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${AGENT_ID}`, {
-      method: 'PATCH', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_config: { turn: { turn_timeout: timeout, turn_model: 'turn_v3', turn_eagerness: eagerness, speculative_turn: (req.query.spec !== '0') } } }),
-    });
-    out.patchStatus = p.status;
-    out.patchBody = (await p.text()).slice(0, 400);
-    return res.json({ ok: p.ok, setTimeout: timeout, ...out });
-  } catch (e) { return res.json({ ok: false, error: e.message, ...out }); }
-});
+// (Removed the temporary /_turn agent-tuning endpoint — the fast turn config is locked on the agent:
+//  turn_timeout 1.5 · eager · turn_v3 · speculative. If the agent is ever recreated, re-apply that config.)
 
 export default { elevenRouter };
 
