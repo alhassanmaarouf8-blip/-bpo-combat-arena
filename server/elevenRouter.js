@@ -29,9 +29,9 @@ elevenRouter.get('/session', async (req, res) => {
   const signedUrl = await getSignedUrl();
   if (!signedUrl) return res.status(502).json({ error: 'signed_url_failed' });
 
-  // Overrides are optional for the first working call (the agent has a German interviewer baked in);
-  // persona-specific prompt/voice overrides get layered in next.
-  res.json({ signedUrl, agentId: AGENT_ID });
+  // Override the voice to Yasmin's German FEMALE voice (the agent's default is male). Only voice_id is
+  // overridden here — the agent keeps its baked-in German flash_v2_5 model. Per-persona voices next.
+  res.json({ signedUrl, agentId: AGENT_ID, overrides: { tts: { voiceId: 'Ah5UjbC5d1A2iCl9Lbe7' } } });
 });
 
 export default { elevenRouter };

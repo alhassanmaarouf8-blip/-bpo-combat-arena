@@ -29,7 +29,7 @@ function ElevenInner({ apiUrl }) {
       const r = await fetch(`${apiUrl}/api/eleven/session`, { headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.signedUrl) { setErr(`session ${r.status}: ${JSON.stringify(j).slice(0, 200)}`); setStatus('idle'); return; }
-      await conv.startSession({ signedUrl: j.signedUrl, connectionType: 'websocket' });
+      await conv.startSession({ signedUrl: j.signedUrl, connectionType: 'websocket', overrides: j.overrides });
     } catch (e) { setErr(String(e?.message || e)); setStatus('idle'); }
   }, [apiUrl, conv]);
 
