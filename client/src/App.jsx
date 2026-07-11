@@ -3265,6 +3265,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [bossIsCorrection, setBossIsCorrection] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [bossSpeak, setBossSpeak] = useState(false);
+  const [lastTurnLatencyMs, setLastTurnLatencyMs] = useState(null);   // display-only: measured stop→boss-voice gap
   const [userSpeak, setUserSpeak] = useState(false);
   // Boss voice (browser TTS) on/off — persisted; default ON so the boss speaks.
   const [ttsMuted, setTtsMuted] = useState(() => {
@@ -3389,6 +3390,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiBossLineRef = useRef('');
   const geminiPendingTextRef = useRef('');   // transcript chunks held back until the boss's VOICE starts
   const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
+  // Display-only turn-latency counter (diagnose the felt "4-5s"): adaptive mic-VAD on the volume signal.
+  const micPeakRef       = useRef(0);     // decaying peak volume → scale-free speech/silence threshold
+  const micSpeakingRef   = useRef(false); // candidate currently above the speech threshold
+  const micBelowSinceRef = useRef(0);     // Date.now() the volume first dropped below threshold this dip
+  const userStopMsRef    = useRef(0);     // Date.now() the candidate is judged to have STOPPED
   const geminiThinkTimerRef  = useRef(null);  // debounce: your transcript goes quiet → "CHEF DENKT NACH…"
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
@@ -3476,7 +3482,24 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
     try {
       const rec = new ClipRecorder({
-        onVolume: (v) => { volRef.current = v; },
+        onVolume: (v) => {
+          volRef.current = v;
+          // ── Display-only latency measurement (does NOT touch the audio stream) ──────────────────
+          // Detect when the candidate stops speaking. Skip while the boss voice is audible
+          // (geminiVoiceOnRef) so her leaked speaker audio isn't misread as the candidate.
+          if (geminiVoiceOnRef.current) { micSpeakingRef.current = false; micBelowSinceRef.current = 0; return; }
+          const peak = micPeakRef.current = Math.max(micPeakRef.current * 0.99, v);
+          const speaking = v > Math.max(0.03, peak * 0.28);   // 28% of decaying peak (getByteFrequencyData: silence≈0)
+          if (speaking) { micBelowSinceRef.current = 0; micSpeakingRef.current = true; }
+          else if (micSpeakingRef.current) {
+            if (!micBelowSinceRef.current) micBelowSinceRef.current = Date.now();
+            else if (Date.now() - micBelowSinceRef.current > 300) {   // 300ms below threshold = stopped
+              micSpeakingRef.current = false;
+              userStopMsRef.current = micBelowSinceRef.current;       // backdate to the true silence moment
+              micBelowSinceRef.current = 0;
+            }
+          }
+        },
         onChunk:  (b64) => { try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ } },
       });
       await rec.start();
@@ -3633,6 +3656,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         // her voice is actually audible — the text follows the speech, never announces it.
         if (!geminiVoiceOnRef.current) {
           geminiVoiceOnRef.current = true;
+          // Latency counter: candidate's stop → this first boss byte (his real device, his real voice).
+          if (userStopMsRef.current) { setLastTurnLatencyMs(Date.now() - userStopMsRef.current); userStopMsRef.current = 0; }
           // The voice is here — a pending "denkt nach" timer must never fire mid-speech.
           if (geminiThinkTimerRef.current) { clearTimeout(geminiThinkTimerRef.current); geminiThinkTimerRef.current = null; }
           if (geminiPendingTextRef.current) {
@@ -5288,6 +5313,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               animation: isActive && !bossThinking ? 'pulse 2.2s ease-in-out infinite' : 'none' }} />
             {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : bossSpeak ? `${funnel?.displayName ?? 'GEGNER'} SPRICHT` : 'DU BIST DRAN') : 'VERBINDE…'}
           </div>
+          )}
+          {geminiMode && lastTurnLatencyMs != null && (
+            <div style={{ fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.08em', marginTop:4,
+              color: lastTurnLatencyMs <= 1800 ? 'var(--accent)' : lastTurnLatencyMs <= 3000 ? 'var(--warn)' : '#f87171' }}>
+              ⏱ {(lastTurnLatencyMs / 1000).toFixed(1)}s
+            </div>
           )}
           {isActive && !bossThinking && (
             <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>
