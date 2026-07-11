@@ -838,45 +838,62 @@ const GLOBAL_CSS = `
     overflow-x: hidden;
     overflow-y: auto;
   }
-  /* Ambient aurora (07-11) — a slow-drifting field of blue depth with ONE faint orange ember,
-     so the app never reads as a flat dead screen. Fixed behind all content, pointer-events off,
-     brand palette only. GPU-composited transform (cheap on phones); freezes under reduce-motion. */
-  body::before {
+  /* ARENA SPOTLIGHTS (07-11 v4) — two hard-edged diagonal light beams sweeping the ring like
+     stage rigs over a fight arena. Crisp stops (not soft radials — those read flat on phones),
+     visible motion within ~2s, transform-only (GPU), brand blue+orange, frozen under reduce-motion. */
+  body::before {                       /* BLUE beam pair — main sweep, left→right */
     content:'';
     position: fixed;
-    inset: -40%;
+    inset: -35%;                       /* oversized so the moving beams never show canvas edges */
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(42% 48% at 20% 16%, rgba(59,130,246,0.55), transparent 66%),
-      radial-gradient(40% 46% at 84% 26%, rgba(96,165,250,0.42), transparent 68%),
-      radial-gradient(38% 44% at 70% 90%, rgba(249,115,22,0.30), transparent 68%),
-      radial-gradient(46% 52% at 50% 55%, rgba(37,99,235,0.28), transparent 70%);
-    animation: aurora-drift 22s var(--ease) infinite alternate;
+      linear-gradient(115deg,
+        transparent 30%,
+        rgba(59,130,246,0.06) 30.2%,
+        rgba(96,165,250,0.30) 34%,
+        rgba(147,197,253,0.42) 36%,
+        rgba(96,165,250,0.30) 38%,
+        rgba(59,130,246,0.06) 41.8%,
+        transparent 42%),
+      linear-gradient(115deg,
+        transparent 55%,
+        rgba(59,130,246,0.20) 55.3%,
+        rgba(59,130,246,0.20) 58%,
+        transparent 58.3%);
+    animation: beam-sweep 11s ease-in-out infinite alternate;
     will-change: transform;
   }
-  /* Second, slower breathing layer so the field has real depth/life, not one flat sheet. */
-  body::after {
+  body::after {                        /* ORANGE counter-beam + static arena-floor glow */
     content:'';
     position: fixed;
-    inset: -40%;
+    inset: -35%;
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(34% 40% at 78% 68%, rgba(96,165,250,0.34), transparent 66%),
-      radial-gradient(30% 36% at 24% 78%, rgba(251,146,60,0.22), transparent 68%);
-    animation: aurora-breathe 15s var(--ease) infinite alternate;
-    will-change: transform, opacity;
+      linear-gradient(-70deg,
+        transparent 40%,
+        rgba(249,115,22,0.05) 40.2%,
+        rgba(251,146,60,0.22) 44%,
+        rgba(253,186,116,0.30) 45.5%,
+        rgba(251,146,60,0.22) 47%,
+        rgba(249,115,22,0.05) 50.8%,
+        transparent 51%),
+      linear-gradient(to top,
+        rgba(249,115,22,0.16) 0%,
+        rgba(249,115,22,0.05) 7%,
+        transparent 16%);
+    animation: beam-counter 17s ease-in-out infinite alternate;
+    will-change: transform;
   }
-  #root { position: relative; z-index: 1; min-height: 100svh; background: transparent; }  /* transparent so the aurora behind it is visible */
-  @keyframes aurora-drift {
-    0%   { transform: translate3d(-8%, -5%, 0) scale(1.05) rotate(0deg); }
-    50%  { transform: translate3d(7%, 4%, 0)  scale(1.22) rotate(4deg); }
-    100% { transform: translate3d(9%, -3%, 0) scale(1.10) rotate(-3deg); }
+  #root { position: relative; z-index: 1; min-height: 100svh; background: transparent; }  /* transparent so the beams behind it are visible */
+  @keyframes beam-sweep {              /* translate only — compositor-cheap on Android */
+    0%   { transform: translate3d(-16%, 0, 0); }
+    100% { transform: translate3d(16%, 0, 0); }
   }
-  @keyframes aurora-breathe {
-    0%   { transform: translate3d(5%, 3%, 0) scale(1.0);  opacity: 0.55; }
-    100% { transform: translate3d(-6%, -4%, 0) scale(1.25); opacity: 1; }
+  @keyframes beam-counter {
+    0%   { transform: translate3d(12%, 0, 0); }
+    100% { transform: translate3d(-12%, 0, 0); }
   }
   /* CRT scanline overlay REMOVED (07-02 uplift) — premium surfaces are clean; the gamer-HUD
      texture read as a toy. (the old scanline body::before is gone; this one is the aurora.) */
