@@ -1,5 +1,89 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 SALMA THE RECRUITER LIVE (2026-07-12) — 4 commits `693e980→80e44ee`, all god-pass verified
+Owner's guide-woman idea + placement-cold-open fused (approved plan
+`~/.claude/plans/delegated-puzzling-stallman.md`): the app = Salma's recruitment agency. LIVE:
+(1) `693e980` server GET/POST `/api/guide/profile` (typed name outranks STT, goal enum, idempotent
+salmaIntroAt); (2) `8e391a9` BrainGuide = her card + file notes (topWeakness finally surfaced +
+honest trial days); (3) `98cfc94` `SalmaTakeover.jsx` cold-open — once/account (server flag,
+cross-device proven), welcome→name/goal→screening(=free assessment)→her verdict (real level/focus/
+own-words quote)→books Yasmin at measured level; fail-open, kill switch `SALMA_LIVE` (App.jsx
+~:104); (4) `1ffdcf9`+`80e44ee` salma_* beacons whitelisted (they 400'd silently — new beacon
+events ALWAYS need server/funnelBeacon.js ALLOWED) + paywall fronted by her honest line (verify
+pass caught+fixed a false "minutes spent" claim). ALL her words = `client/src/salmaCopy.js`
+one-line owner templates (ar:'' slots, in docs/owner-ar-sheet.md; NO LLM ever — El-Captain law).
+`docs/SALMA-VOICE-SCRIPT.md` = 12 slot-free lines if owner ever wants her voiced ($0 until then).
+**OWNER: (1) fill her masri (owner-ar-sheet §salmaCopy.js — 25 rows) + rename her if "Salma" isn't
+the name you want (client/src/salmaCopy.js SALMA.name); (2) the cold-open is a 20-sec screen
+recording = your best FB ad yet.** QUEUED NEXT (approved plan's post-v1): pipeline-board home ·
+rival candidate (leaderboard) · voice clips · hire-readiness dossier export.
+Same session, earlier: arena spotlight beams `be11ebf` (bg finally non-boring, 7/10 phone probe) +
+flying damage numbers `dd78f41` + auth cross-device verification (server clean; residuals =
+Messenger-gate bypass strands tokens in WebView sandbox · iOS ITP needs an A2HS prompt).
+
+## 🔥 VERTEX AI TRANSPORT BUILT (2026-07-11) — commit `3d4e1bb` LOCAL ON MAIN, NOT PUSHED
+Owner's goal: Gemini Live bills the **$300 GCP free-trial credit** (project
+gen-lang-client-0719205380, credit 100% intact, expires **Sept 26**) instead of his card.
+DONE+PROVEN locally: gcloud installed+ADC (alhassanmaarouf2), aiplatform API enabled, $250 budget
+alert live (`08823d75`), and the code: `server/vertexToken.js` (SA-key→OAuth on Node crypto, zero
+deps) + Vertex WS transport in geminiLive.js/proxy + cred gates in server.js/wsManager.
+Vertex live model = `gemini-live-2.5-flash-preview-native-audio-09-2025` (probe-verified; AI-Studio
+`-latest` alias 404s on Vertex). Proof: `server/vertex-proof.test.mjs` PASS (74KB audio,
+"Vertex funktioniert."). Inert without env vars — API-key path unchanged.
+**REMAINING (blocked on owner, in order):** (1) approve `git push origin main` (deploys both);
+(2) run the 2 gcloud commands to create the `omni-vertex` service account + key (permission
+classifier blocked me — exact commands in the session report); (3) Render env: secret file
+`omni-vertex-key.json` + `GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/omni-vertex-key.json` +
+`GEMINI_USE_VERTEX=1` (TYPE, don't JS-inject) — GEMINI_API_KEY may stay as fallback but Vertex
+wins the gate only via GEMINI_USE_VERTEX; (4) raise GEMINI_BUDGET_USD (still $5); (5) probe one
+prod fight (`gemini-gate` log line now prints `vertex=`).
+
+## 🔥 COST MEASURED + REPRICING SHIPPED (2026-07-11) — FINAL `4fba81a` VERIFIED LIVE (owner-tuned: Basic 999 = 15 min/day as 2×7.5 interviews · Elite 1999 = 30 min/day as 4×7.5; supersedes same-day 3c7cd49 599/1499)
+Owner ordered: test 3 full interviews end-to-end, get cost/interview, then redo prices/features/
+trial (rule: every paid plan = daily HR-interview quota + unlimited drills; approachable vs
+German-course budgets). MEASURED on prod (probe-cost.mjs, edge-tts varied German answers, Gemini
+native audio, 0 fallback): **$0.022–0.025/min ⇒ 8-min interview ≈ $0.19 ≈ 9.6 EGP**; dense answers
+end the 3-stage fight in ~2 min. SHIPPED: plans sold as FULL daily interviews — Basic 1299→**599**
+(1×8-min/day), Elite 2999→**1499** (3/day + Ziel-Stelle + Neu-Einstufung), yearly = 10×monthly;
+MAX_FIGHT_MS 7.5→8 min; entitlement exposes dailySessions; paywall/home copy = interviews not
+minutes; SUB_AR masri untouched (still true with m=8/24). Trial mechanically unchanged (3 days at
+Basic = 1 interview/day + drills; post-trial one-time free fight stays). Verified live: health +
+Vercel meta = 3c7cd49, billing/status serves 599/1499 + dailySessions 1/3, fresh-signup
+entitlement dailySessions:1. Full economics: memory `bpo-cost-per-interview-repricing-0711`.
+**⚠ OWNER ACTIONS: (1) GEMINI_BUDGET_USD=5 = ~26 interviews/month for the WHOLE app then paid
+users silently drop to the $0 robotic path — raise it on Render (type real keys; ~$6/subscriber/mo
+worst-case). (2) 50% offer auto-expires tonight 23:59 Cairo; until then it discounts the NEW bases
+(299/750). (3) Masri pass on paywall copy invited (OWNER-AR slots unchanged).**
+
+## 🔥 ELITE PASS: HOME (2026-07-10) — `26eb853` VERIFIED LIVE (Vercel stamp + Guardian green + fresh prod screenshot, 0 page errors)
+Owner re-issued THE ELITE PROMPT ("my bpo app"). Surface shipped: home readiness ladder
+(RankLadder) de-arcaded — killed glowing rank text, idle-pulse dot, glow bars, the "SO NAH! 🔥"
+near-miss flasher, 🏆/🎯 chrome emoji, 9px micro-caps, orange-as-second-accent, and the
+INTERVIEW-BEREITSCHAFT/Rekrut label collision at 390px. Blue/neutral instrument now; the home's one
+orange = the CTA. Also fixed: scripts/qa/screenshot.mjs --signup was dead (probe-rot: labeled form
++ required WhatsApp; selectors now type-based). Enforcement history + parked items (shadow-action
+glow token, arcade rank vocabulary) recorded in design-system SKILL.md.
+**OWNER HIT THE RESET WALL LIVE ("nicht verfügbar" + rage): reset is DORMANT because SMTP_USER/
+SMTP_PASS are still unset in Render. OWNER STEP: create the Gmail App Password
+(myaccount.google.com/apppasswords, needs 2FA on) → set SMTP_USER=alhassanmaarouf2@gmail.com +
+SMTP_PASS=<16-char app password> in Render env (TYPE with real keys — JS-injected values don't
+save) → verify ONE real reset mail end-to-end. Craft pass queue after: debrief, paywall.**
+
+## 🔥 OWNER RAGE: "boss waits for my words / fixes never stick" (2026-07-10, night) — ANSWERED WITH PROOF
+He re-reported the transcript-gated feel + "you claimed voice-to-voice is separated 10^N times".
+FACTS ESTABLISHED (all curled live): Render build 9c434ac (includes ff48fc8 instrumentation +
+transcriptGuard — the fd9e042 verify-live is now CONFIRMED); /health geminiLive:true; gate is
+open for ALL accounts (geminiEmailAllowed = () => !GEMINI_LIVE_DISABLED, wsManager.js:57); funnel
+today 16 gemini_fight / 0 gemini_fallback → his fights DO run native voice-to-voice; transcripts
+are display-only on that path (packet proves it line-by-line). /api/diag/latency count=0 because
+Render restarted ~17:50Z (in-memory ring wiped) — NOT because instrumentation is missing.
+DELIVERED: `docs/CHATGPT-REVIEW-turn-latency.md` — self-contained external-review packet (owner
+asked to review "my code" with ChatGPT): full turn-taking chain (geminiLive.js, proxy, wsManager
+gemini handlers, client dispatch, GeminiVoicePlayer) + measured facts + 4 sharp review questions.
+NEXT PROOF STEP: owner hard-refreshes (Ctrl+Shift+R — stale tab = old code, the known trap), runs
+ONE fight, then `curl /api/diag/latency` → his real per-turn gemini-live gaps. If p95 ≫ 2s →
+region/model investigation. The felt 1.34–1.57s = Gemini generation; $0 floor unless masked better.
+
 ## 🔥 ELITE-NIGHT SPRINT (2026-07-10, late) — `00b9d80` all verified live
 Owner rage-cycle answered ship-by-ship: (1) `abbd9f2` Bis-zum-Job plan KILLED (owner veto, deletion
 pinned by test PLANS.job===undefined); (2) `e92c379` signup UNBROKEN — craft pass had labeled
