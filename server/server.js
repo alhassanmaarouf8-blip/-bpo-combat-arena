@@ -24,6 +24,7 @@ import { spokenReviewRouter }  from './spokenReview.js';
 import { guideRouter }         from './alhassan.js';
 import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
+import { elevenSetupRouter }     from './elevenSetup.js';   // TEMP — one-time ElevenLabs agent setup; remove after
 import { dbEnabled }            from './db.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -142,6 +143,7 @@ app.post('/api/clienterror', (req, res) => {
   res.json({ ok: true });
 });
 
+app.use('/api/_phase0', elevenSetupRouter);   // TEMP — one-time ElevenLabs agent setup; remove after
 app.use('/api/auth', authRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api', progressRouter);
