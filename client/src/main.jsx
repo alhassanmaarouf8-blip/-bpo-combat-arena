@@ -1,11 +1,16 @@
-import { StrictMode, Component } from 'react';
+import { StrictMode, Component, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import PublicFeedback from './PublicFeedback.jsx';
+// Lazy so the ElevenLabs SDK (~180KB gzip) is code-split into its own chunk — loaded ONLY on
+// ?elevenlabs, never in the main bundle every user downloads.
+const ElevenTest = lazy(() => import('./ElevenTest.jsx'));
 
 // A shareable link (?feedback) lands directly on the standalone feedback page — no login,
 // no hunting for the in-app button. Everything else renders the full app as before.
 const IS_FEEDBACK = /[?&]feedback\b/.test(window.location.search);
+// ?elevenlabs → the ISOLATED ElevenLabs voice test (owner rollout; separate from the fight code).
+const IS_ELEVEN = /[?&]elevenlabs\b/.test(window.location.search);
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
@@ -57,7 +62,9 @@ try {
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       <RootBoundary>
-        {IS_FEEDBACK ? <PublicFeedback /> : <App />}
+        {IS_ELEVEN
+          ? <Suspense fallback={<div style={{ minHeight: '100vh', background: '#04070d' }} />}><ElevenTest apiUrl={BACKEND} /></Suspense>
+          : IS_FEEDBACK ? <PublicFeedback /> : <App />}
       </RootBoundary>
     </StrictMode>,
   );
