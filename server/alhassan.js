@@ -416,3 +416,41 @@ guideRouter.get('/guide/history', requireAuth, async (req, res) => {
     res.json({ messages: [] });   // never crash the UI
   }
 });
+
+// ── Salma profile (deterministic — NO LLM anywhere on these two routes) ────────────────
+// The recruiter cold-open reads/writes three fields on the existing guide store: the user's
+// typed name, their goal (enum), and the once-only intro stamp. The LLM chat route above is
+// deliberately NOT reused: Salma's lines are fixed owner-authored templates (El-Captain rule).
+
+// GET /guide/profile — what the cold-open needs to decide its variant.
+guideRouter.get('/guide/profile', requireAuth, async (req, res) => {
+  try {
+    const g = await loadGuide(req.account.id);
+    res.json({ name: g.name || null, goal: g.goal || null, salmaIntroAt: g.salmaIntroAt || null });
+  } catch (err) {
+    console.error('[alhassan] profile read error:', err.message);
+    res.status(500).json({ error: 'profile_unavailable' });
+  }
+});
+
+// POST /guide/profile — { name?, goal?, salmaIntroSeen? }. Unknown fields ignored.
+const GOAL_WHITELIST = new Set(['bpo-job', 'better-german', 'other']);
+guideRouter.post('/guide/profile', requireAuth, async (req, res) => {
+  try {
+    const g = await loadGuide(req.account.id);
+    const body = req.body || {};
+    if (typeof body.name === 'string') {
+      // Strip control chars/newlines; a typed name outranks the in-fight STT auto-capture
+      // (websocketManager checks nameSource so a mis-heard name never overwrites this).
+      const clean = body.name.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+      if (clean) { g.name = clean; g.nameSource = 'typed'; }
+    }
+    if (typeof body.goal === 'string' && GOAL_WHITELIST.has(body.goal)) g.goal = body.goal;
+    if (body.salmaIntroSeen === true && !g.salmaIntroAt) g.salmaIntroAt = Date.now();  // idempotent
+    await saveGuide(g);
+    res.json({ ok: true, name: g.name || null, goal: g.goal || null, salmaIntroAt: g.salmaIntroAt || null });
+  } catch (err) {
+    console.error('[alhassan] profile write error:', err.message);
+    res.status(500).json({ error: 'profile_save_failed' });
+  }
+});
