@@ -18,6 +18,23 @@ export const elevenRouter = express.Router();
 const ALLOW = (process.env.ELEVEN_ALLOW_EMAILS || 'alhassanmaarouf2@gmail.com')
   .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
 
+// ── Cost guard (in-memory, resets daily) — bounds ElevenLabs spend during the rollout without a store.
+// Global cap AND per-user cap. Replaced by the full elevenBudget daily-quota when wired into the fight.
+let _capDay = '';
+let _globalCount = 0;
+const _userCount = new Map();
+function costGate(userKey) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== _capDay) { _capDay = today; _globalCount = 0; _userCount.clear(); }
+  const GLOBAL  = parseInt(process.env.ELEVEN_DAILY_SESSION_CAP || '50', 10);
+  const PERUSER = parseInt(process.env.ELEVEN_USER_SESSION_CAP  || '20', 10);
+  if (_globalCount >= GLOBAL) return 'global_cap';
+  const u = _userCount.get(userKey) || 0;
+  if (u >= PERUSER) return 'user_cap';
+  _globalCount += 1; _userCount.set(userKey, u + 1);
+  return null;
+}
+
 elevenRouter.get('/session', async (req, res) => {
   if (!elevenReady()) return res.status(503).json({ error: 'not_ready' });
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.query.token || '');
@@ -25,9 +42,12 @@ elevenRouter.get('/session', async (req, res) => {
   if (!p) return res.status(401).json({ error: 'unauthorized' });
 
   // TEST PHASE: any AUTHENTICATED user may use the ?elevenlabs test page (behind login + obscure URL).
-  // The email allowlist + daily budget guard get enforced when this is wired into the real fight flow.
-  // (ALLOW / getAccountById kept imported for that next step.)
+  // The email allowlist gets enforced when this is wired into the real fight flow.
   void ALLOW; void getAccountById;
+
+  // Cost guard — bounds ElevenLabs spend (owner's zero-spend rule) during the rollout.
+  const capErr = costGate(p.id || p.userId || p.uid || p.sub || 'anon');
+  if (capErr) return res.status(429).json({ error: capErr });
 
   const signedUrl = await getSignedUrl();
   if (!signedUrl) return res.status(502).json({ error: 'signed_url_failed' });
