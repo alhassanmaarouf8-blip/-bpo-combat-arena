@@ -1,28 +1,42 @@
 /**
- * ElevenTest.jsx — ISOLATED ElevenLabs voice test (open with ?elevenlabs).
+ * ElevenTest.jsx — the ElevenLabs interview, styled like the app's fight (open with ?elevenlabs).
  *
- * Does NOT touch the interview/fight code. Lets the owner test the raw ElevenLabs full-duplex German
- * voice on his real device before we wire it into the app. Gets a signed URL from the owner-allowlisted
- * /api/eleven/session, then runs a live conversation via the @elevenlabs/react SDK (mic + turn-taking
- * + playback all handled by the SDK).
+ * ISOLATED + lazy-loaded: never touches the live fight code, and the ElevenLabs SDK stays code-split
+ * (not in the main bundle). Voice + turn-taking = ElevenLabs (MUST #1); end-of-interview feedback runs
+ * through the app's REAL pipeline on the accurate transcript (MUST #2). Uses the app's design tokens
+ * (--accent etc.) so it reads as the same product.
  */
 import { useState, useCallback, useRef } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
-// v1.10 requires useConversation to live under a <ConversationProvider>. Wrap it (default export below).
 const BOSSES = [
-  { id: 'yasmin', name: 'Yasmin' }, { id: 'karim', name: 'Karim' }, { id: 'hana', name: 'Hana' },
-  { id: 'tarek', name: 'Tarek' }, { id: 'frau-mona-adel', name: 'Frau Mona Adel' }, { id: 'lukas', name: 'Lukas' },
+  { id: 'yasmin', name: 'Yasmin', color: '#f59e0b' }, { id: 'karim', name: 'Karim', color: '#3b82f6' },
+  { id: 'hana', name: 'Hana', color: '#a855f7' }, { id: 'tarek', name: 'Tarek', color: '#ef4444' },
+  { id: 'frau-mona-adel', name: 'Frau Mona Adel', color: '#ec4899' }, { id: 'lukas', name: 'Lukas', color: '#22c55e' },
 ];
+
+function HpBar({ label, value, color }) {
+  return (
+    <div style={{ width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-display,system-ui)', fontSize: 9, letterSpacing: '0.12em', color: '#94a3b8', marginBottom: 3 }}>
+        <span>{label}</span><span>{value}</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 6, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${Math.max(0, Math.min(100, value))}%`, background: color, transition: 'width 0.6s var(--ease,ease)' }} />
+      </div>
+    </div>
+  );
+}
 
 function ElevenInner({ apiUrl }) {
   const [boss, setBoss]     = useState('yasmin');
   const [status, setStatus] = useState('idle');   // idle | connecting | connected | ended
   const [lines, setLines]   = useState([]);
   const [err, setErr]       = useState('');
-  const [debrief, setDebrief]           = useState(null);
+  const [debrief, setDebrief]               = useState(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
-  const fullRef  = useRef([]);   // full transcript (uncapped) → fed to the real feedback pipeline
+  const [playerHp, setPlayerHp] = useState(100);
+  const fullRef    = useRef([]);
   const startMsRef = useRef(0);
 
   const conv = useConversation({
@@ -32,11 +46,10 @@ function ElevenInner({ apiUrl }) {
     onMessage:    (m) => {
       if (!m?.message) return;
       fullRef.current.push({ who: m.source, text: m.message });
-      setLines((ls) => [...ls, { who: m.source, text: m.message }].slice(-14));
+      setLines((ls) => [...ls, { who: m.source, text: m.message }].slice(-10));
     },
   });
 
-  // End-of-interview: run the app's REAL feedback pipeline on the accurate ElevenLabs transcript (MUST #2).
   const fetchDebrief = useCallback(async () => {
     const full = fullRef.current;
     if (!full || full.filter((l) => l.who === 'user').length === 0) return;
@@ -49,19 +62,20 @@ function ElevenInner({ apiUrl }) {
         body: JSON.stringify({ transcript: full, level: 'a2-b1', speechMs }),
       });
       const j = await r.json().catch(() => null);
-      if (r.ok && j) setDebrief(j); else setErr(`debrief ${r.status}: ${JSON.stringify(j).slice(0, 150)}`);
+      if (r.ok && j) { setDebrief(j); if (Number.isFinite(j?.metrics?.fluency)) setPlayerHp(j.metrics.fluency); }
+      else setErr(`debrief ${r.status}: ${JSON.stringify(j).slice(0, 150)}`);
     } catch (e) { setErr('debrief: ' + String(e?.message || e)); }
     finally { setDebriefLoading(false); }
   }, [apiUrl]);
 
   const start = useCallback(async () => {
-    setErr(''); setLines([]); setStatus('connecting');
+    setErr(''); setLines([]); setDebrief(null); setPlayerHp(100); setStatus('connecting');
     try {
       const token = localStorage.getItem('bpo_token') || '';
       const r = await fetch(`${apiUrl}/api/eleven/session?boss=${encodeURIComponent(boss)}`, { headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.signedUrl) { setErr(`session ${r.status}: ${JSON.stringify(j).slice(0, 200)}`); setStatus('idle'); return; }
-      fullRef.current = []; setDebrief(null);
+      fullRef.current = [];
       await conv.startSession({ signedUrl: j.signedUrl, connectionType: 'websocket', overrides: j.overrides });
     } catch (e) { setErr(String(e?.message || e)); setStatus('idle'); }
   }, [apiUrl, conv, boss]);
@@ -70,55 +84,82 @@ function ElevenInner({ apiUrl }) {
 
   const speaking = conv.isSpeaking;
   const active = status === 'connected';
+  const b = BOSSES.find((x) => x.id === boss) || BOSSES[0];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#04070d', color: '#e2e8f0', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'system-ui,sans-serif', gap: 20 }}>
-      <div style={{ fontSize: 12, letterSpacing: '0.22em', color: '#3b82f6', fontWeight: 700 }}>ELEVENLABS · VOICE-TEST</div>
-      <div aria-hidden style={{ width: 116, height: 116, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        border: `3px solid ${speaking ? '#f97316' : active ? '#3b82f6' : '#334155'}`,
-        boxShadow: speaking ? '0 0 34px #f9731688' : active ? '0 0 24px #3b82f688' : 'none',
-        transition: 'all .3s', fontSize: 46 }}>{speaking ? '🔊' : active ? '🎙' : '⏸'}</div>
-      <div style={{ fontSize: 14, color: active ? '#3b82f6' : '#94a3b8', minHeight: 20 }}>
-        {status === 'idle' ? 'Bereit' : status === 'connecting' ? 'Verbinde…'
-          : status === 'connected' ? (speaking ? 'YASMIN SPRICHT' : 'DU BIST DRAN — sprich Deutsch') : 'Beendet'}
+    <div style={{ minHeight: '100vh', background: 'radial-gradient(1000px 500px at 50% -10%, rgba(59,130,246,0.10), transparent 60%), #04070d',
+      color: '#e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '22px 16px 40px', fontFamily: 'system-ui,sans-serif', gap: 14 }}>
+      {/* stage */}
+      <div style={{ width: '100%', maxWidth: 440, borderRadius: 18, padding: '18px 16px',
+        background: 'linear-gradient(180deg, rgba(0,22,44,0.5), rgba(0,8,18,0.85))', border: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 12, left: 14, fontFamily: 'var(--font-display,system-ui)', fontWeight: 600, fontSize: 8.5, letterSpacing: '0.16em',
+          color: 'var(--accent-2,#60a5fa)', padding: '3px 9px', borderRadius: 999, background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.35)' }}>LIVE-INTERVIEW</div>
+        <div style={{ position: 'absolute', top: 12, right: 14, fontFamily: 'var(--font-display,system-ui)', fontWeight: 600, fontSize: 8.5, letterSpacing: '0.12em',
+          color: b.color, padding: '3px 9px', borderRadius: 999, background: `${b.color}1a`, border: `1px solid ${b.color}55` }}>
+          {speaking ? 'SPRICHT' : active ? 'HÖRT ZU' : 'BEREIT'}
+        </div>
+        {/* avatar */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 26, marginBottom: 14 }}>
+          <div style={{ position: 'relative', width: 96, height: 96, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: `radial-gradient(circle at 50% 35%, ${b.color}33, rgba(0,0,0,0.3))`,
+            border: `2px solid ${b.color}`, boxShadow: speaking ? `0 0 30px ${b.color}88` : active ? `0 0 16px ${b.color}44` : 'none',
+            animation: active && !speaking ? 'pulse 2.4s ease-in-out infinite' : 'none', transition: 'box-shadow 0.3s' }}>
+            <span style={{ fontFamily: 'var(--font-display,system-ui)', fontSize: 34, fontWeight: 800, color: '#fff' }}>{b.name[0]}</span>
+          </div>
+        </div>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--font-display,system-ui)', fontSize: 20, fontWeight: 700, letterSpacing: '0.03em', color: '#fff' }}>{b.name}</div>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--font-display,system-ui)', fontWeight: 600, letterSpacing: '0.2em', fontSize: 12, marginTop: 8,
+          color: speaking ? b.color : active ? 'var(--accent,#3b82f6)' : 'var(--warn,#f59e0b)' }}>
+          {status === 'connecting' ? 'VERBINDE…' : speaking ? `${b.name.toUpperCase()} SPRICHT` : active ? 'DU BIST DRAN' : status === 'ended' ? 'BEENDET' : 'BEREIT'}
+        </div>
+        {/* HP */}
+        <div style={{ marginTop: 16 }}><HpBar label="DEINE HP" value={playerHp} color="var(--accent,#3b82f6)" /></div>
       </div>
+
+      {/* persona picker (idle only) */}
       {status !== 'connected' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 360 }}>
-          {BOSSES.map((b) => (
-            <button key={b.id} onClick={() => setBoss(b.id)}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 380 }}>
+          {BOSSES.map((x) => (
+            <button key={x.id} onClick={() => setBoss(x.id)}
               style={{ padding: '6px 12px', fontSize: 12, borderRadius: 999, cursor: 'pointer',
-                border: `1px solid ${boss === b.id ? '#3b82f6' : '#334155'}`,
-                background: boss === b.id ? 'rgba(59,130,246,0.15)' : 'transparent',
-                color: boss === b.id ? '#93c5fd' : '#94a3b8', fontWeight: boss === b.id ? 700 : 400 }}>
-              {b.name}
+                border: `1px solid ${boss === x.id ? x.color : '#334155'}`,
+                background: boss === x.id ? `${x.color}22` : 'transparent', color: boss === x.id ? '#fff' : '#94a3b8', fontWeight: boss === x.id ? 700 : 400 }}>
+              {x.name}
             </button>
           ))}
         </div>
       )}
+
       {status !== 'connected' ? (
-        <button onClick={start} disabled={status === 'connecting'} style={{ padding: '14px 32px', fontSize: 16, fontWeight: 700,
-          borderRadius: 12, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff', opacity: status === 'connecting' ? 0.6 : 1 }}>
-          ▶ Gespräch starten
+        <button onClick={start} disabled={status === 'connecting'} style={{ width: '100%', maxWidth: 440, padding: '15px 20px', fontSize: 16, fontWeight: 700,
+          borderRadius: 16, border: 'none', cursor: 'pointer', color: '#081019', background: 'var(--grad-action, linear-gradient(135deg,#f59e0b,#f97316))',
+          opacity: status === 'connecting' ? 0.6 : 1, fontFamily: 'var(--font-display,system-ui)', letterSpacing: '0.02em' }}>
+          {status === 'connecting' ? 'Verbinde…' : status === 'ended' ? '↻ Nochmal' : '🎙 Interview starten'}
         </button>
       ) : (
-        <button onClick={stop} style={{ padding: '14px 32px', fontSize: 16, fontWeight: 700, borderRadius: 12,
-          border: '1px solid #ef4444', cursor: 'pointer', background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}>
-          ■ Beenden
+        <button onClick={stop} style={{ width: '100%', maxWidth: 440, padding: '13px 20px', fontSize: 14, fontWeight: 700, borderRadius: 14,
+          border: '1px solid #ef4444', cursor: 'pointer', background: 'rgba(239,68,68,0.12)', color: '#fca5a5', fontFamily: 'var(--font-display,system-ui)' }}>
+          ■ Interview beenden
         </button>
       )}
+
       {err && <div style={{ maxWidth: 440, fontSize: 12, color: '#fca5a5', background: '#1a0a0a', padding: 12, borderRadius: 8, wordBreak: 'break-word' }}>⚠ {err}</div>}
-      <div style={{ width: '100%', maxWidth: 460 }}>
-        {lines.map((l, i) => (
-          <div key={i} style={{ fontSize: 13, color: l.who === 'user' ? '#60a5fa' : '#e2e8f0', padding: '3px 0' }}>
-            <b style={{ opacity: 0.6 }}>{l.who === 'user' ? 'Du' : 'Yasmin'}:</b> {l.text}
-          </div>
-        ))}
-      </div>
+
+      {/* subtitle / transcript */}
+      {lines.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 440, padding: '10px 12px', borderRadius: 12, background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line,rgba(255,255,255,0.06))' }}>
+          {lines.map((l, i) => (
+            <div key={i} style={{ fontSize: 13, lineHeight: 1.5, color: l.who === 'user' ? 'var(--accent-2,#60a5fa)' : '#e2e8f0', padding: '2px 0' }}>
+              <b style={{ opacity: 0.6 }}>{l.who === 'user' ? 'Du' : b.name}:</b> {l.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* debrief — the app's REAL feedback */}
       {(debriefLoading || debrief) && (
-        <div style={{ width: '100%', maxWidth: 460, marginTop: 14, padding: 16, borderRadius: 12,
-          background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)' }}>
-          <div style={{ fontSize: 12, letterSpacing: '0.14em', color: '#3b82f6', fontWeight: 700, marginBottom: 10 }}>DEIN FEEDBACK</div>
+        <div style={{ width: '100%', maxWidth: 440, padding: 16, borderRadius: 14, background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)' }}>
+          <div style={{ fontFamily: 'var(--font-display,system-ui)', fontSize: 12, letterSpacing: '0.14em', color: 'var(--accent,#3b82f6)', fontWeight: 700, marginBottom: 10 }}>DEIN FEEDBACK</div>
           {debriefLoading && !debrief && <div style={{ fontSize: 13, color: '#94a3b8' }}>Analysiere dein Deutsch… dein echtes Feedback wird berechnet.</div>}
           {debrief && (
             <div style={{ fontSize: 13, lineHeight: 1.6 }}>
@@ -133,16 +174,13 @@ function ElevenInner({ apiUrl }) {
                   <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{debrief.grammar.slice(0, 3).map((g, i) => <li key={i}>{g.rule || g.explanation || ''}{g.examples?.[0] ? ` — „${g.examples[0].wrong}“ → „${g.examples[0].right}“` : ''}</li>)}</ul></div>
               )}
               {Array.isArray(debrief.studyNext) && debrief.studyNext.length > 0 && (
-                <div><b style={{ color: '#3b82f6' }}>Als Nächstes:</b>
+                <div><b style={{ color: 'var(--accent,#3b82f6)' }}>Als Nächstes:</b>
                   <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{debrief.studyNext.slice(0, 3).map((s, i) => <li key={i}>{s.detail || s.title || (typeof s === 'string' ? s : '')}</li>)}</ul></div>
               )}
             </div>
           )}
         </div>
       )}
-      <div style={{ fontSize: 11, color: '#475569', marginTop: 8, textAlign: 'center', maxWidth: 320 }}>
-        Sprich wie in einem echten Telefongespräch. Achte darauf, wie schnell &amp; natürlich es sich anfühlt — und ob es dich je unterbricht.
-      </div>
     </div>
   );
 }
