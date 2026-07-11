@@ -1,5 +1,17 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 FINISH-EVERYTHING WAVE (2026-07-12, after Salma) — `9e84bf9`, ALL Playwright-verified live
+Owner: "finish everything before you come back." Shipped+verified in one wave: (1) **WebView
+signup BLOCK** (Messenger/IG browsers: login ok, account-creation blocked + copy-link escape —
+closes the stranded-token residual); (2) **InstallCard** PWA prompt (Android one-tap via captured
+beforeinstallprompt + iOS A2HS hint — installed app = exempt from the 7-day iOS storage wipe);
+(3) **Salma pipeline board** (6-node interviewer ladder + next-booking line); (4) **rival note**
+(real weekly leaderboard, masked); (5) **Bewerbungs-Dossier** (FORTSCHRITT → DOSSIER → printable
+measured-evidence one-pager, nothing promised). New beacons whitelisted (inapp_signup_blocked,
+pwa_*). Verified: fresh signup regression clean (normal Chrome unaffected), console 0 errors.
+Owner-only remaining: masri fill + optional voice clips + her name. Deferred eng: per-user push
+text (payload encryption).
+
 ## 🔥 SALMA THE RECRUITER LIVE (2026-07-12) — 4 commits `693e980→80e44ee`, all god-pass verified
 Owner's guide-woman idea + placement-cold-open fused (approved plan
 `~/.claude/plans/delegated-puzzling-stallman.md`): the app = Salma's recruitment agency. LIVE:
