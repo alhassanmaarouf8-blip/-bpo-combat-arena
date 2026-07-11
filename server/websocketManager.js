@@ -1989,6 +1989,23 @@ export class WebSocketManager {
       if (wordCount < 25 && wordCount >= MIN_SCORED_WORDS) { score -= 10; add('player', 'zu kurz für C1', 7); }
     }
 
+    // ── Anti-gaming (2026-07-11): keyword/buzzword farming must not earn structure+vocab credit.
+    // Spamming connectors or C1 words, or repeating one word, is NOT a real answer. When the reply is
+    // mostly bonus-list words (>35%) or heavily repeated (unique/total <0.5), strip the boss-side
+    // lexical/structural rewards and cap the score. Real answers (buzzword ratio well under 35%) are
+    // untouched. Deterministic — the CEFR panel scorer catches subtler cases.
+    {
+      const gw = text.trim().split(/\s+/).filter(Boolean);
+      const uniqR = gw.length ? new Set(gw).size / gw.length : 1;
+      const bonusSet = new Set([...connectors, ...konjunktiv, ...c1Words]);
+      const kwR = gw.length ? gw.filter((x) => bonusSet.has(x.replace(/[.,!?…„“”»«]/g, ''))).length / gw.length : 0;
+      if (gw.length >= 4 && (uniqR < 0.5 || kwR > 0.35)) {
+        for (let i = factors.length - 1; i >= 0; i--) if (factors[i].side === 'boss') factors.splice(i, 1);
+        score = Math.min(score, 40);
+        add('player', 'kein echter Satz', 6);
+      }
+    }
+
     return { score: Math.max(0, Math.min(100, Math.round(score))), factors };
   }
 
