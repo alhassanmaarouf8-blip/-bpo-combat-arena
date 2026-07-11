@@ -116,7 +116,7 @@ elevenRouter.get('/_turn', async (req, res) => {
     out.currentTurn = gj?.conversation_config?.turn ?? gj?.conversation_config?.agent?.turn ?? '(not found)';
     const p = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${AGENT_ID}`, {
       method: 'PATCH', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_config: { turn: { turn_timeout: timeout, turn_model: 'turn_v3', turn_eagerness: eagerness } } }),
+      body: JSON.stringify({ conversation_config: { turn: { turn_timeout: timeout, turn_model: 'turn_v3', turn_eagerness: eagerness, speculative_turn: (req.query.spec !== '0') } } }),
     });
     out.patchStatus = p.status;
     out.patchBody = (await p.text()).slice(0, 400);
