@@ -21,9 +21,10 @@ elevenRouter.get('/session', async (req, res) => {
   const p = verifyToken(token);
   if (!p) return res.status(401).json({ error: 'unauthorized' });
 
-  let email = (p.email || '').toLowerCase();
-  if (!email) { try { const a = await getAccountById(p.id || p.userId || p.uid || p.sub); email = (a?.email || '').toLowerCase(); } catch { /* ignore */ } }
-  if (!ALLOW.includes(email)) return res.status(403).json({ error: 'not_in_rollout' });
+  // TEST PHASE: any AUTHENTICATED user may use the ?elevenlabs test page (behind login + obscure URL).
+  // The email allowlist + daily budget guard get enforced when this is wired into the real fight flow.
+  // (ALLOW / getAccountById kept imported for that next step.)
+  void ALLOW; void getAccountById;
 
   const signedUrl = await getSignedUrl();
   if (!signedUrl) return res.status(502).json({ error: 'signed_url_failed' });
