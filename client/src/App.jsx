@@ -3392,6 +3392,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
+  const [topWeakness, setTopWeakness] = useState(null);    // /api/progress topWeakness — Salma's home-card note
   // Deep audit D10 (2026-07-10): the level was NEVER persisted (a B2 user restarted at slow A2–B1
   // German every visit) and "dein Niveau wird automatisch erkannt" had no mechanism behind it.
   // Now: a manual pick persists; with no manual pick, the assessment's MEASURED estimatedLevel
@@ -4491,6 +4492,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && Number.isFinite(data.etaSessions) && data.etaSessions > 0) setEtaSessions(data.etaSessions);   // velocity (R3) — server returns null below 2 measured sessions
         if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
         if (!cancelled && data.lastDebrief) setLastDebrief(data.lastDebrief);         // one-shot proof card (server clears it after debrief-seen)
+        if (!cancelled && data.topWeakness) setTopWeakness(data.topWeakness);         // Salma's file note (#1 lapsed rule — was computed but never surfaced)
       } catch { /* keep cached value */ }
     })();
     return () => { cancelled = true; };
@@ -4914,7 +4916,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
                   first-run (its prescription would duplicate the diagnosis-interview CTA). */}
               {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
-                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta onAction={(d, why) => {
+                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta
+                  topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
+                  onAction={(d, why) => {
                   const p = d?.prescription || {};
                   const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
                     'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,

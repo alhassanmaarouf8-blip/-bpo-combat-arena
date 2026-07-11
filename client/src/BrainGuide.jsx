@@ -8,6 +8,7 @@
  * being guided step-by-step, progressively, toward getting hired (the journey bar makes it visible).
  */
 import { useEffect, useState } from 'react';
+import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // The guide's masri voice. Owner-ordered to finish 2026-07-10 ("go do them, the eight brain copy —
@@ -84,7 +85,7 @@ function whyLine(d) {
 // externalInterviewCta: the host screen already shows THE interview button (the home's single
 // orange) — when the prescription IS the interview, the guide keeps its why + journey but hides
 // its own button instead of duplicating the CTA (designer pass 2026-07-10: one job, one button).
-export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false }) {
+export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de' }) {
   const [data, setData] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -112,8 +113,30 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     : d.prescription?.action === 'apply'      ? BRAIN_COPY.apply
     : BRAIN_COPY.startCta;
 
+  // Salma's notes — each only when its REAL datum exists (she never speaks without evidence).
+  const weaknessNote = topWeakness?.rule
+    ? salmaLine('note_weakness', lang, { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 })
+    : null;
+  const trialNote = trial?.active && Number.isFinite(trial?.daysLeft)
+    ? salmaLine('note_trial', lang, { days: trial.daysLeft })
+    : null;
+
   return (
     <div dir="rtl" style={card}>
+      {/* The recruiter's face on the card — the brain's directive is HER professional advice. */}
+      <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, textAlign: 'left' }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#dbeafe',
+          background: 'rgba(59,130,246,0.16)', border: '1.5px solid rgba(59,130,246,0.55)',
+          boxShadow: '0 0 10px rgba(59,130,246,0.35)' }}>
+          {salmaName(lang).charAt(0)}
+        </div>
+        <div style={{ lineHeight: 1.25 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0' }}>{salmaName(lang)}</div>
+          <div style={{ fontSize: 10.5, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
+        </div>
+      </div>
+
       {/* The aha — only when the engine confirmed a real closed loop (it never fabricates one). */}
       {d.aha && (
         <div style={ahaBox}>
@@ -155,6 +178,15 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
           {whyLine(d)}
         </div>
       )}
+      {/* Salma's quiet file notes — real dashboard/entitlement values only, never invented. */}
+      {(weaknessNote || trialNote) && (
+        <div dir="ltr" style={{ margin: '8px 0 2px', padding: '8px 10px', borderRadius: 8, textAlign: 'left',
+          background: 'rgba(59,130,246,0.07)', borderLeft: '2px solid rgba(59,130,246,0.45)' }}>
+          {weaknessNote && <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55 }}>{weaknessNote}</div>}
+          {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{trialNote}</div>}
+        </div>
+      )}
+
       {/* Hand the WHY to the destination too, so the prescribed drill opens carrying the same
           honest reason (the drill renders it as its why-you bar). */}
       {!(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (

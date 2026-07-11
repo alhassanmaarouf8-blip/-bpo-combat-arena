@@ -11,57 +11,94 @@ disappear from the next run once the strings land in code.
 4. Hand the filled file back to any session: the strings get landed, gated
    (langGuard + german-check), and shipped.
 
-**53 slots across 12 files.**
+**118 slots across 16 files.**
 
-
-## client/src/Alhassan.jsx
-
-| Zeile | Deutsch | عربي |
-|---|---|---|
-| 113 | `{/* OWNER-AR slot — chip label is the action's German name for now */}` |  |
 
 ## client/src/App.jsx
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 1627 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
-| 2382 | `Echtes Live-Interview — Ton an. {/* OWNER-AR slot */}` |  |
-| 2415 | `· {publicRatings.ratingCount} echte Bewertungen {/* OWNER-AR slot */}` |  |
-| 4736 | Satzbau-Schmiede |  |
-| 4766 | Fortschritt & Wiederholung |  |
+| 136 | Dieser Browser unterstützt kein Mikrofon (z. B. der Facebook/Messenger-Browser). Öffne die Seite in Chrome oder Safari — dann funktioniert alles. |  |
+| 141 | ar |  |
+| 1638 | `Dein Weg zum Interview-Niveau: {revealJourney.entryDone ?? 0}/{revealJourney.entryTotal ?? 0} Schritte gesc…` |  |
+| 1777 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
+| 1804 | `L1 card — the Wochenfokus stays the screen's single orange. note_ar = OWNER-AR. ── */}` |  |
+| 2103 | `Gelobt wird nur, was du wörtlich gesagt hast.{/* OWNER-AR slot */}` |  |
+| 2246 | `PLÄNE ANSEHEN →{/* OWNER-AR slot */}` |  |
+| 2275 | `✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}` |  |
+| 2596 | `علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}` |  |
+| 2635 | `Kein Chatbot: Korrekturen kommen aus DEINEN Sätzen und werden geprüft — die App schmeichelt nie und rät nie…` |  |
+| 2656 | `★ {publicRatings.avgRating.toFixed(1)} · {publicRatings.ratingCount} echte Bewertungen{/* OWNER-AR slot */}` |  |
+| 2869 | var(--fs-label) |  |
+| 2873 | `wenn dein nächster gezielter Test bereit ist. Kein Spam — jederzeit stopp.{/* OWNER-AR slot */}` |  |
+| 2888 | `Nummer prüfen (z. B. 01012345678) und nochmal versuchen.{/* OWNER-AR slot */}` |  |
+| 2893 | `Später{/* OWNER-AR slot */}` |  |
+| 3091 | var(--accent-2) |  |
+| 3157 | `Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}` |  |
+| 3176 | `{/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}` |  |
+| 3190 | `ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}` |  |
+| 3250 | Einmal zahlen — 12 Monate trainieren. Kein Abo. |  |
+| 4576 | `Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}` |  |
+| 4579 | `Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR sl…` |  |
+| 4590 | `📲 App installieren — Ton funktioniert immer{/* OWNER-AR slot */}` |  |
+| 4603 | `Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}` |  |
+| 5014 | var(--action) |  |
+| 5472 | underline |  |
+| 5496 | live German interview |  |
+| 5594 | underline |  |
+| 5597 | Tag |  |
+| 5627 | Satzbau-Schmiede |  |
+| 5657 | Fortschritt & Wiederholung |  |
+| 5904 | To speak: open the page in Chrome (not in Messenger) |  |
+| 5928 | rtl |  |
+| 5954 | rtl |  |
+
+## client/src/BrainGuide.jsx
+
+| Zeile | Deutsch | عربي |
+|---|---|---|
+| 155 | `↗ شارك النتيجة{/* OWNER-AR slot — refine wording */}` |  |
 
 ## client/src/FluencyDrill.jsx
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 408 | `German-only (OWNER-AR slots, not authored here); each is its own small card so a missing` |  |
-| 621 | Nichts aufgenommen — sprich die Formel laut. |  |
-| 635 | Nichts erkannt — sprich bitte lauter. |  |
+| 422 | `German-only (OWNER-AR slots, not authored here); each is its own small card so a missing` |  |
+| 635 | Nichts aufgenommen — sprich die Formel laut. |  |
+| 649 | Nichts erkannt — sprich bitte lauter. |  |
+
+## client/src/PressureLadder.jsx
+
+| Zeile | Deutsch | عربي |
+|---|---|---|
+| 413 | Deine Antwort wird ausgewertet… |  |
 
 ## client/src/SatzbauSchmiede.jsx
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
 | 124 | Konnte nicht prüfen. Bitte erneut. |  |
-| 177 | Geschafft! |  |
-| 179 | Das Verb am Satzende sitzt jetzt schneller im Kopf. |  |
-| 182 | Fertig |  |
-| 192 | SATZ |  |
-| 210 | Tippe die Wörter in der richtigen Reihenfolge… |  |
-| 232 | ⌫ Zurück |  |
-| 233 | Neu |  |
-| 249 | ✓ Richtige Reihenfolge! |  |
-| 253 | Richtig war:  |  |
-| 256 | Anhören |  |
-| 259 | Nochmal |  |
-| 261 | Weiter ▸ |  |
-| 267 | Prüfe… |  |
+| 186 | Geschafft! |  |
+| 188 | Das Verb am Satzende sitzt jetzt schneller im Kopf. |  |
+| 191 | Fertig |  |
+| 201 | SATZ |  |
+| 219 | Tippe die Wörter in der richtigen Reihenfolge… |  |
+| 241 | ⌫ Zurück |  |
+| 242 | Neu |  |
+| 258 | ✓ Richtige Reihenfolge! |  |
+| 262 | Richtig war:  |  |
+| 265 | Anhören |  |
+| 268 | Nochmal |  |
+| 270 | Weiter ▸ |  |
+| 276 | Prüfe… |  |
 
 ## client/src/SpokenReview.jsx
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 143 | `{/* German only — OWNER-AR slot (never authoring Arabic here); falls back to German` |  |
+| 137 | DEINE FEHLER |  |
+| 154 | `{/* German only — OWNER-AR slot (never authoring Arabic here); falls back to German` |  |
+| 169 | `labels; Arabic is an OWNER-AR slot (never authored here). */}` |  |
 
 ## client/src/VideoLessons.jsx
 
@@ -87,7 +124,43 @@ disappear from the next run once the strings land in code.
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 28 | `{text} {/* OWNER-AR slot */}` |  |
+| 29 | `{text} {/* OWNER-AR slot */}` |  |
+
+## client/src/salmaCopy.js
+
+| Zeile | Deutsch | عربي |
+|---|---|---|
+| 16 | Salma |  |
+| 17 | Deine Recruiterin |  |
+| 22 | Willkommen! Ich bin Salma, deine Recruiterin. Ab heute gehst du in kein Interview mehr allein: ich bereite dich vor, und ich buche deine Termine. |  |
+| 24 | Deine ersten {days} Tage sind komplett frei — echte Interviews inklusive. |  |
+| 25 | Zuerst: Wie soll ich dich nennen? |  |
+| 26 | Dein Name |  |
+| 27 | Und was ist dein Ziel? |  |
+| 28 | Einen deutschen BPO-Job |  |
+| 29 | Besseres Deutsch |  |
+| 30 | Etwas anderes |  |
+| 31 | Bevor ich dich vermitteln kann, muss ich dich hören. Fünf kurze Fragen, du sprichst frei — das ist dein Screening. Danach sage ich dir ehrlich, wo du stehst. |  |
+| 32 | Screening starten |  |
+| 36 | Dein Screening ist ausgewertet: Niveau {level}. Woran wir zuerst arbeiten: {focus} |  |
+| 38 | Aus deiner eigenen Antwort notiert: „{quote}“ — genau da setzen wir an. |  |
+| 39 | Ich habe deinen ersten Termin gebucht: Yasmin, Junior-Recruiterin. Sie ist die Freundlichste im Haus — genau richtig für den Anfang. |  |
+| 40 | Zum Interview |  |
+| 41 | Dein Screening ist noch nicht fertig — kein Problem. Du entscheidest, wie wir weitermachen. |  |
+| 42 | Screening fortsetzen |  |
+| 43 | Direkt ins Interview |  |
+| 46 | Kurz vorstellen: Ich bin Salma, ab heute deine Recruiterin. Ich habe deine Akte schon gelesen. |  |
+| 48 | {name} — schön, dich zu sehen. Ich bin Salma, ab heute deine Recruiterin. Deine Akte habe ich schon gelesen. |  |
+| 49 | Meine Notizen zu dir findest du ab jetzt direkt auf deinem Startbildschirm — mit deinem nächsten Schritt. Ich melde mich nach jedem Interview. |  |
+| 50 | Verstanden |  |
+| 53 | Weiter |  |
+| 54 | Überspringen |  |
+| 55 | Später |  |
+| 59 | Meine Notiz aus deiner Akte: {rule} — zuletzt {lapses}× aufgefallen. |  |
+| 61 | Dein freier Zugang läuft noch {days} Tage — nutze sie. |  |
+| 65 | Deine Minuten für heute sind aufgebraucht — gut gearbeitet. Dein freier Zugang läuft noch {days} Tage; morgen buche ich dir den nächsten Termin. |  |
+| 66 | Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag. |  |
+| 67 | Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort. |  |
 
 ## server/feedback.js
 
@@ -105,7 +178,13 @@ disappear from the next run once the strings land in code.
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 178 | `explanation_ar: '',                                       // LT messages are German; client falls back to G…` |  |
+| 187 | `explanation_ar: '',                                       // LT messages are German; client falls back to G…` |  |
+
+## server/grammarLLM.js
+
+| Zeile | Deutsch | عربي |
+|---|---|---|
+| 115 | `explanation_ar: '',                                   // OWNER-AR slot` |  |
 
 ## server/lessons.config.js
 
@@ -126,3 +205,9 @@ disappear from the next run once the strings land in code.
 |---|---|---|
 | 173 | `cue_de: s.cue_de, cue_ar: '',` |  |
 | 183 | `.map((s) => ({ id: s.id, level: s.level, connector: s.connector, cue_de: s.cue_de, cue_ar: '', tiles: shuff…` |  |
+
+## server/scoring/structureWins.js
+
+| Zeile | Deutsch | عربي |
+|---|---|---|
+| 172 | `note_ar: '',   // OWNER-AR slot — never authored here` |  |
