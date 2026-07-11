@@ -10,6 +10,7 @@ import { getSignedUrl, elevenReady, AGENT_ID } from './elevenAgent.js';
 import { verifyToken, getAccountById } from './auth.js';
 import { getBossConfig } from './realtimeClient.js';
 import { buildElevenDebrief } from './elevenDebrief.js';
+import { scoreTurn } from './scoreFactors.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -83,6 +84,17 @@ elevenRouter.get('/session', async (req, res) => {
     tts: { voiceId: boss?.elevenVoice || 'Ah5UjbC5d1A2iCl9Lbe7' },
   };
   res.json({ signedUrl, agentId: AGENT_ID, bossId, overrides });
+});
+
+// Per-turn HP scoring — the SAME scorer the live fight uses (scoreFactors), so HP moves identically.
+elevenRouter.post('/score', async (req, res) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.body?.token || '');
+  if (!verifyToken(token)) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const { transcript = '', durationMs = 0, level = 'a2-b1', stage = 0 } = req.body || {};
+    const r = scoreTurn(transcript, durationMs, { levelId: level, stage });
+    res.json(r);
+  } catch (e) { console.error('[elevenRouter] score failed:', e.message); res.status(500).json({ error: 'score_failed' }); }
 });
 
 // End-of-interview debrief from the ElevenLabs transcript — reuses the app's real feedback pipeline

@@ -36,6 +36,7 @@ function ElevenInner({ apiUrl }) {
   const [debrief, setDebrief]               = useState(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [playerHp, setPlayerHp] = useState(100);
+  const [bossHp, setBossHp]     = useState(100);
   const fullRef    = useRef([]);
   const startMsRef = useRef(0);
 
@@ -47,6 +48,19 @@ function ElevenInner({ apiUrl }) {
       if (!m?.message) return;
       fullRef.current.push({ who: m.source, text: m.message });
       setLines((ls) => [...ls, { who: m.source, text: m.message }].slice(-10));
+      // Per-turn HP — score each of MY answers live with the SAME scorer the fight uses.
+      if (m.source === 'user') {
+        const words = m.message.trim().split(/\s+/).filter(Boolean).length;
+        if (words >= 3) {
+          const token = localStorage.getItem('bpo_token') || '';
+          fetch(`${apiUrl}/api/eleven/score`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ transcript: m.message, durationMs: Math.round((words / 2.3) * 1000), level: 'a2-b1' }),
+          }).then((r) => r.json()).then((j) => {
+            if (j?.scored) { setPlayerHp((hp) => Math.max(0, hp - (j.playerDmg || 0))); setBossHp((hp) => Math.max(0, hp - (j.bossDmg || 0))); }
+          }).catch(() => {});
+        }
+      }
     },
   });
 
@@ -62,14 +76,14 @@ function ElevenInner({ apiUrl }) {
         body: JSON.stringify({ transcript: full, level: 'a2-b1', speechMs }),
       });
       const j = await r.json().catch(() => null);
-      if (r.ok && j) { setDebrief(j); if (Number.isFinite(j?.metrics?.fluency)) setPlayerHp(j.metrics.fluency); }
+      if (r.ok && j) setDebrief(j);   // live per-turn HP already reflects the fight; don't overwrite it
       else setErr(`debrief ${r.status}: ${JSON.stringify(j).slice(0, 150)}`);
     } catch (e) { setErr('debrief: ' + String(e?.message || e)); }
     finally { setDebriefLoading(false); }
   }, [apiUrl]);
 
   const start = useCallback(async () => {
-    setErr(''); setLines([]); setDebrief(null); setPlayerHp(100); setStatus('connecting');
+    setErr(''); setLines([]); setDebrief(null); setPlayerHp(100); setBossHp(100); setStatus('connecting');
     try {
       const token = localStorage.getItem('bpo_token') || '';
       const r = await fetch(`${apiUrl}/api/eleven/session?boss=${encodeURIComponent(boss)}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -112,8 +126,11 @@ function ElevenInner({ apiUrl }) {
           color: speaking ? b.color : active ? 'var(--accent,#3b82f6)' : 'var(--warn,#f59e0b)' }}>
           {status === 'connecting' ? 'VERBINDE…' : speaking ? `${b.name.toUpperCase()} SPRICHT` : active ? 'DU BIST DRAN' : status === 'ended' ? 'BEENDET' : 'BEREIT'}
         </div>
-        {/* HP */}
-        <div style={{ marginTop: 16 }}><HpBar label="DEINE HP" value={playerHp} color="var(--accent,#3b82f6)" /></div>
+        {/* HP — both bars move live, scored by the SAME engine as your fight */}
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <HpBar label={`${b.name.toUpperCase()} HP`} value={bossHp} color={b.color} />
+          <HpBar label="DEINE HP" value={playerHp} color="var(--accent,#3b82f6)" />
+        </div>
       </div>
 
       {/* persona picker (idle only) */}
