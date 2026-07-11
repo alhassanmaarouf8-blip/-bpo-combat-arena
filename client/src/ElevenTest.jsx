@@ -7,9 +7,10 @@
  * + playback all handled by the SDK).
  */
 import { useState, useCallback } from 'react';
-import { useConversation } from '@elevenlabs/react';
+import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
-export default function ElevenTest({ apiUrl }) {
+// v1.10 requires useConversation to live under a <ConversationProvider>. Wrap it (default export below).
+function ElevenInner({ apiUrl }) {
   const [status, setStatus] = useState('idle');   // idle | connecting | connected | ended
   const [lines, setLines]   = useState([]);
   const [err, setErr]       = useState('');
@@ -72,5 +73,13 @@ export default function ElevenTest({ apiUrl }) {
         Sprich wie in einem echten Telefongespräch. Achte darauf, wie schnell &amp; natürlich es sich anfühlt — und ob es dich je unterbricht.
       </div>
     </div>
+  );
+}
+
+export default function ElevenTest({ apiUrl }) {
+  return (
+    <ConversationProvider>
+      <ElevenInner apiUrl={apiUrl} />
+    </ConversationProvider>
   );
 }
