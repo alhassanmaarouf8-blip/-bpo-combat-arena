@@ -14,10 +14,13 @@
 const API = 'https://api.elevenlabs.io';
 const KEY = () => process.env.ELEVENLABS_API_KEY;
 export const ELEVEN_TTS_MODEL = 'eleven_flash_v2_5';   // required for German
+// The persistent agent created 2026-07-11 (overrides enabled for prompt/first_message/language/voice_id;
+// German flash_v2_5). Not a secret — hardcoded so no Render env var is needed. Override via env if recreated.
+export const AGENT_ID = process.env.ELEVEN_AGENT_ID || 'agent_0201kx8arpnwf1dvraym4x1v3cmn';
 
-/** Is the Eleven voice path configured on this instance? */
+/** Is the Eleven voice infra available on this instance? (Rollout is gated per-account at fight start.) */
 export function elevenReady() {
-  return !!(process.env.USE_ELEVEN_VOICE === '1' && KEY() && process.env.ELEVEN_AGENT_ID);
+  return !!(KEY() && AGENT_ID);
 }
 
 /**
@@ -25,7 +28,7 @@ export function elevenReady() {
  * conversation WebSocket without ever seeing the API key.
  * @returns {Promise<string|null>} signed_url or null on failure.
  */
-export async function getSignedUrl(agentId = process.env.ELEVEN_AGENT_ID) {
+export async function getSignedUrl(agentId = AGENT_ID) {
   if (!KEY() || !agentId) return null;
   try {
     const r = await fetch(`${API}/v1/convai/conversation/get_signed_url?agent_id=${encodeURIComponent(agentId)}`,
