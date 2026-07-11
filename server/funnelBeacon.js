@@ -28,6 +28,9 @@ const ALLOWED = new Set([
   // gemini_fight = the second session_ready flagged useGeminiAudio; gemini_fallback = GEMINI_ENDED
   // reached the client mid-fight. start_clicked − gemini_fight = fights that never got Gemini.
   'gemini_fight', 'gemini_fallback',
+  // Salma recruiter cold-open (2026-07-12): shown → name saved → booked/skipped/later/done. The
+  // whitelist gate silently 400'd all of these on launch day — her funnel was invisible.
+  'salma_intro_shown', 'salma_name_saved', 'salma_booked', 'salma_skipped', 'salma_later', 'salma_done',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

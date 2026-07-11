@@ -16,6 +16,7 @@ import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaTakeover, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
+import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { InviteCard } from './InviteCard.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
 
@@ -3165,6 +3166,30 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
         </div>
       </div>
+
+      {/* Salma fronts the money moment — one honest recruiter line picked deterministically from
+          the entitlement (trial running / trial over / free file). Neutral blue; the pay CTA and
+          expiry banner keep the paywall's orange. */}
+      {(() => {
+        const key = info?.trial?.active ? 'paywall_trial_active'
+          : (trialEnded || info?.trial) ? 'paywall_trial_over'
+          : 'paywall_free_file';
+        const text = salmaLine(key, lang, { days: info?.trial?.daysLeft ?? 0 });
+        return (
+          <div style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:12, padding:'10px 12px',
+            borderRadius:10, background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.25)' }}>
+            <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center',
+              justifyContent:'center', fontWeight:800, fontSize:13, color:'#dbeafe',
+              background:'rgba(59,130,246,0.16)', border:'1.5px solid rgba(59,130,246,0.55)' }}>
+              {salmaName(lang).charAt(0)}
+            </div>
+            <div style={{ textAlign:'left' }}>
+              <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
+              <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>{text}</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Expiry alert — shown the moment a lapsed-trial user (e.g. the 2-day Basic pass) hits the
           paywall: the honest "pay or lose" moment. Action-colored (single accent on the paywall). */}

@@ -56,6 +56,9 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
     }).catch(() => {});
+    // PII-free funnel count (same fire-and-forget contract as App's beacon helper).
+    fetch(`${apiUrl}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ e: 'salma_name_saved' }), keepalive: true }).catch(() => {});
   };
 
   // The Assessment closed (App bumped resumeTick) → fetch the fresh server-persisted verdict and
