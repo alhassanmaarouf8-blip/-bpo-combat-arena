@@ -62,7 +62,7 @@ export const SALMA_COPY = {
 
   // ── paywall (Phase C) ─────────────────────────────────────────────────────────────────────
   // {days} ← entitlement.trial.daysLeft
-  paywall_trial_active: { de: 'Deine Minuten für heute sind aufgebraucht — gut gearbeitet. Dein freier Zugang läuft noch {days} Tage; morgen buche ich dir den nächsten Termin.', ar: '' }, // OWNER-AR · EN: "Your minutes for today are spent — good work. Your free access runs {days} more days; tomorrow I'll book your next appointment."
+  paywall_trial_active: { de: 'Du bist noch {days} Tage in deiner freien Testphase — echte Interviews inklusive. Danach brauche ich den vollen Auftrag, um weiter für dich zu buchen.', ar: '' }, // OWNER-AR · EN: "You have {days} more days of your free trial — real interviews included. After that I need the full mandate to keep booking for you."
   paywall_trial_over: { de: 'Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag.', ar: '' }, // OWNER-AR · EN: "Honestly: on the free file I can only screen you. If I'm to keep booking interviews for you, I need the full mandate."
   paywall_free_file: { de: 'Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort.', ar: '' }, // OWNER-AR · EN: "Your next interview is ready as soon as you activate your account — then I book immediately."
 };
