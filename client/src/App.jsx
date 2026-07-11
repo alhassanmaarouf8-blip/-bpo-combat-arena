@@ -5653,8 +5653,16 @@ function AuthedApp() {
     setAuth((cur) => { if (!cur) return cur; const a = { token: cur.token, account }; persistAuth(a); return a; });
   }, []);
 
-  if (!auth) return <AuthScreen onAuth={handleAuth} />;
-  return <Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} />;
+  // Tiny build badge on every screen so the running version is provable (kills "nothing changed" guessing).
+  const buildId = (typeof document !== 'undefined' && document.querySelector('meta[name=build]')?.content) || 'dev';
+  const buildBadge = (
+    <div style={{ position:'fixed', bottom:5, right:7, zIndex:99999, fontSize:9, letterSpacing:'0.06em',
+      color:'rgba(154,167,189,0.55)', fontFamily:'var(--font-mono)', pointerEvents:'none' }}>
+      v·{buildId}
+    </div>
+  );
+  if (!auth) return <>{buildBadge}<AuthScreen onAuth={handleAuth} /></>;
+  return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} /></>;
 }
 
 // ── Cold-start gate ───────────────────────────────────────────────────────────
