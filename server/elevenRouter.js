@@ -10,6 +10,7 @@ import { getSignedUrl, elevenReady, AGENT_ID } from './elevenAgent.js';
 import { verifyToken, getAccountById } from './auth.js';
 import { getBossConfig } from './realtimeClient.js';
 import { buildSessionScript } from './scenarios.js';
+import { buildElevenDebrief } from './elevenDebrief.js';
 
 export const elevenRouter = express.Router();
 
@@ -57,4 +58,22 @@ elevenRouter.get('/session', async (req, res) => {
   res.json({ signedUrl, agentId: AGENT_ID, bossId, overrides });
 });
 
+// End-of-interview debrief from the ElevenLabs transcript — reuses the app's real feedback pipeline
+// (generateDebrief + gradeTranscript + L1 + structure-wins). This is MUST #2: accurate, coherent feedback.
+elevenRouter.post('/debrief', async (req, res) => {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.body?.token || '');
+  const p = verifyToken(token);
+  if (!p) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const { transcript = [], level = 'a2-b1', speechMs = 0 } = req.body || {};
+    const userId = p.id || p.userId || p.uid || p.sub || 'anon';
+    const debrief = await buildElevenDebrief({ transcript, level, userId, speechMs });
+    res.json(debrief);
+  } catch (e) {
+    console.error('[elevenRouter] debrief failed:', e.message);
+    res.status(500).json({ error: 'debrief_failed' });
+  }
+});
+
 export default { elevenRouter };
+
