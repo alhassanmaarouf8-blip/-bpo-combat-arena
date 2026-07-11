@@ -5,37 +5,43 @@
  * Prices are in Egyptian Pounds (EGP). `yearlyEGP` is the discounted annual price (a round
  * number, not a computed percentage). Used by the pricing page, payment flow, and gating.
  */
-// Plans differ in daily live-interview minutes (reset midnight Africa/Cairo) AND in how those
-// minutes are SPLIT into focused sessions. Short, split sessions beat one long blob: each split
-// mirrors a real interview stage, earns its own coach debrief, and the cached opening line makes
-// each session's first boss turn free. `dailyLiveMinutes` = dailySessions × sessionMinutes is the
-// HARD spend cap enforced today; the brain enforces the per-session split structure.
+// Plans are sold as FULL DAILY INTERVIEWS (owner mandate 2026-07-11: every paid subscriber gets a
+// daily quota of complete HR interviews + unlimited drills; quotas in minutes felt metered).
+// One interview = one full live session, wall-capped at sessionMinutes (mirrors MAX_FIGHT_MS in
+// websocketManager). `dailyLiveMinutes` = dailySessions × sessionMinutes remains the HARD daily
+// spend cap the server enforces (reset midnight Africa/Cairo).
+// UNIT ECONOMICS (measured live 2026-07-11, 3 probe interviews on Gemini native audio, funnel-proven
+// zero fallback): $0.022–0.025 per live minute ⇒ a full 8-min interview ≈ $0.19 ≈ 9.6 EGP.
+// Worst-case COGS: Basic 1/day = ~290 EGP/mo · Elite 3/day = ~865 EGP/mo. Prices below keep
+// ≥50%/40% margin at 100% daily usage; realistic usage (~50%) → ~75% margin.
+// PRICE ANCHOR: Goethe Kairo = 3.400 EGP je Stufe (regulär) / 9.500 EGP intensiv — the buyer
+// already spends course money; Basic must read as "a fraction of one course level per month".
 export const PLANS = {
   free: {
     id:               'free',
     label:            'Gratis',
     assessments:      1,     // free intelligent assessment, once per account ever
-    dailyLiveMinutes: 0,     // NO live fight (assessment only) — a live fight costs real money
+    dailyLiveMinutes: 0,     // NO recurring live fight (assessment + the one-time free fight only)
     dailySessions:    0,
     sessionMinutes:   0,
   },
   basic: {
     id:               'basic',
-    label:            'Basic',   // package shorthand "Fokus" (3×5) — rename is a separate branding pass (copy cascade)
-    priceEGP:         1299,
-    yearlyEGP:        12990,
-    dailySessions:    3,     // 3 focused sessions/day, one per interview stage
-    sessionMinutes:   5,
-    dailyLiveMinutes: 15,    // 3 × 5 — hard daily spend cap
+    label:            'Basic',
+    priceEGP:         599,
+    yearlyEGP:        5990,  // 12 for the price of 10
+    dailySessions:    1,     // 1 FULL HR interview per day — the daily-quota law
+    sessionMinutes:   8,
+    dailyLiveMinutes: 8,     // 1 × 8 — hard daily spend cap
   },
   elite: {
     id:                     'elite',
-    label:                  'Elite',   // package shorthand "Intensiv" (6×5) — rename is a separate branding pass
-    priceEGP:               2999,
-    yearlyEGP:              29990,
-    dailySessions:          6,     // 6 focused sessions/day (fewer-longer beats 10×3 — less fatigue, fuller arc)
-    sessionMinutes:         5,
-    dailyLiveMinutes:       30,    // 6 × 5 — hard daily spend cap
+    label:                  'Elite',
+    priceEGP:               1499,
+    yearlyEGP:              14990,
+    dailySessions:          3,     // 3 FULL HR interviews per day
+    sessionMinutes:         8,
+    dailyLiveMinutes:       24,    // 3 × 8 — hard daily spend cap
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
   },
   // "Bis zum Job" one-time plan: KILLED by owner order 2026-07-10 evening ("cancel that shit",

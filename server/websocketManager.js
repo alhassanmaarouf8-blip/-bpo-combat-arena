@@ -79,8 +79,10 @@ const MAX_MESSAGE_BYTES  = 65_536;
 // than this, no matter how active the mic is. (The idle timeout above never fires
 // while audio is streaming.) A CEILING, not a fixed length: most interviews end EARLIER, the
 // moment the deterministic 3-part funnel is covered (rules decide "enough", never the model).
-// Owner 07-01: cap at 7.5 min so two full interviews fit a 15-min/day (Elite) budget.
-const MAX_FIGHT_MS = 7.5 * 60_000;
+// 07-11 quota redesign: plans sell N FULL interviews/day (plans.config sessionMinutes = 8), so the
+// ceiling mirrors sessionMinutes — one fight consumes exactly one day's Basic quota, no 30s stub
+// fights from leftover minutes. (Was 7.5 under the old 15-min-minutes model.)
+const MAX_FIGHT_MS = 8 * 60_000;
 // When the daily-minute (or global) cap is hit we end GRACEFULLY: the boss finishes its
 // current turn (no mid-sentence cut). This is the hard backstop if it never wraps.
 const GRACE_CLOSE_MS = 30_000;

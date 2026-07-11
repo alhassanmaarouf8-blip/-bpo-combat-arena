@@ -2288,7 +2288,9 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
   const sub = acc?.subscription ?? {};
   const ent = acc?.entitlement ?? {};
   const planName = (ent.plan || 'free').toUpperCase();
-  const tierLabel = ent.dailyLiveMinutes > 0 ? `${planName} · ${ent.dailyLiveMinutes} Min/Tag` : 'GRATIS · Einstufung';
+  const tierLabel = ent.dailyLiveMinutes > 0
+    ? `${planName} · ${ent.dailySessions > 0 ? `${ent.dailySessions} Interview${ent.dailySessions > 1 ? 's' : ''}/Tag` : `${ent.dailyLiveMinutes} Min/Tag`}`
+    : 'GRATIS · Einstufung';
   const isFreePlan = (ent.plan || 'free') === 'free';
   return (
     <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
@@ -2825,12 +2827,14 @@ function WhatsAppOptIn({ token, apiUrl }) {
   );
 }
 
+// Perks receive the whole plan object (07-11 quota redesign: plans are sold as FULL daily
+// interviews, not minutes — p.dailySessions is the number a buyer actually gets).
 const PERKS_DE = {
-  basic: (m) => [`bis zu ${m} Min ECHTES Live-Interview — jeden Tag, bis es sitzt`,
+  basic: (p) => [`${p.dailySessions} ECHTES HR-Interview pro Tag — komplett, mit Stimme, bis ${p.sessionMinutes} Min`,
+                 'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'die App führt dich: Diagnose → EIN Training → Beweis im Interview',
                  'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
                  'Szenarien nach echten deutschen Konto-Typen (Mobilfunk, Bank, Airline …)',
-                 'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'Feedback auch auf Arabisch — du verstehst genau, was zu tun ist'],
   // Adversarial audit #2 (2026-07-10): "Gegner passend zu DEINER Ziel-Stelle" was a PHANTOM —
   // then BUILT for real the same day (owner order): scenarios.js pickCsScenario + BEWERBUNGSZIEL
@@ -2838,7 +2842,7 @@ const PERKS_DE = {
   // Musk-cull (same day): the replacement perk "das komplette Trainingslager" was ITSELF a phantom —
   // the Trainingslager UI was deleted in a92c9ec; its server engine has zero client consumers.
   // Perk law: every line here must name a mechanism a buyer can reach (perk-truth-pinning memory).
-  elite: (m) => [`bis zu ${m} Min Live-Interview — doppelt so viel Übung pro Tag`,
+  elite: (p) => [`${p.dailySessions} ECHTE HR-Interviews pro Tag — dreimal so viel Übung wie Basic`,
                  'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
@@ -3176,7 +3180,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
                   {ar ? '' : 'Einmal zahlen — 12 Monate trainieren. Kein Abo.'}{/* OWNER-AR slot */}
                 </div>
               )}
-              {(PERKS_DE[p.id]?.(p.dailyLiveMinutes) || []).map((perk) => (
+              {(PERKS_DE[p.id]?.(p) || []).map((perk) => (
                 <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
@@ -5360,7 +5364,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ display:'block', width:'100%',
               marginTop:8, padding:'10px', minHeight:44, cursor:'pointer', background:'none',
               border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)' }}>
-              <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Mehr Minuten? Pläne ansehen →</span>{/* OWNER-AR slot */}
+              <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Mehr Interviews pro Tag? Pläne ansehen →</span>{/* OWNER-AR slot */}
             </button>
           </div>
         ) : canStart ? (

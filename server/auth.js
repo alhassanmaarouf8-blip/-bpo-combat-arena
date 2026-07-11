@@ -250,12 +250,15 @@ export function entitlement(account) {
   const mins = dailyMinutesFor(account);          // trial-aware (Fokus minutes during the trial)
   const freeFight = freeFightAvailable(account);
   const trial = trialActive(account);
+  // Interviews/day for display — plans are SOLD as full daily interviews (owner quota law 07-11).
+  const sessions = trial ? (PLANS.basic.dailySessions || 0) : (feat.dailySessions || 0);
   return {
     allowed:               mins > 0 || freeFight,
     freeFight,                                   // true → client shows "1 kostenloses Interview"
     tier:                  plan,
     plan,
     dailyLiveMinutes:      mins,
+    dailySessions:         sessions,
     drillsUnlocked:        drillsUnlocked(account),
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
     zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — trial gives the full taste
