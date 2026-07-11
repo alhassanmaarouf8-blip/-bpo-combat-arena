@@ -61,18 +61,10 @@ export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODE
         // Thinking OFF: the -latest native-audio alias thinks before answering, which doubled
         // measured turn latency (first audio 2.05s → 1.10s with budget 0, same key/model/voice).
         thinkingConfig: { thinkingBudget: 0 },
-        // languageCode pins the session to German so the INPUT transcription stops mis-hearing the
-        // candidate's German as English ("Guten Tag" → "Hughen tag" — the on-screen "text/voice
-        // discrepancy"). Set ALWAYS (independent of the voice); handshake-verified schema-valid (1008
-        // auth, never 1007 schema). The boss already replies to raw audio — this only fixes the text.
-        speechConfig: { languageCode: 'de-DE', ...(voiceName ? { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } : {}) },
+        ...(voiceName ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } : {}),
       },
-      // Faster end-of-turn: detect the candidate finishing sooner (interview turns are short). The
-      // 400ms silence + high end-sensitivity. REVERTED from a 250ms experiment: lowering it made the
-      // VAD twitchy — it flickered speech/silence ("DENKT NACH on and off") and turns failed to complete
-      // cleanly, which combined with the mic-gate to hang the call ~8s. 400ms is the stable value; the
-      // real latency fix is client-driven activityEnd (the client's own mic VAD signalling turn-end),
-      // NOT a lower silence threshold here.
+      // Faster end-of-turn: detect the candidate finishing sooner (interview turns are short);
+      // 400ms silence + high end sensitivity measured setup-valid with no latency penalty.
       realtimeInputConfig: { automaticActivityDetection: { endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH', silenceDurationMs: 400 } },
       systemInstruction: { parts: [{ text: systemInstruction }] },
       inputAudioTranscription: {},

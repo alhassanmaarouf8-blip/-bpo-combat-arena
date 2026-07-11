@@ -103,9 +103,6 @@ const BRAIN_GUIDE_LIVE = true;
 // differs on a phone speaker vs headphones, so it stays OFF until the owner phone-tests + tunes the
 // sensitivity (rule 2.5). When false, NO extra mic stream is even opened. Flip to true to test on device.
 const BARGE_IN_LIVE = false;
-// How long the Gemini mic stays gated AFTER the boss voice ends, to swallow the speaker→mic echo/reverb
-// tail before the candidate's turn reopens (see the HALF-DUPLEX ECHO GATE in enterGeminiMode's onChunk).
-const ECHO_TAIL_MS = 350;
 // INTERVIEW-BEREITSCHAFT card in the debrief: the hire-readiness judge's verdict (ready / almost +
 // the ONE blocking skill). Honest — it names how many of the 9 signals were really measured and
 // says "vorläufig" when pronunciation wasn't. Flip to false to hide the card in one line.
@@ -2653,7 +2650,7 @@ function AuthScreen({ onAuth }) {
               autoComplete="tel" inputMode="tel"
               onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={inputStyle} />
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:6, lineHeight:1.5 }}>
-              Für Coach-Erinnerungen — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
+              Für Coach-Erinnerungen und Passwort-Reset — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
             </div>
           </>
         )}
@@ -3268,7 +3265,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [bossIsCorrection, setBossIsCorrection] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const [bossSpeak, setBossSpeak] = useState(false);
-  const [lastTurnLatencyMs, setLastTurnLatencyMs] = useState(null);   // measured stop→boss-voice gap, shown live during the Gemini fight
   const [userSpeak, setUserSpeak] = useState(false);
   // Boss voice (browser TTS) on/off — persisted; default ON so the boss speaks.
   const [ttsMuted, setTtsMuted] = useState(() => {
@@ -3393,13 +3389,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const geminiBossLineRef = useRef('');
   const geminiPendingTextRef = useRef('');   // transcript chunks held back until the boss's VOICE starts
   const geminiVoiceOnRef     = useRef(false); // this turn's first audio chunk has arrived (voice is audible)
-  const micEchoTailRef       = useRef(0);     // Date.now() until which the mic stays gated AFTER the boss voice ends (echo/reverb tail)
-  // ── Live turn-latency measurement (owner's felt "4-5s"): from the moment mic energy drops to silence
-  //    (candidate stopped) to the first boss audio byte, measured on the REAL device with the REAL voice.
-  const micPeakRef           = useRef(0);     // decaying peak mic volume → adaptive speech/silence threshold
-  const micSpeakingRef       = useRef(false); // is the candidate currently speaking (energy above threshold)
-  const micBelowSinceRef     = useRef(0);     // Date.now() the energy first dropped below the threshold this dip
-  const userStopMsRef        = useRef(0);     // Date.now() the candidate is judged to have STOPPED (turn end)
   const geminiThinkTimerRef  = useRef(null);  // debounce: your transcript goes quiet → "CHEF DENKT NACH…"
   const partialIdRef   = useRef(null);
   const bossPartialIdRef = useRef(null);   // live boss subtitle line in the transcript
@@ -3487,40 +3476,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
     try {
       const rec = new ClipRecorder({
-        onVolume: (v) => {
-          volRef.current = v;
-          // ── Turn-end detection for the live latency counter ───────────────────────────────────
-          // Only while the mic is actually open (not echo-gated during the boss's turn — otherwise the
-          // boss's own leaked voice would register as the candidate speaking).
-          if (Date.now() < micEchoTailRef.current) { micSpeakingRef.current = false; micBelowSinceRef.current = 0; return; }
-          const peak = micPeakRef.current = Math.max(micPeakRef.current * 0.99, v);
-          const speaking = v > Math.max(0.03, peak * 0.28);   // adaptive: 28% of the decaying peak, scale-free
-          if (speaking) {
-            micBelowSinceRef.current = 0;
-            micSpeakingRef.current = true;
-          } else if (micSpeakingRef.current) {
-            if (!micBelowSinceRef.current) micBelowSinceRef.current = Date.now();
-            else if (Date.now() - micBelowSinceRef.current > 300) {   // 300ms below threshold = turn ended
-              micSpeakingRef.current = false;
-              userStopMsRef.current = micBelowSinceRef.current;       // backdate to the true moment of silence
-              micBelowSinceRef.current = 0;
-            }
-          }
-        },
-        onChunk:  (b64) => {
-          // ── HALF-DUPLEX ECHO GATE (2026-07-11, hardened) ──────────────────────────────────────
-          // While Yasmin's voice is audible (+ a short reverb tail), do NOT stream the mic to Gemini.
-          // Gemini Live does NO input echo-cancellation, and the boss voice plays via Web Audio, which
-          // the browser's AEC cannot reference — so on a SPEAKER her voice re-enters the mic, Gemini's
-          // server VAD scores it as the candidate, and she interrupts herself.
-          // DEADLOCK-PROOF: the gate is driven ONLY by micEchoTailRef, which BOSS_AUDIO_DELTA refreshes
-          // to now+ECHO_TAIL_MS on every boss audio chunk. So the mic reopens ECHO_TAIL_MS after the
-          // boss's LAST chunk, ALWAYS — even if the turn-complete signal never arrives. (The old version
-          // gated on geminiVoiceOnRef, which a missing turn-complete left stuck true → mic shut forever
-          // → the 8-second silent hangs.) Cost by design: no mid-sentence barge-in.
-          if (Date.now() < micEchoTailRef.current) return;
-          try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ }
-        },
+        onVolume: (v) => { volRef.current = v; },
+        onChunk:  (b64) => { try { wsRef.current?.send(JSON.stringify({ type: C.AUDIO_CHUNK, data: b64 })); } catch { /* socket closing */ } },
       });
       await rec.start();
       // Teardown may have raced the await above (e.g. GEMINI_ENDED or session close while the mic
@@ -3672,19 +3629,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!bossHasSpokenRef.current) beacon('boss_spoke');
         bossHasSpokenRef.current = true;
         geminiPlayerRef.current.enqueue(msg.data);
-        // Echo gate (deadlock-proof): every boss audio chunk pushes the mic-reopen deadline forward, so
-        // the mic stays shut throughout her speech and reopens ECHO_TAIL_MS after her LAST chunk — no
-        // dependence on any turn-complete signal (see the gate in enterGeminiMode's onChunk).
-        micEchoTailRef.current = Date.now() + ECHO_TAIL_MS;
         // Voice-first ordering: the transcript held back for this turn is released only now, when
         // her voice is actually audible — the text follows the speech, never announces it.
         if (!geminiVoiceOnRef.current) {
           geminiVoiceOnRef.current = true;
-          // Live latency: from when the candidate STOPPED (mic went silent) to this first boss byte.
-          if (userStopMsRef.current) {
-            setLastTurnLatencyMs(Date.now() - userStopMsRef.current);
-            userStopMsRef.current = 0;
-          }
           // The voice is here — a pending "denkt nach" timer must never fire mid-speech.
           if (geminiThinkTimerRef.current) { clearTimeout(geminiThinkTimerRef.current); geminiThinkTimerRef.current = null; }
           if (geminiPendingTextRef.current) {
@@ -5160,43 +5108,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', borderRadius:'var(--r-md)',
           background:'linear-gradient(180deg, rgba(0,22,44,0.55), rgba(0,8,18,0.85))',
           border:'1px solid var(--line)', boxShadow:'inset 0 0 30px rgba(0,0,0,0.45)', overflow:'hidden' }}>
-          {geminiMode ? (
-            /* ── PURE VOICE CALL (owner mandate 2026-07-11: "cut off the transcript … i wana a voice
-               to voice thing"). The Gemini fight is a real-time voice conversation. Painting the live
-               ASR of the candidate's German — which the native-audio model mis-hears and spells as
-               English — made it feel like "the voice waits for my text to be written before it
-               answers." A phone call has no subtitles: presence + whose-turn only. Voice in, voice
-               out. The spoken words still reach the post-fight debrief silently; nothing is shown
-               here, so there is no text↔voice discrepancy left to see. ── */
-            <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column',
-              alignItems:'center', justifyContent:'center', gap:15, padding:'22px 16px', textAlign:'center' }}>
-              <div aria-hidden style={{ position:'relative', width:78, height:78, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <span style={{ position:'absolute', inset:0, borderRadius:'50%',
-                  border:`2px solid ${bossSpeak ? boss.color : 'var(--player)'}`,
-                  opacity: isActive ? 0.9 : 0.35,
-                  animation: isActive ? 'pulse 1.8s ease-in-out infinite' : 'none',
-                  boxShadow: bossSpeak ? `0 0 24px ${boss.color}66` : userSpeak ? '0 0 24px rgba(59,130,246,0.45)' : 'none',
-                  transition:'border-color 0.4s, box-shadow 0.4s' }} />
-                <span style={{ fontSize:31 }}>{bossSpeak ? '🔊' : '🎙'}</span>
-              </div>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:12.5, letterSpacing:'0.16em',
-                color: bossSpeak ? boss.color : isActive ? 'var(--player)' : 'var(--text-dim)', transition:'color 0.3s' }}>
-                {isConnecting ? 'VERBINDE…'
-                  : bossSpeak ? `${funnel?.displayName ?? 'CHEF'} SPRICHT`
-                  : isActive ? 'SPRICH — ICH HÖRE ZU' : 'INTERVIEW'}
-              </div>
-              <div style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, maxWidth:264 }}>
-                Sprich ganz normal — wie ein echtes Telefongespräch.
-              </div>
-              {lastTurnLatencyMs != null && (
-                <div style={{ fontFamily:'var(--font-display)', fontSize:11.5, letterSpacing:'0.08em', marginTop:2,
-                  color: lastTurnLatencyMs <= 1800 ? 'var(--accent)' : lastTurnLatencyMs <= 3000 ? 'var(--warn)' : '#f87171' }}>
-                  ⏱ {(lastTurnLatencyMs / 1000).toFixed(1)}s
-                </div>
-              )}
-            </div>
-          ) : (
-          <>
           {/* who is speaking + live score flash */}
           <div style={{ padding:'6px 12px', display:'flex', alignItems:'center', gap:8,
             borderBottom:'1px solid var(--line)', background:'rgba(0,0,0,0.25)' }}>
@@ -5240,8 +5151,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               bossName={(funnel?.displayName || '').toUpperCase()}
             />
           </div>
-          </>
-          )}
         </div>
       </div>
       )}

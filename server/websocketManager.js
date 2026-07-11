@@ -71,9 +71,6 @@ const BOSS_GEMINI_VOICES = {
 // loudspeaker = the boss hears itself). Set GEMINI_BARGE_IN=0 for echo-safe half-duplex (mic muted while
 // the boss talks) if the owner tests on speakers.
 const GEMINI_BARGE_IN = process.env.GEMINI_BARGE_IN !== '0';
-// Cap the verbatim student-audio capture (for the optional end-of-fight conversation PDF) at ~20 min
-// of 16 kHz mono PCM16 (32 KB/s) so a stuck session can never grow memory without bound.
-const GEMINI_PCM_CAP_BYTES = 40 * 1024 * 1024;
 
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
@@ -163,7 +160,6 @@ const S = {
   PAYWALL:            'paywall',
   HP_UPDATE:          'hp_update',
   LIVE_STATS:         'live_stats',
-  TRANSCRIPT_EXPORT:  'transcript_export',   // accurate German transcript + pronunciation notes for the PDF
   ERROR:              'error',
   PONG:               'pong',
 };
@@ -186,7 +182,6 @@ const C = {
   ANSWER:       'answer',
   AUDIO_CHUNK:  'audio_chunk',   // b64-encoded linear16 PCM chunk (hands-free streaming)
   AUDIO_END:    'audio_end',     // client: VAD silence detected — finalize the stream
-  EXPORT_TRANSCRIPT: 'export_transcript',   // client asks for the accurate conversation PDF (end of fight)
   PING:         'ping',
 };
 
@@ -303,14 +298,6 @@ export class WebSocketManager {
       geminiUserParts:   [],    // accumulated user-transcript parts this Gemini turn (for scoring)
       geminiBossParts:   [],    // accumulated boss-transcript parts this Gemini turn (display + debrief)
       _geminiTurnStartMs: 0,    // wall-clock start of the current Gemini user turn (for durationMs)
-      // ── Verbatim-audio capture for the optional end-of-fight conversation PDF ───
-      // A read-only COPY of the student's mic PCM (16 kHz), segmented per turn at boss-onset, held in
-      // memory ONLY for this session. It never alters what streams to Gemini. Deepgram (German) is run
-      // over it LAZILY — only if the student asks for the PDF — so the common case costs $0 extra.
-      // Byte-capped so a long fight can't balloon memory.
-      geminiUserTurns:   [],    // [{ pcm: Buffer }] finalized student-turn audio segments (in order)
-      _geminiTurnPcm:    [],    // Buffer[] chunks of the IN-PROGRESS student turn
-      _geminiPcmBytes:   0,     // total captured bytes (finalized + in-progress) for the cap check
     };
 
     this._sessions.set(sessionId, ctx);
@@ -369,13 +356,6 @@ export class WebSocketManager {
         // Routed inside _handleAudioChunk: the Gemini proxy (resampled 24→16 kHz) when this fight is
         // on the native-audio path, else Deepgram streaming STT for the $0 pipeline.
         this._handleAudioChunk(ctx, msg);
-        break;
-
-      case C.EXPORT_TRANSCRIPT:
-        // Student asked for the end-of-fight conversation PDF. Runs Deepgram-German over the captured
-        // audio (accurate German, not Gemini's English-biased ear) + a pronunciation pass. On-demand
-        // only → $0 unless actually requested.
-        this._handleExportTranscript(ctx);
         break;
 
       case C.AUDIO_END:
@@ -636,10 +616,17 @@ export class WebSocketManager {
               },
               onBossAudio: (buf) => {
                 // Boss voice PCM16 @24kHz → base64 to the browser for Web-Audio playback.
-                // [LAT] The turn gap is recorded in the '[INTERVIEWER SPRICHT]' marker branch below,
-                // NOT here: the proxy fires that marker one tick BEFORE this first audio byte and it
-                // sets geminiActive=true, so a !geminiActive guard here could never win — it recorded
-                // ZERO turns for weeks, leaving the owner's "why does it wait" un-measurable.
+                // [LAT] The Gemini path recorded NOTHING into /diag/latency (only the $0 path did) —
+                // the owner's "why does it wait" reports were un-measurable. Record the FELT gap:
+                // last user-transcript chunk → first audio byte of the boss's NEXT turn. Guarded on
+                // !geminiActive (first chunk of a turn) so mid-speech chunks and barge-in overlap
+                // never log a bogus near-zero gap; the greeting logs nothing (no user text yet).
+                if (!ctx.geminiActive && ctx._gLastUserTextMs) {
+                  const gapMs = Date.now() - ctx._gLastUserTextMs;
+                  ctx._gLastUserTextMs = null;
+                  try { recordTurn({ flushMs: 0, prepMs: 0, llmMs: gapMs, serverTotalMs: gapMs, provider: 'gemini-live' }); } catch { /* diagnostics must never break the fight */ }
+                  console.log(`[LAT] gemini transcript→firstAudio=${gapMs}ms session=${ctx.sessionId}`);
+                }
                 ctx.geminiActive = true;
                 ctx.geminiGreeted = true;
                 this._send(ctx, { type: S.BOSS_AUDIO_DELTA, data: buf.toString('base64') });
@@ -648,27 +635,7 @@ export class WebSocketManager {
               onBossText: (chunk) => {
                 // The proxy emits '[INTERVIEWER SPRICHT]' as a "boss started talking" marker — it is
                 // NOT real transcript text, so never forward it as one.
-                if (chunk === '[INTERVIEWER SPRICHT]') {
-                  // [LAT] This marker is the boss's TRUE onset — one tick before the first audio byte.
-                  // Record the felt gap HERE (last user-transcript chunk → boss starts speaking) BEFORE
-                  // geminiActive flips. Guarded on !geminiActive (turn start, not mid-speech) + prior
-                  // user text (the greeting has none → logs nothing, correctly).
-                  if (!ctx.geminiActive) {
-                    // Close the student's turn AUDIO segment at boss-onset so each spoken answer stays
-                    // paired with its question in the PDF (read-only capture; see geminiUserTurns).
-                    if (ctx._geminiTurnPcm.length) {
-                      ctx.geminiUserTurns.push({ pcm: Buffer.concat(ctx._geminiTurnPcm) });
-                      ctx._geminiTurnPcm = [];
-                    }
-                    if (ctx._gLastUserTextMs) {
-                      const gapMs = Date.now() - ctx._gLastUserTextMs;
-                      ctx._gLastUserTextMs = null;
-                      try { recordTurn({ flushMs: 0, prepMs: 0, llmMs: gapMs, serverTotalMs: gapMs, provider: 'gemini-live' }); } catch { /* diagnostics must never break the fight */ }
-                      console.log(`[LAT] gemini transcript→bossOnset=${gapMs}ms session=${ctx.sessionId}`);
-                    }
-                  }
-                  ctx.geminiActive = true; ctx.geminiGreeted = true; return;
-                }
+                if (chunk === '[INTERVIEWER SPRICHT]') { ctx.geminiActive = true; ctx.geminiGreeted = true; return; }
                 if (chunk === '__TURN_COMPLETE__') {
                   const bossFull = ctx.geminiBossParts.join('').trim();
                   const userFull = ctx.geminiUserParts.join('').trim();
@@ -898,12 +865,6 @@ export class WebSocketManager {
       if (!ctx._geminiTurnStartMs) ctx._geminiTurnStartMs = Date.now();
       const pcm16k = downsamplePcm24to16(Buffer.from(msg.data, 'base64'));
       ctx.audioInBytes += pcm16k.length;
-      // Verbatim capture (READ-ONLY): keep a copy of the exact PCM for the optional end-of-fight PDF.
-      // This is the same buffer Gemini receives; copying it here cannot change the voice path. Capped.
-      if (ctx._geminiPcmBytes < GEMINI_PCM_CAP_BYTES) {
-        ctx._geminiTurnPcm.push(pcm16k);
-        ctx._geminiPcmBytes += pcm16k.length;
-      }
       const sent = ctx.geminiProxy.sendAudioChunk(pcm16k.toString('base64'));
       if (sent) return;
       console.warn(`[wsManager] Gemini proxy reject chunk → fallback Deepgram  session=${ctx.sessionId}`);
@@ -1112,7 +1073,7 @@ export class WebSocketManager {
     if (ctx.debriefSent) return;
     ctx.debriefSent = true;
 
-    let metrics = this._computeMetrics(ctx);
+    const metrics = this._computeMetrics(ctx);
 
     // ── No-session gate ───────────────────────────────────────────────────────────
     // Feedback is ONLY ever generated from what the user actually did. If they opened the
@@ -1128,29 +1089,6 @@ export class WebSocketManager {
     }
 
     this._send(ctx, { type: S.DEBRIEF_PENDING });
-
-    // ── Gemini path: re-grade on the ACCURATE German transcript ─────────────────────────────────
-    // Gemini's native-audio INPUT transcript hears the candidate's German as English gibberish, so the
-    // debrief graded garbage — disconnected advice (e.g. "use weil/obwohl" when he used them) and even
-    // garbled Arabic. Re-transcribe the verbatim audio we captured through Deepgram (German) and rebuild
-    // utterances + dialogue from it, so EVERY downstream analysis (grammar, level, L1, structure, WpM)
-    // grades what he ACTUALLY said. Best-effort: any failure keeps the live transcript, never blanks the
-    // debrief. Uses the existing Deepgram key ($0 credit), parallel per turn — runs only on Gemini fights
-    // that reach a real debrief.
-    if (ctx.geminiUserTurns?.length || ctx._geminiTurnPcm?.length) {
-      try {
-        if (ctx._geminiTurnPcm?.length) {   // flush the final in-progress turn (no boss-onset closed it)
-          ctx.geminiUserTurns.push({ pcm: Buffer.concat(ctx._geminiTurnPcm) });
-          ctx._geminiTurnPcm = [];
-        }
-        const { transcribeStudentTurns } = await import('./conversationExport.js');
-        const accurate = await transcribeStudentTurns(ctx.geminiUserTurns);
-        this._applyAccurateTranscript(ctx, accurate);
-        metrics = this._computeMetrics(ctx);   // recompute WpM/words/answers on the corrected transcript
-      } catch (e) {
-        console.error(`[wsManager] accurate re-transcription failed session=${ctx.sessionId}: ${e.message}`);
-      }
-    }
 
     // Prior sessions (this one is not persisted yet) → deterministic progress deltas in the debrief.
     let history = [];
@@ -1475,49 +1413,6 @@ export class WebSocketManager {
     } catch (err) {
       console.error(`[wsManager] persist progress failed session=${ctx.sessionId}:`, err.message);
       return null;
-    }
-  }
-
-  // Replace the Gemini live transcript (English-biased gibberish) with the accurate Deepgram-German
-  // re-transcription, so the debrief grades what the candidate REALLY said. `accurate` is the per-turn
-  // array from transcribeStudentTurns ([{ text, lowConf }]). Grammar/level/L1/structure analysis read
-  // the CORPUS of utterance texts, so exact per-turn alignment is not required for them; we still repair
-  // the ordered dialogue best-effort for the question↔answer pairing. If nothing usable came back, the
-  // original transcript is kept — the debrief is never blanked.
-  _applyAccurateTranscript(ctx, accurate) {
-    const texts = (accurate || []).map((a) => (a?.text || '').trim());
-    const rebuilt = [];
-    for (let i = 0; i < texts.length; i++) {
-      const t = texts[i];
-      if (!t) continue;
-      const words = t.split(/\s+/).filter(Boolean).length;
-      if (words < 2) continue;   // mirror the live ≥2-word filter — never grade a one-word blip
-      const orig = ctx.utterances[i];
-      rebuilt.push({ text: t, words, durationMs: orig?.durationMs || 0, stage: orig?.stage ?? ctx.stageIdx });
-    }
-    if (!rebuilt.length) return;   // Deepgram empty/failed → keep the live transcript, never blank
-    ctx.utterances = rebuilt;
-    let j = 0;
-    for (const d of ctx.dialogue) {
-      if (d.role === 'candidate') { if (texts[j]) d.text = texts[j]; j++; }
-    }
-    console.log(`[wsManager] debrief re-graded on Deepgram-DE transcript  turns=${rebuilt.length}  session=${ctx.sessionId}`);
-  }
-
-  // Student asked for the end-of-fight conversation PDF: build it from the accurate Deepgram-German
-  // re-transcription + boss lines + pronunciation notes, and send it. Best-effort; never throws.
-  async _handleExportTranscript(ctx) {
-    try {
-      if (ctx._geminiTurnPcm?.length) {   // flush the final in-progress turn so the last answer is included
-        ctx.geminiUserTurns.push({ pcm: Buffer.concat(ctx._geminiTurnPcm) });
-        ctx._geminiTurnPcm = [];
-      }
-      const { buildConversationExport } = await import('./conversationExport.js');
-      const payload = await buildConversationExport(ctx);
-      this._send(ctx, { type: S.TRANSCRIPT_EXPORT, ...payload });
-    } catch (e) {
-      console.error(`[wsManager] transcript export failed session=${ctx.sessionId}: ${e.message}`);
-      this._send(ctx, { type: S.TRANSCRIPT_EXPORT, lines: [], pronunciation: [], accurate: false, error: true });
     }
   }
 
