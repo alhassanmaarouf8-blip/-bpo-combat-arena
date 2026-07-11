@@ -9,8 +9,26 @@ import express from 'express';
 import { getSignedUrl, elevenReady, AGENT_ID } from './elevenAgent.js';
 import { verifyToken, getAccountById } from './auth.js';
 import { getBossConfig } from './realtimeClient.js';
-import { buildSessionScript } from './scenarios.js';
 import { buildElevenDebrief } from './elevenDebrief.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Raw character data → a LEAN persona prompt for ElevenLabs (the full buildSessionScript prompt is huge
+// and slowed the LLM back down; ElevenLabs handles turn-taking natively so it doesn't need those rules).
+let RAW_CHARS = {};
+try {
+  const j = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'interviewer-characters.json'), 'utf8'));
+  (j.characters || []).forEach((c) => { RAW_CHARS[c.id] = c; });
+} catch (e) { console.error('[elevenRouter] could not load characters:', e.message); }
+
+function leanPromptFor(bossId, displayName) {
+  const ch = RAW_CHARS[bossId];
+  const core = ch
+    ? `${ch.system_prompt || ''}${ch.emotional_default ? `\nGrundhaltung: ${ch.emotional_default}` : ''}${ch.speaking_style?.rhythm ? `\nSprechstil: ${ch.speaking_style.rhythm}` : ''}`
+    : `Du bist ${displayName || 'ein/e Interviewer/in'}, ein/e deutsche/r BPO-Interviewer/in.`;
+  return `${core}\n\nFühre ein realistisches, natürliches deutsches Job-Interview (Kundenservice/BPO). Begrüße kurz, dann frage nacheinander nach Erfahrung, Motivation und stelle EINE kurze Situationsfrage. Bleib in deiner Rolle. Stelle IMMER nur EINE Frage pro Turn und warte auf die Antwort. Kurze, menschliche Reaktionen, keine langen Monologe. Antworte AUSSCHLIESSLICH auf Deutsch.`;
+}
 
 export const elevenRouter = express.Router();
 
@@ -55,25 +73,16 @@ elevenRouter.get('/session', async (req, res) => {
   // Build the REAL interview for the chosen persona — the SAME prompt + voice the Groq/Gemini paths use,
   // handed to ElevenLabs as per-session overrides (the agent has these fields override-enabled).
   const bossId = String(req.query.boss || 'yasmin');
-  const level  = String(req.query.level || 'a2-b1');
   const boss   = getBossConfig(bossId);
-  let overrides = { tts: { voiceId: boss?.elevenVoice || 'Ah5UjbC5d1A2iCl9Lbe7' } };
-  try {
-    if (boss) {
-      const script = buildSessionScript({
-        persona: boss.persona, displayName: boss.displayName,
-        greeting: boss.greeting, greetings: boss.greetings, levelId: level,
-      });
-      overrides = {
-        agent: {
-          prompt: { prompt: script.instructions },
-          firstMessage: script.openingLine || boss.greeting,
-          language: 'de',
-        },
-        tts: { voiceId: boss.elevenVoice || 'Ah5UjbC5d1A2iCl9Lbe7' },
-      };
-    }
-  } catch (e) { console.error(`[elevenRouter] script build failed boss=${bossId}: ${e.message}`); /* fall back to voice-only override */ }
+  // LEAN persona prompt (fast) — NOT the huge buildSessionScript prompt that slowed the LLM back down.
+  const overrides = {
+    agent: {
+      prompt: { prompt: leanPromptFor(bossId, boss?.displayName) },
+      firstMessage: boss?.greeting || 'Guten Tag.',
+      language: 'de',
+    },
+    tts: { voiceId: boss?.elevenVoice || 'Ah5UjbC5d1A2iCl9Lbe7' },
+  };
 
   res.json({ signedUrl, agentId: AGENT_ID, bossId, overrides });
 });
