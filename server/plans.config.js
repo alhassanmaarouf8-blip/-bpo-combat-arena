@@ -25,23 +25,27 @@ export const PLANS = {
     dailySessions:    0,
     sessionMinutes:   0,
   },
+  // Owner order 07-11 (supersedes the same-day 599/1499 ship): Basic = 15 live minutes/day,
+  // Elite = 30, prices raised. Sold as full interviews: 2×7.5 and 4×7.5 (MAX_FIGHT_MS = 7.5 min).
+  // Worst-case COGS at the measured $0.024/min: Basic ~540 EGP/mo, Elite ~1.080 — prices keep a
+  // ~45% floor margin at 100% daily usage, ~73% at realistic (~50%) usage.
   basic: {
     id:               'basic',
     label:            'Basic',
-    priceEGP:         599,
-    yearlyEGP:        5990,  // 12 for the price of 10
-    dailySessions:    1,     // 1 FULL HR interview per day — the daily-quota law
-    sessionMinutes:   8,
-    dailyLiveMinutes: 8,     // 1 × 8 — hard daily spend cap
+    priceEGP:         999,
+    yearlyEGP:        9990,  // 12 for the price of 10
+    dailySessions:    2,     // 2 FULL HR interviews per day — the daily-quota law
+    sessionMinutes:   7.5,
+    dailyLiveMinutes: 15,    // 2 × 7.5 — hard daily spend cap
   },
   elite: {
     id:                     'elite',
     label:                  'Elite',
-    priceEGP:               1499,
-    yearlyEGP:              14990,
-    dailySessions:          3,     // 3 FULL HR interviews per day
-    sessionMinutes:         8,
-    dailyLiveMinutes:       24,    // 3 × 8 — hard daily spend cap
+    priceEGP:               1999,
+    yearlyEGP:              19990,
+    dailySessions:          4,     // 4 FULL HR interviews per day
+    sessionMinutes:         7.5,
+    dailyLiveMinutes:       30,    // 4 × 7.5 — hard daily spend cap
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
   },
   // "Bis zum Job" one-time plan: KILLED by owner order 2026-07-10 evening ("cancel that shit",

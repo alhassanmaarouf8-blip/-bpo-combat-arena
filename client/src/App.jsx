@@ -2830,7 +2830,7 @@ function WhatsAppOptIn({ token, apiUrl }) {
 // Perks receive the whole plan object (07-11 quota redesign: plans are sold as FULL daily
 // interviews, not minutes — p.dailySessions is the number a buyer actually gets).
 const PERKS_DE = {
-  basic: (p) => [`${p.dailySessions} ECHTES HR-Interview pro Tag — komplett, mit Stimme, bis ${p.sessionMinutes} Min`,
+  basic: (p) => [`${p.dailySessions} ECHTE HR-Interviews pro Tag — komplett, mit Stimme (${p.dailyLiveMinutes} Min Live-Übung täglich)`,
                  'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'die App führt dich: Diagnose → EIN Training → Beweis im Interview',
                  'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
@@ -2842,7 +2842,7 @@ const PERKS_DE = {
   // Musk-cull (same day): the replacement perk "das komplette Trainingslager" was ITSELF a phantom —
   // the Trainingslager UI was deleted in a92c9ec; its server engine has zero client consumers.
   // Perk law: every line here must name a mechanism a buyer can reach (perk-truth-pinning memory).
-  elite: (p) => [`${p.dailySessions} ECHTE HR-Interviews pro Tag — dreimal so viel Übung wie Basic`,
+  elite: (p) => [`${p.dailySessions} ECHTE HR-Interviews pro Tag — doppelt so viel Übung wie Basic (${p.dailyLiveMinutes} Min täglich)`,
                  'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
