@@ -37,20 +37,26 @@ export const elevenRouter = express.Router();
 const ALLOW = (process.env.ELEVEN_ALLOW_EMAILS || 'alhassanmaarouf2@gmail.com')
   .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
 
-// ── Cost guard (in-memory, resets daily) — bounds ElevenLabs spend during the rollout without a store.
-// Global cap AND per-user cap. Replaced by the full elevenBudget daily-quota when wired into the fight.
-let _capDay = '';
-let _globalCount = 0;
-const _userCount = new Map();
+// ── Cost guard (FILE-persisted, resets daily) — bounds ElevenLabs spend during the rollout.
+// Persisted to disk (like geminiBudget) so the caps survive process restarts/crashes, not just live in
+// memory. (Render's ephemeral disk still resets on a full redeploy — same limitation as gemini-budget.json;
+// a DB-backed per-user quota via elevenBudget is the durable end state.) Global cap AND per-user cap.
+const COST_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'eleven-cost.json');
+let costState = { day: '', global: 0, users: {} };
+try { costState = JSON.parse(fs.readFileSync(COST_FILE, 'utf8')); } catch { /* first run / wiped disk */ }
+function persistCost() {
+  try { fs.mkdirSync(path.dirname(COST_FILE), { recursive: true }); fs.writeFileSync(COST_FILE, JSON.stringify(costState)); }
+  catch (e) { console.error('[elevenRouter] cost persist failed:', e.message); }
+}
 function costGate(userKey) {
   const today = new Date().toISOString().slice(0, 10);
-  if (today !== _capDay) { _capDay = today; _globalCount = 0; _userCount.clear(); }
+  if (costState.day !== today) { costState = { day: today, global: 0, users: {} }; }
   const GLOBAL  = parseInt(process.env.ELEVEN_DAILY_SESSION_CAP || '50', 10);
   const PERUSER = parseInt(process.env.ELEVEN_USER_SESSION_CAP  || '20', 10);
-  if (_globalCount >= GLOBAL) return 'global_cap';
-  const u = _userCount.get(userKey) || 0;
+  if (costState.global >= GLOBAL) return 'global_cap';
+  const u = costState.users[userKey] || 0;
   if (u >= PERUSER) return 'user_cap';
-  _globalCount += 1; _userCount.set(userKey, u + 1);
+  costState.global += 1; costState.users[userKey] = u + 1; persistCost();
   return null;
 }
 
