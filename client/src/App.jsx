@@ -15,6 +15,7 @@ import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
+import { SalmaTakeover, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { InviteCard } from './InviteCard.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
 
@@ -98,6 +99,9 @@ beacon(IN_APP_BROWSER ? 'open_inapp' : 'open');
 // The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
 // masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
 const BRAIN_GUIDE_LIVE = true;
+// Salma, the recruiter cold-open (SalmaTakeover.jsx): fires ONCE per account (server-side
+// salmaIntroAt flag + localStorage mirror). Kill switch — flip false to disable instantly.
+const SALMA_LIVE = true;
 // BARGE-IN: let the user interrupt the boss by talking over it (real-conversation feel). The fail-safe
 // BargeInMonitor is fully built, but true talk-over overlaps live mic + boss speaker → echo behaviour
 // differs on a phone speaker vs headphones, so it stays OFF until the owner phone-tests + tunes the
@@ -3393,6 +3397,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
   const [topWeakness, setTopWeakness] = useState(null);    // /api/progress topWeakness — Salma's home-card note
+  const [salma, setSalma] = useState(null);                // recruiter cold-open ctx | null (SalmaTakeover)
+  const [salmaResume, setSalmaResume] = useState(0);       // bumped when the assessment closes → her flow resumes
   // Deep audit D10 (2026-07-10): the level was NEVER persisted (a B2 user restarted at slow A2–B1
   // German every visit) and "dein Niveau wird automatisch erkannt" had no mechanism behind it.
   // Now: a manual pick persists; with no manual pick, the assessment's MEASURED estimatedLevel
@@ -3426,26 +3432,63 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [geminiMode, setGeminiMode] = useState(false);        // this interview runs on Gemini full-duplex voice
   const [geminiCost, setGeminiCost] = useState(null);         // { monthUsd, capUsd, capped } live spend readout
 
-  // Honor the landing promise ("kostenlose Einstufung direkt nach der Anmeldung"): if the user
-  // just signed up, auto-open the free assessment ONCE (flag set in AuthScreen on signup).
+  // THE one first-mount decision point: who greets this user? Salma's cold-open (once per
+  // account) owns the flow when eligible; otherwise the legacy behavior runs unchanged
+  // (signup → auto-open the free assessment, flag set in AuthScreen). One effect owning BOTH
+  // paths makes a double-open race structurally impossible.
   useEffect(() => {
     let pending = false;
     try { pending = localStorage.getItem('bpo_pending_assessment') === '1'; } catch {}
-    if (!pending) return;
-    try { localStorage.removeItem('bpo_pending_assessment'); } catch {}
-    fetch(`${API_URL}/api/assessment/status`, { headers: { Authorization: `Bearer ${auth.token}` } })
-      .then((r) => r.json()).then((d) => {
-        if (d && !d.used) { setAssessmentOpen(true); beacon('assessment_shown'); }
-        // D10 — "dein Niveau wird automatisch erkannt", now real: with no manual pick stored, the
-        // assessment's MEASURED level drives the interview level. A manual pick always outranks it.
+    if (pending) { try { localStorage.removeItem('bpo_pending_assessment'); } catch {} }
+    let seenLocal = false;
+    try { seenLocal = localStorage.getItem('omni_salma_seen') === '1'; } catch {}
+
+    (async () => {
+      let status = null;
+      if (pending || (SALMA_LIVE && !seenLocal)) {
         try {
-          if (!localStorage.getItem('omni_level') && d?.result?.estimatedLevel) {
-            const mapped = ({ A1:'a2-b1', A2:'a2-b1', B1:'a2-b1', B2:'b2', C1:'c1', C2:'c1' })[d.result.estimatedLevel];
-            if (mapped) { levelRef.current = mapped; setLevel(mapped); }
+          const r = await fetch(`${API_URL}/api/assessment/status`, { headers: { Authorization: `Bearer ${auth.token}` } });
+          status = await r.json();
+        } catch { /* offline / cold start — fall through */ }
+      }
+      // D10 — with no manual pick stored, the assessment's MEASURED level drives the interview
+      // level. A manual pick always outranks it. (Unchanged legacy behavior, both branches.)
+      try {
+        if (!localStorage.getItem('omni_level') && status?.result?.estimatedLevel) {
+          const mapped = ASSESS_LEVEL_MAP[status.result.estimatedLevel];
+          if (mapped) { levelRef.current = mapped; setLevel(mapped); }
+        }
+      } catch { /* private mode */ }
+
+      if (SALMA_LIVE && !seenLocal && status) {
+        // 2.5s cap: on a Render cold start this fetch would hang ~20s — fail OPEN to legacy
+        // and let a later visit introduce her (the server flag makes it once-only anyway).
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 2500);
+          const r = await fetch(`${API_URL}/api/guide/profile`, {
+            headers: { Authorization: `Bearer ${auth.token}` }, signal: ctrl.signal });
+          clearTimeout(timer);
+          if (r.ok) {
+            const profile = await r.json();
+            if (!profile.salmaIntroAt) {
+              setSalma({
+                variant: (pending && !status.used) ? 'new' : 'returning',
+                pending, used: !!status.used, result: status.result || null,
+                profile, trialDays: auth.account?.entitlement?.trial?.active ? (auth.account.entitlement.trial.daysLeft ?? 0) : 0,
+              });
+              beacon('salma_intro_shown');
+              return;   // Salma owns the flow — the legacy auto-open below must not also fire
+            }
+            try { localStorage.setItem('omni_salma_seen', '1'); } catch {}   // server says seen → stop asking
           }
-        } catch { /* private mode */ }
-      }).catch(() => {});
-  }, []);   // once, on first mount after signup
+        } catch { /* profile unreachable → legacy */ }
+      }
+
+      // LEGACY (unchanged): fresh signup → auto-open the free assessment once.
+      if (pending && status && !status.used) { setAssessmentOpen(true); beacon('assessment_shown'); }
+    })();
+  }, []);   // once, on first mount after login/signup
   const [videoLessonsOpen, setVideoLessonsOpen] = useState(false);     // $0 video-lesson engine (animated slides + native TTS)
 
   const phaseRef       = useRef('idle');
@@ -4436,6 +4479,20 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     start();
   }, [start, auth.account]);
 
+  // ── Salma's booking: she hands the candidate to Yasmin (the ladder's Junior-Recruiterin) at
+  // the level her screening measured. result=null (screening skipped) books at the current level.
+  const closeSalma = useCallback((why) => { setSalma(null); if (why) beacon(String(why)); }, []);
+  const bookSalmaFight = useCallback((result) => {
+    const mapped = ASSESS_LEVEL_MAP[result?.estimatedLevel];
+    // Session-only (levelRef + state, no localStorage write) — a manual Optionen pick still outranks
+    // the measured level on the next visit, exactly like the legacy auto-set (D10).
+    if (mapped) { levelRef.current = mapped; setLevel(mapped); }
+    chooseBoss('yasmin');
+    setSalma(null);
+    beacon('salma_booked');
+    beginSession();
+  }, [beginSession]);
+
   const openDashboard = useCallback(async () => {
     setDashboard({ data: null, loading: true });
     try {
@@ -4519,12 +4576,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     [videoLessonsOpen, setVideoLessonsOpen],
     [dailyOpen, setDailyOpen],
     [showBriefing, setShowBriefing],
+    [!!salma && !assessmentOpen, () => closeSalma('salma_skipped')],
   ];
   // Every drill/panel overlay has its OWN close ("Schließen ✕"), so the global back arrow was a
   // redundant SECOND close AND it overlapped each drill's title (top-left collision). Hide it for
   // those; keep it only for the live interview (which has no own close) + panels without one.
   const ownCloseOverlay = assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
-    || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen;
+    || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen || !!salma;
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
     // Closing via the bare setter bypasses the onClose wrappers, so clear the why here too —
@@ -4650,11 +4708,27 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
       )}
 
-      {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session) */}
+      {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session).
+          When Salma's cold-open is active, BOTH exits return to HER (she delivers the verdict and
+          does the booking herself — the agency handoff), never a raw jump into a fight. */}
       {assessmentOpen && (
         <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={() => setAssessmentOpen(false)}
-          onStartInterview={() => { setAssessmentOpen(false); setTimeout(() => beginSession(), 60); }} />
+          onClose={salma
+            ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
+            : () => setAssessmentOpen(false)}
+          onStartInterview={salma
+            ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
+            : () => { setAssessmentOpen(false); setTimeout(() => beginSession(), 60); }} />
+      )}
+
+      {/* Salma's cold-open — hidden while her screening (the Assessment) runs, and while the
+          plan-activated celebration is up (one takeover at a time). */}
+      {salma && !assessmentOpen && !billing?.justActivated && (
+        <SalmaTakeover token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+          ctx={salma} resumeTick={salmaResume}
+          onStartScreening={() => { setAssessmentOpen(true); beacon('assessment_shown'); }}
+          onBookFight={bookSalmaFight}
+          onClose={closeSalma} />
       )}
 
       {/* Shadowing pronunciation practice (PAID — cheap models + browser TTS, never Realtime) */}
