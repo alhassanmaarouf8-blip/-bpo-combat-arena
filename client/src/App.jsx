@@ -829,11 +829,9 @@ const GLOBAL_CSS = `
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #root {
+  html, body {
     min-height: 100svh;            /* grow with content — do NOT lock to 100% (clips the start button) */
-    background:
-      radial-gradient(140% 100% at 50% -10%, #0a1422 0%, transparent 55%),
-      var(--bg-0);
+    background: var(--bg-0);       /* deep navy base ONLY; the aurora (body::before) paints on top of this */
     color: var(--text);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
@@ -870,7 +868,7 @@ const GLOBAL_CSS = `
     animation: aurora-breathe 15s var(--ease) infinite alternate;
     will-change: transform, opacity;
   }
-  #root { position: relative; z-index: 1; }
+  #root { position: relative; z-index: 1; min-height: 100svh; background: transparent; }  /* transparent so the aurora behind it is visible */
   @keyframes aurora-drift {
     0%   { transform: translate3d(-8%, -5%, 0) scale(1.05) rotate(0deg); }
     50%  { transform: translate3d(7%, 4%, 0)  scale(1.22) rotate(4deg); }
