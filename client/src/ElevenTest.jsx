@@ -6,7 +6,7 @@
  * /api/eleven/session, then runs a live conversation via the @elevenlabs/react SDK (mic + turn-taking
  * + playback all handled by the SDK).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
 // v1.10 requires useConversation to live under a <ConversationProvider>. Wrap it (default export below).
@@ -14,13 +14,39 @@ function ElevenInner({ apiUrl }) {
   const [status, setStatus] = useState('idle');   // idle | connecting | connected | ended
   const [lines, setLines]   = useState([]);
   const [err, setErr]       = useState('');
+  const [debrief, setDebrief]           = useState(null);
+  const [debriefLoading, setDebriefLoading] = useState(false);
+  const fullRef  = useRef([]);   // full transcript (uncapped) → fed to the real feedback pipeline
+  const startMsRef = useRef(0);
 
   const conv = useConversation({
-    onConnect:    () => setStatus('connected'),
+    onConnect:    () => { startMsRef.current = Date.now(); setStatus('connected'); },
     onDisconnect: () => setStatus('ended'),
     onError:      (e) => setErr(String(e?.message || e)),
-    onMessage:    (m) => { if (m?.message) setLines((ls) => [...ls, { who: m.source, text: m.message }].slice(-14)); },
+    onMessage:    (m) => {
+      if (!m?.message) return;
+      fullRef.current.push({ who: m.source, text: m.message });
+      setLines((ls) => [...ls, { who: m.source, text: m.message }].slice(-14));
+    },
   });
+
+  // End-of-interview: run the app's REAL feedback pipeline on the accurate ElevenLabs transcript (MUST #2).
+  const fetchDebrief = useCallback(async () => {
+    const full = fullRef.current;
+    if (!full || full.filter((l) => l.who === 'user').length === 0) return;
+    setDebriefLoading(true);
+    try {
+      const token = localStorage.getItem('bpo_token') || '';
+      const speechMs = startMsRef.current ? (Date.now() - startMsRef.current) : 0;
+      const r = await fetch(`${apiUrl}/api/eleven/debrief`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ transcript: full, level: 'a2-b1', speechMs }),
+      });
+      const j = await r.json().catch(() => null);
+      if (r.ok && j) setDebrief(j); else setErr(`debrief ${r.status}: ${JSON.stringify(j).slice(0, 150)}`);
+    } catch (e) { setErr('debrief: ' + String(e?.message || e)); }
+    finally { setDebriefLoading(false); }
+  }, [apiUrl]);
 
   const start = useCallback(async () => {
     setErr(''); setLines([]); setStatus('connecting');
@@ -33,7 +59,7 @@ function ElevenInner({ apiUrl }) {
     } catch (e) { setErr(String(e?.message || e)); setStatus('idle'); }
   }, [apiUrl, conv]);
 
-  const stop = useCallback(() => { try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); }, [conv]);
+  const stop = useCallback(() => { try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); fetchDebrief(); }, [conv, fetchDebrief]);
 
   const speaking = conv.isSpeaking;
   const active = status === 'connected';
@@ -69,6 +95,31 @@ function ElevenInner({ apiUrl }) {
           </div>
         ))}
       </div>
+      {(debriefLoading || debrief) && (
+        <div style={{ width: '100%', maxWidth: 460, marginTop: 14, padding: 16, borderRadius: 12,
+          background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)' }}>
+          <div style={{ fontSize: 12, letterSpacing: '0.14em', color: '#3b82f6', fontWeight: 700, marginBottom: 10 }}>DEIN FEEDBACK</div>
+          {debriefLoading && !debrief && <div style={{ fontSize: 13, color: '#94a3b8' }}>Analysiere dein Deutsch… dein echtes Feedback wird berechnet.</div>}
+          {debrief && (
+            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+              {debrief.rank && <div style={{ marginBottom: 8 }}><b>Niveau:</b> {debrief.rank}{debrief.verdict ? ` · ${debrief.verdict}` : ''}</div>}
+              {debrief.metrics && <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>{debrief.metrics.words} Wörter · {debrief.metrics.wpm} WpM · {debrief.metrics.connectorHits} Konnektoren · {debrief.metrics.fillers} Füllwörter</div>}
+              {Array.isArray(debrief.strengths) && debrief.strengths.length > 0 && (
+                <div style={{ marginBottom: 8 }}><b style={{ color: '#4ade80' }}>Stärken:</b>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{debrief.strengths.slice(0, 3).map((s, i) => <li key={i}>{typeof s === 'string' ? s : (s.text || s.title || '')}</li>)}</ul></div>
+              )}
+              {Array.isArray(debrief.grammar) && debrief.grammar.length > 0 && (
+                <div style={{ marginBottom: 8 }}><b style={{ color: '#f97316' }}>Grammatik:</b>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{debrief.grammar.slice(0, 3).map((g, i) => <li key={i}>{g.rule || g.explanation || ''}{g.examples?.[0] ? ` — „${g.examples[0].wrong}“ → „${g.examples[0].right}“` : ''}</li>)}</ul></div>
+              )}
+              {Array.isArray(debrief.studyNext) && debrief.studyNext.length > 0 && (
+                <div><b style={{ color: '#3b82f6' }}>Als Nächstes:</b>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{debrief.studyNext.slice(0, 3).map((s, i) => <li key={i}>{s.detail || s.title || (typeof s === 'string' ? s : '')}</li>)}</ul></div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ fontSize: 11, color: '#475569', marginTop: 8, textAlign: 'center', maxWidth: 320 }}>
         Sprich wie in einem echten Telefongespräch. Achte darauf, wie schnell &amp; natürlich es sich anfühlt — und ob es dich je unterbricht.
       </div>
