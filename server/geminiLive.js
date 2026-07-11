@@ -24,6 +24,23 @@ import { WebSocket } from 'ws';
 const HOST = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 const DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest';
 
+// Vertex AI transport (GEMINI_USE_VERTEX=1): same bidi protocol, but billed to the GCP
+// project ($300 credit) via OAuth instead of the AI Studio key. Model ids differ — the
+// native-audio live model on Vertex is the -preview-native-audio one (probe-verified
+// 2026-07-11: setup + German audio out on this exact id; the AI Studio '-latest' alias 404s).
+const VERTEX_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0719205380';
+const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+const VERTEX_HOST = `wss://${VERTEX_LOCATION}-aiplatform.googleapis.com/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
+const VERTEX_DEFAULT_MODEL = process.env.GEMINI_LIVE_MODEL_VERTEX || 'gemini-live-2.5-flash-preview-native-audio-09-2025';
+
+// Vertex wants the fully-qualified publisher path; accept bare ids ('gemini-live-…') and
+// AI-Studio-style ids ('models/gemini-…') and qualify them.
+function vertexModelPath(model) {
+  if (model.startsWith('projects/')) return model;
+  const bare = model.replace(/^models\//, '');
+  return `projects/${VERTEX_PROJECT}/locations/${VERTEX_LOCATION}/publishers/google/models/${bare}`;
+}
+
 // Decode whatever frame type the server sends (string | Buffer | ArrayBuffer | Blob) → object.
 async function frameToJson(data) {
   if (typeof data === 'string') return JSON.parse(data);
@@ -38,7 +55,8 @@ async function frameToJson(data) {
 /**
  * Open a Gemini Live session.
  * @param {object} opts
- * @param {string} opts.apiKey         GEMINI_API_KEY
+ * @param {string} [opts.apiKey]       GEMINI_API_KEY (AI Studio transport)
+ * @param {string} [opts.accessToken]  OAuth token (Vertex AI transport — bills the GCP project)
  * @param {string} opts.systemInstruction  the interview brief (buildSessionScript().instructions)
  * @param {string} [opts.model]        Live model id
  * @param {string} [opts.voiceName]    prebuilt voice (e.g. 'Charon'); omit for model default
@@ -47,15 +65,19 @@ async function frameToJson(data) {
  *                                        onError(e), onClose(code,reason) }
  * @returns {Promise<{ sendAudioChunk, sendText, close, isOpen }>}
  */
-export function openGeminiLive({ apiKey, systemInstruction, model = DEFAULT_MODEL, voiceName, handlers = {} }) {
-  if (!apiKey) throw new Error('geminiLive: apiKey required');
+export function openGeminiLive({ apiKey, accessToken, systemInstruction, model, voiceName, handlers = {} }) {
+  const vertex = !!accessToken;   // Vertex mode = OAuth token supplied (see vertexToken.js)
+  if (!apiKey && !accessToken) throw new Error('geminiLive: apiKey or accessToken required');
+  if (!model) model = vertex ? VERTEX_DEFAULT_MODEL : DEFAULT_MODEL;
   const h = handlers;
-  const ws = new WebSocket(`${HOST}?key=${apiKey}`);
+  const ws = vertex
+    ? new WebSocket(VERTEX_HOST, { headers: { Authorization: `Bearer ${accessToken}` } })
+    : new WebSocket(`${HOST}?key=${apiKey}`);
   let ready = false;
 
   const setup = {
     setup: {
-      model,
+      model: vertex ? vertexModelPath(model) : model,
       generationConfig: {
         responseModalities: ['AUDIO'],
         // Thinking OFF: the -latest native-audio alias thinks before answering, which doubled

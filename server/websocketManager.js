@@ -25,6 +25,7 @@ import { dayKey }                 from './time.js';
 import { activeFightUsers }       from './liveFights.js';
 import geminiBudget               from './geminiBudget.js';
 import { downsamplePcm24to16 }    from './geminiAudio.js';
+import { vertexConfigured }       from './vertexToken.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -507,11 +508,13 @@ export class WebSocketManager {
     // ── Should THIS fight run on paid Gemini Live? Flag on + key present + account allowlisted +
     // the monthly $ cap not yet reached. Decided BEFORE connect() so we can suppress the Groq opening
     // greeting when Gemini will greet natively (otherwise the candidate hears two hellos). ──
-    const geminiLiveEnabled = USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY
+    // Creds = AI Studio key OR Vertex service account (bills the $300 GCP credit, not the card).
+    const geminiCreds = !!process.env.GEMINI_API_KEY || vertexConfigured();
+    const geminiLiveEnabled = USE_GEMINI_LIVE && geminiCreds
       && geminiEmailAllowed(account.email) && !geminiBudget.isCapped();
     // 2026-07-09 DEBUG: never let the fallback be silent again — name the exact gate that failed.
-    console.log(`[wsManager] gemini-gate  flag=${USE_GEMINI_LIVE}  key=${!!process.env.GEMINI_API_KEY}  allowed=${geminiEmailAllowed(account.email)}  capped=${geminiBudget.isCapped()}  spent=$${geminiBudget.spentThisMonth().toFixed(2)}/$${geminiBudget.capUsd()}  => geminiLiveEnabled=${geminiLiveEnabled}  session=${ctx.sessionId}`);
-    if (USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY && geminiEmailAllowed(account.email) && geminiBudget.isCapped()) {
+    console.log(`[wsManager] gemini-gate  flag=${USE_GEMINI_LIVE}  key=${!!process.env.GEMINI_API_KEY}  vertex=${vertexConfigured()}  allowed=${geminiEmailAllowed(account.email)}  capped=${geminiBudget.isCapped()}  spent=$${geminiBudget.spentThisMonth().toFixed(2)}/$${geminiBudget.capUsd()}  => geminiLiveEnabled=${geminiLiveEnabled}  session=${ctx.sessionId}`);
+    if (USE_GEMINI_LIVE && geminiCreds && geminiEmailAllowed(account.email) && geminiBudget.isCapped()) {
       console.warn(`[wsManager] Gemini monthly cap ($${geminiBudget.capUsd()}) reached — this fight stays on the $0 path  session=${ctx.sessionId}`);
     }
 

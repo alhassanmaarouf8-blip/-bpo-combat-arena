@@ -26,6 +26,7 @@ import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
 import { elevenRouter }          from './elevenRouter.js';
 import { dbEnabled }            from './db.js';
+import { vertexConfigured }     from './vertexToken.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
@@ -37,7 +38,9 @@ const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
 // At least one back-end must be configured. If USE_GEMINI_LIVE=1, the Gemini Live path
 // needs GEMINI_API_KEY; otherwise the Groq text path needs GROQ_API_KEY. Both can coexist.
 const hasGroq = !!process.env.GROQ_API_KEY;
-const hasGeminiLive = !!process.env.GEMINI_API_KEY;
+// Gemini Live creds = AI Studio key OR Vertex (GEMINI_USE_VERTEX=1 + service-account key,
+// which bills the GCP project's $300 credit instead of the card).
+const hasGeminiLive = !!process.env.GEMINI_API_KEY || vertexConfigured();
 if (!hasGroq && !hasGeminiLive) {
   console.error('[server] FATAL: set at least one of GROQ_API_KEY or GEMINI_API_KEY in .env');
   process.exit(1);
@@ -115,7 +118,7 @@ app.get('/health', async (_req, res) => {
     // Gemini Live proxy: USE_GEMINI_LIVE=1 → active; else groq text path (fallback). Boolean
     // only. To enable: get a GEMINI_API_KEY from a billing-enabled GCP project, set
     // USE_GEMINI_LIVE=1 in server/.env (bidiGenerateContent is NOT on the free tier).
-    geminiLive: USE_GEMINI_LIVE && !!process.env.GEMINI_API_KEY,
+    geminiLive: USE_GEMINI_LIVE && (!!process.env.GEMINI_API_KEY || vertexConfigured()),
     // If geminiLive is claimed but the key was rejected at session start, this will be
     // "degraded" until a failed session proves it. Client reads this in /health on mount.
     // Is the Deepgram key actually loaded on this instance? Drives neural voice (TTS)

@@ -7,6 +7,7 @@
  */
 
 import { openGeminiLive } from './geminiLive.js';
+import { vertexConfigured, getVertexAccessToken } from './vertexToken.js';
 
 export class GeminiLiveProxy {
   constructor(opts) {
@@ -22,11 +23,19 @@ export class GeminiLiveProxy {
 
   async start({ apiKey, model, voiceName, systemInstruction }) {
     try {
+      // Vertex first when configured (bills the $300 GCP credit, not the card); the AI Studio
+      // key path stays as-is otherwise. Token minting is the only await — fails loud into
+      // the same catch → onError → graceful Groq fallback.
+      const accessToken = vertexConfigured() ? await getVertexAccessToken() : null;
       this._session = openGeminiLive({
         apiKey,
+        accessToken,
         // Native-audio model = the whole point (most human voice + native turn-taking/interruption).
         // Plain gemini-2.5-flash is NOT a live-audio model; never let it be the default here.
-        model: model || process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest',
+        // Vertex mode: leave model undefined unless explicitly overridden — Vertex model ids
+        // differ (geminiLive.js owns the per-transport default).
+        model: accessToken ? (process.env.GEMINI_LIVE_MODEL_VERTEX || undefined)
+                           : (model || process.env.GEMINI_LIVE_MODEL || 'models/gemini-2.5-flash-native-audio-latest'),
         voiceName: voiceName || 'Charon',
         systemInstruction,
         handlers: {
