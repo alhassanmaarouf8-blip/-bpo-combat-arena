@@ -47,7 +47,7 @@ phase0Router.get('/eleven-test', async (req, res) => {
           first_message: 'Guten Tag, schön dass Sie da sind. Erzählen Sie mir kurz von sich.',
           language: 'de',
         },
-        ...(voice ? { tts: { voice_id: voice.voice_id } } : {}),
+        tts: { model_id: 'eleven_flash_v2_5', ...(voice ? { voice_id: voice.voice_id } : {}) },   // German (non-English) agents require turbo/flash v2_5
       },
     };
     const cr = await fetch(`${API}/v1/convai/agents/create`, {
