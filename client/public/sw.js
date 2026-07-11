@@ -3,7 +3,7 @@
  * never serve a stale build — the cache is a fallback for OFFLINE only, never a source of truth.
  * It only ever touches same-origin GET navigations/assets; the API + WebSocket (onrender.com,
  * cross-origin) are never intercepted, so live audio/interview traffic is untouched. */
-const CACHE = 'omni-shell-v1';
+const CACHE = 'omni-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest',
   '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
 

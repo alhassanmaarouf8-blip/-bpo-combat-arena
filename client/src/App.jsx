@@ -846,21 +846,39 @@ const GLOBAL_CSS = `
   body::before {
     content:'';
     position: fixed;
-    inset: -25%;
+    inset: -40%;
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(40% 46% at 18% 14%, rgba(59,130,246,0.30), transparent 70%),
-      radial-gradient(36% 42% at 86% 28%, rgba(96,165,250,0.20), transparent 72%),
-      radial-gradient(32% 38% at 64% 92%, rgba(249,115,22,0.14), transparent 72%);
-    animation: aurora-drift 36s var(--ease) infinite alternate;
+      radial-gradient(42% 48% at 20% 16%, rgba(59,130,246,0.55), transparent 66%),
+      radial-gradient(40% 46% at 84% 26%, rgba(96,165,250,0.42), transparent 68%),
+      radial-gradient(38% 44% at 70% 90%, rgba(249,115,22,0.30), transparent 68%),
+      radial-gradient(46% 52% at 50% 55%, rgba(37,99,235,0.28), transparent 70%);
+    animation: aurora-drift 22s var(--ease) infinite alternate;
     will-change: transform;
+  }
+  /* Second, slower breathing layer so the field has real depth/life, not one flat sheet. */
+  body::after {
+    content:'';
+    position: fixed;
+    inset: -40%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(34% 40% at 78% 68%, rgba(96,165,250,0.34), transparent 66%),
+      radial-gradient(30% 36% at 24% 78%, rgba(251,146,60,0.22), transparent 68%);
+    animation: aurora-breathe 15s var(--ease) infinite alternate;
+    will-change: transform, opacity;
   }
   #root { position: relative; z-index: 1; }
   @keyframes aurora-drift {
-    0%   { transform: translate3d(-3%, -2%, 0) scale(1.06); }
-    50%  { transform: translate3d(2.5%, 1.5%, 0) scale(1.13); }
-    100% { transform: translate3d(3%, -1%, 0) scale(1.07); }
+    0%   { transform: translate3d(-8%, -5%, 0) scale(1.05) rotate(0deg); }
+    50%  { transform: translate3d(7%, 4%, 0)  scale(1.22) rotate(4deg); }
+    100% { transform: translate3d(9%, -3%, 0) scale(1.10) rotate(-3deg); }
+  }
+  @keyframes aurora-breathe {
+    0%   { transform: translate3d(5%, 3%, 0) scale(1.0);  opacity: 0.55; }
+    100% { transform: translate3d(-6%, -4%, 0) scale(1.25); opacity: 1; }
   }
   /* CRT scanline overlay REMOVED (07-02 uplift) — premium surfaces are clean; the gamer-HUD
      texture read as a toy. (the old scanline body::before is gone; this one is the aurora.) */
