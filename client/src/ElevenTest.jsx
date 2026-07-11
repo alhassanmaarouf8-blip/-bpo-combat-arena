@@ -10,7 +10,13 @@ import { useState, useCallback, useRef } from 'react';
 import { ConversationProvider, useConversation } from '@elevenlabs/react';
 
 // v1.10 requires useConversation to live under a <ConversationProvider>. Wrap it (default export below).
+const BOSSES = [
+  { id: 'yasmin', name: 'Yasmin' }, { id: 'karim', name: 'Karim' }, { id: 'hana', name: 'Hana' },
+  { id: 'tarek', name: 'Tarek' }, { id: 'frau-mona-adel', name: 'Frau Mona Adel' }, { id: 'lukas', name: 'Lukas' },
+];
+
 function ElevenInner({ apiUrl }) {
+  const [boss, setBoss]     = useState('yasmin');
   const [status, setStatus] = useState('idle');   // idle | connecting | connected | ended
   const [lines, setLines]   = useState([]);
   const [err, setErr]       = useState('');
@@ -52,12 +58,13 @@ function ElevenInner({ apiUrl }) {
     setErr(''); setLines([]); setStatus('connecting');
     try {
       const token = localStorage.getItem('bpo_token') || '';
-      const r = await fetch(`${apiUrl}/api/eleven/session`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${apiUrl}/api/eleven/session?boss=${encodeURIComponent(boss)}`, { headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.signedUrl) { setErr(`session ${r.status}: ${JSON.stringify(j).slice(0, 200)}`); setStatus('idle'); return; }
+      fullRef.current = []; setDebrief(null);
       await conv.startSession({ signedUrl: j.signedUrl, connectionType: 'websocket', overrides: j.overrides });
     } catch (e) { setErr(String(e?.message || e)); setStatus('idle'); }
-  }, [apiUrl, conv]);
+  }, [apiUrl, conv, boss]);
 
   const stop = useCallback(() => { try { conv.endSession(); } catch { /* already ended */ } setStatus('ended'); fetchDebrief(); }, [conv, fetchDebrief]);
 
@@ -76,6 +83,19 @@ function ElevenInner({ apiUrl }) {
         {status === 'idle' ? 'Bereit' : status === 'connecting' ? 'Verbinde…'
           : status === 'connected' ? (speaking ? 'YASMIN SPRICHT' : 'DU BIST DRAN — sprich Deutsch') : 'Beendet'}
       </div>
+      {status !== 'connected' && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 360 }}>
+          {BOSSES.map((b) => (
+            <button key={b.id} onClick={() => setBoss(b.id)}
+              style={{ padding: '6px 12px', fontSize: 12, borderRadius: 999, cursor: 'pointer',
+                border: `1px solid ${boss === b.id ? '#3b82f6' : '#334155'}`,
+                background: boss === b.id ? 'rgba(59,130,246,0.15)' : 'transparent',
+                color: boss === b.id ? '#93c5fd' : '#94a3b8', fontWeight: boss === b.id ? 700 : 400 }}>
+              {b.name}
+            </button>
+          ))}
+        </div>
+      )}
       {status !== 'connected' ? (
         <button onClick={start} disabled={status === 'connecting'} style={{ padding: '14px 32px', fontSize: 16, fontWeight: 700,
           borderRadius: 12, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff', opacity: status === 'connecting' ? 0.6 : 1 }}>
