@@ -454,6 +454,12 @@ try {
   console.error('[realtimeClient] could not load interviewer-characters.json:', err.message);
 }
 
+// Read-only accessor so the ElevenLabs voice path can build the SAME persona prompt + voice the
+// Groq/Gemini paths use (persona, displayName, greeting(s), elevenVoice). Falls back to Yasmin.
+export function getBossConfig(bossId) {
+  return BOSS_CONFIGS[bossId] || BOSS_CONFIGS.yasmin || null;
+}
+
 // ── Per-session seeded mood + a short "thinking" pause before the opening line ──
 const MOOD_POOL = ['sharp-monday', 'neutral', 'tired-friday'];
 const RESPONSE_DELAY_MS = 0;   // opening line begins IMMEDIATELY on connect — no artificial pause

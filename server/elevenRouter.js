@@ -6,8 +6,10 @@
  * The API key never leaves the server; the browser gets only a short-lived signed URL.
  */
 import express from 'express';
-import { getSignedUrl, elevenReady, AGENT_ID, buildOverrides } from './elevenAgent.js';
+import { getSignedUrl, elevenReady, AGENT_ID } from './elevenAgent.js';
 import { verifyToken, getAccountById } from './auth.js';
+import { getBossConfig } from './realtimeClient.js';
+import { buildSessionScript } from './scenarios.js';
 
 export const elevenRouter = express.Router();
 
@@ -29,9 +31,30 @@ elevenRouter.get('/session', async (req, res) => {
   const signedUrl = await getSignedUrl();
   if (!signedUrl) return res.status(502).json({ error: 'signed_url_failed' });
 
-  // Override the voice to Yasmin's German FEMALE voice (the agent's default is male). Only voice_id is
-  // overridden here — the agent keeps its baked-in German flash_v2_5 model. Per-persona voices next.
-  res.json({ signedUrl, agentId: AGENT_ID, overrides: { tts: { voiceId: 'Ah5UjbC5d1A2iCl9Lbe7' } } });
+  // Build the REAL interview for the chosen persona — the SAME prompt + voice the Groq/Gemini paths use,
+  // handed to ElevenLabs as per-session overrides (the agent has these fields override-enabled).
+  const bossId = String(req.query.boss || 'yasmin');
+  const level  = String(req.query.level || 'a2-b1');
+  const boss   = getBossConfig(bossId);
+  let overrides = { tts: { voiceId: boss?.elevenVoice || 'Ah5UjbC5d1A2iCl9Lbe7' } };
+  try {
+    if (boss) {
+      const script = buildSessionScript({
+        persona: boss.persona, displayName: boss.displayName,
+        greeting: boss.greeting, greetings: boss.greetings, levelId: level,
+      });
+      overrides = {
+        agent: {
+          prompt: { prompt: script.instructions },
+          firstMessage: script.openingLine || boss.greeting,
+          language: 'de',
+        },
+        tts: { voiceId: boss.elevenVoice || 'Ah5UjbC5d1A2iCl9Lbe7' },
+      };
+    }
+  } catch (e) { console.error(`[elevenRouter] script build failed boss=${bossId}: ${e.message}`); /* fall back to voice-only override */ }
+
+  res.json({ signedUrl, agentId: AGENT_ID, bossId, overrides });
 });
 
 export default { elevenRouter };
