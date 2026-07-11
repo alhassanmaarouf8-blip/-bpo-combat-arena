@@ -97,6 +97,20 @@ const beacon = (e) => {
   } catch { /* telemetry must never break the app */ }
 };
 beacon(IN_APP_BROWSER ? 'open_inapp' : 'open');
+// ── PWA install capture ───────────────────────────────────────────────────────────────────
+// beforeinstallprompt fires ONCE and often before React mounts, so the listener lives at module
+// scope. Why installing matters beyond convenience: an INSTALLED app is exempt from iOS/Safari's
+// 7-day script-storage eviction — install = the durable-login fix on iPhones (07-11 audit).
+let _pwaPrompt = null;
+const IS_STANDALONE = (() => {
+  try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+  catch { return false; }
+})();
+try {
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _pwaPrompt = e; });
+  window.addEventListener('appinstalled', () => { _pwaPrompt = null; });
+} catch { /* exotic UA */ }
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
 // The live-brain guide (GET /api/brain) is built + wired but stays OFF until the owner authors the
 // masri in BrainGuide.jsx (no fake Arabic ships to users). Flip to true to activate it on the home screen.
 const BRAIN_GUIDE_LIVE = true;
@@ -914,6 +928,19 @@ const GLOBAL_CSS = `
     30%  { transform: translateX(-50%) scale(1); }
     75%  { opacity: 1; }
     100% { opacity: 0; transform: translateX(-50%) scale(1); }
+  }
+  /* Bewerbungs-Dossier print rules: paper prints ONLY the sheet — app chrome, beams, and the
+     on-screen buttons all vanish. */
+  @media print {
+    body { background: #fff !important; }
+    body::before, body::after { display: none !important; }
+    #root * { visibility: hidden; }
+    /* !important: #root * (id selector) otherwise outweighs these class rules. */
+    .dossier-sheet, .dossier-sheet * { visibility: visible !important; }
+    .dossier-sheet { position: fixed !important; inset: 0 !important; max-width: none !important;
+      max-height: none !important; overflow: visible !important; border-radius: 0 !important;
+      box-shadow: none !important; }
+    .dossier-hidep { display: none !important; }
   }
   /* CRT scanline overlay REMOVED (07-02 uplift) — premium surfaces are clean; the gamer-HUD
      texture read as a toy. (the old scanline body::before is gone; this one is the aurora.) */
@@ -2356,7 +2383,100 @@ function Sparkline({ data, color = 'var(--accent)', invert = false, height = 34 
 }
 
 // ── Component: Dashboard (return-to progress view) ────────────────────────────
-function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
+// ── Bewerbungs-Dossier — the REAL artifact: a printable one-pager of MEASURED training evidence
+// (rank, sessions, streak, vocab/rules, honest hire-readiness state). Nothing estimated, nothing
+// promised (legal redline: no job/outcome claims). White paper look — it's a document, not UI.
+const DOSSIER_SKILL_DE = { fluency: 'Flüssigkeit', grammar: 'Grammatik', intelligibility: 'Verständlichkeit',
+  confidence: 'Sicherheit', deescalation: 'Deeskalation', complexity: 'Satz-Komplexität' };
+function DossierSheet({ token, data, account, onClose }) {
+  const [guideName, setGuideName] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API_URL}/api/guide/profile`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => { if (alive && p?.name) setGuideName(p.name); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [token]);
+
+  const hr     = data?.hireReadiness || {};
+  const rank   = data?.rank || {};
+  const totals = data?.totals || {};
+  const flu    = (data?.trends?.fluency || []).filter(Number.isFinite);
+  const fluDelta = flu.length >= 2 ? Math.round(flu[flu.length - 1] - flu[0]) : null;
+  const today  = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
+  const readiness = hr.hireReady === true
+    ? 'Interview-bereit (alle Signale gemessen)'
+    : hr.hireReady === false
+      ? `In Arbeit — größter Hebel: ${DOSSIER_SKILL_DE[hr.limitingSkill] || hr.limitingSkill || '—'}`
+      : `In Messung (${hr.measuredSignals ?? 0}/${hr.totalSignals ?? 9} Signale erfasst)`;
+
+  const rows = [
+    ['Geschätztes Deutsch-Niveau', hr.level || '—'],
+    ['Interview-Rang', `${rank.label || 'Rekrut'} (Stufe ${(rank.tier ?? 0) + 1}/${(rank.ranks || []).length || 5})`],
+    ['Live-Interviews absolviert', String(totals.sessions ?? 0)],
+    ['Trainings-Serie (aktuell)', `${data?.streak ?? 0} Tage`],
+    ['Vokabeln gelernt', String(totals.vocabLearned ?? 0)],
+    ['Grammatik-Regeln gemeistert', String(totals.rulesMastered ?? 0)],
+    ...(fluDelta !== null ? [['Flüssigkeit (Trend über die letzten Interviews)', `${fluDelta >= 0 ? '+' : ''}${fluDelta} Punkte`]] : []),
+    ['Hire-Readiness', readiness],
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 260, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', padding: 16, background: 'rgba(2,4,9,0.9)', backdropFilter: 'blur(5px)' }}>
+      <div className="dossier-sheet" style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto',
+        background: '#fdfdfb', color: '#111827', borderRadius: 10, padding: '26px 26px 20px',
+        boxShadow: '0 22px 70px rgba(0,0,0,0.7)', fontFamily: 'var(--font-body)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+          borderBottom: '2px solid #111827', paddingBottom: 10 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 15, letterSpacing: '0.1em' }}>OMNI-PERFORM</div>
+            <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '0.06em', marginTop: 2 }}>DEUTSCH-INTERVIEW-TRAINING · KAIRO</div>
+          </div>
+          <div style={{ fontSize: 10, color: '#6b7280' }}>{today}</div>
+        </div>
+
+        <div style={{ marginTop: 16, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 19 }}>Bewerbungs-Dossier</div>
+        <div style={{ fontSize: 11.5, color: '#374151', marginTop: 3 }}>
+          Leistungsnachweis aus echten Trainings-Interviews — {guideName || account?.email || ''}
+        </div>
+
+        <table style={{ width: '100%', marginTop: 16, borderCollapse: 'collapse' }}>
+          <tbody>
+            {rows.map(([k, v]) => (
+              <tr key={k} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                <td style={{ padding: '9px 0', fontSize: 11.5, color: '#374151' }}>{k}</td>
+                <td style={{ padding: '9px 0', fontSize: 12.5, fontWeight: 700, textAlign: 'right' }}>{v}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ fontSize: 9.5, color: '#6b7280', lineHeight: 1.6, marginTop: 16 }}>
+          Alle Werte wurden in gesprochenen Trainings-Interviews und Übungen GEMESSEN — nichts ist
+          geschätzt, nichts wird versprochen. Verifizierbar unter bpo-combat-arena.vercel.app.
+        </div>
+
+        <div className="dossier-hidep" style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+          <button onClick={() => { try { window.print(); } catch { /* print blocked */ } }}
+            style={{ flex: 1, minHeight: 44, padding: '11px', borderRadius: 9, border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em',
+              color: '#fff', background: '#111827' }}>
+            DRUCKEN / ALS PDF SPEICHERN
+          </button>
+          <button onClick={onClose} style={{ minHeight: 44, padding: '11px 14px', borderRadius: 9, cursor: 'pointer',
+            border: '1px solid #9ca3af', background: 'transparent', color: '#374151', fontSize: 11 }}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard({ data, loading, account, onClose, onReview, onLogout, token }) {
+  const [dossier, setDossier] = useState(false);
   const t   = data?.totals ?? {};
   const lp  = data?.levelProgress ?? { level: 1, pct: 0, intoLevel: 0, perLevel: 120 };
   const acc = data?.account ?? account;
@@ -2373,11 +2493,22 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, letterSpacing:2,
           color:'var(--accent)', textShadow:'0 0 20px rgba(59,130,246,0.5)' }}>FORTSCHRITT</div>
-        <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
-          padding:'6px 12px', borderRadius:6, border:'1px solid rgba(59,130,246,0.3)', background:'transparent', color:'var(--accent)' }}>
-          ✕ ZURÜCK
-        </button>
+        <div style={{ display:'flex', gap:8 }}>
+          {/* The real artifact: a printable evidence one-pager for real applications. */}
+          {!loading && data && (
+            <button onClick={() => setDossier(true)} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
+              padding:'6px 12px', minHeight:32, borderRadius:6, border:'1px solid rgba(59,130,246,0.5)',
+              background:'rgba(59,130,246,0.12)', color:'var(--accent-2)' }}>
+              DOSSIER
+            </button>
+          )}
+          <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
+            padding:'6px 12px', borderRadius:6, border:'1px solid rgba(59,130,246,0.3)', background:'transparent', color:'var(--accent)' }}>
+            ✕ ZURÜCK
+          </button>
+        </div>
       </div>
+      {dossier && <DossierSheet token={token} data={data} account={acc} onClose={() => setDossier(false)} />}
 
       {loading ? (
         <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'#94a3b8', fontSize:12 }}>
@@ -2544,6 +2675,18 @@ function AuthScreen({ onAuth }) {
     // always agree on required-ness; the server is the source of truth.
     if (mode === 'signup' && String(wa).replace(/\D/g, '').length < 10) {
       setErr(authErrText('invalid_number')); return;
+    }
+    // A signup inside the Messenger/Instagram in-app browser strands the new account in the
+    // WebView's SANDBOXED storage: opening real Chrome later looks logged-out and produces a
+    // duplicate account (07-11 audit residual). Creation is blocked here; LOGIN stays allowed —
+    // existing credentials re-enter anywhere. masri = OWNER-AR (German carries it until filled).
+    if (mode === 'signup' && IN_APP_BROWSER) {
+      beacon('inapp_signup_blocked');
+      setErr({
+        de: 'Konto-Erstellung geht in diesem Facebook/Messenger-Browser nicht — dein Konto wäre hier eingesperrt. Kopiere den Link und öffne ihn in Chrome, dann klappt alles.',
+        ar: '', inapp: true,
+      });
+      return;
     }
     setErr(''); setBusy(true);
     try {
@@ -2744,6 +2887,18 @@ function AuthScreen({ onAuth }) {
                   background:'none', border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)',
                   color:'var(--accent)', textDecoration:'underline', textUnderlineOffset:3 }}>
                 Neuen Link anfordern → zurück zur Anmeldung
+              </button>
+            )}
+            {/* In-app-browser signup block → the one escape: copy the link for real Chrome. */}
+            {err.inapp && (
+              <button onClick={async () => {
+                  beacon('inapp_escape_tap');
+                  try { await navigator.clipboard?.writeText(window.location.origin); setErr((e) => (e ? { ...e, copied: true } : e)); } catch { /* clipboard blocked */ }
+                }}
+                style={{ display:'block', marginTop:8, padding:'10px 0', minHeight:44, width:'100%', cursor:'pointer',
+                  borderRadius:8, border:'1px solid rgba(59,130,246,0.5)', background:'rgba(59,130,246,0.12)',
+                  fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', fontWeight:700, color:'var(--accent-2)' }}>
+                {err.copied ? '✓ Kopiert! Jetzt Chrome öffnen & einfügen' : 'Link kopieren'}
               </button>
             )}
           </div>
@@ -3422,6 +3577,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
   const [topWeakness, setTopWeakness] = useState(null);    // /api/progress topWeakness — Salma's home-card note
+  const [pipeline, setPipeline] = useState(null);          // { currentBoss, nextBoss } — her bookings ladder
+  const [rival, setRival] = useState(null);                // { key, slots } — the leaderboard rival note
   const [salma, setSalma] = useState(null);                // recruiter cold-open ctx | null (SalmaTakeover)
   const [salmaResume, setSalmaResume] = useState(0);       // bumped when the assessment closes → her flow resumes
   // Deep audit D10 (2026-07-10): the level was NEVER persisted (a B2 user restarted at slow A2–B1
@@ -4575,8 +4732,24 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
         if (!cancelled && data.lastDebrief) setLastDebrief(data.lastDebrief);         // one-shot proof card (server clears it after debrief-seen)
         if (!cancelled && data.topWeakness) setTopWeakness(data.topWeakness);         // Salma's file note (#1 lapsed rule — was computed but never surfaced)
+        if (!cancelled && data.currentBoss) setPipeline({ currentBoss: data.currentBoss, nextBoss: data.nextBoss || null });   // her bookings ladder
       } catch { /* keep cached value */ }
     })();
+    // The rival — real weekly leaderboard (server-masked emails). One quiet fetch; fail-silent.
+    fetch(`${API_URL}/api/leaderboard`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !Array.isArray(d?.entries) || !d.entries.length) return;
+        const my = d.entries.findIndex((e) => e.id === auth.account?.id);
+        if (my === 0) setRival({ key: 'note_rival_leader', slots: {} });
+        else if (my > 0) {
+          const r = d.entries[my - 1];
+          setRival({ key: 'note_rival_ahead', slots: { masked: r.masked, sessions: r.liveSessions } });
+        } else {
+          const top = d.entries[0];
+          setRival({ key: 'note_rival_field', slots: { count: d.entries.length, masked: top.masked, sessions: top.liveSessions } });
+        }
+      }).catch(() => {});
     return () => { cancelled = true; };
   }, [authHeaders]);
 
@@ -4729,7 +4902,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Progress dashboard */}
       {dashboard && (
-        <Dashboard data={dashboard.data} loading={dashboard.loading} account={auth.account}
+        <Dashboard data={dashboard.data} loading={dashboard.loading} account={auth.account} token={auth.token}
           onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
       )}
 
@@ -5017,6 +5190,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
                 <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
+                  pipeline={pipeline} rival={rival}
                   onAction={(d, why) => {
                   const p = d?.prescription || {};
                   const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
@@ -5772,6 +5946,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             SAG ES RICHTIG above, just by typing. One review surface (spoken, on-mission) instead of
             two that looked identical. Due-card count now shows on the SAG ES RICHTIG flow itself. */}
 
+        {/* Install nudge — the durable-login fix (installed PWA = exempt from iOS storage
+            eviction) and a home-screen icon for daily practice. Quiet, once-dismissible. */}
+        {canStart && !firstRun && <InstallCard />}
         {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
         {canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL} />}
         {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
@@ -5785,6 +5962,65 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             animation:'pulse 1s infinite' }} />
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Install nudge (PWA) ───────────────────────────────────────────────────────
+// Android/Chrome: real one-tap install via the captured beforeinstallprompt. iOS Safari: no such
+// event exists — a one-time Add-to-Home-Screen instruction instead. Both dismiss forever with one
+// tap. Never shown installed / in-app browsers (they can't install) / when neither path applies.
+function InstallCard() {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem('bpo_a2hs_seen') === '1'; } catch { return true; }
+  });
+  const [done, setDone] = useState(false);
+  const canPrompt = !!_pwaPrompt;
+  const visible = !IS_STANDALONE && !IN_APP_BROWSER && !dismissed && !done && (canPrompt || IS_IOS);
+  useEffect(() => {
+    if (visible) beacon(canPrompt ? 'pwa_install_shown' : 'pwa_ios_hint_shown');
+  }, [visible, canPrompt]);
+  if (!visible) return null;
+
+  const dismiss = () => { try { localStorage.setItem('bpo_a2hs_seen', '1'); } catch {} setDismissed(true); };
+  const install = async () => {
+    const p = _pwaPrompt;
+    if (!p) return dismiss();
+    try {
+      p.prompt();
+      const choice = await p.userChoice;
+      if (choice?.outcome === 'accepted') beacon('pwa_install_accepted');
+    } catch { /* prompt already consumed */ }
+    _pwaPrompt = null; setDone(true);
+    try { localStorage.setItem('bpo_a2hs_seen', '1'); } catch {}
+  };
+
+  return (
+    <div style={{ marginTop: 12, padding: '11px 13px', borderRadius: 12, display: 'flex', gap: 11,
+      alignItems: 'center', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.22)' }}>
+      <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center',
+        background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--accent)' }}>
+        <Icon name="chartUp" size={17} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#e2e8f0' }}>App installieren{/* OWNER-AR slot */}</div>
+        <div style={{ fontSize: 10.5, color: '#94a3b8', lineHeight: 1.5, marginTop: 2 }}>
+          {canPrompt
+            ? 'Dein Login bleibt dauerhaft, Start mit einem Tipp.'
+            : 'iPhone: Teilen-Symbol → „Zum Home-Bildschirm“ — dein Login bleibt dann dauerhaft.'}
+          {/* OWNER-AR slot */}
+        </div>
+      </div>
+      {canPrompt && (
+        <button onClick={install} style={{ flexShrink: 0, padding: '9px 13px', minHeight: 40, cursor: 'pointer',
+          borderRadius: 9, border: '1px solid rgba(59,130,246,0.5)', background: 'rgba(59,130,246,0.14)',
+          fontFamily: 'var(--font-display)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em',
+          color: 'var(--accent-2)' }}>
+          INSTALLIEREN
+        </button>
+      )}
+      <button aria-label="Ausblenden" onClick={dismiss} style={{ flexShrink: 0, minWidth: 40, minHeight: 40,
+        background: 'none', border: 'none', color: '#64748b', fontSize: 16, cursor: 'pointer' }}>✕</button>
     </div>
   );
 }

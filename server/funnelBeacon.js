@@ -31,6 +31,8 @@ const ALLOWED = new Set([
   // Salma recruiter cold-open (2026-07-12): shown → name saved → booked/skipped/later/done. The
   // whitelist gate silently 400'd all of these on launch day — her funnel was invisible.
   'salma_intro_shown', 'salma_name_saved', 'salma_booked', 'salma_skipped', 'salma_later', 'salma_done',
+  // Cross-device auth hardening (2026-07-12): blocked WebView signups + the PWA install funnel.
+  'inapp_signup_blocked', 'pwa_install_shown', 'pwa_install_accepted', 'pwa_ios_hint_shown',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

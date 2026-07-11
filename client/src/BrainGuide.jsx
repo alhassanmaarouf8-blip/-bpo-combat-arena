@@ -85,7 +85,19 @@ function whyLine(d) {
 // externalInterviewCta: the host screen already shows THE interview button (the home's single
 // orange) — when the prescription IS the interview, the guide keeps its why + journey but hides
 // its own button instead of duplicating the CTA (designer pass 2026-07-10: one job, one button).
-export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de' }) {
+// The interviewer org ladder (mirror of server/progression.js BOSS_LADDER — ids/tiers/minLevels
+// are stable product canon). Salma's pipeline renders progression against it; the SERVER still
+// decides every real unlock.
+const LADDER = [
+  { id: 'yasmin', name: 'Yasmin', tier: 'Junior-Recruiterin', minLevel: 1 },
+  { id: 'karim', name: 'Karim', tier: 'Teamleiter', minLevel: 2 },
+  { id: 'hana', name: 'Hana', tier: 'Hiring Managerin', minLevel: 4 },
+  { id: 'tarek', name: 'Tarek', tier: 'Eskalations-Boss', minLevel: 6 },
+  { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
+  { id: 'lukas', name: 'Lukas', tier: 'Reality-Check', minLevel: 9 },
+];
+
+export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, rival = null }) {
   const [data, setData] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -120,6 +132,12 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
   const trialNote = trial?.active && Number.isFinite(trial?.daysLeft)
     ? salmaLine('note_trial', lang, { days: trial.daysLeft })
     : null;
+  // The rival — computed in App from the REAL leaderboard (server-masked emails, honest counts).
+  const rivalNote = rival
+    ? salmaLine(rival.key, lang, rival.slots)
+    : null;
+  // Her pipeline — where the candidate stands on the interviewer org ladder (level-derived).
+  const curLevel = pipeline?.currentBoss?.minLevel ?? null;
 
   return (
     <div dir="rtl" style={card}>
@@ -178,12 +196,50 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
           {whyLine(d)}
         </div>
       )}
-      {/* Salma's quiet file notes — real dashboard/entitlement values only, never invented. */}
-      {(weaknessNote || trialNote) && (
+      {/* Salma's quiet file notes — real dashboard/entitlement/leaderboard values only. */}
+      {(weaknessNote || trialNote || rivalNote) && (
         <div dir="ltr" style={{ margin: '8px 0 2px', padding: '8px 10px', borderRadius: 8, textAlign: 'left',
           background: 'rgba(59,130,246,0.07)', borderLeft: '2px solid rgba(59,130,246,0.45)' }}>
           {weaknessNote && <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55 }}>{weaknessNote}</div>}
-          {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{trialNote}</div>}
+          {rivalNote && <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{rivalNote}</div>}
+          {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: (weaknessNote || rivalNote) ? 4 : 0 }}>{trialNote}</div>}
+        </div>
+      )}
+
+      {/* Her pipeline — the interviewer org ladder as her bookings. Filled = passed rungs
+          (level-derived, server-decided), ring = the current appointment, dim = still locked. */}
+      {curLevel != null && (
+        <div dir="ltr" style={{ margin: '10px 0 2px', textAlign: 'left' }}>
+          <div style={{ fontSize: 10, color: '#94a3b8', letterSpacing: '0.06em', marginBottom: 6 }}>
+            {salmaLine('pipeline_label', lang)}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            {LADDER.map((b, i) => {
+              const passed  = b.minLevel < curLevel;
+              const current = pipeline?.currentBoss?.id === b.id;
+              return (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', flex: i < LADDER.length - 1 ? 1 : 'none' }}>
+                  <div title={`${b.name} · ${b.tier}`} style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9.5, fontWeight: 800,
+                    color: passed ? '#04110b' : current ? '#dbeafe' : '#475569',
+                    background: passed ? 'linear-gradient(135deg,var(--accent),var(--accent-2))'
+                      : current ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.04)',
+                    border: current ? '2px solid rgba(59,130,246,0.85)' : '1px solid rgba(255,255,255,0.12)',
+                    boxShadow: current ? '0 0 10px rgba(59,130,246,0.5)' : 'none' }}>
+                    {b.name.charAt(0)}
+                  </div>
+                  {i < LADDER.length - 1 && (
+                    <div style={{ flex: 1, height: 2, background: passed ? 'rgba(59,130,246,0.55)' : 'rgba(255,255,255,0.08)' }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {pipeline?.nextBoss?.name && (
+            <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.55, marginTop: 6 }}>
+              {salmaLine('pipeline_next', lang, { name: pipeline.nextBoss.name, tier: pipeline.nextBoss.tier || '' })}
+            </div>
+          )}
         </div>
       )}
 
