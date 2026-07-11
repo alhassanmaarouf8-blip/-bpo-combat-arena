@@ -1,0 +1,36 @@
+/**
+ * elevenRouter.js — client-facing session mint for the ElevenLabs voice path (Phase 2).
+ *
+ * GET /api/eleven/session → { signedUrl, agentId } for an authed account that is in the rollout
+ * allowlist (defaults to the owner only, so this is INERT for everyone else until we widen it).
+ * The API key never leaves the server; the browser gets only a short-lived signed URL.
+ */
+import express from 'express';
+import { getSignedUrl, elevenReady, AGENT_ID, buildOverrides } from './elevenAgent.js';
+import { verifyToken, getAccountById } from './auth.js';
+
+export const elevenRouter = express.Router();
+
+// Rollout allowlist — owner first. Comma-separated ELEVEN_ALLOW_EMAILS widens it later; no env needed now.
+const ALLOW = (process.env.ELEVEN_ALLOW_EMAILS || 'alhassanmaarouf2@gmail.com')
+  .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+
+elevenRouter.get('/session', async (req, res) => {
+  if (!elevenReady()) return res.status(503).json({ error: 'not_ready' });
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.query.token || '');
+  const p = verifyToken(token);
+  if (!p) return res.status(401).json({ error: 'unauthorized' });
+
+  let email = (p.email || '').toLowerCase();
+  if (!email) { try { const a = await getAccountById(p.id || p.userId || p.uid || p.sub); email = (a?.email || '').toLowerCase(); } catch { /* ignore */ } }
+  if (!ALLOW.includes(email)) return res.status(403).json({ error: 'not_in_rollout' });
+
+  const signedUrl = await getSignedUrl();
+  if (!signedUrl) return res.status(502).json({ error: 'signed_url_failed' });
+
+  // Overrides are optional for the first working call (the agent has a German interviewer baked in);
+  // persona-specific prompt/voice overrides get layered in next.
+  res.json({ signedUrl, agentId: AGENT_ID });
+});
+
+export default { elevenRouter };
