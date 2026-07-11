@@ -22,7 +22,6 @@ import { listeningRouter }     from './listening.js';
 import { satzbauRouter }       from './satzbauSchmiede.js';
 import { spokenReviewRouter }  from './spokenReview.js';
 import { guideRouter }         from './alhassan.js';
-import { phase0Router }        from './phase0Eleven.js';   // TEMPORARY — ElevenLabs Phase-0 proof; remove after
 import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
 import { dbEnabled }            from './db.js';
@@ -143,7 +142,6 @@ app.post('/api/clienterror', (req, res) => {
   res.json({ ok: true });
 });
 
-app.use('/api/_phase0', phase0Router);   // TEMPORARY — ElevenLabs Phase-0 proof; remove after
 app.use('/api/auth', authRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api', progressRouter);
