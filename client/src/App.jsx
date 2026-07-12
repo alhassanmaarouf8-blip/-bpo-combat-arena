@@ -1567,6 +1567,10 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   // verdict, the readiness judge, and the plan for today — everything else (17 sections of analysis)
   // lives behind one toggle for the learner who wants to dig.
   const [showDetails, setShowDetails] = useState(false);
+  const [rankCeremony, setRankCeremony] = useState(null);
+  useEffect(() => {
+    if (data?.progress?.rank?.rankUp) setRankCeremony(data.progress.rank.rankUp);
+  }, [data?.progress?.rank?.rankUp]);
   // THE REVEAL (R2, WOW plan): on the FIRST debrief only, the diagnosis becomes a ceremony — named
   // Baustellen + the journey ahead. Brain fetch mirrors BrainGuide's (fail-silent: no fake card).
   const isFirstDebrief = data?.progress?.sessionCount === 1;
@@ -1671,6 +1675,26 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   return (
     <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.4s ease', overflow:'hidden' }}>
+
+      {rankCeremony && (
+        <div style={{ position:'absolute', inset:0, zIndex:20, display:'flex', alignItems:'center',
+          justifyContent:'center', padding:24, background:'rgba(2,4,9,0.98)' }}>
+          <div style={{ width:'min(100%,420px)', textAlign:'center', padding:'28px 22px',
+            borderRadius:'var(--r-lg)', border:'1px solid var(--accent)', background:'rgba(59,130,246,0.08)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:800,
+              letterSpacing:'0.18em', color:'var(--accent)' }}>RANG BESTÄTIGT</div>
+            <div style={{ marginTop:16, fontFamily:'var(--font-display)', fontSize:34,
+              fontWeight:900, color:'var(--action)' }}>{rankCeremony.to}</div>
+            <div style={{ marginTop:9, fontSize:12, color:'#94a3b8' }}>
+              Erreicht durch deine gespeicherten Interviews · bleibt als Bestmarke erhalten.
+            </div>
+            <button onClick={() => setRankCeremony(null)} style={{ width:'100%', minHeight:48, marginTop:20,
+              cursor:'pointer', borderRadius:'var(--r-md)', border:'1px solid var(--accent)',
+              background:'var(--accent)', color:'#020409', fontFamily:'var(--font-display)',
+              fontWeight:900, letterSpacing:'0.1em' }}>WEITER ZUR AUSWERTUNG</button>
+          </div>
+        </div>
+      )}
 
       {pending && !data ? (
         <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>

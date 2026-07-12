@@ -15,7 +15,7 @@ import { loadUser, saveUser } from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
-import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
+import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER, RANKS } from './progression.js';
 import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
@@ -1481,6 +1481,14 @@ export class WebSocketManager {
         }
       }
 
+      const currentRank = computeRank(p.sessions);
+      const previousMaxRankTier = Math.max(0, Math.min(RANKS.length - 1, Number(p.maxRankTier || 0)));
+      const maxRankTier = Math.max(previousMaxRankTier, currentRank.tier);
+      const rankUp = p.sessions.length > 1 && maxRankTier > previousMaxRankTier
+        ? { from: RANKS[previousMaxRankTier], to: RANKS[maxRankTier] }
+        : null;
+      p.maxRankTier = maxRankTier;
+
       await saveUser(p);
 
       // ── Visible-progress signals for the end screen ──
@@ -1553,7 +1561,13 @@ export class WebSocketManager {
         bossId:        ctx.bossId,
         sessionCount:  p.sessions.length,   // = 1 on the user's first-ever fight
         streak:        computeStreak(p.sessions, p.lessonDays),
-        rank:          computeRank(p.sessions),
+        rank: {
+          ...currentRank,
+          tier: maxRankTier,
+          label: RANKS[maxRankTier],
+          currentForm: { tier: currentRank.tier, label: currentRank.label, score: currentRank.score },
+          rankUp,
+        },
         hireReadiness,   // { level, hireReady|null, readyCaveat, limitingSkill, partial, measuredSignals, totalSignals }
         trainingDelta,
         weakRuleDelta,
