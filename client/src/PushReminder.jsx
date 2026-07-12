@@ -17,7 +17,7 @@ function urlB64ToUint8(base64) {
   return arr;
 }
 
-export function PushReminder({ token, apiUrl }) {
+export function PushReminder({ token, apiUrl, reminderState }) {
   const [state, setState] = useState('loading');   // loading | hidden | off | on | busy
   const [err, setErr]     = useState('');
 
@@ -37,6 +37,13 @@ export function PushReminder({ token, apiUrl }) {
     })();
     return () => { alive = false; };
   }, [apiUrl]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !reminderState) return;
+    navigator.serviceWorker.ready.then((reg) => {
+      (reg.active || navigator.serviceWorker.controller)?.postMessage({ type: 'REMINDER_STATE', state: reminderState });
+    }).catch(() => {});
+  }, [reminderState]);
 
   const enable = async () => {
     setState('busy'); setErr('');

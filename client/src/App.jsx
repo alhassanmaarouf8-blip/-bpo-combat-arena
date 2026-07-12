@@ -3967,7 +3967,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
   const [etaSessions, setEtaSessions] = useState(null);    // honest velocity: server-computed, null below the evidence floor (never a guess)
   const [hireReadiness, setHireReadiness] = useState(null); // honest "am I hireable + my one wall" verdict (server-computed), shown on the home
-  const [dailyOpen, setDailyOpen] = useState(false);       // Tägliches Training overlay
+  const [dailyOpen, setDailyOpen] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('daily') === '1'; }
+    catch { return false; }
+  });       // Tägliches Training overlay; notification deep-links open it directly
   const [dueReviews, setDueReviews] = useState(0);         // due SRS cards (home-screen CTA)
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
@@ -6486,7 +6489,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             eviction) and a home-screen icon for daily practice. Quiet, once-dismissible. */}
         {canStart && !firstRun && <InstallCard />}
         {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
-        {canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL} />}
+        {canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL}
+          reminderState={{ streak: daily.streak, shield: daily.streakShield, trainedToday,
+            sessionsToNext: rank?.sessionsToNext, nextLabel: rank?.nextLabel }} />}
         {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
         {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
         </div>{/* /home-grid */}
