@@ -344,19 +344,6 @@ router.post('/tts', requireAuth,
   }
 });
 
-// Wrap raw PCM (L16 mono) in a 44-byte WAV header so a browser <audio> can play it — Gemini-TTS
-// returns headerless PCM, and a bare data URI/stream of it is unplayable (proven in the Sara demo).
-function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bits = 16) {
-  const blockAlign = channels * bits / 8;
-  const h = Buffer.alloc(44);
-  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8);
-  h.write('fmt ', 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20);
-  h.writeUInt16LE(channels, 22); h.writeUInt32LE(sampleRate, 24);
-  h.writeUInt32LE(sampleRate * blockAlign, 28); h.writeUInt16LE(blockAlign, 32);
-  h.writeUInt16LE(bits, 34); h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([h, pcm]);
-}
-
 async function geminiMasriTTS(text) {
   const key = process.env.GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${key}`;
@@ -369,7 +356,9 @@ async function geminiMasriTTS(text) {
   const j = await r.json();
   const part = j.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
   if (!part) throw new Error('gemini tts: no audio in response');
-  return wavFromPcm(Buffer.from(part.inlineData.data, 'base64'));
+  // Same peak-normalization as every boss voice — Gemini's raw PCM is quiet (owner ear-check
+  // 07-12: "very low"); pcmToLoudWav scales to ~0.97 full-scale, distortion-free, and wraps WAV.
+  return pcmToLoudWav(Buffer.from(part.inlineData.data, 'base64'));
 }
 
 // ── GET /api/tts-stream — Deepgram Aura-2 STREAMING boss voice (the DEFAULT, free) ─────────────────
