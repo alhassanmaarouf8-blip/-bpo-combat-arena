@@ -27,6 +27,7 @@ const GOALS = [
 // estimatedLevel (A1–C2 from the assessment) → the app's three interview levels. Same map as the
 // legacy auto-set in App.jsx (D10): the MEASURED level drives the first booked interview.
 export const ASSESS_LEVEL_MAP = { A1: 'a2-b1', A2: 'a2-b1', B1: 'a2-b1', B2: 'b2', C1: 'c1', C2: 'c1' };
+export const ASSESS_BOSS_MAP = { A1: 'yasmin', A2: 'yasmin', B1: 'yasmin', B2: 'karim', C1: 'hana', C2: 'hana' };
 
 export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScreening, onBookFight, onClose }) {
   // Beats: welcome → name_goal → screening → (assessment runs outside) → verdict | no_verdict.
@@ -167,7 +168,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     bubbles.push(line('verdict_summary', { level, focus: focus || '—' }));
     const quote = firstBlockerQuote(result);
     if (quote) bubbles.push(line('verdict_blocker', { quote }));
-    bubbles.push(line('booking_yasmin'));
+    bubbles.push(line(bookingCopyKey(result?.estimatedLevel)));
     actions = (
       <>
         <button style={btnOrange} onClick={() => { markSeen(); onBookFight(result); }}>{line('booking_cta')}</button>
@@ -198,7 +199,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       <div style={card}>
         {/* header — her face on the door */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={ring}>{salmaName(lang).charAt(0)}</div>
+          <SalmaPortrait fallback={salmaName(lang).charAt(0)} />
           <div style={{ lineHeight: 1.25, textAlign: 'left' }}>
             <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</div>
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
@@ -237,6 +238,27 @@ function pickText(v, lang) {
   return (lang === 'ar' && v.ar) ? v.ar : (v.de || v.ar || null);
 }
 
+function bookingCopyKey(level) {
+  if (level === 'B2') return 'booking_karim';
+  if (level === 'C1' || level === 'C2') return 'booking_hana';
+  return 'booking_yasmin';
+}
+
+function SalmaPortrait({ fallback }) {
+  return (
+    <div style={portrait} role="img" aria-label="Salma, illustrierte Recruiterin">
+      <div style={portraitHair} />
+      <div style={portraitFace}>
+        <span style={{ ...portraitEye, left: 10 }} />
+        <span style={{ ...portraitEye, right: 10 }} />
+        <span style={portraitSmile} />
+      </div>
+      <div style={portraitShoulders} />
+      <span aria-hidden="true" style={portraitFallback}>{fallback}</span>
+    </div>
+  );
+}
+
 function skipLink(label, onClick) {
   return (
     <button onClick={onClick} style={{ display: 'block', margin: '10px auto 0', minHeight: 44, padding: '4px 16px',
@@ -252,9 +274,19 @@ const backdrop = { position: 'fixed', inset: 0, zIndex: 240, display: 'flex', al
 const card = { width: '100%', maxWidth: 400, maxHeight: '86vh', overflowY: 'auto', padding: 18,
   borderRadius: 16, background: 'linear-gradient(180deg, rgba(13,24,40,0.97), rgba(7,14,26,0.97))',
   border: '1px solid rgba(59,130,246,0.30)', boxShadow: '0 18px 60px rgba(0,0,0,0.6)' };
-const ring = { width: 40, height: 40, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', fontWeight: 800, fontSize: 18, color: '#dbeafe', background: 'rgba(59,130,246,0.16)',
-  border: '2px solid rgba(59,130,246,0.55)', boxShadow: '0 0 14px rgba(59,130,246,0.4)' };
+const portrait = { position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+  overflow: 'hidden', background: 'linear-gradient(145deg, #172554, #0f172a)',
+  border: '2px solid rgba(96,165,250,0.72)', boxShadow: '0 0 14px rgba(59,130,246,0.35)' };
+const portraitHair = { position: 'absolute', width: 29, height: 29, left: 6, top: 5, borderRadius: '52% 52% 42% 42%',
+  background: '#172033', transform: 'rotate(-4deg)', zIndex: 1 };
+const portraitFace = { position: 'absolute', width: 24, height: 27, left: 9, top: 8, borderRadius: '48% 48% 44% 44%',
+  background: 'linear-gradient(145deg, #e8b38f, #c98662)', zIndex: 2 };
+const portraitEye = { position: 'absolute', top: 11, width: 3, height: 3, borderRadius: '50%', background: '#1e293b' };
+const portraitSmile = { position: 'absolute', left: 8, top: 18, width: 8, height: 4, borderBottom: '1.5px solid #7c2d12',
+  borderRadius: '0 0 8px 8px' };
+const portraitShoulders = { position: 'absolute', width: 36, height: 18, left: 3, top: 31, borderRadius: '50% 50% 0 0',
+  background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)', zIndex: 3 };
+const portraitFallback = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' };
 const bubble = { padding: '10px 12px', borderRadius: '4px 12px 12px 12px', fontSize: 13.5, lineHeight: 1.6,
   color: '#e2e8f0', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.22)',
   animation: 'result-rise 0.45s var(--ease) both', textAlign: 'left' };

@@ -15,7 +15,7 @@ import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
-import { SalmaTakeover, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
+import { SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { VideoLessons } from './VideoLessons.jsx';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
@@ -5161,10 +5161,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const closeSalma = useCallback((why) => { setSalma(null); if (why) beacon(String(why)); }, []);
   const bookSalmaFight = useCallback((result) => {
     const mapped = ASSESS_LEVEL_MAP[result?.estimatedLevel];
+    const bookedBoss = ASSESS_BOSS_MAP[result?.estimatedLevel] || 'yasmin';
     // Session-only (levelRef + state, no localStorage write) — a manual Optionen pick still outranks
     // the measured level on the next visit, exactly like the legacy auto-set (D10).
     if (mapped) { levelRef.current = mapped; setLevel(mapped); }
-    chooseBoss('yasmin');
+    chooseBoss(bookedBoss);
     setSalma(null);
     beacon('salma_booked');
     beginSession();
