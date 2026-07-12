@@ -24,11 +24,13 @@ export const ASSESS_LEVEL_MAP = { A1: 'a2-b1', A2: 'a2-b1', B1: 'a2-b1', B2: 'b2
 export const ASSESS_BOSS_MAP = { A1: 'yasmin', A2: 'yasmin', B1: 'yasmin', B2: 'karim', C1: 'hana', C2: 'hana' };
 
 export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScreening, onBookFight, onClose }) {
-  // Beats: welcome → name_goal → screening → (assessment runs outside) → verdict | no_verdict.
-  // Returning variant: welcome → (name_goal if no name) → handoff.
+  // Beats: gate → welcome → name_goal → screening → (assessment runs outside) → verdict | no_verdict.
+  // Returning variant: welcome → (name_goal if no name) → handoff (existing customers skip the gate).
+  // The gate is the B1+ admission bar (owner law 07-12, Harvard framing): she ASKS the level;
+  // B1+ walks in, below gets a dignified turn-away — and the screening stays the real exam.
   // While the assessment runs, App UNMOUNTS this overlay (one takeover at a time) — so on a
   // remount with resumeTick > 0 we start in 'checking' and the effect below fetches the verdict.
-  const [beat, setBeat]   = useState(resumeTick > 0 ? 'checking' : 'welcome');
+  const [beat, setBeat]   = useState(resumeTick > 0 ? 'checking' : (ctx.variant === 'returning' ? 'welcome' : 'gate'));
   const [name, setName]   = useState(ctx.profile?.name || '');
   const [goal, setGoal]   = useState(ctx.profile?.goal || null);
   const [result, setResult] = useState(ctx.result || null);
@@ -106,7 +108,29 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   const say = (key, slots, arSlots) => { spoken.push({ key, slots, arSlots }); return line(key, slots); };
   let actions = null;
 
-  if (beat === 'welcome') {
+  if (beat === 'gate') {
+    bubbles.push(say('gate_question'));
+    const answer = (yes) => {
+      fetch(`${apiUrl}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ e: yes ? 'gate_b1_yes' : 'gate_b1_no' }), keepalive: true }).catch(() => {});
+      setBeat(yes ? 'welcome' : 'gate_denied');
+    };
+    actions = (
+      <>
+        <button style={btnBlue} onClick={() => answer(true)}>{line('gate_b1')}</button>
+        <button style={{ ...btnBlue, background: 'rgba(59,130,246,0.14)', color: '#bfdbfe' }}
+          onClick={() => answer(false)}>{line('gate_below')}</button>
+      </>
+    );
+  } else if (beat === 'gate_denied') {
+    bubbles.push(say('gate_denied'));
+    actions = (
+      <>
+        <button style={btnBlue} onClick={() => finish('salma_skipped')}>{line('returning_cta')}</button>
+        {skipLink(line('gate_denied_browse'), () => finish('salma_skipped'))}
+      </>
+    );
+  } else if (beat === 'welcome') {
     if (returning) {
       bubbles.push(ctx.profile?.name
         ? say('returning_welcome_named', { name: ctx.profile.name })
@@ -166,6 +190,9 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     // so the voice never splices display-language text into an Arabic sentence.
     const focusAr = pickText(result?.recommendedFocus, 'ar');
     bubbles.push(say('verdict_summary', { level, focus: focus || '—' }, { level, focus: focusAr || focus || '—' }));
+    // B1+ positioning (owner law 07-12): below B1 she says the honest recruiter sentence — the
+    // arena serves B1 aufwärts. No hard lock (their call), but the truth comes first.
+    if (level === 'A1' || level === 'A2') bubbles.push(say('verdict_below_b1', { level }));
     const quote = firstBlockerQuote(result);
     if (quote) bubbles.push(say('verdict_blocker', { quote }));
     bubbles.push(say(bookingCopyKey(result?.estimatedLevel)));

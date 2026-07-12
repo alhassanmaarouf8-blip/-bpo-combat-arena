@@ -67,6 +67,23 @@ export const SALMA_COPY = {
   debrief_followup_next: { de: 'Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist.', ar: '' }, // OWNER-AR · EN: "I have read your interview. Your next appointment with me: {name} · {tier} — I book the moment you are ready."
   debrief_followup_top: { de: 'Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck.', ar: '' }, // OWNER-AR · EN: "I have read your interview. You are at the top of my ladder — from here it is about confirming under pressure."
 
+  // ── debrief · the Sultan homework order (07-12): dose + exit criterion + unlock ────────────
+  // {boss} ← fight result progress.nextBoss.name
+  homework_order: { de: 'Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Dann buche ich dir {boss}.', ar: '' }, // OWNER-AR · EN: "Your assignment: 15 minutes today and 15 tomorrow — exactly this weakness. Target in the next interview: under 5 grammar errors. Then I book you {boss}."
+  homework_order_top: { de: 'Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Du stehst ganz oben auf meiner Leiter — bestätige es.', ar: '' }, // OWNER-AR · EN: "Your assignment: 15 minutes today and 15 tomorrow — exactly this weakness. Target in the next interview: under 5 grammar errors. You are at the top of my ladder — confirm it."
+
+  // ── B1+ admission bar (owner law 07-12: customer = B1 aufwärts; Harvard framing — selective,
+  //    never apologetic. Salma is the doorwoman: she ASKS, admits, or turns away with dignity) ──
+  b1_gate_title: { de: 'AB B1 · AUFNAHME NUR MIT NIVEAU', ar: '' }, // OWNER-AR · EN: "From B1 · admission requires the level" (landing strip label)
+  b1_gate_line: { de: 'Diese Arena nimmt Kandidaten ab B1 auf — hier wird für den Job trainiert, nicht für den Anfang. Noch darunter? Festige deine Grundlagen und bewirb dich dann wieder.', ar: '' }, // OWNER-AR · EN: "This arena admits candidates from B1 up — here you train for the job, not for the start. Still below? Solidify your basics and apply again."
+  gate_question: { de: 'Bevor ich dich aufnehme, eine ehrliche Frage: Diese Arena ist für Kandidaten ab B1. Wo stehst du?', ar: '' }, // OWNER-AR · EN: "Before I take you on, one honest question: this arena is for candidates from B1 up. Where do you stand?"
+  gate_b1: { de: 'B1 oder höher', ar: '' }, // OWNER-AR · EN: "B1 or higher" (chip)
+  gate_below: { de: 'Noch nicht B1', ar: '' }, // OWNER-AR · EN: "Not B1 yet" (chip)
+  gate_denied: { de: 'Respekt für die Ehrlichkeit — die meisten trauen sich das nicht. Mein Rat als Recruiterin: Festige deine Grundlagen bis B1, dann komm zurück und ich nehme dich auf. Die Tür bleibt für dich offen.', ar: '' }, // OWNER-AR · EN: "Respect for the honesty — most don't dare. My advice as a recruiter: solidify your basics to B1, then come back and I take you on. The door stays open for you."
+  gate_denied_browse: { de: 'Trotzdem umsehen', ar: '' }, // OWNER-AR · EN: "Look around anyway" (quiet link)
+  // {level} ← assessment result.estimatedLevel (A1/A2 branch only)
+  verdict_below_b1: { de: 'Ehrliches Wort von deiner Recruiterin: Dein Screening zeigt {level}. Diese Arena ist für B1 aufwärts gebaut — du kannst trotzdem trainieren, aber der schnellste Weg ist: erst die Grundlagen festigen, dann zu mir zurückkommen.', ar: '' }, // OWNER-AR · EN: "Honest word from your recruiter: your screening shows {level}. This arena is built for B1 and up — you can still train, but the fastest path is: solidify the basics first, then come back to me."
+
   // ── debrief · the correction ritual (Sultan doctrine 07-12: spoken errors die by spoken
   //    correction — she models the verified fix, the candidate says it back ALOUD) ───────────
   ritual_prompt: { de: 'Einmal noch — und diesmal richtig. Hör zu und sprich mir laut nach:', ar: '' }, // OWNER-AR · EN: "One more time — and this time correctly. Listen and repeat after me, out loud:"

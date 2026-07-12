@@ -16,7 +16,7 @@ import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
-import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
+import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
 import { VideoLessons } from './VideoLessons.jsx';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
@@ -2003,12 +2003,18 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   {data.priorityFix.ar}
                 </div>
               )}
-              {/* The two-session day rhythm: study THIS now, come back tonight — the boss's dossier
-                  re-test + AKTE memory make the "she re-tests your weakness" promise literally true. */}
+              {/* SULTAN HOMEWORK (owner order 07-12): the focus becomes an ORDER — dose, exit
+                  criterion, unlock. Grammar-error counts are really measured per interview, and
+                  the re-test promise stays literally true (dossier + AKTE memory). */}
               <div style={{ marginTop:10, paddingTop:9, borderTop:'1px solid rgba(249,115,22,0.25)',
-                fontSize:12, color:'#e2e8f0', lineHeight:1.6 }}>
-                Übe genau das jetzt — und komm heute Abend für dein zweites Interview zurück:
-                dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut.
+                fontSize:12, color:'#e2e8f0', lineHeight:1.65 }}>
+                <b dir="auto">
+                  {salmaLine(data?.progress?.nextBoss ? 'homework_order' : 'homework_order_top', lang,
+                    { boss: data?.progress?.nextBoss?.name || '' })}
+                </b>
+                <div style={{ marginTop:6, fontSize:11.5, opacity:0.85 }}>
+                  Dein Interviewer kennt deine Akte und testet genau diese Stelle erneut.
+                </div>
               </div>
             </div>
           )}
@@ -3049,6 +3055,22 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </button>
         <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7 }}>
           Nach E-Mail-Bestätigung: Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig
+        </div>
+        {/* B1+ admission bar (owner law 07-12, Harvard framing): selectivity stated at the door —
+            quiet and confident, never apologetic. Copy = salmaCopy rows (masri via the owner sheet). */}
+        <div style={{ marginTop:14, maxWidth:420, marginInline:'auto', padding:'10px 14px', borderRadius:10,
+          border:'1px solid rgba(59,130,246,0.35)', background:'rgba(59,130,246,0.06)', textAlign:'left' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em', color:'var(--accent)', fontWeight:800 }}>
+            {salmaLine('b1_gate_title', 'de')}
+          </div>
+          <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.6 }}>
+            {salmaLine('b1_gate_line', 'de')}
+          </div>
+          {SALMA_COPY.b1_gate_line.ar && (
+            <div dir="rtl" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.7 }}>
+              {SALMA_COPY.b1_gate_line.ar}
+            </div>
+          )}
         </div>
       </div>
 
@@ -6560,14 +6582,16 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </div>
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginBottom:11 }}>تمارين إضافية</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {/* SULTAN CULL (owner order 07-12, B1+ focus): Druck-Leiter and Video-Lektionen tiles
+                  removed — the real interview trains pressure better than a simulator of it, and
+                  passive slide-lessons are minutes not spent speaking. Their overlays/handlers stay
+                  wired (brain prescriptions and deep links keep working); only the menu offer is gone. */}
               {[
                 { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', open:() => setShadowingOpen(true) },
                 { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   open:() => setFluencyOpen(true) },
                 { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     open:() => setListeningOpen(true) },
                 { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      open:() => setSpokenReviewOpen(true) },
                 { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
-                { icon:'gauge',        de:'Druck-Leiter',   ar:'سُلّم الضغط',   open:() => setPressureOpen(true), badge:'SCHWER' },
-                { icon:'play',         de:'Video-Lektionen', ar:'دروس فيديو',   open:() => setVideoLessonsOpen(true), badge:'NEU' },
               ].map((t, i) => (
                 <button key={i} onClick={t.open} style={{ minHeight:88, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
