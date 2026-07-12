@@ -341,56 +341,69 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
         style={{ display: 'block' }} aria-hidden="true">
         <style>{SALMA_FACE_CSS}</style>
         <defs>
-          <linearGradient id="salmaSkin" x1="0" y1="0" x2="0.2" y2="1">
-            <stop offset="0" stopColor="#fadcb8" /><stop offset="1" stopColor="#e0a374" />
+          <linearGradient id="salmaSkin" x1="0.2" y1="0" x2="0.5" y2="1">
+            <stop offset="0" stopColor="#fbdcb6" /><stop offset="1" stopColor="#e2a877" />
           </linearGradient>
-          <linearGradient id="salmaHair" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#40301f" /><stop offset="0.55" stopColor="#241610" /><stop offset="1" stopColor="#140c07" />
+          <linearGradient id="salmaHair" x1="0.2" y1="0" x2="0.6" y2="1">
+            <stop offset="0" stopColor="#4a3320" /><stop offset="0.5" stopColor="#2a1a0e" /><stop offset="1" stopColor="#160d06" />
           </linearGradient>
           <linearGradient id="salmaBlazer" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#1d4ed8" /><stop offset="1" stopColor="#3b82f6" />
           </linearGradient>
-          <radialGradient id="salmaBg" cx="0.5" cy="0.32" r="0.85">
-            <stop offset="0" stopColor="#22334f" /><stop offset="1" stopColor="#0a1220" />
+          <radialGradient id="salmaBg" cx="0.5" cy="0.3" r="0.85">
+            <stop offset="0" stopColor="#243758" /><stop offset="1" stopColor="#0a1220" />
           </radialGradient>
           <linearGradient id="salmaLip" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#d4726b" /><stop offset="1" stopColor="#b8443f" />
+            <stop offset="0" stopColor="#d97a72" /><stop offset="0.5" stopColor="#c9605a" /><stop offset="1" stopColor="#ad4642" />
           </linearGradient>
+          <radialGradient id="salmaIris" cx="0.5" cy="0.4" r="0.6">
+            <stop offset="0" stopColor="#9a622f" /><stop offset="1" stopColor="#432a14" />
+          </radialGradient>
         </defs>
         <rect width="100" height="100" fill="url(#salmaBg)" />
-        <path d="M18 52 C15 24 33 10 50 10 C67 10 85 24 82 52 C81 66 77 76 74 86 L68 72 C72 54 70 32 50 32 C30 32 28 54 32 72 L26 86 C23 76 19 66 18 52 Z" fill="url(#salmaHair)" />
-        <path d="M20 100 C20 82 33 75 50 75 C67 75 80 82 80 100 Z" fill="url(#salmaBlazer)" />
-        <path d="M50 75 L42 92 L50 86 L58 92 Z" fill="#eef3fd" />
+        <path d="M15 55 C11 26 30 7 50 7 C70 7 89 26 85 55 C83 71 80 84 77 96 C75 85 73 74 72 66 C75 47 71 29 50 29 C29 29 25 47 28 66 C27 74 25 85 23 96 C20 84 17 71 15 55 Z" fill="url(#salmaHair)" />
+        <path d="M40 20 Q32 30 30 46 Q34 32 43 25 Z" fill="#6b4a2c" opacity="0.4" />
+        <path d="M18 100 C18 80 33 73 50 73 C67 73 82 80 82 100 Z" fill="url(#salmaBlazer)" />
+        <path d="M50 73 L41 93 L50 85 L59 93 Z" fill="#eef3fd" />
+        <path d="M44 65 L44 77 C44 83 56 83 56 77 L56 65 Z" fill="#daa06e" />
+        <path d="M44 71 Q50 76 56 71 L56 66 Q50 70 44 66 Z" fill="#c8895c" opacity="0.5" />
         <g className="fg">
-          <ellipse cx="21.5" cy="52" rx="4" ry="5.5" fill="url(#salmaSkin)" />
-          <ellipse cx="78.5" cy="52" rx="4" ry="5.5" fill="url(#salmaSkin)" />
-          <circle cx="21" cy="56.5" r="1.5" fill="#dfe3e8" />
-          <circle cx="79" cy="56.5" r="1.5" fill="#dfe3e8" />
-          <path d="M43 67 L43 79 C43 84 57 84 57 79 L57 67 Z" fill="#dd9f6f" />
-          <ellipse cx="50" cy="48" rx="19.5" ry="22.5" fill="url(#salmaSkin)" />
-          <ellipse cx="38.5" cy="55" rx="4" ry="2.6" fill="#ea8977" opacity="0.34" />
-          <ellipse cx="61.5" cy="55" rx="4" ry="2.6" fill="#ea8977" opacity="0.34" />
-          <path d="M35 41 Q42 37 48 40.5" stroke="#2a1a10" strokeWidth="1.9" fill="none" strokeLinecap="round" />
-          <path d="M52 40.5 Q58 37 65 41" stroke="#2a1a10" strokeWidth="1.9" fill="none" strokeLinecap="round" />
-          <ellipse cx="41.5" cy="48" rx="5" ry="3.5" fill="#fff" />
-          <ellipse cx="58.5" cy="48" rx="5" ry="3.5" fill="#fff" />
-          <circle cx="41.8" cy="48.2" r="2.7" fill="#5a3d22" />
-          <circle cx="58.2" cy="48.2" r="2.7" fill="#5a3d22" />
-          <circle cx="41.8" cy="48.2" r="1.25" fill="#1a1008" />
-          <circle cx="58.2" cy="48.2" r="1.25" fill="#1a1008" />
-          <circle cx="42.9" cy="47" r="0.75" fill="#fff" />
-          <circle cx="59.3" cy="47" r="0.75" fill="#fff" />
-          <path d="M36 46.4 Q41.5 42.6 47 46.2 Q41.5 45 36 46.4 Z" fill="#241610" />
-          <path d="M53 46.2 Q58.5 42.6 64 46.4 Q58.5 45 53 46.2 Z" fill="#241610" />
-          <ellipse className="lid" cx="41.5" cy="48" rx="5.4" ry="3.7" fill="url(#salmaSkin)" />
-          <ellipse className="lid" cx="58.5" cy="48" rx="5.4" ry="3.7" fill="url(#salmaSkin)" />
-          <path d="M50 50 L47.8 57 Q50 58.6 52.2 57" stroke="#cd8a5b" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <ellipse cx="27" cy="49" rx="3.5" ry="5" fill="url(#salmaSkin)" />
+          <ellipse cx="73" cy="49" rx="3.5" ry="5" fill="url(#salmaSkin)" />
+          <ellipse cx="26.5" cy="53" rx="1.4" ry="2" fill="#dfe3e8" />
+          <ellipse cx="73.5" cy="53" rx="1.4" ry="2" fill="#dfe3e8" />
+          <path d="M50 25 C64 25 72 35 72 48 C72 59 66 67 58 72 C55 74 52 75 50 75 C48 75 45 74 42 72 C34 67 28 59 28 48 C28 35 36 25 50 25 Z" fill="url(#salmaSkin)" />
+          <path d="M30 44 Q30 58 40 68 Q32 60 31 46 Z" fill="#c88a5c" opacity="0.26" />
+          <path d="M70 44 Q70 58 60 68 Q68 60 69 46 Z" fill="#c88a5c" opacity="0.26" />
+          <ellipse cx="50" cy="33" rx="10" ry="5" fill="#ffe9cf" opacity="0.32" />
+          <ellipse cx="38.5" cy="53" rx="5" ry="3.4" fill="#ea8778" opacity="0.3" />
+          <ellipse cx="61.5" cy="53" rx="5" ry="3.4" fill="#ea8778" opacity="0.3" />
+          <path d="M33 39.5 Q40 34.5 47 38.3 Q40 36.5 33.5 40.5 Z" fill="#2a1a0e" />
+          <path d="M53 38.3 Q60 34.5 67 39.5 Q60 36.5 52.5 40.5 Z" fill="#2a1a0e" />
+          <path d="M34.5 47.4 Q41 43 47.5 47.2 Q41 51.2 34.5 47.4 Z" fill="#fff" />
+          <path d="M52.5 47.2 Q59 43 65.5 47.4 Q59 51.2 52.5 47.2 Z" fill="#fff" />
+          <circle cx="41" cy="47.3" r="3.1" fill="url(#salmaIris)" />
+          <circle cx="59" cy="47.3" r="3.1" fill="url(#salmaIris)" />
+          <circle cx="41" cy="47.3" r="1.35" fill="#160d06" />
+          <circle cx="59" cy="47.3" r="1.35" fill="#160d06" />
+          <circle cx="42.2" cy="46.1" r="0.95" fill="#fff" />
+          <circle cx="60.2" cy="46.1" r="0.95" fill="#fff" />
+          <path d="M34.2 46.6 Q41 42.2 47.7 46.4 L49.3 45.2" stroke="#1c1109" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <path d="M52.3 46.4 Q59 42.2 65.8 46.6 L64.2 45" stroke="#1c1109" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <path d="M47.7 46.4 l2.3 -1.4 M45.9 44.8 l1 -1.2 M65.8 46.6 l2.3 -1.2 M64 45 l1 -1.2" stroke="#1c1109" strokeWidth="0.8" strokeLinecap="round" />
+          <ellipse className="lid" cx="41" cy="47.3" rx="6.5" ry="3.7" fill="url(#salmaSkin)" />
+          <ellipse className="lid" cx="59" cy="47.3" rx="6.5" ry="3.7" fill="url(#salmaSkin)" />
+          <path d="M50 49 L48.2 55 Q50 56.4 51.8 55" stroke="#cd8a5b" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M50 33 L50 55" stroke="#ffe9cf" strokeWidth="1.4" opacity="0.15" strokeLinecap="round" />
           <g className="mo">
-            <path d="M43 62.5 Q50 60.5 57 62.5 Q50 67.5 43 62.5 Z" fill="url(#salmaLip)" />
-            <path d="M46 63.4 Q50 62.6 54 63.4" stroke="#fff" strokeWidth="0.7" fill="none" opacity="0.35" />
+            <path d="M43 61.8 Q46.5 59.4 50 60.5 Q53.5 59.4 57 61.8 Q53.5 61.2 50 61.4 Q46.5 61.2 43 61.8 Z" fill="url(#salmaLip)" />
+            <path d="M43 61.8 Q50 62.9 57 61.8 Q52 66.2 50 66.4 Q48 66.2 43 61.8 Z" fill="url(#salmaLip)" />
+            <path d="M46.5 64.3 Q50 63.5 53.5 64.3" stroke="#fff" strokeWidth="0.9" fill="none" opacity="0.45" strokeLinecap="round" />
           </g>
         </g>
-        <path d="M28 47 C26 26 39 13 50 13 C62 13 73 20 73 35 C70 28 63 25 57 26 C61 29 62 34 60 38 C55 30 44 30 39 36 C36 40 31 42 28 47 Z" fill="url(#salmaHair)" />
+        <path d="M26 48 C24 26 38 10 50 10 C58 10 66 13 70 19 C64 15 57 15 52 17 C60 20 63 27 61 34 C57 25 45 25 39 32 C34 37 29 41 26 48 Z" fill="url(#salmaHair)" />
+        <path d="M74 48 C76 28 66 14 55 11 C64 15 70 26 69 40 C68 33 65 30 62 30 C67 36 68 44 66 52 C69 44 72 42 74 48 Z" fill="url(#salmaHair)" />
+        <path d="M31 22 Q40 16 49 17 Q41 19 35 25 Z" fill="#6b4a2c" opacity="0.35" />
       </svg>
       <span aria-hidden="true" style={portraitFallback}>{fallback}</span>
     </div>
