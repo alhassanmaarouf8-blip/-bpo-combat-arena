@@ -1597,17 +1597,22 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const accent = win ? 'var(--accent)' : 'var(--action)';
 
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
+  const shareTier = Number(data?.progress?.rank?.tier ?? -1);
+  const canShareArtifact = shareTier >= 2;
+  const shareVariant = win ? 'conquest' : ((data?.progress?.streak ?? 0) >= 3 ? 'streak' : 'invitation');
+  const bossTitle = (bossName || r.bossId || 'INTERVIEWER').toString().toUpperCase();
+  const shareHero = shareVariant === 'conquest'
+    ? `${bossTitle} · BESIEGT`
+    : shareVariant === 'streak'
+      ? `${data.progress.streak} TAGE SERIE`
+      : 'EINLADUNG ZUR NÄCHSTEN RUNDE';
   const shareText = [
-    `🎯 OMNI-PERFORM — Deutsches BPO-Interview`,
-    `Rang: ${rank} · Score: ${score}/100`,
-    m.c1Hits  > 0 ? `✅ C1-Vokabular: ${m.c1Hits} ${m.c1Hits === 1 ? 'Wort' : 'Wörter'}` : '',
-    m.connectorHits > 0 ? `✅ Satzbau: ${m.connectorHits} ${m.connectorHits === 1 ? 'Konnektor' : 'Konnektoren'}` : '',
-    m.wpm > 0  ? `🎙 ${m.wpm} Wörter/min` : '',
-    r.jobLabel ? `💼 ${r.jobLabel}` : '',
+    `OMNI-PERFORM · ${shareHero}`,
+    `Rang: ${rank}`,
     ``,
-    `أتدرب على مقابلات الشغل بالألماني — جرّب كمان:`,
+    `Trainiere dein deutsches Bewerbungsgespräch:`,
     shareUrl,
-  ].filter((l, i) => i < 2 || l !== '').join('\n');
+  ].join('\n');
   // Render the result as a SHARE IMAGE (people share images on WhatsApp/FB, not paragraphs). Pure
   // client-side canvas → PNG, $0. Falls back to text share / clipboard if the image or Web Share fails.
   const makeShareImage = async () => {
@@ -1620,18 +1625,19 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       x.fillStyle = accent; x.fillRect(0, 0, W, 14);
       x.textAlign = 'center';
       x.fillStyle = '#94a3b8'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('OMNI-PERFORM', W / 2, 130);
-      x.fillStyle = '#e2e8f0'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('Deutsches BPO-Interview', W / 2, 195);
-      x.fillStyle = accent;    x.font = 'bold 190px system-ui,sans-serif'; x.fillText(String(rank || '—'), W / 2, 470);
-      x.fillStyle = '#e2e8f0'; x.font = 'bold 96px system-ui,sans-serif'; x.fillText(`${score}/100`, W / 2, 595);
-      if (r.jobLabel) {
-        x.fillStyle = '#cbd5e1'; x.font = '34px system-ui,sans-serif';
-        const words = String(r.jobLabel).split(' '); let line = '', y = 685;
-        for (const w of words) { if (x.measureText(line + w).width > W - 160) { x.fillText(line.trim(), W / 2, y); line = ''; y += 46; } line += w + ' '; }
-        if (line.trim()) x.fillText(line.trim(), W / 2, y);
+      x.fillStyle = '#e2e8f0'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
+      x.fillStyle = shareVariant === 'conquest' ? '#3b82f6' : '#f97316';
+      x.font = 'bold 72px system-ui,sans-serif';
+      const heroWords = shareHero.split(' '); let heroLine = '', heroY = 420;
+      for (const word of heroWords) {
+        if (x.measureText(`${heroLine}${word}`).width > W - 150) { x.fillText(heroLine.trim(), W / 2, heroY); heroLine = ''; heroY += 90; }
+        heroLine += `${word} `;
       }
-      const stats = [m.wpm > 0 ? `${m.wpm} W/min` : '', m.c1Hits > 0 ? `C1-Vokabular: ${m.c1Hits}` : ''].filter(Boolean).join('   ·   ');
-      if (stats) { x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif'; x.fillText(stats, W / 2, 830); }
-      x.fillStyle = 'var(--action)'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('اتدرّب على إنترفيو شغل ألماني', W / 2, 930);
+      if (heroLine.trim()) x.fillText(heroLine.trim(), W / 2, heroY);
+      x.fillStyle = '#e2e8f0'; x.font = 'bold 54px system-ui,sans-serif'; x.fillText(`RANG · ${rank}`, W / 2, 700);
+      x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif';
+      x.fillText(shareVariant === 'invitation' ? 'SALMA · RECRUITING DESK' : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
+      x.fillStyle = '#f97316'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('DEINE NÄCHSTE RUNDE WARTET', W / 2, 930);
       x.fillStyle = '#64748b'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
       return await new Promise((res) => c.toBlob(res, 'image/png'));
     } catch { return null; }
@@ -2373,11 +2379,13 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           boxShadow:'0 0 22px rgba(59,130,246,0.4)' }}>
           NOCH EIN INTERVIEW
         </button>
-        <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
-          letterSpacing:'0.08em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
-          border:'1px solid var(--violet)', color:'var(--violet)', background:'rgba(59,130,246,0.08)' }}>
-          {copied ? '✓ KOPIERT' : '↗ TEILEN'}
-        </button>
+        {canShareArtifact && (
+          <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
+            letterSpacing:'0.08em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
+            border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
+            {copied ? '✓ KOPIERT' : `↗ ${shareVariant === 'conquest' ? 'SIEG' : shareVariant === 'streak' ? 'SERIE' : 'EINLADUNG'} TEILEN`}
+          </button>
+        )}
       </div>
 
       {/* The way OUT that isn't another fight: before this button the debrief's only exits were
