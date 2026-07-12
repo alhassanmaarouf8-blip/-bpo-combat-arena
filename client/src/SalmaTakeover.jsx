@@ -36,6 +36,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   const [result, setResult] = useState(ctx.result || null);
   const returning = ctx.variant === 'returning';
   const seenTick  = useRef(0);
+  const [talking, setTalking] = useState(false);   // drives her mouth animation while she speaks
 
   const line = (key, slots) => salmaLine(key, lang, slots);
 
@@ -89,8 +90,8 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     if (spokenRef.current.length) {
       speakStop.current = salmaSpeak({
         apiUrl, token, items: spokenRef.current,
-        onStart: () => { started = true; },
-        onEnd: () => { ended = true; maybe(); },
+        onStart: () => { started = true; setTalking(true); },
+        onEnd: () => { ended = true; setTalking(false); maybe(); },
       });
     }
     let dwell = null, cap = null;
@@ -103,6 +104,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     return () => {
       try { speakStop.current?.(); } catch { /* ignore */ }
       speakStop.current = null;
+      setTalking(false);
       if (dwell) clearTimeout(dwell); if (cap) clearTimeout(cap);
     };
   }, [beat, lang, apiUrl, token]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -268,7 +270,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       <div style={card}>
         {/* header — her face on the door */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <SalmaPortrait fallback={salmaName(lang).charAt(0)} />
+          <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={52} speaking={talking} />
           <div style={{ lineHeight: 1.25, textAlign: 'left' }}>
             <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</div>
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
@@ -318,52 +320,77 @@ function bookingCopyKey(level) {
   return 'booking_yasmin';
 }
 
-// Salma's face — a warm, professional illustrated portrait (owner 07-12: "no beautiful face";
-// the old CSS-blob had dot-eyes + a geometric mouth). Self-contained inline SVG (viewBox scales to
-// any size, crisp on retina, $0, no external asset). All instances share identical gradient defs,
-// so duplicate ids across portraits resolve to identical gradients — visually correct either way.
-export function SalmaPortrait({ fallback = 'S', size = 44 }) {
+// Salma's face — a warm, ATTRACTIVE, LIVING illustrated portrait (owner 07-12: "make her face
+// bigger, extremely attractive and moving"). Self-contained inline SVG ($0, crisp at any size).
+// Motion: she gently sways/breathes and BLINKS on a loop; when `speaking` she also moves her mouth
+// (a talking loop) — the aliveness the owner asked for. prefers-reduced-motion disables all of it.
+// Static gradient ids + shared keyframes are identical across instances, so any duplication on a
+// page resolves to the same visuals.
+const SALMA_FACE_CSS = `
+.salma .fg{transform-box:fill-box;transform-origin:50% 62%;animation:salmaSwy 6s ease-in-out infinite}
+.salma .lid{transform-box:fill-box;transform-origin:center;animation:salmaBlk 5s infinite}
+.salma.talk .mo{transform-box:fill-box;transform-origin:center;animation:salmaTlk .28s ease-in-out infinite}
+@keyframes salmaSwy{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-1px) rotate(.7deg)}}
+@keyframes salmaBlk{0%,92%,100%{transform:scaleY(0)}95%,97%{transform:scaleY(1)}}
+@keyframes salmaTlk{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1.5)}}
+@media (prefers-reduced-motion:reduce){.salma .fg,.salma .lid,.salma.talk .mo{animation:none}}`;
+export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   return (
     <div style={{ ...portrait, width: size, height: size }} role="img" aria-label="Salma, Recruiterin">
-      <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ display: 'block' }} aria-hidden="true">
+      <svg viewBox="0 0 100 100" width="100%" height="100%" className={`salma${speaking ? ' talk' : ''}`}
+        style={{ display: 'block' }} aria-hidden="true">
+        <style>{SALMA_FACE_CSS}</style>
         <defs>
           <linearGradient id="salmaSkin" x1="0" y1="0" x2="0.2" y2="1">
-            <stop offset="0" stopColor="#f7d4af" /><stop offset="1" stopColor="#dd9f6d" />
+            <stop offset="0" stopColor="#fadcb8" /><stop offset="1" stopColor="#e0a374" />
           </linearGradient>
           <linearGradient id="salmaHair" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3a2a1c" /><stop offset="0.6" stopColor="#20140c" /><stop offset="1" stopColor="#120b06" />
+            <stop offset="0" stopColor="#40301f" /><stop offset="0.55" stopColor="#241610" /><stop offset="1" stopColor="#140c07" />
           </linearGradient>
           <linearGradient id="salmaBlazer" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#1d4ed8" /><stop offset="1" stopColor="#3b82f6" />
           </linearGradient>
-          <radialGradient id="salmaBg" cx="0.5" cy="0.35" r="0.8">
-            <stop offset="0" stopColor="#20304f" /><stop offset="1" stopColor="#0a1220" />
+          <radialGradient id="salmaBg" cx="0.5" cy="0.32" r="0.85">
+            <stop offset="0" stopColor="#22334f" /><stop offset="1" stopColor="#0a1220" />
           </radialGradient>
+          <linearGradient id="salmaLip" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#d4726b" /><stop offset="1" stopColor="#b8443f" />
+          </linearGradient>
         </defs>
         <rect width="100" height="100" fill="url(#salmaBg)" />
-        <path d="M22 50 C19 26 34 13 50 13 C66 13 81 26 78 50 C77 62 74 70 72 78 L67 68 C70 52 68 33 50 33 C32 33 30 52 33 68 L28 78 C26 70 23 62 22 50 Z" fill="url(#salmaHair)" />
-        <path d="M22 100 C22 83 34 77 50 77 C66 77 78 83 78 100 Z" fill="url(#salmaBlazer)" />
-        <path d="M50 77 L43 92 L50 87 L57 92 Z" fill="#eaf0fc" />
-        <path d="M44 69 L44 80 C44 85 56 85 56 80 L56 69 Z" fill="#d99a67" />
-        <ellipse cx="50" cy="49" rx="18.5" ry="21.5" fill="url(#salmaSkin)" />
-        <ellipse cx="40.5" cy="55" rx="3.4" ry="2.3" fill="#e88a77" opacity="0.32" />
-        <ellipse cx="59.5" cy="55" rx="3.4" ry="2.3" fill="#e88a77" opacity="0.32" />
-        <path d="M39.5 42.5 Q44 39.8 48.5 42.3" stroke="#241610" strokeWidth="1.7" fill="none" strokeLinecap="round" />
-        <path d="M51.5 42.3 Q56 39.8 60.5 42.5" stroke="#241610" strokeWidth="1.7" fill="none" strokeLinecap="round" />
-        <ellipse cx="43" cy="48" rx="4.1" ry="2.9" fill="#fff" />
-        <ellipse cx="57" cy="48" rx="4.1" ry="2.9" fill="#fff" />
-        <circle cx="43.3" cy="48.2" r="2.05" fill="#4a3320" />
-        <circle cx="56.7" cy="48.2" r="2.05" fill="#4a3320" />
-        <circle cx="43.3" cy="48.2" r="0.9" fill="#1a1109" />
-        <circle cx="56.7" cy="48.2" r="0.9" fill="#1a1109" />
-        <circle cx="44" cy="47.4" r="0.5" fill="#fff" />
-        <circle cx="57.4" cy="47.4" r="0.5" fill="#fff" />
-        <path d="M38.9 47.3 Q43 44.6 47.1 47.3" stroke="#241610" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-        <path d="M52.9 47.3 Q57 44.6 61.1 47.3" stroke="#241610" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-        <path d="M50 50 L48.4 56 Q50 57.2 51.6 56" stroke="#c88a5c" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M44.5 62 Q50 61 55.5 62 Q50 67 44.5 62 Z" fill="#c65a55" />
-        <path d="M44.5 62 Q50 63.4 55.5 62" stroke="#8f3b3a" strokeWidth="0.7" fill="none" />
-        <path d="M30.5 46 C29 27 40 15.5 50 15.5 C61 15.5 70 22 71 36 C68 30 62 27.5 56.5 28.5 C60 31 61 35 59.5 39 C55 31.5 44.5 31 39.5 37 C36.5 40.5 33 42.5 30.5 46 Z" fill="url(#salmaHair)" />
+        <path d="M18 52 C15 24 33 10 50 10 C67 10 85 24 82 52 C81 66 77 76 74 86 L68 72 C72 54 70 32 50 32 C30 32 28 54 32 72 L26 86 C23 76 19 66 18 52 Z" fill="url(#salmaHair)" />
+        <path d="M20 100 C20 82 33 75 50 75 C67 75 80 82 80 100 Z" fill="url(#salmaBlazer)" />
+        <path d="M50 75 L42 92 L50 86 L58 92 Z" fill="#eef3fd" />
+        <g className="fg">
+          <ellipse cx="21.5" cy="52" rx="4" ry="5.5" fill="url(#salmaSkin)" />
+          <ellipse cx="78.5" cy="52" rx="4" ry="5.5" fill="url(#salmaSkin)" />
+          <circle cx="21" cy="56.5" r="1.5" fill="#dfe3e8" />
+          <circle cx="79" cy="56.5" r="1.5" fill="#dfe3e8" />
+          <path d="M43 67 L43 79 C43 84 57 84 57 79 L57 67 Z" fill="#dd9f6f" />
+          <ellipse cx="50" cy="48" rx="19.5" ry="22.5" fill="url(#salmaSkin)" />
+          <ellipse cx="38.5" cy="55" rx="4" ry="2.6" fill="#ea8977" opacity="0.34" />
+          <ellipse cx="61.5" cy="55" rx="4" ry="2.6" fill="#ea8977" opacity="0.34" />
+          <path d="M35 41 Q42 37 48 40.5" stroke="#2a1a10" strokeWidth="1.9" fill="none" strokeLinecap="round" />
+          <path d="M52 40.5 Q58 37 65 41" stroke="#2a1a10" strokeWidth="1.9" fill="none" strokeLinecap="round" />
+          <ellipse cx="41.5" cy="48" rx="5" ry="3.5" fill="#fff" />
+          <ellipse cx="58.5" cy="48" rx="5" ry="3.5" fill="#fff" />
+          <circle cx="41.8" cy="48.2" r="2.7" fill="#5a3d22" />
+          <circle cx="58.2" cy="48.2" r="2.7" fill="#5a3d22" />
+          <circle cx="41.8" cy="48.2" r="1.25" fill="#1a1008" />
+          <circle cx="58.2" cy="48.2" r="1.25" fill="#1a1008" />
+          <circle cx="42.9" cy="47" r="0.75" fill="#fff" />
+          <circle cx="59.3" cy="47" r="0.75" fill="#fff" />
+          <path d="M36 46.4 Q41.5 42.6 47 46.2 Q41.5 45 36 46.4 Z" fill="#241610" />
+          <path d="M53 46.2 Q58.5 42.6 64 46.4 Q58.5 45 53 46.2 Z" fill="#241610" />
+          <ellipse className="lid" cx="41.5" cy="48" rx="5.4" ry="3.7" fill="url(#salmaSkin)" />
+          <ellipse className="lid" cx="58.5" cy="48" rx="5.4" ry="3.7" fill="url(#salmaSkin)" />
+          <path d="M50 50 L47.8 57 Q50 58.6 52.2 57" stroke="#cd8a5b" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <g className="mo">
+            <path d="M43 62.5 Q50 60.5 57 62.5 Q50 67.5 43 62.5 Z" fill="url(#salmaLip)" />
+            <path d="M46 63.4 Q50 62.6 54 63.4" stroke="#fff" strokeWidth="0.7" fill="none" opacity="0.35" />
+          </g>
+        </g>
+        <path d="M28 47 C26 26 39 13 50 13 C62 13 73 20 73 35 C70 28 63 25 57 26 C61 29 62 34 60 38 C55 30 44 30 39 36 C36 40 31 42 28 47 Z" fill="url(#salmaHair)" />
       </svg>
       <span aria-hidden="true" style={portraitFallback}>{fallback}</span>
     </div>

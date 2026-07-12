@@ -182,7 +182,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     <div dir="rtl" style={card}>
       {/* The recruiter's face on the card — the brain's directive is HER professional advice. */}
       <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, textAlign: 'left' }}>
-        <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={38} />
+        <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={46} speaking={speaking} />
         <div style={{ lineHeight: 1.25 }}>
           <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0' }}>{salmaName(lang)}</div>
           <div style={{ fontSize: 10.5, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
