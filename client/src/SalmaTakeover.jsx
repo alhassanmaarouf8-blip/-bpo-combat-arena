@@ -9,14 +9,8 @@
  * `resumeTick` when it closes so the flow resumes on the verdict beat.
  */
 import { useEffect, useRef, useState } from 'react';
-import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { playNative } from './nativeVoice.js';
-
-// Salma's OWN native voice — a warm female Aura-2 German voice no interviewer uses (kara is
-// server-whitelisted in transcribeRouter ALLOWED_VOICES and unclaimed by any boss). Her lines are
-// fixed templates → server-cached → $0. House law holds: native voice or SILENCE, never the
-// robotic browser voice (playNative defaults noBrowserFallback=true).
-const SALMA_VOICE = 'aura-2-kara-de';
+import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
+import { salmaSpeak } from './salmaVoice.js';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -73,16 +67,15 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   // Spoken on every beat change through the same cached native pipeline the drills use. The very
   // first beat may lack a fresh user gesture (autoplay policy) → playNative fails SILENTLY and the
   // text still carries the beat; every subsequent beat follows a tap, so her voice lands there.
-  // German only for now — when the owner ships her ElevenLabs masri clips they take these slots.
+  // Voice is masri-first (salmaSpeak): each beat's OWNER-filled masri wins in every UI language;
+  // beats the owner hasn't filled yet fall back to her German Aura voice.
   const speakStop = useRef(null);
-  const bubblesRef = useRef([]);
+  const spokenRef = useRef([]);
   useEffect(() => {
-    if (lang === 'ar') return;                       // no German voice over (future) Arabic text
     try { speakStop.current?.(); } catch { /* ignore */ }
     speakStop.current = null;
-    const text = bubblesRef.current.join(' … ');
-    if (text && text !== '…') {
-      speakStop.current = playNative({ apiUrl, token, text, voice: SALMA_VOICE });
+    if (spokenRef.current.length) {
+      speakStop.current = salmaSpeak({ apiUrl, token, items: spokenRef.current });
     }
     return () => { try { speakStop.current?.(); } catch { /* ignore */ } speakStop.current = null; };
   }, [beat, lang, apiUrl, token]);
@@ -106,14 +99,18 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   }, [resumeTick, apiUrl, token]);
 
   // ── Beat content ────────────────────────────────────────────────────────────
+  // `say` = a bubble Salma also SPEAKS: it renders via line() in the UI language AND records
+  // {key, slots} so the speak effect can re-resolve the same lines masri-first for her voice.
   const bubbles = [];
+  const spoken = [];
+  const say = (key, slots, arSlots) => { spoken.push({ key, slots, arSlots }); return line(key, slots); };
   let actions = null;
 
   if (beat === 'welcome') {
     if (returning) {
       bubbles.push(ctx.profile?.name
-        ? line('returning_welcome_named', { name: ctx.profile.name })
-        : line('returning_welcome'));
+        ? say('returning_welcome_named', { name: ctx.profile.name })
+        : say('returning_welcome'));
       actions = (
         <>
           <button style={btnBlue} onClick={() => setBeat(ctx.profile?.name ? 'handoff' : 'name_goal')}>{line('continue_label')}</button>
@@ -121,8 +118,8 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
         </>
       );
     } else {
-      bubbles.push(line('intro_welcome'));
-      if (ctx.trialDays > 0) bubbles.push(line('intro_trial', { days: ctx.trialDays }));
+      bubbles.push(say('intro_welcome'));
+      if (ctx.trialDays > 0) bubbles.push(say('intro_trial', { days: ctx.trialDays }));
       actions = (
         <>
           <button style={btnBlue} onClick={() => setBeat('name_goal')}>{line('continue_label')}</button>
@@ -131,7 +128,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       );
     }
   } else if (beat === 'name_goal') {
-    bubbles.push(line('name_ask'));
+    bubbles.push(say('name_ask'));
     actions = (
       <>
         <label style={{ display: 'block', textAlign: 'left' }}>
@@ -155,7 +152,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       </>
     );
   } else if (beat === 'screening') {
-    bubbles.push(line('screening_invite'));
+    bubbles.push(say('screening_invite'));
     actions = (
       <>
         <button style={btnOrange} onClick={onStartScreening}>{line('screening_cta')}</button>
@@ -165,10 +162,13 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   } else if (beat === 'verdict') {
     const level = result?.estimatedLevel || '—';
     const focus = pickText(result?.recommendedFocus, lang);
-    bubbles.push(line('verdict_summary', { level, focus: focus || '—' }));
+    // Her spoken masri fills {focus} from recommendedFocus.ar (the backend ships both languages),
+    // so the voice never splices display-language text into an Arabic sentence.
+    const focusAr = pickText(result?.recommendedFocus, 'ar');
+    bubbles.push(say('verdict_summary', { level, focus: focus || '—' }, { level, focus: focusAr || focus || '—' }));
     const quote = firstBlockerQuote(result);
-    if (quote) bubbles.push(line('verdict_blocker', { quote }));
-    bubbles.push(line(bookingCopyKey(result?.estimatedLevel)));
+    if (quote) bubbles.push(say('verdict_blocker', { quote }));
+    bubbles.push(say(bookingCopyKey(result?.estimatedLevel)));
     actions = (
       <>
         <button style={btnOrange} onClick={() => { markSeen(); onBookFight(result); }}>{line('booking_cta')}</button>
@@ -176,7 +176,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       </>
     );
   } else if (beat === 'no_verdict') {
-    bubbles.push(line('no_verdict'));
+    bubbles.push(say('no_verdict'));
     actions = (
       <>
         <button style={btnBlue} onClick={onStartScreening}>{line('no_verdict_resume')}</button>
@@ -186,13 +186,13 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       </>
     );
   } else if (beat === 'handoff') {
-    bubbles.push(line('returning_handoff'));
+    bubbles.push(say('returning_handoff'));
     actions = <button style={btnBlue} onClick={() => finish('salma_done')}>{line('returning_cta')}</button>;
   } else if (beat === 'checking') {
     bubbles.push('…');   // verdict fetch in flight (sub-second on a warm server); resolves to verdict | no_verdict
   }
 
-  bubblesRef.current = bubbles;   // snapshot for the speak effect (runs post-render per beat)
+  spokenRef.current = spoken;   // snapshot for the speak effect (runs post-render per beat)
 
   return (
     <div style={backdrop}>
@@ -204,16 +204,13 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
             <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</div>
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
           </div>
-          {lang !== 'ar' && (
-            <button aria-label="Salma anhören" onClick={() => {
-              const text = bubbles.filter((b) => b && b !== '…').join(' … ');
-              if (text) playNative({ apiUrl, token, text, voice: SALMA_VOICE });
-            }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
-              borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
-              background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>🔊</button>
-          )}
+          <button aria-label="Salma anhören" onClick={() => {
+            if (spoken.length) salmaSpeak({ apiUrl, token, items: spoken });
+          }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
+            borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
+            background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>🔊</button>
           <button aria-label="Schließen" onClick={() => finish('salma_skipped')}
-            style={{ marginLeft: lang === 'ar' ? 'auto' : 0, minWidth: 44, minHeight: 44, background: 'none', border: 'none',
+            style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none',
               color: '#64748b', fontSize: 20, cursor: 'pointer' }}>✕</button>
         </div>
 

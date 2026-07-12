@@ -11,6 +11,9 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { playNative } from './nativeVoice.js';
+import { salmaLine, salmaName } from './salmaCopy.js';
+import { salmaSpeak } from './salmaVoice.js';
+import { SalmaPortrait } from './SalmaTakeover.jsx';
 
 // Minimal client-side normaliser for the re-type gate (strict — they've seen the answer).
 function normClient(s) {
@@ -163,6 +166,22 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     setBusy(false);
   };
 
+  // ── Salma hands the session in and receives it back (owner order 07-12: the recruiter leads
+  //    the drills too, not only the interviews). Voice is masri-first via salmaSpeak; routed
+  //    through stopSpeakRef so any card audio cleanly replaces her. Intro speaks once per open.
+  const spokeIntro = useRef(false);
+  useEffect(() => {
+    if (!data || done || spokeIntro.current) return;
+    spokeIntro.current = true;
+    stopSpeakRef.current?.();
+    stopSpeakRef.current = salmaSpeak({ apiUrl, token, items: [{ key: 'drill_handoff' }] });
+  }, [data, done, apiUrl, token]);
+  useEffect(() => {
+    if (!done) return;
+    stopSpeakRef.current?.();
+    stopSpeakRef.current = salmaSpeak({ apiUrl, token, items: [{ key: 'drill_done' }] });
+  }, [done, apiUrl, token]);
+
   // ── Combo label (flow state calibration) ─────────────────────────────────────
   const comboLabel = combo >= 5 ? `${combo}x SERIE ⚡` : combo >= 3 ? `${combo}x 🔥` : null;
 
@@ -228,6 +247,14 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               {tally.mistakeFixed} deiner Fehler geschlossen · {tally.correct} richtig
             </div>
           )}
+          {/* Salma receives the session back into your file (drill_done — masri-first voice). */}
+          <div style={{ display: 'flex', gap: 9, alignItems: 'center', padding: '8px 12px', borderRadius: 'var(--r-sm)',
+            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', maxWidth: 420 }}>
+            <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={30} />
+            <div dir="auto" style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.5, textAlign: 'left' }}>
+              {salmaLine('drill_done', lang)}
+            </div>
+          </div>
           <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute. Komm morgen wieder, um die Serie zu halten.</div>
           <button onClick={loadMore} disabled={busy} style={{ ...primary, marginTop: 8, opacity: busy ? 0.5 : 1 }}>
             {busy ? '…' : (lang === 'ar' ? 'جولة تانية ↻' : 'NOCH EINE RUNDE ↻')}
@@ -239,6 +266,14 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       {/* ── Session ── */}
       {data && !done && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Salma hands you in — the recruiter fronts the training (drill_handoff, masri-first). */}
+          <div style={{ display: 'flex', gap: 9, alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--r-sm)',
+            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
+            <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={30} />
+            <div dir="auto" style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.5, textAlign: 'left' }}>
+              {salmaLine('drill_handoff', lang)}
+            </div>
+          </div>
           {/* Phrase of the day */}
           {data.phrase && (
             <div style={{ ...card, borderColor: 'rgba(59,130,246,0.3)' }}>

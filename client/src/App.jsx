@@ -17,11 +17,9 @@ import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { playNative } from './nativeVoice.js';
+import { salmaSpeak } from './salmaVoice.js';
 import { VideoLessons } from './VideoLessons.jsx';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
-
-const SALMA_NATIVE_VOICE = 'aura-2-kara-de';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -1575,10 +1573,12 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
     if (data?.progress?.rank?.rankUp) setRankCeremony(data.progress.rank.rankUp);
   }, [data?.progress?.rank?.rankUp]);
   useEffect(() => {
-    if (!rankCeremony || lang === 'ar' || !token) return undefined;
+    if (!rankCeremony || !token) return undefined;
     const key = ({ Anwärter: 'rank_anwaerter', Geübt: 'rank_geuebt', Profi: 'rank_profi',
       'Interview-Bereit': 'rank_ready' })[rankCeremony.to] || 'rank_anwaerter';
-    const stop = playNative({ apiUrl, token, text: salmaLine(key, 'de'), voice: SALMA_NATIVE_VOICE });
+    // Masri-first in every UI language (salmaSpeak): her Egyptian voice the moment the owner
+    // fills the rank rows, German Aura until then.
+    const stop = salmaSpeak({ apiUrl, token, items: [{ key }] });
     return () => { try { stop?.(); } catch { /* fail silent */ } };
   }, [rankCeremony, lang, token, apiUrl]);
   // THE REVEAL (R2, WOW plan): on the FIRST debrief only, the diagnosis becomes a ceremony — named
@@ -1609,6 +1609,20 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const gradeUnavailable = !!r.gradeUnavailable;
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
+
+  // Salma's spoken follow-up after every interview — keeps returning_handoff's promise ("ich
+  // melde mich nach jedem Interview"). Skipped when the rank ceremony speaks (one voice moment
+  // per debrief) and while the verdict is still held back; masri-first via salmaSpeak.
+  useEffect(() => {
+    if (!token || pending || verdictHold || gradeUnavailable) return undefined;
+    if (!data?.progress || data.progress.rank?.rankUp) return undefined;
+    const nb = data.progress.nextBoss;
+    const items = nb
+      ? [{ key: 'debrief_followup_next', slots: { name: nb.name, tier: nb.tier } }]
+      : [{ key: 'debrief_followup_top' }];
+    const stop = salmaSpeak({ apiUrl, token, items });
+    return () => { try { stop?.(); } catch { /* fail silent */ } };
+  }, [data, pending, verdictHold, gradeUnavailable, token, apiUrl]);
 
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
   const shareTier = Number(data?.progress?.rank?.tier ?? -1);
@@ -1882,6 +1896,24 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 and only says "fast bereit" when the level gate (B1+) is actually met. ── */}
           {HIRE_VERDICT_LIVE && !gradeUnavailable && data?.progress?.hireReadiness && (
             <HireVerdict h={data.progress.hireReadiness} onTrain={onTrainSkill} />
+          )}
+
+          {/* ── Salma's follow-up — the recruiter has read THIS interview and names the next
+                appointment on her ladder (progress.nextBoss, deterministic). Voiced above. ── */}
+          {!gradeUnavailable && data?.progress && (
+            <div style={{ display:'flex', gap:9, alignItems:'flex-start', padding:'10px 12px',
+              borderRadius:'var(--r-md)', background:'rgba(59,130,246,0.08)',
+              border:'1px solid rgba(59,130,246,0.25)', animation:'result-rise 0.5s var(--ease-out)' }}>
+              <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={34} />
+              <div style={{ textAlign:'left' }}>
+                <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
+                <div dir="auto" style={{ fontSize:12.5, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>
+                  {data.progress.nextBoss
+                    ? salmaLine('debrief_followup_next', lang, { name: data.progress.nextBoss.name, tier: data.progress.nextBoss.tier })
+                    : salmaLine('debrief_followup_top', lang)}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── WOCHENFOKUS — the ONE thing to drill this week (amber anchor) ── */}
@@ -3401,10 +3433,10 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
   useEffect(() => {
-    if (lang === 'ar' || !token) return undefined;
+    if (!token) return undefined;
     const key = paywallSalmaKey(info, false);
-    const text = salmaLine(key, 'de', { days: info?.trial?.daysLeft ?? 0 });
-    const stop = playNative({ apiUrl: API_URL, token, text, voice: SALMA_NATIVE_VOICE });
+    const stop = salmaSpeak({ apiUrl: API_URL, token,
+      items: [{ key, slots: { days: info?.trial?.daysLeft ?? 0 } }] });
     return () => { try { stop?.(); } catch { /* native voice fails silently */ } };
   }, [lang, token, info]);
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
@@ -3750,13 +3782,11 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
             <div style={{ textAlign:'left' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
-                {lang !== 'ar' && (
-                  <button aria-label="Salma anhören" onClick={() => playNative({ apiUrl: API_URL, token,
-                    text, voice: SALMA_NATIVE_VOICE })}
-                    style={{ minWidth:44, minHeight:44, padding:7, cursor:'pointer', borderRadius:9,
-                      border:'1px solid rgba(59,130,246,0.4)', color:'#bfdbfe',
-                      background:'rgba(59,130,246,0.10)', fontSize:15 }}>🔊</button>
-                )}
+                <button aria-label="Salma anhören" onClick={() => salmaSpeak({ apiUrl: API_URL, token,
+                  items: [{ key, slots: { days: info?.trial?.daysLeft ?? 0 } }] })}
+                  style={{ minWidth:44, minHeight:44, padding:7, cursor:'pointer', borderRadius:9,
+                    border:'1px solid rgba(59,130,246,0.4)', color:'#bfdbfe',
+                    background:'rgba(59,130,246,0.10)', fontSize:15 }}>🔊</button>
               </div>
               <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>{text}</div>
             </div>

@@ -57,6 +57,16 @@ export const SALMA_COPY = {
   rank_profi: { de: 'Du hast den Profi-Rang erreicht. Ab hier zählt nicht mehr nur richtiges Deutsch, sondern Wirkung unter Druck.', ar: '' }, // OWNER-AR · EN: "You reached Professional rank. From here, it is not only correct German that counts, but impact under pressure."
   rank_ready: { de: 'Interview-Bereit. Das ist ein Trainingsrang aus deinen gespeicherten Leistungen — jetzt musst du ihn im echten Gespräch bestätigen.', ar: '' }, // OWNER-AR · EN: "Interview-ready. This is a training rank from your stored performance — now confirm it in a real interview."
 
+  // ── drills · she assigns the training and receives it back (owner order 07-12: she leads the
+  //    WHOLE journey — signup → interview → drills → next interview) ─────────────────────────
+  drill_handoff: { de: 'Dein Training für heute liegt bereit — ich habe es nach deiner Akte zusammengestellt. Ein paar Minuten reichen.', ar: '' }, // OWNER-AR · EN: "Your training for today is ready — I put it together from your file. A few minutes are enough."
+  drill_done: { de: 'Stark gemacht. Das kommt in deine Akte — im nächsten Interview will ich es hören.', ar: '' }, // OWNER-AR · EN: "Well done. This goes into your file — in the next interview I want to hear it."
+
+  // ── debrief · her follow-up after every interview (keeps returning_handoff's promise) ──────
+  // {name} ← fight result progress.nextBoss.name · {tier} ← progress.nextBoss.tier
+  debrief_followup_next: { de: 'Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist.', ar: '' }, // OWNER-AR · EN: "I have read your interview. Your next appointment with me: {name} · {tier} — I book the moment you are ready."
+  debrief_followup_top: { de: 'Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck.', ar: '' }, // OWNER-AR · EN: "I have read your interview. You are at the top of my ladder — from here it is about confirming under pressure."
+
   // ── shared cold-open controls ─────────────────────────────────────────────────────────────
   continue_label: { de: 'Weiter', ar: '' }, // OWNER-AR · EN: "Continue" (button)
   skip_label: { de: 'Überspringen', ar: '' }, // OWNER-AR · EN: "Skip" (quiet link, always available)

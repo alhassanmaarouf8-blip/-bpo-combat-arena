@@ -10,9 +10,7 @@
 import { useEffect, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SalmaPortrait } from './SalmaTakeover.jsx';
-import { playNative } from './nativeVoice.js';
-
-const SALMA_VOICE = 'aura-2-kara-de';
+import { salmaSpeak } from './salmaVoice.js';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // The guide's masri voice. Owner-ordered to finish 2026-07-10 ("go do them, the eight brain copy —
@@ -144,11 +142,16 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
   // Her pipeline — where the candidate stands on the interviewer org ladder (level-derived).
   const curLevel = pipeline?.currentBoss?.minLevel ?? null;
   const speakSalma = () => {
-    const text = [whyLine(d), weaknessNote, trialNote].filter(Boolean).join(' … ');
-    if (!text) return;
+    // Masri-first (owner order 07-12): once her note rows carry owner masri she speaks pure masri;
+    // until then she speaks the German composition. The German directive rides along ONLY on the
+    // German path (dePrefix) — it has no masri twin and stays visible on the card either way.
+    const items = [];
+    if (weaknessNote) items.push({ key: 'note_weakness', slots: { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 } });
+    if (trialNote) items.push({ key: 'note_trial', slots: { days: trial.daysLeft } });
+    if (!items.length && !whyLine(d)) return;
     setSpeaking(true);
-    playNative({ apiUrl, token, text, voice: SALMA_VOICE,
-      onEnd: () => setSpeaking(false), onError: () => setSpeaking(false) });
+    salmaSpeak({ apiUrl, token, items, dePrefix: whyLine(d),
+      onEnd: () => setSpeaking(false) });
   };
 
   return (
