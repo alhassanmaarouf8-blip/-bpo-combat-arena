@@ -25,6 +25,15 @@ silence law. Fix: `salma:true` tickets (her 2 voices only, ≤320 chars) bypass 
 PROBE ACCOUNT (replaces dead probe-0711): `alhassanmaarouf2+salma0712@gmail.com` /
 `Probe-Salma-2026!x` — EMAIL-VERIFIED via Gmail-in-Chrome (search the inbox for the ?verify= link;
 Brevo mail takes ~60–90s). Signup body = {email,password} only now (no WhatsApp field).
+★ KORREKTUR-ZEREMONIE shipped (`b71ab3d`+`e4b8590`+`7b2dda4`, Sultan doctrine #1 — the 25-year DaF
+teacher's signature move, owner had him live in the room 07-12): after any interview with a
+LanguageTool-verified fix, Salma chains follow-up → ritual prompt → MODELS the corrected fragment
+(salmaModel, kara+salma:true), candidate repeats ALOUD, taps "Laut gesagt" (self-reported, no fake
+verification), closing note "morgen im Training" is TRUE (fights addItem→SRS→Tägliches Training).
+Beacon `ritual_done` whitelisted. THE SULTAN DELIVERABLE: full 10-gaps + 10-protocol answer with
+dosages/exit-criteria lives in the 07-12 conversation — REAP HIS CORRECTIONS (dosage numbers, A2→B1
+grammar order, strike-list) + the testimonial ask («Geprüft von M. Sultan») before building v2
+(ASR-checked repeat, Prüfungstag weekly re-level, criterion boss gates, error-rate hero stat).
 
 ## 🔥 MAKE-IT-COOL v2 EXECUTION (2026-07-12 evening) — items 1+0+5a LIVE; plan approved for the rest
 Owner approved the panel-synthesized plan (`~/.claude/plans/delegated-puzzling-stallman.md` — READ
