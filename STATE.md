@@ -1,5 +1,26 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔊 SALMA NOW LEADS — no longer passive (2026-07-12, HEAD `073f5f8`, deploy-verified live)
+Owner (lived): "Salma's voice is extremely slow, passive, doesn't guide through the app, waits for me
+to click, total rubbish." ROOT = foot-gun #51: her home guide (`BrainGuide`, "THE FATHER LEADS")
+called `speakSalma` ONLY from the 🔊 `onClick` — she NEVER spoke on her own → a silent card you click
+through = passive by construction. Also: cold-open was a click-through wizard parking on "Weiter";
+first line often autoplay-blocked + cold per-beat round-trip = "silent + slow." FIXED (`073f5f8`,
+client-only → Vercel):
+ (1) **BrainGuide** — proactive `useEffect` greets + directs OUT LOUD the moment the directive loads,
+     ONCE per page-load session (module flag `greetedThisSession`), autoplay-safe (silent if blocked,
+     🔊 still works), cleanup stops speech on unmount so she never talks over a launched drill.
+ (2) **SalmaTakeover** — pure-narration beats AUTO-ADVANCE on her own voice (onStart-gated: if
+     autoplay blocked her she waits for the unlocking tap instead of silently rushing); decision/input
+     beats still wait for the human. Plus prefetch+warm her OPENING line on mount.
+PROVEN LIVE (read-only, fresh tab sharing owner's login, his tab untouched): build `073f5f8` live,
+`loggedOut:false`, home renders her BrainGuide card, and on plain load with ZERO interaction from me
+`/api/media-ticket` + `/api/tts-stream` BOTH fired (`proactiveMediaTicket:1, ttsStream:1`) = she
+initiates speech herself. Her words stay GERMAN until owner fills masri rows (masri-first arch
+unchanged; I never author masri). Owner's device = final gate: hard-refresh → home → she speaks ~1-2s
+unprompted (the app-open tap unlocks audio). Cold-open auto-advance is code+build-verified, not seen
+in trigger context (owner has `omni_salma_seen:1` → never sees cold-open again; a fresh signup shows it).
+
 ## ✅ GOD-VERIFICATION LEDGER (2026-07-12 night, HEAD `6b71177`) — what is PROVEN vs build-only
 PROVEN LIVE (seen/measured): (1) Übungen CULL — home page-text shows exactly 5 tiles, Druck-Leiter +
 Video-Lektionen GONE. (2) Salma masri voice END-TO-END from the real client origin (owner's own
