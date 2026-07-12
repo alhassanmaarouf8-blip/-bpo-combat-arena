@@ -18,7 +18,10 @@
 import { playNative } from './nativeVoice.js';
 import { SALMA_COPY, salmaLine } from './salmaCopy.js';
 
-export const SALMA_VOICE_DE = 'aura-2-kara-de';
+// Salma's German = Gemini (warm, human, normalized), NOT Deepgram Aura-2 (owner ear 07-12:
+// "robotic, low, unhuman"). Same Kore voice as her masri → ONE Salma across both languages.
+// Server routes 'salma-de' → geminiGermanTTS; 'salma-masri' → geminiMasriTTS.
+export const SALMA_VOICE_DE = 'salma-de';
 export const SALMA_VOICE_AR = 'salma-masri';
 
 export function composeSalmaSpoken(items) {

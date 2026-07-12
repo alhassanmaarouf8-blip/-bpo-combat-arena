@@ -47,6 +47,14 @@ const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-previ
 const GEMINI_TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Kore';
 const MASRI_STYLE = 'اقري الجملة دي بصوت دافي وودود بلهجة مصرية قاهرية أصيلة تماماً — زي موظفة استقبال مصرية بجد، ' +
   'الجيم تتنطق مصري زي «جنيه/جمب» (مش جيم فصحى) والقاف مهموزة: ';
+// Salma's GERMAN lines (what she speaks until the owner fills a row's masri) run on the SAME Gemini
+// engine + SAME Kore voice as her masri — steered warm/human in German — instead of Deepgram Aura-2.
+// Owner ear 07-12: Aura-2 = "robotic, low, unhuman, predictable"; he chose Gemini on the compare
+// page. One consistent Salma voice across both languages, normalized loud (pcmToLoudWav), cached→free.
+const SALMA_DE_VOICE = 'salma-de';
+const DE_WARM_STYLE = 'Sprich den folgenden Satz mit einer warmen, freundlichen und ganz natürlichen '
+  + 'weiblichen Stimme — wie eine echte, herzliche Personalvermittlerin, die einen Kandidaten '
+  + 'ermutigt. Menschlich, lebendig und nie roboterhaft: ';
 
 // ── ElevenLabs Turbo v2.5 — OPT-IN boss voice (native German; same price as Flash, more natural) ──
 // Turbo v2.5 = 0.5 credits/char, identical to Flash, but higher German naturalness (ElevenLabs blog).
@@ -159,6 +167,7 @@ router.post('/media-ticket', requireAuth,
               keyExtra: (req) => req.account.id, accountOnly: true }), (req, res) => {
   const kind = req.body?.kind === 'eleven' ? 'eleven' : 'aura';
   const wantsMasri = kind === 'aura' && req.body?.voice === SALMA_MASRI_VOICE;
+  const wantsSalmaDe = kind === 'aura' && req.body?.voice === SALMA_DE_VOICE;   // her German on Gemini
   const raw = String(req.body?.text || '').slice(0, 600);
   const text = wantsMasri ? cleanForTTSAr(raw) : cleanForTTS(raw);
   if (!text) return res.status(400).json({ error: 'missing_text' });
@@ -169,7 +178,7 @@ router.post('/media-ticket', requireAuth,
   // Exempt exactly her two voices: short fixed lines, server-cached, still inside reserveTts and
   // the per-account ticket rate limits.
   const salmaTicket = req.body?.salma === true && kind === 'aura' && text.length <= 320
-    && (wantsMasri || req.body?.voice === 'aura-2-kara-de');
+    && (wantsMasri || wantsSalmaDe || req.body?.voice === 'aura-2-kara-de');
   if (drill && !salmaTicket && !drillsUnlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
   if (kind === 'eleven' && !elevenVoiceAllowed(req.account)) return res.status(403).json({ error: 'voice_not_enabled' });
   if (!drill && dailyMinutesFor(req.account) <= 0 && !activeFightUsers.has(req.account.id)) {
@@ -179,6 +188,7 @@ router.post('/media-ticket', requireAuth,
   const voice = kind === 'eleven'
     ? (ELEVEN_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_ELEVEN_VOICE)
     : wantsMasri ? SALMA_MASRI_VOICE
+      : wantsSalmaDe ? SALMA_DE_VOICE
       : (AURA_DE_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_VOICE);
   const emotion = String(req.body?.emotion || '').slice(0, 24);
   const ticket = mintMediaTicket({ kind, userId: req.account.id, text, voice, emotion, drill });
@@ -344,10 +354,12 @@ router.post('/tts', requireAuth,
   }
 });
 
-async function geminiMasriTTS(text) {
+// One Gemini-TTS call, steered by `style` (Cairo-masri for her Arabic, warm-German for her German) —
+// SAME Kore voice either way, so Salma sounds like ONE person across both languages.
+async function geminiTTS(text, style) {
   const key = process.env.GEMINI_API_KEY;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${key}`;
-  const body = { contents: [{ parts: [{ text: MASRI_STYLE + text }] }],
+  const body = { contents: [{ parts: [{ text: style + text }] }],
     generationConfig: { responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE } } } } };
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -360,6 +372,8 @@ async function geminiMasriTTS(text) {
   // 07-12: "very low"); pcmToLoudWav scales to ~0.97 full-scale, distortion-free, and wraps WAV.
   return pcmToLoudWav(Buffer.from(part.inlineData.data, 'base64'));
 }
+const geminiMasriTTS = (text) => geminiTTS(text, MASRI_STYLE);
+const geminiGermanTTS = (text) => geminiTTS(text, DE_WARM_STYLE);
 
 // ── GET /api/tts-stream — Deepgram Aura-2 STREAMING boss voice (the DEFAULT, free) ─────────────────
 // Measured: Aura emits its first audio bytes ~350ms after the request, but the whole clip takes up to
@@ -394,18 +408,18 @@ router.get('/tts-stream', async (req, res) => {
   const hit = ttsCacheGet(ck);
   if (hit) {
     console.log(`[cost] tts-stream cache=HIT voice=${voice} chars=${text.length}`);
-    res.set('Content-Type', voice === SALMA_MASRI_VOICE ? 'audio/wav' : 'audio/mpeg');
+    res.set('Content-Type', (voice === SALMA_MASRI_VOICE || voice === SALMA_DE_VOICE) ? 'audio/wav' : 'audio/mpeg');
     return res.send(hit);
   }
   console.log(`[cost] tts-stream cache=MISS voice=${voice} chars=${text.length}`);
 
-  // Salma's masri: Gemini-TTS, whole clip. No streaming — her lines are 1–3 short sentences and
-  // every repeat is a cache hit above. Missing key → 503 so the client applies the native-or-
-  // silence law (never a robotic fallback voice), the same contract as the Deepgram path below.
-  if (voice === SALMA_MASRI_VOICE) {
+  // Salma's OWN voice (masri OR her warm German) → Gemini-TTS, whole clip. No streaming — her lines
+  // are 1–3 short sentences and every repeat is a cache hit above. Missing key → 503 so the client
+  // applies the native-or-silence law (never a robotic fallback voice), same contract as Deepgram below.
+  if (voice === SALMA_MASRI_VOICE || voice === SALMA_DE_VOICE) {
     if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'tts_unavailable' });
     try {
-      const wav = await geminiMasriTTS(text);
+      const wav = await (voice === SALMA_MASRI_VOICE ? geminiMasriTTS(text) : geminiGermanTTS(text));
       res.set('Content-Type', 'audio/wav');
       res.send(wav);
       ttsCachePut(ck, wav);
