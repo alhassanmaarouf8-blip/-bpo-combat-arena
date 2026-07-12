@@ -1,5 +1,44 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🗣️👩 SALMA: NO-SYMBOL HUMAN VOICE + BIGGER ANIMATED FACE (2026-07-12, HEAD `7117117`, live)
+Owner: "voice is ok, but she can't read * / symbols like Google read — talk like a GENUINE human" +
+"make her face bigger, extremely attractive and moving." SHIPPED:
+ • **Voice (`bb439f5` server)** — `stripNonSpoken()` on BOTH TTS paths (deterministic, foot-gun #17):
+   emoji/arrows/bullets/markdown removed; em-dash + ellipsis → comma-pause (never "dash"/"dot dot
+   dot"); slash → space (never "Schrägstrich"); €/times/abbrev expansion preserved. UNIT-PROVEN:
+   `'*wichtig*'`→`'wichtig'`, `'Dativ/Akkusativ — … 🎉'`→`'Dativ Akkusativ, ,'`, Arabic scrubbed too.
+   Non-ASCII regex built from char codes / `\p{}` (foot-gun #48/#49) — verified no NUL bytes.
+   `DE_WARM_STYLE` now demands SPOKEN conversation, not narration.
+ • **Face (`7117117` client)** — v2 SVG: bigger eyes + eyeliner + iris/catchlight, arched brows,
+   fuller lips, blush, ears + stud earrings, refined hair. MOVING: always-on blink + gentle sway;
+   `speaking` prop → talking-mouth loop (wired in home BrainGuide + cold-open); reduced-motion-safe.
+   Sizes: home 38→46, cold-open 52. Screenshot-verified live (motion can't be screenshotted — CSS
+   is build-verified + always-on). Photoreal still available if owner sends an image.
+ Residual "predictable": her words are fixed owner templates (no LLM, El-Captain rule) + German until
+ masri rows filled — true variety needs owner-authored line variants. Foot-guns #51 (manual-trigger =
+ passive) + #52 (fix the path the user's STATE routes to) logged.
+
+## 🎙️ SALMA VOICE→GEMINI + NEW FACE (2026-07-12, HEAD `0e1cff7`, live-verified)
+Owner ear (after the "leads" fix): "still robotic, low voice, very predictable, very unhuman" +
+"no beautiful face." DIAGNOSIS (foot-gun #52): her masri rows are EMPTY → she speaks the GERMAN
+fallback = Deepgram Aura-2 `aura-2-kara-de`, the engine he did NOT pick, streamed WITHOUT the
+loudness normalize (`tts-stream` dropped it on a wrong "Aura-2 is full-scale" assumption). My earlier
+pcmToLoudWav loudness fix was on the MASRI path — never on the path he heard.
+SHIPPED (`5285870` server + `0e1cff7` face):
+ • **Voice** — Salma's German now runs on **Gemini** (his compare-page pick), SAME Kore voice as her
+   masri, steered warm/human in German (`DE_WARM_STYLE`), normalized loud (pcmToLoudWav), cached→free.
+   New voice id `salma-de` → `geminiGermanTTS`; wired in media-ticket + tts-stream + salma plan-gate
+   exemption; client `SALMA_VOICE_DE='salma-de'`. Deepgram stays the BOSS voice (unchanged).
+   PROVEN LIVE (authed fetch): media-ticket 200, tts-stream 200, **audio/wav** (Gemini, not Deepgram's
+   audio/mpeg), RIFF, 417 KB → engine switch is deterministic. "Human enough?" = OWNER'S EAR (hard-
+   refresh → home greeting). ESCALATION if not: ElevenLabs Yasmine (approved, Egyptian, multilingual;
+   needs ELEVENLABS key + USE_ELEVENLABS on Render — his call, cached→~free for fixed lines).
+ • **Face** — `SalmaPortrait` CSS blob (dot eyes + geometric mouth) → self-contained inline SVG:
+   warm woman, framed dark hair, eyes w/ catchlights, gentle smile, blue blazer; viewBox scales
+   34–96px, $0. Screenshot-verified in preview AND live on the home. Photoreal = owner sends an image.
+NOTE: her WORDS are still German until owner fills masri rows (unchanged). "Predictable" is partly
+structural (fixed owner templates, no LLM) — real variety needs owner-authored line variants.
+
 ## 🔊 SALMA NOW LEADS — no longer passive (2026-07-12, HEAD `073f5f8`, deploy-verified live)
 Owner (lived): "Salma's voice is extremely slow, passive, doesn't guide through the app, waits for me
 to click, total rubbish." ROOT = foot-gun #51: her home guide (`BrainGuide`, "THE FATHER LEADS")
