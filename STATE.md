@@ -1,5 +1,31 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 SALMA'S EGYPTIAN VOICE + FULL-JOURNEY LEADERSHIP (2026-07-12 night) — `5c53826`+`2497997`+`334abb1`
+Owner order: "Salma leads the WHOLE experience with FULL Egyptian masri." Shipped: (1) server voice
+id **`salma-masri`** → Gemini-TTS `gemini-2.5-flash-preview-tts` steered to Cairo masri (the engine
+the OWNER'S EAR picked over Azure/ElevenLabs on the Sara compare page — see `voice-demo-factory`
+skill; owner tonight: Azure is out, Gemini in) behind the SAME media-ticket/tts-stream cache;
+Arabic-safe text cleaner (no German expansion); no-key → 503 → client silence law; **smoke-proven
+locally HTTP 200, 2.0s audio in 3.1s** (Render already has GEMINI_API_KEY — zero owner steps).
+(2) client **`salmaVoice.js` = ONE brain for her voice**: any salmaCopy line whose OWNER-AR `ar` is
+filled is spoken MASRI in BOTH UI languages (his "full masri" rule); empty ar → her German kara
+voice (never silent). All 5 call sites refactored (cold-open beats+replay, home notes w/ German-
+directive dePrefix, rank ceremony, paywall auto+replay); ar-mode silence gates REMOVED. (3) She now
+fronts the **drills** (Tägliches Training handoff strip + spoken intro/sign-off) and does a
+**debrief follow-up after every interview** naming progress.nextBoss (skips when the rank ceremony
+speaks). Reminders were already hers (`Die Arena · Salma`, other session). 4 new copy keys → owner
+sheet regenerated (**135 slots**, 47 Salma rows in salmaCopy). ⚠ STILL OWNER-GATED: the 47 masri
+lines (docs/owner-ar-sheet.md) — the moment ANY row is filled+deployed, that line SPEAKS masri.
+⚠ Voice>text rule: de-UI users HEAR masri once rows fill while reading German — intended (owner's
+explicit demand); revert = the `ar =` line in salmaVoice.js composeSalmaSpoken if his ear objects.
+★★ 402 DISCOVERY (`c47db50`+`c5b1283`): trial clock starts at FIRST interview (consumeFreeFight) →
+fresh accounts had drillsUnlocked=false → Salma's voice tickets 402'd → her COLD-OPEN was
+server-silenced for every new user (and her paywall pitch after expiry), hidden by the client
+silence law. Fix: `salma:true` tickets (her 2 voices only, ≤320 chars) bypass ONLY the plan gate.
+PROBE ACCOUNT (replaces dead probe-0711): `alhassanmaarouf2+salma0712@gmail.com` /
+`Probe-Salma-2026!x` — EMAIL-VERIFIED via Gmail-in-Chrome (search the inbox for the ?verify= link;
+Brevo mail takes ~60–90s). Signup body = {email,password} only now (no WhatsApp field).
+
 ## 🔥 MAKE-IT-COOL v2 EXECUTION (2026-07-12 evening) — items 1+0+5a LIVE; plan approved for the rest
 Owner approved the panel-synthesized plan (`~/.claude/plans/delegated-puzzling-stallman.md` — READ
 IT before continuing; north star: tailored genuine progress × peak entertainment). SHIPPED+VERIFIED:
