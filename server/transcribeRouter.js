@@ -35,6 +35,19 @@ const AURA_DE_VOICES = new Set([
 ]);
 const DEFAULT_VOICE = 'aura-2-julius-de';
 
+// ── Salma's Egyptian voice: Gemini-TTS steered to Cairo masri ─────────────────────
+// The recruiter speaks masri, not German — and the ENGINE decides "Egyptian" more than the text
+// does: the owner's own ear ranked Gemini-TTS above Azure ar-EG and ElevenLabs on the Sara
+// compare page (2026-07-07), and GEMINI_API_KEY already lives on this server. Whole-clip synth
+// (no streaming) wrapped in a WAV header; her lines are short and fixed, so the shared TTS cache
+// makes every replay instant and free. The dialect-steering prefix is copied VERBATIM from the
+// owner-approved Sara implementation (never authored here, never rendered to a learner).
+const SALMA_MASRI_VOICE = 'salma-masri';
+const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+const GEMINI_TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Kore';
+const MASRI_STYLE = 'اقري الجملة دي بصوت دافي وودود بلهجة مصرية قاهرية أصيلة تماماً — زي موظفة استقبال مصرية بجد، ' +
+  'الجيم تتنطق مصري زي «جنيه/جمب» (مش جيم فصحى) والقاف مهموزة: ';
+
 // ── ElevenLabs Turbo v2.5 — OPT-IN boss voice (native German; same price as Flash, more natural) ──
 // Turbo v2.5 = 0.5 credits/char, identical to Flash, but higher German naturalness (ElevenLabs blog).
 // Only used when USE_ELEVENLABS=1; default voice path is native-German Deepgram Aura-2.
@@ -82,6 +95,15 @@ export function cleanForTTS(s) {
   t = t.replace(/\s{2,}/g, ' ').trim();
   if (t && !/[.!?…]$/.test(t)) t += '.';  // natural final intonation/breath
   return t;
+}
+// Arabic twin of cleanForTTS for Salma's masri lines: strips the same never-spoken symbols but
+// SKIPS expandForSpeechDE — running German number/abbreviation expansion inside Arabic prose
+// would splice German words into her masri. Gemini-TTS reads digits in dialect context itself.
+export function cleanForTTSAr(s) {
+  let t = String(s || '').trim();
+  t = t.replace(/\[[^\]]*\]/g, ' ');
+  t = t.replace(/[*_#`>|]/g, '');
+  return t.replace(/\s{2,}/g, ' ').trim();
 }
 // In-memory MP3 cache keyed by voiceId+text. A character's OPENING line is identical
 // every interview → generated once, then replayed instantly and for free. Dynamic
@@ -136,7 +158,9 @@ router.post('/media-ticket', requireAuth,
   rateLimit({ windowMs: 60 * 60 * 1000, max: 180, tag: 'media-ticket-account',
               keyExtra: (req) => req.account.id, accountOnly: true }), (req, res) => {
   const kind = req.body?.kind === 'eleven' ? 'eleven' : 'aura';
-  const text = cleanForTTS(String(req.body?.text || '').slice(0, 600));
+  const wantsMasri = kind === 'aura' && req.body?.voice === SALMA_MASRI_VOICE;
+  const raw = String(req.body?.text || '').slice(0, 600);
+  const text = wantsMasri ? cleanForTTSAr(raw) : cleanForTTS(raw);
   if (!text) return res.status(400).json({ error: 'missing_text' });
   const drill = req.body?.drill === true;
   if (drill && !drillsUnlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
@@ -147,7 +171,8 @@ router.post('/media-ticket', requireAuth,
   if (!reserveTts(req.account.id, text.length)) return res.status(429).json({ error: 'voice_daily_limit' });
   const voice = kind === 'eleven'
     ? (ELEVEN_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_ELEVEN_VOICE)
-    : (AURA_DE_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_VOICE);
+    : wantsMasri ? SALMA_MASRI_VOICE
+      : (AURA_DE_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_VOICE);
   const emotion = String(req.body?.emotion || '').slice(0, 24);
   const ticket = mintMediaTicket({ kind, userId: req.account.id, text, voice, emotion, drill });
   res.set('Cache-Control', 'no-store');
@@ -312,6 +337,34 @@ router.post('/tts', requireAuth,
   }
 });
 
+// Wrap raw PCM (L16 mono) in a 44-byte WAV header so a browser <audio> can play it — Gemini-TTS
+// returns headerless PCM, and a bare data URI/stream of it is unplayable (proven in the Sara demo).
+function wavFromPcm(pcm, sampleRate = 24000, channels = 1, bits = 16) {
+  const blockAlign = channels * bits / 8;
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8);
+  h.write('fmt ', 12); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20);
+  h.writeUInt16LE(channels, 22); h.writeUInt32LE(sampleRate, 24);
+  h.writeUInt32LE(sampleRate * blockAlign, 28); h.writeUInt16LE(blockAlign, 32);
+  h.writeUInt16LE(bits, 34); h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([h, pcm]);
+}
+
+async function geminiMasriTTS(text) {
+  const key = process.env.GEMINI_API_KEY;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${key}`;
+  const body = { contents: [{ parts: [{ text: MASRI_STYLE + text }] }],
+    generationConfig: { responseModalities: ['AUDIO'],
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE } } } } };
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body), signal: AbortSignal.timeout(25_000) });
+  if (!r.ok) throw new Error(`gemini tts ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}`);
+  const j = await r.json();
+  const part = j.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+  if (!part) throw new Error('gemini tts: no audio in response');
+  return wavFromPcm(Buffer.from(part.inlineData.data, 'base64'));
+}
+
 // ── GET /api/tts-stream — Deepgram Aura-2 STREAMING boss voice (the DEFAULT, free) ─────────────────
 // Measured: Aura emits its first audio bytes ~350ms after the request, but the whole clip takes up to
 // ~6s to fully synthesize for a long line. The buffered POST /api/tts waits for the WHOLE clip before
@@ -345,10 +398,27 @@ router.get('/tts-stream', async (req, res) => {
   const hit = ttsCacheGet(ck);
   if (hit) {
     console.log(`[cost] tts-stream cache=HIT voice=${voice} chars=${text.length}`);
-    res.set('Content-Type', 'audio/mpeg');
+    res.set('Content-Type', voice === SALMA_MASRI_VOICE ? 'audio/wav' : 'audio/mpeg');
     return res.send(hit);
   }
   console.log(`[cost] tts-stream cache=MISS voice=${voice} chars=${text.length}`);
+
+  // Salma's masri: Gemini-TTS, whole clip. No streaming — her lines are 1–3 short sentences and
+  // every repeat is a cache hit above. Missing key → 503 so the client applies the native-or-
+  // silence law (never a robotic fallback voice), the same contract as the Deepgram path below.
+  if (voice === SALMA_MASRI_VOICE) {
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'tts_unavailable' });
+    try {
+      const wav = await geminiMasriTTS(text);
+      res.set('Content-Type', 'audio/wav');
+      res.send(wav);
+      ttsCachePut(ck, wav);
+    } catch (err) {
+      console.error(`[tts-stream] gemini masri failed user=${account.id}: ${err.message}`);
+      if (!res.headersSent) res.status(502).json({ error: 'tts_failed' });
+    }
+    return;
+  }
 
   // 25s hard timeout: if Deepgram hangs mid-stream, abort so res.end() fires and the browser's
   // <audio> gets onerror instead of sitting in 'stalled' forever (same guard as /api/voice).
