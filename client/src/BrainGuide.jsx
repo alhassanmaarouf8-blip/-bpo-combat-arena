@@ -99,6 +99,10 @@ const LADDER = [
   { id: 'lukas', name: 'Lukas', tier: 'Reality-Check', minLevel: 9 },
 ];
 
+// She greets + directs out loud ONCE per page-load session (see the proactive-speak effect below).
+// A module flag, not state, so returning to the home mid-session doesn't re-trigger her every time.
+let greetedThisSession = false;
+
 export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, rival = null }) {
   const [data, setData] = useState(null);
   const [speaking, setSpeaking] = useState(false);
@@ -114,6 +118,26 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     })();
     return () => { alive = false; };
   }, [token, apiUrl]);
+
+  // THE FATHER SPEAKS FIRST (owner 07-12: "she's slow, passive, waits for me to click, doesn't
+  // guide"). The instant her card has a real directive she GREETS + directs OUT LOUD — once per
+  // session — instead of sitting silent behind a 🔊. Autoplay-safe: if the browser blocks audio
+  // (no gesture yet) playNative fails silently and the button still works. The module flag makes
+  // her lead you in ONCE, then respect that you're working (no repeat every time you return home).
+  useEffect(() => {
+    if (!data?.directive || greetedThisSession) return undefined;
+    const dir = data.directive;
+    const items = [];
+    if (topWeakness?.rule) items.push({ key: 'note_weakness', slots: { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 } });
+    if (trial?.active && Number.isFinite(trial?.daysLeft)) items.push({ key: 'note_trial', slots: { days: trial.daysLeft } });
+    const pre = whyLine(dir);
+    if (!items.length && !pre) return undefined;
+    greetedThisSession = true;
+    setSpeaking(true);
+    const stop = salmaSpeak({ apiUrl, token, items, dePrefix: pre, onEnd: () => setSpeaking(false) });
+    return () => { try { stop?.(); } catch { /* ignore */ } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   if (!data?.directive) return null;
   const d = data.directive;

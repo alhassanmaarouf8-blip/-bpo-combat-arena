@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { salmaSpeak } from './salmaVoice.js';
+import { salmaSpeak, composeSalmaSpoken, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -65,22 +65,64 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       body: JSON.stringify({ e: 'salma_name_saved' }), keepalive: true }).catch(() => {});
   };
 
-  // ── Salma SPEAKS her bubbles (owner order 07-12: "why does Salma not have any voice"). ──
-  // Spoken on every beat change through the same cached native pipeline the drills use. The very
-  // first beat may lack a fresh user gesture (autoplay policy) → playNative fails SILENTLY and the
-  // text still carries the beat; every subsequent beat follows a tap, so her voice lands there.
-  // Voice is masri-first (salmaSpeak): each beat's OWNER-filled masri wins in every UI language;
-  // beats the owner hasn't filled yet fall back to her German Aura voice.
+  // ── Salma SPEAKS her bubbles AND leads the candidate onward herself ─────────────────────────
+  // (owner 07-12: "she's slow, passive, waits for me to click, doesn't guide"). Two behaviors:
+  //  • SPEAK — every beat change speaks its bubbles masri-first (salmaSpeak) through the cached
+  //    native pipeline; owner-filled masri wins in both UI languages, unfilled falls back to Aura.
+  //  • LEAD — on a pure-narration beat she does NOT park on a "Weiter" button: once she was
+  //    actually HEARD (onStart fired) and a readable dwell passed, she advances the flow herself.
+  //    The onStart gate is the whole trick — if autoplay blocked her (no user gesture yet, e.g.
+  //    auto-login on a returning visit), onStart never fires, so she never SILENTLY auto-rushes;
+  //    she waits for the one tap that unlocks audio, then leads from there. Decision/input beats
+  //    (gate, name, screening, verdict) always wait for the human, by design.
   const speakStop = useRef(null);
   const spokenRef = useRef([]);
+  // Beats Salma walks through on her own voice → the next beat (value may depend on ctx).
+  const autoNext = { welcome: () => (returning ? (ctx.profile?.name ? 'handoff' : 'name_goal') : 'name_goal') };
   useEffect(() => {
     try { speakStop.current?.(); } catch { /* ignore */ }
     speakStop.current = null;
+    const target = autoNext[beat]?.();
+    let started = false, ended = false, dwellDone = false, fired = false;
+    const advance = () => { if (fired || !target) return; fired = true; setBeat(target); };
+    const maybe = () => { if (started && ended && dwellDone) advance(); };
     if (spokenRef.current.length) {
-      speakStop.current = salmaSpeak({ apiUrl, token, items: spokenRef.current });
+      speakStop.current = salmaSpeak({
+        apiUrl, token, items: spokenRef.current,
+        onStart: () => { started = true; },
+        onEnd: () => { ended = true; maybe(); },
+      });
     }
-    return () => { try { speakStop.current?.(); } catch { /* ignore */ } speakStop.current = null; };
-  }, [beat, lang, apiUrl, token]);
+    let dwell = null, cap = null;
+    if (target) {
+      const chars = spokenRef.current.reduce((n, it) => n + (line(it.key, it.slots)?.length || 0), 0);
+      const minMs = Math.min(6500, 1600 + chars * 42);   // scale the dwell to how much she says
+      dwell = setTimeout(() => { dwellDone = true; maybe(); }, minMs);
+      cap = setTimeout(() => { if (started) advance(); }, minMs + 6000);   // safety — only if she spoke
+    }
+    return () => {
+      try { speakStop.current?.(); } catch { /* ignore */ }
+      speakStop.current = null;
+      if (dwell) clearTimeout(dwell); if (cap) clearTimeout(cap);
+    };
+  }, [beat, lang, apiUrl, token]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Warm the dyno + pre-synthesize her OPENING line so her first words land instantly instead of
+  // after a cold synth round-trip (owner 07-12: "extremely slow"). The first-mount profile fetch
+  // already woke Render; this caches the opener in the background so real playback replays from
+  // cache. Fire-and-forget, slot-exact so the cache key matches what she actually speaks.
+  useEffect(() => {
+    const opener = returning
+      ? { key: ctx.profile?.name ? 'returning_welcome_named' : 'returning_welcome', slots: { name: ctx.profile?.name } }
+      : { key: 'gate_question' };
+    const { text, ar } = composeSalmaSpoken([opener]);
+    if (!text) return;
+    fetch(`${apiUrl}/api/media-ticket`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ kind: 'aura', voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, text, drill: true, salma: true }),
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The Assessment closed (App bumped resumeTick) → fetch the fresh server-persisted verdict and
   // resume on the right beat. Only reacts while we're waiting on the screening.
