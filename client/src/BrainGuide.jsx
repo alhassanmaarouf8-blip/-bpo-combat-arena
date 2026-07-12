@@ -9,6 +9,10 @@
  */
 import { useEffect, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
+import { SalmaPortrait } from './SalmaTakeover.jsx';
+import { playNative } from './nativeVoice.js';
+
+const SALMA_VOICE = 'aura-2-kara-de';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // The guide's masri voice. Owner-ordered to finish 2026-07-10 ("go do them, the eight brain copy —
@@ -99,6 +103,7 @@ const LADDER = [
 
 export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, rival = null }) {
   const [data, setData] = useState(null);
+  const [speaking, setSpeaking] = useState(false);
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -138,21 +143,29 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     : null;
   // Her pipeline — where the candidate stands on the interviewer org ladder (level-derived).
   const curLevel = pipeline?.currentBoss?.minLevel ?? null;
+  const speakSalma = () => {
+    const text = [whyLine(d), weaknessNote, trialNote].filter(Boolean).join(' … ');
+    if (!text) return;
+    setSpeaking(true);
+    playNative({ apiUrl, token, text, voice: SALMA_VOICE,
+      onEnd: () => setSpeaking(false), onError: () => setSpeaking(false) });
+  };
 
   return (
     <div dir="rtl" style={card}>
       {/* The recruiter's face on the card — the brain's directive is HER professional advice. */}
       <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, textAlign: 'left' }}>
-        <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, display: 'flex',
-          alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#dbeafe',
-          background: 'rgba(59,130,246,0.16)', border: '1.5px solid rgba(59,130,246,0.55)',
-          boxShadow: '0 0 10px rgba(59,130,246,0.35)' }}>
-          {salmaName(lang).charAt(0)}
-        </div>
+        <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={38} />
         <div style={{ lineHeight: 1.25 }}>
           <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0' }}>{salmaName(lang)}</div>
           <div style={{ fontSize: 10.5, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
         </div>
+        <button onClick={speakSalma} disabled={speaking} aria-label="Salma anhören"
+          style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: '8px 10px', cursor: speaking ? 'wait' : 'pointer',
+            borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
+            background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>
+          {speaking ? '…' : '🔊'}
+        </button>
       </div>
 
       {/* The aha — only when the engine confirmed a real closed loop (it never fabricates one). */}

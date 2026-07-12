@@ -204,8 +204,16 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
             <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</div>
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
           </div>
+          {lang !== 'ar' && (
+            <button aria-label="Salma anhören" onClick={() => {
+              const text = bubbles.filter((b) => b && b !== '…').join(' … ');
+              if (text) playNative({ apiUrl, token, text, voice: SALMA_VOICE });
+            }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
+              borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
+              background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>🔊</button>
+          )}
           <button aria-label="Schließen" onClick={() => finish('salma_skipped')}
-            style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, background: 'none', border: 'none',
+            style={{ marginLeft: lang === 'ar' ? 'auto' : 0, minWidth: 44, minHeight: 44, background: 'none', border: 'none',
               color: '#64748b', fontSize: 20, cursor: 'pointer' }}>✕</button>
         </div>
 
@@ -244,9 +252,11 @@ function bookingCopyKey(level) {
   return 'booking_yasmin';
 }
 
-function SalmaPortrait({ fallback }) {
+export function SalmaPortrait({ fallback = 'S', size = 44 }) {
+  const scale = size / 44;
   return (
-    <div style={portrait} role="img" aria-label="Salma, illustrierte Recruiterin">
+    <div style={{ ...portrait, width: size, height: size }} role="img" aria-label="Salma, illustrierte Recruiterin">
+      <div style={{ ...portraitArt, transform: `scale(${scale})` }}>
       <div style={portraitHair} />
       <div style={portraitFace}>
         <span style={{ ...portraitEye, left: 10 }} />
@@ -254,6 +264,7 @@ function SalmaPortrait({ fallback }) {
         <span style={portraitSmile} />
       </div>
       <div style={portraitShoulders} />
+      </div>
       <span aria-hidden="true" style={portraitFallback}>{fallback}</span>
     </div>
   );
@@ -277,6 +288,7 @@ const card = { width: '100%', maxWidth: 400, maxHeight: '86vh', overflowY: 'auto
 const portrait = { position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
   overflow: 'hidden', background: 'linear-gradient(145deg, #172554, #0f172a)',
   border: '2px solid rgba(96,165,250,0.72)', boxShadow: '0 0 14px rgba(59,130,246,0.35)' };
+const portraitArt = { position: 'absolute', width: 44, height: 44, left: 0, top: 0, transformOrigin: 'top left' };
 const portraitHair = { position: 'absolute', width: 29, height: 29, left: 6, top: 5, borderRadius: '52% 52% 42% 42%',
   background: '#172033', transform: 'rotate(-4deg)', zIndex: 1 };
 const portraitFace = { position: 'absolute', width: 24, height: 27, left: 9, top: 8, borderRadius: '48% 48% 44% 44%',

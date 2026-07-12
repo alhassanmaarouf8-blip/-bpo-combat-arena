@@ -15,7 +15,7 @@ import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
 import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
-import { SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
+import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { playNative } from './nativeVoice.js';
 import { VideoLessons } from './VideoLessons.jsx';
@@ -3746,13 +3746,18 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         return (
           <div style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:12, padding:'10px 12px',
             borderRadius:10, background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.25)' }}>
-            <div style={{ width:30, height:30, borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center',
-              justifyContent:'center', fontWeight:800, fontSize:13, color:'#dbeafe',
-              background:'rgba(59,130,246,0.16)', border:'1.5px solid rgba(59,130,246,0.55)' }}>
-              {salmaName(lang).charAt(0)}
-            </div>
+            <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={38} />
             <div style={{ textAlign:'left' }}>
-              <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
+                {lang !== 'ar' && (
+                  <button aria-label="Salma anhören" onClick={() => playNative({ apiUrl: API_URL, token,
+                    text, voice: SALMA_NATIVE_VOICE })}
+                    style={{ minWidth:44, minHeight:44, padding:7, cursor:'pointer', borderRadius:9,
+                      border:'1px solid rgba(59,130,246,0.4)', color:'#bfdbfe',
+                      background:'rgba(59,130,246,0.10)', fontSize:15 }}>🔊</button>
+                )}
+              </div>
               <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>{text}</div>
             </div>
           </div>
