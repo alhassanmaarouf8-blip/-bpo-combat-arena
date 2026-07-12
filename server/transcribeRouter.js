@@ -52,9 +52,12 @@ const MASRI_STYLE = 'اقري الجملة دي بصوت دافي وودود ب�
 // Owner ear 07-12: Aura-2 = "robotic, low, unhuman, predictable"; he chose Gemini on the compare
 // page. One consistent Salma voice across both languages, normalized loud (pcmToLoudWav), cached→free.
 const SALMA_DE_VOICE = 'salma-de';
-const DE_WARM_STYLE = 'Sprich den folgenden Satz mit einer warmen, freundlichen und ganz natürlichen '
-  + 'weiblichen Stimme — wie eine echte, herzliche Personalvermittlerin, die einen Kandidaten '
-  + 'ermutigt. Menschlich, lebendig und nie roboterhaft: ';
+// Owner 07-12: "she has to talk like a GENUINE human, not just read what's there / like Google read."
+// So the style demands SPOKEN conversation, not narration — living intonation + small natural pauses.
+const DE_WARM_STYLE = 'Sprich den folgenden Satz so, wie eine echte, herzliche Personalvermittlerin '
+  + 'ihn frei im Gespräch sagen würde: warm, natürlich und ermutigend, mit lebendiger Betonung und '
+  + 'kleinen natürlichen Pausen. Rede mit dem Kandidaten, lies nicht vor, klinge nie roboterhaft. '
+  + 'Sprich ausschließlich den eigentlichen Satz, keinerlei Symbole oder Zeichen: ';
 
 // ── ElevenLabs Turbo v2.5 — OPT-IN boss voice (native German; same price as Flash, more natural) ──
 // Turbo v2.5 = 0.5 credits/char, identical to Flash, but higher German naturalness (ElevenLabs blog).
@@ -91,27 +94,44 @@ const elevenVoiceAllowed = (account) => process.env.USE_ELEVENLABS === '1'
   && !!process.env.ELEVENLABS_API_KEY && ELEVEN_VOICE_ACCOUNT_IDS.has(account?.id);
 
 // ── Clean text for natural TTS (both engines) ────────────────────────────────────
-// Strips anything a voice would read aloud literally (v3-only bracket tags on turbo/flash,
-// markdown symbols), expands digits/€/times/abbreviations into spoken German (ROADMAP #20 —
-// the engine must never decide how "19,99 €" sounds), and guarantees terminal punctuation
-// so the voice lands a natural final breath.
+// A voice must SPEAK the meaning, never READ characters aloud (owner 07-12: "she reads * / like
+// Google read — she has to talk like a GENUINE human"). So we delete everything non-verbal BEFORE
+// synthesis — deterministically, never trusting the TTS prompt (foot-gun #17): emoji/pictographs,
+// "other symbols" (arrows, bullets, ✓, ™…), markdown, and stray formatting; and we turn typographic
+// punctuation a robot verbalizes ("Sternchen", "Schrägstrich", "dot dot dot") into natural pauses.
+// Non-ASCII targets are built from char codes / \p{} escapes on purpose — typing the literal glyphs
+// or \u ranges here can emit raw bytes and NUL-corrupt this file (foot-gun #48/#49).
+const _RE_PICTO = /[\p{Extended_Pictographic}\p{So}]/gu;                 // emoji, arrows, dingbats, misc symbols
+const _RE_JOINERS = new RegExp('[' + String.fromCharCode(0x200D, 0x200C, 0xFE0F) + ']', 'g');  // ZWJ/ZWNJ/VS16
+const _RE_PAUSE = new RegExp('[' + String.fromCharCode(0x2014, 0x2013, 0x2012, 0x2026) + ']', 'g'); // — – ‒ … → pause
+const _RE_DROP  = new RegExp('[' + String.fromCharCode(0x00B7, 0x2022, 0x2027, 0x00AB, 0x00BB, 0x201C, 0x201D, 0x2018, 0x2019) + ']', 'g'); // · • ‧ « » " " ' '
+function stripNonSpoken(s) {
+  return String(s || '').trim()
+    .replace(/\[[^\]]*\]/g, ' ')          // [seufzt]/[laughs]/[warmly] stage tags (v3-only; read aloud on turbo/flash)
+    .replace(_RE_PICTO, ' ')
+    .replace(_RE_JOINERS, '')
+    .replace(/[*_#`>|~^]/g, '')            // markdown symbols
+    .replace(_RE_PAUSE, ', ')              // em/en dash + ellipsis → a natural comma-pause, never "dash"/"dot dot dot"
+    .replace(_RE_DROP, '')                 // bullets + typographic quotes → gone
+    .replace(/\s*\/\s*/g, ' ')             // slash → space, never "Schrägstrich"
+    .replace(/\s+([,.!?;:])/g, '$1')       // no space before punctuation our inserts created
+    .replace(/,\s*(?=[,.!?])/g, '')        // collapse doubled pause punctuation
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+// Expands digits/€/times/abbreviations into spoken German (ROADMAP #20 — the engine must never
+// decide how "19,99 €" sounds), then guarantees terminal punctuation for a natural final breath.
 export function cleanForTTS(s) {
-  let t = String(s || '').trim();
-  t = t.replace(/\[[^\]]*\]/g, ' ');     // [seufzt]/[laughs]/[warmly] → removed (read aloud on turbo/flash)
-  t = t.replace(/[*_#`>|]/g, '');         // markdown symbols TTS would speak
-  t = expandForSpeechDE(t);               // "19,99 €"/"24h"/"z. B." → the German words a human says
-  t = t.replace(/\s{2,}/g, ' ').trim();
-  if (t && !/[.!?…]$/.test(t)) t += '.';  // natural final intonation/breath
+  let t = expandForSpeechDE(stripNonSpoken(s));
+  t = t.replace(/[,\s]+$/, '').replace(/\s{2,}/g, ' ').trim();
+  if (t && !/[.!?]$/.test(t)) t += '.';
   return t;
 }
-// Arabic twin of cleanForTTS for Salma's masri lines: strips the same never-spoken symbols but
-// SKIPS expandForSpeechDE — running German number/abbreviation expansion inside Arabic prose
-// would splice German words into her masri. Gemini-TTS reads digits in dialect context itself.
+// Arabic twin for Salma's masri lines: same non-verbal scrub, but SKIPS expandForSpeechDE — running
+// German number/abbreviation expansion inside Arabic prose would splice German words into her masri.
+// Gemini-TTS reads digits in dialect context itself.
 export function cleanForTTSAr(s) {
-  let t = String(s || '').trim();
-  t = t.replace(/\[[^\]]*\]/g, ' ');
-  t = t.replace(/[*_#`>|]/g, '');
-  return t.replace(/\s{2,}/g, ' ').trim();
+  return stripNonSpoken(s).replace(/[,\s]+$/, '').trim();
 }
 // In-memory MP3 cache keyed by voiceId+text. A character's OPENING line is identical
 // every interview → generated once, then replayed instantly and for free. Dynamic
