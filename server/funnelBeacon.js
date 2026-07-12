@@ -37,6 +37,9 @@ const ALLOWED = new Set([
   // Correction ritual (2026-07-12, Sultan doctrine): candidate tapped "Laut gesagt" after
   // repeating the verified fix aloud — measures whether the ritual is actually performed.
   'ritual_done',
+  // B1+ admission gate (2026-07-12, owner positioning law): Salma's door question at the
+  // cold-open — measures the true level mix of the funnel.
+  'gate_b1_yes', 'gate_b1_no',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)
