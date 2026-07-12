@@ -1,5 +1,22 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## ✅ GOD-VERIFICATION LEDGER (2026-07-12 night, HEAD `6b71177`) — what is PROVEN vs build-only
+PROVEN LIVE (seen/measured): (1) Übungen CULL — home page-text shows exactly 5 tiles, Druck-Leiter +
+Video-Lektionen GONE. (2) Salma masri voice END-TO-END from the real client origin (owner's own
+acct): media-ticket 200 → tts-stream 200 · audio/wav · 92,730 B · RIFF header. (3) Fresh pre-trial
+acct masri (the 402 fix): media-ticket+tts-stream 200. (4) Beacons gate_b1_yes/gate_b1_no/ritual_done
+→ 200 (whitelist correct). (5) Salma home card + notes + KARIM pipeline + 🔊 render. (6) Deploy
+stamps == HEAD; import-load of changed server modules OK; build/design-lint/german-check/node --check
+clean. (7) Ritual async voice-cleanup traced safe (stop() suppresses the onEnd that starts the
+fragment → no double-voice/leak). BUILD+CODE-VERIFIED, NOT SEEN in trigger context (honest gap):
+B1 landing admission bar · cold-open B1 GATE question · correction-ritual card + homework order —
+all render via the SAME salmaLine path proven live on the home card; unseen only because (a) owner's
+`bpo_token` is a blocked sensitive key → can't log him out+restore to reach logged-out/fresh state,
+(b) ritual/homework need a full completed interview. CLOSE THEM: any fresh signup shows the landing
+bar + gate immediately; one real interview shows the ritual. Owner acct `alhassanmaarouf8@gmail.com`
+stays logged in on the test browser (untouched).
+
+
 ## 🔥 SALMA'S EGYPTIAN VOICE + FULL-JOURNEY LEADERSHIP (2026-07-12 night) — `5c53826`+`2497997`+`334abb1`
 Owner order: "Salma leads the WHOLE experience with FULL Egyptian masri." Shipped: (1) server voice
 id **`salma-masri`** → Gemini-TTS `gemini-2.5-flash-preview-tts` steered to Cairo masri (the engine
