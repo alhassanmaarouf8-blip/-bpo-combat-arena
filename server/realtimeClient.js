@@ -681,6 +681,7 @@ export class RealtimeClient {
       recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
       sessionSeed: this._sessionId,   // seeds the intro-variant pick (phone-real opening variety)
       targetIndustry: opts.targetIndustry || null,   // Ziel-Stelle: industry-first scenario + boss framing
+      revanche: opts.revanche || null,
     });
 
     // Persona forcefulness → an interview-style block in the system prompt + a patience value the client

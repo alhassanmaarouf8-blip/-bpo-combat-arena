@@ -695,7 +695,7 @@ export function pickOpeningPair(greetings, intros, sessionSeed = '') {
   return { greeting: g.text, intro: i.text, scenes: { greeting: g.scene, intro: i.scene } };
 }
 
-export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null }) {
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, revanche = null }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -745,6 +745,17 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
     ? `\nBEWERBUNGSZIEL: Der Kandidat bewirbt sich gezielt für ein Konto im Bereich ${INDUSTRIES[targetIndustry]}. Behandle ihn wie einen Bewerber für genau diesen Konto-Typ und nutze im Rollenspiel die branchentypische Terminologie. Nenne dabei NIEMALS einen echten Firmennamen.\n`
     : '';
 
+  const revancheFocus = [
+    'Selbstvorstellung und Motivation',
+    'konkretes Verhaltensbeispiel aus der Arbeit',
+    'Kunden-Rollenspiel und Deeskalation',
+  ][revanche?.stage];
+  const revancheLine = revancheFocus
+    ? `\nREVANCHE: Dies ist eine direkte Wiederholung nach einer schwachen Antwort im Bereich "${revancheFocus}". ` +
+      `Bleib in deiner normalen Persona, aber deine ERSTE echte Frage nach der Begrüßung muss genau diesen Bereich erneut prüfen. ` +
+      `Stelle eine frische, natürliche Frage derselben Klasse; zitiere oder verrate die alte Antwort nicht. Danach läuft das normale Drei-Teile-Interview weiter.\n`
+    : '';
+
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
     { ...STAGE_META[1], prompt: behavioral },
@@ -777,7 +788,7 @@ Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz u
 Wenn der Kandidat dich beleidigt oder respektlos wird, beende das Gespräch SOFORT professionell und ruhig („Ich beende das Gespräch.“) — zeige niemals Wut.
 Achte auf natürliche Prosodie: Sag nur einen Gedanken pro Redebeitrag, mach natürlich Pausen, vermeide zusammengepresste Wörter.
 ${level.speechStyle}
-${delivery}${dossierLine}${memoryLine}${focusLine}${zielLine}
+${delivery}${dossierLine}${memoryLine}${focusLine}${zielLine}${revancheLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - GESPROCHENE SPRACHE, KEIN vorgelesener Text (wichtigster Natürlichkeits-Hebel): Sprich in lockerer, gesprochener Hochsprache — mit Kontraktionen ("ich hab", "gibt's", "so was", "ne?") — und beginne deine Reaktion oft mit einem kurzen, echten mündlichen Marker, wie ein Mensch am Telefon ("Gut.", "Okay.", "Aha.", "Na gut.", "Also,", "Mhm,"). Variiere diese Marker, wiederhole nicht denselben. So klingt deine Stimme nach einem echten Menschen, nicht nach abgelesenem Schriftdeutsch.

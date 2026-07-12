@@ -1557,7 +1557,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   );
 }
 
-function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
+function Debrief({ data, pending, onRestart, onRevanche, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -1765,6 +1765,30 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
               </div>
             )}
           </div>
+
+          {!win && data?.revancheMoment?.quote && onRevanche && (
+            <div style={{ padding:'14px 16px', borderRadius:'var(--r-lg)', textAlign:'left',
+              background:'rgba(249,115,22,0.09)', border:'1px solid rgba(249,115,22,0.48)' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:11,
+                letterSpacing:'0.13em', color:'var(--action)' }}>
+                DER MOMENT · {data.revancheMoment.stageLabel || 'DEINE SCHWÄCHSTE ANTWORT'}
+              </div>
+              <div style={{ marginTop:8, fontSize:13, lineHeight:1.55, color:'#e2e8f0' }}>
+                „{data.revancheMoment.quote}“
+              </div>
+              {data.revancheMoment.reason && (
+                <div style={{ marginTop:5, fontSize:10.5, color:'#94a3b8' }}>
+                  Größter Hebel: {data.revancheMoment.reason}
+                </div>
+              )}
+              <button onClick={onRevanche} style={{ width:'100%', minHeight:48, marginTop:12,
+                cursor:'pointer', borderRadius:'var(--r-md)', border:'1px solid var(--action)',
+                background:'var(--action)', color:'#020409', fontFamily:'var(--font-display)',
+                fontWeight:900, fontSize:13, letterSpacing:'0.12em' }}>
+                REVANCHE · NOCHMAL UNTER DRUCK
+              </button>
+            </div>
+          )}
 
           {/* ── Hiring decision — maps the CEFR VERDICT (not the game score) to the real
                 Cairo bar: C1-held-under-pressure = seated; B2 = screen only; freeze = out.
@@ -2689,6 +2713,7 @@ function VoiceReadinessCheck() {
           <div dir="rtl" style={{ marginTop:5, color:'#94a3b8' }}>
             المثال توضيحي؛ تقييمك الحقيقي بيتبني من كلامك إنت، من غير نتائج أو شهادات مزيفة.
           </div>
+
         </div>
       </details>
     </div>
@@ -3993,6 +4018,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
   const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
   const bossPickRef    = useRef('');         // boss-picker selection, read when sending START_FIGHT
+  const revancheRef    = useRef(null);       // one-shot lowest-answer rematch hint for the next fight
   const fightModeRef   = useRef('daily');   // always 'daily' — Boss-Tor mode was Musk-cut (no caller ever passed it)
   const volRef         = useRef(0);   // mic volume — a ref, NOT state (see WaveformRing)
   const wsRef          = useRef(null);
@@ -4180,8 +4206,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           level: levelRef.current,
           mode: fightModeRef.current,
           bossId: bossPickRef.current || undefined,
+          revanche: revancheRef.current || undefined,
           audioCapable: !IN_APP_BROWSER && checkAudioSupport().supported,
         }));
+        revancheRef.current = null;
         break;
 
       case S.LIVE_STATS:
@@ -4933,6 +4961,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     setTimeout(start, 250);
   }, [start, setPhaseSync]);
 
+  const handleRevanche = useCallback(() => {
+    const moment = debrief?.revancheMoment;
+    if (!moment) return;
+    revancheRef.current = { stage: moment.stage, stageLabel: moment.stageLabel || '' };
+    if (debrief?.result?.bossId) bossPickRef.current = debrief.result.bossId;
+    handleRestart();
+  }, [debrief, handleRestart]);
+
   // Debrief "FERTIG" → clean route HOME (not another fight). Clears funnel so the home screen
   // (and the brain's next-step guide) renders instead of the fight chrome, and so the global
   // back arrow stops treating the ended session as a live interview (its old behavior here
@@ -5392,7 +5428,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Result screen: ONLY when the server has ended the session, and only once the
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && !noSession && (
-        <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart} onDone={handleDebriefDone}
+        <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart} onRevanche={handleRevanche} onDone={handleDebriefDone}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           ent={auth.account?.entitlement}

@@ -129,6 +129,21 @@ function stageForAnswers(n) {
   return 2;
 }
 
+export function pickRevancheMoment(current, candidate) {
+  if (!candidate || !Number.isFinite(candidate.score)) return current || null;
+  const quote = String(candidate.quote || '').trim();
+  if (quote.length < 3 || quote.length > 280 || candidate.lowConfidence || candidate.truncated) return current || null;
+  if (current && Number(current.score) <= candidate.score) return current;
+  return {
+    quote,
+    score: Math.max(0, Math.min(100, Math.round(candidate.score))),
+    stage: [0, 1, 2].includes(candidate.stage) ? candidate.stage : 0,
+    stageLabel: String(candidate.stageLabel || '').slice(0, 80),
+    question: String(candidate.question || '').trim().slice(0, 280),
+    reason: String(candidate.reason || '').trim().slice(0, 80),
+  };
+}
+
 // The candidate's most recurring grammar weakness (for the boss memory dossier):
 // the still-unmastered grammar rule they've relapsed on most.
 function topWeakRule(profile) {
@@ -281,6 +296,7 @@ export class WebSocketManager {
       stages:         [],
       utterances:     [],     // candidate's real sentences, for the end-of-session debrief
       dialogue:       [],     // FULL ordered exchange (boss question → candidate answer) for the dialogue-aware debrief
+      revancheMoment: null,   // lowest safely quotable answer for an immediate loss rematch
       totalSpeechMs:  0,       // summed VAD speech segments, for WPM
       fightStartedAt: 0,       // wall-clock start of the billed Realtime session
       audioInBytes:   0,       // total PCM16 audio bytes sent to OpenAI (user mic)
@@ -541,6 +557,10 @@ export class WebSocketManager {
       bossId = msg.bossId;
       console.log(`[wsManager] boss-picker override → ${bossId}  session=${ctx.sessionId}`);
     }
+    const revancheStage = Number(msg?.revanche?.stage);
+    const revanche = [0, 1, 2].includes(revancheStage)
+      ? { stage: revancheStage, stageLabel: String(msg.revanche.stageLabel || '').slice(0, 80) }
+      : null;
 
     // ── Daily live-minute remaining (reset midnight Africa/Cairo) — hard-cap this fight ──
     const today      = dayKey();
@@ -616,6 +636,7 @@ export class WebSocketManager {
         candidateName,
         recent,
         targetIndustry,
+        revanche,
         allowElevenVoice: ELEVEN_VOICE_ACCOUNT_IDS.has(account.id),
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
@@ -1261,7 +1282,10 @@ export class WebSocketManager {
     try { structureWins = debriefStructureWins(ctx.utterances); } catch (e) { console.error('[wsManager] structureWins debrief failed:', e.message); }
 
     console.log(`[wsManager] Debrief ready  generated=${debrief.generated}  outcome=${result.outcome}  rank=${result.rank}  bossHp=${result.bossHp}  answers=${metrics.answers}  l1=${l1Pattern?.key || 'none'}  session=${ctx.sessionId}`);
-    this._send(ctx, { type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress });
+    this._send(ctx, {
+      type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress,
+      revancheMoment: result.outcome === 'loss' ? ctx.revancheMoment : null,
+    });
   }
 
   // Persist this session: history, vocab growth, SRS items from errors, XP/level.
@@ -1672,7 +1696,7 @@ export class WebSocketManager {
       :                                       'Grundlagen weiter trainieren';
 
     return {
-      outcome, bossHp, playerHp, score,
+      outcome, bossHp, playerHp, score, bossId: ctx.bossId,
       rank, gradeUnavailable, verdict, gradeSource: 'panelscorer',
       jobLabel, comboBest: ctx.comboBest, categories,
     };
@@ -1877,6 +1901,19 @@ export class WebSocketManager {
     // Cause-driven scoring: every HP change is the sum of SPECIFIC detected signals,
     // each with its own label (see _scoreFactors). Nothing here is random.
     const { score, factors } = this._scoreFactors(transcript, durationMs, wordCount, { levelId: ctx.level, stage: ctx.stageIdx });
+    const lastUtterance = ctx.utterances[ctx.utterances.length - 1];
+    const lastQuestion = [...ctx.dialogue].reverse().find((turn) => turn.role === 'boss')?.text || '';
+    const topSlip = factors.filter((f) => f.side === 'player').sort((a, b) => b.hp - a.hp)[0];
+    ctx.revancheMoment = pickRevancheMoment(ctx.revancheMoment, {
+      quote: transcript,
+      score,
+      stage: ctx.stageIdx,
+      stageLabel: ctx.stages[ctx.stageIdx]?.label,
+      question: lastQuestion,
+      reason: topSlip?.label,
+      lowConfidence: !!lastUtterance?.lowConf?.length,
+      truncated: looksTruncatedDE(transcript),
+    });
     ctx.scoreSum += score; ctx.scoreCount += 1;
     // Snapshot the claim-ledger every scored turn (not at teardown, where realtimeClient may be
     // gone) → persisted as `lastTopics` so the NEXT session's boss can reference what he SAID.
