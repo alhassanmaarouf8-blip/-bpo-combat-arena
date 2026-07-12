@@ -163,7 +163,14 @@ router.post('/media-ticket', requireAuth,
   const text = wantsMasri ? cleanForTTSAr(raw) : cleanForTTS(raw);
   if (!text) return res.status(400).json({ error: 'missing_text' });
   const drill = req.body?.drill === true;
-  if (drill && !drillsUnlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
+  // Salma is the AGENCY's own voice, not gated learner content — and the trial clock only starts
+  // at the FIRST interview (consumeFreeFight), so a plan gate here silenced her cold-open for
+  // every fresh account and her paywall pitch after trial expiry (probe-proven 402, 07-12).
+  // Exempt exactly her two voices: short fixed lines, server-cached, still inside reserveTts and
+  // the per-account ticket rate limits.
+  const salmaTicket = req.body?.salma === true && kind === 'aura' && text.length <= 320
+    && (wantsMasri || req.body?.voice === 'aura-2-kara-de');
+  if (drill && !salmaTicket && !drillsUnlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
   if (kind === 'eleven' && !elevenVoiceAllowed(req.account)) return res.status(403).json({ error: 'voice_not_enabled' });
   if (!drill && dailyMinutesFor(req.account) <= 0 && !activeFightUsers.has(req.account.id)) {
     return res.status(402).json({ error: 'daily_limit' });
