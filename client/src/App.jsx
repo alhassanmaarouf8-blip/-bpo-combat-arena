@@ -1739,6 +1739,14 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
                     {r.jobLabel.toUpperCase()}
                   </div>
                 )}
+                {/* Best answer streak of the fight — comboBest was computed+sent since day one and
+                    never rendered (panel find). Only shown when a real streak happened. */}
+                {(r.comboBest ?? 0) >= 3 && (
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:10.5, letterSpacing:'0.14em',
+                    color:'#94a3b8', marginTop:5 }}>
+                    BESTE SERIE · {r.comboBest} STARKE ANTWORTEN IN FOLGE
+                  </div>
+                )}
               </>
             )}
             {/* Motivating loss / win line */}
@@ -5723,25 +5731,26 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
             textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
 
-          {/* Edutainment pass (07-11): flying damage numbers over the stage — the interview IS a
-              match you can feel yourself winning. Blue burst = your answer landed (boss lost HP);
-              orange burst = you slipped. Values come from the server's deterministic scorer. */}
-          {false && scoreFlash && scoreFlash.hit > 0 && (
+          {/* Damage numbers RE-ENABLED (07-12 owner north star: "not boring at all") — the 10560f1
+              hardening had them {false}'d; the panel unanimously ordered the punch replugged, tuned
+              premium: crisp 34px, 1.6s, combo bursts only from ×3. A strong German sentence visibly
+              wounds the boss — the entertainment IS feedback on language quality. */}
+          {scoreFlash && scoreFlash.hit > 0 && (
             <div key={`h${scoreFlash.id}`} style={{ position:'absolute', top:'26%', left:'50%', zIndex:7,
               transform:'translateX(-50%)', pointerEvents:'none',
-              fontFamily:'var(--font-display)', fontWeight:800, fontSize:44, lineHeight:1,
-              color:'#93c5fd', textShadow:'0 0 18px rgba(59,130,246,0.9), 0 2px 6px rgba(0,0,0,0.8)',
-              animation:'dmg-pop 2.2s var(--ease) forwards' }}>
+              fontFamily:'var(--font-display)', fontWeight:800, fontSize:34, lineHeight:1,
+              color:'#93c5fd', textShadow:'0 2px 6px rgba(0,0,0,0.8)',
+              animation:'dmg-pop 1.6s var(--ease) forwards' }}>
               −{scoreFlash.hit}
             </div>
           )}
-          {false && scoreFlash && scoreFlash.combo >= 2 && scoreFlash.hit > 0 && (
+          {scoreFlash && scoreFlash.combo >= 3 && scoreFlash.hit > 0 && (
             <div key={`c${scoreFlash.id}`} style={{ position:'absolute', top:'44%', left:'50%', zIndex:7,
               transform:'translateX(-50%)', pointerEvents:'none',
-              fontFamily:'var(--font-display)', fontWeight:700, fontSize:15, letterSpacing:'0.2em',
-              color:'#fdba74', textShadow:'0 0 12px rgba(249,115,22,0.8)',
-              animation:'combo-pop 2.2s var(--ease) forwards' }}>
-              COMBO ×{scoreFlash.combo}
+              fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.2em',
+              color:'#fdba74', textShadow:'0 2px 5px rgba(0,0,0,0.8)',
+              animation:'combo-pop 1.6s var(--ease) forwards' }}>
+              SERIE ×{scoreFlash.combo}
             </div>
           )}
 
@@ -5787,13 +5796,12 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* DEINE HP — bottom frame */}
         <div style={{ marginTop:6, position:'relative' }}>
           <HpBar label="ANTWORTQUALITÄT" value={playerHp} isPlayer={true} reason={playerReason} />
-          {/* damage you took this turn — orange burst rising off your own bar */}
-          {false && scoreFlash && scoreFlash.taken > 0 && (
+          {/* damage you took this turn — orange burst rising off your own bar (re-enabled 07-12) */}
+          {scoreFlash && scoreFlash.taken > 0 && (
             <div key={`t${scoreFlash.id}`} style={{ position:'absolute', top:-8, right:18, zIndex:7,
-              pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:800, fontSize:26,
-              lineHeight:1, color:'#fdba74',
-              textShadow:'0 0 14px rgba(249,115,22,0.85), 0 2px 5px rgba(0,0,0,0.8)',
-              animation:'dmg-pop 2.2s var(--ease) forwards' }}>
+              pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:800, fontSize:22,
+              lineHeight:1, color:'#fdba74', textShadow:'0 2px 5px rgba(0,0,0,0.8)',
+              animation:'dmg-pop 1.6s var(--ease) forwards' }}>
               −{scoreFlash.taken}
             </div>
           )}
