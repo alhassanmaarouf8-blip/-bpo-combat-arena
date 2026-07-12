@@ -318,19 +318,53 @@ function bookingCopyKey(level) {
   return 'booking_yasmin';
 }
 
+// Salma's face — a warm, professional illustrated portrait (owner 07-12: "no beautiful face";
+// the old CSS-blob had dot-eyes + a geometric mouth). Self-contained inline SVG (viewBox scales to
+// any size, crisp on retina, $0, no external asset). All instances share identical gradient defs,
+// so duplicate ids across portraits resolve to identical gradients — visually correct either way.
 export function SalmaPortrait({ fallback = 'S', size = 44 }) {
-  const scale = size / 44;
   return (
-    <div style={{ ...portrait, width: size, height: size }} role="img" aria-label="Salma, illustrierte Recruiterin">
-      <div style={{ ...portraitArt, transform: `scale(${scale})` }}>
-      <div style={portraitHair} />
-      <div style={portraitFace}>
-        <span style={{ ...portraitEye, left: 10 }} />
-        <span style={{ ...portraitEye, right: 10 }} />
-        <span style={portraitSmile} />
-      </div>
-      <div style={portraitShoulders} />
-      </div>
+    <div style={{ ...portrait, width: size, height: size }} role="img" aria-label="Salma, Recruiterin">
+      <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ display: 'block' }} aria-hidden="true">
+        <defs>
+          <linearGradient id="salmaSkin" x1="0" y1="0" x2="0.2" y2="1">
+            <stop offset="0" stopColor="#f7d4af" /><stop offset="1" stopColor="#dd9f6d" />
+          </linearGradient>
+          <linearGradient id="salmaHair" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3a2a1c" /><stop offset="0.6" stopColor="#20140c" /><stop offset="1" stopColor="#120b06" />
+          </linearGradient>
+          <linearGradient id="salmaBlazer" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#1d4ed8" /><stop offset="1" stopColor="#3b82f6" />
+          </linearGradient>
+          <radialGradient id="salmaBg" cx="0.5" cy="0.35" r="0.8">
+            <stop offset="0" stopColor="#20304f" /><stop offset="1" stopColor="#0a1220" />
+          </radialGradient>
+        </defs>
+        <rect width="100" height="100" fill="url(#salmaBg)" />
+        <path d="M22 50 C19 26 34 13 50 13 C66 13 81 26 78 50 C77 62 74 70 72 78 L67 68 C70 52 68 33 50 33 C32 33 30 52 33 68 L28 78 C26 70 23 62 22 50 Z" fill="url(#salmaHair)" />
+        <path d="M22 100 C22 83 34 77 50 77 C66 77 78 83 78 100 Z" fill="url(#salmaBlazer)" />
+        <path d="M50 77 L43 92 L50 87 L57 92 Z" fill="#eaf0fc" />
+        <path d="M44 69 L44 80 C44 85 56 85 56 80 L56 69 Z" fill="#d99a67" />
+        <ellipse cx="50" cy="49" rx="18.5" ry="21.5" fill="url(#salmaSkin)" />
+        <ellipse cx="40.5" cy="55" rx="3.4" ry="2.3" fill="#e88a77" opacity="0.32" />
+        <ellipse cx="59.5" cy="55" rx="3.4" ry="2.3" fill="#e88a77" opacity="0.32" />
+        <path d="M39.5 42.5 Q44 39.8 48.5 42.3" stroke="#241610" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+        <path d="M51.5 42.3 Q56 39.8 60.5 42.5" stroke="#241610" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+        <ellipse cx="43" cy="48" rx="4.1" ry="2.9" fill="#fff" />
+        <ellipse cx="57" cy="48" rx="4.1" ry="2.9" fill="#fff" />
+        <circle cx="43.3" cy="48.2" r="2.05" fill="#4a3320" />
+        <circle cx="56.7" cy="48.2" r="2.05" fill="#4a3320" />
+        <circle cx="43.3" cy="48.2" r="0.9" fill="#1a1109" />
+        <circle cx="56.7" cy="48.2" r="0.9" fill="#1a1109" />
+        <circle cx="44" cy="47.4" r="0.5" fill="#fff" />
+        <circle cx="57.4" cy="47.4" r="0.5" fill="#fff" />
+        <path d="M38.9 47.3 Q43 44.6 47.1 47.3" stroke="#241610" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+        <path d="M52.9 47.3 Q57 44.6 61.1 47.3" stroke="#241610" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+        <path d="M50 50 L48.4 56 Q50 57.2 51.6 56" stroke="#c88a5c" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M44.5 62 Q50 61 55.5 62 Q50 67 44.5 62 Z" fill="#c65a55" />
+        <path d="M44.5 62 Q50 63.4 55.5 62" stroke="#8f3b3a" strokeWidth="0.7" fill="none" />
+        <path d="M30.5 46 C29 27 40 15.5 50 15.5 C61 15.5 70 22 71 36 C68 30 62 27.5 56.5 28.5 C60 31 61 35 59.5 39 C55 31.5 44.5 31 39.5 37 C36.5 40.5 33 42.5 30.5 46 Z" fill="url(#salmaHair)" />
+      </svg>
       <span aria-hidden="true" style={portraitFallback}>{fallback}</span>
     </div>
   );
@@ -354,16 +388,6 @@ const card = { width: '100%', maxWidth: 400, maxHeight: '86vh', overflowY: 'auto
 const portrait = { position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
   overflow: 'hidden', background: 'linear-gradient(145deg, #172554, #0f172a)',
   border: '2px solid rgba(96,165,250,0.72)', boxShadow: '0 0 14px rgba(59,130,246,0.35)' };
-const portraitArt = { position: 'absolute', width: 44, height: 44, left: 0, top: 0, transformOrigin: 'top left' };
-const portraitHair = { position: 'absolute', width: 29, height: 29, left: 6, top: 5, borderRadius: '52% 52% 42% 42%',
-  background: '#172033', transform: 'rotate(-4deg)', zIndex: 1 };
-const portraitFace = { position: 'absolute', width: 24, height: 27, left: 9, top: 8, borderRadius: '48% 48% 44% 44%',
-  background: 'linear-gradient(145deg, #e8b38f, #c98662)', zIndex: 2 };
-const portraitEye = { position: 'absolute', top: 11, width: 3, height: 3, borderRadius: '50%', background: '#1e293b' };
-const portraitSmile = { position: 'absolute', left: 8, top: 18, width: 8, height: 4, borderBottom: '1.5px solid #7c2d12',
-  borderRadius: '0 0 8px 8px' };
-const portraitShoulders = { position: 'absolute', width: 36, height: 18, left: 3, top: 31, borderRadius: '50% 50% 0 0',
-  background: 'linear-gradient(90deg, #1d4ed8, #3b82f6)', zIndex: 3 };
 const portraitFallback = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' };
 const bubble = { padding: '10px 12px', borderRadius: '4px 12px 12px 12px', fontSize: 13.5, lineHeight: 1.6,
   color: '#e2e8f0', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.22)',
