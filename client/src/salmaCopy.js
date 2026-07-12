@@ -67,6 +67,13 @@ export const SALMA_COPY = {
   debrief_followup_next: { de: 'Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist.', ar: '' }, // OWNER-AR · EN: "I have read your interview. Your next appointment with me: {name} · {tier} — I book the moment you are ready."
   debrief_followup_top: { de: 'Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck.', ar: '' }, // OWNER-AR · EN: "I have read your interview. You are at the top of my ladder — from here it is about confirming under pressure."
 
+  // ── debrief · the correction ritual (Sultan doctrine 07-12: spoken errors die by spoken
+  //    correction — she models the verified fix, the candidate says it back ALOUD) ───────────
+  ritual_prompt: { de: 'Einmal noch — und diesmal richtig. Hör zu und sprich mir laut nach:', ar: '' }, // OWNER-AR · EN: "One more time — and this time correctly. Listen and repeat after me, out loud:"
+  ritual_replay: { de: 'Nochmal hören', ar: '' }, // OWNER-AR · EN: "Hear it again" (button)
+  ritual_said: { de: 'Laut gesagt', ar: '' }, // OWNER-AR · EN: "Said it out loud" (button)
+  ritual_done_note: { de: 'Notiert. Morgen bringe ich genau diesen Fehler in dein Training — bis er sitzt.', ar: '' }, // OWNER-AR · EN: "Noted. Tomorrow I bring exactly this mistake into your training — until it sticks."
+
   // ── shared cold-open controls ─────────────────────────────────────────────────────────────
   continue_label: { de: 'Weiter', ar: '' }, // OWNER-AR · EN: "Continue" (button)
   skip_label: { de: 'Überspringen', ar: '' }, // OWNER-AR · EN: "Skip" (quiet link, always available)

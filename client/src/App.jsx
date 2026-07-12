@@ -17,7 +17,7 @@ import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { salmaSpeak } from './salmaVoice.js';
+import { salmaSpeak, salmaModel } from './salmaVoice.js';
 import { VideoLessons } from './VideoLessons.jsx';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
 
@@ -1610,9 +1610,23 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
 
+  // The correction ritual (Sultan doctrine 07-12): ONE LanguageTool-verified fix from THIS
+  // interview, modeled by Salma, said back aloud by the candidate. Fragment-first — the minimal
+  // corrected chunk is exactly what a teacher makes you re-say. Never an invented sentence:
+  // no verified fragment → no card.
+  const ritualEx = (data?.grammar || []).flatMap((g) => g.summaryExamples || [])
+    .find((e) => (e.rightFragment || e.rightWord) && (e.wrongWord || e.wrongFragment));
+  const ritualFix = ritualEx
+    ? { wrong: ritualEx.wrongWord || ritualEx.wrongFragment, right: ritualEx.rightWord || ritualEx.rightFragment,
+        say: ritualEx.rightFragment || ritualEx.rightWord }
+    : null;
+  const [ritualDone, setRitualDone] = useState(false);
+
   // Salma's spoken follow-up after every interview — keeps returning_handoff's promise ("ich
   // melde mich nach jedem Interview"). Skipped when the rank ceremony speaks (one voice moment
-  // per debrief) and while the verdict is still held back; masri-first via salmaSpeak.
+  // per debrief) and while the verdict is still held back; masri-first via salmaSpeak. When a
+  // verified fix exists she chains the ritual: prompt line, then she MODELS the corrected
+  // fragment in her own voice (listen-and-repeat).
   useEffect(() => {
     if (!token || pending || verdictHold || gradeUnavailable) return undefined;
     if (!data?.progress || data.progress.rank?.rankUp) return undefined;
@@ -1620,8 +1634,16 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
     const items = nb
       ? [{ key: 'debrief_followup_next', slots: { name: nb.name, tier: nb.tier } }]
       : [{ key: 'debrief_followup_top' }];
-    const stop = salmaSpeak({ apiUrl, token, items });
-    return () => { try { stop?.(); } catch { /* fail silent */ } };
+    if (ritualFix) items.push({ key: 'ritual_prompt' });
+    let stopFrag = null;
+    const stop = salmaSpeak({ apiUrl, token, items,
+      onEnd: ritualFix ? () => { stopFrag = salmaModel({ apiUrl, token, text: ritualFix.say }); } : undefined });
+    return () => {
+      try { stop?.(); } catch { /* fail silent */ }
+      try { stopFrag?.(); } catch { /* fail silent */ }
+    };
+    // ritualFix derives from `data` — data alone captures it for this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, pending, verdictHold, gradeUnavailable, token, apiUrl]);
 
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
@@ -1913,6 +1935,44 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                     : salmaLine('debrief_followup_top', lang)}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Die Korrektur-Zeremonie (Sultan doctrine): the ONE verified fix, modeled by Salma,
+                said back ALOUD. Honest by construction: renders only when LanguageTool verified a
+                fragment from THIS interview, and the button claims nothing it can't know (the
+                repeat is self-reported; the error is already planted in tomorrow's SRS). ── */}
+          {!gradeUnavailable && ritualFix && (
+            <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:'rgba(59,130,246,0.10)',
+              border:'1.5px solid rgba(59,130,246,0.5)', textAlign:'left', animation:'result-rise 0.5s var(--ease-out)' }}>
+              <div style={{ fontSize:10, letterSpacing:'0.14em', fontFamily:'var(--font-display)', fontWeight:800, color:'var(--accent)' }}>
+                EINMAL NOCH · RICHTIG
+              </div>
+              {!ritualDone ? (
+                <>
+                  <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', marginTop:5, lineHeight:1.6 }}>{salmaLine('ritual_prompt', lang)}</div>
+                  <div style={{ marginTop:8, fontSize:16, lineHeight:1.5 }}>
+                    <span style={{ color:'var(--bad)', textDecoration:'line-through', fontSize:12 }}>{ritualFix.wrong}</span>{' '}
+                    <b style={{ color:'#fff' }}>{ritualFix.right}</b>
+                  </div>
+                  <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap' }}>
+                    <button onClick={() => salmaModel({ apiUrl, token, text: ritualFix.say })}
+                      style={{ minHeight:44, padding:'10px 14px', borderRadius:10, cursor:'pointer', fontSize:12,
+                        border:'1px solid rgba(59,130,246,0.45)', color:'#bfdbfe', background:'rgba(59,130,246,0.10)' }}>
+                      🔊 {salmaLine('ritual_replay', lang)}
+                    </button>
+                    <button onClick={() => { setRitualDone(true); beacon('ritual_done'); }}
+                      style={{ minHeight:44, padding:'10px 16px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:800,
+                        border:'1px solid var(--accent)', color:'#04070d', background:'var(--accent)' }}>
+                      ✓ {salmaLine('ritual_said', lang)}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', marginTop:6, lineHeight:1.6 }}>
+                  {salmaLine('ritual_done_note', lang)}
+                </div>
+              )}
             </div>
           )}
 

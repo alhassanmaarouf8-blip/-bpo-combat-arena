@@ -31,6 +31,15 @@ export function composeSalmaSpoken(items) {
 }
 
 /**
+ * She MODELS a dynamic German phrase (e.g. the LanguageTool-verified corrected fragment of the
+ * candidate's own sentence) in her German voice — the teacher's "listen and repeat" move.
+ * salma:true keeps it working from second zero of a fresh account.
+ */
+export function salmaModel({ apiUrl, token, text, onStart, onError, onEnd }) {
+  return playNative({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, onStart, onError, onEnd });
+}
+
+/**
  * Speak salmaCopy items (masri-first). Returns playNative's stop(). `dePrefix` is an optional
  * German sentence (e.g. the brain directive) prepended ONLY on the German path — it has no masri
  * twin, and gluing German prose into a masri utterance would flip languages mid-breath.
