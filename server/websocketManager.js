@@ -55,9 +55,11 @@ const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 // to DEFAULT-ENABLED: Gemini runs when USE_GEMINI_LIVE=1 + key present, and is killed ONLY by an
 // explicit GEMINI_LIVE_DISABLED=1 (or GEMINI_LIVE_ENABLED=0).
 const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_DISABLED === '1' || process.env.GEMINI_LIVE_ENABLED === '0';
-const GEMINI_LIVE_ACCOUNT_IDS = new Set(String(process.env.GEMINI_LIVE_ACCOUNT_IDS || '')
-  .split(',').map((s) => s.trim()).filter(Boolean));
-const geminiAccountAllowed = (account) => !GEMINI_LIVE_DISABLED && !!account?.id && GEMINI_LIVE_ACCOUNT_IDS.has(account.id);
+// Native Gemini voice is the production interaction path for every eligible audio session.
+// A previous release accidentally required an account-id allowlist that production never set,
+// forcing everyone onto the flatter fallback voice. Keep the explicit kill switch + budget cap,
+// but never silently downgrade a valid user because an internal rollout list is empty.
+const geminiAccountAllowed = () => !GEMINI_LIVE_DISABLED;
 const ELEVEN_VOICE_ACCOUNT_IDS = new Set(String(process.env.ELEVEN_VOICE_ACCOUNT_IDS || '')
   .split(',').map((s) => s.trim()).filter(Boolean));
 // Per-persona native-audio voice, gender + character matched. Without this map every interviewer
@@ -590,7 +592,7 @@ export class WebSocketManager {
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
     console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
-    // ── Should THIS fight run on paid Gemini Live? Flag on + key present + account allowlisted +
+    // ── Should THIS fight run on Gemini Live? Flag on + key present + audio-capable client +
     // the monthly $ cap not yet reached. Decided BEFORE connect() so we can suppress the Groq opening
     // greeting when Gemini will greet natively (otherwise the candidate hears two hellos). ──
     // Creds = AI Studio key OR Vertex service account (bills the $300 GCP credit, not the card).
