@@ -14,10 +14,16 @@ import express from 'express';
 import { randomBytes } from 'crypto';
 import { requireAuth, rateLimit } from './auth.js';
 import { PLANS, offerPrice } from './plans.config.js';
-import { mutatePayments } from './paymentsStore.js';
+import { mutatePayments, maintainPaymentRecords, PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
 
 export const paymentsRouter = express.Router();
-export const PAYMENT_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
+export { PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
+
+export function supportedPaymentRailAvailable() {
+  // The current buyer UI implements Vodafone Cash only. Do not create a durable payment intent
+  // for a rail the customer cannot actually see or use.
+  return !!String(process.env.VODAFONE_CASH_NUMBER || '').trim();
+}
 
 function paymentShape(acc, body = {}) {
   const plan = body.plan;
@@ -37,9 +43,13 @@ function uniqueReference(all) {
 }
 
 export function applyPaymentConfirmation(all, { userId, intentId, senderLast4, now = Date.now() }) {
-  const found = all.find((p) => p.id === intentId && p.userId === userId
-    && (p.status === 'intent' || p.status === 'pending'));
+  const found = all.find((p) => p.id === intentId && p.userId === userId);
   if (!found) return { kind: 'not_found', record: null };
+  if (found.status === 'expired') return { kind: 'expired', record: found };
+  if (found.status !== 'intent' && found.status !== 'pending') return { kind: 'not_found', record: null };
+  const otherUnderReview = all.find((p) => p.userId === userId && p.id !== found.id
+    && (p.status === 'pending' || p.status === 'activating'));
+  if (otherUnderReview) return { kind: 'under_review', record: otherUnderReview };
   if (found.status === 'intent' && found.createdAt < now - PAYMENT_INTENT_TTL_MS) {
     found.status = 'expired';
     found.expiredAt = now;
@@ -57,20 +67,27 @@ export function applyPaymentConfirmation(all, { userId, intentId, senderLast4, n
 // Create the server-side payment record BEFORE showing transfer instructions. If the
 // user's final confirmation request later fails, the owner still has a traceable intent.
 paymentsRouter.post('/billing/intent', requireAuth,
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 12, tag: 'payment-intent', keyExtra: (req) => req.account.id }), async (req, res) => {
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 120, tag: 'payment-intent-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 6, tag: 'payment-intent-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }), async (req, res) => {
   try {
+    if (!supportedPaymentRailAvailable()) return res.status(503).json({ error: 'payment_unavailable' });
     const shape = paymentShape(req.account, req.body || {});
     if (!shape) return res.status(400).json({ error: 'invalid_plan' });
     const key = String(req.headers['idempotency-key'] || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
     if (!key) return res.status(400).json({ error: 'missing_idempotency_key' });
-    const rec = await mutatePayments(async (all) => {
+    const decision = await mutatePayments(async (all) => {
+      const maintained = maintainPaymentRecords(all);
+      const underReview = [...all].reverse().find((p) => p.userId === req.account.id
+        && (p.status === 'pending' || p.status === 'activating'));
+      if (underReview) return { save: maintained, value: { kind: 'under_review', record: underReview } };
       const existing = [...all].reverse().find((p) => p.userId === req.account.id && p.idempotencyKey === key
         && p.status !== 'cancelled' && p.status !== 'expired');
-      if (existing) return { save: false, value: existing };
+      if (existing) return { save: maintained, value: { kind: 'ok', record: existing } };
       const active = [...all].reverse().find((p) => p.userId === req.account.id && p.status === 'intent'
         && p.createdAt >= Date.now() - PAYMENT_INTENT_TTL_MS);
       if (active && active.plan === shape.plan && active.billingPeriod === shape.billingPeriod) {
-        return { save: false, value: active };
+        return { save: maintained, value: { kind: 'ok', record: active } };
       }
       for (const old of all) if (old.userId === req.account.id && old.status === 'intent') {
         old.status = 'cancelled'; old.cancelledAt = Date.now();
@@ -81,8 +98,12 @@ paymentsRouter.post('/billing/intent', requireAuth,
         status: 'intent', createdAt: Date.now(),
       };
       all.push(created);
-      return { value: created };
+      return { value: { kind: 'ok', record: created } };
     });
+    if (decision.kind === 'under_review') return res.status(409).json({
+      error: 'payment_under_review', referenceCode: decision.record.referenceCode || null,
+    });
+    const rec = decision.record;
     console.log(`[payments] intent created id=${rec.id} user=${req.account.id} plan=${rec.plan}`);
     res.json({ ok: true, intentId: rec.id, referenceCode: rec.referenceCode, amountEGP: rec.amountEGP,
       baseEGP: rec.baseEGP, offerApplied: rec.offerApplied, plan: rec.plan, billingPeriod: rec.billingPeriod });
@@ -94,21 +115,26 @@ paymentsRouter.post('/billing/intent', requireAuth,
 
 // ── POST /billing/pay : record a PENDING payment. Grants NO access. ──
 paymentsRouter.post('/billing/pay', requireAuth,
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 12, tag: 'payment-confirm', keyExtra: (req) => req.account.id }), async (req, res) => {
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 120, tag: 'payment-confirm-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 6, tag: 'payment-confirm-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }), async (req, res) => {
   try {
     const acc  = req.account;
     if (!req.body?.intentId) return res.status(400).json({ error: 'intent_required' });
     const senderLast4 = String(req.body?.senderLast4 || '').replace(/\D/g, '');
     if (!/^\d{4}$/.test(senderLast4)) return res.status(400).json({ error: 'sender_last4_required' });
     const result = await mutatePayments(async (all) => {
+      const maintained = maintainPaymentRecords(all);
       const next = applyPaymentConfirmation(all, {
         userId: acc.id, intentId: req.body.intentId, senderLast4,
       });
-      return { save: next.kind !== 'not_found' && next.kind !== 'conflict', value: next };
+      return { save: maintained || (next.kind !== 'not_found' && next.kind !== 'conflict'
+        && next.kind !== 'under_review'), value: next };
     });
     if (result.kind === 'not_found') return res.status(404).json({ error: 'intent_not_found' });
     if (result.kind === 'expired') return res.status(410).json({ error: 'intent_expired' });
     if (result.kind === 'conflict') return res.status(409).json({ error: 'sender_last4_conflict' });
+    if (result.kind === 'under_review') return res.status(409).json({ error: 'payment_under_review' });
     const rec = result.record;
     console.log(`[payments] pending confirmed id=${rec.id} user=${acc.id}`);
     return res.json({ ok: true, referenceCode: rec.referenceCode, amountEGP: rec.amountEGP,

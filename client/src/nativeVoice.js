@@ -58,21 +58,22 @@ function wirePhoneAudio(a) {
   }
 }
 
-function browserSpeak(text, rate, onEnd) {
+function browserSpeak(text, rate, onEnd, onStart, onError) {
   try {
     const s = window.speechSynthesis;
-    if (!s) { onEnd?.(); return () => {}; }
+    if (!s) { onError?.(); onEnd?.(); return () => {}; }
     s.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'de-DE';
     u.rate = Math.min(2, rate || 1);
     const de = (s.getVoices() || []).find((v) => /^de(-|_|$)/i.test(v.lang));
     if (de) u.voice = de;
+    u.onstart = () => onStart?.();
     u.onend = () => onEnd?.();
-    u.onerror = () => onEnd?.();
+    u.onerror = () => { onError?.(); onEnd?.(); };
     s.speak(u);
     return () => { try { s.cancel(); } catch { /* ignore */ } };
-  } catch { onEnd?.(); return () => {}; }
+  } catch { onError?.(); onEnd?.(); return () => {}; }
 }
 
 /**
@@ -87,15 +88,29 @@ function browserSpeak(text, rate, onEnd) {
  * than ever play the robotic voice). The browser voice was the device-lottery, English-accented
  * German that made Shadowing feel "bullshit" — it is now OFF everywhere. Pass `false` ONLY if a
  * drill is genuinely unusable without SOME audio AND you accept the robotic risk (currently: none).
- * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, noBrowserFallback?:boolean, onEnd?:()=>void }} o
+ * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, noBrowserFallback?:boolean, onStart?:()=>void, onError?:()=>void, onEnd?:()=>void }} o
  */
-export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, noBrowserFallback = true, onEnd } = {}) {
+export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, noBrowserFallback = true, onStart, onError, onEnd } = {}) {
+  let startNotified = false;
+  let errorNotified = false;
+  const startedPlaying = () => {
+    if (startNotified) return;
+    startNotified = true;
+    try { onStart?.(); } catch { /* ignore */ }
+  };
+  const failedToPlay = () => {
+    if (errorNotified || startNotified) return;
+    errorNotified = true;
+    try { onError?.(); } catch { /* ignore */ }
+  };
   const done = () => { try { onEnd?.(); } catch { /* ignore */ } };
   const t = String(text || '').trim();
   if (!t) { done(); return () => {}; }
   // The robotic-voice guard: either speak in the browser voice, or (rule on) stay silent but still
   // signal completion so nothing hangs waiting on audio that will never come.
-  const fallbackOrSilence = () => (noBrowserFallback ? (done(), () => {}) : browserSpeak(t, rate, done));
+  const fallbackOrSilence = () => (noBrowserFallback
+    ? (failedToPlay(), done(), () => {})
+    : browserSpeak(t, rate, done, startedPlaying, failedToPlay));
 
   // No server creds → browser voice (or silence, if the caller forbids the robotic fallback).
   if (!apiUrl || !token) return fallbackOrSilence();
@@ -109,7 +124,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     if (phone) { try { a.crossOrigin = 'anonymous'; } catch { /* ignore */ } }
     try { a.playbackRate = rate || 1; a.preservesPitch = true; } catch { /* Safari: ignore */ }
     let started = false, fellBack = null, phoneCtx = null, retried = false;
-    a.onplaying = () => { started = true; };
+    a.onplaying = () => { started = true; startedPlaying(); };
     a.onended = () => { try { phoneCtx?.close(); } catch { /* ignore */ } done(); };
     // Pre-start failure. On the phone path the element is a CORS-mode load (crossOrigin='anonymous'):
     // the client (Vercel) and API (Render) are DIFFERENT origins, so a missing/mismatched CORS header
@@ -121,7 +136,8 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
       if (phone && !retried) {
         retried = true;
         try { phoneCtx?.close(); } catch { /* ignore */ } phoneCtx = null;
-        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, noBrowserFallback, onEnd });   // plain native, no filter
+        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, noBrowserFallback,
+          onStart: startedPlaying, onError: failedToPlay, onEnd });   // plain native, no filter
       } else {
         fellBack = fallbackOrSilence();   // server failed before any audio → browser voice, or silence if forbidden
       }

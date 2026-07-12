@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 
 process.env.AUTH_SECRET = process.env.AUTH_SECRET || 'test-secret-not-prod';
 
-const { applyPaymentConfirmation, PAYMENT_INTENT_TTL_MS } = await import('./payments.js');
+const { applyPaymentConfirmation, PAYMENT_INTENT_TTL_MS, supportedPaymentRailAvailable } = await import('./payments.js');
 const {
   paymentStatusFromRecords, mutatePayments, loadPayments, deletePaymentsFor,
+  maintainPaymentRecords, PAYMENT_PENDING_TTL_MS,
 } = await import('./paymentsStore.js');
 const auth = await import('./auth.js');
 
@@ -39,6 +40,52 @@ test('payment confirmation is idempotent and cannot rewrite the sender fingerpri
   assert.equal(conflict.kind, 'conflict');
   assert.equal(all[0].senderLast4, '1234');
   assert.equal(all[0].confirmedAt, now);
+});
+
+test('payment rail availability follows the supported Vodafone Cash configuration', () => {
+  const previous = process.env.VODAFONE_CASH_NUMBER;
+  try {
+    delete process.env.VODAFONE_CASH_NUMBER;
+    assert.equal(supportedPaymentRailAvailable(), false);
+    process.env.VODAFONE_CASH_NUMBER = '   ';
+    assert.equal(supportedPaymentRailAvailable(), false);
+    process.env.VODAFONE_CASH_NUMBER = '201000000000';
+    assert.equal(supportedPaymentRailAvailable(), true);
+  } finally {
+    if (previous === undefined) delete process.env.VODAFONE_CASH_NUMBER;
+    else process.env.VODAFONE_CASH_NUMBER = previous;
+  }
+});
+
+test('a second intent cannot become another pending payment while one is under review', () => {
+  const now = Date.now();
+  const all = [
+    { id: 'pay_pending', userId: 'u1', status: 'pending', createdAt: now - 2000, confirmedAt: now - 1000 },
+    { id: 'pay_second', userId: 'u1', status: 'intent', createdAt: now },
+  ];
+  const out = applyPaymentConfirmation(all, {
+    userId: 'u1', intentId: 'pay_second', senderLast4: '1234', now,
+  });
+  assert.equal(out.kind, 'under_review');
+  assert.equal(out.record.id, 'pay_pending');
+  assert.equal(all[1].status, 'intent');
+});
+
+test('payment maintenance expires stale queue entries and bounds disposable noise', () => {
+  const now = Date.now();
+  const all = [
+    { id: 'old_intent', userId: 'u1', status: 'intent', createdAt: now - PAYMENT_INTENT_TTL_MS - 1 },
+    { id: 'old_pending', userId: 'u2', status: 'pending', createdAt: now - PAYMENT_PENDING_TTL_MS - 1 },
+    { id: 'audit', userId: 'u1', status: 'activated', createdAt: now - 99 * PAYMENT_PENDING_TTL_MS },
+    ...Array.from({ length: 30 }, (_, i) => ({
+      id: `noise_${i}`, userId: 'flood', status: 'cancelled', createdAt: now - i,
+    })),
+  ];
+  assert.equal(maintainPaymentRecords(all, now), true);
+  assert.equal(all.find((p) => p.id === 'old_intent')?.status, 'expired');
+  assert.equal(all.find((p) => p.id === 'old_pending')?.status, 'expired');
+  assert.ok(all.some((p) => p.id === 'audit'), 'financial audit records must be retained');
+  assert.ok(all.filter((p) => p.userId === 'flood').length <= 12);
 });
 
 test('payment status never resurrects an expired intent', () => {

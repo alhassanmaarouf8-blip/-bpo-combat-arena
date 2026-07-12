@@ -6,9 +6,12 @@ learning budget — own the failed-interview moment. Never promise jobs (legal r
 
 ---
 
-## 1. TODAY (before any commenting): the 5 WhatsApp follow-ups
+## 1. FIRST REVENUE TEST: five consented, active users
 
-Send personally, one by one, ideally as a VOICE NOTE (founder voice = the whole trick).
+Use only accounts that have BOTH a server-recorded WhatsApp reminder consent and verified product
+activity. A phone number or a previously reachable account is not consent. Prioritize the three active
+trials, then the most active remaining consented users. Send personally, one by one, ideally as a
+20–30 second voice note (founder voice = the whole trick). Never send a second initial message.
 Script skeleton (say it your way — these are beats, not lines):
 
 1. Greeting by name + "أنا اللي عامل OMNI-PERFORM" (I'm the one who built it).
@@ -25,12 +28,12 @@ Text fallback (if voice feels heavy):
 (EN gloss: "I'm the developer. I saw your account — you tried X. One question: what stopped you?
 I genuinely want to know. And if you have a real interview coming, tell me — I'll prep you for it.")
 
-## 2. The 3 ACTIVE trials — same day priority
+## 2. The 3 ACTIVE trials — same-day priority
 
 They are inside the product RIGHT NOW. Same voice-note, plus: "عندك {N} يوم مجاني فاضل —
 استغلهم، إنترفيو كل يوم." When a trial expires with real usage → the founding offer (§4).
 
-## 3. The 25 email-only signups — one honest email (your Gmail, BCC, verify count before send)
+## 3. Email-only signups — hold until the repaired release is live
 
 Subject: «سؤال واحد عن الإنترفيو الألماني»
 Body beats: I'm the founder · you signed up but the app was rough then — it's a different app now
@@ -38,11 +41,19 @@ Body beats: I'm the founder · you signed up but the app was rough then — it's
 still works, the level check is free · reply with one word about what stopped you and I'll answer
 personally. NO price. Link: https://bpo-combat-arena.vercel.app
 
-## 4. The founding offer (decide once, never improvise)
+Do not send this cohort before production SMTP, email verification, and the Vodafone payment rail are
+verified end-to-end. Send individually or through a compliant consented list—never expose recipients
+with To/CC and never treat an old signup as permission for repeated marketing.
 
-- **"أول 20 مرشح: 499 بدل 999"** — first 20 candidates, 499 EGP/month, Basic. Server-side price
-  (like the 07-08 offer, e2d2e3b pattern) — never a manual discount in chat.
-- Post it ONLY in the last week of the month (call-center salaries land).
+## 4. Price truth (decide once, never improvise)
+
+- The current server-side truth is **Basic 999 EGP/month** and **Elite 1,999 EGP/month**. The old 50%
+  launch offer expired on 11 July 2026. Do not advertise 499 EGP unless a new Basic-only server-side
+  experiment is explicitly implemented and verified in checkout.
+- Do not quote price in the first reactivation message. Show the normal server price only after the
+  user resumes practice or asks about access.
+- Test a Basic-only 499 EGP offer only after a real terms-stage objection or after 20 activated users
+  reach the paywall with zero payment intents. Never improvise a discount in chat.
 - Every payer is asked (after their first week, not at payment): 30-sec video testimonial in
   exchange for a free month. 3 testimonials = the next campaign's ammunition.
 
@@ -67,11 +78,18 @@ Screen-record on your phone: fresh signup → Salma greets → screening → ver
 a live fight with the HP bar + a damage number landing. Cut to 20s, no music needed. This clip IS
 the differentiator no group has seen. Post it with the failed-interview hook, not "check my app".
 
-## 7. Weekly scoreboard (Saturdays, 10 minutes — numbers or it didn't happen)
+## 7. Scoreboard and decision gates — numbers or it didn't happen
 
 `curl -s https://bpo-combat-arena.onrender.com/api/diag/funnel` + admin engagement:
-signups this week · source answers ("منين عرفتنا؟") · WhatsApp follow-ups sent · replies ·
-trials that did ≥2 interviews · paywall_shown · PAYERS. 
+signups this week · source answers ("منين عرفتنا؟") · consented reactivations delivered · human replies ·
+resumed sessions · second completed interview with `debrief_shown` · paywall_shown · payment intents ·
+confirmed payers · refunds.
+
+For the first five-person cohort, activation means a SECOND completed live interview that reaches the
+debrief—not signup, assessment, or first-session start. Proceed if at least 2/5 activate and at least one
+creates a payment intent or pays within seven days. At 0/5 human replies, revise the message/channel. At
+fewer than two activations, fix onboarding/follow-up before adding features. If 20 activated users reach
+the paywall with zero intents, revise the price/package before more acquisition.
 **Kill/pivot rule:** 300+ signups with real follow-up and still 0 payers → the consumer wallet
 isn't there; the app becomes the proof asset and the buyer becomes B2B (centers/recruiters).
 

@@ -132,7 +132,9 @@ function reserveTts(userId, chars) {
 }
 
 router.post('/media-ticket', requireAuth,
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 180, tag: 'media-ticket', keyExtra: (req) => req.account.id }), (req, res) => {
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 600, tag: 'media-ticket-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 180, tag: 'media-ticket-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }), (req, res) => {
   const kind = req.body?.kind === 'eleven' ? 'eleven' : 'aura';
   const text = cleanForTTS(String(req.body?.text || '').slice(0, 600));
   if (!text) return res.status(400).json({ error: 'missing_text' });
@@ -200,7 +202,9 @@ async function transcribe(buffer, mimeType) {
 // Raw audio body (no multer): the client POSTs the clip bytes with an audio/* type.
 router.post('/transcribe',
   requireAuth,
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'transcribe', keyExtra: (req) => req.account.id }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 300, tag: 'transcribe-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'transcribe-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }),
   express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     res.set('Cache-Control', 'no-store');
@@ -266,7 +270,11 @@ function pcmToLoudWav(pcm, sampleRate = 24000) {
 // ── Boss voice: POST /api/tts { text, voice? } → loud, normalized German WAV (Deepgram Aura-2) ─────
 // Returns audio/wav on success. On any failure (no key, Deepgram error) returns a
 // non-2xx JSON so the client cleanly falls back to the free browser voice.
-router.post('/tts', requireAuth, express.json({ limit: '16kb' }), async (req, res) => {
+router.post('/tts', requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 300, tag: 'legacy-tts-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 60, tag: 'legacy-tts-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }),
+  express.json({ limit: '16kb' }), async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (process.env.ENABLE_LEGACY_TTS !== '1') return res.status(404).json({ error: 'not_found' });
 

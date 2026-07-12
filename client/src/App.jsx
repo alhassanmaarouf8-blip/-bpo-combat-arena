@@ -2637,9 +2637,13 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 //  same SRS items. One review surface, spoken + on-mission. Server /api/review[/grade] now unused.)
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
-function AuthScreen({ onAuth, verificationNotice = null }) {
+function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // cold link-clickers are NEW visitors → signup first (conversion); a ?reset= link → login context
-  const [mode, setMode]   = useState(() => { try { return new URLSearchParams(window.location.search).get('reset') ? 'login' : 'signup'; } catch { return 'signup'; } });
+  const [mode, setMode]   = useState(() => {
+    if (initialMode === 'login' || initialMode === 'signup') return initialMode;
+    try { return new URLSearchParams(window.location.search).get('reset') ? 'login' : 'signup'; }
+    catch { return 'signup'; }
+  });
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
   // Self-serve EMAIL password reset (owner order 2026-07-10 — the WhatsApp-manual flow is dead).
@@ -2782,8 +2786,8 @@ function AuthScreen({ onAuth, verificationNotice = null }) {
         </div>
         {/* Craft pass #3 — the assessment promise, demoted from a shouting orange chip to one quiet line. */}
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:14, lineHeight:1.7 }}>
-          Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
-          {' '}<span dir="rtl">بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
+          Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus.
+          {' '}<span dir="rtl">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span>
         </div>
         <button onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
@@ -2792,7 +2796,7 @@ function AuthScreen({ onAuth, verificationNotice = null }) {
           ابدأ تقييمك المجاني · KOSTENLOS STARTEN
         </button>
         <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7 }}>
-          Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig
+          Nach E-Mail-Bestätigung: Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig
         </div>
       </div>
 
@@ -2881,10 +2885,10 @@ function AuthScreen({ onAuth, verificationNotice = null }) {
         backdropFilter:'blur(14px) saturate(1.1)', ...rise(4) }}>
         {verificationNotice && (
           <div role="status" style={{ marginBottom:14, padding:'11px 13px', borderRadius:10,
-            border:`1px solid ${verificationNotice.ok ? 'rgba(34,197,94,0.42)' : 'rgba(248,113,113,0.42)'}`,
-            background:verificationNotice.ok ? 'rgba(34,197,94,0.08)' : 'rgba(248,113,113,0.08)',
-            color:verificationNotice.ok ? '#bbf7d0' : '#fecaca', fontSize:12, lineHeight:1.55 }}>
-            {verificationNotice.ok
+            border:`1px solid ${verificationNotice.state === 'success' ? 'rgba(34,197,94,0.42)' : 'rgba(248,113,113,0.42)'}`,
+            background:verificationNotice.state === 'success' ? 'rgba(34,197,94,0.08)' : 'rgba(248,113,113,0.08)',
+            color:verificationNotice.state === 'success' ? '#bbf7d0' : '#fecaca', fontSize:12, lineHeight:1.55 }}>
+            {verificationNotice.state === 'success'
               ? <>E-Mail bestätigt. Du kannst dich jetzt anmelden. <span dir="rtl">تم تأكيد الإيميل — سجّل دخول.</span></>
               : <>Der Bestätigungslink ist ungültig oder abgelaufen. Melde dich an und fordere einen neuen an. <span dir="rtl">اللينك غير صالح أو انتهى.</span></>}
           </div>
@@ -3000,7 +3004,9 @@ function AuthScreen({ onAuth, verificationNotice = null }) {
           {busy ? (busyHint ? 'Server wird gestartet… · السيرفر بيفتح…' : 'Wird gesendet…') : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
         </button>
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
-          Kostenlos starten: Einstufung + erstes Interview · شرح عربي في الخطوات الأساسية · مجاني للبداية
+          {mode === 'signup'
+            ? <>Bestätigungslink per E-Mail öffnen, dann kostenlos starten · افتح لينك تأكيد الإيميل وبعدها ابدأ مجانًا</>
+            : <>Kostenlos starten: Einstufung + erstes Interview · شرح عربي في الخطوات الأساسية · مجاني للبداية</>}
         </div>
         </form>
       </div>
@@ -3020,20 +3026,43 @@ function AuthScreen({ onAuth, verificationNotice = null }) {
     </div>
   );
 }
-function VerificationLinkScreen() {
+function VerificationLinkScreen({ state = 'working', onRetry }) {
+  const retryable = state === 'network' || state === 'rate_limited';
+  const title = state === 'rate_limited'
+    ? 'Zu viele Versuche'
+    : state === 'network'
+      ? 'Bestätigung unterbrochen'
+      : 'E-Mail wird bestätigt…';
+  const detail = state === 'rate_limited'
+    ? 'Bitte kurz warten und denselben Link erneut versuchen. Dein Link bleibt auf diesem Gerät erhalten.'
+    : state === 'network'
+      ? 'Die Verbindung zum Server ist abgebrochen. Dein Link bleibt auf diesem Gerät erhalten.'
+      : null;
   return (
     <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
-      <div role="status" aria-live="polite" style={{ width:'100%', maxWidth:420, padding:24, textAlign:'center',
+      <div role={retryable ? 'alert' : 'status'} aria-live="polite" style={{ width:'100%', maxWidth:420, padding:24, textAlign:'center',
         borderRadius:'var(--r-xl)', background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3)' }}>
         <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>OMNI-PERFORM</div>
-        <div style={{ marginTop:14, fontSize:15, fontWeight:700 }}>E-Mail wird bestätigt…</div>
-        <div dir="rtl" style={{ marginTop:6, color:'var(--text-dim)', fontSize:13 }}>بنأكد الإيميل…</div>
+        <div style={{ marginTop:14, fontSize:15, fontWeight:700 }}>{title}</div>
+        {detail ? (
+          <>
+            <div style={{ marginTop:8, color:'var(--text-dim)', fontSize:13, lineHeight:1.6 }}>{detail}</div>
+            <div dir="rtl" style={{ marginTop:6, color:'var(--text-dim)', fontSize:13, lineHeight:1.6 }}>
+              اللينك لسه محفوظ هنا. جرّب تاني من غير ما تطلب لينك جديد.
+            </div>
+            <button type="button" onClick={onRetry} style={{ width:'100%', minHeight:48, marginTop:18, border:0,
+              borderRadius:11, cursor:'pointer', background:'var(--action)', color:'#081019',
+              fontFamily:'var(--font-display)', fontWeight:700 }}>
+              ERNEUT VERSUCHEN · جرّب تاني
+            </button>
+          </>
+        ) : <div dir="rtl" style={{ marginTop:6, color:'var(--text-dim)', fontSize:13 }}>بنأكد الإيميل…</div>}
       </div>
     </div>
   );
 }
 
-function EmailVerificationGate({ auth, onLogout, linkError = false }) {
+function EmailVerificationGate({ auth, onLogout, linkState = null }) {
   const [state, setState] = useState('idle');
   const resend = async () => {
     if (state === 'sending') return;
@@ -3059,12 +3088,12 @@ function EmailVerificationGate({ auth, onLogout, linkError = false }) {
         <h1 style={{ margin:'18px 0 8px', fontSize:22 }}>E-Mail bestätigen</h1>
         <div style={{ color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
           Öffne den Bestätigungslink für <b style={{ color:'var(--text)', overflowWrap:'anywhere' }}>{auth.account.email}</b>.
-          Erst danach werden sprachbasierte Dienste freigeschaltet.
+          Erst danach wird dein gesamtes Training freigeschaltet.
         </div>
         <div dir="rtl" style={{ marginTop:8, color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
-          افتح لينك التأكيد اللي اتبعت على إيميلك. التدريب الصوتي بيفتح بعد التأكيد.
+          افتح لينك التأكيد اللي اتبعت على إيميلك. كل التدريب بيفتح بعد التأكيد.
         </div>
-        {linkError && <div style={{ marginTop:13, color:'#fecaca', fontSize:12 }}>Der Link ist abgelaufen oder wurde bereits benutzt — fordere unten einen neuen an.</div>}
+        {linkState === 'invalid' && <div style={{ marginTop:13, color:'#fecaca', fontSize:12 }}>Der Link ist abgelaufen oder wurde bereits benutzt — fordere unten einen neuen an.</div>}
         {message && <div role="status" style={{ marginTop:13, color:state === 'error' || state === 'unavailable' ? '#fecaca' : '#bbf7d0', fontSize:12 }}>{message}</div>}
         <button type="button" onClick={resend} disabled={state === 'sending'} style={{ width:'100%', minHeight:50, marginTop:18,
           border:0, borderRadius:11, cursor:state === 'sending'?'wait':'pointer', background:'var(--action)', color:'#081019',
@@ -3169,7 +3198,7 @@ function WhatsAppOptIn({ token, apiUrl }) {
 // Perks receive the whole plan object (07-11 quota redesign: plans are sold as FULL daily
 // interviews, not minutes — p.dailySessions is the number a buyer actually gets).
 const PERKS_DE = {
-  basic: (p) => [`${p.dailySessions} ECHTE HR-Interviews pro Tag — komplett, mit Stimme (${p.dailyLiveMinutes} Min Live-Übung täglich)`,
+  basic: (p) => [`${p.dailySessions} vollständige, realistische KI-HR-Interview-Simulationen pro Tag — mit Stimme (${p.dailyLiveMinutes} Min Live-Übung täglich)`,
                  'unbegrenzte Drills — auf DEINE Fehler zugeschnitten, nicht generisch',
                  'die App führt dich: Diagnose → EIN Training → Beweis im Interview',
                  'dein Interviewer kennt deine Akte und testet deine Schwachstelle erneut',
@@ -3181,7 +3210,7 @@ const PERKS_DE = {
   // Musk-cull (same day): the replacement perk "das komplette Trainingslager" was ITSELF a phantom —
   // the Trainingslager UI was deleted in a92c9ec; its server engine has zero client consumers.
   // Perk law: every line here must name a mechanism a buyer can reach (perk-truth-pinning memory).
-  elite: (p) => [`${p.dailySessions} ECHTE HR-Interviews pro Tag — doppelt so viel Übung wie Basic (${p.dailyLiveMinutes} Min täglich)`,
+  elite: (p) => [`${p.dailySessions} vollständige, realistische KI-HR-Interview-Simulationen pro Tag — doppelt so viel Übung wie Basic (${p.dailyLiveMinutes} Min täglich)`,
                  'Interviews passend zu DEINER Ziel-Stelle — Szenarien aus deiner Branche',
                  'monatliche Neu-Einstufung — dein Fortschritt schwarz auf weiß',
                  'trainiert die echte QA-Latte: Datenschutz-Verifizierung & Gesprächsabschluss',
@@ -3194,12 +3223,13 @@ const SUB_AR = {
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
 };
 
-function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
+function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lang = 'de' }) {
   const [email, setEmail]   = useState('');
   const [plans, setPlans]   = useState(null);
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
   const [yearly, setYearly] = useState(false);
   const [vodafone, setVodafone] = useState(null);
+  const [paymentAvailable, setPaymentAvailable] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
@@ -3211,27 +3241,66 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [paymentError, setPaymentError] = useState('');
   const [copied, setCopied] = useState('');
   const [senderLast4, setSenderLast4] = useState('');
+  const paymentWatchRef = useRef(false);
+  const blockedAccessRef = useRef(info?.allowed === false);
   const [trialEnded, setTrialEnded] = useState(false);   // had a time-limited plan that has now lapsed
+  const refreshBillingStatus = useCallback(async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error(`status ${r.status}`);
+      const d = await r.json();
+      setBillingError('');
+      setEmail(d.account?.email || '');
+      if (Array.isArray(d.plans)) setPlans(d.plans);
+      setOffer(d.offer?.active ? d.offer : null);   // deal shows ONLY when the server honors it
+      setVodafone(d.vodafoneNumber || null);
+      setPaymentAvailable(d.paymentAvailable === undefined
+        ? !!d.vodafoneNumber
+        : !!d.paymentAvailable && !!d.vodafoneNumber);
+      setWhatsapp(d.whatsappNumber || null);
+      setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
+      if (d.pendingPayment) paymentWatchRef.current = true;
+      if (!d.pendingPayment && d.paymentIntent) {
+        setPay({ ...d.paymentIntent, planId: d.paymentIntent.plan, period: d.paymentIntent.billingPeriod,
+          label: String(d.paymentIntent.plan || '').toUpperCase() });
+      }
+      if (d.paymentRejected) {
+        paymentWatchRef.current = false;
+        setSubmitted(false);
+        setPay(null);
+      }
+      // "Your free trial ended" — true when a non-comp, time-limited plan (e.g. the 2-day Basic
+      // pass) has passed its billing end. Drives the honest expiry banner below.
+      const s = d.account?.subscription;
+      setTrialEnded(!!(s && s.plan && s.billingPeriodEnd && s.billingPeriodEnd < Date.now() && !s.comp));
+      if ((paymentWatchRef.current || blockedAccessRef.current) && d.account?.entitlement?.allowed && !d.pendingPayment) {
+        paymentWatchRef.current = false;
+        blockedAccessRef.current = false;
+        onUpgraded?.(d.account);
+      }
+      return d;
+    } catch {
+      setBillingError('Die Zahlungsdaten konnten nicht geladen werden. Bitte erneut versuchen.');
+      return null;
+    }
+  }, [token, onUpgraded]);
+  useEffect(() => { refreshBillingStatus(); }, [refreshBillingStatus]);
+
+  const shouldPollPayment = submitted || !!pendingPayment;
   useEffect(() => {
-    fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => { if (!r.ok) throw new Error(`status ${r.status}`); return r.json(); })
-      .then((d) => {
-        setEmail(d.account?.email || '');
-        if (Array.isArray(d.plans)) setPlans(d.plans);
-        setOffer(d.offer?.active ? d.offer : null);   // deal shows ONLY when the server honors it
-        setVodafone(d.vodafoneNumber || null); setWhatsapp(d.whatsappNumber || null);
-        setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
-        if (!d.pendingPayment && d.paymentIntent) {
-          setPay({ ...d.paymentIntent, planId: d.paymentIntent.plan, period: d.paymentIntent.billingPeriod,
-            label: String(d.paymentIntent.plan || '').toUpperCase() });
-        }
-        // "Your free trial ended" — true when a non-comp, time-limited plan (e.g. the 2-day Basic
-        // pass) has passed its billing end. Drives the honest expiry banner below.
-        const s = d.account?.subscription;
-        setTrialEnded(!!(s && s.plan && s.billingPeriodEnd && s.billingPeriodEnd < Date.now() && !s.comp));
-      })
-      .catch(() => setBillingError('Die Zahlungsdaten konnten nicht geladen werden. Bitte erneut versuchen.'));
-  }, [token]);
+    if (!shouldPollPayment) return undefined;
+    const refresh = () => { refreshBillingStatus(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    const timer = window.setInterval(refresh, 25_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    refresh();
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [shouldPollPayment, refreshBillingStatus]);
 
   const ar  = lang === 'ar';
   const fmt = (n) => Number(n || 0).toLocaleString('de-DE');   // 1299 → "1.299"
@@ -3240,6 +3309,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
 
   const preparePayment = async (choice) => {
     if (submitting) return;
+    if (paymentAvailable !== true || !vodafone) {
+      setPaymentError(ar ? 'الدفع غير متاح حاليًا. ما تحوّلش أي مبلغ.' : 'Zahlung ist gerade nicht verfügbar. Bitte nichts überweisen.');
+      return;
+    }
     setSubmitting(true); setPaymentError('');
     try {
       const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -3321,7 +3394,9 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `pay ${r.status}`);
+      paymentWatchRef.current = true;
       setSubmitted(true);
+      onPaymentPending?.();
     } catch { setPaymentError(ar ? 'ما قدرناش نثبت طلبك. حاول تاني — متحوّلش المبلغ مرة تانية.' : 'Deine Bestätigung wurde nicht gespeichert. Bitte erneut versuchen — nicht erneut überweisen.'); }
     setSubmitting(false);
   };
@@ -3535,6 +3610,14 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
         </div>
       )}
 
+      {paymentAvailable === false && (
+        <div role="status" style={{ fontSize:10.5, color:'var(--action)', textAlign:'center', lineHeight:1.6, marginBottom:10,
+          background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.35)', borderRadius:8, padding:'9px 11px' }}>
+          Zahlung ist vorübergehend nicht verfügbar — bitte nichts überweisen.
+          <br /><span dir="rtl">الدفع غير متاح حاليًا — ما تحوّلش أي مبلغ.</span>
+        </div>
+      )}
+
       {/* limited-time offer banner — rendered ONLY when the server reports the offer active, so the
           ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}
       {offer?.active && (() => {
@@ -3603,11 +3686,15 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
                 <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
-              <button onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
-                style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:'pointer',
+              <button disabled={submitting || paymentAvailable !== true}
+                onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
+                style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
                   fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
-                  border:`1px solid ${accent}`, color:'#04070d', background:accent }}>
-                {p.label?.toUpperCase()} {ar ? 'اختار' : 'WÄHLEN'} ▸
+                  border:`1px solid ${accent}`, color:'#04070d', background:accent,
+                  opacity:(submitting || paymentAvailable !== true) ? 0.45 : 1 }}>
+                {paymentAvailable === false
+                  ? (ar ? 'الدفع غير متاح حاليًا' : 'ZAHLUNG DERZEIT NICHT VERFÜGBAR')
+                  : `${p.label?.toUpperCase()} ${ar ? 'اختار' : 'WÄHLEN'} ▸`}
               </button>
             </div>
           );
@@ -3662,7 +3749,9 @@ function PendingBadge({ pending, whatsapp, lang }) {
       </div>
       {open && (
         <div style={{ marginTop: 8, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontSize: 9.5, color: '#94a3b8' }}>{ar ? 'الكود بتاعك (لازم يبقى في التحويل)' : 'Dein Code (muss in der Überweisung stehen)'}</div>
+          <div style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.5 }}>
+            {ar ? 'كود الدعم — ما تكتبوش في تحويل فودافون كاش؛ ابعته مع إثبات الدفع' : 'Support-Code — NICHT in die Vodafone-Cash-Überweisung schreiben; mit dem Beleg senden'}
+          </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 900, color: 'var(--action)', letterSpacing: '0.15em' }}>{code}</div>
           {waLink && (
             <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 10.5,
@@ -4827,10 +4916,28 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // Home billing state: daily minutes left, pending payment, one-time activation notice.
   const loadBilling = useCallback(() => {
     fetch(`${API_URL}/api/billing/state`, { headers: authHeaders() })
-      .then((r) => r.json()).then((d) => setBilling(d || null)).catch(() => {});
-  }, [authHeaders]);
+      .then((r) => { if (!r.ok) throw new Error(`billing ${r.status}`); return r.json(); })
+      .then((d) => {
+        setBilling(d || null);
+        if (d?.account) onAccountUpdate?.(d.account);
+      }).catch(() => {});
+  }, [authHeaders, onAccountUpdate]);
   // Refresh whenever we're on the idle home (on mount + after every fight).
   useEffect(() => { if (phase === 'idle') loadBilling(); }, [phase, loadBilling]);
+  const hasPendingPayment = !!billing?.pendingPayment;
+  useEffect(() => {
+    if (phase !== 'idle') return undefined;
+    const refresh = () => { loadBilling(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    const timer = hasPendingPayment ? window.setInterval(refresh, 30_000) : null;
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      if (timer) window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [phase, hasPendingPayment, loadBilling]);
 
   // Dismiss the one-time "plan activated" celebration (acknowledge server-side so it shows once).
   const ackActivation = useCallback(() => {
@@ -5075,7 +5182,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Subscription paywall (trial exhausted) */}
       {paywall && (
         <PaywallScreen token={auth.token} info={paywall} lang={feedbackLang}
-          onUpgraded={handleUpgraded} onClose={() => setPaywall(null)} />
+          onUpgraded={handleUpgraded} onPaymentPending={loadBilling} onClose={() => setPaywall(null)} />
       )}
 
       {/* Tägliches Training — the cheap daily habit loop */}
@@ -6224,30 +6331,52 @@ function AuthedApp() {
     } catch { return ''; }
   });
   const [verificationState, setVerificationState] = useState(verification ? 'working' : null);
+  const [verificationAttempt, setVerificationAttempt] = useState(0);
 
   useEffect(() => {
     if (!verification) return;
     let cancelled = false;
-    fetch(`${API_URL}/api/auth/verify`, {
-      method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ token:verification }),
-    }).then(async (r) => {
-      if (!r.ok) throw new Error('invalid');
-      if (auth?.token) {
-        const me = await fetch(`${API_URL}/api/auth/me`, { headers:{ Authorization:`Bearer ${auth.token}` } });
-        if (me.ok) {
-          const d = await me.json();
-          if (!cancelled) setAuth((cur) => {
-            if (!cur) return cur;
-            const updated = { token:cur.token, account:d.account };
-            persistAuth(updated);
-            return updated;
-          });
+    setVerificationState('working');
+    const verify = async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/auth/verify`, {
+          method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ token:verification }),
+        });
+        if (!r.ok) {
+          if (!cancelled) setVerificationState(r.status === 429 ? 'rate_limited' : r.status >= 500 ? 'network' : 'invalid');
+          return;
         }
+        if (cancelled) return;
+        // A successful verify response is authoritative even if the follow-up /me refresh is
+        // temporarily offline. Update the cached account immediately; server routes still enforce it.
+        setAuth((cur) => {
+          if (!cur) return cur;
+          const updated = { token:cur.token, account:{ ...cur.account, emailVerified:true } };
+          persistAuth(updated);
+          return updated;
+        });
+        if (auth?.token) {
+          try {
+            const me = await fetch(`${API_URL}/api/auth/me`, { headers:{ Authorization:`Bearer ${auth.token}` } });
+            if (me.ok) {
+              const d = await me.json();
+              if (!cancelled) setAuth((cur) => {
+                if (!cur) return cur;
+                const updated = { token:cur.token, account:d.account };
+                persistAuth(updated);
+                return updated;
+              });
+            }
+          } catch { /* verification succeeded; the regular account refresh can recover later */ }
+        }
+        if (!cancelled) setVerificationState('success');
+      } catch {
+        if (!cancelled) setVerificationState('network');
       }
-      if (!cancelled) setVerificationState('success');
-    }).catch(() => { if (!cancelled) setVerificationState('error'); });
+    };
+    verify();
     return () => { cancelled = true; };
-  }, [verification]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [verification, verificationAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Validate / refresh the stored token on mount; drop it if the server rejects.
   useEffect(() => {
@@ -6283,11 +6412,15 @@ function AuthedApp() {
       v·{buildId}
     </div>
   ) : null;
-  if (verificationState === 'working') return <>{buildBadge}<VerificationLinkScreen /></>;
+  if (verificationState === 'working' || verificationState === 'network' || verificationState === 'rate_limited') {
+    return <>{buildBadge}<VerificationLinkScreen state={verificationState}
+      onRetry={() => setVerificationAttempt((n) => n + 1)} /></>;
+  }
   if (!auth) return <>{buildBadge}<AuthScreen onAuth={handleAuth}
-    verificationNotice={verificationState ? { ok:verificationState === 'success' } : null} /></>;
+    initialMode={verificationState === 'success' ? 'login' : null}
+    verificationNotice={verificationState === 'success' || verificationState === 'invalid' ? { state:verificationState } : null} /></>;
   if (auth.account?.emailVerified === false) return <>{buildBadge}<EmailVerificationGate auth={auth}
-    onLogout={handleLogout} linkError={verificationState === 'error'} /></>;
+    onLogout={handleLogout} linkState={verificationState} /></>;
   return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} /></>;
 }
 

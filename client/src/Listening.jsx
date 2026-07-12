@@ -19,6 +19,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const [baseRate, setBaseRate] = useState(1.0);  // level-scaled base speed from the server
   const [idx, setIdx]     = useState(0);
   const [played, setPlayed] = useState(0);        // how many times current item was played
+  const [playing, setPlaying] = useState(false);  // ticket/audio startup in progress
   const [response, setResponse] = useState('');
   const [busy, setBusy]   = useState(false);
   const [result, setResult] = useState(null);     // { correct, expected }
@@ -29,7 +30,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
 
   const load = useCallback(async () => {
-    setPhase('loading'); setErr(null); setResult(null); setIdx(0); setResponse(''); setPlayed(0);
+    setPhase('loading'); setErr(null); setResult(null); setIdx(0); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true);
     try {
       // Unique URL + no-store so the browser can NEVER serve a cached set → fresh items every open/round.
       const r = await fetch(`${apiUrl}/api/listening?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
@@ -48,7 +49,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
   const item = items[idx];
   const maxPlays = (item?.replays ?? 1) + 1;   // initial play + N replays
-  const canPlay  = played < maxPlays && !result;
+  const canPlay  = played < maxPlays && !result && !playing;
 
   // Keep the stop handle so closing the drill (or replaying) actually SILENCES the caller —
   // an orphaned line talking over the next screen reads as a bug.
@@ -57,6 +58,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
   const play = () => {
     if (!item || !canPlay) return;
+    setPlaying(true);
+    setTtsOk(true);
     // Level-scaled base speed (beginner slower, advanced faster) + progressive overload within the
     // session (each item faster than the last), so you train catching a native at YOUR edge.
     // Native Aura-2 caller voice; the level+overload speed ramp still applies via audio playbackRate.
@@ -66,9 +69,24 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     try { stopVoiceRef.current?.(); } catch { /* ignore */ }
     // Each item carries its own server-assigned Aura-2 German voice (a different human per caller —
     // real inbound work is a parade of voices). Older payloads without `voice` use the default.
-    stopVoiceRef.current = playNative({ apiUrl, token, text: item.audioText, voice: item.voice || undefined, rate: Math.min(1.7, baseRate + idx * 0.12), phone: true });
-    setTtsOk(true);
-    setPlayed((p) => p + 1);
+    stopVoiceRef.current = playNative({
+      apiUrl,
+      token,
+      text: item.audioText,
+      voice: item.voice || undefined,
+      rate: Math.min(1.7, baseRate + idx * 0.12),
+      phone: true,
+      onStart: () => {
+        setPlaying(false);
+        setTtsOk(true);
+        setPlayed((p) => p + 1);
+      },
+      onError: () => {
+        setPlaying(false);
+        setTtsOk(false);
+      },
+      onEnd: () => setPlaying(false),
+    });
   };
 
   const submit = async (explicit) => {
@@ -92,7 +110,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   };
 
   const next = () => {
-    setResult(null); setResponse(''); setPlayed(0); setErr(null);
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    setResult(null); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true); setErr(null);
     if (idx < items.length - 1) setIdx(idx + 1);
     else {
       // Feed the brain: a completed Hör-Check set is listening prep (per-answer accuracy already
@@ -173,7 +192,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {/* Play card — NO text shown; the whole point is to catch it by ear */}
     <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
       <button onClick={play} disabled={!canPlay} style={{ ...primaryBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
-        🔊 {played === 0 ? T(lang, 'Anruf abspielen', 'شغّل المكالمة') : T(lang, `Nochmal (${maxPlays - played} übrig)`, `كمان مرة (فاضل ${maxPlays - played})`)}
+        🔊 {playing
+          ? T(lang, 'Audio wird vorbereitet…', 'بنجهّز الصوت…')
+          : (played === 0 ? T(lang, 'Anruf abspielen', 'شغّل المكالمة') : T(lang, `Nochmal (${maxPlays - played} übrig)`, `كمان مرة (فاضل ${maxPlays - played})`))}
       </button>
       <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
         {T(lang, 'Echtes Tempo. Hör genau hin — du siehst den Text nicht.', 'سرعة حقيقية. ركّز كويس — مش هتشوف النص.')}
@@ -243,7 +264,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {!result.correct && <button onClick={() => { setResult(null); setResponse(''); setPlayed(0); }} style={ghostBtnWide}>{T(lang, 'Nochmal hören', 'اسمع تاني')}</button>}
+          {!result.correct && <button onClick={() => { setResult(null); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true); }} style={ghostBtnWide}>{T(lang, 'Nochmal hören', 'اسمع تاني')}</button>}
           <button onClick={next} style={{ ...primaryBtn, flex: 1 }}>
             {idx < items.length - 1 ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Fertig ▸', 'خلصت ▸')}
           </button>

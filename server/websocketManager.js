@@ -85,6 +85,11 @@ const WS_RATE_WINDOW_MS  = 10_000;
 const WS_MAX_MESSAGES    = 180;
 const WS_MAX_CONNECTIONS = Math.max(25, Number(process.env.WS_MAX_CONNECTIONS || 500));
 const WS_MAX_PER_IP      = Math.max(2, Number(process.env.WS_MAX_CONNECTIONS_PER_IP || 10));
+
+export function websocketOriginAllowed(origin, allowedOrigins, allowOriginless = false) {
+  if (!origin) return allowOriginless;
+  return allowedOrigins.includes(origin);
+}
 const MAX_AUDIO_FRAME_BYTES = 32 * 1024;
 const AUDIO_BURST_BYTES      = 192_000;
 const AUDIO_WIRE_BYTES_PER_SEC = 60_000;
@@ -211,17 +216,19 @@ export class WebSocketManager {
     this._ipConnections = new Map();
 
     // Same origin allowlist as the HTTP CORS layer — the WS upgrade must validate Origin
-    // too, otherwise any website could open sockets against us. No Origin header (native
-    // clients / health checks) is allowed; a browser Origin must be on the list.
+    // too, otherwise any website could open sockets against us. Originless upgrades are denied
+    // by default; a future native client must be opted in explicitly instead of silently sharing
+    // the browser endpoint's trust boundary.
     const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
       .split(',').map((s) => s.trim()).filter(Boolean);
+    const allowOriginless = process.env.WS_ALLOW_ORIGINLESS === '1';
 
     this._wss = new WebSocketServer({
       server:     httpServer,
       maxPayload: MAX_MESSAGE_BYTES,
       perMessageDeflate: false,
       verifyClient: ({ origin }, cb) => {
-        const ok = !origin || allowedOrigins.includes(origin);
+        const ok = websocketOriginAllowed(origin, allowedOrigins, allowOriginless);
         if (!ok) console.warn(`[wsManager] Rejected WS upgrade — origin not allowed: ${origin}`);
         cb(ok, ok ? undefined : 403, 'forbidden_origin');
       },
@@ -332,13 +339,14 @@ export class WebSocketManager {
       audioWireStartedAt: 0,
       audioWireBytes:     0,
       connectionReleased: false,
+      authenticated:      false,
       authDeadline:       null,
     };
 
     this._sessions.set(sessionId, ctx);
 
     ctx.authDeadline = setTimeout(() => {
-      if (ctx.userId === 'anon' && socket.readyState === 1) socket.close(4401, 'authentication_timeout');
+      if (!ctx.authenticated && socket.readyState === 1) socket.close(4401, 'authentication_timeout');
     }, WS_AUTH_TIMEOUT_MS);
     ctx.authDeadline.unref?.();
 
@@ -452,9 +460,16 @@ export class WebSocketManager {
     // ── Auth + subscription gate (server-side; cannot be bypassed by the client) ──
     const payload = verifyToken(msg.token);
     const account = payload ? await getAccountById(payload.uid) : null;
-    if (!tokenMatchesAccount(payload, account)) { this._sendError(ctx, 'auth_required'); return; }
-    if (ctx.authDeadline) { clearTimeout(ctx.authDeadline); ctx.authDeadline = null; }
-    if (!emailOwnershipVerified(account)) { this._sendError(ctx, 'email_verification_required'); return; }
+    if (!tokenMatchesAccount(payload, account)) {
+      this._sendError(ctx, 'auth_required');
+      ctx.socket.close(4401, 'auth_required');
+      return;
+    }
+    if (!emailOwnershipVerified(account)) {
+      this._sendError(ctx, 'email_verification_required');
+      ctx.socket.close(4403, 'email_verification_required');
+      return;
+    }
 
     // ── Plan gate: paid plan has live minutes; a free account gets ONE free 7-min fight, then upsell ──
     const minutes = dailyMinutesFor(account);   // free 0 / basic 7 / elite 15
@@ -463,6 +478,7 @@ export class WebSocketManager {
       if (!freeFightAvailable(account)) {
         console.log(`[wsManager] Paywall (free fight already used)  user=${account.id}  session=${ctx.sessionId}`);
         this._send(ctx, { type: S.PAYWALL, ...entitlement(account) });
+        ctx.socket.close(4403, 'plan_required');
         return;
       }
       freeFightSec = 7 * 60;   // grant the one-time free 7-minute interview
@@ -474,6 +490,7 @@ export class WebSocketManager {
     if (this._activeFightUsers.has(account.id)) {
       console.warn(`[wsManager] Duplicate start blocked  user=${account.id}  session=${ctx.sessionId}`);
       this._sendError(ctx, 'fight_already_active');
+      ctx.socket.close(4409, 'fight_already_active');
       return;
     }
     this._activeFightUsers.add(account.id);
@@ -532,8 +549,14 @@ export class WebSocketManager {
       console.log(`[wsManager] Daily limit reached  user=${ctx.userId}  plan=${planOf(account)}  usedSec=${usedSec}/${minutes * 60}  session=${ctx.sessionId}`);
       this._releaseFight(ctx);
       this._sendError(ctx, 'daily_limit');
+      ctx.socket.close(4403, 'daily_limit');
       return;
     }
+    // Authentication becomes durable for this socket only after identity, mailbox, plan,
+    // duplicate-session, and daily-cap checks all pass. Failed START attempts retain the auth
+    // deadline and are closed above, so PING cannot pin a rejected connection indefinitely.
+    ctx.authenticated = true;
+    if (ctx.authDeadline) { clearTimeout(ctx.authDeadline); ctx.authDeadline = null; }
     ctx.dailyCapSec = remainingSec;
     ctx.bossId = bossId;
     // STT ACCENT-BOOST list (general accuracy, not a one-word patch): the words we KNOW will occur this

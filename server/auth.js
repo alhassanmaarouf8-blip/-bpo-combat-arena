@@ -45,6 +45,22 @@ export const TIERS = {
 
 // ── Account store (single JSON file, cached in memory) ───────────────────────
 let _store = null; // { accounts: {id: account}, emailIndex: {email: id} }
+let _storeLockTail = Promise.resolve();
+let _persistTail = Promise.resolve();
+
+// The auth store is one aggregate document in both the JSON fallback and Postgres KV seam.
+// Serialize check-then-write operations inside this process so uniqueness and session-version
+// decisions cannot interleave across await points. Render currently runs one app process; this
+// lock deliberately matches that storage model rather than pretending the aggregate KV row has
+// database-level per-email constraints that it does not have.
+async function withStoreLock(operation) {
+  const previous = _storeLockTail;
+  let release;
+  _storeLockTail = new Promise((resolve) => { release = resolve; });
+  await previous;
+  try { return await operation(); }
+  finally { release(); }
+}
 
 async function load() {
   if (_store) return _store;
@@ -60,9 +76,16 @@ async function load() {
   return _store;
 }
 async function persist() {
-  if (dbEnabled()) { await kvSet('auth', 'store', _store); return; }
-  if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(ACCT_FILE, JSON.stringify(_store, null, 2), 'utf8');
+  // Snapshot at the call boundary, then preserve call order. Without this queue an older async
+  // write can finish after a newer one and roll durable state back while memory still looks right.
+  const snapshot = JSON.stringify(_store);
+  const operation = _persistTail.then(async () => {
+    if (dbEnabled()) { await kvSet('auth', 'store', JSON.parse(snapshot)); return; }
+    if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+    await writeFile(ACCT_FILE, JSON.stringify(JSON.parse(snapshot), null, 2), 'utf8');
+  });
+  _persistTail = operation.catch(() => {});
+  return operation;
 }
 
 // ── Passwords (scrypt, no external deps) ─────────────────────────────────────
@@ -84,13 +107,16 @@ async function verifyPassword(pw, stored) {
 // for a locked-out PAYING customer was deleting the account — wiping all their progress.
 export async function adminSetPassword(email, newPassword) {
   if (String(newPassword || '').length < 10 || String(newPassword || '').length > 128) throw Object.assign(new Error('password_too_short'), { code: 400 });
-  const acc = await getAccountByEmail(email);
-  if (!acc) return null;
-  acc.passwordHash = await hashPassword(newPassword);
-  acc.sessionVersion = (acc.sessionVersion || 0) + 1;
-  delete acc.resetToken;   // an outstanding emailed reset link must die with a support reset
-  await persist();
-  return acc;
+  const passwordHash = await hashPassword(newPassword);
+  return withStoreLock(async () => {
+    const acc = await getAccountByEmail(email);
+    if (!acc) return null;
+    acc.passwordHash = passwordHash;
+    acc.sessionVersion = (acc.sessionVersion || 0) + 1;
+    delete acc.resetToken;   // an outstanding emailed reset link must die with a support reset
+    await persist();
+    return acc;
+  });
 }
 
 // ── Signed session tokens (HMAC, no external deps) ───────────────────────────
@@ -149,49 +175,87 @@ export function normalizeWhatsapp(raw) {
 }
 
 export async function createAccount(email, password, ref, whatsapp) {
-  const s = await load();
   email = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
   if (String(password || '').length < 10 || String(password || '').length > 128)
     throw Object.assign(new Error('weak_password'), { code: 400 });
-  if (s.emailIndex[email])                       throw Object.assign(new Error('email_taken'),   { code: 409 });
 
   // WhatsApp is optional and never collected by the current signup form. If an older trusted
   // caller supplies it, normalize it for the legacy `phone` field; marketing consent is still a
   // separate explicit post-value action below.
   const waNum = normalizeWhatsapp(whatsapp);
-
-  const id = 'a_' + randomBytes(8).toString('hex');
   const refId = typeof ref === 'string' ? ref.trim() : '';
-  const account = {
-    id, email,
-    phone:        waNum || null,
-    passwordHash: await hashPassword(password),
-    sessionVersion: 0,
-    createdAt:    Date.now(),
-    // New accounts must prove mailbox ownership before any authenticated product/API route can
-    // consume provider capacity. Accounts created before this field existed are grandfathered by
-    // emailOwnershipVerified() so this security repair does not lock out established customers.
-    emailVerificationRequired: true,
-    emailVerifiedAt: null,
-    subscription: { tier: 'trial', trialStartedAt: null, trialSessionsUsed: 0 },
-    // Referral attribution is analytics-only. It never grants provider-backed trial time.
-    ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
+  // Scrypt is intentionally outside the store lock. The uniqueness decision is repeated only
+  // after hashing, inside the serialized mutation, so two parallel requests cannot both win.
+  const passwordHash = await hashPassword(password);
+
+  return withStoreLock(async () => {
+    const s = await load();
+    if (s.emailIndex[email]) throw Object.assign(new Error('email_taken'), { code: 409 });
+    const id = 'a_' + randomBytes(8).toString('hex');
+    const account = {
+      id, email,
+      phone:        waNum || null,
+      passwordHash,
+      sessionVersion: 0,
+      createdAt:    Date.now(),
+      // New accounts must prove mailbox ownership before any authenticated product/API route can
+      // consume provider capacity. Accounts created before this field existed are grandfathered by
+      // emailOwnershipVerified() so this security repair does not lock out established customers.
+      emailVerificationRequired: true,
+      emailVerifiedAt: null,
+      subscription: { tier: 'trial', trialStartedAt: null, trialSessionsUsed: 0 },
+      // Referral attribution is analytics-only. It never grants provider-backed trial time.
+      ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
+    };
+    // A phone number is never treated as marketing/reminder consent at account creation.
+    // Email ownership is not verified at signup. Never attach roles, comp access or any other
+    // privilege solely because the submitted address appears on an allowlist. Owner grants are
+    // applied to an existing account from the separately authenticated admin panel.
+    s.accounts[id] = account;
+    s.emailIndex[email] = id;
+    await persist();
+    return account;
+  });
+}
+
+async function verifiedCredentialSnapshot(email, password) {
+  const acct = await getAccountByEmail(email);
+  if (!acct) return null;
+  const snapshot = {
+    id: acct.id,
+    email: acct.email,
+    passwordHash: acct.passwordHash,
+    sessionVersion: acct.sessionVersion || 0,
   };
-  // A phone number is never treated as marketing/reminder consent at account creation.
-  // Email ownership is not verified at signup. Never attach roles, comp access or any other
-  // privilege solely because the submitted address appears on an allowlist. Owner grants are
-  // applied to an existing account from the separately authenticated admin panel.
-  s.accounts[id] = account;
-  s.emailIndex[email] = id;
-  await persist();
-  return account;
+  if (!(await verifyPassword(password, snapshot.passwordHash))) return null;
+  return snapshot;
+}
+
+function currentAccountForCredential(s, snapshot) {
+  const current = s.accounts[snapshot.id];
+  if (!current || s.emailIndex[snapshot.email] !== snapshot.id) return null;
+  if (current.passwordHash !== snapshot.passwordHash) return null;
+  if ((current.sessionVersion || 0) !== snapshot.sessionVersion) return null;
+  return current;
 }
 
 export async function authenticate(email, password) {
-  const acct = await getAccountByEmail(email);
-  if (!acct || !(await verifyPassword(password, acct.passwordHash))) return null;
-  return acct;
+  const snapshot = await verifiedCredentialSnapshot(email, password);
+  if (!snapshot) return null;
+  return withStoreLock(async () => currentAccountForCredential(await load(), snapshot));
+}
+
+// Login must sign while holding the same lock used by password/session-version mutations.
+// Otherwise an old password can finish its expensive scrypt check after a reset and receive a
+// fresh token carrying the reset account's NEW version.
+export async function authenticateAndIssueSession(email, password) {
+  const snapshot = await verifiedCredentialSnapshot(email, password);
+  if (!snapshot) return null;
+  return withStoreLock(async () => {
+    const account = currentAccountForCredential(await load(), snapshot);
+    return account ? { account, token: signToken(account) } : null;
+  });
 }
 
 // ── Plans (the single source of truth: server/plans.config.js) ───────────────
@@ -494,12 +558,18 @@ export async function requireAuth(req, res, next) {
 // (read from X-Forwarded-For since Render runs behind a proxy). In-memory is sufficient for
 // a single instance and simply resets on restart — an acceptable trade-off here.
 const _rl = new Map(); // key -> [timestamps]
-export function rateLimit({ windowMs, max, tag, keyExtra, global = false }) {
+export function rateLimit({ windowMs, max, tag, keyExtra, global = false, accountOnly = false }) {
+  if (accountOnly && typeof keyExtra !== 'function') throw new Error(`rateLimit ${tag}: accountOnly requires keyExtra`);
   return (req, res, next) => {
     const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
     // keyExtra narrows the bucket below the IP (e.g. per-account for login) so strict limits can
     // coexist with CGNAT: hundreds of REAL Egyptian users share one carrier IP.
-    const key = `${tag}:${global ? 'all' : ip}${keyExtra ? ':' + keyExtra(req) : ''}`;
+    const extra = keyExtra ? String(keyExtra(req) || '').slice(0, 160) : '';
+    // Paid/provider routes need a true per-account ceiling that cannot be reset by changing proxy
+    // IPs. They layer this accountOnly bucket with a broader IP/global fuse. Login/forgot retain
+    // their intentional IP+email shape.
+    const key = accountOnly ? `${tag}:account:${extra || 'missing'}`
+      : `${tag}:${global ? 'all' : ip}${extra ? ':' + extra : ''}`;
     const now = Date.now();
     const hits = (_rl.get(key) || []).filter((t) => now - t < windowMs);
     if (hits.length >= max) {
@@ -526,7 +596,7 @@ export const authRouter = express.Router();
 // surviving a real launch burst.
 authRouter.post('/signup',
   rateLimit({ windowMs: 24 * 60 * 60 * 1000, max: 250, tag: 'signup-global', global: true }),
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 20, tag: 'signup' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 60, tag: 'signup' }),
   async (req, res) => {
   try {
     const { email, password, ref } = req.body || {};
@@ -546,9 +616,9 @@ authRouter.post('/login',
               keyExtra: (req) => String(req.body?.email || '').toLowerCase().slice(0, 80) }),
   async (req, res) => {
   const { email, password } = req.body || {};
-  const acct = await authenticate(email, password);
-  if (!acct) return res.status(401).json({ error: 'invalid_credentials' });
-  res.json({ token: signToken(acct), account: publicAccount(acct) });
+  const session = await authenticateAndIssueSession(email, password);
+  if (!session) return res.status(401).json({ error: 'invalid_credentials' });
+  res.json({ token: session.token, account: publicAccount(session.account) });
 });
 
 authRouter.get('/me', requireSession, (req, res) => res.json({ account: publicAccount(req.account) }));
@@ -565,7 +635,12 @@ authRouter.post('/verification/resend',
   });
 
 authRouter.post('/verify',
-  rateLimit({ windowMs: 15 * 60 * 1000, max: 20, tag: 'verify' }),
+  // A carrier IP can represent hundreds of Egyptian customers. Keep a generous shared-IP fuse,
+  // then apply the strict limit to the high-entropy token itself so one bad link cannot be
+  // hammered without blocking unrelated customers on the same mobile network.
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 120, tag: 'verify' }),
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 5, tag: 'verify-token',
+              keyExtra: (req) => createHash('sha256').update(String(req.body?.token || '')).digest('hex').slice(0, 20) }),
   async (req, res) => {
     const token = req.body?.token;
     const account = await verifyEmailToken(token);
@@ -615,22 +690,31 @@ authRouter.post('/reset', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, tag: 'r
   if (String(password || '').length < 10 || String(password || '').length > 128) return res.status(400).json({ error: 'password_too_short' });
   if (typeof token !== 'string' || token.length < 40) return res.status(400).json({ error: 'invalid_token' });
   const h = createHash('sha256').update(token).digest('hex');
-  const s = await load();
-  const acc = Object.values(s.accounts || {}).find((a) => a.resetToken?.hash === h);
-  if (!acc || !acc.resetToken || Date.now() > acc.resetToken.exp) {
+  const candidate = Object.values((await load()).accounts || {}).find((a) => a.resetToken?.hash === h);
+  if (!candidate || !candidate.resetToken || Date.now() > candidate.resetToken.exp) {
     return res.status(400).json({ error: 'invalid_or_expired' });
   }
-  acc.passwordHash = await hashPassword(password);
-  acc.sessionVersion = (acc.sessionVersion || 0) + 1;
-  delete acc.resetToken;               // single-use — the link dies with the change
-  // A valid reset link reached this mailbox, so it is also valid ownership proof.
-  if (acc.emailVerificationRequired === true && !emailOwnershipVerified(acc)) {
-    acc.emailVerifiedAt = Date.now();
-    delete acc.emailVerification;
-  }
-  await persist();
-  console.log(`[reset] password reset via email link user=${acc.id}`);
-  res.json({ token: signToken(acc), account: publicAccount(acc) });   // straight back in
+  const passwordHash = await hashPassword(password);
+  const session = await withStoreLock(async () => {
+    // Re-check after scrypt while holding the mutation lock. This makes the reset token genuinely
+    // single-use even when two reset requests arrive together.
+    const s = await load();
+    const acc = Object.values(s.accounts || {}).find((a) => a.resetToken?.hash === h);
+    if (!acc || !acc.resetToken || Date.now() > acc.resetToken.exp) return null;
+    acc.passwordHash = passwordHash;
+    acc.sessionVersion = (acc.sessionVersion || 0) + 1;
+    delete acc.resetToken;               // single-use — the link dies with the change
+    // A valid reset link reached this mailbox, so it is also valid ownership proof.
+    if (acc.emailVerificationRequired === true && !emailOwnershipVerified(acc)) {
+      acc.emailVerifiedAt = Date.now();
+      delete acc.emailVerification;
+    }
+    await persist();
+    return { account: acc, token: signToken(acc) };
+  });
+  if (!session) return res.status(400).json({ error: 'invalid_or_expired' });
+  console.log(`[reset] password reset via email link user=${session.account.id}`);
+  res.json({ token: session.token, account: publicAccount(session.account) });   // straight back in
 });
 
 // Optional WhatsApp opt-in — the app's ONLY re-engagement channel at $0 (no email infra, no
@@ -682,6 +766,7 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     // owner's published phone number, so the proof lands where the money does. Set WHATSAPP_NUMBER
     // explicitly to receive WhatsApp on a different number.
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
+    paymentAvailable: !!process.env.VODAFONE_CASH_NUMBER,
     pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
     paymentIntent: intent,      // resumable transfer instructions created before money moves
     paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
@@ -711,6 +796,7 @@ billingRouter.get('/state', requireAuth, async (req, res) => {
   justActivated = !!(account.subscription?.activatedNoticePending) && minutes > 0;
 
   res.json({
+    account: publicAccount(account),
     plan, dailyLiveMinutes: minutes,
     minutesUsedToday: Math.floor(usedSec / 60),
     minutesRemaining: Math.ceil(remainingSec / 60),   // whole minutes; server enforces the exact cap

@@ -87,7 +87,9 @@ assessmentRouter.get('/assessment/status', requireAuth, async (req, res) => {
 // ── POST transcribe one answer (cheap STT). Blocked once the account has used its free run. ──
 assessmentRouter.post('/assessment/transcribe',
   requireAuth,
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 12, tag: 'assessment-transcribe', keyExtra: (req) => req.account.id }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 120, tag: 'assessment-transcribe-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 12, tag: 'assessment-transcribe-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }),
   express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     try {
@@ -110,7 +112,9 @@ assessmentRouter.post('/assessment/transcribe',
 
 // ── POST analyze all answers (ONE cheap text-model call). Sets assessmentUsed=true. ──
 assessmentRouter.post('/assessment/analyze', requireAuth,
-  rateLimit({ windowMs: 60 * 60 * 1000, max: 4, tag: 'assessment-analyze', keyExtra: (req) => req.account.id }), async (req, res) => {
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 80, tag: 'assessment-analyze-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 4, tag: 'assessment-analyze-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }), async (req, res) => {
   if (analysisInFlight.has(req.account.id)) return res.status(409).json({ error: 'assessment_in_progress' });
   analysisInFlight.add(req.account.id);
   try {

@@ -18,8 +18,25 @@ Render → `bpo-combat-arena` service → **Environment**. These must exist:
 | `SMTP_PASS` | SMTP app password; never commit it | ☐ |
 | `ADMIN_KEY` | High-entropy admin secret, at least 32 characters | ☐ |
 | `PAYMENT_MONITOR_KEY` | Separate high-entropy payment-monitor secret | ☐ |
+| `VODAFONE_CASH_NUMBER` | Public wallet number used by the implemented checkout | ☐ |
+| `WHATSAPP_NUMBER` | *(optional)* separate number for payment proof/support | ☐ |
 
 **Check it worked:** open the **Logs** tab → you should see the server start and `[db] Connected`.
+
+Before deploying the frontend, verify from a non-production test account that the backend can send
+both a verification email and a password-reset email, and that `/api/billing/status` reports a usable
+Vodafone Cash destination. If either check fails, stop: the repaired client intentionally blocks new
+training before email confirmation and blocks checkout without the implemented payment rail.
+
+## 1B. Deploy in this order — never frontend-only
+
+1. Deploy the repaired backend to Render and wait for its minimal health check to pass.
+2. Test signup → verification → login and billing status against that backend.
+3. Only then deploy the matching frontend build to Vercel.
+4. Repeat the flow from a fresh browser before sharing the link.
+
+A frontend-only push can auto-deploy on Vercel while Render remains on the old backend, producing a
+mixed release. Treat the two deployments as one coordinated change.
 
 ---
 
@@ -52,7 +69,7 @@ friendly "video coming soon" box shows and the quiz still works.
 
 ## 5. Turn on payments (when ready)
 The current flow is manual verification: the customer creates a payment intent, pays through the
-configured Egyptian rail, and reports the sender fingerprint. Access remains locked until the owner
+configured Vodafone Cash wallet, and reports the sender fingerprint. Access remains locked until the owner
 confirms the matching payment from the separately authenticated admin/payment monitor. Never place
 payment secrets in client code, and test expiry + duplicate-confirmation behavior before launch.
 
