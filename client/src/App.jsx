@@ -960,6 +960,32 @@ const GLOBAL_CSS = `
     75%  { opacity: 1; }
     100% { opacity: 0; transform: translateX(-50%) scale(1); }
   }
+  /* Landing arena-preview loop (07-12): a 9s miniature fight. Width/opacity/transform only. */
+  .adm-bosshp { animation: adm-bosshp 9s ease-in-out infinite; }
+  .adm-dmg1   { opacity: 0; animation: adm-dmg 9s var(--ease) infinite; }
+  .adm-dmg2   { opacity: 0; animation: adm-dmg 9s var(--ease) infinite; animation-delay: 3.6s; }
+  .adm-serie  { opacity: 0; animation: adm-serie 9s var(--ease) infinite; }
+  @keyframes adm-bosshp {
+    0%, 8%   { width: 92%; }
+    16%, 38% { width: 68%; }
+    46%, 66% { width: 41%; }
+    74%, 90% { width: 18%; }
+    97%, 100% { width: 92%; }
+  }
+  @keyframes adm-dmg {
+    0%, 9%   { opacity: 0; transform: translateY(10px) scale(0.7); }
+    13%      { opacity: 1; transform: translateY(0) scale(1.1); }
+    17%      { transform: translateY(0) scale(1); }
+    26%      { opacity: 1; }
+    34%, 100% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  }
+  @keyframes adm-serie {
+    0%, 60%  { opacity: 0; transform: translateX(-50%) scale(0.8); }
+    66%      { opacity: 1; transform: translateX(-50%) scale(1.06); }
+    72%      { transform: translateX(-50%) scale(1); }
+    86%      { opacity: 1; }
+    94%, 100% { opacity: 0; transform: translateX(-50%) scale(1); }
+  }
   /* Bewerbungs-Dossier print rules: paper prints ONLY the sheet — app chrome, beams, and the
      on-screen buttons all vanish. */
   @media print {
@@ -2808,19 +2834,77 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
       </div>
 
-      <figure style={{ maxWidth:420, margin:'24px auto 4px', padding:0, ...rise(2) }}>
+      {/* ── LIVE ARENA PREVIEW (landing redesign 07-12, owner: "very boring") — an ANIMATED
+          miniature of the real fight UI (HP bars, damage numbers, SERIE — all real mechanics),
+          pure CSS loop, honest label. Motion sells what a static home screenshot cannot: the
+          interview IS a live match. */}
+      <div style={{ maxWidth:420, margin:'24px auto 4px', ...rise(2) }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em', color:'var(--accent)', marginBottom:8 }}>
-          ECHTE PRODUKTANSICHT · BEISPIELKONTO
+          SO FÜHLT SICH DEIN INTERVIEW AN · ECHTE SPIELMECHANIK
         </div>
-        <img src="/product-home.png" width="390" height="844" loading="lazy" decoding="async"
-          alt="OMNI-PERFORM mobile training home with interview start, readiness tracker, and level assessment"
-          style={{ display:'block', width:'100%', height:'auto', maxHeight:430, objectFit:'cover', objectPosition:'top',
-            borderRadius:'var(--r-lg)', border:'1px solid var(--line)', boxShadow:'0 22px 55px rgba(0,0,0,0.38)' }} />
-        <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.5, marginTop:8 }}>
-          Aktuelle mobile Oberfläche, aufgenommen aus dem laufenden Produkt mit einem synthetischen Testkonto.
-          {' '}<span dir="rtl">صورة حقيقية من المنتج الحالي بحساب تجريبي.</span>
-        </figcaption>
-      </figure>
+        <div style={{ position:'relative', borderRadius:'var(--r-lg)', overflow:'hidden', padding:'14px 14px 12px',
+          background:'radial-gradient(130% 100% at 50% -10%, #0d1828 0%, #070e1a 55%, #02050b 100%)',
+          border:'1px solid rgba(59,130,246,0.35)', boxShadow:'0 22px 55px rgba(0,0,0,0.45), inset 0 0 60px rgba(0,0,0,0.6)' }}>
+          {/* boss row */}
+          <div style={{ display:'flex', justifyContent:'space-between', fontFamily:'var(--font-display)', fontSize:9,
+            letterSpacing:'0.12em', color:'#94a3b8', marginBottom:5 }}>
+            <span>TAREK · ESKALATIONS-BOSS</span><span style={{ color:'var(--accent-2)' }}>LIVE</span>
+          </div>
+          <div style={{ height:9, borderRadius:5, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+            <div className="adm-bosshp" style={{ height:'100%', borderRadius:5,
+              background:'linear-gradient(90deg, var(--accent), var(--accent-2))' }} />
+          </div>
+          {/* stage */}
+          <div style={{ position:'relative', height:118, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div style={{ width:64, height:64, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+              fontFamily:'var(--font-display)', fontWeight:800, fontSize:24, color:'#dbeafe',
+              background:'rgba(59,130,246,0.14)', border:'2px solid rgba(59,130,246,0.6)' }}>T</div>
+            <div className="adm-dmg1" style={{ position:'absolute', top:12, left:'58%', fontFamily:'var(--font-display)',
+              fontWeight:800, fontSize:26, color:'#93c5fd', textShadow:'0 2px 6px rgba(0,0,0,0.8)' }}>−12</div>
+            <div className="adm-dmg2" style={{ position:'absolute', top:26, left:'30%', fontFamily:'var(--font-display)',
+              fontWeight:800, fontSize:20, color:'#93c5fd', textShadow:'0 2px 6px rgba(0,0,0,0.8)' }}>−9</div>
+            <div className="adm-serie" style={{ position:'absolute', bottom:10, left:'50%', transform:'translateX(-50%)',
+              fontFamily:'var(--font-display)', fontWeight:700, fontSize:11, letterSpacing:'0.2em', color:'#fdba74' }}>
+              SERIE ×3
+            </div>
+          </div>
+          {/* your bar */}
+          <div style={{ display:'flex', justifyContent:'space-between', fontFamily:'var(--font-display)', fontSize:9,
+            letterSpacing:'0.12em', color:'#94a3b8', marginBottom:5 }}>
+            <span>DEINE ANTWORTQUALITÄT</span>
+          </div>
+          <div style={{ height:9, borderRadius:5, background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+            <div style={{ height:'100%', width:'78%', borderRadius:5,
+              background:'linear-gradient(90deg, var(--action-2, #fb923c), var(--action))' }} />
+          </div>
+          <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:9, lineHeight:1.5, fontStyle:'italic' }}>
+            „Erzählen Sie mir von einer schwierigen Kundensituation…“
+          </div>
+        </div>
+        <div style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.5, marginTop:8 }}>
+          Jede starke deutsche Antwort trifft. Jede Schwäche wird ehrlich benannt — aus deinen eigenen Sätzen.
+          {' '}<span dir="rtl">كل إجابة ألماني قوية بتسجّل ضربة — والتقييم من جُملك انت.</span>
+        </div>
+      </div>
+
+      {/* the opponent ladder — six real interviewers, a career org-chart you climb */}
+      <div style={{ maxWidth:420, margin:'18px auto 0', ...rise(2) }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em', color:'var(--accent)', marginBottom:8 }}>
+          DEINE GEGNER · VON DER RECRUITERIN BIS ZUR GESCHÄFTSFÜHRERIN
+        </div>
+        <div style={{ display:'flex', gap:6, justifyContent:'space-between' }}>
+          {[['Y','Yasmin'],['K','Karim'],['H','Hana'],['T','Tarek'],['M','Mona'],['L','Lukas']].map(([c, n], i) => (
+            <div key={n} style={{ flex:1, textAlign:'center' }}>
+              <div style={{ width:34, height:34, margin:'0 auto', borderRadius:'50%', display:'flex', alignItems:'center',
+                justifyContent:'center', fontFamily:'var(--font-display)', fontWeight:800, fontSize:13,
+                color: i === 0 ? '#dbeafe' : '#64748b',
+                background: i === 0 ? 'rgba(59,130,246,0.16)' : 'rgba(255,255,255,0.04)',
+                border: i === 0 ? '1.5px solid rgba(59,130,246,0.6)' : '1px solid rgba(255,255,255,0.12)' }}>{c}</div>
+              <div style={{ fontSize:8.5, color:'#64748b', marginTop:3 }}>{n}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
       <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
