@@ -39,7 +39,9 @@ async function getPool() {
   const useSsl = /@[^/]+\.[^/]+/.test(url);
   _pool = new pg.Pool({
     connectionString:  url,
-    ssl:               useSsl ? { rejectUnauthorized: false } : false,
+    // External providers must present a publicly trusted certificate. Disabling
+    // verification turns every account/password/payment query into MITM-readable data.
+    ssl:               useSsl ? { rejectUnauthorized: true } : false,
     max:               5,
     idleTimeoutMillis: 30_000,
   });
@@ -78,6 +80,12 @@ function ensureReady() {
   return _ready;
 }
 
+export async function ensureDatabaseReady() {
+  if (!dbEnabled()) throw new Error('DATABASE_URL is required');
+  await ensureReady();
+  return true;
+}
+
 export async function kvGet(namespace, key) {
   await ensureReady();
   const pool = await getPool();
@@ -102,4 +110,23 @@ export async function kvDel(namespace, key) {
   await ensureReady();
   const pool = await getPool();
   await pool.query('DELETE FROM kv_store WHERE namespace = $1 AND key = $2', [namespace, key]);
+}
+
+export async function deleteWeaknessData(userId) {
+  if (!dbEnabled()) return 0;
+  await ensureReady();
+  const pool = await getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const events = await client.query('DELETE FROM error_events WHERE user_id = $1', [String(userId)]);
+    const profiles = await client.query('DELETE FROM weakness_profile WHERE user_id = $1', [String(userId)]);
+    await client.query('COMMIT');
+    return (events.rowCount || 0) + (profiles.rowCount || 0);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }

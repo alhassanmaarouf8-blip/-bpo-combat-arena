@@ -5,16 +5,16 @@
  * Messenger/WhatsApp so people who never reach the in-app feedback button can still leave
  * detailed feedback (what they liked · what to improve · a star rating · optional name).
  *
- * On submit it POSTs to /api/feedback/public, which writes to the SAME store the app reads
- * for its live rating + testimonials (/api/feedback/public GET) — so a 4-5★ note becomes
- * public social proof on the app. Self-contained: defines its own palette (the app's CSS
+ * On submit it POSTs to /api/feedback/public for private product review. Public ratings are
+ * drawn only from separately reviewed and approved feedback; this form never auto-publishes
+ * a person's name or comments. Self-contained: defines its own palette (the app's CSS
  * vars live inside App.jsx, which is NOT mounted on this route) using the brand pair —
  * blue #3b82f6 + orange #f97316 — and Inter, matching the app.
  */
 import { useEffect, useState } from 'react';
+import { API_URL as BACKEND } from './config.js';
 
-const BACKEND = (import.meta.env.VITE_WS_URL || 'ws://localhost:3001').replace(/^ws/, 'http');
-const APP_URL = 'https://bpo-combat-arena.vercel.app';
+const APP_URL = window.location.origin;
 
 // Brand palette (mirrors App.jsx :root — kept literal so this page renders without the app).
 const C = {
@@ -37,7 +37,7 @@ export default function PublicFeedback() {
   const [err, setErr]           = useState('');
   const [proof, setProof]       = useState(null); // { available, avgRating, ratingCount }
 
-  // Live social proof so the page itself shows the rating this feedback feeds into.
+  // Show independently approved public proof without implying this submission is published.
   useEffect(() => {
     fetch(`${BACKEND}/api/feedback/public`).then((r) => r.json()).then(setProof).catch(() => {});
   }, []);
@@ -75,7 +75,7 @@ export default function PublicFeedback() {
             <div style={{ fontSize: 44, lineHeight: 1 }}>🙏</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: C.blue2, margin: '14px 0 6px' }}>Danke!</div>
             <div style={{ fontSize: 14, color: C.dim, lineHeight: 1.6 }}>
-              Dein Feedback ist jetzt Teil von OMNI-PERFORM und hilft, das Training besser zu machen.
+              Dein Feedback wurde privat gespeichert und hilft, das Training besser zu machen.
             </div>
             <a href={APP_URL} style={{ ...S.btn, display: 'inline-block', textDecoration: 'none', marginTop: 20 }}>
               App öffnen →
@@ -130,6 +130,9 @@ export default function PublicFeedback() {
               style={{ ...S.btn, marginTop: 18, opacity: (busy || !canSend) ? 0.45 : 1, cursor: (busy || !canSend) ? 'default' : 'pointer' }}>
               {busy ? 'Senden…' : 'Feedback senden'}
             </button>
+            <div style={{ color: C.faint, fontSize: 11.5, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
+              Dein Name und deine Kommentare werden nicht automatisch veröffentlicht.
+            </div>
             <div style={{ textAlign: 'center', marginTop: 12 }}>
               <a href={APP_URL} style={S.appLink}>Zur App →</a>
             </div>

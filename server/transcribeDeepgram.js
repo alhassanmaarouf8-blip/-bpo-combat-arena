@@ -46,14 +46,19 @@ export async function transcribeDeepgram(audioBuffer, metadata = {}) {
   }
 
   let res;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000);
   try {
     res = await fetch(`${DEEPGRAM_URL}?${params.toString()}`, {
       method: 'POST',
       headers: { Authorization: `Token ${key}`, 'Content-Type': contentType },
       body: audioBuffer,
+      signal: controller.signal,
     });
   } catch (err) {
     throw new Error(`Deepgram request failed: ${err.message}`);
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (!res.ok) {

@@ -5,11 +5,18 @@
   "description": "Root tooling for the Guardian CI gate (lint + syntax checks). The app lives in server/ and client/.",
   "scripts": {
     "lint": "eslint server client --no-warn-ignored",
-    "design-lint": "node scripts/design-lint.mjs"
+    "design-lint": "node scripts/design-lint.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "test:server": "node scripts/run-server-tests.mjs",
+    "build:client": "npm --prefix client run build",
+    "check:artifact": "node scripts/verify-production-artifact.mjs",
+    "verify": "npm run check:secrets && npm run lint && npm run design-lint && npm run check:syntax && npm run test:server && npm run build:client && npm run check:artifact"
   },
   "devDependencies": {
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^5.0.0",
+    "espree": "^10.4.0",
     "globals": "^15.0.0"
   }
 }

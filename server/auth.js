@@ -15,14 +15,14 @@ import { existsSync }                 from 'fs';
 import path                           from 'path';
 import { fileURLToPath }              from 'url';
 import express                        from 'express';
-import { randomBytes, scryptSync, timingSafeEqual, createHmac, createHash } from 'crypto';
-import { mailerConfigured, sendResetMail } from './mailer.js';
+import { randomBytes, scrypt, timingSafeEqual, createHmac, createHash } from 'crypto';
+import { promisify } from 'util';
+import { mailerConfigured, sendResetMail, sendVerificationMail } from './mailer.js';
 import { dbEnabled, kvGet, kvSet }    from './db.js';
 import { PLANS, OFFER, offerActive, offerPrice } from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
 import { loadUser }                    from './store.js';
 import { dayKey }                      from './time.js';
-import { findComp }                    from './compAccess.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -36,14 +36,6 @@ if (AUTH_SECRET === DEV_AUTH_SECRET && (process.env.RENDER || process.env.NODE_E
 }
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const DAY = 24 * 60 * 60 * 1000;
-
-// ── Trial + tier config ──────────────────────────────────────────────────────
-// Free tier gets the CHEAP assessment only — ZERO live Realtime fights. A live fight costs
-// real money, so it is reserved for paid plans (Basic/Elite, see plans.config.js). The
-// server gate in websocketManager._handleStartFight blocks any free user before a Realtime
-// session can open. (Phase C replaces this session counter with daily live-minute limits.)
-const TRIAL_SESSIONS = 0;   // free = 0 live fights (assessment only)
-const TRIAL_DAYS     = 7;
 
 export const TIERS = {
   trial: { id: 'trial', label: 'Gratis', priceEur: 0,  blurb: 'Kostenlose Niveau-Einstufung. Live-Interviews im Plan.' },
@@ -74,14 +66,15 @@ async function persist() {
 }
 
 // ── Passwords (scrypt, no external deps) ─────────────────────────────────────
-function hashPassword(pw) {
+const scryptAsync = promisify(scrypt);
+async function hashPassword(pw) {
   const salt = randomBytes(16).toString('hex');
-  return `${salt}:${scryptSync(pw, salt, 64).toString('hex')}`;
+  return `${salt}:${Buffer.from(await scryptAsync(pw, salt, 64)).toString('hex')}`;
 }
-function verifyPassword(pw, stored) {
+async function verifyPassword(pw, stored) {
   try {
     const [salt, hash] = String(stored).split(':');
-    const test = scryptSync(pw, salt, 64).toString('hex');
+    const test = Buffer.from(await scryptAsync(pw, salt, 64)).toString('hex');
     return timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(test, 'hex'));
   } catch { return false; }
 }
@@ -90,10 +83,11 @@ function verifyPassword(pw, stored) {
 // There is no email infrastructure for a self-serve reset, and before this the only "fix"
 // for a locked-out PAYING customer was deleting the account — wiping all their progress.
 export async function adminSetPassword(email, newPassword) {
-  if (String(newPassword || '').length < 8) throw Object.assign(new Error('password_too_short'), { code: 400 });
+  if (String(newPassword || '').length < 10 || String(newPassword || '').length > 128) throw Object.assign(new Error('password_too_short'), { code: 400 });
   const acc = await getAccountByEmail(email);
   if (!acc) return null;
-  acc.passwordHash = hashPassword(newPassword);
+  acc.passwordHash = await hashPassword(newPassword);
+  acc.sessionVersion = (acc.sessionVersion || 0) + 1;
   delete acc.resetToken;   // an outstanding emailed reset link must die with a support reset
   await persist();
   return acc;
@@ -101,19 +95,29 @@ export async function adminSetPassword(email, newPassword) {
 
 // ── Signed session tokens (HMAC, no external deps) ───────────────────────────
 const hmac = (s) => createHmac('sha256', AUTH_SECRET).update(s).digest('base64url');
-export function signToken(uid) {
-  const body = Buffer.from(JSON.stringify({ uid, exp: Date.now() + TOKEN_TTL_MS })).toString('base64url');
+export function signToken(account) {
+  const uid = typeof account === 'string' ? account : account?.id;
+  const v = typeof account === 'string' ? 0 : (account?.sessionVersion || 0);
+  const body = Buffer.from(JSON.stringify({ uid, v, iat: Date.now(), exp: Date.now() + TOKEN_TTL_MS })).toString('base64url');
   return `${body}.${hmac(body)}`;
 }
 export function verifyToken(token) {
   if (!token || typeof token !== 'string') return null;
   const [body, sig] = token.split('.');
-  if (!body || !sig || hmac(body) !== sig) return null;
+  if (!body || !sig) return null;
+  const expected = Buffer.from(hmac(body));
+  const supplied = Buffer.from(sig);
+  if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return null;
   try {
     const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
     if (p.exp && Date.now() > p.exp) return null;
     return p;
   } catch { return null; }
+}
+
+export function tokenMatchesAccount(payload, account) {
+  return !!payload && !!account && payload.uid === account.id
+    && (payload.v || 0) === (account.sessionVersion || 0);
 }
 
 // ── Accounts ─────────────────────────────────────────────────────────────────
@@ -148,12 +152,13 @@ export async function createAccount(email, password, ref, whatsapp) {
   const s = await load();
   email = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
-  if (String(password || '').length < 6)        throw Object.assign(new Error('weak_password'), { code: 400 });
+  if (String(password || '').length < 10 || String(password || '').length > 128)
+    throw Object.assign(new Error('weak_password'), { code: 400 });
   if (s.emailIndex[email])                       throw Object.assign(new Error('email_taken'),   { code: 409 });
 
-  // WhatsApp is REQUIRED at signup (owner 2026-07-08): the coach's only $0 re-engagement channel,
-  // captured up-front. One normalized number feeds BOTH `whatsapp` (canonical — admin panel, wa.me
-  // links, opt-in-card hiding all read this) AND the legacy `phone` field kept for back-compat.
+  // WhatsApp is optional and never collected by the current signup form. If an older trusted
+  // caller supplies it, normalize it for the legacy `phone` field; marketing consent is still a
+  // separate explicit post-value action below.
   const waNum = normalizeWhatsapp(whatsapp);
 
   const id = 'a_' + randomBytes(8).toString('hex');
@@ -161,22 +166,22 @@ export async function createAccount(email, password, ref, whatsapp) {
   const account = {
     id, email,
     phone:        waNum || null,
-    passwordHash: hashPassword(password),
+    passwordHash: await hashPassword(password),
+    sessionVersion: 0,
     createdAt:    Date.now(),
-    subscription: { tier: 'trial', trialStartedAt: Date.now(), trialSessionsUsed: 0 },
-    // Referral attribution: store the inviter's account id IF it's a real, different account. The
-    // reward is credited later, only when THIS user completes their first interview (creditReferral).
+    // New accounts must prove mailbox ownership before any authenticated product/API route can
+    // consume provider capacity. Accounts created before this field existed are grandfathered by
+    // emailOwnershipVerified() so this security repair does not lock out established customers.
+    emailVerificationRequired: true,
+    emailVerifiedAt: null,
+    subscription: { tier: 'trial', trialStartedAt: null, trialSessionsUsed: 0 },
+    // Referral attribution is analytics-only. It never grants provider-backed trial time.
     ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
   };
-  if (waNum) account.whatsapp = { number: waNum, optInAt: Date.now() };
-  // Standing comp-access whitelist (server/compAccess.js): an email the owner pre-approved gets
-  // its paid plan the INSTANT they sign up — no payment, no request from them, never a paywall.
-  try {
-    const comp = await findComp(email);
-    if (comp && PLANS[comp.plan]) {
-      account.subscription = { ...account.subscription, plan: comp.plan, comp: true, compGrantedAt: Date.now() };
-    }
-  } catch (e) { console.error('[auth] comp-whitelist check failed (signup proceeds normally):', e.message); }
+  // A phone number is never treated as marketing/reminder consent at account creation.
+  // Email ownership is not verified at signup. Never attach roles, comp access or any other
+  // privilege solely because the submitted address appears on an allowlist. Owner grants are
+  // applied to an existing account from the separately authenticated admin panel.
   s.accounts[id] = account;
   s.emailIndex[email] = id;
   await persist();
@@ -185,7 +190,7 @@ export async function createAccount(email, password, ref, whatsapp) {
 
 export async function authenticate(email, password) {
   const acct = await getAccountByEmail(email);
-  if (!acct || !verifyPassword(password, acct.passwordHash)) return null;
+  if (!acct || !(await verifyPassword(password, acct.passwordHash))) return null;
   return acct;
 }
 
@@ -193,7 +198,7 @@ export async function authenticate(email, password) {
 // Which plan does this account have? Admin → elite; legacy pro/team grants → elite;
 // an explicit subscription.plan wins; everyone else is free.
 export function planOf(account) {
-  if (isAdminEmail(account?.email)) return 'elite';
+  if (isAdminAccount(account)) return 'elite';
   const s = account?.subscription || {};
   // Comp access (server/compAccess.js): a standing owner grant, immune to billingPeriodEnd —
   // it never silently expires like a real payment period. Only admin removal revokes it.
@@ -212,16 +217,16 @@ export function planOf(account) {
 const FREE_TRIAL_DAYS = 3;
 const FREE_TRIAL_DAY_MS = 86400000;
 export function trialActive(account) {
-  if (!account || isAdminEmail(account.email)) return false;   // admins are already elite
+  if (!account || isAdminAccount(account)) return false;   // admins are already elite
   if (planOf(account) !== 'free') return false;                // paid users don't need the trial
-  const start = account.subscription?.trialStartedAt || account.createdAt;
-  const days = FREE_TRIAL_DAYS + (account.bonusTrialDays || 0);   // referral bonus extends the trial
+  const start = account.subscription?.trialStartedAt;
+  const days = FREE_TRIAL_DAYS;
   return !!start && (Date.now() - start) < days * FREE_TRIAL_DAY_MS;
 }
 export function trialDaysLeft(account) {
-  const start = account?.subscription?.trialStartedAt || account?.createdAt;
+  const start = account?.subscription?.trialStartedAt;
   if (!start) return 0;
-  const days = FREE_TRIAL_DAYS + (account?.bonusTrialDays || 0);
+  const days = FREE_TRIAL_DAYS;
   return Math.max(0, Math.ceil((days * FREE_TRIAL_DAY_MS - (Date.now() - start)) / FREE_TRIAL_DAY_MS));
 }
 // During the trial a free user gets Fokus-level daily minutes; otherwise the plan's own value.
@@ -238,7 +243,7 @@ export function drillsUnlocked(account) {
 // has no paid live minutes AND the free fight hasn't been spent yet (or for admins, always).
 const FREE_FIGHT_SEC = 7 * 60;
 export function freeFightAvailable(account) {
-  if (isAdminEmail(account?.email)) return true;
+  if (isAdminAccount(account)) return true;
   return (dailyMinutesFor(account) || 0) <= 0 && !account?.subscription?.freeFightUsed;
 }
 
@@ -262,7 +267,7 @@ export function entitlement(account) {
     drillsUnlocked:        drillsUnlocked(account),
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
     zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — trial gives the full taste
-    unlimited:             isAdminEmail(account?.email),
+    unlimited:             isAdminAccount(account),
   };
 }
 
@@ -271,8 +276,72 @@ export async function consumeFreeFight(account) {
   if (!account?.subscription) account.subscription = {};
   if (!account.subscription.freeFightUsed) {
     account.subscription.freeFightUsed = true;
+    // The trial clock begins only after the backend has accepted the learner's first
+    // interview session, never while they are merely reading or registering.
+    account.subscription.trialStartedAt ||= Date.now();
     await persist();
   }
+}
+
+export function emailOwnershipVerified(account) {
+  if (!account) return false;
+  if (account.emailVerificationRequired !== true) return true; // legacy account, pre-verification rollout
+  return Number.isFinite(account.emailVerifiedAt) && account.emailVerifiedAt > 0;
+}
+
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFY_RESEND_COOLDOWN_MS = 2 * 60 * 1000;
+
+export async function issueEmailVerificationToken(account) {
+  const now = Date.now();
+  const raw = randomBytes(32).toString('hex');
+  account.emailVerification = {
+    hash: createHash('sha256').update(raw).digest('hex'),
+    exp: now + VERIFY_TTL_MS,
+    issuedAt: now,
+  };
+  await persist();
+  return raw;
+}
+
+export async function verifyEmailToken(token) {
+  if (typeof token !== 'string' || token.length < 40) return null;
+  const hash = createHash('sha256').update(token).digest('hex');
+  const s = await load();
+  const account = Object.values(s.accounts || {}).find((a) => a.emailVerification?.hash === hash);
+  if (!account || !account.emailVerification || Date.now() > account.emailVerification.exp) return null;
+  account.emailVerifiedAt = Date.now();
+  delete account.emailVerification;
+  await persist();
+  return account;
+}
+
+async function prepareVerification(account, { force = false } = {}) {
+  if (!account || emailOwnershipVerified(account)) return { status: 'verified' };
+  if (!mailerConfigured()) return { status: 'unavailable' };
+  const now = Date.now();
+  if (!force && account.emailVerification?.issuedAt
+      && now - account.emailVerification.issuedAt < VERIFY_RESEND_COOLDOWN_MS) {
+    return { status: 'cooldown' };
+  }
+  const raw = await issueEmailVerificationToken(account);
+  return { status: 'ready', raw };
+}
+
+function sendPreparedVerification(account, raw) {
+  const expectedHash = createHash('sha256').update(raw).digest('hex');
+  sendVerificationMail(account.email, `${APP_URL}/?verify=${raw}`)
+    .catch(async (e) => {
+      console.error(`[verify] mail failed account=${account.id}: ${e.message}`);
+      // Do not leave a failed delivery inside the resend cooldown. Clear only the exact token this
+      // failed send prepared; a newer resend must never be invalidated by an older SMTP failure.
+      if (account.emailVerification?.hash === expectedHash) {
+        delete account.emailVerification;
+        try { await persist(); } catch (persistError) {
+          console.error(`[verify] failed-token cleanup failed account=${account.id}: ${persistError.message}`);
+        }
+      }
+    });
 }
 
 export async function consumeTrialSession(account) {
@@ -280,24 +349,6 @@ export async function consumeTrialSession(account) {
     account.subscription.trialSessionsUsed = (account.subscription.trialSessionsUsed || 0) + 1;
     await persist();
   }
-}
-
-// REFERRAL credit: when an invited friend completes their FIRST interview, both they AND the inviter
-// get +REFERRAL_BONUS_DAYS free-trial days (capped). Zero new cost MODEL — reuses the trial mechanic.
-// One-time per referred account; no-ops if not referred or already credited (so it can't be farmed by
-// re-calling). Requires a real completed interview, which costs a farmer their own effort/trial.
-const REFERRAL_BONUS_DAYS = 3;
-const REFERRAL_BONUS_CAP  = 15;   // max total bonus trial days per account
-export async function creditReferral(referredAccount) {
-  try {
-    if (!referredAccount || referredAccount.referralCredited || !referredAccount.referredBy) return;
-    referredAccount.referralCredited = true;
-    const grant = (a) => { if (a) a.bonusTrialDays = Math.min(REFERRAL_BONUS_CAP, (a.bonusTrialDays || 0) + REFERRAL_BONUS_DAYS); };
-    grant(referredAccount);
-    grant(await getAccountById(referredAccount.referredBy));
-    await persist();
-    console.log(`[referral] credited ${referredAccount.id} ← invited by ${referredAccount.referredBy} (+${REFERRAL_BONUS_DAYS}d each)`);
-  } catch (e) { console.error('[referral] credit failed:', e.message); }
 }
 
 export async function upgrade(account, tier) {
@@ -328,15 +379,20 @@ export async function grantComp(account, plan) {
 
 // Activate a paid plan with a billing end-date (1 month or 1 year) — used by the admin panel
 // when a Vodafone Cash payment is confirmed. The daily-minute gating takes effect immediately.
-export async function activatePlan(account, plan, billingPeriod) {
+export async function activatePlan(account, plan, billingPeriod, paymentId = null) {
   if (!PLANS[plan]) throw Object.assign(new Error('invalid_plan'), { code: 400 });
   const now = Date.now();
+  if (paymentId && account.subscription?.lastActivationPaymentId === paymentId) return account;
   // 'once' = a one-time plan (PLANS[plan].once): access runs its configured duration, then
   // planOf()'s normal billingPeriodEnd check lapses it to free — same mechanics, longer window.
   const periodMs = billingPeriod === 'once'   ? (PLANS[plan].onceDurationDays || 365) * DAY
                  : billingPeriod === 'yearly' ? 365 * DAY : 30 * DAY;
   // activatedNoticePending → the user sees a one-time "your plan is active 🎉" message.
-  account.subscription = { ...account.subscription, plan, planSetAt: now, billingPeriodEnd: now + periodMs, activatedNoticePending: true };
+  const currentEnd = Number(account.subscription?.billingPeriodEnd) || 0;
+  const startsAt = Math.max(now, currentEnd);
+  account.subscription = { ...account.subscription, plan, comp: false, planSetAt: now,
+    billingPeriodEnd: startsAt + periodMs, activatedNoticePending: true,
+    ...(paymentId ? { lastActivationPaymentId: paymentId } : {}) };
   await persist();
   return account;
 }
@@ -392,32 +448,45 @@ export async function deleteAccount(account) {
   const email = String(account.email || '').toLowerCase();
   delete s.accounts[id];
   if (email && s.emailIndex[email] === id) delete s.emailIndex[email];
+  for (const other of Object.values(s.accounts)) {
+    if (other?.referredBy === id) delete other.referredBy;
+  }
   await persist();
   return true;
 }
 
-// Owner/admin recognition: ADMIN_EMAIL is a comma-separated allowlist set on the server.
-// Used to gate the feedback dashboard so only you can read willingness-to-pay data.
-export function isAdminEmail(email) {
-  const admins = String(process.env.ADMIN_EMAIL || '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
-  return !!email && admins.includes(String(email).toLowerCase());
+// A user-supplied email is never an authorization factor. A future verified-email flow may grant
+// roles explicitly; until then only an explicit stored role plus verification timestamp can
+// authorize these legacy account-authenticated admin surfaces. The separate /admin panel remains.
+export function isAdminAccount(account) {
+  return !!account?.emailVerifiedAt && Array.isArray(account?.roles) && account.roles.includes('admin');
 }
 
 export function publicAccount(a) {
   // whatsapp is exposed as a BOOLEAN only — the client just needs "already opted in?" to hide
   // the ask-card across devices; the number itself stays server/admin-side.
-  return { id: a.id, email: a.email, subscription: a.subscription, entitlement: entitlement(a), isAdmin: isAdminEmail(a.email), whatsapp: !!a.whatsapp?.number };
+  return { id: a.id, email: a.email, emailVerified: emailOwnershipVerified(a), subscription: a.subscription, entitlement: entitlement(a), isAdmin: isAdminAccount(a), whatsapp: !!a.whatsapp?.number };
 }
 
 // ── Express middleware + routers ─────────────────────────────────────────────
-export async function requireAuth(req, res, next) {
+export async function requireSession(req, res, next) {
   const h = req.headers.authorization || '';
   const payload = verifyToken(h.startsWith('Bearer ') ? h.slice(7) : null);
   if (!payload) return res.status(401).json({ error: 'auth_required' });
   const acct = await getAccountById(payload.uid);
-  if (!acct) return res.status(401).json({ error: 'auth_required' });
+  if (!tokenMatchesAccount(payload, acct)) return res.status(401).json({ error: 'auth_required' });
   req.account = acct;
   next();
+}
+
+// All product/API routers import requireAuth, so this one gate protects every provider-backed
+// surface — not just the obvious WebSocket start button. /me and verification resend use the
+// session-only middleware above so an unverified user can still complete verification or log out.
+export async function requireAuth(req, res, next) {
+  return requireSession(req, res, () => {
+    if (!emailOwnershipVerified(req.account)) return res.status(403).json({ error: 'email_verification_required' });
+    next();
+  });
 }
 
 // ── Brute-force / spam guard: in-memory sliding-window rate limiter ───────────
@@ -425,13 +494,12 @@ export async function requireAuth(req, res, next) {
 // (read from X-Forwarded-For since Render runs behind a proxy). In-memory is sufficient for
 // a single instance and simply resets on restart — an acceptable trade-off here.
 const _rl = new Map(); // key -> [timestamps]
-function rateLimit({ windowMs, max, tag, keyExtra }) {
+export function rateLimit({ windowMs, max, tag, keyExtra, global = false }) {
   return (req, res, next) => {
-    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
-            || req.socket?.remoteAddress || 'unknown';
+    const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
     // keyExtra narrows the bucket below the IP (e.g. per-account for login) so strict limits can
     // coexist with CGNAT: hundreds of REAL Egyptian users share one carrier IP.
-    const key = `${tag}:${ip}${keyExtra ? ':' + keyExtra(req) : ''}`;
+    const key = `${tag}:${global ? 'all' : ip}${keyExtra ? ':' + keyExtra(req) : ''}`;
     const now = Date.now();
     const hits = (_rl.get(key) || []).filter((t) => now - t < windowMs);
     if (hits.length >= max) {
@@ -456,15 +524,16 @@ export const authRouter = express.Router();
 // intent. Signup is not a brute-force target (it CREATES accounts; email uniqueness + trial limits
 // bound the abuse), so the per-IP cap only needs to stop scripted floods — 60/hour does that while
 // surviving a real launch burst.
-authRouter.post('/signup', rateLimit({ windowMs: 60 * 60 * 1000, max: 60, tag: 'signup' }), async (req, res) => {
+authRouter.post('/signup',
+  rateLimit({ windowMs: 24 * 60 * 60 * 1000, max: 250, tag: 'signup-global', global: true }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 20, tag: 'signup' }),
+  async (req, res) => {
   try {
-    const { email, password, ref, whatsapp } = req.body || {};
-    // WhatsApp is now a required signup field (owner decision 2026-07-08): the re-engagement
-    // channel must be captured up-front, not left to an optional post-interview ask.
-    const waNum = normalizeWhatsapp(whatsapp);
-    if (!waNum) return res.status(400).json({ error: 'invalid_number' });
-    const acct = await createAccount(email, password, ref, waNum);
-    res.json({ token: signToken(acct.id), account: publicAccount(acct) });
+    const { email, password, ref } = req.body || {};
+    const acct = await createAccount(email, password, ref, null);
+    const prepared = await prepareVerification(acct);
+    if (prepared.status === 'ready') sendPreparedVerification(acct, prepared.raw);
+    res.json({ token: signToken(acct), account: publicAccount(acct), verificationEmailSent: prepared.status === 'ready' });
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
 
@@ -479,10 +548,30 @@ authRouter.post('/login',
   const { email, password } = req.body || {};
   const acct = await authenticate(email, password);
   if (!acct) return res.status(401).json({ error: 'invalid_credentials' });
-  res.json({ token: signToken(acct.id), account: publicAccount(acct) });
+  res.json({ token: signToken(acct), account: publicAccount(acct) });
 });
 
-authRouter.get('/me', requireAuth, (req, res) => res.json({ account: publicAccount(req.account) }));
+authRouter.get('/me', requireSession, (req, res) => res.json({ account: publicAccount(req.account) }));
+
+authRouter.post('/verification/resend',
+  rateLimit({ windowMs: 24 * 60 * 60 * 1000, max: 150, tag: 'verify-resend-global', global: true }),
+  requireSession,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 3, tag: 'verify-resend', keyExtra: (req) => req.account.id }),
+  async (req, res) => {
+    const prepared = await prepareVerification(req.account);
+    if (prepared.status === 'ready') sendPreparedVerification(req.account, prepared.raw);
+    if (prepared.status === 'unavailable') return res.status(503).json({ error: 'email_unavailable' });
+    res.json({ ok: true, sent: prepared.status === 'ready', cooldown: prepared.status === 'cooldown' });
+  });
+
+authRouter.post('/verify',
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 20, tag: 'verify' }),
+  async (req, res) => {
+    const token = req.body?.token;
+    const account = await verifyEmailToken(token);
+    if (!account) return res.status(400).json({ error: 'invalid_or_expired' });
+    res.json({ ok: true });
+  });
 
 // ── Self-serve password reset via E-MAIL (owner order 2026-07-10: "the reset password is done
 // through email" — the WhatsApp-manual flow is dead; adminSetPassword stays as a support tool).
@@ -503,26 +592,27 @@ authRouter.post('/forgot',
   async (req, res) => {
   if (!mailerConfigured()) return res.json({ ok: false, emailConfigured: false });
   const acc = await getAccountByEmail(req.body?.email);
+  const responseDelayMs = 175 + (randomBytes(1)[0] % 76);
   if (acc) {
     // Resend cooldown: a link issued <2 min ago is still in flight — don't burn another mail.
     const issuedAt = acc.resetToken ? acc.resetToken.exp - RESET_TTL_MS : 0;
     if (Date.now() - issuedAt > 2 * 60 * 1000) {
       const raw = randomBytes(32).toString('hex');
       acc.resetToken = { hash: createHash('sha256').update(raw).digest('hex'), exp: Date.now() + RESET_TTL_MS };
-      await persist();
-      // Fire-and-forget (review catch): awaiting the SMTP round-trip made existing accounts
-      // answer 1-3s slower than unknown ones — a timing oracle that defeated the uniform
-      // response shape. The client gets ok:true immediately either way.
-      sendResetMail(acc.email, `${APP_URL}/?reset=${raw}`)
-        .catch((e) => console.error(`[forgot] send failed for ${acc.email}: ${e.message}`));
+      // Persist, then send, in the background. The public response follows the same small jittered
+      // delay for existing and unknown accounts, so database/SMTP latency cannot become an oracle.
+      // Mail cannot race the stored token because sending is chained after persistence.
+      persist()
+        .then(() => sendResetMail(acc.email, `${APP_URL}/?reset=${raw}`))
+        .catch((e) => console.error(`[forgot] reset preparation failed account=${acc.id}: ${e.message}`));
     }
   }
-  res.json({ ok: true });
+  setTimeout(() => res.json({ ok: true }), responseDelayMs);
 });
 
 authRouter.post('/reset', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, tag: 'reset' }), async (req, res) => {
   const { token, password } = req.body || {};
-  if (String(password || '').length < 6) return res.status(400).json({ error: 'password_too_short' });
+  if (String(password || '').length < 10 || String(password || '').length > 128) return res.status(400).json({ error: 'password_too_short' });
   if (typeof token !== 'string' || token.length < 40) return res.status(400).json({ error: 'invalid_token' });
   const h = createHash('sha256').update(token).digest('hex');
   const s = await load();
@@ -530,11 +620,17 @@ authRouter.post('/reset', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, tag: 'r
   if (!acc || !acc.resetToken || Date.now() > acc.resetToken.exp) {
     return res.status(400).json({ error: 'invalid_or_expired' });
   }
-  acc.passwordHash = hashPassword(password);
+  acc.passwordHash = await hashPassword(password);
+  acc.sessionVersion = (acc.sessionVersion || 0) + 1;
   delete acc.resetToken;               // single-use — the link dies with the change
+  // A valid reset link reached this mailbox, so it is also valid ownership proof.
+  if (acc.emailVerificationRequired === true && !emailOwnershipVerified(acc)) {
+    acc.emailVerifiedAt = Date.now();
+    delete acc.emailVerification;
+  }
   await persist();
-  console.log(`[reset] password reset via email link  user=${acc.id}`);
-  res.json({ token: signToken(acc.id), account: publicAccount(acc) });   // straight back in
+  console.log(`[reset] password reset via email link user=${acc.id}`);
+  res.json({ token: signToken(acc), account: publicAccount(acc) });   // straight back in
 });
 
 // Optional WhatsApp opt-in — the app's ONLY re-engagement channel at $0 (no email infra, no
@@ -546,7 +642,7 @@ authRouter.post('/whatsapp', rateLimit({ windowMs: 10 * 60 * 1000, max: 6, tag: 
   if (!n) return res.status(400).json({ error: 'invalid_number' });
   req.account.whatsapp = { number: n, optInAt: Date.now() };
   await persist();
-  console.log(`[whatsapp] OPT-IN  user=${req.account.id}  email=${req.account.email ?? '—'}`);
+  console.log(`[whatsapp] reminder consent saved user=${req.account.id}`);
   res.json({ ok: true });
 });
 
@@ -554,10 +650,13 @@ export const billingRouter = express.Router();
 
 billingRouter.get('/status', requireAuth, async (req, res) => {
   // Pending-payment state is the source of truth for "we're verifying" (vs the normal paywall).
-  let pending = null, paymentRejected = false;
+  let pending = null, intent = null, paymentRejected = false;
   try {
     const st = await paymentStatusFor(req.account.id);
     if (st.pending) pending = { referenceCode: st.pending.referenceCode, plan: st.pending.plan, billingPeriod: st.pending.billingPeriod, createdAt: st.pending.createdAt };
+    if (st.intent) intent = { intentId: st.intent.id, referenceCode: st.intent.referenceCode, plan: st.intent.plan,
+      billingPeriod: st.intent.billingPeriod, amountEGP: st.intent.amountEGP, baseEGP: st.intent.baseEGP,
+      offerApplied: !!st.intent.offerApplied, createdAt: st.intent.createdAt };
     paymentRejected = st.lastRejected;
   } catch (e) { console.error('[billing] status payment lookup failed:', e.message); }
 
@@ -584,6 +683,7 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     // explicitly to receive WhatsApp on a different number.
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
     pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
+    paymentIntent: intent,      // resumable transfer instructions created before money moves
     paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
   });
 });
@@ -638,7 +738,7 @@ billingRouter.post('/ack-activation', requireAuth, async (req, res) => {
 // Owner-only: set a learner's PLAN (free/basic/elite) by email — used to fulfil a manual
 // payment, and to flip your own account for testing. Gated to ADMIN_EMAIL accounts.
 billingRouter.post('/admin/grant', requireAuth, async (req, res) => {
-  if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
+  if (!isAdminAccount(req.account)) return res.status(403).json({ error: 'forbidden' });
   try {
     const body = req.body || {};
     // Accept {plan} (new) or {tier} (legacy 'pro'/'team' → elite); default elite.
@@ -647,7 +747,7 @@ billingRouter.post('/admin/grant', requireAuth, async (req, res) => {
     const target = await getAccountByEmail(body.email);
     if (!target) return res.status(404).json({ error: 'user_not_found' });
     await setPlan(target, plan);
-    console.log(`[billing] ADMIN SET PLAN ${plan} -> ${target.email}  by ${req.account.email}`);
+    console.log(`[billing] ADMIN SET PLAN plan=${plan} target=${target.id} actor=${req.account.id}`);
     res.json({ ok: true, email: target.email, plan: target.subscription.plan });
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });

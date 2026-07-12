@@ -3,7 +3,7 @@
  * never serve a stale build — the cache is a fallback for OFFLINE only, never a source of truth.
  * It only ever touches same-origin GET navigations/assets; the API + WebSocket (onrender.com,
  * cross-origin) are never intercepted, so live audio/interview traffic is untouched. */
-const CACHE = 'omni-shell-v2';
+const CACHE = 'omni-shell-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest',
   '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png'];
 
@@ -45,6 +45,13 @@ self.addEventListener('fetch', (e) => {
   let url;
   try { url = new URL(req.url); } catch { return; }
   if (url.origin !== self.location.origin) return;
+
+  // Reset tokens, media tickets, referrals and campaign tags live in the query string.
+  // Never persist or replay a query-bearing request from Cache Storage.
+  if (url.search) {
+    e.respondWith(fetch(req));
+    return;
+  }
 
   e.respondWith((async () => {
     try {

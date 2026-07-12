@@ -17,8 +17,8 @@ import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaTakeover, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { InviteCard } from './InviteCard.jsx';
 import { VideoLessons } from './VideoLessons.jsx';
+import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -39,10 +39,10 @@ class OverlayBoundary extends Component {
         alignItems:'center', justifyContent:'center', gap:14, padding:24, textAlign:'center',
         background:'rgba(2,4,9,0.98)', color:'#fca5a5' }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:14, color:'#f87171' }}>Etwas ist schiefgelaufen</div>
-        <div style={{ fontSize:11, color:'#94a3b8', maxWidth:340, wordBreak:'break-word' }}>
+        {!IS_PRODUCTION && <div style={{ fontSize:11, color:'#94a3b8', maxWidth:340, wordBreak:'break-word' }}>
           {String(this.state.error?.message || this.state.error)}
-        </div>
-        <div style={{ fontSize:10, color:'#64748b' }}>Tipp: Seite neu laden (Strg+Shift+R).</div>
+        </div>}
+        <div style={{ fontSize:12, color:'#94a3b8' }}>Bitte die Ansicht schließen oder die Seite neu laden. Konto und Zahlung wurden nicht verändert.</div>
         <button onClick={this.props.onClose} style={{ fontFamily:'var(--font-display)', fontSize:11,
           padding:'10px 18px', borderRadius:8, cursor:'pointer', border:'1px solid var(--accent)',
           color:'var(--accent)', background:'rgba(59,130,246,0.06)' }}>SCHLIESSEN</button>
@@ -52,10 +52,6 @@ class OverlayBoundary extends Component {
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const WS_URL = typeof __WS_URL__ !== 'undefined' ? __WS_URL__ : 'ws://localhost:3001';
-// API base is injected separately (defaults to the live Render backend in production builds).
-// Fall back to deriving it from the WebSocket URL if the define is ever missing.
-const API_URL = typeof __API_URL__ !== 'undefined' ? __API_URL__ : WS_URL.replace(/^ws/, 'http');
 // ── First-load instrumentation + pre-warm (module scope = earliest possible moment) ──────────
 // Wake the free Render dyno the second ANYONE loads the page: it sleeps between keep-warm pings,
 // and a cold START click meant up to 60s of "VERBINDE…" — pre-warming moves that wake into the
@@ -139,17 +135,18 @@ function getRefCode() {
 // recorder/connection strings that aren't codes fall through to their own message.
 const WS_ERROR_TEXT = {
   service_unavailable:  { de: 'Der Sprachdienst ist gerade nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.', ar: 'خدمة المحادثة مش متاحة دلوقتي. من فضلك جرّب تاني بعد كام دقيقة.' },
-  realtime_error:       { de: 'Verbindungsproblem mit dem Interviewer. Bitte starte den Kampf neu.', ar: 'في مشكلة في الاتصال بالمحاوِر. من فضلك ابدأ الجولة من جديد.' },
-  fight_start_failed:   { de: 'Der Kampf konnte nicht gestartet werden. Bitte versuche es erneut.', ar: 'مقدرناش نبدأ الجولة. من فضلك جرّب تاني.' },
-  fight_already_active: { de: 'Es läuft bereits ein Kampf.', ar: 'في جولة شغّالة بالفعل.' },
+  realtime_error:       { de: 'Verbindungsproblem mit dem Interviewer. Bitte starte das Interview neu.', ar: 'في مشكلة في الاتصال بالمحاوِر. من فضلك ابدأ الإنترفيو من جديد.' },
+  fight_start_failed:   { de: 'Das Interview konnte nicht gestartet werden. Bitte versuche es erneut.', ar: 'مقدرناش نبدأ الإنترفيو. من فضلك جرّب تاني.' },
+  fight_already_active: { de: 'Es läuft bereits ein Interview.', ar: 'في إنترفيو شغّال بالفعل.' },
   auth_required:        { de: 'Bitte melde dich erneut an.', ar: 'من فضلك سجّل دخول تاني.' },
+  email_verification_required: { de: 'Bestätige zuerst deine E-Mail-Adresse.', ar: 'أكد إيميلك الأول.' },
   mic_denied:           { de: 'Mikrofon-Zugriff wurde blockiert. Erlaube das Mikrofon in den Browser-Einstellungen (Schloss-Symbol neben der Adresse) und starte neu.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
   mic_not_found:        { de: 'Kein Mikrofon gefunden. Schließe ein Mikrofon an oder erlaube es und starte neu.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
-  mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Der Kampf wurde beendet — bitte starte neu.', ar: 'الاتصال بالمايك اتقطع. الجولة خلصت — من فضلك ابدأ من جديد.' },
+  mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Du kannst per Text fortfahren oder neu starten.', ar: 'الاتصال بالمايك اتقطع. تقدر تكمل بالكتابة أو تبدأ من جديد.' },
   plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
   daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
   ws_connect_failed:    { de: 'Keine Verbindung zum Server. Prüfe dein Internet und starte neu.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
-  connection_lost:      { de: 'Verbindung unterbrochen. Bitte starte den Kampf neu.', ar: 'الاتصال اتقطع. من فضلك ابدأ الجولة من جديد.' },
+  connection_lost:      { de: 'Verbindung unterbrochen. Bitte starte das Interview neu.', ar: 'الاتصال اتقطع. من فضلك ابدأ الإنترفيو من جديد.' },
   // Honest wall for in-app/legacy browsers that CANNOT do mic capture — before this, they got
   // the misleading "mic blocked, allow it in settings" text for a mic that was never blocked.
   audio_unsupported:    { de: 'Dieser Browser unterstützt kein Mikrofon (z. B. der Facebook/Messenger-Browser). Öffne die Seite in Chrome oder Safari — dann funktioniert alles.', ar: '' /* OWNER-AR slot */ },
@@ -178,7 +175,7 @@ function authErrText(code) {
   return ({
     invalid_email:       { de: 'Ungültige E-Mail-Adresse.',            ar: 'الإيميل مش صح.' },
     invalid_number:      { de: 'Bitte gib eine gültige WhatsApp-Nummer ein.', ar: 'من فضلك دخّل رقم واتساب صحيح.' },
-    weak_password:       { de: 'Passwort muss mind. 6 Zeichen haben.', ar: 'الباسورد لازم ٦ حروف على الأقل.' },
+    weak_password:       { de: 'Passwort muss mindestens 10 Zeichen haben.', ar: 'الباسورد لازم ١٠ حروف على الأقل.' },
     email_taken:         { de: 'Diese E-Mail ist bereits registriert.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
     invalid_credentials: { de: 'E-Mail oder Passwort ist falsch.',     ar: 'الإيميل أو الباسورد غلط.' },
     too_many_attempts:   { de: 'Zu viele Versuche. Bitte warte ein paar Minuten.', ar: 'محاولات كتير. استنى كام دقيقة وجرّب تاني.' },
@@ -220,6 +217,7 @@ const S = {
 const C = {
   START_FIGHT:  'start_fight',
   STOP_FIGHT:   'stop_fight',
+  REQUEST_TEXT_MODE: 'request_text_mode',
   // Turn-based: one complete answer per turn. TEXT path: typed or REST-transcribed.
   // STREAMING path: AUDIO_CHUNK + AUDIO_END → server-side Deepgram LiveTranscription.
   ANSWER:       'answer',
@@ -489,17 +487,11 @@ function playFiller(urls) {
 // personas get clipped/assertive fillers; gentle ones get soft acknowledgements. Returns blob URLs.
 async function precacheFillers({ apiUrl, token, voice, elevenVoice, forceful }) {
   const phrases = forceful ? ['Also.', 'Gut.', 'So.', 'Hm, gut.'] : ['Mhm.', 'Verstehe.', 'Okay.', 'Ah ja.'];
-  const enc = encodeURIComponent;
+  void elevenVoice;
   const urls = [];
   for (const ph of phrases) {
     try {
-      const u = elevenVoice
-        ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(ph)}`
-        : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(ph)}`;
-      const r = await fetch(u);
-      if (!r.ok) continue;
-      const blob = await r.blob();
-      if (blob.size > 0) urls.push(URL.createObjectURL(blob));
+      urls.push(await fetchTtsUrl(apiUrl, token, voice, ph));
     } catch {}
   }
   return urls;
@@ -509,13 +501,13 @@ async function precacheFillers({ apiUrl, token, voice, elevenVoice, forceful }) 
 // [LAT] real client timing → POSTed to the server so /api/diag/latency shows the FULL split
 // (vad wait + tts) with the client build id (catches stale cache as "zero improvement").
 let _latTtsStart = 0, _latAudioEndAt = 0, _latVadWait = 0;
-function reportClientLat(apiUrl) {
+function reportClientLat(apiUrl, token) {
   try {
     const now = Date.now();
     const ttsMs = _latTtsStart ? now - _latTtsStart : 0;
     const fullMs = _latAudioEndAt ? _latVadWait + (now - _latAudioEndAt) : 0;
     const build = (typeof document !== 'undefined' && document.querySelector('meta[name=build]')?.content) || 'dev';
-    fetch(`${apiUrl}/api/diag/clientlat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vadWaitMs: _latVadWait, ttsMs, fullMs, build }) }).catch(() => {});
+    fetch(`${apiUrl}/api/diag/clientlat`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ vadWaitMs: _latVadWait, ttsMs, fullMs, build }) }).catch(() => {});
     _latTtsStart = 0;
   } catch {}
 }
@@ -524,12 +516,16 @@ async function fetchTtsUrl(apiUrl, token, voice, text) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), 12000);
   try {
-    const res = await fetch(`${apiUrl}/api/tts`, {
+    const ticketRes = await fetch(`${apiUrl}/api/media-ticket`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body:    JSON.stringify({ text, voice }),
+      body:    JSON.stringify({ kind: 'aura', text, voice }),
       signal:  ctrl.signal,
     });
+    if (!ticketRes.ok) throw new Error('media ticket ' + ticketRes.status);
+    const ticket = await ticketRes.json();
+    if (!ticket?.ticket) throw new Error('missing media ticket');
+    const res = await fetch(`${apiUrl}/api/tts-stream?ticket=${encodeURIComponent(ticket.ticket)}`, { signal: ctrl.signal });
     if (!res.ok) throw new Error('tts ' + res.status);
     const blob = await res.blob();
     if (!blob || !blob.size) throw new Error('empty audio');
@@ -679,12 +675,17 @@ function playProgressiveAudio(url, onStart, onEnd) {
 }
 
 // The one place a boss-voice stream URL is built (ElevenLabs if opted in, else free Aura-2 stream).
-function bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text }) {
-  const enc = encodeURIComponent;
-  const em = emotion ? `&emotion=${enc(emotion)}` : '';   // felt state → server maps it to expressive voice settings
-  return elevenVoice
-    ? `${apiUrl}/api/voice?voice=${enc(elevenVoice)}&token=${enc(token)}&text=${enc(text)}${em}`
-    : `${apiUrl}/api/tts-stream?voice=${enc(voice)}&token=${enc(token)}&text=${enc(text)}${em}`;
+async function bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text, drill = false }) {
+  const kind = elevenVoice ? 'eleven' : 'aura';
+  const r = await fetch(`${apiUrl}/api/media-ticket`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ kind, voice: elevenVoice || voice, emotion, text, drill }),
+  });
+  if (!r.ok) throw new Error(`media ticket ${r.status}`);
+  const data = await r.json();
+  if (!data?.ticket) throw new Error('missing media ticket');
+  return `${apiUrl}/api/${kind === 'eleven' ? 'voice' : 'tts-stream'}?ticket=${encodeURIComponent(data.ticket)}`;
 }
 
 async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, emotion, onStart, onEnd }) {
@@ -692,7 +693,9 @@ async function playBossVoice({ apiUrl, token, voice, elevenVoice, text, emotion,
   stopBossVoice();
   // PRIMARY: a STREAMING GET <audio> source — sound starts ~350ms in, killing the ~6s dead air the
   // buffered (whole-clip) path had. ElevenLabs if opted in (paid), else the free Deepgram Aura-2 stream.
-  const streamUrl = bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text });
+  let streamUrl;
+  try { streamUrl = await bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text }); }
+  catch { return speakBossStreamed({ apiUrl, token, voice, text, onStart, onEnd }); }
   const fellBack = await playProgressiveAudio(streamUrl, onStart, onEnd);
   if (!fellBack) return;
   // FALLBACK (stream unavailable): buffered, clause-split Deepgram clips (never the robotic browser voice).
@@ -711,30 +714,58 @@ let _earlyBoss = null;   // { text, seq, clipDone, failed, pendingRest, onLineEn
 function playBossEarlySentence({ apiUrl, token, voice, elevenVoice, emotion, text, onStart }) {
   stopBossVoice();               // kills the thinking-filler + any previous line; bumps _streamSeq
   const seq = _streamSeq;
-  const st = { text, seq, clipDone: false, failed: false, pendingRest: null, onLineEnd: null };
+  const st = { text, seq, clipDone: false, failed: false, streamStarted: false,
+    pendingRest: null, onLineEnd: null, onFailure: null };
   _earlyBoss = st;
-  const url = bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text });
-  playProgressiveAudio(url, onStart, () => {
-    st.clipDone = true;
-    if (seq !== _streamSeq) return;                  // superseded by a newer line → nothing to do
-    if (st.pendingRest)     { const go = st.pendingRest;  st.pendingRest = null; _earlyBoss = null; go(); }
-    else if (st.onLineEnd)  { const end = st.onLineEnd;   st.onLineEnd = null;   _earlyBoss = null; try { end(); } catch {} }
-    // else: the full line hasn't landed yet — hold the floor; BOSS_SPEECH_DONE will splice or restart.
-  }).then((fellBack) => { if (fellBack) st.failed = true; });
+  bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text })
+    .then((url) => {
+      // The full LLM line can arrive before the media ticket. If it already took ownership,
+      // never start this late clip on top of the full-line playback.
+      if (seq !== _streamSeq || _earlyBoss !== st) return false;
+      st.streamStarted = true;
+      return playProgressiveAudio(url, onStart, () => {
+      st.clipDone = true;
+      if (seq !== _streamSeq) return;
+      if (st.pendingRest)     { const go = st.pendingRest;  st.pendingRest = null; _earlyBoss = null; go(); }
+      else if (st.onLineEnd)  { const end = st.onLineEnd;   st.onLineEnd = null;   _earlyBoss = null; try { end(); } catch {} }
+      });
+    })
+    .then((fellBack) => {
+      if (!fellBack) return;
+      st.failed = true;
+      if (seq === _streamSeq && st.onFailure) {
+        const fallback = st.onFailure;
+        st.onFailure = null;
+        _earlyBoss = null;
+        fallback();
+      }
+    })
+    .catch(() => {
+      st.failed = true;
+      if (seq === _streamSeq && st.onFailure) {
+        const fallback = st.onFailure;
+        st.onFailure = null;
+        _earlyBoss = null;
+        fallback();
+      }
+    });
 }
 // Called by BOSS_SPEECH_DONE with the full sanitized line. Returns true if the early clip took
 // ownership (the caller must NOT start its own playback), false to play the whole line normally.
 function continueBossLineEarly({ full, apiUrl, token, voice, elevenVoice, emotion, onEnd }) {
   const st = _earlyBoss;
   if (!st) return false;
-  if (st.seq !== _streamSeq || st.failed || !String(full || '').startsWith(st.text)) {
+  if (st.seq !== _streamSeq || st.failed || !st.streamStarted || !String(full || '').startsWith(st.text)) {
     _earlyBoss = null;                               // stale / failed / guard replaced the line → full restart
     return false;
   }
+  st.onFailure = () => playBossVoice({ apiUrl, token, voice, elevenVoice, emotion, text:full, onEnd });
   const rest = String(full).slice(st.text.length).trim();
-  const playRest = () => {
+  const playRest = async () => {
     // NO stopBossVoice here — that would bump _streamSeq and orphan this line's cancellation contract.
-    const url = bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text: rest });
+    let url;
+    try { url = await bossStreamUrl({ apiUrl, token, voice, elevenVoice, emotion, text: rest }); }
+    catch { return speakBossStreamed({ apiUrl, token, voice, text: rest, onStart: () => {}, onEnd }); }
     playProgressiveAudio(url, () => {}, () => { if (st.seq === _streamSeq) { try { onEnd?.(); } catch {} } })
       .then((fellBack) => {
         if (fellBack && st.seq === _streamSeq) {
@@ -1297,7 +1328,7 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
           opacity: line.partial ? 0.65 : 1 }}>
           <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, letterSpacing:'0.14em', marginRight:8,
             color: line.speaker === 'boss' ? 'var(--accent-dim)' : 'rgba(59,130,246,0.6)' }}>
-            {line.speaker === 'boss' ? (bossName || 'GEGNER') : 'DU'}
+            {line.speaker === 'boss' ? (bossName || 'INTERVIEWER') : 'DU'}
           </span>
           {_renderLine(line)}
           {line.partial && <span style={{ color:'#475569', animation:'pulse 1s infinite' }}> ▋</span>}
@@ -1361,10 +1392,10 @@ function GameOver({ winner, onRestart }) {
       <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
         color: win ? 'var(--accent)' : '#ef4444',
         textShadow:`0 0 30px ${win ? 'rgba(59,130,246,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
-        {win ? 'SIEG!' : 'NIEDERLAGE'}
+        {win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN'}
       </div>
       <div style={{ fontSize:12, color:'#94a3b8', marginBottom:28, textAlign:'center', lineHeight:1.6 }}>
-        {win ? 'Herr Tariq ist besiegt. Du hast den Level bestanden.' : 'Herr Tariq triumphiert. Versuche es erneut.'}
+        {win ? 'Du hast das Ziel dieser Simulation erreicht.' : 'Die Auswertung zeigt dir den nächsten Trainingsschritt.'}
       </div>
       <button onClick={onRestart} style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em',
         padding:'12px 32px', borderRadius:8, cursor:'pointer',
@@ -1490,7 +1521,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   let v = null;
   if (h.hireReady === true) {
     v = { label: 'INTERVIEW-BEREIT', color: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)',
-          de: 'Alle gemessenen Einstellungs-Signale sind im grünen Bereich — du bist bereit für ein echtes Interview.',
+          de: 'Alle gemessenen Interview-Signale sind im grünen Bereich — du bist bereit, dich in einem echten Interview zu testen.',
           ar: 'كل إشارات التوظيف المتقاسة في النطاق الأخضر — انت جاهز لمقابلة حقيقية.' };
   } else if (h.hireReady === false && levelOk && SKILL) {
     v = { label: 'FAST INTERVIEW-BEREIT', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
@@ -1686,7 +1717,7 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
           <div style={{ textAlign:'center', padding:'8px 0 4px' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, letterSpacing:'0.22em',
               color:accent, textShadow:`0 0 16px ${accent}88`, animation:'result-rise 0.4s var(--ease-out)' }}>
-              {win ? 'SIEG' : 'NIEDERLAGE'}
+              {win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN'}
             </div>
             {gradeUnavailable ? (
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:20, lineHeight:1.25, color:'var(--action)',
@@ -1714,8 +1745,8 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
             <div style={{ marginTop:8, fontSize:12, color: win ? 'var(--accent-2)' : 'var(--action)', lineHeight:1.5,
               animation:'result-rise 0.6s var(--ease-out)' }}>
               {win
-                ? `Stark${nm ? ', ' + nm : ''}! Du hast ${bossName || 'den Interviewer'} bezwungen — nur noch ${r.playerHp ?? '?'} HP übrig bei dir.`
-                : `So nah${nm ? ', ' + nm : ''}! ${bossName || 'Der Interviewer'} hatte nur ${r.bossHp ?? '?'} HP übrig. Beim nächsten Mal knackst du ihn.`}
+                ? `Stark${nm ? ', ' + nm : ''}! Du hast das Trainingsziel dieser Simulation erreicht.`
+                : `Weiter so${nm ? ', ' + nm : ''}: Die Auswertung zeigt dir jetzt den wichtigsten nächsten Trainingsschritt.`}
             </div>
             {data?.progress?.personalBest && (
               <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
@@ -1732,24 +1763,24 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
                 Mirrors the server jobLabel so the screen never shows two competing verdicts. ── */}
           {!gradeUnavailable && (() => {
             const d = r.verdict === 'fail'
-              ? { icon:'✗', label:'DIESMAL NICHT', de:'Unter Druck eingebrochen — genau das entscheidet auf der Linie. Weiter trainieren, der Weg ist klar.', ar:'انهرت تحت الضغط — ده بالظبط اللي الشغل بيتقرر عليه. كمّل تدريب، الطريق واضح.', color:'var(--bad)', bg:'rgba(248,113,113,0.08)', border:'rgba(248,113,113,0.3)' }
+                ? { icon:'↻', label:'NOCH INSTABIL', de:'In dieser Simulation wurden deine Antworten unter Druck instabil. Das ist ein Trainingssignal, keine Einstellungsentscheidung.', ar:'في المحاكاة دي إجاباتك ما كانتش ثابتة تحت الضغط. دي إشارة تدريب، مش قرار توظيف.', color:'var(--bad)', bg:'rgba(248,113,113,0.08)', border:'rgba(248,113,113,0.3)' }
               : (rank === 'C1' && r.verdict === 'pass')
-              ? { icon:'🤝', label:'EINSTELLUNGSEMPFEHLUNG', de:'C1 unter Druck gehalten — auf einer deutschen Kundenlinie einsetzbar.', ar:'حافظت على C1 تحت الضغط — جاهز لخط خدمة ألماني.', color:'var(--accent)', bg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.4)' }
+                ? { icon:'✓', label:'STARKES SIMULATIONSERGEBNIS', de:'Du hast in dieser Simulation C1-Signale auch unter Druck gezeigt.', ar:'أظهرت إشارات C1 تحت الضغط في المحاكاة دي.', color:'var(--accent)', bg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.4)' }
               : rank === 'C1'
-              ? { icon:'📋', label:'ZWEITES GESPRÄCH', de:'C1-Niveau, aber unter Druck noch instabil — das schließt die Linie noch nicht auf.', ar:'مستوى C1 بس لسه مش ثابت تحت الضغط — لسه بدري على الخط.', color:'var(--action)', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.4)' }
+                ? { icon:'📋', label:'C1-SIGNALE', de:'Dein Sprachniveau war stark; unter Druck war die Leistung noch nicht konstant.', ar:'مستوى اللغة كان قوي، لكن الأداء تحت الضغط محتاج ثبات أكتر.', color:'var(--action)', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.4)' }
               : rank === 'B2'
-              ? { icon:'📋', label:'TELEFON-SCREEN BESTANDEN', de:'B2: Sie bestehen das HR-Screening. Für die Kundenlinie fehlt C1 unter Druck.', ar:'B2: بتعدّي فلتر الـHR. لكن الخط محتاج C1 تحت الضغط.', color:'var(--action)', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.4)' }
+                ? { icon:'📋', label:'SOLIDE BASIS', de:'In dieser Simulation wurden B2-Signale gemessen. Der nächste Hebel steht unten.', ar:'في المحاكاة دي اتقاست إشارات B2. أهم خطوة جاية موجودة تحت.', color:'var(--action)', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.4)' }
               : rank === 'B1'
-              ? { icon:'⏸', label:'NOCH NICHT', de:'B1: Die Grundlage steht — aber eine deutsche Linie verlangt C1.', ar:'B1: الأساس موجود — بس الخط الألماني محتاج C1.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'⏸', label:'BASIS VORHANDEN', de:'In dieser Simulation wurden B1-Signale gemessen. Trainiere jetzt den größten Hebel.', ar:'في المحاكاة دي اتقاست إشارات B1. درّب أهم نقطة دلوقتي.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               : rank === 'A2'
-              ? { icon:'🌱', label:'AUFBAUSTUFE', de:'A2: Du baust dein Fundament — noch unter der Einstellungsschwelle, aber jede Sitzung bringt dich näher.', ar:'A2: بتبني الأساس — لسه تحت عتبة التوظيف، بس كل جلسة بتقرّبك أكتر.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'🌱', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               // A1/unknown → match the server jobLabel's gentle tone, NOT a harsh red "DIESMAL NICHT".
               : { icon:'🌱', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
             return (
               <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
                 animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
                 <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:d.color, marginBottom:6 }}>
-                  {d.icon} ENTSCHEIDUNG · {d.label}
+                  {d.icon} SIMULATIONS-EINSCHÄTZUNG · {d.label}
                 </div>
                 <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{d.de}</div>
                 <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{d.ar}</div>
@@ -2003,13 +2034,13 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
               )}
               {data.progress.nextBoss && (
                 <div style={{ fontSize:9.5, color:'#64748b', marginTop:4 }}>
-                  Nächster Gegner ab Level {data.progress.nextBoss.minLevel}: {data.progress.nextBoss.name}
+                  Nächster Interviewer ab Level {data.progress.nextBoss.minLevel}: {data.progress.nextBoss.name}
                 </div>
               )}
               {data.progress.trainingDelta && (
                 <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? data.progress.trainingDelta.title_ar : data.progress.trainingDelta.title_de}</b>:{' '}
-                  {ar ? 'الجولة اللي فاتت' : 'letzter Kampf'} {data.progress.trainingDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
+                  {ar ? 'الجولة اللي فاتت' : 'letzte Simulation'} {data.progress.trainingDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
                   <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
                 </div>
               )}
@@ -2261,7 +2292,7 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
           <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)', lineHeight:1.5 }}>
             {typeof data.progress?.sessionCount === 'number' && data.progress.sessionCount > 0
               ? `Das war Interview Nr. ${data.progress.sessionCount}.` : 'Das war dein Interview.'}{' '}
-            Bleib dran bis zum Job.
+            Bleib dran bis zur nächsten Bewerbung.
           </div>
           <div dir="rtl" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.6 }}>
             كمّل تدريب — انت في السكة الصح.
@@ -2286,7 +2317,7 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
           border:'1px solid var(--accent)', color:'#04070d',
           background:'linear-gradient(135deg, var(--accent-2), var(--accent))',
           boxShadow:'0 0 22px rgba(59,130,246,0.4)' }}>
-          ⚔ NOCHMAL KÄMPFEN
+          NOCH EIN INTERVIEW
         </button>
         <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
           letterSpacing:'0.08em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
@@ -2543,12 +2574,12 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
                 transition:'width 0.6s' }} />
             </div>
             <div style={{ fontSize:11, color:'#cbd5e1' }}>
-              Aktueller Gegner: <b style={{ color:'#fca5a5' }}>{data?.currentBoss?.name}</b>
+              Aktueller Interviewer: <b style={{ color:'#fca5a5' }}>{data?.currentBoss?.name}</b>
               <span style={{ color:'#64748b' }}> · {data?.currentBoss?.tier}</span>
             </div>
             {data?.nextBoss && (
               <div style={{ fontSize:10, color:'#64748b', marginTop:3 }}>
-                Nächster Gegner ab Level {data.nextBoss.minLevel}: {data.nextBoss.name} ({data.nextBoss.tier})
+                Nächster Interviewer ab Level {data.nextBoss.minLevel}: {data.nextBoss.name} ({data.nextBoss.tier})
               </div>
             )}
             <div style={{ fontSize:10, color:'var(--accent)', marginTop:5 }}>
@@ -2606,19 +2637,29 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 //  same SRS items. One review surface, spoken + on-mission. Server /api/review[/grade] now unused.)
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
-function AuthScreen({ onAuth }) {
+function AuthScreen({ onAuth, verificationNotice = null }) {
   // cold link-clickers are NEW visitors → signup first (conversion); a ?reset= link → login context
   const [mode, setMode]   = useState(() => { try { return new URLSearchParams(window.location.search).get('reset') ? 'login' : 'signup'; } catch { return 'signup'; } });
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
-  const [wa, setWa]       = useState('');          // WhatsApp — REQUIRED at signup (owner decision 2026-07-08)
   // Self-serve EMAIL password reset (owner order 2026-07-10 — the WhatsApp-manual flow is dead).
   // forgotState: null → closed · 'form' → email input · 'sent' → link on its way ·
   // 'unavailable' → SMTP not configured yet (honest, no false promise, no WhatsApp copy).
   const [forgotState, setForgotState] = useState(null);
   const [forgotBusy, setForgotBusy]   = useState(false);
   // A ?reset=<token> URL (from the reset e-mail) switches the card into "new password" mode.
-  const [resetToken] = useState(() => { try { return new URLSearchParams(window.location.search).get('reset') || ''; } catch { return ''; } });
+  const [resetToken] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('reset') || '';
+      if (token) {
+        params.delete('reset');
+        const qs = params.toString();
+        window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+      }
+      return token;
+    } catch { return ''; }
+  });
   const sendForgot = async () => {
     if (forgotBusy) return;
     if (!email) { setErr({ de: 'Bitte gib oben deine E-Mail ein.', ar: 'اكتب إيميلك الأول فوق.' }); return; }
@@ -2634,7 +2675,7 @@ function AuthScreen({ onAuth }) {
   };
   const submitReset = async () => {
     if (busy) return;
-    if (String(pw).length < 6) { setErr({ de: 'Neues Passwort: mindestens 6 Zeichen.', ar: 'الباسورد الجديد لازم ٦ حروف على الأقل.' }); return; }
+    if (String(pw).length < 10) { setErr({ de: 'Neues Passwort: mindestens 10 Zeichen.', ar: 'الباسورد الجديد لازم ١٠ حروف على الأقل.' }); return; }
     setErr(''); setBusy(true);
     try {
       const r = await fetch(`${API_URL}/api/auth/reset`, {
@@ -2653,6 +2694,7 @@ function AuthScreen({ onAuth }) {
   };
   const [err, setErr]     = useState('');
   const [busy, setBusy]   = useState(false);
+  const [busyHint, setBusyHint] = useState(false);
   // Public ratings (owner 2026-07-02: show real user ratings publicly). Honest by construction —
   // the server itself refuses to return anything until there's a real, non-thin sample (see
   // feedback.js buildPublicRatings); `null` here just means "don't render the section", never a
@@ -2668,31 +2710,16 @@ function AuthScreen({ onAuth }) {
   const submit = async () => {
     if (busy) return;
     if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
-    // WhatsApp is REQUIRED at signup — standing owner decision 2026-07-08 (the re-engagement
-    // channel is captured up-front) and the server rejects without it (auth.js invalid_number).
-    // Craft pass #7 wrongly labeled it optional CLIENT-side only: every no-number signup then
-    // failed on prod with the field claiming "(optional)" — a lying form. Client and server must
-    // always agree on required-ness; the server is the source of truth.
-    if (mode === 'signup' && String(wa).replace(/\D/g, '').length < 10) {
-      setErr(authErrText('invalid_number')); return;
-    }
-    // A signup inside the Messenger/Instagram in-app browser strands the new account in the
-    // WebView's SANDBOXED storage: opening real Chrome later looks logged-out and produces a
-    // duplicate account (07-11 audit residual). Creation is blocked here; LOGIN stays allowed —
-    // existing credentials re-enter anywhere. masri = OWNER-AR (German carries it until filled).
-    if (mode === 'signup' && IN_APP_BROWSER) {
-      beacon('inapp_signup_blocked');
-      setErr({
-        de: 'Konto-Erstellung geht in diesem Facebook/Messenger-Browser nicht — dein Konto wäre hier eingesperrt. Kopiere den Link und öffne ihn in Chrome, dann klappt alles.',
-        ar: '', inapp: true,
-      });
-      return;
-    }
-    setErr(''); setBusy(true);
+    if (mode === 'signup' && String(pw).length < 10) { setErr(authErrText('weak_password')); return; }
+    setErr(''); setBusy(true); setBusyHint(false);
+    const ctrl = new AbortController();
+    const hintTimer = setTimeout(() => setBusyHint(true), 1200);
+    const timeout = setTimeout(() => ctrl.abort(), 65_000);
     try {
       const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode(), whatsapp: wa } : {}) }),
+        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode() } : {}) }),
+        signal: ctrl.signal,
       });
       const data = await r.json();
       if (!r.ok) {
@@ -2704,7 +2731,14 @@ function AuthScreen({ onAuth }) {
       // Honor the landing promise: open the free assessment right after a fresh signup.
       if (mode === 'signup') { try { localStorage.setItem('bpo_pending_assessment', '1'); } catch {} }
       onAuth({ token: data.token, account: data.account });
-    } catch { setErr({ de: 'Server nicht erreichbar. Bitte versuche es gleich erneut.', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' }); setBusy(false); }
+    } catch (error) {
+      setErr(error?.name === 'AbortError'
+        ? { de: 'Der Server braucht zu lange. Deine Eingaben sind erhalten — bitte erneut versuchen.', ar: 'السيرفر اتأخر. بياناتك لسه موجودة — جرّب تاني.' }
+        : { de: 'Server nicht erreichbar. Bitte versuche es gleich erneut.', ar: 'مفيش اتصال بالسيرفر. حاول تاني بعد شوية.' });
+      setBusy(false);
+    } finally {
+      clearTimeout(hintTimer); clearTimeout(timeout); setBusyHint(false);
+    }
   };
 
   // "Private Bank Arena" landing (07-02 uplift): quiet lockup, the Arabic headline AS the hero,
@@ -2738,34 +2772,53 @@ function AuthScreen({ onAuth }) {
         {/* Craft pass #4 — ONE short line carries the page (real Arabic display face, set like a
             headline); everything below steps down. Niche = the BPO industry IN Egypt (owner 07-10). */}
         <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', marginTop:22, lineHeight:1.3 }}>
-          أول تدريب إنترفيو ألماني
+          تدريب إنترفيو ألماني عملي
         </div>
         <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
           علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}
         </div>
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:10, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
-          Der erste deutsche Interview-Trainer für die BPO- und Call-Center-Branche in Ägypten — und für deutsche Remote-Jobs.
+          Deutsches Interview-Training für BPO- und Call-Center-Jobs in Ägypten — und für deutsche Remote-Jobs.
         </div>
         {/* Craft pass #3 — the assessment promise, demoted from a shouting orange chip to one quiet line. */}
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:14, lineHeight:1.7 }}>
           Direkt nach der Anmeldung: kostenlose Einstufung deines Niveaus.
           {' '}<span dir="rtl">بعد ما تسجّل على طول: تقييم مجاني لمستواك.</span>
         </div>
+        <button onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
+          style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
+            border:'1px solid var(--action)', background:'linear-gradient(135deg,var(--action-2),var(--action))',
+            color:'#071018', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
+          ابدأ تقييمك المجاني · KOSTENLOS STARTEN
+        </button>
+        <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7 }}>
+          Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig
+        </div>
       </div>
 
-      {/* (Craft pass #1: the CSS fake-phone mockup CUT — an illustration of an app reads as
-          template fakery under the trust law. Typography carries the page; a REAL product
-          screenshot may return later as the replacement.) */}
+      <figure style={{ maxWidth:420, margin:'24px auto 4px', padding:0, ...rise(2) }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em', color:'var(--accent)', marginBottom:8 }}>
+          ECHTE PRODUKTANSICHT · BEISPIELKONTO
+        </div>
+        <img src="/product-home.png" width="390" height="844" loading="lazy" decoding="async"
+          alt="OMNI-PERFORM mobile training home with interview start, readiness tracker, and level assessment"
+          style={{ display:'block', width:'100%', height:'auto', maxHeight:430, objectFit:'cover', objectPosition:'top',
+            borderRadius:'var(--r-lg)', border:'1px solid var(--line)', boxShadow:'0 22px 55px rgba(0,0,0,0.38)' }} />
+        <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.5, marginTop:8 }}>
+          Aktuelle mobile Oberfläche, aufgenommen aus dem laufenden Produkt mit einem synthetischen Testkonto.
+          {' '}<span dir="rtl">صورة حقيقية من المنتج الحالي بحساب تجريبي.</span>
+        </figcaption>
+      </figure>
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
-      <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(2) }}>
+      <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
         {[
-          { icon:'mic',     ar:'إنترفيو ألماني حقيقي بالصوت ضد HR صعب',          de:'Echtes deutsches Voice-Interview gegen einen harten HR-Boss' },
+          { icon:'mic',     ar:'محاكاة واقعية لإنترفيو ألماني بالصوت مع HR صعب',  de:'Realistische deutsche Voice-Interview-Simulation mit anspruchsvollem HR' },
           { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
-          { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع لحد ما تتوظف',           de:'Die App führt dich Schritt für Schritt — und du siehst deinen Fortschritt bis zum Job' },
+          { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع واستعد للتقديم الجاي',     de:'Die App führt dich Schritt für Schritt — du siehst deinen Fortschritt bis zur nächsten Bewerbung' },
           // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
           // REAL hiring bar. Masri verified per masri-verification-law (أكونت = owner's canon).
-          { icon:'fileBadge', ar:'بندرّبك على مستوى الشغل الحقيقي: التحقق من بيانات العميل، معايير الجودة، ومصطلحات الأكونتات الألمانية الحقيقية — من الموبايل لشركات الطيران', de:'Trainiert die echte Einstellungslatte: Datenschutz-Verifizierung, QA-Kriterien und die Sprache echter deutscher Konten — vom Mobilfunk bis zur Airline' },
+          { icon:'fileBadge', ar:'بندرّبك على متطلبات شائعة في الشغل: التحقق من بيانات العميل، معايير الجودة، ومصطلحات الأكونتات الألمانية — من الموبايل لشركات الطيران', de:'Trainiert typische Arbeitsanforderungen: Datenschutz-Verifizierung, QA-Kriterien und die Sprache deutscher Konten — vom Mobilfunk bis zur Airline' },
         ].map((b, i) => (
           <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
             <div style={{ width:36, height:36, borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)',
@@ -2780,7 +2833,7 @@ function AuthScreen({ onAuth }) {
         ))}
         {/* The anti-chatbot line (R7): the accuracy moat, stated where a skeptic decides. */}
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', lineHeight:1.6, marginTop:4, textAlign:'center' }}>
-          Kein Chatbot: Korrekturen kommen aus DEINEN Sätzen und werden geprüft — die App schmeichelt nie und rät nie.{/* OWNER-AR slot */}
+          Konkretes Feedback aus deinen eigenen Antworten — mit nachvollziehbaren Beispielen statt allgemeiner Tipps.{/* OWNER-AR slot */}
         </div>
       </div>
       </div>
@@ -2823,9 +2876,19 @@ function AuthScreen({ onAuth }) {
       )}
 
       {/* AUTH CARD — glass, one orange fill on the whole page */}
-      <div style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
+      <div id="signup-card" style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
         background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3), var(--glass-highlight)',
         backdropFilter:'blur(14px) saturate(1.1)', ...rise(4) }}>
+        {verificationNotice && (
+          <div role="status" style={{ marginBottom:14, padding:'11px 13px', borderRadius:10,
+            border:`1px solid ${verificationNotice.ok ? 'rgba(34,197,94,0.42)' : 'rgba(248,113,113,0.42)'}`,
+            background:verificationNotice.ok ? 'rgba(34,197,94,0.08)' : 'rgba(248,113,113,0.08)',
+            color:verificationNotice.ok ? '#bbf7d0' : '#fecaca', fontSize:12, lineHeight:1.55 }}>
+            {verificationNotice.ok
+              ? <>E-Mail bestätigt. Du kannst dich jetzt anmelden. <span dir="rtl">تم تأكيد الإيميل — سجّل دخول.</span></>
+              : <>Der Bestätigungslink ist ungültig oder abgelaufen. Melde dich an und fordere einen neuen an. <span dir="rtl">اللينك غير صالح أو انتهى.</span></>}
+          </div>
+        )}
         {resetToken ? (
           <div style={{ marginBottom:4 }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, color:'var(--text)' }}>Neues Passwort setzen</div>
@@ -2836,7 +2899,7 @@ function AuthScreen({ onAuth }) {
         ) : (
         <div style={{ display:'flex', gap:0, marginBottom:18, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3 }}>
           {['login','signup'].map((m) => (
-            <button key={m} onClick={() => { setMode(m); setErr(''); }}
+            <button key={m} type="button" onClick={() => { setMode(m); setErr(''); }}
               style={{ flex:1, padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)',
                 fontWeight:600, letterSpacing:'0.04em', borderRadius:'var(--r-pill)', border:'none', transition:'all 200ms var(--ease)',
                 background: mode===m?'rgba(59,130,246,0.18)':'transparent', color: mode===m?'var(--accent-2)':'var(--text-faint)' }}>
@@ -2846,34 +2909,21 @@ function AuthScreen({ onAuth }) {
         </div>
         )}
 
-        {/* Craft pass #7 — visible labels (placeholder-only inputs are a trust-killer: the label
-            vanishes the moment you type). WhatsApp stays REQUIRED (owner decision 2026-07-08;
-            the server rejects signups without it — the label must never claim otherwise). */}
+        <form onSubmit={(e) => { e.preventDefault(); if (resetToken) submitReset(); else submit(); }}>
+        {/* Visible labels: placeholder-only inputs disappear while typing and reduce trust. */}
         {!resetToken && (
           <>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'0 2px 5px' }}>E-MAIL</div>
-            <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@gmail.com"
-              autoComplete="email" className="uplift-input" style={inputStyle} />
+            <label htmlFor="auth-email" style={{ display:'block', fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'0 2px 5px' }}>E-MAIL</label>
+            <input id="auth-email" name="email" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="name@gmail.com"
+              autoComplete="email" required className="uplift-input" style={inputStyle} />
           </>
         )}
-        <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>{resetToken ? 'NEUES PASSWORT' : 'PASSWORT'}</div>
-        <input type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="mind. 6 Zeichen"
+        <label htmlFor="auth-password" style={{ display:'block', fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>{resetToken ? 'NEUES PASSWORT' : 'PASSWORT'}</label>
+        <input id="auth-password" name="password" type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="mind. 10 Zeichen"
+          required minLength={10} maxLength={128}
           autoComplete={mode==='signup' || resetToken ? 'new-password' : 'current-password'}
-          onKeyDown={(e)=>{ if(e.key!=='Enter') return; if(resetToken) { submitReset(); return; } if(mode==='signup') return; submit(); }} className="uplift-input" style={inputStyle} />
+          className="uplift-input" style={inputStyle} />
 
-        {mode === 'signup' && (
-          <>
-            <div style={{ fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>
-              WHATSAPP
-            </div>
-            <input type="tel" value={wa} onChange={(e)=>setWa(e.target.value)} placeholder="010…"
-              autoComplete="tel" inputMode="tel"
-              onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }} className="uplift-input" style={inputStyle} />
-            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:6, lineHeight:1.5 }}>
-              Für Coach-Erinnerungen und Passwort-Reset — kein Spam. <span dir="rtl">للتذكير الشخصي من الكوتش — مفيش سبام.</span>
-            </div>
-          </>
-        )}
 
         {err && (
           <div style={{ marginTop:10 }}>
@@ -2882,7 +2932,7 @@ function AuthScreen({ onAuth }) {
             {/* Expired-link escape hatch (review catch): in reset mode every other control is
                 hidden — without this button a stale-link user had literally no way forward. */}
             {err.expired && (
-              <button onClick={() => { window.location.href = window.location.pathname; }}
+              <button type="button" onClick={() => { window.location.href = window.location.pathname; }}
                 style={{ display:'block', marginTop:8, padding:'8px 0', minHeight:40, width:'100%', cursor:'pointer',
                   background:'none', border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)',
                   color:'var(--accent)', textDecoration:'underline', textUnderlineOffset:3 }}>
@@ -2908,7 +2958,7 @@ function AuthScreen({ onAuth }) {
             instructions are dead: "the reset password is done through email"). The link mails a
             single-use, 45-minute token; ?reset=<token> switches this card into new-password mode. */}
         {mode === 'login' && !resetToken && !forgotState && (
-          <button onClick={() => setForgotState('form')} style={{ display:'block', margin:'10px auto 0', padding:'6px 10px',
+          <button type="button" onClick={() => setForgotState('form')} style={{ display:'block', margin:'10px auto 0', padding:'6px 10px',
             background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-meta)', color:'var(--text-dim)', textDecoration:'underline', textUnderlineOffset:3 }}>
             Passwort vergessen? · نسيت كلمة السر؟
@@ -2919,7 +2969,7 @@ function AuthScreen({ onAuth }) {
             border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
             <div>Wir schicken dir einen Link an deine E-Mail-Adresse (oben eintragen) — damit setzt du dein Passwort selbst zurück.</div>
             <div dir="rtl" style={{ marginTop:4 }}>هنبعتلك لينك على إيميلك تغيّر بيه الباسورد بنفسك.</div>
-            <button onClick={sendForgot} disabled={forgotBusy}
+            <button type="button" onClick={sendForgot} disabled={forgotBusy}
               style={{ display:'block', width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:forgotBusy?'wait':'pointer',
                 fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, letterSpacing:'0.06em', borderRadius:9,
                 border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)', opacity:forgotBusy?0.6:1 }}>
@@ -2942,16 +2992,17 @@ function AuthScreen({ onAuth }) {
         )}
 
         {/* Craft pass #6 — machined, not inflated: solid fill, tight radius, no glow bloom. */}
-        <button onClick={resetToken ? submitReset : submit} disabled={busy}
+        <button type="submit" disabled={busy}
           style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:busy?'wait':'pointer',
             fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.04em', borderRadius:11,
             border:'none', color:'#081019', background:'var(--action)',
             opacity:busy?0.6:1, transition:'transform 100ms var(--ease)' }}>
-          {busy ? '…' : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
+          {busy ? (busyHint ? 'Server wird gestartet… · السيرفر بيفتح…' : 'Wird gesendet…') : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
         </button>
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
-          Kostenlos starten: Niveau-Einstufung · كل ده بالعربي · مجاني للبداية
+          Kostenlos starten: Einstufung + erstes Interview · شرح عربي في الخطوات الأساسية · مجاني للبداية
         </div>
+        </form>
       </div>
 
       {/* Legal links — static pages in client/public; the payment provider's site review
@@ -2969,6 +3020,64 @@ function AuthScreen({ onAuth }) {
     </div>
   );
 }
+function VerificationLinkScreen() {
+  return (
+    <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
+      <div role="status" aria-live="polite" style={{ width:'100%', maxWidth:420, padding:24, textAlign:'center',
+        borderRadius:'var(--r-xl)', background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3)' }}>
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>OMNI-PERFORM</div>
+        <div style={{ marginTop:14, fontSize:15, fontWeight:700 }}>E-Mail wird bestätigt…</div>
+        <div dir="rtl" style={{ marginTop:6, color:'var(--text-dim)', fontSize:13 }}>بنأكد الإيميل…</div>
+      </div>
+    </div>
+  );
+}
+
+function EmailVerificationGate({ auth, onLogout, linkError = false }) {
+  const [state, setState] = useState('idle');
+  const resend = async () => {
+    if (state === 'sending') return;
+    setState('sending');
+    try {
+      const r = await fetch(`${API_URL}/api/auth/verification/resend`, {
+        method:'POST', headers:{ Authorization:`Bearer ${auth.token}` },
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { setState(d?.error === 'email_unavailable' ? 'unavailable' : 'error'); return; }
+      setState(d?.cooldown ? 'cooldown' : 'sent');
+    } catch { setState('error'); }
+  };
+  const message = state === 'sent' ? 'Neuer Link gesendet. Bitte Posteingang und Spam prüfen.'
+    : state === 'cooldown' ? 'Ein Link wurde gerade schon vorbereitet. Bitte Posteingang und Spam prüfen.'
+    : state === 'unavailable' ? 'E-Mail-Versand ist gerade nicht verfügbar. Bitte später erneut versuchen.'
+    : state === 'error' ? 'Senden fehlgeschlagen. Bitte gleich erneut versuchen.' : null;
+  return (
+    <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
+      <div style={{ width:'100%', maxWidth:440, padding:26, textAlign:'center', borderRadius:'var(--r-xl)',
+        background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3)' }}>
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>OMNI-PERFORM</div>
+        <h1 style={{ margin:'18px 0 8px', fontSize:22 }}>E-Mail bestätigen</h1>
+        <div style={{ color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
+          Öffne den Bestätigungslink für <b style={{ color:'var(--text)', overflowWrap:'anywhere' }}>{auth.account.email}</b>.
+          Erst danach werden sprachbasierte Dienste freigeschaltet.
+        </div>
+        <div dir="rtl" style={{ marginTop:8, color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
+          افتح لينك التأكيد اللي اتبعت على إيميلك. التدريب الصوتي بيفتح بعد التأكيد.
+        </div>
+        {linkError && <div style={{ marginTop:13, color:'#fecaca', fontSize:12 }}>Der Link ist abgelaufen oder wurde bereits benutzt — fordere unten einen neuen an.</div>}
+        {message && <div role="status" style={{ marginTop:13, color:state === 'error' || state === 'unavailable' ? '#fecaca' : '#bbf7d0', fontSize:12 }}>{message}</div>}
+        <button type="button" onClick={resend} disabled={state === 'sending'} style={{ width:'100%', minHeight:50, marginTop:18,
+          border:0, borderRadius:11, cursor:state === 'sending'?'wait':'pointer', background:'var(--action)', color:'#081019',
+          fontFamily:'var(--font-display)', fontWeight:700, opacity:state === 'sending'?0.65:1 }}>
+          {state === 'sending' ? 'Wird gesendet…' : 'NEUEN LINK SENDEN'}
+        </button>
+        <button type="button" onClick={onLogout} style={{ marginTop:12, padding:8, border:0, background:'transparent',
+          color:'var(--text-dim)', textDecoration:'underline', cursor:'pointer' }}>Andere E-Mail verwenden / Abmelden</button>
+      </div>
+    </div>
+  );
+}
+
 const inputStyle = {
   width:'100%', padding:'14px 16px', minHeight:52, borderRadius:12, fontSize:15, fontFamily:'var(--font-body)',
   background:'rgba(255,255,255,0.05)', color:'#e2e8f0', border:'1px solid var(--line)', outline:'none',
@@ -3087,7 +3196,6 @@ const SUB_AR = {
 
 function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [email, setEmail]   = useState('');
-  const [accountId, setAccountId] = useState('');
   const [plans, setPlans]   = useState(null);
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
   const [yearly, setYearly] = useState(false);
@@ -3099,35 +3207,76 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   const [submitted, setSubmitted]   = useState(false);
   const [pendingPayment, setPendingPayment] = useState(null); // server source of truth
   const [paymentRejected, setPaymentRejected] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [billingError, setBillingError] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+  const [copied, setCopied] = useState('');
+  const [senderLast4, setSenderLast4] = useState('');
   const [trialEnded, setTrialEnded] = useState(false);   // had a time-limited plan that has now lapsed
   useEffect(() => {
     fetch(`${API_URL}/api/billing/status`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`status ${r.status}`); return r.json(); })
       .then((d) => {
-        setEmail(d.account?.email || ''); setAccountId(d.account?.id || '');
+        setEmail(d.account?.email || '');
         if (Array.isArray(d.plans)) setPlans(d.plans);
         setOffer(d.offer?.active ? d.offer : null);   // deal shows ONLY when the server honors it
         setVodafone(d.vodafoneNumber || null); setWhatsapp(d.whatsappNumber || null);
         setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
+        if (!d.pendingPayment && d.paymentIntent) {
+          setPay({ ...d.paymentIntent, planId: d.paymentIntent.plan, period: d.paymentIntent.billingPeriod,
+            label: String(d.paymentIntent.plan || '').toUpperCase() });
+        }
         // "Your free trial ended" — true when a non-comp, time-limited plan (e.g. the 2-day Basic
         // pass) has passed its billing end. Drives the honest expiry banner below.
         const s = d.account?.subscription;
         setTrialEnded(!!(s && s.plan && s.billingPeriodEnd && s.billingPeriodEnd < Date.now() && !s.comp));
       })
-      .catch(() => {});
+      .catch(() => setBillingError('Die Zahlungsdaten konnten nicht geladen werden. Bitte erneut versuchen.'));
   }, [token]);
 
   const ar  = lang === 'ar';
   const fmt = (n) => Number(n || 0).toLocaleString('de-DE');   // 1299 → "1.299"
-  // Short reference code the user writes in their Vodafone Cash transfer note (last 6 of id).
-  const refCode = accountId ? accountId.slice(-6).toUpperCase() : '------';
+  // Internal support reference. Vodafone Cash has no transfer-note field, so matching uses sender last four digits.
+  const refCode = pay?.referenceCode || pendingPayment?.referenceCode || '------';
+
+  const preparePayment = async (choice) => {
+    if (submitting) return;
+    setSubmitting(true); setPaymentError('');
+    try {
+      const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const r = await fetch(`${API_URL}/api/billing/intent`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}`, 'Idempotency-Key':idempotencyKey },
+        body:JSON.stringify({ plan:choice.planId, billingPeriod:choice.period }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.intentId || !d.referenceCode) throw new Error(d.error || `intent ${r.status}`);
+      setPay({ ...choice, ...d });
+    } catch {
+      setPaymentError(ar ? 'تعذر تجهيز الدفع. ما تحوّلش أي مبلغ وحاول تاني.' : 'Zahlung konnte nicht vorbereitet werden. Bitte noch nichts überweisen und erneut versuchen.');
+    }
+    setSubmitting(false);
+  };
 
   // Post-payment "send proof" actions: copy the reference code, and (if a WhatsApp number is
   // configured) one-tap open WhatsApp prefilled with the code so the customer isn't stranded
   // during the manual-activation wait. Copy works always; the WhatsApp button appears once
   // WHATSAPP_NUMBER is set on the server. Reduces the post-payment black-box anxiety.
-  const copyCode = (code) => { try { navigator.clipboard?.writeText(String(code)); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } };
+  const copyText = async (value, kind) => {
+    const text = String(value || '');
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
+      else {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        if (!document.execCommand('copy')) throw new Error('copy_failed');
+        ta.remove();
+      }
+      setCopied(kind); setTimeout(() => setCopied(''), 1500);
+    } catch {
+      setPaymentError(ar ? 'النسخ التلقائي مش متاح. حدّد الرقم وانسخه يدويًا.' : 'Automatisches Kopieren ist nicht verfügbar. Bitte manuell markieren und kopieren.');
+    }
+  };
   const waLink = (code) => {
     // wa.me needs full international digits — an Egyptian local "01009…" (leading 0, no +20)
     // produces an invalid link, so normalize the leading 0 to the 20 country code.
@@ -3135,8 +3284,8 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
     if (!digits) return null;
     const planLabel = pay?.label || (pendingPayment?.plan ? pendingPayment.plan.toUpperCase() : '');
     const msg = ar
-      ? `أهلاً، دفعت اشتراك OMNI-PERFORM ${planLabel}. كود التحويل بتاعي: ${code}`
-      : `Hallo, ich habe für OMNI-PERFORM ${planLabel} bezahlt. Mein Überweisungs-Code: ${code}`;
+      ? `أهلاً، دفعت اشتراك OMNI-PERFORM ${planLabel}. رقم الطلب: ${code}${senderLast4 ? `، آخر ٤ أرقام من محفظتي: ${senderLast4}` : ''}`
+      : `Hallo, ich habe für OMNI-PERFORM ${planLabel} bezahlt. Vorgang: ${code}${senderLast4 ? `, letzte 4 Ziffern meiner Wallet: ${senderLast4}` : ''}`;
     return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
   };
   const proofActions = (code) => (
@@ -3149,10 +3298,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           💬 {ar ? 'ابعت إثبات الدفع على واتساب' : 'Zahlungsbeleg per WhatsApp senden'}
         </a>
       )}
-      <button onClick={() => copyCode(code)}
+      <button onClick={() => copyText(code, 'code')}
         style={{ width:'100%', padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:11,
           borderRadius:8, border:'1px dashed var(--action)', background:'rgba(249,115,22,0.08)', color:'var(--action)' }}>
-        {copied ? (ar ? 'تم نسخ الكود ✓' : 'Code kopiert ✓') : (ar ? `انسخ الكود · ${code}` : `Code kopieren · ${code}`)}
+        {copied === 'code' ? (ar ? 'تم نسخ رقم الطلب ✓' : 'Vorgang kopiert ✓') : (ar ? `انسخ رقم الطلب · ${code}` : `Vorgang kopieren · ${code}`)}
       </button>
     </div>
   );
@@ -3160,14 +3309,20 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
   // Tap "I paid": record a PENDING request. Grants NO access — the owner verifies & activates.
   const onPaid = async () => {
     if (submitting || !pay) return;
-    setSubmitting(true);
+    if (!/^\d{4}$/.test(senderLast4)) {
+      setPaymentError(ar ? 'اكتب آخر ٤ أرقام من رقم المحفظة اللي حوّلت منها.' : 'Bitte die letzten 4 Ziffern der sendenden Wallet eingeben.');
+      return;
+    }
+    setSubmitting(true); setPaymentError('');
     try {
       const r = await fetch(`${API_URL}/api/billing/pay`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ plan: pay.planId, billingPeriod: pay.period }),
+        body: JSON.stringify({ intentId: pay.intentId, senderLast4 }),
       });
-      if (r.ok) setSubmitted(true);
-    } catch { /* user can re-tap */ }
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `pay ${r.status}`);
+      setSubmitted(true);
+    } catch { setPaymentError(ar ? 'ما قدرناش نثبت طلبك. حاول تاني — متحوّلش المبلغ مرة تانية.' : 'Deine Bestätigung wurde nicht gespeichert. Bitte erneut versuchen — nicht erneut überweisen.'); }
     setSubmitting(false);
   };
 
@@ -3184,10 +3339,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
       <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
         <div style={{ fontSize:48 }}>✅</div>
         <div dir="rtl" style={{ fontSize:14, color:'var(--accent)', fontWeight:700, marginTop:10, lineHeight:1.8 }}>
-          تم استلام طلبك ✅ — اشتراكك هيتفعّل خلال ٣٠ دقيقة بعد ما نتأكد من الدفع. تأكد إنك كتبت الكود <b style={{ color:'var(--action)' }}>{refCode}</b> في التحويل.
+          تم استلام طلبك ✅ — التفعيل بيتم يدويًا بعد مطابقة المبلغ وآخر ٤ أرقام من محفظتك، وعادة خلال ساعتين في مواعيد العمل. رقم الطلب: <b style={{ color:'var(--action)' }}>{refCode}</b>.
         </div>
         <div style={{ fontSize:12.5, color:'#cbd5e1', marginTop:14, lineHeight:1.65 }}>
-          Anfrage erhalten! Dein Plan wird innerhalb von 30 Minuten nach Zahlungsbestätigung aktiviert. Stelle sicher, dass du den Code <b style={{ color:'var(--action)' }}>{refCode}</b> in der Überweisung angegeben hast.
+          Anfrage erhalten! Wir gleichen Betrag und Wallet-Endziffern manuell ab. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Vorgang: <b style={{ color:'var(--action)' }}>{refCode}</b>.
         </div>
         {proofActions(refCode)}
       </div>
@@ -3221,17 +3376,26 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
               background:'rgba(96,165,250,0.12)', border:'1px solid rgba(96,165,250,0.4)', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.04em' }}>
               {vodafone}
             </div>
+            <button type="button" onClick={() => copyText(vodafone, 'wallet')}
+              style={{ width:'100%', marginTop:7, padding:'9px', minHeight:42, cursor:'pointer', borderRadius:8,
+                border:'1px solid rgba(96,165,250,0.35)', background:'rgba(96,165,250,0.08)', color:'var(--accent-2)', fontWeight:700 }}>
+              {copied === 'wallet' ? (ar ? 'تم نسخ الرقم ✓' : 'Nummer kopiert ✓') : (ar ? 'انسخ رقم المحفظة' : 'Wallet-Nummer kopieren')}
+            </button>
           </div>
 
-          {/* Step 2 — the reference code */}
+          {/* Step 2 — payer identity; Vodafone Cash has no transfer-note field. */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.4)' }}>
             <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
-              <b style={{ color:'var(--action)' }}>2)</b> Schreibe diesen Code in die Notiz der Überweisung:
+              <b style={{ color:'var(--action)' }}>2)</b> Gib die letzten 4 Ziffern der Wallet ein, von der du sendest:
             </div>
-            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>اكتب الكود ده في ملاحظة التحويل (مهم عشان نعرف إنك إنت):</div>
-            <div style={{ textAlign:'center', fontFamily:'var(--font-display)', fontSize:26, fontWeight:900, color:'var(--action)',
-              background:'rgba(0,0,0,0.4)', border:'1px dashed var(--action)', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.2em', textShadow:'0 0 12px rgba(249,115,22,0.5)' }}>
-              {refCode}
+            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>اكتب آخر ٤ أرقام من رقم المحفظة اللي هتحوّل منها:</div>
+            <input value={senderLast4} onChange={(e) => setSenderLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              inputMode="numeric" autoComplete="off" maxLength={4} aria-label="Letzte 4 Ziffern der sendenden Wallet"
+              placeholder="••••" style={{ width:'100%', boxSizing:'border-box', textAlign:'center', fontFamily:'Share Tech Mono, monospace',
+                fontSize:26, fontWeight:900, color:'var(--action)', background:'rgba(0,0,0,0.4)', border:'1px dashed var(--action)',
+                borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.25em' }} />
+            <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:7, lineHeight:1.5 }}>
+              Vorgangsnummer: <b style={{ color:'var(--action)' }}>{refCode}</b> · رقم الطلب للدعم فقط، مش بيتكتب في التحويل.
             </div>
           </div>
 
@@ -3252,12 +3416,13 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           </div>
 
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
-          <button onClick={onPaid} disabled={submitting}
+          <button onClick={onPaid} disabled={submitting || !/^\d{4}$/.test(senderLast4)}
             style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
               fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid var(--accent)', color:'#04130c',
-              background:'linear-gradient(135deg,var(--accent),var(--accent))', opacity: submitting ? 0.6 : 1 }}>
+              background:'linear-gradient(135deg,var(--accent),var(--accent))', opacity: (submitting || !/^\d{4}$/.test(senderLast4)) ? 0.5 : 1 }}>
             {submitting ? '…' : 'دفعت · ICH HABE BEZAHLT'}
           </button>
+          {paymentError && <div role="alert" style={{ marginTop:10, color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>{paymentError}</div>}
         </div>
       ) : (
         <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'#94a3b8', fontSize:12, padding:20 }}>
@@ -3282,10 +3447,10 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
           {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
         </div>
         <div dir="rtl" style={{ fontSize:13.5, color:'#cbd5e1', marginTop:12, lineHeight:1.85 }}>
-          طلبك وصلنا ✅ وبنتأكد من الدفع دلوقتي — اشتراكك هيتفعّل خلال ٣٠ دقيقة. الكود بتاعك: <b style={{ color:'var(--action)' }}>{code}</b>. لو عايز تتأكد إنك كتبته في التحويل، ده هو.
+          طلبك وصلنا ✅ وبنتأكد من الدفع — التفعيل عادة خلال ساعتين في مواعيد العمل. الكود بتاعك: <b style={{ color:'var(--action)' }}>{code}</b>.
         </div>
         <div style={{ fontSize:12.5, color:'#94a3b8', marginTop:14, lineHeight:1.65 }}>
-          Deine Anfrage ist da ✅ — wir prüfen gerade die Zahlung. Dein Plan wird innerhalb von 30 Minuten aktiviert. Dein Code: <b style={{ color:'var(--action)' }}>{code}</b>.
+          Deine Anfrage ist da ✅ — wir prüfen die Zahlung manuell. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Code: <b style={{ color:'var(--action)' }}>{code}</b>.
         </div>
         {proofActions(code)}
       </div>
@@ -3438,7 +3603,7 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
                 <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
-              <button onClick={() => setPay({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
+              <button onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:'pointer',
                   fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
                   border:`1px solid ${accent}`, color:'#04070d', background:accent }}>
@@ -3447,7 +3612,9 @@ function PaywallScreen({ token, info, onUpgraded, onClose, lang = 'de' }) {
             </div>
           );
         })}
-        {!plans && <div style={{ textAlign:'center', color:'#64748b', fontSize:11, padding:20 }}>…</div>}
+        {!plans && !billingError && <div role="status" aria-live="polite" style={{ textAlign:'center', color:'#64748b', fontSize:11, padding:20 }}>…</div>}
+        {billingError && <div role="alert" style={{ textAlign:'center', color:'#fca5a5', fontSize:12, padding:14 }}>{billingError}</div>}
+        {paymentError && <div role="alert" style={{ textAlign:'center', color:'#fca5a5', fontSize:12, padding:14 }}>{paymentError}</div>}
 
         <div style={{ fontSize:9.5, color:'#64748b', textAlign:'center', lineHeight:1.5 }}>
           Zahlung manuell per Vodafone Cash während der Early-Access-Phase.
@@ -3490,7 +3657,7 @@ function PendingBadge({ pending, whatsapp, lang }) {
     <div onClick={() => setOpen((o) => !o)} style={{ marginBottom: 8, padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
       background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.4)' }}>
       <div style={{ fontSize: 10.5, color: 'var(--action)', lineHeight: 1.5, textAlign: 'center' }}>
-        {ar ? 'اشتراكك قيد التأكيد ⏳ — هيتفعّل خلال ٣٠ دقيقة' : 'Zahlung wird geprüft — Aktivierung in ~30 Min'}
+        {ar ? 'اشتراكك قيد التأكيد ⏳ — التفعيل عادة خلال ساعتين في مواعيد العمل' : 'Zahlung wird geprüft — meist innerhalb von 2 Stunden während der Geschäftszeiten'}
         <span style={{ color: '#94a3b8' }}> {open ? '▲' : '▼'}</span>
       </div>
       {open && (
@@ -3540,7 +3707,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const fillerUrlsRef = useRef([]);                  // pre-cached "thinking" sounds (this persona's voice) for the dead-air gap
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
-  const [typeOpen, setTypeOpen]       = useState(false);  // hands-free: typing is a quiet fallback behind "Lieber tippen?", not the main act
+  const [typeOpen, setTypeOpen]       = useState(IN_APP_BROWSER);  // social browsers begin on the reliable typed path
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
   const [recording, setRecording]     = useState(false);   // mic clip in progress
   const [transcribing, setTranscribing] = useState(false); // clip → text in flight
@@ -3587,7 +3754,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // sets it (mount effect below) — the claim is finally true.
   const [level, setLevel]         = useState(() => { try { return ['a2-b1','b2','c1'].includes(localStorage.getItem('omni_level')) ? localStorage.getItem('omni_level') : 'a2-b1'; } catch { return 'a2-b1'; } });
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
-  const [handsFree, setHandsFree] = useState(true);        // Freisprech: auto start/stop/send — ON by default
+  const [handsFree, setHandsFree] = useState(!IN_APP_BROWSER); // social in-app browsers cannot reliably own the microphone
   const [showOpts, setShowOpts]   = useState(false);       // idle home: advanced options (interviewer/freisprech/lang) collapsed by default — declutter
   const [liveTranscript, setLiveTranscript] = useState(''); // Deepgram streaming partial (cleared on transcript_done)
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
@@ -3810,7 +3977,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       geminiMicRef.current = rec;
       setRecording(true);
       if (!micStartedBeaconRef.current) { micStartedBeaconRef.current = true; beacon('mic_started'); }   // was only emitted on the $0 path — the funnel was blind to mic health on Gemini fights
-    } catch (err) { beacon('mic_failed'); setError(micErrorCode(err)); }
+    } catch (err) {
+      beacon('mic_failed');
+      setError(micErrorCode(err));
+      setHandsFree(false);
+      setTypeOpen(true);
+      stopGeminiMode();
+      try { wsRef.current?.send(JSON.stringify({ type: C.REQUEST_TEXT_MODE })); } catch { /* socket closing */ }
+    }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopGeminiMode = useCallback(() => {
@@ -3842,7 +4016,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         setLiveWpm(0); setFillerCount(0); setCombo(0);   // fresh HUD for the new fight
         bossLineRef.current = '';
         setBossPlaybackRate(levelRef.current === 'a2-b1' ? 0.9 : 1.0);   // "Langsamer" now includes the AUDIO, not just the words
-        wsRef.current?.send(JSON.stringify({ type: C.START_FIGHT, token: auth.token, level: levelRef.current, mode: fightModeRef.current, bossId: bossPickRef.current || undefined }));
+        wsRef.current?.send(JSON.stringify({
+          type: C.START_FIGHT,
+          token: auth.token,
+          level: levelRef.current,
+          mode: fightModeRef.current,
+          bossId: bossPickRef.current || undefined,
+          audioCapable: !IN_APP_BROWSER && checkAudioSupport().supported,
+        }));
         break;
 
       case S.LIVE_STATS:
@@ -4040,7 +4221,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         livePartialRef.current = '';
         setLiveTranscript('');
         setTranscribing(false);
-        try { console.log(`[DIAG] EAR (server STT) heard: ${JSON.stringify(msg.transcript || '')} words=${msg.transcript ? msg.transcript.trim().split(/\s+/).filter(Boolean).length : 0}`); } catch {}
+        try { console.log(`[DIAG] STT complete words=${msg.transcript ? msg.transcript.trim().split(/\s+/).filter(Boolean).length : 0}`); } catch {}
         if (msg.transcript) {
           // Boss is now generating its reply — block hands-free from re-triggering the mic
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
@@ -4086,7 +4267,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         playBossEarlySentence({
           apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current,
           elevenVoice: bossElevenVoiceRef.current, emotion: emotionRef.current, text: msg.text,
-          onStart: () => reportClientLat(API_URL),
+          onStart: () => reportClientLat(API_URL, tokenRef.current),
         });
         break;
       }
@@ -4139,7 +4320,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {
           stopFiller();   // the real reply is ready → end the thinking-sound bridge (also handled by stopBossVoice below)
           const spokenLine = bossLineRef.current || '';
-          try { console.log(`[DIAG] BRAIN (boss reply): ${JSON.stringify(spokenLine)}`); } catch {}
+          try { console.log(`[DIAG] interviewer reply chars=${spokenLine.length}`); } catch {}
           if (!ttsMutedRef.current && spokenLine) {
             // If the EARLY first sentence is already playing (BOSS_SPEECH_EARLY), splice in only the
             // remainder of the line — the boss has been speaking since ~first-token time. Otherwise
@@ -4154,7 +4335,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               playBossVoice({
                 apiUrl: API_URL, token: tokenRef.current, voice: bossVoiceRef.current, elevenVoice: bossElevenVoiceRef.current, text: spokenLine,
                 emotion: emotionRef.current,   // the boss's felt state → its VOICE, not just its face
-                onStart: () => { reportClientLat(API_URL); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
+                onStart: () => { reportClientLat(API_URL, tokenRef.current); setBossSpeak(true); }, onEnd: () => setBossSpeak(false),
               });
             }
           } else {
@@ -4166,6 +4347,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         break;
 
       case S.HP_UPDATE:
+        // First meaningful, server-scored exchange — only now has the learner actually
+        // completed onboarding. A failed connection/start must not unlock the complex home.
+        try { localStorage.setItem('ff_interviewed', '1'); } catch {}
+        setSeenInterview(true);
         // Guard against non-finite values so a malformed update can't NaN the bars
         // (which silently blanks them) or trip a false game-over.
         if (Number.isFinite(msg.bossHp))   setBossHp(Math.max(0, Math.min(100, msg.bossHp)));
@@ -4359,6 +4544,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         }
       } catch {
         setError('Spracherkennung fehlgeschlagen — bitte tippen.');
+        setHandsFree(false);
+        setTypeOpen(true);
       } finally {
         setTranscribing(false);
       }
@@ -4373,6 +4560,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       clipRecRef.current = null;
       beacon('mic_failed');
       setError(micErrorCode(err));
+      setHandsFree(false);
+      setTypeOpen(true);
     }
   }, [recording, transcribing, auth.token]);
 
@@ -4401,7 +4590,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       await clipRecRef.current.start();
       setRecording(true);
       if (!micStartedBeaconRef.current) { micStartedBeaconRef.current = true; beacon('mic_started'); }
-    } catch (err) { clipRecRef.current = null; hfActiveRef.current = false; beacon('mic_failed'); setError(micErrorCode(err)); return; }
+    } catch (err) {
+      clipRecRef.current = null;
+      hfActiveRef.current = false;
+      beacon('mic_failed');
+      setError(micErrorCode(err));
+      setHandsFree(false);
+      setTypeOpen(true);
+      return;
+    }
 
     let spoke = false, volSpoke = false, silenceMs = 0, elapsed = 0, floor = 0.02;
     let lastPartial = '', partialStableMs = 0;   // transcript-stopped-growing detector (noisy-mic safety net)
@@ -4462,7 +4659,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       const needStable = Math.max(1200, needSilence + 600);
       const transcriptDone = spoke && livePartialRef.current.trim() && partialStableMs >= needStable;
       if (!((spoke && silenceMs >= needSilence) || transcriptDone || elapsed >= MAX_MS)) return;
-      try { console.log(`[DIAG] turn-END reason=${elapsed >= MAX_MS ? 'MAXCAP' : transcriptDone ? 'transcript-frozen' : 'silence'} vadClass=${cls} needSilence=${needSilence}ms silence=${Math.round(silenceMs)}ms stage=${stageIdxRef.current} heardSoFar=${JSON.stringify((livePartialRef.current || '').slice(0, 160))}`); } catch {}
+      try { console.log(`[DIAG] turn-END reason=${elapsed >= MAX_MS ? 'MAXCAP' : transcriptDone ? 'transcript-frozen' : 'silence'} vadClass=${cls} needSilence=${needSilence}ms silence=${Math.round(silenceMs)}ms stage=${stageIdxRef.current} heardChars=${(livePartialRef.current || '').length}`); } catch {}
       clearInterval(hfTimerRef.current); hfTimerRef.current = null;
       try { await clipRecRef.current?.stop(); } catch {}
       clipRecRef.current = null; setRecording(false); hfActiveRef.current = false;
@@ -4648,16 +4845,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
     beacon('start_clicked');
-    // In-app/legacy browsers CANNOT capture the mic — fail honestly BEFORE a broken session
-    // starts (the old path let the session open, then blamed a "blocked" mic that never existed).
-    if (!checkAudioSupport().supported) { beacon('mic_unsupported'); setError('audio_unsupported'); return; }
+    // Typing is a complete interview path. Unsupported microphone shells may still start and
+    // answer by text; only the microphone button itself needs browser-escape guidance.
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
       setPaywall(auth.account.entitlement); return;
     }
     // Straight into the interview. The typed AUFWÄRMEN pre-fight warm-up was removed: it re-drilled the
     // same SRS due-items as SAG ES RICHTIG (spoken) and Daily Training (typed) — off-mission redundancy.
-    try { localStorage.setItem('ff_interviewed', '1'); } catch {}   // first interview started → reveal the full home
-    setSeenInterview(true);
     start();
   }, [start, auth.account]);
 
@@ -4838,20 +5032,13 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 <>
                   {/* Bulletproof native path first: the app holds the mic itself, so it NEVER depends on
                       which browser the user has. Then the Chrome escape as the no-install fallback. */}
-                  <a href="/OMNI-PERFORM.apk" download onClick={() => beacon('inapp_apk_tap')}
+                  <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
+                    onClick={() => beacon('inapp_escape_tap')}
                     style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:12,
                       minHeight:48, borderRadius:'var(--r-md)', textDecoration:'none',
                       background:'linear-gradient(135deg, var(--accent-2), var(--accent))', color:'#04070d',
-                      fontFamily:'var(--font-display)', fontWeight:700, fontSize:15 }}>
-                    📲 App installieren — Ton funktioniert immer{/* OWNER-AR slot */}
-                  </a>
-                  <a href={`intent://${window.location.host}${window.location.pathname}#Intent;scheme=https;package=com.android.chrome;end`}
-                    onClick={() => beacon('inapp_escape_tap')}
-                    style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:8,
-                      minHeight:44, borderRadius:'var(--r-md)', textDecoration:'none',
-                      border:'1px solid rgba(59,130,246,0.5)', color:'var(--accent-2)',
                       fontFamily:'var(--font-display)', fontWeight:600, fontSize:13.5 }}>
-                    Oder: in Chrome öffnen <Icon name="chevronRight" size={16} />
+                    In Chrome öffnen <Icon name="chevronRight" size={16} />
                   </a>
                 </>
               ) : (
@@ -5395,7 +5582,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         {/* BOSS HP — top frame. paddingLeft clears the global fixed back button (top:10/left:10,
             z:400) which floated OVER the label — the "sloppy app" screenshot class (audit S23). */}
         <div style={{ paddingLeft:44 }}>
-          <HpBar label="BOSS HP" value={bossHp} isPlayer={false} reason={bossReason} />
+          <HpBar label="INTERVIEW · REST" value={bossHp} isPlayer={false} reason={bossReason} />
         </div>
 
         <div className={bossHurt ? 'hurt' : ''} style={{ marginTop:5, borderRadius:16, position:'relative', overflow:'hidden',
@@ -5432,7 +5619,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           {/* Edutainment pass (07-11): flying damage numbers over the stage — the interview IS a
               match you can feel yourself winning. Blue burst = your answer landed (boss lost HP);
               orange burst = you slipped. Values come from the server's deterministic scorer. */}
-          {scoreFlash && scoreFlash.hit > 0 && (
+          {false && scoreFlash && scoreFlash.hit > 0 && (
             <div key={`h${scoreFlash.id}`} style={{ position:'absolute', top:'26%', left:'50%', zIndex:7,
               transform:'translateX(-50%)', pointerEvents:'none',
               fontFamily:'var(--font-display)', fontWeight:800, fontSize:44, lineHeight:1,
@@ -5441,7 +5628,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               −{scoreFlash.hit}
             </div>
           )}
-          {scoreFlash && scoreFlash.combo >= 2 && scoreFlash.hit > 0 && (
+          {false && scoreFlash && scoreFlash.combo >= 2 && scoreFlash.hit > 0 && (
             <div key={`c${scoreFlash.id}`} style={{ position:'absolute', top:'44%', left:'50%', zIndex:7,
               transform:'translateX(-50%)', pointerEvents:'none',
               fontFamily:'var(--font-display)', fontWeight:700, fontSize:15, letterSpacing:'0.2em',
@@ -5470,9 +5657,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           <div style={{ position:'absolute', left:0, right:0, bottom:10, zIndex:6, textAlign:'center', padding:'0 12px' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:700, color:'#fff',
               letterSpacing:'0.04em', lineHeight:1, textShadow:'0 2px 12px rgba(0,0,0,0.9)' }}>
-              {funnel?.displayName ?? 'DEIN GEGNER'}
+              {funnel?.displayName ?? 'INTERVIEWER'}
             </div>
-            {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interview-Gegner wartet.</div>}
+            {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interviewer wartet.</div>}
             <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:7 }}>
               {/* Persona-TRUE trait chip (aesthetic pass 2026-07-10): "HOCHDRUCK" was hardcoded for
                   every boss — under warm Yasmin it directly contradicted the home picker's own
@@ -5492,9 +5679,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* DEINE HP — bottom frame */}
         <div style={{ marginTop:6, position:'relative' }}>
-          <HpBar label="DEINE HP" value={playerHp} isPlayer={true} reason={playerReason} />
+          <HpBar label="ANTWORTQUALITÄT" value={playerHp} isPlayer={true} reason={playerReason} />
           {/* damage you took this turn — orange burst rising off your own bar */}
-          {scoreFlash && scoreFlash.taken > 0 && (
+          {false && scoreFlash && scoreFlash.taken > 0 && (
             <div key={`t${scoreFlash.id}`} style={{ position:'absolute', top:-8, right:18, zIndex:7,
               pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:800, fontSize:26,
               lineHeight:1, color:'#fdba74',
@@ -5521,14 +5708,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.14em',
               color: bossSpeak ? boss.color : userSpeak ? 'var(--player)' : 'var(--text-dim)',
               textShadow: bossSpeak ? `0 0 8px ${boss.color}` : 'none', transition:'color 0.3s' }}>
-              {bossSpeak ? `${funnel?.displayName ?? 'GEGNER'} SPRICHT` : userSpeak ? 'DU SPRICHST' : isActive ? 'DIALOG' : 'INTERVIEW'}
+              {bossSpeak ? `${funnel?.displayName ?? 'INTERVIEWER'} SPRICHT` : userSpeak ? 'DU SPRICHST' : isActive ? 'DIALOG' : 'INTERVIEW'}
             </span>
             {userSpeak && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--player)', boxShadow:'0 0 6px var(--player)', animation:'pulse 0.8s infinite' }} />}
             <div style={{ flex:1 }} />
             {scoreFlash && (
               <span className="flash" style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10,
                 color: scoreFlash.score >= 60 ? 'var(--accent)' : '#f87171' }}>
-                ⚡ {scoreFlash.score}/100{scoreFlash.damage > 0 ? ` · −${scoreFlash.damage} HP` : ''}
+                {scoreFlash.score}/100
               </span>
             )}
           </div>
@@ -5545,7 +5732,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             {bossText
               ? bossText
               : isActive
-                ? <span style={{ color:'#475569', animation:'pulse 1.2s infinite' }}>{funnel?.displayName ?? 'Der Gegner'} spricht…</span>
+                ? <span style={{ color:'#475569', animation:'pulse 1.2s infinite' }}>{funnel?.displayName ?? 'Der Interviewer'} spricht…</span>
                 : <span style={{ color:'#334155' }}>Interview noch nicht gestartet.</span>}
           </div>
           {/* transcript log */}
@@ -5693,7 +5880,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             <span aria-hidden style={{ width:6, height:6, borderRadius:'50%', flex:'0 0 auto',
               background:'currentColor', opacity:0.9,
               animation: isActive && !bossThinking ? 'pulse 2.2s ease-in-out infinite' : 'none' }} />
-            {isActive ? (bossThinking ? 'CHEF DENKT NACH…' : bossSpeak ? `${funnel?.displayName ?? 'GEGNER'} SPRICHT` : 'DU BIST DRAN') : 'VERBINDE…'}
+            {isActive ? (bossThinking ? 'INTERVIEWER DENKT NACH…' : bossSpeak ? `${funnel?.displayName ?? 'INTERVIEWER'} SPRICHT` : 'DU BIST DRAN') : 'VERBINDE…'}
           </div>
           )}
           {geminiMode && lastTurnLatencyMs != null && (
@@ -5836,10 +6023,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
         {canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
-
-        {/* Referral loop: invite a friend → both get +3 trial days when the friend finishes their first
-            interview. Hidden on first-run — asking for a referral before any value is premature. */}
-        {canStart && !firstRun && <InviteCard accountId={auth.account?.id} />}
 
         {/* Quiet footer: the "Fortschritt & Wiederholung" progress view — one check-in-later row
             below the Übungen grid. (Musk-cut: the PDF cert + weekly leaderboard were vanity, off the
@@ -6028,6 +6211,43 @@ function InstallCard() {
 // ── Root: authentication gate around the arena ────────────────────────────────
 function AuthedApp() {
   const [auth, setAuth] = useState(loadStoredAuth);
+  const [verification] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('verify') || '';
+      if (token) {
+        params.delete('verify');
+        const qs = params.toString();
+        window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+      }
+      return token;
+    } catch { return ''; }
+  });
+  const [verificationState, setVerificationState] = useState(verification ? 'working' : null);
+
+  useEffect(() => {
+    if (!verification) return;
+    let cancelled = false;
+    fetch(`${API_URL}/api/auth/verify`, {
+      method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ token:verification }),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error('invalid');
+      if (auth?.token) {
+        const me = await fetch(`${API_URL}/api/auth/me`, { headers:{ Authorization:`Bearer ${auth.token}` } });
+        if (me.ok) {
+          const d = await me.json();
+          if (!cancelled) setAuth((cur) => {
+            if (!cur) return cur;
+            const updated = { token:cur.token, account:d.account };
+            persistAuth(updated);
+            return updated;
+          });
+        }
+      }
+      if (!cancelled) setVerificationState('success');
+    }).catch(() => { if (!cancelled) setVerificationState('error'); });
+    return () => { cancelled = true; };
+  }, [verification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Validate / refresh the stored token on mount; drop it if the server rejects.
   useEffect(() => {
@@ -6056,14 +6276,18 @@ function AuthedApp() {
   }, []);
 
   // Tiny build badge on every screen so the running version is provable (kills "nothing changed" guessing).
-  const buildId = (typeof document !== 'undefined' && document.querySelector('meta[name=build]')?.content) || 'dev';
-  const buildBadge = (
+  const buildId = BUILD_ID || (typeof document !== 'undefined' && document.querySelector('meta[name=build]')?.content) || 'dev';
+  const buildBadge = !IS_PRODUCTION ? (
     <div style={{ position:'fixed', bottom:5, right:7, zIndex:99999, fontSize:9, letterSpacing:'0.06em',
       color:'rgba(154,167,189,0.55)', fontFamily:'var(--font-mono)', pointerEvents:'none' }}>
       v·{buildId}
     </div>
-  );
-  if (!auth) return <>{buildBadge}<AuthScreen onAuth={handleAuth} /></>;
+  ) : null;
+  if (verificationState === 'working') return <>{buildBadge}<VerificationLinkScreen /></>;
+  if (!auth) return <>{buildBadge}<AuthScreen onAuth={handleAuth}
+    verificationNotice={verificationState ? { ok:verificationState === 'success' } : null} /></>;
+  if (auth.account?.emailVerified === false) return <>{buildBadge}<EmailVerificationGate auth={auth}
+    onLogout={handleLogout} linkError={verificationState === 'error'} /></>;
   return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} /></>;
 }
 
@@ -6189,9 +6413,10 @@ function BackendGate({ children }) {
     return () => clearInterval(id);
   }, [phase]);
 
-  if (phase === 'ready')    return children;
-  if (phase === 'checking') return null; // brief & invisible on warm starts
-  return <ColdStartScreen phase={phase} elapsed={elapsed} onRetry={wake} />;
+  // Availability must never hide the offer, signup, or typed practice. The wake loop is
+  // background-only; live actions already surface their own retryable connection state.
+  const legacyBlockingScreen = false;
+  return <>{children}{legacyBlockingScreen && <ColdStartScreen phase={phase} elapsed={elapsed} onRetry={wake} />}</>;
 }
 
 // ── Root: cold-start gate → auth gate → arena ─────────────────────────────────
@@ -6273,15 +6498,6 @@ function InAppBrowserGate({ onContinue }) {
           </a>
         )}
 
-        {/* Android native app — mic works regardless of browser */}
-        {isAndroid && (
-          <a href="/OMNI-PERFORM.apk" download onClick={() => beacon('inapp_gate_apk')}
-            style={{ ...btn, marginBottom:12, background:'transparent', color:'#93c5fd',
-              border:'1px solid rgba(59,130,246,0.5)', fontSize:14.5 }}>
-            📲 Oder die App installieren
-          </a>
-        )}
-
         {/* iOS route (no intent scheme exists on iOS) */}
         {isIOS && (
           <div style={{ fontSize:14, lineHeight:1.6, color:'#93c5fd', marginBottom:12, fontWeight:600 }}>
@@ -6309,9 +6525,12 @@ export default function App() {
     document.head.prepend(el);
     return () => el.remove();
   }, []);
-  // In-app-browser gate BEFORE anything else — signup, cold-start, everything. The visitor must reach
-  // a real browser (or the native app) or the mic is dead and they leave silently (07-08 funnel proof).
+  // Social in-app browsers can still register, assess, and answer by text. Voice guidance is
+  // shown only when relevant; never block the entire acquisition path before value.
   const [bypassGate, setBypassGate] = useState(false);
-  if (IN_APP_BROWSER && !bypassGate) return <InAppBrowserGate onContinue={() => setBypassGate(true)} />;
-  return <BackendGate><AuthedApp /></BackendGate>;
+  const blockingInAppGate = false;
+  return <>
+    {blockingInAppGate && IN_APP_BROWSER && !bypassGate && <InAppBrowserGate onContinue={() => setBypassGate(true)} />}
+    <BackendGate><AuthedApp /></BackendGate>
+  </>;
 }

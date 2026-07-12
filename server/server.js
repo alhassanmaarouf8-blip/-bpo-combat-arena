@@ -25,14 +25,28 @@ import { guideRouter }         from './alhassan.js';
 import { transcribeRouter }    from './transcribeRouter.js';
 import { placementRouter }      from './placement.js';
 import { elevenRouter }          from './elevenRouter.js';
-import { dbEnabled }            from './db.js';
 import { vertexConfigured }     from './vertexToken.js';
+import { dbEnabled, ensureDatabaseReady } from './db.js';
+import { mailerConfigured } from './mailer.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
 // CLIENT_ORIGIN may be a single URL or a comma-separated list (e.g. your Vercel URL
 // plus http://localhost:5173 for local dev). Only these origins are allowed by CORS.
-const CLIENT_ORIGINS = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
+const configuredOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
   .split(',').map((s) => s.trim()).filter(Boolean);
+const CLIENT_ORIGINS = IS_PRODUCTION
+  ? configuredOrigins.filter((origin) => /^https:\/\//i.test(origin) && !/localhost|127\.0\.0\.1/i.test(origin))
+  : configuredOrigins;
+if (IS_PRODUCTION && !CLIENT_ORIGINS.length) throw new Error('CLIENT_ORIGIN must include an explicit production HTTPS origin');
+if (IS_PRODUCTION && !dbEnabled()) throw new Error('DATABASE_URL is required in production; refusing ephemeral account/payment storage');
+if (IS_PRODUCTION && !mailerConfigured()) throw new Error('SMTP_USER and SMTP_PASS are required in production for account verification and recovery');
+if (dbEnabled()) await ensureDatabaseReady();
+if (IS_PRODUCTION && process.env.ENABLE_MOCK_BILLING === 'true') throw new Error('ENABLE_MOCK_BILLING must be disabled in production');
+const paymentRailsEnabled = !!(process.env.VODAFONE_CASH_NUMBER || process.env.INSTAPAY_ADDRESS || process.env.BANK_ACCOUNT_INFO);
+if (IS_PRODUCTION && paymentRailsEnabled && String(process.env.ADMIN_KEY || '').length < 32) {
+  throw new Error('A high-entropy ADMIN_KEY (at least 32 characters) is required before accepting payments');
+}
 
 // The live interview runs on Groq (text LLM) by default.
 // At least one back-end must be configured. If USE_GEMINI_LIVE=1, the Gemini Live path
@@ -41,15 +55,13 @@ const hasGroq = !!process.env.GROQ_API_KEY;
 // Gemini Live creds = AI Studio key OR Vertex (GEMINI_USE_VERTEX=1 + service-account key,
 // which bills the GCP project's $300 credit instead of the card).
 const hasGeminiLive = !!process.env.GEMINI_API_KEY || vertexConfigured();
-if (!hasGroq && !hasGeminiLive) {
-  console.error('[server] FATAL: set at least one of GROQ_API_KEY or GEMINI_API_KEY in .env');
-  process.exit(1);
-}
+if (!hasGroq) throw new Error('GROQ_API_KEY is required for the default interview path');
 // USE_GEMINI_LIVE=1 → route live interview through Gemini Live (native audio, native VAD).
 // Falls back to Groq text path if the key lacks bidiGenerateContent access (graceful degradation).
-const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 // Security headers — production hardening (Layer 13). Zero-dependency, deliberately WITHOUT a
 // Content-Security-Policy: this backend serves an API + the ADMIN_KEY-gated HTML panel + WS, and a
@@ -57,10 +69,19 @@ const app = express();
 // HSTS is safe (Render terminates TLS); X-Frame-Options SAMEORIGIN keeps the admin panel usable
 // while blocking clickjacking embeds; nosniff + referrer-policy are universally safe.
 app.use((req, res, next) => {
+  if (req.path.startsWith('/admin') || req.path.includes('/admin/')) {
+    res.setHeader('Cache-Control', 'no-store, private');
+    res.setHeader('Pragma', 'no-cache');
+  }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+  res.setHeader('Permissions-Policy', 'camera=(), geolocation=(), payment=(), usb=(), microphone=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Content-Security-Policy', req.path.startsWith('/admin')
+    ? "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'"
+    : "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'");
   next();
 });
 
@@ -73,76 +94,32 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '64kb' }));
 
-// Self-triggering daily push reminder: fire-and-forget on every request (throttled to 1 check/min
-// inside). The keep-warm cron pings /health every ~10 min, so the server is awake during the evening
-// reminder window and sends then — no external cron, no secret. Never blocks the request.
+// Opportunistic daily push reminder: fire-and-forget on ordinary traffic (throttled inside).
+// It never keeps a free service awake or creates traffic by itself. Never blocks the request.
 app.use((req, _res, next) => { try { maybeRunDaily(); } catch {} next(); });
 
-// Pending-payments count for /health — lets a $0 external monitor (GitHub Actions cron) alert
-// the owner that money is waiting for manual activation (the app promises "active in 30 min",
-// but the only prior signals were a console.log and the manually-opened admin page). Count only,
-// no PII. Cached 60s so /health stays cheap; a store error must never break the health check.
-let _pendingCache = { n: 0, at: 0 };
-async function pendingPaymentsCount() {
-  if (Date.now() - _pendingCache.at < 60_000) return _pendingCache.n;
-  _pendingCache.at = Date.now();   // claim the slot FIRST so concurrent /health calls don't pile up
-  try {
-    const { loadPayments } = await import('./paymentsStore.js');
-    // /health must stay near-instant (deploy verification + keep-warm + payment-alert all read it,
-    // and pg has no default connection timeout) — a stalled DB returns the last-known count.
-    const all = await Promise.race([
-      loadPayments(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('pending_count_timeout')), 2000)),
-    ]);
-    _pendingCache = { n: all.filter((p) => p.status === 'pending').length, at: Date.now() };
-  } catch { /* keep last-known n; timestamp already advanced above */ }
-  return _pendingCache.n;
-}
-
-app.get('/health', async (_req, res) => {
+app.get('/health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.json({
     status: 'ok',
-    uptime: process.uptime(),
-    ts: new Date().toISOString(),
-    pendingPayments: await pendingPaymentsCount(),
-    // Existing boss provider chain (failover order) — mirrors PROVIDERS in realtimeClient.js:
-    // a provider is listed only if its key env is set. "groq+cerebras" => failover armed.
-    // Names only; never exposes a key.
-    interview: [
-      (process.env.INTERVIEW_API_KEY || process.env.GROQ_API_KEY) ? 'groq' : null,
-      process.env.CEREBRAS_API_KEY ? 'cerebras' : null,
-    ].filter(Boolean).join('+') || 'none',
-    openai: false,
-    // Gemini Live proxy: USE_GEMINI_LIVE=1 → active; else groq text path (fallback). Boolean
-    // only. To enable: get a GEMINI_API_KEY from a billing-enabled GCP project, set
-    // USE_GEMINI_LIVE=1 in server/.env (bidiGenerateContent is NOT on the free tier).
-    geminiLive: USE_GEMINI_LIVE && (!!process.env.GEMINI_API_KEY || vertexConfigured()),
-    // If geminiLive is claimed but the key was rejected at session start, this will be
-    // "degraded" until a failed session proves it. Client reads this in /health on mount.
-    // Is the Deepgram key actually loaded on this instance? Drives neural voice (TTS)
-    // AND nova-3 STT — if false, voice goes robotic and STT falls back. (Boolean only;
-    // never exposes the key.)
-    deepgram: !!process.env.DEEPGRAM_API_KEY,
-    elevenlabs: !!process.env.ELEVENLABS_API_KEY,
-    // Durable storage: true once DATABASE_URL is set (e.g. a free Neon Postgres). false = data
-    // lives on Render's ephemeral disk and is wiped on restart. One-curl verification of durability.
-    db: dbEnabled(),
-    stt: (process.env.TRANSCRIBER || 'deepgram').toLowerCase(),
-    // Is the keep-alive self-ping armed? (warms the free dyno so "begin" isn't a cold start)
-    keepAlive: !!(process.env.RENDER_EXTERNAL_URL || process.env.RENDER),
-    // Deploy marker: the live git commit (Render sets RENDER_GIT_COMMIT). Lets us
-    // confirm which build is ACTUALLY serving instead of guessing from uptime.
     build: (process.env.RENDER_GIT_COMMIT || 'dev').slice(0, 7),
   });
 });
 
 // Diagnostic: the browser reports runtime crashes here so they show up in THIS log.
+const clientErrorRate = new Map();
 app.post('/api/clienterror', (req, res) => {
-  console.error('═══════════ [CLIENT ERROR] ═══════════\n' +
-    JSON.stringify(req.body, null, 2).slice(0, 4000) +
-    '\n══════════════════════════════════════');
+  const ip = String(req.ip || 'unknown');
+  const now = Date.now();
+  const hits = (clientErrorRate.get(ip) || []).filter((at) => now - at < 10 * 60 * 1000);
+  if (hits.length >= 10) return res.status(429).json({ error: 'rate_limited' });
+  hits.push(now); clientErrorRate.set(ip, hits);
+  const title = String(req.body?.title || 'client_error').replace(/[\r\n]/g, ' ').slice(0, 80);
+  const detail = String(req.body?.detail || '').replace(/[\r\n\t]+/g, ' ').slice(0, 500);
+  const path = String(req.body?.path || '').split(/[?#]/)[0].slice(0, 160);
+  console.error(`[client-error] title=${JSON.stringify(title)} path=${JSON.stringify(path)} detail=${JSON.stringify(detail)}`);
   res.json({ ok: true });
 });
 
@@ -179,19 +156,6 @@ httpServer.listen(PORT, () => {
   console.log(`[server] Listening on http://localhost:${PORT}`);
   console.log(`[server] WebSocket endpoint ws://localhost:${PORT}`);
   console.log(`[server] Accepting connections from ${CLIENT_ORIGINS.join(', ')}`);
-
-  // ── Keep-alive: ping our own public URL every 10 min so Render's free tier never
-  // reaches the 15-min idle spin-down. This removes the multi-second cold-start the
-  // user hits when clicking "Interview starten" on a slept dyno. Free; no new service.
-  const SELF_URL = process.env.RENDER_EXTERNAL_URL
-    || (process.env.RENDER ? 'https://bpo-combat-arena.onrender.com' : null);
-  if (SELF_URL) {
-    const ping = () => fetch(`${SELF_URL}/health`).catch(() => {});
-    setInterval(ping, 4 * 60 * 1000).unref?.();
-    console.log(`[server] keep-alive self-ping armed → ${SELF_URL}/health every 4 min`);
-  } else {
-    console.log('[server] keep-alive NOT armed (no RENDER env) — local/dev only');
-  }
 });
 
 httpServer.on('error', (err) => {

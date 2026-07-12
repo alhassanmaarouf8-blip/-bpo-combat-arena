@@ -1,7 +1,7 @@
 /**
  * admin.js — owner-only payment activation panel, protected by the ADMIN_KEY env var.
  *
- * Open it at:   https://<your-backend>/admin?key=YOUR_ADMIN_KEY
+ * Open it at:   https://<your-backend>/admin and enter the key in the secure form.
  * Without the exact ADMIN_KEY every route returns 403 — there is no other way in (it is NOT
  * tied to a logged-in user; it's a separate secret only you know). If ADMIN_KEY is unset, the
  * panel is fully closed (denies everyone).
@@ -12,42 +12,58 @@
  *   POST /admin/reject     → reject a pending payment (clears it; user falls back to paywall)
  */
 import express from 'express';
-import { timingSafeEqual } from 'crypto';
-import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp, grantPlanForDays, adminSetPassword } from './auth.js';
-import { loadPayments, savePayments, deletePaymentsFor } from './paymentsStore.js';
+import { adminCredentialOk, adminRequestOk, paymentMonitorCredentialOk, issueAdminSession, clearAdminSession } from './adminAuth.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp, grantPlanForDays, adminSetPassword, rateLimit } from './auth.js';
+import { loadPayments, mutatePayments, deletePaymentsFor } from './paymentsStore.js';
 import { deleteUser, loadUser }          from './store.js';
 import { listComp, addComp, removeComp } from './compAccess.js';
 import { dayKey }                        from './time.js';
 import { PLANS }                         from './plans.config.js';
+import { deleteGuide }                   from './guideStore.js';
+import { deleteFeedbackFor }             from './feedback.js';
+import { deleteWeaknessData }             from './db.js';
 
 export const adminRouter = express.Router();
 
-// Constant-time key check. No key set → deny everyone.
-function adminKeyOk(req) {
-  const key = process.env.ADMIN_KEY || '';
-  if (!key) return false;
-  const got = String(req.query.key || req.headers['x-admin-key'] || (req.body && req.body.key) || '');
-  if (got.length !== key.length) return false;
-  try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
-}
+const adminKeyOk = adminRequestOk;
 const deny = (res) => res.status(403);
 
 // ── The HTML panel ───────────────────────────────────────────────────────────────
 adminRouter.get('/admin', (req, res) => {
   if (!adminKeyOk(req)) {
-    return res.status(403).type('html').send(
-      '<body style="font-family:system-ui;background:#0a0f1a;color:#fca5a5;padding:40px"><h2>403 — Forbidden</h2><p>Invalid or missing admin key. Open this page as <code>/admin?key=YOUR_ADMIN_KEY</code>.</p></body>');
+    return res.status(401).type('html').send(ADMIN_LOGIN_HTML);
   }
+  res.set('Cache-Control', 'no-store');
   res.type('html').send(PANEL_HTML);
+});
+
+adminRouter.post('/admin/session', rateLimit({ windowMs: 15 * 60 * 1000, max: 8, tag: 'admin-login' }), express.urlencoded({ extended: false, limit: '4kb' }), (req, res) => {
+  if (!adminCredentialOk(req.body?.key)) return res.status(403).type('html').send(ADMIN_LOGIN_HTML.replace('</form>', '<p style="color:#fca5a5">Invalid key.</p></form>'));
+  issueAdminSession(res);
+  res.redirect(303, '/admin');
+});
+
+adminRouter.post('/admin/logout', (req, res) => {
+  clearAdminSession(req, res);
+  res.redirect(303, '/admin');
 });
 
 adminRouter.get('/admin/payments', async (req, res) => {
   if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
   const all = await loadPayments();
-  const pending   = all.filter((p) => p.status === 'pending').sort((a, b) => a.createdAt - b.createdAt);
+  const intents = all.filter((p) => p.status === 'intent' && p.createdAt >= Date.now() - 48 * 60 * 60 * 1000)
+    .sort((a, b) => b.createdAt - a.createdAt).slice(0, 50);
+  const pending   = all.filter((p) => p.status === 'pending' || p.status === 'activating').sort((a, b) => (a.confirmedAt || a.createdAt) - (b.confirmedAt || b.createdAt));
   const activated = all.filter((p) => p.status === 'activated').sort((a, b) => (b.activatedAt || 0) - (a.activatedAt || 0)).slice(0, 20);
   const deactivated = all.filter((p) => p.status === 'deactivated').sort((a, b) => (b.deactivatedAt || 0) - (a.deactivatedAt || 0)).slice(0, 10);
-  res.json({ pending, activated, deactivated });
+  res.json({ intents, pending, activated, deactivated });
+});
+
+adminRouter.get('/admin/payment-count', async (req, res) => {
+  if (!paymentMonitorCredentialOk(req.headers['x-payment-monitor-key'])) return deny(res).json({ error: 'forbidden' });
+  const all = await loadPayments();
+  res.set('Cache-Control', 'no-store');
+  res.json({ pendingPayments: all.filter((p) => p.status === 'pending' || p.status === 'activating').length });
 });
 
 // ALL signed-up users (not just payments) — the owner wants to see everyone who registered, with plan +
@@ -73,15 +89,31 @@ adminRouter.get('/admin/accounts', async (req, res) => {
 adminRouter.post('/admin/activate', async (req, res) => {
   if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
   try {
-    const all = await loadPayments();
-    const pay = all.find((p) => p.id === req.body?.id && p.status === 'pending');
+    const pay = await mutatePayments(async (all) => {
+      const found = all.find((p) => p.id === req.body?.id && (p.status === 'pending'
+        || (p.status === 'activating' && Date.now() - (p.activatingAt || 0) > 5 * 60 * 1000)));
+      if (!found) return { save: false, value: null };
+      found.status = 'activating'; found.activatingAt = Date.now();
+      return { value: { ...found } };
+    });
     if (!pay) return res.status(404).json({ error: 'not_found_or_already_done' });
     const acc = await getAccountById(pay.userId);
-    if (!acc) return res.status(404).json({ error: 'account_not_found' });
-    await activatePlan(acc, pay.plan, pay.billingPeriod);   // plan + billingPeriodEnd; gating takes effect now
-    pay.status = 'activated'; pay.activatedAt = Date.now();
-    await savePayments(all);
-    console.log(`[admin] ACTIVATED  payment=${pay.id}  user=${pay.userId}  email=${pay.email ?? '—'}  plan=${pay.plan}  period=${pay.billingPeriod}`);
+    if (!acc) {
+      await mutatePayments(async (all) => {
+        const found = all.find((p) => p.id === pay.id && p.status === 'activating');
+        if (found) { found.status = 'pending'; found.activationError = 'account_not_found'; }
+        return { value: !!found };
+      });
+      return res.status(404).json({ error: 'account_not_found' });
+    }
+    await activatePlan(acc, pay.plan, pay.billingPeriod, pay.id);
+    await mutatePayments(async (all) => {
+      const found = all.find((p) => p.id === pay.id && p.status === 'activating');
+      if (!found) return { save: false, value: false };
+      found.status = 'activated'; found.activatedAt = Date.now();
+      return { value: true };
+    });
+    console.log(`[admin] ACTIVATED payment=${pay.id} user=${pay.userId} plan=${pay.plan} period=${pay.billingPeriod}`);
     res.json({ ok: true });
   } catch (e) { console.error('[admin] activate error:', e.message); res.status(500).json({ error: 'activate_failed' }); }
 });
@@ -89,12 +121,14 @@ adminRouter.post('/admin/activate', async (req, res) => {
 adminRouter.post('/admin/reject', async (req, res) => {
   if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
   try {
-    const all = await loadPayments();
-    const pay = all.find((p) => p.id === req.body?.id && p.status === 'pending');
+    const pay = await mutatePayments(async (all) => {
+      const found = all.find((p) => p.id === req.body?.id && p.status === 'pending');
+      if (!found) return { save: false, value: null };
+      found.status = 'rejected'; found.rejectedAt = Date.now();
+      return { value: { ...found } };
+    });
     if (!pay) return res.status(404).json({ error: 'not_found_or_already_done' });
-    pay.status = 'rejected'; pay.rejectedAt = Date.now();
-    await savePayments(all);
-    console.log(`[admin] REJECTED  payment=${pay.id}  user=${pay.userId}  email=${pay.email ?? '—'}`);
+    console.log(`[admin] REJECTED payment=${pay.id} user=${pay.userId}`);
     res.json({ ok: true });
   } catch (e) { console.error('[admin] reject error:', e.message); res.status(500).json({ error: 'reject_failed' }); }
 });
@@ -114,14 +148,15 @@ adminRouter.post('/admin/deactivate', async (req, res) => {
     await deactivatePlan(acc);   // subscription → free; planOf() returns 'free' on next request
 
     // Move this user's activated payment(s) into the deactivated list (history + clears the row).
-    const all = await loadPayments();
-    let changed = false;
-    for (const p of all) {
-      if (p.userId === acc.id && p.status === 'activated') { p.status = 'deactivated'; p.deactivatedAt = Date.now(); changed = true; }
-    }
-    if (changed) await savePayments(all);
+    await mutatePayments(async (all) => {
+      let changed = false;
+      for (const p of all) if (p.userId === acc.id && p.status === 'activated') {
+        p.status = 'deactivated'; p.deactivatedAt = Date.now(); changed = true;
+      }
+      return { value: changed, save: changed };
+    });
 
-    console.log(`[admin] DEACTIVATED  user=${acc.id}  email=${acc.email ?? '—'}  plan_now=${planOf(acc)}`);
+    console.log(`[admin] DEACTIVATED user=${acc.id} plan_now=${planOf(acc)}`);
     res.json({ ok: true, email: acc.email, plan: planOf(acc) });
   } catch (e) { console.error('[admin] deactivate error:', e.message); res.status(500).json({ error: 'deactivate_failed' }); }
 });
@@ -144,7 +179,7 @@ adminRouter.get('/admin/account', async (req, res) => {
 
 // Manual password recovery (support-over-WhatsApp): there is no email infrastructure for a
 // self-serve reset, so the owner verifies identity in chat and sets a temporary password here.
-// Usage: POST /admin/set-password  { key, email, newPassword }  (newPassword ≥ 8 chars)
+// Usage: POST /admin/set-password  { email, newPassword }  (newPassword ≥ 10 chars)
 adminRouter.post('/admin/set-password', async (req, res) => {
   if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
   try {
@@ -152,10 +187,10 @@ adminRouter.post('/admin/set-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'email_required' });
     const acc = await adminSetPassword(String(email).trim(), String(newPassword || ''));
     if (!acc) return res.status(404).json({ error: 'account_not_found' });
-    console.log(`[admin] PASSWORD SET  email=${acc.email}`);
+    console.log(`[admin] password reset account=${acc.id}`);
     res.json({ ok: true, email: acc.email });
   } catch (e) {
-    res.status(e.code === 400 ? 400 : 500).json({ error: e.code === 400 ? 'password_too_short_min8' : 'set_password_failed' });
+    res.status(e.code === 400 ? 400 : 500).json({ error: e.code === 400 ? 'password_too_short_min10' : 'set_password_failed' });
   }
 });
 
@@ -173,12 +208,18 @@ adminRouter.post('/admin/delete-account', async (req, res) => {
     if (!acc) return res.status(404).json({ error: 'account_not_found' });
 
     const id = acc.id, email = acc.email;
-    await deleteAccount(acc);            // 1) login + emailIndex (so signup sees it as brand-new)
-    await deleteUser(id);               // 2) progress/assessment profile keyed by user id
-    const paymentsRemoved = await deletePaymentsFor(id);  // 3) all payment records for this user
+    // Delete the login record LAST. Every preceding operation is idempotent, so any partial
+    // failure leaves a valid admin lookup target and the owner can safely retry the same request.
+    await deleteUser(id);               // 1) progress/assessment profile keyed by user id
+    const paymentsRemoved = await deletePaymentsFor(id);  // 2) all payment records for this user
+    await deleteGuide(id);              // 3) coaching history + summary
+    const feedbackRemoved = await deleteFeedbackFor(id, email); // 4) feedback/testimonials
+    const compRemoved = await removeComp(email);          // 5) legacy email whitelist PII
+    const weaknessRowsRemoved = await deleteWeaknessData(id); // 6) observed/expected error snippets
+    await deleteAccount(acc);            // 7) login + emailIndex; authorization dies only after cleanup
 
-    console.log(`[admin] DELETED ACCOUNT  user=${id}  email=${email ?? '—'}  paymentsRemoved=${paymentsRemoved}`);
-    res.json({ ok: true, email, deleted: true, paymentsRemoved });
+    console.log(`[admin] account deleted user=${id} payments=${paymentsRemoved} feedback=${feedbackRemoved}`);
+    res.json({ ok: true, email, deleted: true, paymentsRemoved, feedbackRemoved, compRemoved, weaknessRowsRemoved });
   } catch (e) { console.error('[admin] delete-account error:', e.message); res.status(500).json({ error: 'delete_failed' }); }
 });
 
@@ -208,12 +249,12 @@ adminRouter.post('/admin/comp/add', async (req, res) => {
     const email = String(body.email || '').trim();
     const plan  = PLANS[body.plan] ? body.plan : 'elite';
     const note  = String(body.note || '').slice(0, 200);
-    const entry = await addComp({ email, plan, note });
-    // If the account already exists, apply the grant RIGHT NOW — no need to wait for a re-signup.
     const acc = await getAccountByEmail(email);
-    if (acc) await grantComp(acc, plan);
-    console.log(`[admin] COMP ADD  email=${email}  plan=${plan}  appliedNow=${!!acc}`);
-    res.json({ ok: true, entry, appliedNow: !!acc });
+    if (!acc) return res.status(400).json({ error: 'account_must_exist' });
+    const entry = await addComp({ email, plan, note });
+    await grantComp(acc, plan);
+    console.log(`[admin] COMP ADD plan=${plan} appliedNow=true`);
+    res.json({ ok: true, entry, appliedNow: true });
   } catch (e) { console.error('[admin] comp add error:', e.message); res.status(e.code || 500).json({ error: e.message || 'comp_add_failed' }); }
 });
 
@@ -229,7 +270,7 @@ adminRouter.post('/admin/grant-days', async (req, res) => {
     if (!acc) return res.json({ found: false });
     await removeComp(email);                    // drop permanent comp so billingPeriodEnd governs
     await grantPlanForDays(acc, plan, days);
-    console.log(`[admin] GRANT-DAYS email=${email} plan=${plan} days=${days} ends=${new Date(acc.subscription.billingPeriodEnd).toISOString()}`);
+    console.log(`[admin] GRANT-DAYS account=${acc.id} plan=${plan} days=${days} ends=${new Date(acc.subscription.billingPeriodEnd).toISOString()}`);
     res.json({ ok: true, email, plan, days, billingPeriodEnd: acc.subscription.billingPeriodEnd });
   } catch (e) { console.error('[admin] grant-days error:', e.message); res.status(e.code || 500).json({ error: e.message || 'grant_days_failed' }); }
 });
@@ -243,7 +284,7 @@ adminRouter.post('/admin/comp/remove', async (req, res) => {
     // happens to share the email (e.g. they later paid for real on top of an old comp grant).
     const acc = await getAccountByEmail(email);
     if (acc?.subscription?.comp) await deactivatePlan(acc);
-    console.log(`[admin] COMP REMOVE  email=${email}  wasListed=${removed}  revokedAccess=${!!acc?.subscription?.comp}`);
+    console.log(`[admin] COMP REMOVE wasListed=${removed} revokedAccess=${!!acc?.subscription?.comp}`);
     res.json({ ok: true, removed });
   } catch (e) { console.error('[admin] comp remove error:', e.message); res.status(500).json({ error: 'comp_remove_failed' }); }
 });
@@ -326,6 +367,8 @@ adminRouter.get('/admin/user-detail', async (req, res) => {
 });
 
 // Self-contained panel. Reads the key from its own URL; values rendered via textContent (no XSS).
+const ADMIN_LOGIN_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>OMNI Admin</title></head><body style="font-family:system-ui;background:#0a0f1a;color:#e2e8f0;min-height:100vh;display:grid;place-items:center;margin:0"><form method="post" action="/admin/session" style="width:min(360px,calc(100vw - 40px));padding:24px;border:1px solid #334155;border-radius:14px;background:#111827"><h1 style="font-size:20px">OMNI Admin</h1><label style="display:block;margin:18px 0 6px">Admin key</label><input name="key" type="password" required autocomplete="current-password" style="box-sizing:border-box;width:100%;padding:12px;border-radius:8px;border:1px solid #475569;background:#020617;color:#fff"><button type="submit" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:8px;background:#3b82f6;color:#fff;font-weight:700">Sign in</button></form></body></html>`;
+
 const PANEL_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OMNI-PERFORM · Admin</title><style>
 body{font-family:system-ui,sans-serif;background:#0a0f1a;color:#e2e8f0;margin:0;padding:16px}
@@ -370,6 +413,7 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
     <button id="delBtn" class="del" onclick="delByEmail()">Konto löschen</button>
     <div style="font-size:10px;color:#fca5a5;margin-top:6px"><b>Deaktivieren</b> = Plan → FREE, Login bleibt. &nbsp;|&nbsp; <b style="color:#fff;background:#dc2626;padding:0 4px;border-radius:3px">Konto löschen</b> = alles weg, E-Mail wird frei (unwiderruflich).</div>
   </div>
+  <h2>ÜBERWEISUNG GESTARTET (noch nicht bestätigt)</h2><div id="intents"></div>
   <h2>OFFEN / PENDING</h2><div id="pending"></div>
   <h2>ZULETZT AKTIVIERT (20)</h2><div id="activated"></div>
   <h2>ZULETZT DEAKTIVIERT (10)</h2><div id="deactivated"></div>
@@ -377,7 +421,7 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
 
 <div id="tab-comp" class="tabpane">
   <div class="card" style="border-color:#3b82f6;background:rgba(59,130,246,0.06)">
-    <div style="font-size:11px;color:#93c5fd;margin-bottom:8px">E-Mail zur Whitelist hinzufügen — bekommt den gewählten Plan SOFORT, ohne zu bezahlen und ohne zu fragen. Ist die Person schon registriert, gilt es sofort; sonst beim nächsten Signup.</div>
+    <div style="font-size:11px;color:#93c5fd;margin-bottom:8px">Nur ein bereits registriertes Konto auswählen: der gewählte Plan gilt SOFORT. Unregistrierte E-Mail-Adressen werden aus Sicherheitsgründen nicht vorgemerkt.</div>
     <input id="compEmail" type="email" placeholder="email@beispiel.com" style="width:34%;max-width:200px">
     <select id="compPlan"><option value="elite">Elite</option><option value="basic">Basic</option></select>
     <input id="compNote" type="text" placeholder="Notiz (optional)" style="width:26%;max-width:170px">
@@ -416,7 +460,6 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
 </div>
 
 <script>
-var KEY=new URLSearchParams(location.search).get('key')||'';
 var loadedTabs={};
 function fmtMoney(n){return Number(n||0).toLocaleString('de-DE')+' EGP';}
 function fmtTime(t){if(!t)return '—';try{return new Date(t).toLocaleString('de-DE');}catch(e){return '';}}
@@ -436,17 +479,17 @@ function showTab(name){
   }
 }
 function load(){
-  fetch('/admin/payments?key='+encodeURIComponent(KEY)).then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(function(d){
+  fetch('/admin/payments').then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(function(d){
     document.getElementById('err').textContent='';
-    renderPending(d.pending||[]); renderActivated(d.activated||[]); renderDeactivated(d.deactivated||[]);
+    renderIntents(d.intents||[]); renderPending(d.pending||[]); renderActivated(d.activated||[]); renderDeactivated(d.deactivated||[]);
   }).catch(function(e){document.getElementById('err').textContent='Fehler beim Laden ('+e.message+') — Key korrekt?';});
-  fetch('/admin/accounts?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
+  fetch('/admin/accounts').then(function(r){return r.json();}).then(function(d){
     renderAccounts(d.users||[]); document.getElementById('userCount').textContent=(d.users||[]).length;
   }).catch(function(){});
 }
 // ── Comp access ──────────────────────────────────────────────────────────────
 function loadComp(){
-  fetch('/admin/comp?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){renderComp(d.rows||[]);})
+  fetch('/admin/comp').then(function(r){return r.json();}).then(function(d){renderComp(d.rows||[]);})
     .catch(function(){document.getElementById('compList').innerHTML='<div class="empty">Fehler beim Laden.</div>';});
 }
 function renderComp(rows){
@@ -475,7 +518,7 @@ function addCompEmail(){
   var plan=document.getElementById('compPlan').value;
   var note=(document.getElementById('compNote').value||'').trim();
   if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
-  fetch('/admin/comp/add?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,email:email,plan:plan,note:note})})
+  fetch('/admin/comp/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,plan:plan,note:note})})
     .then(function(r){return r.json();}).then(function(d){
       if(d&&d.ok){showOk('✅ '+email+' zur Whitelist hinzugefügt'+(d.appliedNow?' — Zugang ist bereits aktiv.':' — Zugang aktiviert sich beim nächsten Signup.'));document.getElementById('compEmail').value='';document.getElementById('compNote').value='';loadComp();}
       else{showErr('Fehlgeschlagen: '+((d&&d.error)||'?'));}
@@ -483,7 +526,7 @@ function addCompEmail(){
 }
 function removeCompEmail(email,btn){
   var label=btn.textContent;btn.disabled=true;btn.textContent='…';
-  fetch('/admin/comp/remove?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:KEY,email:email})})
+  fetch('/admin/comp/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent=label;
       if(d&&d.ok){showOk('🗑️ '+email+' von der Whitelist entfernt.');loadComp();}
@@ -495,7 +538,7 @@ var engPlanFree=true;
 function toggleEngPlan(){engPlanFree=!engPlanFree;document.getElementById('engToggle').textContent=engPlanFree?'[nur Trials ▾]':'[alle Nutzer ▾]';loadEngagement();}
 function loadEngagement(){
   var box=document.getElementById('engageList');box.innerHTML='<div class="empty">Lädt…</div>';
-  var url='/admin/engagement?key='+encodeURIComponent(KEY)+(engPlanFree?'&plan=free':'');
+  var url='/admin/engagement'+(engPlanFree?'?plan=free':'');
   fetch(url).then(function(r){return r.json();}).then(function(d){
     var us=d.users||[];
     var a1=us.filter(function(u){return u.activeDays>=1;}).length;
@@ -529,7 +572,7 @@ function loadEngagement(){
 
 // ── App health ───────────────────────────────────────────────────────────────
 function loadHealth(){
-  fetch('/admin/health-stats?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
+  fetch('/admin/health-stats').then(function(r){return r.json();}).then(function(d){
     var tiles=[
       ['Nutzer gesamt',d.totalUsers],['Anmeldungen heute',d.signupsToday],['Anmeldungen (7 Tage)',d.signupsWeek],
       ['Aktive Trials',d.activeTrials],['Zahlende Nutzer',d.paidUsers],['Comp-Zugänge',d.compUsers],
@@ -550,7 +593,7 @@ function loadUserDetail(){
   var email=(document.getElementById('userSearchEmail').value||'').trim();
   if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
   var box=document.getElementById('userDetail');box.innerHTML='<div class="empty">Lädt…</div>';
-  fetch('/admin/user-detail?key='+encodeURIComponent(KEY)+'&email='+encodeURIComponent(email)).then(function(r){return r.json();}).then(function(d){
+  fetch('/admin/user-detail?email='+encodeURIComponent(email)).then(function(r){return r.json();}).then(function(d){
     if(!d.found){box.innerHTML='<div class="empty">Kein Konto mit dieser E-Mail.</div>';return;}
     box.innerHTML='';
     var card=document.createElement('div');card.className='card';
@@ -588,7 +631,7 @@ function loadUserDetail(){
 }
 // ── Mission & feedback ───────────────────────────────────────────────────────
 function loadMission(){
-  fetch('/admin/placements?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
+  fetch('/admin/placements').then(function(r){return r.json();}).then(function(d){
     var box=document.getElementById('placementFunnel');box.innerHTML='';
     var stats=document.createElement('div');stats.className='stats';
     ['none','applying','interviewing','offer','hired','not_hired'].forEach(function(k){
@@ -606,7 +649,7 @@ function loadMission(){
       hbox.appendChild(t);
     }
   }).catch(function(){document.getElementById('placementFunnel').innerHTML='<div class="empty">Fehler beim Laden.</div>';});
-  fetch('/api/admin/feedback?key='+encodeURIComponent(KEY)).then(function(r){return r.json();}).then(function(d){
+  fetch('/api/admin/feedback').then(function(r){return r.json();}).then(function(d){
     var sum=document.getElementById('feedbackSummary');
     sum.innerHTML='';sum.style.cssText='font-size:11.5px;color:#94a3b8;margin-bottom:8px';
     sum.textContent='Insgesamt: '+(d.total||0)+' Einträge (letzte '+((d.entries||[]).length)+' unten)';
@@ -637,15 +680,17 @@ function renderPending(rows){
   var box=document.getElementById('pending');box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="empty">Keine offenen Zahlungen.</div>';return;}
   var t=document.createElement('table');
-  t.innerHTML='<tr><th>Code</th><th>User</th><th>Plan</th><th>Zeitraum</th><th>Betrag</th><th>Getippt am</th><th></th></tr>';
+  t.innerHTML='<tr><th>Vorgang</th><th>User</th><th>Wallet Ende</th><th>Plan</th><th>Zeitraum</th><th>Betrag</th><th>Bestätigt am</th><th>Status</th><th></th></tr>';
   rows.forEach(function(p){
     var tr=document.createElement('tr');
     var c=document.createElement('td');c.innerHTML='<code></code>';c.firstChild.textContent=p.referenceCode;tr.appendChild(c);
     tr.appendChild(cell(p.email||p.userId));
+    tr.appendChild(cell(p.senderLast4 ? '•••• '+p.senderLast4 : 'FEHLT'));
     tr.appendChild(cell((p.plan||'').toUpperCase()));
     tr.appendChild(cell(p.billingPeriod==='yearly'?'Jahr':'Monat'));
     tr.appendChild(cell(fmtMoney(p.amountEGP)));
-    tr.appendChild(cell(fmtTime(p.createdAt)));
+    tr.appendChild(cell(fmtTime(p.confirmedAt||p.createdAt)));
+    tr.appendChild(cell(p.status==='activating'?'WIRD AKTIVIERT':'ZAHLUNG PRÜFEN'));
     var act=document.createElement('td');
     var b1=document.createElement('button');b1.className='act';b1.textContent='Aktivieren';b1.onclick=function(){doAction('/admin/activate',{id:p.id},b1);};
     var b2=document.createElement('button');b2.className='rej';b2.textContent='Ablehnen';b2.onclick=function(){doAction('/admin/reject',{id:p.id},b2);};
@@ -653,6 +698,17 @@ function renderPending(rows){
     t.appendChild(tr);
   });
   box.appendChild(t);
+}
+function renderIntents(rows){
+  var box=document.getElementById('intents');box.innerHTML='';
+  if(!rows.length){box.innerHTML='<div class="empty">Keine offenen Überweisungsanweisungen.</div>';return;}
+  var t=document.createElement('table');
+  t.innerHTML='<tr><th>Vorgang</th><th>User</th><th>Plan</th><th>Betrag</th><th>Gestartet am</th><th>Hinweis</th></tr>';
+  rows.forEach(function(p){
+    var tr=document.createElement('tr');tr.appendChild(cell(p.referenceCode));tr.appendChild(cell(p.email||p.userId));
+    tr.appendChild(cell(String(p.plan||'').toUpperCase()));tr.appendChild(cell(fmtMoney(p.amountEGP)));
+    tr.appendChild(cell(fmtTime(p.createdAt)));tr.appendChild(cell('Noch nicht als bezahlt bestätigt — nur zur Nachverfolgung, NICHT aktivieren.'));t.appendChild(tr);
+  });box.appendChild(t);
 }
 function renderActivated(rows){
   var box=document.getElementById('activated');box.innerHTML='';
@@ -692,13 +748,13 @@ function renderDeactivated(rows){
 }
 function doAction(path,payload,btn){
   var label=btn.textContent;btn.disabled=true;btn.textContent='…';
-  fetch(path+'?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:KEY},payload))})
+  fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(function(d){if(d&&d.ok){load();}else{document.getElementById('err').textContent='Aktion fehlgeschlagen: '+((d&&d.error)||'?');btn.disabled=false;btn.textContent=label;}})
     .catch(function(e){document.getElementById('err').textContent='Netzwerkfehler.';btn.disabled=false;btn.textContent=label;});
 }
 function deactivate(payload,btn){
   var label=btn.textContent;btn.disabled=true;btn.textContent='…';
-  fetch('/admin/deactivate?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:KEY},payload))})
+  fetch('/admin/deactivate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent=label;
       if(d&&d.ok){showOk('✅ '+(d.email||'')+' deaktiviert → Plan jetzt: '+String(d.plan||'free').toUpperCase());load();}
@@ -717,7 +773,7 @@ function delAccount(payload,email,btn){
   if(typed===null)return;
   if(typed.trim().toLowerCase()!==String(email).trim().toLowerCase()){showErr('E-Mail stimmt nicht überein — Löschen abgebrochen.');return;}
   var label=btn.textContent;btn.disabled=true;btn.textContent='…';
-  fetch('/admin/delete-account?key='+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({key:KEY},payload))})
+  fetch('/admin/delete-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent=label;
       if(d&&d.ok){showOk('🗑️ '+(d.email||email)+' PERMANENT gelöscht — E-Mail ist jetzt frei. Diese Person muss sich neu registrieren.');load();}
@@ -734,7 +790,7 @@ function checkStatus(){
   var email=(document.getElementById('deacEmail').value||'').trim();
   if(!email){showErr('Bitte eine E-Mail eingeben.');return;}
   var btn=document.getElementById('statBtn');var label=btn.textContent;btn.disabled=true;btn.textContent='…';
-  fetch('/admin/account?key='+encodeURIComponent(KEY)+'&email='+encodeURIComponent(email))
+  fetch('/admin/account?email='+encodeURIComponent(email))
     .then(function(r){return r.json();}).then(function(d){
       btn.disabled=false;btn.textContent=label;
       if(d&&d.found){showOk('Status '+d.email+' → REGISTRIERT · Plan: '+String(d.plan).toUpperCase()+(d.plan==='free'?' (kein bezahlter Zugang)':' (aktiv)'));}

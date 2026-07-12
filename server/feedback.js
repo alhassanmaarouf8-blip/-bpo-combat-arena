@@ -12,10 +12,11 @@ import express from 'express';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { timingSafeEqual } from 'crypto';
+import { randomUUID } from 'crypto';
+import { adminRequestOk } from './adminAuth.js';
 import { loadUser } from './store.js';
 import { loadGuide } from './guideStore.js';
-import { requireAuth, isAdminEmail } from './auth.js';
+import { requireAuth, isAdminAccount } from './auth.js';
 import { dbEnabled, kvGet, kvSet } from './db.js';
 
 export const feedbackRouter = express.Router();
@@ -31,21 +32,19 @@ async function saveFeedback(all) {
   await writeFile(FEEDBACK_FILE, JSON.stringify(all, null, 2), 'utf8');
 }
 
+export async function deleteFeedbackFor(userId, email) {
+  const all = await loadFeedback();
+  const normalized = String(email || '').toLowerCase();
+  const kept = all.filter((e) => e.userId !== userId && (!normalized || String(e.email || '').toLowerCase() !== normalized));
+  if (kept.length !== all.length) await saveFeedback(kept);
+  return all.length - kept.length;
+}
+
 // ── Public ratings (landing-page social proof) ────────────────────────────────
-// Owner (2026-07-02): show the real user ratings publicly. Honesty rules, non-negotiable:
-//   - avgRating/ratingCount are computed over EVERY rating ever submitted — never just the
-//     ones displayed. This is the anchor that keeps the curated quotes below from being
-//     misleading cherry-picking: the true average is always shown alongside them.
-//   - Below MIN_PUBLIC_RATINGS, the whole section reports unavailable rather than presenting a
-//     thin, unrepresentative sample as if it were robust social proof (same doctrine as the
-//     DailyMission trend chip elsewhere in this app: no data → say nothing, never fake it).
-//   - Comments never carry email/name/timestamp — text + the SAME rating that quote earned,
-//     capped in length. Sampled from rating>=4 (a testimonials sample, standard practice) but the
-//     honest average above always reflects the FULL distribution, including anything lower.
-// Threshold lowered to 1 (owner: "doesn't have to be big, just mentioned" — show it even with few
-// ratings); ratingCount is always shown so 2 ratings reads honestly as "2", not a fake big average.
-// Comments now carry the NAME (never email — owner's explicit privacy choice), resolved by the route.
-const MIN_PUBLIC_RATINGS = 1;
+// Only feedback with both explicit publication consent and a separate owner approval may appear.
+// The average is computed over every such approved rating, including low ratings. A minimum cohort
+// prevents one or two hand-picked submissions from masquerading as meaningful social proof.
+const MIN_PUBLIC_RATINGS = 10;
 const MAX_PUBLIC_COMMENTS = 6;
 const MAX_COMMENT_CHARS  = 200;
 
@@ -70,7 +69,8 @@ async function enrichNames(entries) {
 /** Pure + exported for unit tests. Entries may carry an optional `name` (resolved by the route).
  *  Reads e.name only — NEVER e.email — so PII can't leak into a public comment. */
 export function buildPublicRatings(all) {
-  const entries = Array.isArray(all) ? all : [];
+  // Nothing reaches marketing automatically. Both gates must be recorded independently.
+  const entries = (Array.isArray(all) ? all : []).filter((e) => !!e.publicApprovedAt && !!e.publicConsentAt);
   const ratings = entries.map((e) => e.rating).filter((n) => Number.isFinite(n) && n > 0);
   if (ratings.length < MIN_PUBLIC_RATINGS) return { available: false };
 
@@ -107,6 +107,7 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
     try { const g = await loadGuide(req.account.id); name = g?.name || null; } catch { /* stays null */ }
 
     const entry = {
+      id:           randomUUID(),
       userId:       req.account.id,
       email:        req.account.email ?? null,   // stored for the ADMIN view only; NEVER sent to /feedback/public
       name:         name,
@@ -117,15 +118,16 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
       rating:       Number.isFinite(+rating) ? Math.max(0, Math.min(5, Math.round(+rating))) : null,
       answers:      (answers && typeof answers === 'object') ? answers : null,
       text:         typeof text === 'string' ? text.slice(0, 2000) : '',
+      publicApprovedAt: null,
+      publicConsentAt: null,
     };
 
     const all = await loadFeedback();
     all.push(entry);
+    if (all.length > 5000) all.splice(0, all.length - 5000);
     await saveFeedback(all);
 
-    console.log(`[feedback] NEW · user=${entry.userId} · screen=${entry.screen} · rating=${entry.rating ?? '—'} · ` +
-      `sessions=${entry.sessionCount} · level=${entry.level} · answers=${JSON.stringify(entry.answers)} · ` +
-      `text="${(entry.text || '').replace(/\s+/g, ' ').slice(0, 100)}"`);
+    console.log(`[feedback] authenticated submission stored · id=${entry.id} · screen=${entry.screen} · rating=${entry.rating ?? 'none'}`);
 
     res.json({ ok: true });
   } catch (err) {
@@ -136,9 +138,8 @@ feedbackRouter.post('/feedback', requireAuth, async (req, res) => {
 
 // ── Public feedback submission (NO login) — the shareable-link form ─────────────
 // Owner (2026-07-08): a link to send on Messenger/WhatsApp so people who never reach the
-// in-app feedback button can still leave detailed feedback. Feeds the SAME store as the
-// authed route, so a rating>=4 with text flows into /feedback/public (avg + testimonials)
-// on the next cache cycle. Unauthenticated → these guards matter: a honeypot (silent-drop
+// in-app feedback button can still leave detailed private feedback. It never enters public
+// proof automatically. Unauthenticated → these guards matter: a honeypot (silent-drop
 // bots), a per-IP rate limit, hard length caps, and a require-some-signal check so empty
 // spam is rejected. No userId/email is ever attached (there's no logged-in user here).
 const pubRate = new Map();                 // ip -> [timestamps]; in-memory soft cap, resets on restart
@@ -157,7 +158,7 @@ feedbackRouter.post('/feedback/public', async (req, res) => {
     // Honeypot: real users never fill this hidden field. Report ok so bots don't retry, but store nothing.
     if (typeof hp === 'string' && hp.trim()) return res.json({ ok: true });
 
-    const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
     if (!pubRateOk(ip)) return res.status(429).json({ error: 'rate_limited' });
 
     const r         = Number.isFinite(+rating) ? Math.max(0, Math.min(5, Math.round(+rating))) : null;
@@ -168,6 +169,7 @@ feedbackRouter.post('/feedback/public', async (req, res) => {
     if (!r && !likedT && !dislikedT) return res.status(400).json({ error: 'empty' });
 
     const entry = {
+      id:           randomUUID(),
       userId:       null,
       email:        null,
       name:         nm || null,
@@ -178,17 +180,18 @@ feedbackRouter.post('/feedback/public', async (req, res) => {
       screen:       'public-link',
       rating:       r,
       answers:      { liked: likedT || null, disliked: dislikedT || null },
-      // Public testimonials (rating>=4) render `text` — put the POSITIVE part there; the
-      // critical "besser machen" note stays in answers for the owner's admin view only.
+      // Keep the positive and critical parts distinct for private product review.
       text:         likedT,
+      publicApprovedAt: null,
+      publicConsentAt: null,
     };
 
     const all = await loadFeedback();
     all.push(entry);
+    if (all.length > 5000) all.splice(0, all.length - 5000);
     await saveFeedback(all);
 
-    console.log(`[feedback] PUBLIC · ip=${ip} · rating=${entry.rating ?? '—'} · name=${nm || 'anon'} · ` +
-      `liked="${likedT.replace(/\s+/g, ' ').slice(0, 80)}" · disliked="${dislikedT.replace(/\s+/g, ' ').slice(0, 80)}"`);
+    console.log(`[feedback] public submission stored · id=${entry.id} · rating=${entry.rating ?? 'none'}`);
 
     res.json({ ok: true });
   } catch (err) {
@@ -207,7 +210,7 @@ feedbackRouter.post('/feedback/public', async (req, res) => {
 // Gated to ADMIN_EMAIL accounts (set the env var on the server). Returns aggregates
 // (avg rating, price-bucket counts, "felt real" yes/no) plus the newest entries.
 feedbackRouter.get('/feedback/admin', requireAuth, async (req, res) => {
-  if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
+  if (!isAdminAccount(req.account)) return res.status(403).json({ error: 'forbidden' });
   try {
     const all = Array.isArray(await loadFeedback()) ? await loadFeedback() : [];
     const ratings = all.map((e) => e.rating).filter((n) => Number.isFinite(n) && n > 0);
@@ -239,15 +242,8 @@ feedbackRouter.get('/feedback/admin', requireAuth, async (req, res) => {
 
 // Same data as /feedback/admin, but reachable from the ADMIN_KEY-gated /admin panel (no login
 // needed — same dual-gate pattern placement.js uses for /admin/placements).
-function adminKeyOk(req) {
-  const key = process.env.ADMIN_KEY || '';
-  if (!key) return false;
-  const got = String(req.query.key || req.headers['x-admin-key'] || (req.body && req.body.key) || '');
-  if (got.length !== key.length) return false;
-  try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
-}
 feedbackRouter.get('/admin/feedback', async (req, res) => {
-  if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });
+  if (!adminRequestOk(req)) return res.status(403).json({ error: 'forbidden' });
   try {
     const all = await loadFeedback();
     const recent = all.slice(-100).reverse();

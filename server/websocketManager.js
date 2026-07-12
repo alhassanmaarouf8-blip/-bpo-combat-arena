@@ -16,7 +16,7 @@ import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER } from './progression.js';
-import { verifyToken, getAccountById, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight, creditReferral } from './auth.js';
+import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations } from './trainingslager.js';
@@ -55,7 +55,11 @@ const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
 // to DEFAULT-ENABLED: Gemini runs when USE_GEMINI_LIVE=1 + key present, and is killed ONLY by an
 // explicit GEMINI_LIVE_DISABLED=1 (or GEMINI_LIVE_ENABLED=0).
 const GEMINI_LIVE_DISABLED = process.env.GEMINI_LIVE_DISABLED === '1' || process.env.GEMINI_LIVE_ENABLED === '0';
-const geminiEmailAllowed = () => !GEMINI_LIVE_DISABLED;
+const GEMINI_LIVE_ACCOUNT_IDS = new Set(String(process.env.GEMINI_LIVE_ACCOUNT_IDS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean));
+const geminiAccountAllowed = (account) => !GEMINI_LIVE_DISABLED && !!account?.id && GEMINI_LIVE_ACCOUNT_IDS.has(account.id);
+const ELEVEN_VOICE_ACCOUNT_IDS = new Set(String(process.env.ELEVEN_VOICE_ACCOUNT_IDS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean));
 // Per-persona native-audio voice, gender + character matched. Without this map every interviewer
 // would share ONE voice ('Charon', male) — voicing the women with a man. Gemini prebuilt voices; a
 // first pass to validate by ear (the free path's Deepgram Aura voices don't exist on Gemini).
@@ -76,6 +80,14 @@ const GEMINI_BARGE_IN = process.env.GEMINI_BARGE_IN !== '0';
 const PING_INTERVAL_MS   = 25_000;
 const SESSION_TIMEOUT_MS = 300_000;
 const MAX_MESSAGE_BYTES  = 65_536;
+const WS_AUTH_TIMEOUT_MS = 15_000;
+const WS_RATE_WINDOW_MS  = 10_000;
+const WS_MAX_MESSAGES    = 180;
+const WS_MAX_CONNECTIONS = Math.max(25, Number(process.env.WS_MAX_CONNECTIONS || 500));
+const WS_MAX_PER_IP      = Math.max(2, Number(process.env.WS_MAX_CONNECTIONS_PER_IP || 10));
+const MAX_AUDIO_FRAME_BYTES = 32 * 1024;
+const AUDIO_BURST_BYTES      = 192_000;
+const AUDIO_WIRE_BYTES_PER_SEC = 60_000;
 // Hard wall-clock cap: a single fight can NEVER bill the OpenAI Realtime API longer
 // than this, no matter how active the mic is. (The idle timeout above never fires
 // while audio is streaming.) A CEILING, not a fixed length: most interviews end EARLIER, the
@@ -179,6 +191,7 @@ const ABUSE_END  = 'Damit ist Schluss. Ich beende das Gespräch.';
 const C = {
   START_FIGHT:  'start_fight',
   STOP_FIGHT:   'stop_fight',
+  REQUEST_TEXT_MODE: 'request_text_mode',
   // Turn-based: ONE answer per turn. Can arrive as TEXT (typed/transcribed client-side)
   // or via streaming PCM audio: AUDIO_CHUNK streams raw b64 PCM to the server, which
   // pipes it to Deepgram LiveTranscription and fires ANSWER internally on speech_final.
@@ -195,6 +208,7 @@ export class WebSocketManager {
     // Account IDs with a fight currently in flight — a per-user single-flight lock so a
     // double-click (which opens TWO browser sockets) cannot open two Realtime sessions.
     this._activeFightUsers = activeFightUsers;   // shared with the TTS/STT endpoints (authorize voice by active fight)
+    this._ipConnections = new Map();
 
     // Same origin allowlist as the HTTP CORS layer — the WS upgrade must validate Origin
     // too, otherwise any website could open sockets against us. No Origin header (native
@@ -226,13 +240,23 @@ export class WebSocketManager {
 
   _onConnection(socket, request) {
     const sessionId = randomUUID();
-    const remoteIp  = request.headers['x-forwarded-for'] ?? request.socket.remoteAddress ?? 'unknown';
+    const remoteIp  = String(request.headers['x-forwarded-for'] ?? request.socket.remoteAddress ?? 'unknown')
+      .split(',')[0].trim() || 'unknown';
+
+    const ipConnections = this._ipConnections.get(remoteIp) || 0;
+    if (this._sessions.size >= WS_MAX_CONNECTIONS || ipConnections >= WS_MAX_PER_IP) {
+      console.warn(`[wsManager] Connection capacity rejected  ip=${remoteIp}`);
+      socket.close(1013, 'try_again_later');
+      return;
+    }
+    this._ipConnections.set(remoteIp, ipConnections + 1);
 
     console.log(`[wsManager] New connection  session=${sessionId}  ip=${remoteIp}`);
 
     /** @type {SessionContext} */
     const ctx = {
       sessionId,
+      remoteIp,
       socket,
       realtimeClient: null,
       isAlive:        true,
@@ -301,9 +325,22 @@ export class WebSocketManager {
       geminiUserParts:   [],    // accumulated user-transcript parts this Gemini turn (for scoring)
       geminiBossParts:   [],    // accumulated boss-transcript parts this Gemini turn (display + debrief)
       _geminiTurnStartMs: 0,    // wall-clock start of the current Gemini user turn (for durationMs)
+      answerInFlight:     false,
+      startInFlight:      false,
+      messageWindowAt:    Date.now(),
+      messageCount:       0,
+      audioWireStartedAt: 0,
+      audioWireBytes:     0,
+      connectionReleased: false,
+      authDeadline:       null,
     };
 
     this._sessions.set(sessionId, ctx);
+
+    ctx.authDeadline = setTimeout(() => {
+      if (ctx.userId === 'anon' && socket.readyState === 1) socket.close(4401, 'authentication_timeout');
+    }, WS_AUTH_TIMEOUT_MS);
+    ctx.authDeadline.unref?.();
 
     socket.on('message', (data, isBinary) => this._onMessage(ctx, data, isBinary));
     socket.on('close',   (code, reason)   => this._onClose(ctx, code, reason));
@@ -325,6 +362,18 @@ export class WebSocketManager {
 
     if (isBinary) return; // we only use text frames
 
+    const now = Date.now();
+    if (now - ctx.messageWindowAt >= WS_RATE_WINDOW_MS) {
+      ctx.messageWindowAt = now;
+      ctx.messageCount = 0;
+    }
+    ctx.messageCount += 1;
+    if (ctx.messageCount > WS_MAX_MESSAGES) {
+      console.warn(`[wsManager] Message rate exceeded  session=${ctx.sessionId}`);
+      ctx.socket.close(4408, 'message_rate_limit');
+      return;
+    }
+
     let msg;
     try {
       msg = JSON.parse(data.toString('utf8'));
@@ -344,21 +393,36 @@ export class WebSocketManager {
         break;
 
       case C.START_FIGHT:
-        this._handleStartFight(ctx, msg);
+        if (ctx.startInFlight) { this._sendError(ctx, 'fight_start_in_progress'); break; }
+        ctx.startInFlight = true;
+        Promise.resolve(this._handleStartFight(ctx, msg))
+          .catch((err) => {
+            console.error(`[wsManager] start handler failed session=${ctx.sessionId}:`, err.message);
+            this._releaseFight(ctx);
+            this._sendError(ctx, 'fight_start_failed');
+          })
+          .finally(() => { ctx.startInFlight = false; });
         break;
 
       case C.STOP_FIGHT:
         this._handleStopFight(ctx);
         break;
 
+      case C.REQUEST_TEXT_MODE:
+        this._handleTextMode(ctx);
+        break;
+
       case C.ANSWER:
-        this._handleAnswer(ctx, msg);
+        this._handleAnswer(ctx, msg).catch((err) => {
+          console.error(`[wsManager] answer handler failed session=${ctx.sessionId}:`, err.message);
+          this._sendError(ctx, 'answer_failed');
+        });
         break;
 
       case C.AUDIO_CHUNK:
         // Routed inside _handleAudioChunk: the Gemini proxy (resampled 24→16 kHz) when this fight is
         // on the native-audio path, else Deepgram streaming STT for the $0 pipeline.
-        this._handleAudioChunk(ctx, msg);
+        if (this._acceptAudioFrame(ctx, msg)) this._handleAudioChunk(ctx, msg);
         break;
 
       case C.AUDIO_END:
@@ -388,7 +452,9 @@ export class WebSocketManager {
     // ── Auth + subscription gate (server-side; cannot be bypassed by the client) ──
     const payload = verifyToken(msg.token);
     const account = payload ? await getAccountById(payload.uid) : null;
-    if (!account) { this._sendError(ctx, 'auth_required'); return; }
+    if (!tokenMatchesAccount(payload, account)) { this._sendError(ctx, 'auth_required'); return; }
+    if (ctx.authDeadline) { clearTimeout(ctx.authDeadline); ctx.authDeadline = null; }
+    if (!emailOwnershipVerified(account)) { this._sendError(ctx, 'email_verification_required'); return; }
 
     // ── Plan gate: paid plan has live minutes; a free account gets ONE free 7-min fight, then upsell ──
     const minutes = dailyMinutesFor(account);   // free 0 / basic 7 / elite 15
@@ -469,10 +535,6 @@ export class WebSocketManager {
       return;
     }
     ctx.dailyCapSec = remainingSec;
-    // Spend the one-time free fight now that it's actually starting (so it's granted exactly once).
-    if (freeFightSec > 0) { try { await consumeFreeFight(account); } catch {} }
-
-
     ctx.bossId = bossId;
     // STT ACCENT-BOOST list (general accuracy, not a one-word patch): the words we KNOW will occur this
     // session — the interviewer's name, the candidate's own name, core interview/BPO vocabulary — handed
@@ -510,11 +572,11 @@ export class WebSocketManager {
     // greeting when Gemini will greet natively (otherwise the candidate hears two hellos). ──
     // Creds = AI Studio key OR Vertex service account (bills the $300 GCP credit, not the card).
     const geminiCreds = !!process.env.GEMINI_API_KEY || vertexConfigured();
-    const geminiLiveEnabled = USE_GEMINI_LIVE && geminiCreds
-      && geminiEmailAllowed(account.email) && !geminiBudget.isCapped();
+    const geminiLiveEnabled = msg.audioCapable === true && USE_GEMINI_LIVE && geminiCreds
+      && geminiAccountAllowed(account) && !geminiBudget.isCapped();
     // 2026-07-09 DEBUG: never let the fallback be silent again — name the exact gate that failed.
-    console.log(`[wsManager] gemini-gate  flag=${USE_GEMINI_LIVE}  key=${!!process.env.GEMINI_API_KEY}  vertex=${vertexConfigured()}  allowed=${geminiEmailAllowed(account.email)}  capped=${geminiBudget.isCapped()}  spent=$${geminiBudget.spentThisMonth().toFixed(2)}/$${geminiBudget.capUsd()}  => geminiLiveEnabled=${geminiLiveEnabled}  session=${ctx.sessionId}`);
-    if (USE_GEMINI_LIVE && geminiCreds && geminiEmailAllowed(account.email) && geminiBudget.isCapped()) {
+    console.log(`[wsManager] gemini-gate flag=${USE_GEMINI_LIVE} creds=${geminiCreds} allowed=${geminiAccountAllowed(account)} capped=${geminiBudget.isCapped()} => enabled=${geminiLiveEnabled} session=${ctx.sessionId}`);
+    if (USE_GEMINI_LIVE && geminiCreds && geminiAccountAllowed(account) && geminiBudget.isCapped()) {
       console.warn(`[wsManager] Gemini monthly cap ($${geminiBudget.capUsd()}) reached — this fight stays on the $0 path  session=${ctx.sessionId}`);
     }
 
@@ -529,6 +591,7 @@ export class WebSocketManager {
         candidateName,
         recent,
         targetIndustry,
+        allowElevenVoice: ELEVEN_VOICE_ACCOUNT_IDS.has(account.id),
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
         // that follows, so it can judge whether the candidate actually answered what was asked.
@@ -605,6 +668,7 @@ export class WebSocketManager {
           if (!ctx.geminiGreeted) { try { ctx.realtimeClient?.emitOpening?.(); } catch { /* boss gone */ } }
           else this._send(ctx, { type: S.BOSS_SPEECH, text: noticeText });
         };
+        ctx.geminiFallback = geminiFallback;
         try {
           const { GeminiLiveProxy } = await import('./geminiLiveProxy.js');
           const proxy = new GeminiLiveProxy({
@@ -766,6 +830,10 @@ export class WebSocketManager {
         }
       }
 
+      // Commit the free entitlement only after every provider-start/fallback step is ready.
+      // Persistence failure aborts before the usage clock starts, preserving exactly-once access.
+      if (freeFightSec > 0) await consumeFreeFight(account);
+
       // Billing starts now: stamp the start time and arm the cap at the SMALLER of the global
       // max and the user's remaining daily minutes.
       ctx.fightStartedAt = Date.now();
@@ -811,8 +879,6 @@ export class WebSocketManager {
       ctx.realtimeClient = null;
       this._releaseFight(ctx);   // free the per-user lock + cap timer so the user can retry
       this._sendError(ctx, 'fight_start_failed');
-      // Surface the actual error for debugging — client shows this alongside the generic text.
-      try { this._send(ctx, { type: S.ERROR, code: 'fight_start_detail', detail: String(err.message || 'unknown').slice(0, 500) }); } catch {}
     }
   }
 
@@ -849,6 +915,32 @@ export class WebSocketManager {
   // base64 → decoded byte count (for the audio-seconds cost log; padding-approximate).
   _b64Bytes(s) { return typeof s === 'string' ? Math.floor((s.length * 3) / 4) : 0; }
 
+  _acceptAudioFrame(ctx, msg) {
+    if (!ctx.realtimeClient || ctx.closed || ctx.userId === 'anon') return false;
+    const data = msg?.data;
+    if (typeof data !== 'string' || !data || data.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(data)) {
+      this._sendError(ctx, 'invalid_audio');
+      return false;
+    }
+    const decoded = Buffer.from(data, 'base64');
+    if (!decoded.length || decoded.length > MAX_AUDIO_FRAME_BYTES) {
+      this._sendError(ctx, 'invalid_audio');
+      return false;
+    }
+    const now = Date.now();
+    if (!ctx.audioWireStartedAt) ctx.audioWireStartedAt = now;
+    ctx.audioWireBytes += decoded.length;
+    const elapsedSec = Math.max(0, (now - ctx.audioWireStartedAt) / 1000);
+    const allowed = AUDIO_BURST_BYTES + elapsedSec * AUDIO_WIRE_BYTES_PER_SEC;
+    if (ctx.audioWireBytes > allowed) {
+      console.warn(`[wsManager] Audio rate exceeded  session=${ctx.sessionId}`);
+      ctx.socket.close(4408, 'audio_rate_limit');
+      return false;
+    }
+    msg._audioBuffer = decoded;
+    return true;
+  }
+
   // ── Streaming STT: Deepgram LiveTranscription ─────────────────────────────────
   // Audio arrives as base64 PCM16 chunks from the client's ClipRecorder. We open ONE
   // DeepgramStreamer per user turn, pipe each chunk into it, and fire _handleAnswer when
@@ -868,7 +960,7 @@ export class WebSocketManager {
     if (ctx.geminiProxy) {
       if (!GEMINI_BARGE_IN && ctx.geminiActive) return;   // half-duplex anti-echo (only when barge-in disabled)
       if (!ctx._geminiTurnStartMs) ctx._geminiTurnStartMs = Date.now();
-      const pcm16k = downsamplePcm24to16(Buffer.from(msg.data, 'base64'));
+      const pcm16k = downsamplePcm24to16(msg._audioBuffer || Buffer.from(msg.data, 'base64'));
       ctx.audioInBytes += pcm16k.length;
       const sent = ctx.geminiProxy.sendAudioChunk(pcm16k.toString('base64'));
       if (sent) return;
@@ -915,7 +1007,7 @@ export class WebSocketManager {
       streamer.start();
     }
 
-    const buf = Buffer.from(msg.data, 'base64');
+    const buf = msg._audioBuffer || Buffer.from(msg.data, 'base64');
     ctx.dgStreamer.sendChunk(buf);
   }
 
@@ -1042,6 +1134,15 @@ export class WebSocketManager {
     // the server confirming all three parts complete (_endSession 'completed').
     console.log(`[wsManager] Stopping fight (user)  session=${ctx.sessionId}`);
     await this._endSession(ctx, 'user_stopped');
+  }
+
+  _handleTextMode(ctx) {
+    if (!ctx.geminiProxy || typeof ctx.geminiFallback !== 'function') return;
+    const proxy = ctx.geminiProxy;
+    ctx.geminiProxy = null;
+    ctx.geminiActive = false;
+    try { proxy.close(); } catch { /* already closed */ }
+    ctx.geminiFallback('(Der Sprachmodus ist nicht verfügbar — bitte tippen Sie Ihre Antwort.)');
   }
 
   // The single, authoritative session-end path. Closes the boss, builds the debrief
@@ -1332,10 +1433,6 @@ export class WebSocketManager {
 
       await saveUser(p);
 
-      // REFERRAL: a real first completed interview is the qualifying event — credit the inviter +
-      // invitee with bonus trial days. No-ops if not referred / already credited / not the first fight.
-      if (p.sessions.length === 1) { try { await creditReferral(await getAccountById(ctx.userId)); } catch { /* best-effort */ } }
-
       // ── Visible-progress signals for the end screen ──
       // Trend of the last few sessions (the user must SEE improvement, not be told it),
       // a personal-best flag, and the interview-readiness rank — all from stored scores.
@@ -1537,18 +1634,17 @@ export class WebSocketManager {
       }
     }
 
-    // Honest C1-floor verdict. The pass bar on a real Cairo German line is C1 that
-    // HELD under pressure; B2 only clears the HR phone-screen; freezing (verdict
-    // 'fail') disqualifies regardless of vocabulary, so it overrides a high CEFR.
+    // Training interpretation only. This product does not make employment decisions and must
+    // never imply that a simulated score guarantees or blocks a real hiring outcome.
     const jobLabel =
         gradeUnavailable                    ? 'Bewertung nicht verfügbar'
-      : verdict === 'fail'                  ? 'Unter Druck eingebrochen — noch nicht einstellbar'
-      : rank === 'C1' && verdict === 'pass' ? 'C1 — bereit für die Kundenlinie'
-      : rank === 'C1'                       ? 'C1-Niveau, unter Druck aber noch instabil'
-      : rank === 'B2'                       ? 'B2 — besteht das Telefon-Screening, noch nicht liniensicher'
-      : rank === 'B1'                       ? 'B1 — grundsolide, aber unter der Einstellungsschwelle'
-      : rank === 'A2'                       ? 'A2 — deutlich unter der Einstellungsschwelle'
-      :                                       'Weiter üben — Du schaffst das';
+      : verdict === 'fail'                  ? 'Diese Simulation war unter Druck noch instabil'
+      : rank === 'C1' && verdict === 'pass' ? 'C1 — starke Leistung in dieser Simulation'
+      : rank === 'C1'                       ? 'C1 — sprachlich stark, unter Druck noch nicht konstant'
+      : rank === 'B2'                       ? 'B2 — solide Basis in dieser Simulation'
+      : rank === 'B1'                       ? 'B1 — verständliche Basis mit klaren Trainingsfeldern'
+      : rank === 'A2'                       ? 'A2 — Fundament im Aufbau'
+      :                                       'Grundlagen weiter trainieren';
 
     return {
       outcome, bossHp, playerHp, score,
@@ -1563,6 +1659,19 @@ export class WebSocketManager {
   // single next turn. Audio never flows over the socket anymore.
 
   async _handleAnswer(ctx, msg, opts = {}) {
+    if (ctx.answerInFlight) {
+      this._send(ctx, { type: S.TRANSCRIPT_DONE, transcript: '', wordCount: 0 });
+      return;
+    }
+    ctx.answerInFlight = true;
+    try {
+      return await this._handleAnswerUnlocked(ctx, msg, opts);
+    } finally {
+      ctx.answerInFlight = false;
+    }
+  }
+
+  async _handleAnswerUnlocked(ctx, msg, opts = {}) {
     if (!ctx.realtimeClient) return;
     // Ignore an answer that arrives while the boss is still producing its turn, and ignore empties.
     // CRITICAL: still send TRANSCRIPT_DONE on these early returns — otherwise the client's `transcribing`
@@ -2087,6 +2196,7 @@ export class WebSocketManager {
   async _onClose(ctx, code, reason) {
     const reasonStr = reason?.toString('utf8') ?? '';
     console.log(`[wsManager] Connection closed  session=${ctx.sessionId}  code=${code}  reason=${reasonStr}`);
+    this._releaseConnection(ctx);
     this._releaseFight(ctx);   // free the per-user lock + cap timer even on an abrupt drop
 
     // Bill any live minutes when the tab was killed mid-fight (abrupt disconnect).
@@ -2118,6 +2228,15 @@ export class WebSocketManager {
     }
 
     this._sessions.delete(ctx.sessionId);
+  }
+
+  _releaseConnection(ctx) {
+    if (ctx.connectionReleased) return;
+    ctx.connectionReleased = true;
+    if (ctx.authDeadline) { clearTimeout(ctx.authDeadline); ctx.authDeadline = null; }
+    const count = this._ipConnections.get(ctx.remoteIp) || 0;
+    if (count <= 1) this._ipConnections.delete(ctx.remoteIp);
+    else this._ipConnections.set(ctx.remoteIp, count - 1);
   }
 
   // ── Heartbeat ───────────────────────────────────────────────────────────────

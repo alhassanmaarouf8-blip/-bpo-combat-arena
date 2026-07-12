@@ -9,12 +9,15 @@ Render → `bpo-combat-arena` service → **Environment**. These must exist:
 
 | Variable | What it is | Set? |
 |---|---|---|
-| `OPENAI_API_KEY` | Your OpenAI key (the paid part) | ☐ |
+| `GROQ_API_KEY` | Server-side interview/STT provider key | ☐ |
 | `AUTH_SECRET` | Long random string (login security) | ☐ |
 | `DATABASE_URL` | Postgres internal URL (keeps accounts after redeploy) | ☐ |
-| `CLIENT_ORIGIN` | `https://bpo-combat-arena.vercel.app,http://localhost:5173` | ☐ |
-| `ADMIN_EMAIL` | `alhassanmaarouf8@gmail.com` (your owner powers) | ☐ |
-| `PAYMENT_URL` | *(optional, later)* your checkout link | ☐ |
+| `CLIENT_ORIGIN` | Exact production HTTPS frontend origin only | ☐ |
+| `APP_URL` | Same production frontend origin (verification/reset links) | ☐ |
+| `SMTP_USER` | Gmail/SMTP sender used for verification and password reset | ☐ |
+| `SMTP_PASS` | SMTP app password; never commit it | ☐ |
+| `ADMIN_KEY` | High-entropy admin secret, at least 32 characters | ☐ |
+| `PAYMENT_MONITOR_KEY` | Separate high-entropy payment-monitor secret | ☐ |
 
 **Check it worked:** open the **Logs** tab → you should see the server start and `[db] Connected`.
 
@@ -22,9 +25,10 @@ Render → `bpo-combat-arena` service → **Environment**. These must exist:
 
 ## 2. The one test only YOU can do — real phone fight
 1. On an Android phone (Chrome), open **https://bpo-combat-arena.vercel.app**.
-2. Log in with your **admin** email (`alhassanmaarouf8@gmail.com`) → you have full access.
-3. Start an interview, allow the mic, speak German, end it.
-4. Confirm: (a) you **hear** the boss talk, (b) the **orb pulses** when you speak, (c) the **results screen** shows coaching.
+2. Create a non-admin test account and confirm its e-mail link.
+3. Grant that account a temporary plan from the separately authenticated admin panel.
+4. Start an interview, allow the mic, speak German, end it.
+5. Confirm: (a) you **hear** the interviewer, (b) the mic state reacts when you speak, (c) the results screen shows coaching.
 
 ➡️ If all three work, the core product works on real hardware. **This is the launch gate.**
 
@@ -32,8 +36,8 @@ Render → `bpo-combat-arena` service → **Environment**. These must exist:
 
 ## 3. Decide your price (optional — defaults are fine)
 Open `server/plans.config.js`. Change only the numbers if you want:
-- Basic: `priceEGP: 1299`, `yearlyEGP: 12990`, `dailyLiveMinutes: 7`
-- Elite: `priceEGP: 2999`, `yearlyEGP: 29990`, `dailyLiveMinutes: 15`
+- Basic: `priceEGP: 999`, `yearlyEGP: 9990`, `dailyLiveMinutes: 15`
+- Elite: `priceEGP: 1999`, `yearlyEGP: 19990`, `dailyLiveMinutes: 30`
 
 The pricing page updates automatically. (Tell Claude to change them if you're unsure how.)
 
@@ -47,28 +51,29 @@ friendly "video coming soon" box shows and the quiz still works.
 ---
 
 ## 5. Turn on payments (when ready)
-Today: free = assessment only; Basic/Elite = paid plans (server-enforced). To actually collect money:
-1. Create a checkout link with a provider that pays out to Egypt (Lemon Squeezy / Paddle / Gumroad).
-2. Set `PAYMENT_URL` on Render to that link.
-3. When someone pays, open your app (as admin) → **🛠 FEEDBACK-DATEN (ADMIN)** → **PLAN SETZEN**
-   → type their email → tap **BASIC** or **ELITE**. They tap "ICH HABE BEZAHLT — refresh" and they're in.
+The current flow is manual verification: the customer creates a payment intent, pays through the
+configured Egyptian rail, and reports the sender fingerprint. Access remains locked until the owner
+confirms the matching payment from the separately authenticated admin/payment monitor. Never place
+payment secrets in client code, and test expiry + duplicate-confirmation behavior before launch.
 
 ---
 
 ## 6. How each plan behaves (so you can spot-check with a test account)
 Use a **separate, non-admin** test account; set its plan via the admin panel.
-- **Free:** assessment only. Tapping a live interview → honest upsell (no fight, no cost).
-- **Basic:** up to **7 min** live interview **per day** (resets midnight Cairo). Trainingslager map visible, lessons locked.
-- **Elite:** up to **15 min/day** + full Trainingslager lessons.
+- **Free:** one assessment and one 7-minute interview after e-mail verification. Starting that first
+  interview begins the 3-day Basic-level trial; no provider-backed route works before verification.
+- **Basic:** up to **15 min/day** (two complete interview sessions; resets midnight Cairo).
+- **Elite:** up to **30 min/day** (four sessions) + full target-role matching.
 - Out of minutes today → "Dein heutiges Training ist erledigt…" (come back tomorrow).
 
 ---
 
 ## ✅ You are ready to launch when:
-- [ ] Section 1 env vars all set (esp. `DATABASE_URL`, `AUTH_SECRET`, `ADMIN_EMAIL`)
+- [ ] Section 1 env vars all set (especially DB, auth, SMTP, admin, payment monitor)
 - [ ] Section 2 phone fight works (hear boss + orb + results)
 - [ ] You're OK with the prices in `plans.config.js`
-- [ ] (Optional) videos pasted / (Optional) `PAYMENT_URL` set
+- [ ] Credential rotation/history containment completed before any repaired build is deployed
+- [ ] A neutral custom domain replaces the Vercel project URL before paid traffic
 
 Everything else (cost caps, security, persistence, daily-minute limits, bilingual walls,
 cold-start screen, grammar fix) is built and verified — see the Phase F sweep.

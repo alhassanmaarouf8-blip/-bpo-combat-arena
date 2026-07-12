@@ -17,7 +17,7 @@
 import express from 'express';
 import { randomUUID } from 'crypto';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth }        from './auth.js';
+import { requireAuth, rateLimit } from './auth.js';
 import { generateTask, giveFeedback, transcribeAudio, speakingFeedback } from './planGuide.js';
 import { voicedDurationMs } from './audioGuard.js';
 
@@ -242,8 +242,9 @@ planRouter.post('/plans/:id/steps/:stepId/feedback', requireAuth, async (req, re
 
 // ── Speaking step: raw audio → transcript → metrics + feedback (cheap models only) ──
 planRouter.post('/plans/:id/steps/:stepId/speak',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'plan-speak', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     try {
       const found = await findStep(req.account.id, req.params.id, req.params.stepId);

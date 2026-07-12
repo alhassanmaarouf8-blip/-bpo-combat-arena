@@ -8,10 +8,10 @@
  *   GET  /api/placement          → { placement, shouldPrompt }   (requireAuth)
  *   POST /api/placement          → update status/employer/role/note (requireAuth)
  *   POST /api/placement/snooze   → mark the weekly nudge as shown  (requireAuth)
- *   GET  /admin/placements?key=  → aggregate funnel + hires        (ADMIN_KEY)
+ *   GET  /admin/placements       → aggregate funnel + hires        (admin session/header)
  */
 import express from 'express';
-import { timingSafeEqual } from 'crypto';
+import { adminRequestOk } from './adminAuth.js';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, listAllAccounts } from './auth.js';
 
@@ -93,13 +93,7 @@ placementRouter.post('/api/placement/snooze', requireAuth, async (req, res) => {
 // ── Founder KPI rollup ─────────────────────────────────────────────────────────
 // Same ADMIN_KEY guard as admin.js (constant-time). Returns the full hiring funnel
 // across every account plus the hire list — the single most important number in the app.
-function adminKeyOk(req) {
-  const key = process.env.ADMIN_KEY || '';
-  if (!key) return false;
-  const got = String(req.query.key || req.headers['x-admin-key'] || (req.body && req.body.key) || '');
-  if (got.length !== key.length) return false;
-  try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
-}
+const adminKeyOk = adminRequestOk;
 
 function maskEmail(email) {
   const [user, domain] = String(email || '').split('@');

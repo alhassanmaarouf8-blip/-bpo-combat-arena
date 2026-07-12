@@ -31,7 +31,7 @@
  * Gated exactly like shadowing: requireAuth + active plan (planOf !== 'free').
  */
 import express from 'express';
-import { requireAuth, planOf, drillsUnlocked } from './auth.js';
+import { requireAuth, planOf, drillsUnlocked, rateLimit } from './auth.js';
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { loadUser, saveUser }  from './store.js';
 import { voicedDurationMs }    from './audioGuard.js';
@@ -368,8 +368,9 @@ fluencyRouter.get('/fluency/chunks', requireAuth, async (req, res) => {
 
 // ── POST one fired chunk recording → presence + latency verdict + SRS schedule ──
 fluencyRouter.post('/fluency/chunks/score',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'fluency-chunks', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     if (!paidOnly(req, res)) return;
     res.set('Cache-Control', 'no-store');
@@ -450,8 +451,9 @@ fluencyRouter.get('/fluency', requireAuth, async (req, res) => {
 
 // ── POST one round's recording → measured metrics (+ authoritative grammar on request) ──
 fluencyRouter.post('/fluency/score',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'fluency-score', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     if (!paidOnly(req, res)) return;
     res.set('Cache-Control', 'no-store');

@@ -21,7 +21,7 @@
  * Drills are UNLIMITED: authed only, NOT gated on plan/interview minutes. Adds no new paid API.
  */
 import express from 'express';
-import { requireAuth }      from './auth.js';
+import { requireAuth, rateLimit } from './auth.js';
 import { transcribeAudio }  from './planGuide.js';
 
 export const druckLeiterRouter = express.Router();
@@ -83,8 +83,9 @@ export function judgeSouveraen(moves) {
 }
 
 druckLeiterRouter.post('/druck-leiter/score',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'druck-score', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {

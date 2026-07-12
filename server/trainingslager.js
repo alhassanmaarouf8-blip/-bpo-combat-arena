@@ -20,7 +20,7 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth, isAdminEmail, planOf } from './auth.js';
+import { requireAuth, isAdminAccount, planOf } from './auth.js';
 import { getLesson }                 from './lessons.config.js';
 import { LAGER_SECTIONS, getStation, maxReadyTier, unauthoredStations } from './trainingslagerContent.js';
 import { LESSON_XP, levelFor, computeRank } from './progression.js';
@@ -270,7 +270,7 @@ trainingslagerRouter.post('/trainingslager/lesson/:ruleId/complete', requireAuth
 
 // ── Admin-only: global PII-free counts ────────────────────────────────────────────────────────
 trainingslagerRouter.get('/trainingslager/admin/stats', requireAuth, async (req, res) => {
-  if (!isAdminEmail(req.account.email)) return res.status(403).json({ error: 'forbidden' });
+  if (!isAdminAccount(req.account)) return res.status(403).json({ error: 'forbidden' });
   const stats = await loadStats();
   const rows = Object.entries(stats).map(([id, c]) => {
     const l = getStation(id) || getLesson(id);

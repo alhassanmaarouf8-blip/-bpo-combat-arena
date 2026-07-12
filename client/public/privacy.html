@@ -18,31 +18,38 @@
 <main>
   <nav><a href="/">← App</a><a href="/terms.html">Terms</a><a href="/refund.html">Refunds</a></nav>
   <h1>Privacy Policy</h1>
-  <p class="muted">Last updated: 4 July 2026</p>
+  <p class="muted">Last updated: 11 July 2026</p>
 
   <h2>What we collect and why</h2>
   <table>
     <tr><th>Data</th><th>Why</th></tr>
     <tr><td>Email address + password</td><td>Your account. Passwords are stored only as salted scrypt hashes — we cannot read them.</td></tr>
-    <tr><td>WhatsApp number (optional)</td><td>Only if you choose to leave it for personal training reminders. Used exclusively for those messages, sent personally by the founder — never automated, never marketing lists. Removed on request or when your account is deleted.</td></tr>
+    <tr><td>WhatsApp number (optional, separate consent)</td><td>Collected only after you actively ask for personal reminders. It is not required to create an account, is not used for password reset, and is not added to marketing lists.</td></tr>
     <tr><td>Your spoken answers (audio) and their transcripts</td><td>To run the interview and drills, grade your German, and generate your feedback. Audio is processed for transcription and is not published.</td></tr>
     <tr><td>Training progress (scores, error patterns, session history, drill results)</td><td>To personalize your training: find your weakest skill, prescribe the next step, and prove improvement.</td></tr>
     <tr><td>Optional self-reported hiring outcome</td><td>To measure whether the training works. Shown publicly only in anonymous, aggregate, or first-name form — never your email.</td></tr>
-    <tr><td>Payment confirmation (plan, date)</td><td>To activate your plan. Card data is handled entirely by the payment provider — it never touches our servers. Mobile-money payments are verified manually from the transfer reference.</td></tr>
+    <tr><td>Payment intent and confirmation (plan, amount, reference, date)</td><td>To match a manual Vodafone Cash transfer and activate your plan. We do not collect card details and do not currently charge cards or renew plans automatically.</td></tr>
+    <tr><td>Optional feedback</td><td>To improve the service. Public-link and in-app feedback stays private unless you separately consent and the owner approves publication.</td></tr>
+    <tr><td>Push subscription identifier (optional)</td><td>Only if you enable browser notifications, so the browser's push service can deliver a practice reminder. You can unsubscribe in the app or browser.</td></tr>
+    <tr><td>Technical diagnostics</td><td>Bounded error category, page path without query parameters, and performance timings to keep the service reliable. Password-reset tokens and full URLs are not intentionally collected.</td></tr>
   </table>
 
   <h2>Processors we use to run the service</h2>
   <p>Your data is processed by these infrastructure providers, each only for its stated task:
-  <b>Deepgram</b> (speech-to-text and text-to-speech of interview audio), <b>Groq</b> (the AI
-  interviewer's language model; receives transcripts, not audio), <b>ElevenLabs</b> (optional
-  interview voice synthesis), <b>LanguageTool</b> (grammar checking of transcripts),
-  <b>Render</b> (backend hosting and database), and <b>Vercel</b> (frontend hosting).
+  <b>Deepgram</b> (speech-to-text and text-to-speech), <b>Groq</b> and <b>Cerebras</b> (interviewer
+  language generation from transcripts), <b>Google Gemini / Google Cloud</b> (live audio only when
+  that mode is enabled), <b>ElevenLabs</b> (optional voice mode), <b>LanguageTool</b> (grammar checks),
+  <b>Google Fonts</b> (web typography), browser push providers such as Google, Mozilla, Apple, or
+  Microsoft when you enable notifications, <b>Render</b> (backend and database), and <b>Vercel</b> (frontend).
   We do not sell your data and there is no third-party advertising or tracking on the service.</p>
 
   <h2>Retention &amp; deletion</h2>
   <p>Your account data and training history are kept while your account exists so your training can
-  build on itself. Email <a href="mailto:alhassanmaarouf8@gmail.com">alhassanmaarouf8@gmail.com</a>
-  from your account address to get a copy of your data or to delete your account and its data.</p>
+  build on itself. Coaching-chat history is capped and kept only to preserve training continuity.
+  Operational security logs are minimized and retained only as needed to investigate failures or abuse.
+  Email <a href="mailto:alhassanmaarouf8@gmail.com">alhassanmaarouf8@gmail.com</a> from your account
+  address to request access, correction, export, or deletion. Deletion covers the account, profile,
+  coaching history, payment records that are not legally required, and unpublished feedback.</p>
 
   <h2>Your microphone</h2>
   <p>The microphone is used only while a session or drill is running, only after your browser asks for

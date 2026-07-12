@@ -25,7 +25,10 @@ export default defineConfig(({ mode }) => {
         // deploy is verifiable by fetching the page (mirrors the server /health build).
         name: 'build-stamp',
         transformIndexHtml(html) {
-          return html.replace('</head>', `  <meta name="build" content="${BUILD_ID}">\n  </head>`);
+          const withoutOwnerDebug = isProd
+            ? html.replace(/\s*<!-- ON-SCREEN DEBUG RECORDER[\s\S]*?<\/script>\s*/i, '\n')
+            : html;
+          return withoutOwnerDebug.replace('</head>', `  <meta name="build" content="${BUILD_ID}">\n  </head>`);
         },
       },
     ],
@@ -41,7 +44,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir:          'dist',
-      sourcemap:       true,
+      sourcemap:       !isProd,
       target:          'es2020',
       rollupOptions: {
         output: {

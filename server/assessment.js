@@ -16,7 +16,7 @@
  */
 import express from 'express';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth, planOf }  from './auth.js';
+import { requireAuth, planOf, rateLimit }  from './auth.js';
 import { transcribeAudio }    from './planGuide.js';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
 import { voicedDurationMs }   from './audioGuard.js';
@@ -26,6 +26,7 @@ export const assessmentRouter = express.Router();
 
 const ANALYSIS_MODEL = process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
 const GROQ_CHAT      = 'https://api.groq.com/openai/v1/chat/completions';
+const analysisInFlight = new Set();
 
 // Re-assessment: an ACTIVE PAID plan gets a fresh assessment roughly every month (this is the
 // Elite "monatliche Neu-Einstufung"); the free tier stays one-per-account-ever. planOf() already
@@ -40,8 +41,8 @@ function canStartAssessment(profile, account) {
 
 const SYSTEM_PROMPT =
 `Du bist ein erfahrener, fairer Deutsch-Prüfer für ägyptische Bewerber (Zielmarkt: deutsche
-Call-Center / BPO). Du bekommst die TRANSKRIPTE von 5 gesprochenen Antworten EINES Kandidaten
-(per Sprache aufgenommen und automatisch transkribiert — kleine Transkriptionsfehler ignorieren).
+Call-Center / BPO). Du bekommst bis zu 5 Antworten EINES Kandidaten. Jede Antwort ist ehrlich als
+GESPROCHENES TRANSKRIPT oder GETIPPTER TEXT markiert (kleine Transkriptionsfehler ignorieren).
 Schätze sein Deutsch-Niveau EHRLICH und konkret ein.
 
 Gib AUSSCHLIESSLICH gültiges JSON in GENAU diesem Schema zurück:
@@ -60,6 +61,7 @@ Gib AUSSCHLIESSLICH gültiges JSON in GENAU diesem Schema zurück:
 
 HARTE REGELN:
 - estimatedLevel: ehrliche CEFR-Schätzung NUR aus dem, was er WIRKLICH produziert hat. Im Zweifel konservativ.
+- Beurteile KEINE Aussprache, Stimme, Sprechgeschwindigkeit oder mündliche Flüssigkeit: du erhältst nur Text.
 - confidence: 'low' wenn die Antworten sehr kurz oder sehr wenige sind; sonst 'medium' oder 'high'.
 - blockers: 3 bis 5 Stück, die WICHTIGSTEN zuerst. JEDER blocker MUSS ein "example_from_their_own_answer"
   enthalten, das WÖRTLICH aus seinen Antworten stammt — NIEMALS erfinden. Findest du kein echtes
@@ -84,8 +86,9 @@ assessmentRouter.get('/assessment/status', requireAuth, async (req, res) => {
 
 // ── POST transcribe one answer (cheap STT). Blocked once the account has used its free run. ──
 assessmentRouter.post('/assessment/transcribe',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 12, tag: 'assessment-transcribe', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     try {
       const p = await loadUser(req.account.id);
@@ -106,7 +109,10 @@ assessmentRouter.post('/assessment/transcribe',
   });
 
 // ── POST analyze all answers (ONE cheap text-model call). Sets assessmentUsed=true. ──
-assessmentRouter.post('/assessment/analyze', requireAuth, async (req, res) => {
+assessmentRouter.post('/assessment/analyze', requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 4, tag: 'assessment-analyze', keyExtra: (req) => req.account.id }), async (req, res) => {
+  if (analysisInFlight.has(req.account.id)) return res.status(409).json({ error: 'assessment_in_progress' });
+  analysisInFlight.add(req.account.id);
   try {
     const p = await loadUser(req.account.id);
     // Idempotent: if already used, return the stored verdict (never re-charge / re-run).
@@ -114,7 +120,8 @@ assessmentRouter.post('/assessment/analyze', requireAuth, async (req, res) => {
 
     const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
     const clean = answers
-      .map((a) => ({ q: String(a?.q || '').slice(0, 300), transcript: String(a?.transcript || '').slice(0, 2000).trim() }))
+      .map((a) => ({ q: String(a?.q || '').slice(0, 300), transcript: String(a?.transcript || '').slice(0, 2000).trim(),
+        inputMode: a?.inputMode === 'voice' ? 'voice' : 'typed' }))
       .filter((a) => a.transcript);
     if (clean.length < 1) return res.status(400).json({ error: 'no_answers' });
 
@@ -129,6 +136,8 @@ assessmentRouter.post('/assessment/analyze', requireAuth, async (req, res) => {
     console.error('[assessment] analyze error:', err.message);
     const noKey = err.message === 'no_api_key';
     res.status(noKey ? 503 : 500).json({ error: noKey ? 'no_api_key' : 'analyze_failed' });
+  } finally {
+    analysisInFlight.delete(req.account.id);
   }
 });
 
@@ -139,7 +148,7 @@ async function analyze(answers) {
   console.log(`[ai] ${ANALYSIS_MODEL} · assessment analysis (${answers.length} answers)`); // cost audit
 
   const userMsg = answers
-    .map((a, i) => `Frage ${i + 1}: ${a.q}\nGesprochene Antwort (Transkript): ${a.transcript}`)
+    .map((a, i) => `Frage ${i + 1}: ${a.q}\n${a.inputMode === 'voice' ? 'Gesprochene Antwort (Transkript)' : 'Getippte Antwort'}: ${a.transcript}`)
     .join('\n\n');
 
   const controller = new AbortController();
@@ -196,9 +205,12 @@ function normalizeResult(d, answers = []) {
     .map((x) => ({ de: s(x?.de ?? x, 220), ar: s(x?.ar, 220) }))
     .filter((x) => x.de);
 
+  const hasTyped = answers.some((a) => a?.inputMode !== 'voice');
   return {
     estimatedLevel:   LEVELS.includes(d.estimatedLevel) ? d.estimatedLevel : 'A2',
-    confidence:       ['low', 'medium', 'high'].includes(d.confidence) ? d.confidence : 'low',
+    confidence:       hasTyped && d.confidence === 'high' ? 'medium'
+      : (['low', 'medium', 'high'].includes(d.confidence) ? d.confidence : 'low'),
+    measured:         { writtenGerman: true, speakingPronunciation: false, containsTypedAnswers: hasTyped },
     blockers,
     strengths,
     recommendedFocus: { de: s(d.recommendedFocus?.de, 240), ar: s(d.recommendedFocus?.ar, 240) },

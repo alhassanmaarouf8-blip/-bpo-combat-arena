@@ -1,101 +1,38 @@
-# Guardian — the autonomous gate that runs on EVERY commit, with zero human involvement.
-# It catches the classes of bug that have actually taken this app down for users:
-#   • undefined variables / typos  (ReferenceError — e.g. `candidateName is not defined`)  → ESLint no-undef
-#   • syntax / parse errors                                                                → node --check
-#   • broken imports / build failures                                                      → vite build
-#   • broken dependency manifests                                                          → npm ci
-# A red run here means a real, user-facing bug reached the repo. See guardian-autofix.yml for the
-# Claude layer that tries to FIX a red run automatically.
 name: Guardian
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch: {}
 
-# A newer push to the same ref cancels the older in-flight run — never waste minutes on stale code.
+permissions:
+  contents: read
+
 concurrency:
   group: guardian-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  guard:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      # ── 1. Undefined-variable / typo gate (the ReferenceError crash class) ──
-      - name: Install guardian tooling
+          cache: npm
+      - name: Install root tooling
         run: npm ci
-      - name: Lint (no-undef — catches the crashes that broke fight-start)
-        run: npm run lint
+      - name: Install server dependencies
+        run: npm --prefix server ci
+      - name: Install client dependencies
+        run: npm --prefix client ci
+      - name: Verify secrets, code, tests, design, build, and production artifact
+        run: npm run verify
 
-      # ── 4. Dependency gate — the server's manifest must install cleanly. Moved BEFORE the test
-      #    step below: server/*.test.mjs files may import real server modules (e.g. auth.js →
-      #    express) that only exist in server/node_modules, not the root install. Running this
-      #    after the tests (its original position) meant any test file that imports such a module
-      #    would fail with ERR_MODULE_NOT_FOUND on a clean CI checkout — a false-red Guardian run
-      #    even though the code itself was correct (caught 2026-07-02, server/compAccess.test.mjs
-      #    was the first test to import auth.js). ──
-      - name: Install server deps
-        working-directory: server
-        run: npm ci
-
-      # ── The brain's sophistication must never silently break: the deterministic engine
-      #    (Elo / BKT / skill-DAG / decision policy + honesty gates) is unit-tested on every commit.
-      #    Also the scoring guards (truncated-turn / thin-session detection) that keep the debrief
-      #    from blaming the learner for the interviewer cutting them off. ──
-      - name: Deterministic engine + scoring tests
-        run: node --test server/brain/*.test.mjs server/scoring/*.test.mjs server/*.test.mjs
-
-      # ── Design system: the 2-color (blue+orange) discipline must hold — fail if the old
-      #    rainbow (neon cyan / green / violet / gold / Orbitron) ever reappears. ──
-      - name: Design-lint (no off-brand colors)
-        run: npm run design-lint
-
-      # ── 2. Syntax gate — every server file must parse ──
-      - name: Syntax-check all server files
-        run: |
-          fail=0
-          for f in server/*.js; do
-            node --check "$f" || { echo "::error file=$f::syntax error"; fail=1; }
-          done
-          exit $fail
-
-      # ── 3. Build gate — the client must actually build (broken imports, JSX, vite define) ──
-      - name: Install client deps
-        working-directory: client
-        run: npm ci
-      - name: Build client
-        working-directory: client
-        run: npm run build
-
-  # ── Deploy gate (FREE, opt-in) ──────────────────────────────────────────────────────────────────
-  # Closes the runtime-bug gap: deploy ONLY after the Guardian is green, so nothing red reaches users.
-  # Uses Render + Vercel free DEPLOY HOOKS (zero cost). INERT until you add the hook secrets AND turn
-  # OFF auto-deploy on each dashboard — until then your current auto-deploy keeps working unchanged and
-  # these steps simply skip (so adding this file changes nothing today).
-  deploy:
-    needs: guard          # runs only if every gate above passed
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      # NB: the `secrets` context is NOT allowed inside `if:` — so we pass the hook to env and
-      # check it inside the step. Skips cleanly (no-op) until you create the secret.
-      - name: Deploy server to Render (only once RENDER_DEPLOY_HOOK secret is set)
-        env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: |
-          if [ -n "$HOOK" ]; then curl -fsS -X POST "$HOOK"; else echo "RENDER_DEPLOY_HOOK not set — skipping (auto-deploy still active on the dashboard)"; fi
-      - name: Deploy client to Vercel (only once VERCEL_DEPLOY_HOOK secret is set)
-        env:
-          HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
-        run: |
-          if [ -n "$HOOK" ]; then curl -fsS -X POST "$HOOK"; else echo "VERCEL_DEPLOY_HOOK not set — skipping (auto-deploy still active on the dashboard)"; fi
+  # Deployment is deliberately absent. A green build is evidence, not permission to publish.

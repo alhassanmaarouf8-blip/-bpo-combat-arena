@@ -12,11 +12,11 @@
  *   - summary       : running journey log of OLDER turns (for the context window), Egyptian Arabic.
  *   - summaryCoversN: how many leading history messages `summary` already covers.
  */
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { existsSync }                 from 'fs';
 import path                           from 'path';
 import { fileURLToPath }              from 'url';
-import { dbEnabled, kvGet, kvSet }    from './db.js';
+import { dbEnabled, kvGet, kvSet, kvDel } from './db.js';
 
 const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'guide');
 const cache    = new Map();
@@ -61,4 +61,11 @@ export async function saveGuide(g) {
   if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
   await writeFile(path.join(DATA_DIR, `${id}.json`), JSON.stringify(g, null, 2), 'utf8');
   return g;
+}
+
+export async function deleteGuide(userId) {
+  const id = safeId(userId);
+  cache.delete(id);
+  if (dbEnabled()) { await kvDel(NS, id); return; }
+  try { await rm(path.join(DATA_DIR, `${id}.json`), { force: true }); } catch { /* idempotent */ }
 }

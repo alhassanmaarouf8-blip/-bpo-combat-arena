@@ -1,8 +1,8 @@
 /**
  * engagement.js — REAL per-user engagement analytics, ADMIN_KEY-gated.
  *
- *   GET /admin/engagement?key=…            → every user's engagement, sorted by active days
- *   GET /admin/engagement?key=…&plan=free  → only free-trial users
+ *   GET /admin/engagement                  → every user's engagement, sorted by active days
+ *   GET /admin/engagement?plan=free        → only free-trial users
  *
  * Honesty is the whole point (owner mandate 2026-07-08): every number here is computed from
  * data the app ACTUALLY persists — never estimated. Specifically:
@@ -16,20 +16,14 @@
  * activeDays IS accurate back to signup.
  */
 import express from 'express';
-import { timingSafeEqual } from 'crypto';
+import { adminRequestOk } from './adminAuth.js';
 import { dayKey } from './time.js';
 import { loadUser } from './store.js';
 import { listAllAccounts, planOf, trialActive, trialDaysLeft } from './auth.js';
 
 export const engagementRouter = express.Router();
 
-function adminKeyOk(req) {
-  const key = process.env.ADMIN_KEY || '';
-  if (!key) return false;
-  const got = String(req.query.key || req.headers['x-admin-key'] || '');
-  if (got.length !== key.length) return false;
-  try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
-}
+const adminKeyOk = adminRequestOk;
 
 // Distinct Cairo day-keys across every trace a user leaves. Timestamps (session.date, ms) are
 // converted to a day-key; dailyDays / lessonDays / usageDays are already day-keys.

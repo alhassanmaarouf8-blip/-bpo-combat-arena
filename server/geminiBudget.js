@@ -2,7 +2,7 @@
  * geminiBudget.js — the hard monthly spend ceiling for the paid Gemini Live interview path.
  *
  * Gemini Live native-audio is the ONLY paid piece of the app (everything else is $0). The owner
- * authorized it behind a strict guardrail: a monthly USD cap (default $5), after which live
+ * can only be enabled behind an explicit monthly USD cap. The safe default is $0, after which live
  * interviews SILENTLY fall back to the free Deepgram→Groq→TTS pipeline — a user is never blocked,
  * and there is never a surprise bill. This module owns that ceiling:
  *
@@ -11,10 +11,8 @@
  *   - isCapped() / spentThisMonth()  the gate _handleStartFight checks BEFORE opening a paid session
  *
  * Persistence is a small JSON file (GEMINI_BUDGET_FILE, default server/data/gemini-budget.json).
- * NOTE: Render's disk is ephemeral, so a redeploy resets the meter — the practical exposure is tiny
- * (owner-gated + each fight is wall-clock-capped at 7.5 min), and the failure mode is "the cap
- * resets", never "a user is blocked". The two enforcement points (pre-session refuse + per-report
- * mid-session cut) are the real protection, independent of persistence surviving.
+ * NOTE: Render's disk is ephemeral. Therefore any positive cap must be paired with durable/provider-
+ * side spend controls; the code itself defaults to zero and fails closed after every redeploy.
  */
 
 import fs from 'fs';
@@ -23,7 +21,7 @@ import { fileURLToPath } from 'url';
 
 const __dir = path.dirname(fileURLToPath(import.meta.url));
 const STORE  = process.env.GEMINI_BUDGET_FILE || path.join(__dir, 'data', 'gemini-budget.json');
-const CAP_USD = Number(process.env.GEMINI_BUDGET_USD || 5);
+const CAP_USD = Math.max(0, Number(process.env.GEMINI_BUDGET_USD || 0) || 0);
 
 // USD per token — Gemini 2.5 Flash native audio, verified at ai.google.dev/gemini-api/docs/pricing:
 // audio in $3/M, audio out $12/M, text in $0.50/M, text out $2/M.

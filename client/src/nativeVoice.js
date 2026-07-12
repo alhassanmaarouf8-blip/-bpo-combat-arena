@@ -101,13 +101,12 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
   if (!apiUrl || !token) return fallbackOrSilence();
 
   try {
-    const enc = encodeURIComponent;
-    const url = `${apiUrl}/api/tts-stream?drill=1&voice=${enc(voice)}&token=${enc(token)}&text=${enc(t)}`;
     const a = new Audio();
+    const ctrl = new AbortController();
+    let cancelled = false;
     // For the phone filter the element feeds createMediaElementSource, which taints/silences on a
     // cross-origin src unless CORS is anonymous — set it BEFORE the src loads. No effect when phone is off.
     if (phone) { try { a.crossOrigin = 'anonymous'; } catch { /* ignore */ } }
-    a.src = url;
     try { a.playbackRate = rate || 1; a.preservesPitch = true; } catch { /* Safari: ignore */ }
     let started = false, fellBack = null, phoneCtx = null, retried = false;
     a.onplaying = () => { started = true; };
@@ -130,8 +129,19 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     a.onerror = onFail;
     // Wire the telephone band-pass; if it can't (unsupported/tainted) the element plays direct, unfiltered.
     if (phone) phoneCtx = wirePhoneAudio(a);
-    a.play().catch(onFail);
+    fetch(`${apiUrl}/api/media-ticket`, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ kind: 'aura', voice, text: t, drill: true }),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error(`media ticket ${r.status}`);
+      const d = await r.json();
+      if (!d?.ticket || cancelled) throw new Error('missing media ticket');
+      a.src = `${apiUrl}/api/tts-stream?ticket=${encodeURIComponent(d.ticket)}`;
+      await a.play();
+    }).catch(() => { if (!cancelled) onFail(); });
     return () => {
+      cancelled = true; ctrl.abort();
       try { a.pause(); a.src = ''; } catch { /* ignore */ }
       try { phoneCtx?.close(); } catch { /* ignore */ }
       if (fellBack) fellBack();

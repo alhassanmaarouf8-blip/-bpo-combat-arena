@@ -15,7 +15,7 @@
  * which already reverts an expired plan to free). Sessions are unlimited.
  */
 import express from 'express';
-import { requireAuth, planOf, drillsUnlocked } from './auth.js';
+import { requireAuth, planOf, drillsUnlocked, rateLimit } from './auth.js';
 import { BPO_PHRASES }                         from './scenarios.js';
 import { transcribeAudio }                     from './planGuide.js';
 import { loadUser, saveUser }                  from './store.js';
@@ -172,8 +172,9 @@ shadowingRouter.get('/shadowing', requireAuth, async (req, res) => {
 
 // ── POST one recording → transcript + Arabic pronunciation note ──
 shadowingRouter.post('/shadowing/score',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'shadowing-score', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     if (!paidOnly(req, res)) return;
     try {

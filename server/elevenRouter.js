@@ -7,7 +7,7 @@
  */
 import express from 'express';
 import { getSignedUrl, elevenReady, AGENT_ID } from './elevenAgent.js';
-import { verifyToken, getAccountById } from './auth.js';
+import { verifyToken, getAccountById, tokenMatchesAccount } from './auth.js';
 import { getBossConfig } from './realtimeClient.js';
 import { buildElevenDebrief } from './elevenDebrief.js';
 import { scoreTurn } from './scoreFactors.js';
@@ -33,9 +33,19 @@ function leanPromptFor(bossId, displayName) {
 
 export const elevenRouter = express.Router();
 
-// Rollout allowlist — owner first. Comma-separated ELEVEN_ALLOW_EMAILS widens it later; no env needed now.
-const ALLOW = (process.env.ELEVEN_ALLOW_EMAILS || 'alhassanmaarouf2@gmail.com')
-  .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+// Internal rollout is opt-in by immutable account id. An unverified signup email is never an
+// authorization factor and there is deliberately no default owner address.
+const ALLOW_IDS = new Set(String(process.env.ELEVEN_INTERNAL_ACCOUNT_IDS || '')
+  .split(',').map((s) => s.trim()).filter(Boolean));
+
+async function authorizedAccount(req) {
+  if (process.env.ENABLE_ELEVEN_INTERNAL !== '1') return null;
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+  const payload = verifyToken(token);
+  if (!payload) return null;
+  const account = await getAccountById(payload.uid);
+  return tokenMatchesAccount(payload, account) ? account : null;
+}
 
 // ── Cost guard (FILE-persisted, resets daily) — bounds ElevenLabs spend during the rollout.
 // Persisted to disk (like geminiBudget) so the caps survive process restarts/crashes, not just live in
@@ -61,17 +71,12 @@ function costGate(userKey) {
 }
 
 elevenRouter.get('/session', async (req, res) => {
-  if (!elevenReady()) return res.status(503).json({ error: 'not_ready' });
-  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.query.token || '');
-  const p = verifyToken(token);
-  if (!p) return res.status(401).json({ error: 'unauthorized' });
-
-  // TEST PHASE: any AUTHENTICATED user may use the ?elevenlabs test page (behind login + obscure URL).
-  // The email allowlist gets enforced when this is wired into the real fight flow.
-  void ALLOW; void getAccountById;
+  if (process.env.ENABLE_ELEVEN_INTERNAL !== '1' || !elevenReady()) return res.status(404).json({ error: 'not_found' });
+  const account = await authorizedAccount(req);
+  if (!account || !ALLOW_IDS.has(account.id)) return res.status(403).json({ error: 'forbidden' });
 
   // Cost guard — bounds ElevenLabs spend (owner's zero-spend rule) during the rollout.
-  const capErr = costGate(p.id || p.userId || p.uid || p.sub || 'anon');
+  const capErr = costGate(account.id);
   if (capErr) return res.status(429).json({ error: capErr });
 
   const signedUrl = await getSignedUrl();
@@ -94,8 +99,8 @@ elevenRouter.get('/session', async (req, res) => {
 
 // Per-turn HP scoring — the SAME scorer the live fight uses (scoreFactors), so HP moves identically.
 elevenRouter.post('/score', async (req, res) => {
-  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.body?.token || '');
-  if (!verifyToken(token)) return res.status(401).json({ error: 'unauthorized' });
+  const account = await authorizedAccount(req);
+  if (!account || !ALLOW_IDS.has(account.id)) return res.status(403).json({ error: 'forbidden' });
   try {
     const { transcript = '', durationMs = 0, level = 'a2-b1', stage = 0 } = req.body || {};
     const r = scoreTurn(transcript, durationMs, { levelId: level, stage });
@@ -106,12 +111,11 @@ elevenRouter.post('/score', async (req, res) => {
 // End-of-interview debrief from the ElevenLabs transcript — reuses the app's real feedback pipeline
 // (generateDebrief + gradeTranscript + L1 + structure-wins). This is MUST #2: accurate, coherent feedback.
 elevenRouter.post('/debrief', async (req, res) => {
-  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim() || (req.body?.token || '');
-  const p = verifyToken(token);
-  if (!p) return res.status(401).json({ error: 'unauthorized' });
+  const account = await authorizedAccount(req);
+  if (!account || !ALLOW_IDS.has(account.id)) return res.status(403).json({ error: 'forbidden' });
   try {
     const { transcript = [], level = 'a2-b1', speechMs = 0 } = req.body || {};
-    const userId = p.id || p.userId || p.uid || p.sub || 'anon';
+    const userId = account.id;
     const debrief = await buildElevenDebrief({ transcript, level, userId, speechMs });
     res.json(debrief);
   } catch (e) {

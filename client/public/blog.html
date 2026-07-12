@@ -39,30 +39,6 @@
   <div id="posts"><p class="empty">Loading…</p></div>
   <footer>Ready to practice for real? <a href="/">Start a live interview →</a></footer>
 </main>
-<script>
-  // Escape any post text before inserting — content is generated, so never trust it as HTML.
-  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function paras(body){
-    return String(body).split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean)
-      .map(p=>'<p>'+esc(p).replace(/\n/g,'<br>')+'</p>').join('');
-  }
-  function fmtDate(d){
-    try{return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});}
-    catch(e){return esc(d);}
-  }
-  fetch('/posts.json?t='+Date.now())
-    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-    .then(data=>{
-      const posts=Array.isArray(data)?data:(data&&data.posts)||[];
-      const el=document.getElementById('posts');
-      if(!posts.length){el.innerHTML='<p class="empty">No posts yet — check back soon.</p>';return;}
-      el.innerHTML=posts.map(p=>
-        '<article><h2>'+esc(p.title||'Untitled')+'</h2>'+
-        (p.date?'<p class="date">'+esc(fmtDate(p.date))+'</p>':'')+
-        paras(p.body||'')+'</article>'
-      ).join('');
-    })
-    .catch(()=>{document.getElementById('posts').innerHTML='<p class="err">Couldn’t load posts right now. Please refresh.</p>';});
-</script>
+<script src="/blog.js" defer></script>
 </body>
 </html>

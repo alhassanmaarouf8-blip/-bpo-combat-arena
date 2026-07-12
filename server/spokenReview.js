@@ -17,7 +17,7 @@
  *   POST /api/spoken-review/grade      → raw audio + ?id= → { correct, expected, heard }
  */
 import express from 'express';
-import { requireAuth, planOf, drillsUnlocked } from './auth.js';
+import { requireAuth, planOf, drillsUnlocked, rateLimit } from './auth.js';
 import { loadUser, saveUser }  from './store.js';
 import { dueItems, grade, normalize } from './srs.js';
 import { voicedDurationMs }            from './audioGuard.js';
@@ -203,8 +203,9 @@ spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
 
 // POST a spoken attempt → deterministic grade → advance the SRS schedule.
 spokenReviewRouter.post('/spoken-review/grade',
-  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '15mb' }),
   requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 30, tag: 'spoken-review', keyExtra: (req) => req.account.id }),
+  express.raw({ type: ['audio/wav', 'audio/webm', 'application/octet-stream'], limit: '4mb' }),
   async (req, res) => {
     if (!paidOnly(req, res)) return;
     res.set('Cache-Control', 'no-store');
@@ -246,7 +247,7 @@ spokenReviewRouter.post('/spoken-review/grade',
       }
       await saveUser(p);
 
-      console.log(`[spokenReview] user=${req.account.id} id=${id} type=${item.type} correct=${correct} heard="${transcript.slice(0, 50)}"`);
+      console.log(`[spokenReview] user=${req.account.id} id=${id} type=${item.type} correct=${correct} transcriptChars=${transcript.length}`);
       res.json({ correct, expected, heard: transcript });
     } catch (err) {
       console.error('[spokenReview] grade error:', err.message);

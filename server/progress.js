@@ -19,6 +19,7 @@ import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
 import { classifyGrammar } from './errorTags.js';
 import { INDUSTRIES } from './scenarios.js';
+import { adminRequestOk } from './adminAuth.js';
 
 export const progressRouter = express.Router();
 
@@ -107,9 +108,22 @@ function buildDashboard(p) {
 // [LAT] DIAGNOSTIC: server-side voice-turn latency breakdown (user-stops → boss-text-ready).
 // Run an interview, then GET /api/diag/latency to see avg flush/prep/llm ms + the biggest gap.
 // No auth (numbers only, no PII) so it's a one-curl read.
-progressRouter.get('/diag/latency', (_req, res) => res.json({ server: latencySummary(), client: clientSummary(), serverTurns: recentTurns(), clientTurns: recentClient() }));
+progressRouter.get('/diag/latency', (req, res) => {
+  if (!adminRequestOk(req)) return res.status(403).json({ error: 'forbidden' });
+  res.json({ server: latencySummary(), client: clientSummary(), serverTurns: recentTurns(), clientTurns: recentClient() });
+});
 // Browser POSTs its real per-turn timing here (vadWaitMs / ttsMs / fullMs / build). No auth (numbers only).
-progressRouter.post('/diag/clientlat', (req, res) => { try { recordClient(req.body || {}); } catch {} res.json({ ok: true }); });
+progressRouter.post('/diag/clientlat', requireAuth, (req, res) => {
+  const b = req.body || {};
+  const safe = {
+    vadWaitMs: Math.max(0, Math.min(120000, Number(b.vadWaitMs) || 0)),
+    ttsMs: Math.max(0, Math.min(120000, Number(b.ttsMs) || 0)),
+    fullMs: Math.max(0, Math.min(120000, Number(b.fullMs) || 0)),
+    build: String(b.build || '').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 20),
+  };
+  try { recordClient(safe); } catch {}
+  res.json({ ok: true });
+});
 
 // POST /api/drill-event — a drill reports its OUTCOME so the brain can see whether a prescribed fix
 // actually worked (the two client drills, DRUCK-LEITER + Shadowing, fed back NOTHING before this →

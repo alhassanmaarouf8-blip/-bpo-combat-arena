@@ -20,7 +20,7 @@
  */
 import express from 'express';
 import crypto from 'crypto';
-import { timingSafeEqual } from 'crypto';
+import { adminRequestOk } from './adminAuth.js';
 import { dayKey } from './time.js';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, listAllAccounts } from './auth.js';
@@ -79,15 +79,35 @@ function vapidAuth(endpoint, keys) {
   return `vapid t=${input}.${b64u(sig)}, k=${keys.pub}`;
 }
 
+const PUSH_HOSTS = [
+  'fcm.googleapis.com',
+  'push.services.mozilla.com',
+  'updates.push.services.mozilla.com',
+  'notify.windows.com',
+  'web.push.apple.com',
+];
+function validPushEndpoint(raw) {
+  try {
+    const u = new URL(String(raw || ''));
+    const host = u.hostname.toLowerCase();
+    return u.protocol === 'https:' && !u.username && !u.password
+      && PUSH_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));
+  } catch { return false; }
+}
+
 // Send one bodyless push. Returns { ok, status, expired }. Never throws.
 async function sendPush(sub) {
   const keys = await ensureKeys();
-  if (!keys || !sub?.endpoint) return { ok: false, status: 0, expired: false };
+  if (!keys || !validPushEndpoint(sub?.endpoint)) return { ok: false, status: 0, expired: true };
   try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10_000);
     const r = await fetch(sub.endpoint, {
       method: 'POST',
       headers: { Authorization: vapidAuth(sub.endpoint, keys), TTL: '86400', 'Content-Length': '0' },
+      redirect: 'error', signal: ctrl.signal,
     });
+    clearTimeout(timer);
     // 404/410 → the subscription is dead (app uninstalled / permission revoked) → prune it.
     return { ok: r.status >= 200 && r.status < 300, status: r.status, expired: r.status === 404 || r.status === 410 };
   } catch (e) {
@@ -116,7 +136,7 @@ pushRouter.get('/api/push/key', async (_req, res) => {
 pushRouter.post('/api/push/subscribe', requireAuth, async (req, res) => {
   try {
     const sub = req.body?.subscription || req.body;
-    if (!sub?.endpoint) return res.status(400).json({ error: 'no_subscription' });
+    if (!validPushEndpoint(sub?.endpoint)) return res.status(400).json({ error: 'invalid_subscription' });
     const p = await loadUser(req.account.id);
     p.pushSub = { endpoint: sub.endpoint, keys: sub.keys || null, at: Date.now() };
     await saveUser(p);
@@ -143,13 +163,7 @@ pushRouter.post('/api/push/test', requireAuth, async (req, res) => {
 
 // ── Daily reminder — ADMIN_KEY-gated (cron target). Sends to everyone with a sub who hasn't
 //    trained today; prunes dead subs. Idempotent-ish: safe to call once/day. ──
-function adminKeyOk(req) {
-  const key = process.env.ADMIN_KEY || '';
-  if (!key) return false;
-  const got = String(req.query.key || req.headers['x-admin-key'] || (req.body && req.body.key) || '');
-  if (got.length !== key.length) return false;
-  try { return timingSafeEqual(Buffer.from(got), Buffer.from(key)); } catch { return false; }
-}
+const adminKeyOk = adminRequestOk;
 
 // Core daily send + a ONE-PER-DAY guard (kv 'config'/'lastDailyPush' = Cairo day-key). Both the
 // admin endpoint and the self-trigger call this; the guard means it can never double-send in a day.

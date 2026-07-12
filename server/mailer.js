@@ -1,5 +1,5 @@
 /**
- * mailer.js — the app's ONLY outbound e-mail (self-serve password reset), $0 via Gmail SMTP.
+ * mailer.js — transactional account e-mail (verification + password reset), $0 via Gmail SMTP.
  *
  * Owner order 2026-07-10: "the reset password is done through email" — the WhatsApp-manual flow
  * is dead. Transport: the owner's Gmail with an App Password (free, 500 mails/day, real-Gmail
@@ -55,4 +55,26 @@ export async function sendResetMail(to, link) {
   });
 }
 
-export default { mailerConfigured, sendResetMail };
+/** Send the ownership-verification link. Plain, professional, bilingual — no marketing. */
+export async function sendVerificationMail(to, link) {
+  const text = [
+    'Hallo,',
+    '',
+    'bestätige bitte deine E-Mail-Adresse, bevor du das sprachbasierte OMNI-PERFORM-Training startest:',
+    '',
+    link,
+    '',
+    'Der Link ist 24 Stunden gültig und funktioniert genau einmal.',
+    'Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren.',
+    '',
+    'أكد إيميلك قبل ما تبدأ التدريب الصوتي. اللينك صالح ٢٤ ساعة وبيشتغل مرة واحدة.',
+  ].join('\n');
+  await tx().sendMail({
+    from: `"OMNI-PERFORM" <${process.env.SMTP_USER}>`,
+    to,
+    subject: 'E-Mail bestätigen · OMNI-PERFORM',
+    text,
+  });
+}
+
+export default { mailerConfigured, sendResetMail, sendVerificationMail };

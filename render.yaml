@@ -1,7 +1,7 @@
 # Render Blueprint for the OMNI-PERFORM server (the client is deployed separately on Vercel).
-# The repo has no root package.json — the server lives in server/. If the Render service's
-# build runs at the repo root it fails and the old build keeps serving. This pins the correct
-# config. If the service is Blueprint-linked, Render applies this on sync; otherwise set the
+# The runtime app lives in server/. If the Render service builds at the repo root it installs
+# only repository verification tooling, not the backend dependencies. This pins the correct
+# runtime directory. If the service is Blueprint-linked, Render applies this on sync; otherwise set the
 # same values by hand in the dashboard (Root Directory = server, Auto-Deploy = Yes, Branch = main).
 services:
   - type: web
@@ -9,7 +9,7 @@ services:
     runtime: node
     plan: free
     branch: main
-    autoDeploy: true
+    autoDeploy: false
     rootDir: server
     buildCommand: npm install
     startCommand: node server.js
@@ -20,6 +20,24 @@ services:
     # no SSL — db.js auto-detects). store.js / auth.js / feedback.js switch to durable mode
     # automatically once this is set.
     envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        value: https://bpo-combat-arena.vercel.app
+      - key: APP_URL
+        value: https://bpo-combat-arena.vercel.app
+      - key: AUTH_SECRET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: ADMIN_KEY
+        sync: false
+      - key: PAYMENT_MONITOR_KEY
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: bpo-combat-db

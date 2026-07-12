@@ -330,7 +330,7 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
         console.warn(`[alhassan] reply failed script-sanity, retrying once: "${reply.slice(0, 80)}"`);
         reply = await callModel(messages, { maxTokens: 150, temperature: 0.6 });
         if (reply && !isCleanArabicOrGermanText(reply)) {
-          console.error(`[alhassan] retry ALSO failed script-sanity, falling back: "${reply.slice(0, 80)}"`);
+          console.error(`[alhassan] retry also failed script-sanity; falling back chars=${reply.length}`);
           reply = '';
         }
       }
@@ -347,6 +347,11 @@ guideRouter.post('/guide/chat', requireAuth, async (req, res) => {
     g.lastSeenAt = now;
     g.messageCount = (g.messageCount || 0) + 1;
     await maybeSummarize(g);
+    if (g.history.length > 100) {
+      const removed = g.history.length - 100;
+      g.history = g.history.slice(-100);
+      g.summaryCoversN = Math.max(0, (g.summaryCoversN || 0) - removed);
+    }
     try { await saveGuide(g); } catch (e) { console.error('[alhassan] save failed (reply still sent):', e.message); }
 
     res.json({ reply });
@@ -389,7 +394,7 @@ guideRouter.get('/guide/briefing', requireAuth, async (req, res) => {
         console.warn(`[alhassan] briefing failed script-sanity, retrying once: "${text.slice(0, 80)}"`);
         text = await callModel(briefingMsgs, { maxTokens: 600, temperature: 0.55 });
         if (text && !isCleanArabicOrGermanText(text)) {
-          console.error(`[alhassan] briefing retry ALSO failed script-sanity, falling back: "${text.slice(0, 80)}"`);
+          console.error(`[alhassan] briefing retry also failed script-sanity; falling back chars=${text.length}`);
           text = '';
         }
       }

@@ -14,6 +14,7 @@
 import express from 'express';
 import { dbEnabled, kvGet, kvSet } from './db.js';
 import { dayKey } from './time.js';
+import { adminRequestOk } from './adminAuth.js';
 
 export const beaconRouter = express.Router();
 
@@ -39,6 +40,7 @@ const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't e
 
 let _cache = { day: null, counts: {} };
 let _flush = null;
+const beaconRate = new Map();
 
 async function bump(e) {
   const day = dayKey();
@@ -57,6 +59,10 @@ async function bump(e) {
 }
 
 beaconRouter.post('/beacon', async (req, res) => {
+  const ip = String(req.ip || 'unknown'), now = Date.now();
+  const hits = (beaconRate.get(ip) || []).filter((at) => now - at < 60 * 60 * 1000);
+  if (hits.length >= 120) return res.status(429).json({ ok: false });
+  hits.push(now); beaconRate.set(ip, hits);
   const e = String(req.body?.e || '');
   if (!ALLOWED.has(e)) return res.status(400).json({ ok: false });
   // Optional channel tag (owner posts per-group links with ?src=<slug>): count the plain event
@@ -66,7 +72,8 @@ beaconRouter.post('/beacon', async (req, res) => {
   res.json({ ok: true });
 });
 
-beaconRouter.get('/diag/funnel', async (_req, res) => {
+beaconRouter.get('/diag/funnel', async (req, res) => {
+  if (!adminRequestOk(req)) return res.status(403).json({ error: 'forbidden' });
   res.set('Cache-Control', 'no-store');
   try {
     const today = dayKey(), yesterday = dayKey(Date.now() - 86_400_000);

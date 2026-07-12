@@ -34,6 +34,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   const [reRecorded, setRR] = useState(false);
   const [result, setResult] = useState(null);
   const [err, setErr]       = useState(null);
+  const [typed, setTyped]   = useState('');
 
   const recRef   = useRef(null);
   const timerRef = useRef(null);
@@ -64,7 +65,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     try { await rec.start(); }
     catch (e) {
       const c = e?.code;
-      setErr(c === 'MIC_DENIED'    ? { de: 'Mikrofon-Zugriff wurde blockiert. Bitte im Browser erlauben und erneut versuchen.', ar: 'الوصول للمايك متمنوع. اسمح بيه من إعدادات المتصفح وجرّب تاني.' }
+      setErr(c === 'MIC_DENIED'    ? { de: 'Mikrofon-Zugriff wurde blockiert. Du kannst deine Antwort unten tippen.', ar: 'الوصول للمايك متمنوع. تقدر تكتب إجابتك تحت.' }
            : c === 'MIC_NOT_FOUND' ? { de: 'Kein Mikrofon gefunden.', ar: 'مفيش مايك متوصّل.' }
            : { de: 'Mikrofon konnte nicht gestartet werden.', ar: 'مقدرناش نشغّل المايك.' });
       return;
@@ -93,7 +94,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'transcribe_failed');
-      setAns((prev) => { const n = [...prev]; n[idx] = { transcript: d.transcript || '', durationMs: clip.durationMs }; return n; });
+      setAns((prev) => { const n = [...prev]; n[idx] = { transcript: d.transcript || '', durationMs: clip.durationMs, inputMode: 'voice' }; return n; });
     } catch (e) {
       setErr(e.message === 'no_api_key'
         ? { de: 'Dienst gerade nicht verfügbar. Bitte später erneut.', ar: 'الخدمة مش متاحة دلوقتي. جرّب بعدين.' }
@@ -102,16 +103,23 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     setBusy(false);
   };
 
-  const reRecord = () => { if (reRecorded) return; setRR(true); setAns((prev) => { const n = [...prev]; n[idx] = null; return n; }); startRec(); };
+  const reRecord = () => { if (reRecorded) return; setRR(true); setTyped(''); setAns((prev) => { const n = [...prev]; n[idx] = null; return n; }); startRec(); };
 
-  const next = () => { if (idx < QUESTIONS.length - 1) { setIdx(idx + 1); setRR(false); setSec(0); setErr(null); } };
+  const saveTyped = () => {
+    const transcript = typed.trim().slice(0, 4000);
+    if (transcript.length < 2) return;
+    setAns((prev) => { const n = [...prev]; n[idx] = { transcript, durationMs: 0, inputMode: 'typed' }; return n; });
+    setErr(null);
+  };
+
+  const next = () => { if (idx < QUESTIONS.length - 1) { setIdx(idx + 1); setRR(false); setTyped(''); setSec(0); setErr(null); } };
 
   const submit = async () => {
     setPhase('analyzing'); setErr(null);
     try {
       const r = await fetch(`${apiUrl}/api/assessment/analyze`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ answers: answers.map((a, i) => ({ q: QUESTIONS[i].de, transcript: a?.transcript || '' })) }),
+        body: JSON.stringify({ answers: answers.map((a, i) => ({ q: QUESTIONS[i].de, transcript: a?.transcript || '', inputMode: a?.inputMode || 'typed' })) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'analyze_failed');
@@ -150,8 +158,8 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     </h2>
     <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.7 }}>
       {T(lang,
-        '5 kurze Fragen, auf Deutsch gesprochen. Du nimmst jede Antwort auf (max. 60 Sek.). Am Ende bekommst du eine ehrliche Einschätzung deines Niveaus und deine größten Blocker. Dauert ~5 Minuten.',
-        '٥ أسئلة قصيرة، بترد عليها بالألماني بصوتك (٦٠ ثانية لكل سؤال). في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
+        '5 kurze Fragen auf Deutsch. Antworte per Stimme oder Text. Am Ende bekommst du eine ehrliche Einschätzung deines Niveaus und deiner größten Blocker. Dauert ~5 Minuten.',
+        '٥ أسئلة قصيرة بالألماني. جاوب بصوتك أو بالكتابة. في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
     </p>
     <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
       {T(lang, 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.', 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.')}
@@ -237,10 +245,17 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
         <>
           <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' }}>
             <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'DEINE ANTWORT', 'إجابتك')}</div>
-            <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{answer.transcript || T(lang, '(nichts erkannt)', '(مفيش كلام اتسمع)')}</div>
+            <textarea value={answer.transcript || ''} maxLength={4000} lang="de" dir="ltr"
+              aria-label={T(lang, 'Erkannten Text korrigieren', 'صحّح النص اللي اتسمع')}
+              onChange={(e) => setAns((prev) => { const n = [...prev]; n[idx] = { ...n[idx], transcript: e.target.value, transcriptCorrected: true }; return n; })}
+              style={{ width:'100%', minHeight:72, boxSizing:'border-box', resize:'vertical', padding:9, borderRadius:8,
+                background:'rgba(0,0,0,0.25)', border:'1px solid rgba(148,163,184,0.3)', color:'#e2e8f0', fontSize:13, lineHeight:1.5 }} />
+            <div style={{ fontSize:10, color:'#94a3b8', marginTop:5, lineHeight:1.45 }}>
+              {T(lang, 'Korrigiere nur Erkennungsfehler — formuliere deine Antwort nicht neu.', 'صحّح بس أخطاء السماع — ما تعيدش صياغة إجابتك.')}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            {!reRecorded && (
+            {answer.inputMode !== 'typed' && !reRecorded && (
               <button onClick={reRecord} style={{ ...ghostBtnWide }}>{T(lang, 'Nochmal aufnehmen (1×)', 'سجّل تاني (مرة)')}</button>
             )}
             <button onClick={idx < QUESTIONS.length - 1 ? next : submit} style={{ ...primaryBtn, flex: 1 }}>
@@ -252,7 +267,18 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
         <>
           <button onClick={startRec} style={{ ...primaryBtn, fontSize: 14 }}>● {T(lang, 'Aufnahme starten', 'ابدأ التسجيل')}</button>
           <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
-            {T(lang, 'Sprich deine Antwort auf Deutsch.', 'رُد بصوتك بالألماني.')}
+            {T(lang, 'Sprich deine Antwort — oder tippe sie.', 'رُد بصوتك — أو اكتب إجابتك.')}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'stretch' }}>
+            <textarea value={typed} onChange={(e) => setTyped(e.target.value)} maxLength={4000}
+              lang="de" dir="ltr" aria-label={T(lang, 'Antwort auf Deutsch tippen', 'اكتب إجابتك بالألماني')}
+              placeholder={T(lang, 'Antwort auf Deutsch tippen…', 'اكتب إجابتك بالألماني…')}
+              style={{ flex: 1, minHeight: 72, resize: 'vertical', padding: 10, borderRadius: 9,
+                border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontSize: 14 }} />
+            <button onClick={saveTyped} disabled={typed.trim().length < 2}
+              style={{ ...ghostBtn, minWidth: 82, opacity: typed.trim().length < 2 ? 0.45 : 1 }}>
+              {T(lang, 'Speichern', 'حفظ')}
+            </button>
           </div>
         </>
       )}
@@ -273,6 +299,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
 
       <div style={{ fontSize: 10, color: '#64748b', textAlign: 'center', lineHeight: 1.5, marginBottom: 16 }}>
         {T(lang, 'Eine ehrliche Schätzung als Startpunkt — kein offizielles Zertifikat.', 'ده تقدير تقريبي عشان تعرف تبدأ منين — مش شهادة رسمية.')}
+        <br />{T(lang, 'Aussprache und Sprechtempo wurden in dieser Textauswertung nicht bewertet.', 'النطق وسرعة الكلام ما اتقاسوش في التقييم النصي ده.')}
       </div>
 
       {result.blockers?.length > 0 && (

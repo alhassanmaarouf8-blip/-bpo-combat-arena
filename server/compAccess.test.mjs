@@ -12,12 +12,12 @@ const comp = await import('./compAccess.js');
 
 const uniq = (tag) => `${tag}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 
-test('compAccess: whitelisting BEFORE signup grants the plan instantly, no payment', async () => {
+test('compAccess: an unverified signup cannot inherit a privileged email allowlist', async () => {
   const email = uniq('presignup');
   await comp.addComp({ email, plan: 'elite', note: 'test' });
   const acc = await auth.createAccount(email, 'password123', null);
-  assert.equal(auth.planOf(acc), 'elite');
-  assert.equal(acc.subscription.comp, true);
+  assert.equal(auth.planOf(acc), 'free');
+  assert.notEqual(acc.subscription.comp, true);
 });
 
 test('compAccess: a non-whitelisted signup is unaffected (free/trial as normal)', async () => {
@@ -38,16 +38,16 @@ test('compAccess: admin grantComp applies to an ALREADY-EXISTING account instant
 
 test('compAccess: planOf ignores billingPeriodEnd expiry for comp accounts (unlike real payments)', async () => {
   const email = uniq('neverexpires');
-  await comp.addComp({ email, plan: 'elite' });
   const acc = await auth.createAccount(email, 'password123', null);
+  await auth.grantComp(acc, 'elite');
   acc.subscription.billingPeriodEnd = Date.now() - 1000; // an "expired" period, as a real payment would set
   assert.equal(auth.planOf(acc), 'elite');
 });
 
 test('compAccess: deactivatePlan revokes comp access and clears the comp flag', async () => {
   const email = uniq('revoke');
-  await comp.addComp({ email, plan: 'elite' });
   const acc = await auth.createAccount(email, 'password123', null);
+  await auth.grantComp(acc, 'elite');
   assert.equal(auth.planOf(acc), 'elite');
   await auth.deactivatePlan(acc);
   assert.equal(auth.planOf(acc), 'free');

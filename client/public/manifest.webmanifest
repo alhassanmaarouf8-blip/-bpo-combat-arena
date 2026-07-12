@@ -1,7 +1,7 @@
 {
   "name": "OMNI-PERFORM — German Interview Trainer",
   "short_name": "OMNI-PERFORM",
-  "description": "Practice real German job interviews out loud and get instant feedback. Your pocket interview coach.",
+  "description": "Practice realistic German job-interview simulations out loud and get specific feedback on your answers.",
   "id": "/",
   "start_url": "/?src=pwa",
   "scope": "/",

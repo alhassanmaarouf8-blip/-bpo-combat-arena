@@ -1,8 +1,7 @@
 name: payment-alert
 
-# $0 watchdog for the hand-cranked cash register: the app promises "activated within 30 minutes",
-# but the only signals a payment arrived were a server console.log and the manually-opened admin
-# page. This cron reads the pendingPayments COUNT from /health (no PII) and opens ONE GitHub issue
+# $0 watchdog for the hand-cranked cash register. This cron reads a PII-free pending count from
+# an ADMIN_KEY-protected endpoint and opens ONE GitHub issue
 # (@mention → phone notification) while money is waiting; it closes the issue when the queue is
 # empty again. GitHub cron is best-effort (a */15 schedule can slip), but this still turns
 # "whenever the owner happens to look" into "within the hour" at worst.
@@ -21,13 +20,15 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
+      PAYMENT_MONITOR_KEY: ${{ secrets.PAYMENT_MONITOR_KEY }}
     steps:
       - name: Check pending payments and manage the alert issue
         run: |
-          URL="https://bpo-combat-arena.onrender.com/health"
+          URL="https://bpo-combat-arena.onrender.com/admin/payment-count"
+          if [ -z "$PAYMENT_MONITOR_KEY" ]; then echo "PAYMENT_MONITOR_KEY secret missing — refusing an unauthenticated check"; exit 1; fi
           # wake-tolerant read (cold dyno may need a retry)
           for i in 1 2 3; do
-            body=$(curl -s --max-time 40 "$URL" || true)
+            body=$(curl -fsS --max-time 40 -H "X-Payment-Monitor-Key: $PAYMENT_MONITOR_KEY" "$URL" || true)
             [ -n "$body" ] && break
             sleep 10
           done
@@ -42,7 +43,7 @@ jobs:
               gh label create payment-pending --repo "$REPO" --color D93F0B --description "money waiting for manual activation" 2>/dev/null || true
               gh issue create --repo "$REPO" --label payment-pending \
                 --title "💰 $n Zahlung(en) warten auf Aktivierung" \
-                --body "@alhassanmaarouf8-blip — /health meldet **$n pending payment(s)**. Der Kunde wurde 'Aktivierung innerhalb von 30 Minuten' versprochen. Admin-Panel öffnen und aktivieren. (Dieses Issue schließt sich automatisch, sobald die Warteschlange leer ist.)"
+                --body "@alhassanmaarouf8-blip — das geschützte Zahlungsmonitoring meldet **$n pending payment(s)**. Der Kunde erwartet eine manuelle Prüfung, während der Geschäftszeiten normalerweise innerhalb von zwei Stunden. Admin-Panel öffnen, Betrag + Wallet-Endziffern prüfen und erst dann aktivieren. (Dieses Issue schließt sich automatisch, sobald die Warteschlange leer ist.)"
               echo "alert issue created"
             else
               echo "alert issue #$existing already open — not duplicating"

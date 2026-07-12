@@ -707,7 +707,8 @@ export class RealtimeClient {
       // persona keeps its OWN voice (Anna/Benjamin/Rebecca/Alexander/Cornelia/Lukas); Deepgram Aura is the
       // fallback. This costs real money per interview (turbo_v2_5, short boss lines + the daily-minute cap
       // bound it); to revert to $0, remove ELEVENLABS_API_KEY from Render.
-      elevenVoice: process.env.ELEVENLABS_API_KEY ? (this._boss.elevenVoice || '') : '',
+      elevenVoice: opts.allowElevenVoice && process.env.USE_ELEVENLABS === '1' && process.env.ELEVENLABS_API_KEY
+        ? (this._boss.elevenVoice || '') : '',
       level:       this._session.level.id,
       levelLabel:  this._session.level.label,
       behavioral:  this._session.behavioral,

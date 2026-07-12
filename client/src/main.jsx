@@ -1,25 +1,23 @@
-import { StrictMode, Component, lazy, Suspense } from 'react';
+import { StrictMode, Component } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import PublicFeedback from './PublicFeedback.jsx';
-// Lazy so the ElevenLabs SDK (~180KB gzip) is code-split into its own chunk — loaded ONLY on
-// ?elevenlabs, never in the main bundle every user downloads.
-const ElevenTest = lazy(() => import('./ElevenTest.jsx'));
+import { API_URL as BACKEND, BUILD_ID, IS_PRODUCTION } from './config.js';
 
 // A shareable link (?feedback) lands directly on the standalone feedback page — no login,
 // no hunting for the in-app button. Everything else renders the full app as before.
 const IS_FEEDBACK = /[?&]feedback\b/.test(window.location.search);
-// ?elevenlabs → the ISOLATED ElevenLabs voice test (owner rollout; separate from the fight code).
-const IS_ELEVEN = /[?&]elevenlabs\b/.test(window.location.search);
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
 // module errors (global handlers).
 // Backend base URL, derived from the same build-time WS URL the app uses (wss→https).
-const BACKEND = (import.meta.env.VITE_WS_URL || 'ws://localhost:3001').replace(/^ws/, 'http');
 function reportError(title, detail) {
   try {
-    const body = JSON.stringify({ title, detail: String(detail || '').slice(0, 4000), url: location.href, ua: navigator.userAgent });
+    // Never send query/hash: password-reset tokens and campaign identifiers live there.
+    // Stack traces are useful locally but reveal source details in production.
+    const safeDetail = import.meta.env.PROD ? String(detail || '').split('\n')[0] : String(detail || '');
+    const body = JSON.stringify({ title: String(title || '').slice(0, 80), detail: safeDetail.slice(0, 500), path: location.pathname });
     // Report to the backend so the crash shows up in the server log (diagnostics).
     fetch(`${BACKEND}/api/clienterror`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
   } catch { /* ignore */ }
@@ -32,11 +30,14 @@ function paintError(title, detail) {
   root.innerHTML = '';
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:24px;text-align:center;background:#0a0f1a;color:#fca5a5;font-family:monospace;z-index:99999';
+  const technical = IS_PRODUCTION ? '' : `<pre style="max-width:560px;max-height:50vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;color:#fb923c;text-align:left;background:#020409;padding:14px;border-radius:8px;border:1px solid #f8717155">${String(detail || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre>`;
   box.innerHTML =
-    `<div style="font-size:20px;font-weight:700;color:#f87171">⚠ ${title}</div>` +
-    `<pre style="max-width:560px;max-height:50vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;color:var(--action-2);text-align:left;background:#020409;padding:14px;border-radius:8px;border:1px solid #f8717155">${String(detail || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre>` +
-    `<div style="font-size:13px;color:#94a3b8">Bitte diese Meldung abfotografieren / kopieren. Dann Strg+Shift+R.</div>`;
+    `<div style="font-size:20px;font-weight:700;color:#f8fafc">OMNI-PERFORM</div>` +
+    `<div style="font-size:15px;color:#cbd5e1">Die App konnte gerade nicht geladen werden. Deine Zahlung oder dein Konto wurden dadurch nicht verändert.</div>` +
+    technical +
+    `<button id="omni-reload" style="padding:12px 18px;border:0;border-radius:10px;background:#f97316;color:#081019;font-weight:800;cursor:pointer">SEITE NEU LADEN</button>`;
   root.appendChild(box);
+  box.querySelector('#omni-reload')?.addEventListener('click', () => location.reload());
 }
 
 class RootBoundary extends Component {
@@ -62,9 +63,7 @@ try {
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       <RootBoundary>
-        {IS_ELEVEN
-          ? <Suspense fallback={<div style={{ minHeight: '100vh', background: '#04070d' }} />}><ElevenTest apiUrl={BACKEND} /></Suspense>
-          : IS_FEEDBACK ? <PublicFeedback /> : <App />}
+        {IS_FEEDBACK ? <PublicFeedback /> : <App />}
       </RootBoundary>
     </StrictMode>,
   );
@@ -73,9 +72,9 @@ try {
   // localhost); the canonical, always-on check is the <meta name="build"> in index.html (curl-grep'd),
   // which is unchanged. Commit is injected at build time by Vite.
   try {
-    const showStamp = location.hostname === 'localhost' || /[?&](debug|build)\b/.test(location.search);
+    const showStamp = !import.meta.env.PROD && (location.hostname === 'localhost' || /[?&](debug|build)\b/.test(location.search));
     if (showStamp) {
-      const bid = (typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev');
+      const bid = BUILD_ID;
       const tag = document.createElement('div');
       tag.textContent = 'build ' + bid;
       tag.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:2147483647;font:10px/1 monospace;color:#334155;opacity:0.55;pointer-events:none;user-select:none';
@@ -84,4 +83,9 @@ try {
   } catch { /* ignore */ }
 } catch (err) {
   paintError('App konnte nicht starten', err?.stack || err?.message || err);
+}
+
+// Register from the module instead of an inline script so production can use a strict CSP.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once: true });
 }
