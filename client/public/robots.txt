@@ -2,4 +2,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://bpo-combat-arena.vercel.app/sitemap.xml
+Sitemap: https://omni-perform.vercel.app/sitemap.xml

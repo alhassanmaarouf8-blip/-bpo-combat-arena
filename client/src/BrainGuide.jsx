@@ -164,7 +164,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
               loop), so sharing it can never brag a lie. Quiet link — the aha stays the hero. */}
           <button
             onClick={() => {
-              const text = `${ruleLabel(d.aha.ruleId)}: von ${d.aha.before} Fehlern auf ${d.aha.after} — mit echten Live-Interviews auf Deutsch. https://bpo-combat-arena.vercel.app/?src=aha`;
+              const text = `${ruleLabel(d.aha.ruleId)}: von ${d.aha.before} Fehlern auf ${d.aha.after} — mit echten Live-Interviews auf Deutsch. https://omni-perform.vercel.app/?src=aha`;
               if (navigator.share) navigator.share({ text }).catch(() => {});
               else navigator.clipboard?.writeText(text).catch(() => {});
             }}

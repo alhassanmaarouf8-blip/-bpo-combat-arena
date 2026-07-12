@@ -1,25 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://bpo-combat-arena.vercel.app/</loc>
+    <loc>https://omni-perform.vercel.app/</loc>
     <lastmod>2026-07-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://bpo-combat-arena.vercel.app/terms.html</loc>
+    <loc>https://omni-perform.vercel.app/terms.html</loc>
     <lastmod>2026-07-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
   <url>
-    <loc>https://bpo-combat-arena.vercel.app/privacy.html</loc>
+    <loc>https://omni-perform.vercel.app/privacy.html</loc>
     <lastmod>2026-07-06</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
   <url>
-    <loc>https://bpo-combat-arena.vercel.app/refund.html</loc>
+    <loc>https://omni-perform.vercel.app/refund.html</loc>
     <lastmod>2026-07-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>

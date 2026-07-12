@@ -1596,7 +1596,7 @@ function Debrief({ data, pending, onRestart, onDone, lang = 'de', onLang, bossNa
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
 
-  const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://bpo-combat-arena.vercel.app';
+  const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
   const shareText = [
     `🎯 OMNI-PERFORM — Deutsches BPO-Interview`,
     `Rang: ${rank} · Score: ${score}/100`,
@@ -2494,7 +2494,7 @@ function DossierSheet({ token, data, account, onClose }) {
 
         <div style={{ fontSize: 9.5, color: '#6b7280', lineHeight: 1.6, marginTop: 16 }}>
           Alle Werte wurden in gesprochenen Trainings-Interviews und Übungen GEMESSEN — nichts ist
-          geschätzt, nichts wird versprochen. Verifizierbar unter bpo-combat-arena.vercel.app.
+          geschätzt, nichts wird versprochen. Verifizierbar unter omni-perform.vercel.app.
         </div>
 
         <div className="dossier-hidep" style={{ display: 'flex', gap: 8, marginTop: 18 }}>
@@ -6697,7 +6697,7 @@ function BackendGate({ children }) {
 const AR_GATE = { headline: '', copySteps: '', ios: '' };
 function InAppBrowserGate({ onContinue }) {
   const [copied, setCopied] = useState(false);
-  const url = 'https://bpo-combat-arena.vercel.app';
+  const url = 'https://omni-perform.vercel.app';
   const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   const isAndroid = /Android/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);

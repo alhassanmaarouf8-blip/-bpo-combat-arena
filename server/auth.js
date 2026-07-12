@@ -654,7 +654,7 @@ authRouter.post('/verify',
 // live link); 45 min TTL; single-use; /forgot answers ok:true whether or not the account exists
 // (no account enumeration) and never reveals a send failure. emailConfigured:false is the ONE
 // honest exception — until the owner sets SMTP_USER/SMTP_PASS the client must not promise mail.
-const APP_URL = process.env.APP_URL || 'https://bpo-combat-arena.vercel.app';
+const APP_URL = process.env.APP_URL || 'https://omni-perform.vercel.app';
 const RESET_TTL_MS = 45 * 60 * 1000;
 
 // Rate shape mirrors /login's CGNAT lesson (hundreds of real users share one carrier IP):
