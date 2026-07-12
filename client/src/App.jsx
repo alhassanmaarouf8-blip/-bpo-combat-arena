@@ -140,7 +140,7 @@ const WS_ERROR_TEXT = {
   fight_already_active: { de: 'Es läuft bereits ein Interview.', ar: 'في إنترفيو شغّال بالفعل.' },
   auth_required:        { de: 'Bitte melde dich erneut an.', ar: 'من فضلك سجّل دخول تاني.' },
   email_verification_required: { de: 'Bestätige zuerst deine E-Mail-Adresse.', ar: 'أكد إيميلك الأول.' },
-  mic_denied:           { de: 'Mikrofon-Zugriff wurde blockiert. Erlaube das Mikrofon in den Browser-Einstellungen (Schloss-Symbol neben der Adresse) und starte neu.', ar: 'الوصول للمايك متمنوع. اسمح للمايك من إعدادات المتصفح (علامة القُفل جنب العنوان) وابدأ من جديد.' },
+  mic_denied:           { de: 'Mikrofon ist blockiert. Erlaube es in den Website-/App-Berechtigungen und versuche es erneut.', ar: 'المايك مقفول. اسمح بيه من صلاحيات الموقع أو التطبيق وجرب تاني.' },
   mic_not_found:        { de: 'Kein Mikrofon gefunden. Schließe ein Mikrofon an oder erlaube es und starte neu.', ar: 'مفيش مايك متوصّل. وصّل مايك أو اسمح بيه وابدأ من جديد.' },
   mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Du kannst per Text fortfahren oder neu starten.', ar: 'الاتصال بالمايك اتقطع. تقدر تكمل بالكتابة أو تبدأ من جديد.' },
   plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
@@ -4974,6 +4974,28 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
       setPaywall(auth.account.entitlement); return;
     }
+    // Voice is the product's primary experience. Verify the microphone BEFORE opening a socket or
+    // starting a paid Gemini/persona session. This same browser permission applies to the installed
+    // PWA, so the website, PWA and mobile browser now fail safely at the same gate instead of
+    // discovering a saved denial after Yasmin has already started speaking.
+    if (IN_APP_BROWSER || !checkAudioSupport().supported) {
+      beacon('mic_failed');
+      setError('audio_unsupported');
+      setHandsFree(false);
+      setTypeOpen(false);
+      return;
+    }
+    try {
+      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      probe.getTracks().forEach((track) => track.stop());
+      setError(null);
+    } catch (err) {
+      beacon('mic_failed');
+      setError(micErrorCode(err));
+      setHandsFree(false);
+      setTypeOpen(false);
+      return;
+    }
     // Straight into the interview. The typed AUFWÄRMEN pre-fight warm-up was removed: it re-drilled the
     // same SRS due-items as SAG ES RICHTIG (spoken) and Daily Training (typed) — off-mission redundancy.
     start();
@@ -5900,6 +5922,26 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
                     border:'1px solid #64748b', color:'#cbd5e1', background:'rgba(15,23,42,0.8)' }}>
                   Lieber tippen
+                </button>
+              </div>
+            )}
+            {!geminiMode && (error === 'mic_denied' || error === 'mic_not_found') && (
+              <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                <button onClick={() => beginSession()}
+                  style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
+                    border:'1px solid var(--accent)', color:'#020409', fontWeight:800,
+                    background:'linear-gradient(135deg,var(--accent-2),var(--accent))' }}>
+                  MIKROFON ERLAUBEN &amp; STARTEN
+                </button>
+                <button onClick={() => {
+                  setError(null);
+                  setHandsFree(false);
+                  setTypeOpen(true);
+                  start();
+                }}
+                  style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
+                    border:'1px solid #64748b', color:'#cbd5e1', background:'rgba(15,23,42,0.8)' }}>
+                  Ohne Mikrofon tippen
                 </button>
               </div>
             )}
