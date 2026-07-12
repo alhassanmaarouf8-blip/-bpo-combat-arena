@@ -29,21 +29,22 @@ Brevo mail takes ~60–90s). Signup body = {email,password} only now (no WhatsAp
 is B1 aufwärts ONLY ("those realistically have any chance of working"), Harvard/selectivity framing
 per his order. Shipped: landing ADMISSION BAR (AB B1 · AUFNAHME NUR MIT NIVEAU, under CTA) · Salma's
 DOOR QUESTION opens the cold-open (gate beat: B1+ → in; below → dignified turn-away, door open,
-beacons gate_b1_yes/no live-tested 200) · below-B1 honest verdict line after screening · SULTAN
+beacons gate_b1_yes/no live-tested 200) · below-B1 honest verdict line after screening · EXPERT-TEACHER
 HOMEWORK ORDER (Wochenfokus footer = dose 15min×2 + exit <5 measured Grammatik-Fehler + unlock
 "dann buche ich {boss}") · CULL: Druck-Leiter + Video-Lektionen tiles removed from Übungen
 (replacements are better: real interview trains pressure; passive slides ≠ speaking — overlays
 stay wired for prescriptions). Masri voice LOUDNESS fixed `37dbd44` (pcmToLoudWav on Gemini PCM;
 owner: "very low, robotic" — robotic was the German-text smoke confound; fair normalized sample
 with his approved Sara greeting sent for ear-check). Owner sheet now 149 slots.
-★ KORREKTUR-ZEREMONIE shipped (`b71ab3d`+`e4b8590`+`7b2dda4`, Sultan doctrine #1 — the 25-year DaF
-teacher's signature move, owner had him live in the room 07-12): after any interview with a
-LanguageTool-verified fix, Salma chains follow-up → ritual prompt → MODELS the corrected fragment
-(salmaModel, kara+salma:true), candidate repeats ALOUD, taps "Laut gesagt" (self-reported, no fake
-verification), closing note "morgen im Training" is TRUE (fights addItem→SRS→Tägliches Training).
-Beacon `ritual_done` whitelisted. THE SULTAN DELIVERABLE: full 10-gaps + 10-protocol answer with
-dosages/exit-criteria lives in the 07-12 conversation — REAP HIS CORRECTIONS (dosage numbers, A2→B1
-grammar order, strike-list) + the testimonial ask («Geprüft von M. Sultan») before building v2
+★ KORREKTUR-ZEREMONIE shipped (`b71ab3d`+`e4b8590`+`7b2dda4`, expert-teacher doctrine #1 — a 25-year
+DaF teacher's signature move, owner had him live in the room 07-12; NAME NEVER USED — owner order):
+after any interview with a LanguageTool-verified fix, Salma chains follow-up → ritual prompt →
+MODELS the corrected fragment (salmaModel, kara+salma:true), candidate repeats ALOUD, taps "Laut
+gesagt" (self-reported, no fake verification), closing note "morgen im Training" is TRUE (fights
+addItem→SRS→Tägliches Training). Beacon `ritual_done` whitelisted. THE EXPERT DELIVERABLE: full
+10-gaps + 10-protocol answer with dosages/exit-criteria lives in the 07-12 conversation — REAP HIS
+CORRECTIONS (dosage numbers, A2→B1 grammar order, strike-list) + a testimonial ask (an anonymized
+«Geprüft von einem DaF-Lehrer, 25 J. Erfahrung» — never the real name) before building v2
 (ASR-checked repeat, Prüfungstag weekly re-level, criterion boss gates, error-rate hero stat).
 
 ## 🔥 MAKE-IT-COOL v2 EXECUTION (2026-07-12 evening) — items 1+0+5a LIVE; plan approved for the rest

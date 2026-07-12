@@ -1610,7 +1610,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
 
-  // The correction ritual (Sultan doctrine 07-12): ONE LanguageTool-verified fix from THIS
+  // The correction ritual (expert-teacher doctrine 07-12): ONE LanguageTool-verified fix from THIS
   // interview, modeled by Salma, said back aloud by the candidate. Fragment-first — the minimal
   // corrected chunk is exactly what a teacher makes you re-say. Never an invented sentence:
   // no verified fragment → no card.
@@ -1938,7 +1938,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             </div>
           )}
 
-          {/* ── Die Korrektur-Zeremonie (Sultan doctrine): the ONE verified fix, modeled by Salma,
+          {/* ── Die Korrektur-Zeremonie (expert-teacher doctrine): the ONE verified fix, modeled by Salma,
                 said back ALOUD. Honest by construction: renders only when LanguageTool verified a
                 fragment from THIS interview, and the button claims nothing it can't know (the
                 repeat is self-reported; the error is already planted in tomorrow's SRS). ── */}
@@ -2003,7 +2003,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   {data.priorityFix.ar}
                 </div>
               )}
-              {/* SULTAN HOMEWORK (owner order 07-12): the focus becomes an ORDER — dose, exit
+              {/* EXPERT-TEACHER HOMEWORK (owner order 07-12): the focus becomes an ORDER — dose, exit
                   criterion, unlock. Grammar-error counts are really measured per interview, and
                   the re-test promise stays literally true (dossier + AKTE memory). */}
               <div style={{ marginTop:10, paddingTop:9, borderTop:'1px solid rgba(249,115,22,0.25)',
@@ -6582,7 +6582,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </div>
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginBottom:11 }}>تمارين إضافية</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              {/* SULTAN CULL (owner order 07-12, B1+ focus): Druck-Leiter and Video-Lektionen tiles
+              {/* EXPERT-TEACHER CULL (owner order 07-12, B1+ focus): Druck-Leiter and Video-Lektionen tiles
                   removed — the real interview trains pressure better than a simulator of it, and
                   passive slide-lessons are minutes not spent speaking. Their overlays/handlers stay
                   wired (brain prescriptions and deep links keep working); only the menu offer is gone. */}

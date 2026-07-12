@@ -34,7 +34,7 @@ const ALLOWED = new Set([
   'salma_intro_shown', 'salma_name_saved', 'salma_booked', 'salma_skipped', 'salma_later', 'salma_done',
   // Cross-device auth hardening (2026-07-12): blocked WebView signups + the PWA install funnel.
   'inapp_signup_blocked', 'pwa_install_shown', 'pwa_install_accepted', 'pwa_ios_hint_shown',
-  // Correction ritual (2026-07-12, Sultan doctrine): candidate tapped "Laut gesagt" after
+  // Correction ritual (2026-07-12, expert-teacher doctrine): candidate tapped "Laut gesagt" after
   // repeating the verified fix aloud — measures whether the ritual is actually performed.
   'ritual_done',
   // B1+ admission gate (2026-07-12, owner positioning law): Salma's door question at the

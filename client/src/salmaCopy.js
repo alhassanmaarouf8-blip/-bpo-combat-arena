@@ -67,7 +67,7 @@ export const SALMA_COPY = {
   debrief_followup_next: { de: 'Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist.', ar: '' }, // OWNER-AR · EN: "I have read your interview. Your next appointment with me: {name} · {tier} — I book the moment you are ready."
   debrief_followup_top: { de: 'Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck.', ar: '' }, // OWNER-AR · EN: "I have read your interview. You are at the top of my ladder — from here it is about confirming under pressure."
 
-  // ── debrief · the Sultan homework order (07-12): dose + exit criterion + unlock ────────────
+  // ── debrief · the expert-teacher homework order (07-12): dose + exit criterion + unlock ─────
   // {boss} ← fight result progress.nextBoss.name
   homework_order: { de: 'Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Dann buche ich dir {boss}.', ar: '' }, // OWNER-AR · EN: "Your assignment: 15 minutes today and 15 tomorrow — exactly this weakness. Target in the next interview: under 5 grammar errors. Then I book you {boss}."
   homework_order_top: { de: 'Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Du stehst ganz oben auf meiner Leiter — bestätige es.', ar: '' }, // OWNER-AR · EN: "Your assignment: 15 minutes today and 15 tomorrow — exactly this weakness. Target in the next interview: under 5 grammar errors. You are at the top of my ladder — confirm it."
@@ -84,7 +84,7 @@ export const SALMA_COPY = {
   // {level} ← assessment result.estimatedLevel (A1/A2 branch only)
   verdict_below_b1: { de: 'Ehrliches Wort von deiner Recruiterin: Dein Screening zeigt {level}. Diese Arena ist für B1 aufwärts gebaut — du kannst trotzdem trainieren, aber der schnellste Weg ist: erst die Grundlagen festigen, dann zu mir zurückkommen.', ar: '' }, // OWNER-AR · EN: "Honest word from your recruiter: your screening shows {level}. This arena is built for B1 and up — you can still train, but the fastest path is: solidify the basics first, then come back to me."
 
-  // ── debrief · the correction ritual (Sultan doctrine 07-12: spoken errors die by spoken
+  // ── debrief · the correction ritual (expert-teacher doctrine 07-12: spoken errors die by spoken
   //    correction — she models the verified fix, the candidate says it back ALOUD) ───────────
   ritual_prompt: { de: 'Einmal noch — und diesmal richtig. Hör zu und sprich mir laut nach:', ar: '' }, // OWNER-AR · EN: "One more time — and this time correctly. Listen and repeat after me, out loud:"
   ritual_replay: { de: 'Nochmal hören', ar: '' }, // OWNER-AR · EN: "Hear it again" (button)
