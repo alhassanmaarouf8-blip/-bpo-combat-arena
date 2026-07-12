@@ -10,6 +10,13 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
+import { playNative } from './nativeVoice.js';
+
+// Salma's OWN native voice — a warm female Aura-2 German voice no interviewer uses (kara is
+// server-whitelisted in transcribeRouter ALLOWED_VOICES and unclaimed by any boss). Her lines are
+// fixed templates → server-cached → $0. House law holds: native voice or SILENCE, never the
+// robotic browser voice (playNative defaults noBrowserFallback=true).
+const SALMA_VOICE = 'aura-2-kara-de';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -60,6 +67,24 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     fetch(`${apiUrl}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ e: 'salma_name_saved' }), keepalive: true }).catch(() => {});
   };
+
+  // ── Salma SPEAKS her bubbles (owner order 07-12: "why does Salma not have any voice"). ──
+  // Spoken on every beat change through the same cached native pipeline the drills use. The very
+  // first beat may lack a fresh user gesture (autoplay policy) → playNative fails SILENTLY and the
+  // text still carries the beat; every subsequent beat follows a tap, so her voice lands there.
+  // German only for now — when the owner ships her ElevenLabs masri clips they take these slots.
+  const speakStop = useRef(null);
+  const bubblesRef = useRef([]);
+  useEffect(() => {
+    if (lang === 'ar') return;                       // no German voice over (future) Arabic text
+    try { speakStop.current?.(); } catch { /* ignore */ }
+    speakStop.current = null;
+    const text = bubblesRef.current.join(' … ');
+    if (text && text !== '…') {
+      speakStop.current = playNative({ apiUrl, token, text, voice: SALMA_VOICE });
+    }
+    return () => { try { speakStop.current?.(); } catch { /* ignore */ } speakStop.current = null; };
+  }, [beat, lang, apiUrl, token]);
 
   // The Assessment closed (App bumped resumeTick) → fetch the fresh server-persisted verdict and
   // resume on the right beat. Only reacts while we're waiting on the screening.
@@ -165,6 +190,8 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   } else if (beat === 'checking') {
     bubbles.push('…');   // verdict fetch in flight (sub-second on a warm server); resolves to verdict | no_verdict
   }
+
+  bubblesRef.current = bubbles;   // snapshot for the speak effect (runs post-render per beat)
 
   return (
     <div style={backdrop}>
