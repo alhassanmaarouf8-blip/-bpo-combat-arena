@@ -18,10 +18,11 @@ export function mailerConfigured() {
 let _tx = null;
 function tx() {
   if (!_tx) {
+    const port = Number(process.env.SMTP_PORT || 465);
     _tx = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      port,
+      secure: port === 465,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       // Tight timeouts (review catch): nodemailer's defaults (2 min connect, 10 min socket)
       // would let a blackholed SMTP connection pin resources far too long.
@@ -48,7 +49,7 @@ export async function sendResetMail(to, link) {
     'لو انت اللي طلبت تغيير الباسورد، افتح اللينك — صالح ٤٥ دقيقة. لو مش انت، تجاهل الرسالة.',
   ].join('\n');
   await tx().sendMail({
-    from: `"OMNI-PERFORM" <${process.env.SMTP_USER}>`,
+    from: `"OMNI-PERFORM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to,
     subject: 'Passwort zurücksetzen · OMNI-PERFORM',
     text,
@@ -70,7 +71,7 @@ export async function sendVerificationMail(to, link) {
     'أكد إيميلك قبل ما تبدأ التدريب الصوتي. اللينك صالح ٢٤ ساعة وبيشتغل مرة واحدة.',
   ].join('\n');
   await tx().sendMail({
-    from: `"OMNI-PERFORM" <${process.env.SMTP_USER}>`,
+    from: `"OMNI-PERFORM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to,
     subject: 'E-Mail bestätigen · OMNI-PERFORM',
     text,
