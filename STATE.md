@@ -1,5 +1,29 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🔥 MAKE-IT-COOL v2 EXECUTION (2026-07-12 evening) — items 1+0+5a LIVE; plan approved for the rest
+Owner approved the panel-synthesized plan (`~/.claude/plans/delegated-puzzling-stallman.md` — READ
+IT before continuing; north star: tailored genuine progress × peak entertainment). SHIPPED+VERIFIED:
+(1) `fa9c23a` damage numbers/SERIE re-plugged (10560f1 had falsed them; tuned 34px/1.6s, SERIE from
+×3, comboBest now rendered in debrief); (0) `033ac3c` LANDING REDESIGN — animated arena preview
+(CSS 9s fight loop, movement screenshot-proven, 8/10) + 6-opponent ladder strip, design-lint fully
+clean; (5a) `78b55ca` SALMA SPEAKS — aura-2-kara-de (unclaimed voice) through the drills'
+media-ticket/tts-stream cached path, silent-fallback, beat-synced in SalmaTakeover.
+**REMAINING (approved, in order): item 2 REVANCHE loss flow (DER MOMENT quoted + rematch hint in
+START_FIGHT) · 3 fight ritual (briefing w/ declared scrutiny, ENTSCHEIDUNG hold, NÄCHSTES-MAL
+trailer) · 4 share-cards content recode (conquest/streak/Einladung, tier-gated) · 5 portrait
+(stylized illustration, 3 Gemini-free candidates → owner picks) + Salma copy pass (mood variants,
+per-boss briefings from impresses/annoys, booking branches by assessment tier) · 6 rank-up ceremony
+(needs maxRank persistence — ranks decay on rolling-5!) · 7 comeback architecture (Salma Termin
+owns the push; state-keyed SW pool via postMessage; lapse auto-quiet) · 8 dossier Zertifikat +
+Akte-Nr (candidateNo at createAccount) · 9 paywall de-stack · 10 die-Arena spoken name. CUT (panel
+unanimous): leaderboard strip, photoreal headshot, typing fake, glow/beam chrome, score/100 on
+shareables.**
+⚠⚠ ANOTHER SESSION IS LIVE ON THIS TREE **rewriting auth**: email verification now gates signup
+(10afbc6+18dd64d+381213d Brevo SMTP), old test accounts WIPED (probe-0711 login = invalid_credentials
+→ every future Playwright pass must create fresh accounts AND handle the verification step), it
+pushes between my commits — `git fetch` before EVERY edit, stage by name. Logged-out landing fires
+6 useless 401 calls (leaderboard/progress/billing/brain/auth-me/placement) — small cleanup candidate.
+
 ## 🔥 FINISH-EVERYTHING WAVE (2026-07-12, after Salma) — `9e84bf9`, ALL Playwright-verified live
 Owner: "finish everything before you come back." Shipped+verified in one wave: (1) **WebView
 signup BLOCK** (Messenger/IG browsers: login ok, account-creation blocked + copy-link escape —
