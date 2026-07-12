@@ -2676,6 +2676,21 @@ function VoiceReadinessCheck() {
           {state === 'checking' ? 'PRÜFE…' : '🎤 المايك · MIKROFON TESTEN'}
         </button>
       )}
+      <details style={{ marginTop:10, textAlign:'left' }}>
+        <summary style={{ cursor:'pointer', minHeight:36, color:'var(--accent-2)', fontSize:11.5, fontWeight:700 }}>
+          شوف مثال للنتيجة قبل التسجيل · Feedback-Beispiel
+        </summary>
+        <div style={{ marginTop:7, padding:'9px 10px', borderRadius:8, background:'rgba(2,6,16,0.55)',
+          border:'1px solid var(--line)', fontSize:11, lineHeight:1.55, color:'#cbd5e1' }}>
+          <div><b style={{ color:'var(--accent-2)' }}>HR:</b> Erzählen Sie von einem schwierigen Kunden.</div>
+          <div><b>Antwort:</b> „Ich habe den Kunde geholfen und Problem gelöst.“</div>
+          <div style={{ marginTop:5 }}><b style={{ color:'var(--action)' }}>Konkretes Feedback:</b> „dem Kunden“ (Dativ),
+            „das Problem“ — plus Ergebnis ergänzen: „Danach blieb der Kunde und bestätigte die Lösung.“</div>
+          <div dir="rtl" style={{ marginTop:5, color:'#94a3b8' }}>
+            المثال توضيحي؛ تقييمك الحقيقي بيتبني من كلامك إنت، من غير نتائج أو شهادات مزيفة.
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
