@@ -917,7 +917,7 @@ export class WebSocketManager {
       ctx.stages     = info.stages;
       ctx.stageIdx   = 0;
       ctx.csScenario = info.csScenario;
-      try { this._send(ctx, { type: S.SCENARIO_INFO, ...info }); } catch (e) { console.warn('[wsManager] send SCENARIO_INFO failed:', e.message); }
+      try { this._send(ctx, { type: S.SCENARIO_INFO, ...info, scrutiny: ctx.targetWeakRule || null }); } catch (e) { console.warn('[wsManager] send SCENARIO_INFO failed:', e.message); }
       const firstStage = (Array.isArray(info.stages) && info.stages.length) ? info.stages[0] : { label: 'Teil 1', type: 'intro' };
       try { this._send(ctx, { type: S.STAGE_UPDATE, index: 0, ...firstStage }); } catch (e) { console.warn('[wsManager] send STAGE_UPDATE failed:', e.message); }
     } catch (err) {
@@ -1285,6 +1285,7 @@ export class WebSocketManager {
     this._send(ctx, {
       type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress,
       revancheMoment: result.outcome === 'loss' ? ctx.revancheMoment : null,
+      nextTime: { targetWeakRule: ctx.targetWeakRule || null, nextBoss: progress?.nextBoss || null },
     });
   }
 

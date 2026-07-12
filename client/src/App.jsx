@@ -1557,7 +1557,7 @@ function HireVerdict({ h, onTrain, compact = false }) {
   );
 }
 
-function Debrief({ data, pending, onRestart, onRevanche, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
+function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -1670,7 +1670,9 @@ function Debrief({ data, pending, onRestart, onRevanche, onDone, lang = 'de', on
         <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
           <div className="spin" style={{ width:34, height:34, borderRadius:'50%',
             border:'3px solid rgba(59,130,246,0.2)', borderTopColor:'var(--accent)' }} />
-          <div style={{ fontSize:12, color:'#94a3b8' }}>Analyse deiner Antworten läuft…</div>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em', color:'#94a3b8' }}>
+            {verdictHold ? 'ENTSCHEIDUNG…' : 'Analyse deiner Antworten läuft…'}
+          </div>
         </div>
       ) : (
         <div style={{ flex:1, overflowY:'auto', padding:'16px 16px 16px', display:'flex', flexDirection:'column', gap:14 }}>
@@ -2295,6 +2297,26 @@ function Debrief({ data, pending, onRestart, onRevanche, onDone, lang = 'de', on
             </Section>
           )}
           </>)}
+
+          {(data?.nextTime?.targetWeakRule || data?.progress?.rank?.nextLabel) && (
+            <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)',
+              background:'rgba(59,130,246,0.07)', border:'1px solid rgba(59,130,246,0.32)' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:10, fontWeight:800,
+                letterSpacing:'0.14em', color:'var(--accent)' }}>NÄCHSTES MAL</div>
+              {data.nextTime?.targetWeakRule && (
+                <div style={{ marginTop:6, fontSize:12, color:'#e2e8f0', lineHeight:1.5 }}>
+                  Deine Akte bleibt offen: <b>{data.nextTime.targetWeakRule}</b> wird erneut geprüft.
+                </div>
+              )}
+              {data.progress?.rank?.nextLabel && (
+                <div style={{ marginTop:5, fontSize:11, color:'#94a3b8' }}>
+                  {data.progress.rank.toNextPct}% bis {data.progress.rank.nextLabel}
+                  {data.progress.rank.nextBy === 'sessions' && data.progress.rank.sessionsToNext > 0
+                    ? ` · noch ${data.progress.rank.sessionsToNext} ${data.progress.rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'}` : ''}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* One-time feedback prompt, only after the user's first-ever fight. Skippable; never blocks restart. */}
           {data?.sessionCount === 1 && token && (
@@ -3934,6 +3956,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
   const [debrief, setDebrief]     = useState(null);        // end-of-session feedback payload
   const [debriefPending, setDebriefPending] = useState(false);
+  const [verdictHold, setVerdictHold] = useState(false);   // brief honest pause between analysis and reveal
   const [noSession, setNoSession] = useState(false);       // closed without real participation → honest message, no card
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
@@ -4024,6 +4047,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const wsRef          = useRef(null);
   const recorderRef    = useRef(null);
   const pingRef        = useRef(null);
+  const verdictTimerRef = useRef(null);
   // Gemini native-audio path: a synchronous mode flag (read inside WS handlers), the PCM player for
   // the boss voice, the continuous mic recorder, and the accumulating boss-subtitle line.
   const geminiModeRef    = useRef(false);
@@ -4228,11 +4252,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           bossId:      msg.bossId ?? '',   // drives the persona-true trait chip on the stage
         });
         // Pre-fight scenario briefing (shown while boss is loading, dismissed on first BOSS_SPEECH)
-        if (msg.csBriefing?.keyPhrases?.length) {
-          setCsBriefing(msg.csBriefing);
+        if (msg.csBriefing) {
+          setCsBriefing({ ...msg.csBriefing, scrutiny: msg.scrutiny || null,
+            bossName: msg.displayName || '', bossId: msg.bossId || '' });
           setShowBriefing(true);
-          // Auto-dismiss after 12s so even non-tap users see the fight start
-          setTimeout(() => setShowBriefing(false), 12_000);
+          setTimeout(() => setShowBriefing(false), 3_200);
         }
         // Aura-2 German voice: prefer the server-sent per-character voice; fall back to a
         // gender-correct map so a female boss is NEVER voiced by the male default.
@@ -4280,8 +4304,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.DEBRIEF:
         stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
         beacon('debrief_shown');   // funnel: a full interview reached its results screen
-        setDebrief(msg);
-        setDebriefPending(false);
+        if (verdictTimerRef.current) clearTimeout(verdictTimerRef.current);
+        setVerdictHold(true);
+        setDebriefPending(true);
+        verdictTimerRef.current = setTimeout(() => {
+          setDebrief(msg);
+          setDebriefPending(false);
+          setVerdictHold(false);
+          verdictTimerRef.current = null;
+        }, 800);
         if (Number.isFinite(msg.progress?.streak)) { setStreak(msg.progress.streak); saveStreakCache(msg.progress.streak); }
         if (typeof msg.progress?.trainedToday === 'boolean') setTrainedToday(msg.progress.trainedToday);
         break;
@@ -4953,6 +4984,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   }, [phase]);
 
   const handleRestart = useCallback(() => {
+    if (verdictTimerRef.current) { clearTimeout(verdictTimerRef.current); verdictTimerRef.current = null; }
+    setVerdictHold(false);
     setDebrief(null); setDebriefPending(false); setNoSession(false);
     clearInterval(pingRef.current);
     try { wsRef.current?.close(1000, 'restart'); } catch {}
@@ -4974,6 +5007,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // back arrow stops treating the ended session as a live interview (its old behavior here
   // was confirm + full page reload).
   const handleDebriefDone = useCallback(() => {
+    if (verdictTimerRef.current) { clearTimeout(verdictTimerRef.current); verdictTimerRef.current = null; }
+    setVerdictHold(false);
     stopBossVoice();        // the boss may still be speaking its closing line (debrief pending,
     setBossSpeak(false);    // screen not yet shown) — home must never render over a talking boss
     setDebrief(null); setDebriefPending(false); setNoSession(false);
@@ -5428,7 +5463,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Result screen: ONLY when the server has ended the session, and only once the
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && !noSession && (
-        <Debrief data={debrief} pending={debriefPending} onRestart={handleRestart} onRevanche={handleRevanche} onDone={handleDebriefDone}
+        <Debrief data={debrief} pending={debriefPending} verdictHold={verdictHold} onRestart={handleRestart} onRevanche={handleRevanche} onDone={handleDebriefDone}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           ent={auth.account?.entitlement}
@@ -5770,13 +5805,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           background:'rgba(0,0,0,0.82)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
           <div onClick={e => e.stopPropagation()} style={{
             width:'min(92vw,440px)', background:'#0d1828', borderRadius:18,
-            border:'1.5px solid rgba(0,188,212,0.45)', boxShadow:'0 0 60px rgba(0,188,212,0.18)',
+            border:'1.5px solid rgba(59,130,246,0.45)', boxShadow:'0 0 60px rgba(59,130,246,0.18)',
             padding:'22px 22px 18px', userSelect:'none' }}>
             {/* Header */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
               <div>
-                <div style={{ fontSize:9, letterSpacing:'0.15em', fontFamily:'var(--font-display)', color:'var(--accent)', marginBottom:3 }}>TEIL 3 · SZENARIO-BRIEFING</div>
-                <div style={{ fontSize:13, fontWeight:700, color:'#e2e8f0' }}>{csBriefing.skill}</div>
+                <div style={{ fontSize:9, letterSpacing:'0.15em', fontFamily:'var(--font-display)', color:'var(--accent)', marginBottom:3 }}>
+                  BRIEFING · {(csBriefing.bossName || 'INTERVIEWER').toUpperCase()}
+                </div>
+                <div style={{ fontSize:13, fontWeight:700, color:'#e2e8f0' }}>{csBriefing.skill || 'Drei Teile · nur Deutsch'}</div>
               </div>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.35)', textAlign:'right', lineHeight:1.4 }}>
                 Antippen<br/>um zu starten
@@ -5784,16 +5821,25 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </div>
             {/* Situation */}
             <div style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.55, marginBottom:14,
-              padding:'10px 12px', background:'rgba(0,188,212,0.06)', borderRadius:10,
-              borderLeft:'3px solid rgba(0,188,212,0.4)' }}>
+              padding:'10px 12px', background:'rgba(59,130,246,0.06)', borderRadius:10,
+              borderLeft:'3px solid rgba(59,130,246,0.4)' }}>
               {csBriefing.situation}
             </div>
+            {csBriefing.scrutiny && (
+              <div style={{ marginBottom:14, padding:'9px 11px', borderRadius:9,
+                background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.32)' }}>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.12em', color:'var(--action)' }}>
+                  HEUTE UNTER BEOBACHTUNG
+                </div>
+                <div style={{ marginTop:4, fontSize:11.5, color:'#e2e8f0' }}>{csBriefing.scrutiny}</div>
+              </div>
+            )}
             {/* Key phrases */}
             <div style={{ fontSize:9.5, letterSpacing:'0.1em', color:'var(--accent)', fontFamily:'var(--font-display)', marginBottom:8 }}>SCHLÜSSELPHRASEN</div>
             {csBriefing.keyPhrases.map((phrase, i) => (
               <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:7 }}>
-                <div style={{ width:18, height:18, borderRadius:'50%', background:'rgba(0,188,212,0.15)',
-                  border:'1px solid rgba(0,188,212,0.4)', display:'flex', alignItems:'center', justifyContent:'center',
+                <div style={{ width:18, height:18, borderRadius:'50%', background:'rgba(59,130,246,0.15)',
+                  border:'1px solid rgba(59,130,246,0.4)', display:'flex', alignItems:'center', justifyContent:'center',
                   flexShrink:0, fontSize:9, color:'var(--accent)', fontFamily:'var(--font-display)' }}>{i+1}</div>
                 <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5, fontStyle:'italic' }}>„{phrase}"</div>
               </div>
