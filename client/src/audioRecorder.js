@@ -129,7 +129,9 @@ export class AudioRecorder {
       //    calling addModule again would throw "pcm16-processor already registered").
       if (!this._ctx.__pcm16Registered) {
         this._blobUrl = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' }));
-        await this._ctx.audioWorklet.addModule(this._blobUrl);
+        // Load the worklet from this origin. Production CSP intentionally blocks Blob scripts;
+        // loading the Blob here made a healthy microphone look permission-blocked.
+        await this._ctx.audioWorklet.addModule('/pcm16-processor.js');
         this._ctx.__pcm16Registered = true;
       }
 
