@@ -327,12 +327,12 @@ function bookingCopyKey(level) {
 // Static gradient ids + shared keyframes are identical across instances, so any duplication on a
 // page resolves to the same visuals.
 const SALMA_FACE_CSS = `
-.salma .fg{transform-box:fill-box;transform-origin:50% 62%;animation:salmaSwy 6s ease-in-out infinite}
-.salma .lid{transform-box:fill-box;transform-origin:center;animation:salmaBlk 5s infinite}
-.salma.talk .mo{transform-box:fill-box;transform-origin:center;animation:salmaTlk .28s ease-in-out infinite}
-@keyframes salmaSwy{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-1px) rotate(.7deg)}}
-@keyframes salmaBlk{0%,92%,100%{transform:scaleY(0)}95%,97%{transform:scaleY(1)}}
-@keyframes salmaTlk{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1.5)}}
+.salma .fg{transform-box:fill-box;transform-origin:50% 68%;animation:salmaSwy 4.2s ease-in-out infinite}
+.salma .lid{transform-box:fill-box;transform-origin:center;animation:salmaBlk 3.3s ease-in-out infinite}
+.salma.talk .mo{transform-box:fill-box;transform-origin:center;animation:salmaTlk .22s ease-in-out infinite}
+@keyframes salmaSwy{0%,100%{transform:translateY(0) rotate(-1.6deg)}50%{transform:translateY(-2.5px) rotate(1.6deg)}}
+@keyframes salmaBlk{0%,88%,100%{transform:scaleY(0)}92%,96%{transform:scaleY(1)}}
+@keyframes salmaTlk{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1.75)}}
 @media (prefers-reduced-motion:reduce){.salma .fg,.salma .lid,.salma.talk .mo{animation:none}}`;
 export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   return (
