@@ -25,6 +25,17 @@ silence law. Fix: `salma:true` tickets (her 2 voices only, ≤320 chars) bypass 
 PROBE ACCOUNT (replaces dead probe-0711): `alhassanmaarouf2+salma0712@gmail.com` /
 `Probe-Salma-2026!x` — EMAIL-VERIFIED via Gmail-in-Chrome (search the inbox for the ?verify= link;
 Brevo mail takes ~60–90s). Signup body = {email,password} only now (no WhatsApp field).
+★★ B1+ REPOSITIONING WAVE (`37904c3`+`036864e`+`aa859b9`, all live-verified): owner law = customer
+is B1 aufwärts ONLY ("those realistically have any chance of working"), Harvard/selectivity framing
+per his order. Shipped: landing ADMISSION BAR (AB B1 · AUFNAHME NUR MIT NIVEAU, under CTA) · Salma's
+DOOR QUESTION opens the cold-open (gate beat: B1+ → in; below → dignified turn-away, door open,
+beacons gate_b1_yes/no live-tested 200) · below-B1 honest verdict line after screening · SULTAN
+HOMEWORK ORDER (Wochenfokus footer = dose 15min×2 + exit <5 measured Grammatik-Fehler + unlock
+"dann buche ich {boss}") · CULL: Druck-Leiter + Video-Lektionen tiles removed from Übungen
+(replacements are better: real interview trains pressure; passive slides ≠ speaking — overlays
+stay wired for prescriptions). Masri voice LOUDNESS fixed `37dbd44` (pcmToLoudWav on Gemini PCM;
+owner: "very low, robotic" — robotic was the German-text smoke confound; fair normalized sample
+with his approved Sara greeting sent for ear-check). Owner sheet now 149 slots.
 ★ KORREKTUR-ZEREMONIE shipped (`b71ab3d`+`e4b8590`+`7b2dda4`, Sultan doctrine #1 — the 25-year DaF
 teacher's signature move, owner had him live in the room 07-12): after any interview with a
 LanguageTool-verified fix, Salma chains follow-up → ritual prompt → MODELS the corrected fragment
