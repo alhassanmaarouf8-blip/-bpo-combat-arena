@@ -11,7 +11,7 @@ disappear from the next run once the strings land in code.
 4. Hand the filled file back to any session: the strings get landed, gated
    (langGuard + german-check), and shipped.
 
-**139 slots across 16 files.**
+**149 slots across 16 files.**
 
 
 ## client/src/App.jsx
@@ -21,38 +21,38 @@ disappear from the next run once the strings land in code.
 | 153 | Dieser Browser unterstützt kein Mikrofon (z. B. der Facebook/Messenger-Browser). Öffne die Seite in Chrome oder Safari — dann funktioniert alles. |  |
 | 158 | ar |  |
 | 1792 | `Dein Weg zum Interview-Niveau: {revealJourney.entryDone ?? 0}/{revealJourney.entryTotal ?? 0} Schritte gesc…` |  |
-| 2019 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
-| 2046 | `L1 card — the Wochenfokus stays the screen's single orange. note_ar = OWNER-AR. ── */}` |  |
-| 2345 | `Gelobt wird nur, was du wörtlich gesagt hast.{/* OWNER-AR slot */}` |  |
-| 2508 | `PLÄNE ANSEHEN →{/* OWNER-AR slot */}` |  |
-| 2539 | `✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}` |  |
-| 3034 | `علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}` |  |
-| 3092 | `Konkretes Feedback aus deinen eigenen Antworten — mit nachvollziehbaren Beispielen statt allgemeiner Tipps.…` |  |
-| 3113 | `★ {publicRatings.avgRating.toFixed(1)} · {publicRatings.ratingCount} echte Bewertungen{/* OWNER-AR slot */}` |  |
-| 3421 | var(--fs-label) |  |
-| 3425 | `wenn dein nächster gezielter Test bereit ist. Kein Spam — jederzeit stopp.{/* OWNER-AR slot */}` |  |
-| 3440 | `Nummer prüfen (z. B. 01012345678) und nochmal versuchen.{/* OWNER-AR slot */}` |  |
-| 3445 | `Später{/* OWNER-AR slot */}` |  |
-| 3757 | var(--accent-2) |  |
-| 3824 | `Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}` |  |
-| 3868 | `{/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}` |  |
-| 3890 | `ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}` |  |
-| 3950 | Einmal zahlen — 12 Monate trainieren. Kein Abo. |  |
-| 5460 | `Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}` |  |
-| 5463 | `Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR sl…` |  |
-| 5480 | `Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}` |  |
-| 5908 | var(--action) |  |
-| 6417 | underline |  |
-| 6441 | live German interview |  |
-| 6535 | underline |  |
-| 6538 | Tag |  |
-| 6568 | Satzbau-Schmiede |  |
-| 6598 | Fortschritt & Wiederholung |  |
-| 6676 | `<div style={{ fontSize: 12.5, fontWeight: 700, color: '#e2e8f0' }}>App installieren{/* OWNER-AR slot */}</div>` |  |
-| 6681 | `{/* OWNER-AR slot */}` |  |
-| 6977 | To speak: open the page in Chrome (not in Messenger) |  |
-| 7001 | rtl |  |
-| 7018 | rtl |  |
+| 2025 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
+| 2052 | `L1 card — the Wochenfokus stays the screen's single orange. note_ar = OWNER-AR. ── */}` |  |
+| 2351 | `Gelobt wird nur, was du wörtlich gesagt hast.{/* OWNER-AR slot */}` |  |
+| 2514 | `PLÄNE ANSEHEN →{/* OWNER-AR slot */}` |  |
+| 2545 | `✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}` |  |
+| 3040 | `علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}` |  |
+| 3114 | `Konkretes Feedback aus deinen eigenen Antworten — mit nachvollziehbaren Beispielen statt allgemeiner Tipps.…` |  |
+| 3135 | `★ {publicRatings.avgRating.toFixed(1)} · {publicRatings.ratingCount} echte Bewertungen{/* OWNER-AR slot */}` |  |
+| 3443 | var(--fs-label) |  |
+| 3447 | `wenn dein nächster gezielter Test bereit ist. Kein Spam — jederzeit stopp.{/* OWNER-AR slot */}` |  |
+| 3462 | `Nummer prüfen (z. B. 01012345678) und nochmal versuchen.{/* OWNER-AR slot */}` |  |
+| 3467 | `Später{/* OWNER-AR slot */}` |  |
+| 3779 | var(--accent-2) |  |
+| 3846 | `Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}` |  |
+| 3890 | `{/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}` |  |
+| 3912 | `ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}` |  |
+| 3972 | Einmal zahlen — 12 Monate trainieren. Kein Abo. |  |
+| 5482 | `Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}` |  |
+| 5485 | `Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR sl…` |  |
+| 5502 | `Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}` |  |
+| 5930 | var(--action) |  |
+| 6439 | underline |  |
+| 6463 | live German interview |  |
+| 6557 | underline |  |
+| 6560 | Tag |  |
+| 6594 | Satzbau-Schmiede |  |
+| 6622 | Fortschritt & Wiederholung |  |
+| 6700 | `<div style={{ fontSize: 12.5, fontWeight: 700, color: '#e2e8f0' }}>App installieren{/* OWNER-AR slot */}</div>` |  |
+| 6705 | `{/* OWNER-AR slot */}` |  |
+| 7001 | To speak: open the page in Chrome (not in Messenger) |  |
+| 7025 | rtl |  |
+| 7042 | rtl |  |
 
 ## client/src/BrainGuide.jsx
 
@@ -164,24 +164,34 @@ disappear from the next run once the strings land in code.
 | 63 | Stark gemacht. Das kommt in deine Akte — im nächsten Interview will ich es hören. |  |
 | 67 | Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist. |  |
 | 68 | Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck. |  |
-| 72 | Einmal noch — und diesmal richtig. Hör zu und sprich mir laut nach: |  |
-| 73 | Nochmal hören |  |
-| 74 | Laut gesagt |  |
-| 75 | Notiert. Morgen bringe ich genau diesen Fehler in dein Training — bis er sitzt. |  |
-| 78 | Weiter |  |
-| 79 | Überspringen |  |
-| 80 | Später |  |
-| 84 | Meine Notiz aus deiner Akte: {rule} — zuletzt {lapses}× aufgefallen. |  |
-| 86 | Dein freier Zugang läuft noch {days} Tage — nutze sie. |  |
-| 89 | Deine Termine bei mir |  |
-| 91 | Als Nächstes buche ich dir: {name} · {tier}. |  |
-| 92 | Du hast die ganze Leiter vor dir — jede Stufe ist ein echtes Interview. |  |
-| 94 | Kandidat {masked} liegt direkt vor dir — {sessions} Live-Interviews diese Woche. Der Platz ist zu holen. |  |
-| 95 | Du führst mein Kandidaten-Feld diese Woche an — halte den Platz. |  |
-| 97 | {count} Kandidaten trainieren diese Woche — {masked} führt mit {sessions} Interviews. |  |
-| 101 | Du bist noch {days} Tage in deiner freien Testphase — echte Interviews inklusive. Danach brauche ich den vollen Auftrag, um weiter für dich zu buchen. |  |
-| 102 | Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag. |  |
-| 103 | Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort. |  |
+| 72 | Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Dann buche ich dir {boss}. |  |
+| 73 | Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Du stehst ganz oben auf meiner Leiter — bestätige es. |  |
+| 77 | AB B1 · AUFNAHME NUR MIT NIVEAU |  |
+| 78 | Diese Arena nimmt Kandidaten ab B1 auf — hier wird für den Job trainiert, nicht für den Anfang. Noch darunter? Festige deine Grundlagen und bewirb dich dann wieder. |  |
+| 79 | Bevor ich dich aufnehme, eine ehrliche Frage: Diese Arena ist für Kandidaten ab B1. Wo stehst du? |  |
+| 80 | B1 oder höher |  |
+| 81 | Noch nicht B1 |  |
+| 82 | Respekt für die Ehrlichkeit — die meisten trauen sich das nicht. Mein Rat als Recruiterin: Festige deine Grundlagen bis B1, dann komm zurück und ich nehme dich auf. Die Tür bleibt für dich offen. |  |
+| 83 | Trotzdem umsehen |  |
+| 85 | Ehrliches Wort von deiner Recruiterin: Dein Screening zeigt {level}. Diese Arena ist für B1 aufwärts gebaut — du kannst trotzdem trainieren, aber der schnellste Weg ist: erst die Grundlagen festigen, dann zu mir zurückkommen. |  |
+| 89 | Einmal noch — und diesmal richtig. Hör zu und sprich mir laut nach: |  |
+| 90 | Nochmal hören |  |
+| 91 | Laut gesagt |  |
+| 92 | Notiert. Morgen bringe ich genau diesen Fehler in dein Training — bis er sitzt. |  |
+| 95 | Weiter |  |
+| 96 | Überspringen |  |
+| 97 | Später |  |
+| 101 | Meine Notiz aus deiner Akte: {rule} — zuletzt {lapses}× aufgefallen. |  |
+| 103 | Dein freier Zugang läuft noch {days} Tage — nutze sie. |  |
+| 106 | Deine Termine bei mir |  |
+| 108 | Als Nächstes buche ich dir: {name} · {tier}. |  |
+| 109 | Du hast die ganze Leiter vor dir — jede Stufe ist ein echtes Interview. |  |
+| 111 | Kandidat {masked} liegt direkt vor dir — {sessions} Live-Interviews diese Woche. Der Platz ist zu holen. |  |
+| 112 | Du führst mein Kandidaten-Feld diese Woche an — halte den Platz. |  |
+| 114 | {count} Kandidaten trainieren diese Woche — {masked} führt mit {sessions} Interviews. |  |
+| 118 | Du bist noch {days} Tage in deiner freien Testphase — echte Interviews inklusive. Danach brauche ich den vollen Auftrag, um weiter für dich zu buchen. |  |
+| 119 | Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag. |  |
+| 120 | Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort. |  |
 
 ## server/feedback.js
 
