@@ -11,53 +11,54 @@ disappear from the next run once the strings land in code.
 4. Hand the filled file back to any session: the strings get landed, gated
    (langGuard + german-check), and shipped.
 
-**118 slots across 16 files.**
+**135 slots across 16 files.**
 
 
 ## client/src/App.jsx
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 136 | Dieser Browser unterstützt kein Mikrofon (z. B. der Facebook/Messenger-Browser). Öffne die Seite in Chrome oder Safari — dann funktioniert alles. |  |
-| 141 | ar |  |
-| 1638 | `Dein Weg zum Interview-Niveau: {revealJourney.entryDone ?? 0}/{revealJourney.entryTotal ?? 0} Schritte gesc…` |  |
-| 1777 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
-| 1804 | `L1 card — the Wochenfokus stays the screen's single orange. note_ar = OWNER-AR. ── */}` |  |
-| 2103 | `Gelobt wird nur, was du wörtlich gesagt hast.{/* OWNER-AR slot */}` |  |
-| 2246 | `PLÄNE ANSEHEN →{/* OWNER-AR slot */}` |  |
-| 2275 | `✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}` |  |
-| 2596 | `علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}` |  |
-| 2635 | `Kein Chatbot: Korrekturen kommen aus DEINEN Sätzen und werden geprüft — die App schmeichelt nie und rät nie…` |  |
-| 2656 | `★ {publicRatings.avgRating.toFixed(1)} · {publicRatings.ratingCount} echte Bewertungen{/* OWNER-AR slot */}` |  |
-| 2869 | var(--fs-label) |  |
-| 2873 | `wenn dein nächster gezielter Test bereit ist. Kein Spam — jederzeit stopp.{/* OWNER-AR slot */}` |  |
-| 2888 | `Nummer prüfen (z. B. 01012345678) und nochmal versuchen.{/* OWNER-AR slot */}` |  |
-| 2893 | `Später{/* OWNER-AR slot */}` |  |
-| 3091 | var(--accent-2) |  |
-| 3157 | `Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}` |  |
-| 3176 | `{/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}` |  |
-| 3190 | `ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}` |  |
-| 3250 | Einmal zahlen — 12 Monate trainieren. Kein Abo. |  |
-| 4576 | `Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}` |  |
-| 4579 | `Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR sl…` |  |
-| 4590 | `📲 App installieren — Ton funktioniert immer{/* OWNER-AR slot */}` |  |
-| 4603 | `Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}` |  |
-| 5014 | var(--action) |  |
-| 5472 | underline |  |
-| 5496 | live German interview |  |
-| 5594 | underline |  |
-| 5597 | Tag |  |
-| 5627 | Satzbau-Schmiede |  |
-| 5657 | Fortschritt & Wiederholung |  |
-| 5904 | To speak: open the page in Chrome (not in Messenger) |  |
-| 5928 | rtl |  |
-| 5954 | rtl |  |
+| 153 | Dieser Browser unterstützt kein Mikrofon (z. B. der Facebook/Messenger-Browser). Öffne die Seite in Chrome oder Safari — dann funktioniert alles. |  |
+| 158 | ar |  |
+| 1770 | `Dein Weg zum Interview-Niveau: {revealJourney.entryDone ?? 0}/{revealJourney.entryTotal ?? 0} Schritte gesc…` |  |
+| 1959 | `stays the screen's single orange anchor. note_ar is an OWNER-AR slot. ── */}` |  |
+| 1986 | `L1 card — the Wochenfokus stays the screen's single orange. note_ar = OWNER-AR. ── */}` |  |
+| 2285 | `Gelobt wird nur, was du wörtlich gesagt hast.{/* OWNER-AR slot */}` |  |
+| 2448 | `PLÄNE ANSEHEN →{/* OWNER-AR slot */}` |  |
+| 2479 | `✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}` |  |
+| 2974 | `علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}` |  |
+| 3032 | `Konkretes Feedback aus deinen eigenen Antworten — mit nachvollziehbaren Beispielen statt allgemeiner Tipps.…` |  |
+| 3053 | `★ {publicRatings.avgRating.toFixed(1)} · {publicRatings.ratingCount} echte Bewertungen{/* OWNER-AR slot */}` |  |
+| 3361 | var(--fs-label) |  |
+| 3365 | `wenn dein nächster gezielter Test bereit ist. Kein Spam — jederzeit stopp.{/* OWNER-AR slot */}` |  |
+| 3380 | `Nummer prüfen (z. B. 01012345678) und nochmal versuchen.{/* OWNER-AR slot */}` |  |
+| 3385 | `Später{/* OWNER-AR slot */}` |  |
+| 3697 | var(--accent-2) |  |
+| 3764 | `Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}` |  |
+| 3808 | `{/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}` |  |
+| 3830 | `ad can never outlive the actual discounted price. German copy; Arabic is an OWNER-AR slot. */}` |  |
+| 3890 | Einmal zahlen — 12 Monate trainieren. Kein Abo. |  |
+| 5400 | `Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}` |  |
+| 5403 | `Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR sl…` |  |
+| 5420 | `Menü (⋯ oben rechts) → „Im Browser öffnen" → Safari{/* OWNER-AR slot */}` |  |
+| 5848 | var(--action) |  |
+| 6357 | underline |  |
+| 6381 | live German interview |  |
+| 6475 | underline |  |
+| 6478 | Tag |  |
+| 6508 | Satzbau-Schmiede |  |
+| 6538 | Fortschritt & Wiederholung |  |
+| 6616 | `<div style={{ fontSize: 12.5, fontWeight: 700, color: '#e2e8f0' }}>App installieren{/* OWNER-AR slot */}</div>` |  |
+| 6621 | `{/* OWNER-AR slot */}` |  |
+| 6917 | To speak: open the page in Chrome (not in Messenger) |  |
+| 6941 | rtl |  |
+| 6958 | rtl |  |
 
 ## client/src/BrainGuide.jsx
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 155 | `↗ شارك النتيجة{/* OWNER-AR slot — refine wording */}` |  |
+| 189 | `↗ شارك النتيجة{/* OWNER-AR slot — refine wording */}` |  |
 
 ## client/src/FluencyDrill.jsx
 
@@ -145,28 +146,44 @@ disappear from the next run once the strings land in code.
 | 36 | Dein Screening ist ausgewertet: Niveau {level}. Woran wir zuerst arbeiten: {focus} |  |
 | 38 | Aus deiner eigenen Antwort notiert: „{quote}“ — genau da setzen wir an. |  |
 | 39 | Ich habe deinen ersten Termin gebucht: Yasmin, Junior-Recruiterin. Sie ist die Freundlichste im Haus — genau richtig für den Anfang. |  |
-| 40 | Zum Interview |  |
-| 41 | Dein Screening ist noch nicht fertig — kein Problem. Du entscheidest, wie wir weitermachen. |  |
-| 42 | Screening fortsetzen |  |
-| 43 | Direkt ins Interview |  |
-| 46 | Kurz vorstellen: Ich bin Salma, ab heute deine Recruiterin. Ich habe deine Akte schon gelesen. |  |
-| 48 | {name} — schön, dich zu sehen. Ich bin Salma, ab heute deine Recruiterin. Deine Akte habe ich schon gelesen. |  |
-| 49 | Meine Notizen zu dir findest du ab jetzt direkt auf deinem Startbildschirm — mit deinem nächsten Schritt. Ich melde mich nach jedem Interview. |  |
-| 50 | Verstanden |  |
-| 53 | Weiter |  |
-| 54 | Überspringen |  |
-| 55 | Später |  |
-| 59 | Meine Notiz aus deiner Akte: {rule} — zuletzt {lapses}× aufgefallen. |  |
-| 61 | Dein freier Zugang läuft noch {days} Tage — nutze sie. |  |
-| 65 | Deine Minuten für heute sind aufgebraucht — gut gearbeitet. Dein freier Zugang läuft noch {days} Tage; morgen buche ich dir den nächsten Termin. |  |
-| 66 | Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag. |  |
-| 67 | Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort. |  |
+| 40 | Dein Screening zeigt: Du brauchst keinen Anfängertermin. Ich buche dich direkt bei Karim, dem Teamleiter — sachlich, schneller und auf deinem Niveau. |  |
+| 41 | Dein Niveau ist stark. Ich buche dich direkt bei Hana, der Hiring Managerin — dort wird nicht dein Grunddeutsch getestet, sondern ob du unter Druck überzeugst. |  |
+| 42 | Zum Interview |  |
+| 43 | Dein Screening ist noch nicht fertig — kein Problem. Du entscheidest, wie wir weitermachen. |  |
+| 44 | Screening fortsetzen |  |
+| 45 | Direkt ins Interview |  |
+| 48 | Kurz vorstellen: Ich bin Salma, ab heute deine Recruiterin. Ich habe deine Akte schon gelesen. |  |
+| 50 | {name} — schön, dich zu sehen. Ich bin Salma, ab heute deine Recruiterin. Deine Akte habe ich schon gelesen. |  |
+| 51 | Meine Notizen zu dir findest du ab jetzt direkt auf deinem Startbildschirm — mit deinem nächsten Schritt. Ich melde mich nach jedem Interview. |  |
+| 52 | Verstanden |  |
+| 55 | Du bist nicht mehr nur neu hier. Dein Rang ist jetzt Anwärter — verdient durch deine gespeicherten Interviews. |  |
+| 56 | Rang bestätigt: Geübt. Deine Leistung hält jetzt auch über mehrere Interviews stand. |  |
+| 57 | Du hast den Profi-Rang erreicht. Ab hier zählt nicht mehr nur richtiges Deutsch, sondern Wirkung unter Druck. |  |
+| 58 | Interview-Bereit. Das ist ein Trainingsrang aus deinen gespeicherten Leistungen — jetzt musst du ihn im echten Gespräch bestätigen. |  |
+| 62 | Dein Training für heute liegt bereit — ich habe es nach deiner Akte zusammengestellt. Ein paar Minuten reichen. |  |
+| 63 | Stark gemacht. Das kommt in deine Akte — im nächsten Interview will ich es hören. |  |
+| 67 | Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist. |  |
+| 68 | Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck. |  |
+| 71 | Weiter |  |
+| 72 | Überspringen |  |
+| 73 | Später |  |
+| 77 | Meine Notiz aus deiner Akte: {rule} — zuletzt {lapses}× aufgefallen. |  |
+| 79 | Dein freier Zugang läuft noch {days} Tage — nutze sie. |  |
+| 82 | Deine Termine bei mir |  |
+| 84 | Als Nächstes buche ich dir: {name} · {tier}. |  |
+| 85 | Du hast die ganze Leiter vor dir — jede Stufe ist ein echtes Interview. |  |
+| 87 | Kandidat {masked} liegt direkt vor dir — {sessions} Live-Interviews diese Woche. Der Platz ist zu holen. |  |
+| 88 | Du führst mein Kandidaten-Feld diese Woche an — halte den Platz. |  |
+| 90 | {count} Kandidaten trainieren diese Woche — {masked} führt mit {sessions} Interviews. |  |
+| 94 | Du bist noch {days} Tage in deiner freien Testphase — echte Interviews inklusive. Danach brauche ich den vollen Auftrag, um weiter für dich zu buchen. |  |
+| 95 | Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag. |  |
+| 96 | Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort. |  |
 
 ## server/feedback.js
 
 | Zeile | Deutsch | عربي |
 |---|---|---|
-| 56 | Ein Lernender |  |
+| 55 | Ein Lernender |  |
 
 ## server/fluencyDrill.js
 
