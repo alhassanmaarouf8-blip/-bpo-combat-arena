@@ -17,8 +17,11 @@ import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
+import { playNative } from './nativeVoice.js';
 import { VideoLessons } from './VideoLessons.jsx';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
+
+const SALMA_NATIVE_VOICE = 'aura-2-kara-de';
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -1571,6 +1574,13 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   useEffect(() => {
     if (data?.progress?.rank?.rankUp) setRankCeremony(data.progress.rank.rankUp);
   }, [data?.progress?.rank?.rankUp]);
+  useEffect(() => {
+    if (!rankCeremony || lang === 'ar' || !token) return undefined;
+    const key = ({ Anwärter: 'rank_anwaerter', Geübt: 'rank_geuebt', Profi: 'rank_profi',
+      'Interview-Bereit': 'rank_ready' })[rankCeremony.to] || 'rank_anwaerter';
+    const stop = playNative({ apiUrl, token, text: salmaLine(key, 'de'), voice: SALMA_NATIVE_VOICE });
+    return () => { try { stop?.(); } catch { /* fail silent */ } };
+  }, [rankCeremony, lang, token, apiUrl]);
   // THE REVEAL (R2, WOW plan): on the FIRST debrief only, the diagnosis becomes a ceremony — named
   // Baustellen + the journey ahead. Brain fetch mirrors BrainGuide's (fail-silent: no fake card).
   const isFirstDebrief = data?.progress?.sessionCount === 1;
@@ -3362,6 +3372,12 @@ const SUB_AR = {
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
 };
 
+function paywallSalmaKey(info, trialEnded) {
+  if (info?.trial?.active) return 'paywall_trial_active';
+  if (trialEnded || info?.trial) return 'paywall_trial_over';
+  return 'paywall_free_file';
+}
+
 function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lang = 'de' }) {
   const [email, setEmail]   = useState('');
   const [plans, setPlans]   = useState(null);
@@ -3371,6 +3387,13 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [paymentAvailable, setPaymentAvailable] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
+  useEffect(() => {
+    if (lang === 'ar' || !token) return undefined;
+    const key = paywallSalmaKey(info, false);
+    const text = salmaLine(key, 'de', { days: info?.trial?.daysLeft ?? 0 });
+    const stop = playNative({ apiUrl: API_URL, token, text, voice: SALMA_NATIVE_VOICE });
+    return () => { try { stop?.(); } catch { /* native voice fails silently */ } };
+  }, [lang, token, info]);
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
@@ -3705,9 +3728,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           the entitlement (trial running / trial over / free file). Neutral blue; the pay CTA and
           expiry banner keep the paywall's orange. */}
       {(() => {
-        const key = info?.trial?.active ? 'paywall_trial_active'
-          : (trialEnded || info?.trial) ? 'paywall_trial_over'
-          : 'paywall_free_file';
+        const key = paywallSalmaKey(info, trialEnded);
         const text = salmaLine(key, lang, { days: info?.trial?.daysLeft ?? 0 });
         return (
           <div style={{ display:'flex', gap:9, alignItems:'flex-start', marginBottom:12, padding:'10px 12px',

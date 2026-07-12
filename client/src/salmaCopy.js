@@ -51,6 +51,12 @@ export const SALMA_COPY = {
   returning_handoff: { de: 'Meine Notizen zu dir findest du ab jetzt direkt auf deinem Startbildschirm — mit deinem nächsten Schritt. Ich melde mich nach jedem Interview.', ar: '' }, // OWNER-AR · EN: "You'll find my notes on your home screen from now on — with your next step. I'll follow up after every interview."
   returning_cta: { de: 'Verstanden', ar: '' }, // OWNER-AR · EN: "Understood" (button)
 
+  // ── rank ceremony ───────────────────────────────────────────────────────────────────────────
+  rank_anwaerter: { de: 'Du bist nicht mehr nur neu hier. Dein Rang ist jetzt Anwärter — verdient durch deine gespeicherten Interviews.', ar: '' }, // OWNER-AR · EN: "You are no longer simply new here. Your rank is now Candidate — earned through your stored interviews."
+  rank_geuebt: { de: 'Rang bestätigt: Geübt. Deine Leistung hält jetzt auch über mehrere Interviews stand.', ar: '' }, // OWNER-AR · EN: "Rank confirmed: Practiced. Your performance now holds across multiple interviews."
+  rank_profi: { de: 'Du hast den Profi-Rang erreicht. Ab hier zählt nicht mehr nur richtiges Deutsch, sondern Wirkung unter Druck.', ar: '' }, // OWNER-AR · EN: "You reached Professional rank. From here, it is not only correct German that counts, but impact under pressure."
+  rank_ready: { de: 'Interview-Bereit. Das ist ein Trainingsrang aus deinen gespeicherten Leistungen — jetzt musst du ihn im echten Gespräch bestätigen.', ar: '' }, // OWNER-AR · EN: "Interview-ready. This is a training rank from your stored performance — now confirm it in a real interview."
+
   // ── shared cold-open controls ─────────────────────────────────────────────────────────────
   continue_label: { de: 'Weiter', ar: '' }, // OWNER-AR · EN: "Continue" (button)
   skip_label: { de: 'Überspringen', ar: '' }, // OWNER-AR · EN: "Skip" (quiet link, always available)
