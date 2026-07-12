@@ -39,5 +39,7 @@ export function salmaSpeak({ apiUrl, token, items, dePrefix, onStart, onError, o
   const { text, ar } = composeSalmaSpoken(items);
   const spoken = ar ? text : [dePrefix, text].filter(Boolean).join(' … ');
   if (!spoken) { try { onEnd?.(); } catch { /* ignore */ } return () => {}; }
-  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, onStart, onError, onEnd });
+  // salma:true = the server-side plan-gate exemption for her own fixed lines: her voice must work
+  // from second zero of a fresh account (the trial clock only starts at the first interview).
+  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, salma: true, onStart, onError, onEnd });
 }

@@ -88,9 +88,12 @@ function browserSpeak(text, rate, onEnd, onStart, onError) {
  * than ever play the robotic voice). The browser voice was the device-lottery, English-accented
  * German that made Shadowing feel "bullshit" — it is now OFF everywhere. Pass `false` ONLY if a
  * drill is genuinely unusable without SOME audio AND you accept the robotic risk (currently: none).
- * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, noBrowserFallback?:boolean, onStart?:()=>void, onError?:()=>void, onEnd?:()=>void }} o
+ * `salma:true` marks the request as one of Salma's own fixed lines — the server exempts those
+ * from the drill plan gate (her voice must work from second zero of a fresh account, BEFORE the
+ * trial clock starts at the first interview) while keeping every rate/char cap.
+ * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, salma?:boolean, noBrowserFallback?:boolean, onStart?:()=>void, onError?:()=>void, onEnd?:()=>void }} o
  */
-export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, noBrowserFallback = true, onStart, onError, onEnd } = {}) {
+export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, salma = false, noBrowserFallback = true, onStart, onError, onEnd } = {}) {
   let startNotified = false;
   let errorNotified = false;
   const startedPlaying = () => {
@@ -148,7 +151,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     fetch(`${apiUrl}/api/media-ticket`, {
       method: 'POST', signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ kind: 'aura', voice, text: t, drill: true }),
+      body: JSON.stringify({ kind: 'aura', voice, text: t, drill: true, ...(salma ? { salma: true } : {}) }),
     }).then(async (r) => {
       if (!r.ok) throw new Error(`media ticket ${r.status}`);
       const d = await r.json();
