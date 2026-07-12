@@ -2645,6 +2645,41 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 //  same SRS items. One review surface, spoken + on-mission. Server /api/review[/grade] now unused.)
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
+function VoiceReadinessCheck() {
+  const [state, setState] = useState('idle');
+  const run = async () => {
+    if (IN_APP_BROWSER || !checkAudioSupport().supported) { setState('unsupported'); return; }
+    setState('checking');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      try { localStorage.setItem('bpo_mic_ready', '1'); } catch { /* private mode */ }
+      setState('ready');
+    } catch { setState('blocked'); }
+  };
+  const ready = state === 'ready';
+  const failed = state === 'blocked' || state === 'unsupported';
+  return (
+    <div style={{ maxWidth:420, margin:'0 auto 18px', padding:'12px 14px', borderRadius:'var(--r-lg)',
+      background: ready ? 'rgba(34,197,94,0.07)' : failed ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.06)',
+      border:`1px solid ${ready ? 'rgba(34,197,94,0.35)' : failed ? 'rgba(239,68,68,0.35)' : 'rgba(59,130,246,0.28)'}` }}>
+      <div dir="rtl" style={{ fontSize:12.5, fontWeight:700, color:ready ? '#bbf7d0' : failed ? '#fecaca' : '#dbeafe' }}>
+        {ready ? '✓ المايك جاهز للتدريب الصوتي' : failed ? 'المايك مش متاح هنا — افتح صلاحيات الموقع أو استخدم Chrome' : 'اختبر المايك قبل ما تعمل أكونت'}
+      </div>
+      <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:3 }}>
+        {ready ? 'Mikrofon bereit — die Sprachinterviews können starten.' : 'Kostenloser Gerätecheck; es wird nichts aufgenommen oder gespeichert.'}
+      </div>
+      {!ready && (
+        <button type="button" onClick={run} disabled={state === 'checking'}
+          style={{ width:'100%', minHeight:42, marginTop:9, borderRadius:9, cursor:state === 'checking' ? 'wait' : 'pointer',
+            border:'1px solid var(--accent)', background:'rgba(59,130,246,0.14)', color:'var(--accent-2)', fontWeight:800 }}>
+          {state === 'checking' ? 'PRÜFE…' : '🎤 المايك · MIKROFON TESTEN'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // cold link-clickers are NEW visitors → signup first (conversion); a ?reset= link → login context
   const [mode, setMode]   = useState(() => {
@@ -2886,6 +2921,8 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           )}
         </div>
       )}
+
+      <VoiceReadinessCheck />
 
       {/* AUTH CARD — glass, one orange fill on the whole page */}
       <div id="signup-card" style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',

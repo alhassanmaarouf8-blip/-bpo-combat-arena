@@ -87,5 +87,21 @@ try {
 
 // Register from the module instead of an inline script so production can use a strict CSP.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}), { once: true });
+  window.addEventListener('load', () => {
+    const alreadyControlled = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!alreadyControlled || refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((reg) => {
+      reg.update().catch(() => {});
+      const updateWhenVisible = () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      };
+      document.addEventListener('visibilitychange', updateWhenVisible);
+      window.addEventListener('focus', updateWhenVisible);
+    }).catch(() => {});
+  }, { once: true });
 }

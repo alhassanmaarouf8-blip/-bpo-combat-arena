@@ -26,7 +26,7 @@ const NUMBER_CLAIM = new RegExp(
 );
 
 export function createLedger() {
-  return { numbers: [] };
+  return { numbers: [], callbacks: [] };
 }
 
 function _cleanNum(raw) {
@@ -64,7 +64,22 @@ export function noteTurn(ledger, turn, turnIndex = 0) {
   for (const c of extractNumberClaims(turn)) {
     ledger.numbers.push({ ...c, turnIndex });
   }
+  const text = typeof turn === 'string' ? turn.trim() : String(turn?.text || '').trim();
+  // Callback memory is deliberately conservative: never quote uncertain/truncated speech,
+  // one-word filler, or a named employer. The boss may reuse a candidate's substantive own words,
+  // but must not repeat a company name from private work history.
+  if (!turn?.lowConf && !turn?.truncated && text.split(/\s+/).length >= 4
+      && !/\bbei\s+[A-ZÃ„Ã–Ãœ][\p{L}\d&.-]*/u.test(text)) {
+    ledger.callbacks.push({ raw: text.slice(0, 180), turnIndex });
+    if (ledger.callbacks.length > 6) ledger.callbacks.shift();
+  }
   return ledger;
+}
+
+/** Return the most recent safe, substantive candidate phrase for a natural callback. */
+export function pickCallback(ledger) {
+  if (!ledger?.callbacks?.length) return null;
+  return ledger.callbacks[ledger.callbacks.length - 1];
 }
 
 /**
