@@ -4111,23 +4111,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // The boss voice now arrives as PCM over the WS (played by GeminiVoicePlayer) instead of MP3-over-
   // HTTP, and the mic streams CONTINUOUSLY — Gemini owns turn-taking + barge-in, so the client VAD
   // (startHandsFreeTurn) is bypassed while this is active.
-  const enterGeminiMode = useCallback(async () => {
-    if (geminiModeRef.current) return;
-    geminiModeRef.current = true;
-    setGeminiMode(true);
-    // Kill any hands-free turn already in flight: phase goes 'active' at ws.onopen, so the client
-    // VAD can have opened its own mic (clipRecRef) BEFORE this second SESSION_READY arrives —
-    // without this, TWO mics stream AUDIO_CHUNK to Gemini simultaneously.
-    if (hfTimerRef.current) { clearInterval(hfTimerRef.current); hfTimerRef.current = null; }
-    try { await clipRecRef.current?.stop(); } catch { /* not recording */ }
-    clipRecRef.current = null;
-    hfActiveRef.current = false;
-    try {
-      geminiPlayerRef.current = new GeminiVoicePlayer({
-        onSpeakStart: () => { setBossSpeak(true); setBossThinking(false); setShowBriefing(false); },
-      });
-      geminiPlayerRef.current.resume();
-    } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
+  const startGeminiMic = useCallback(async () => {
+    if (!geminiModeRef.current || geminiMicRef.current) return;
     try {
       const rec = new ClipRecorder({
         onVolume: (v) => {
@@ -4157,16 +4142,40 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       if (!geminiModeRef.current) { try { await rec.stop(); } catch { /* already stopped */ } return; }
       geminiMicRef.current = rec;
       setRecording(true);
+      setError(null);
+      setHandsFree(true);
+      setTypeOpen(false);
       if (!micStartedBeaconRef.current) { micStartedBeaconRef.current = true; beacon('mic_started'); }   // was only emitted on the $0 path — the funnel was blind to mic health on Gemini fights
     } catch (err) {
       beacon('mic_failed');
       setError(micErrorCode(err));
       setHandsFree(false);
-      setTypeOpen(true);
-      stopGeminiMode();
-      try { wsRef.current?.send(JSON.stringify({ type: C.REQUEST_TEXT_MODE })); } catch { /* socket closing */ }
+      // A denied/transient permission prompt must NOT destroy the native Gemini persona session.
+      // Keep the proxy/player alive and let the candidate grant permission and retry in place.
+      // Text fallback is now an explicit user choice instead of an irreversible automatic downgrade.
+      setTypeOpen(false);
     }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const enterGeminiMode = useCallback(async () => {
+    if (geminiModeRef.current) return;
+    geminiModeRef.current = true;
+    setGeminiMode(true);
+    // Kill any hands-free turn already in flight: phase goes 'active' at ws.onopen, so the client
+    // VAD can have opened its own mic (clipRecRef) BEFORE this second SESSION_READY arrives —
+    // without this, TWO mics stream AUDIO_CHUNK to Gemini simultaneously.
+    if (hfTimerRef.current) { clearInterval(hfTimerRef.current); hfTimerRef.current = null; }
+    try { await clipRecRef.current?.stop(); } catch { /* not recording */ }
+    clipRecRef.current = null;
+    hfActiveRef.current = false;
+    try {
+      geminiPlayerRef.current = new GeminiVoicePlayer({
+        onSpeakStart: () => { setBossSpeak(true); setBossThinking(false); setShowBriefing(false); },
+      });
+      geminiPlayerRef.current.resume();
+    } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
+    await startGeminiMic();
+  }, [startGeminiMic]);
 
   const stopGeminiMode = useCallback(() => {
     geminiModeRef.current = false;
@@ -5958,6 +5967,26 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
             color:'#fca5a5', fontSize:11 }}>
             ⚠ {wsErrorText(error, feedbackLang) ?? error}
+            {geminiMode && (error === 'mic_denied' || error === 'mic_not_found') && (
+              <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                <button onClick={() => startGeminiMic()}
+                  style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
+                    border:'1px solid var(--accent)', color:'#020409', fontWeight:800,
+                    background:'linear-gradient(135deg,var(--accent-2),var(--accent))' }}>
+                  MIKROFON ERNEUT AKTIVIEREN
+                </button>
+                <button onClick={() => {
+                  stopGeminiMode();
+                  setTypeOpen(true);
+                  setError(null);
+                  try { wsRef.current?.send(JSON.stringify({ type: C.REQUEST_TEXT_MODE })); } catch { /* socket closing */ }
+                }}
+                  style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
+                    border:'1px solid #64748b', color:'#cbd5e1', background:'rgba(15,23,42,0.8)' }}>
+                  Lieber tippen
+                </button>
+              </div>
+            )}
             {/* The in-app browser can't do mic. The top escape banner scrolls off on a tall
                 interview screen — so repeat the one-tap Chrome escape HERE, right where the user
                 is looking for the mic and hit the failure. */}
