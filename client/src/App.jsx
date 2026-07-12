@@ -1613,15 +1613,20 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
   const shareTier = Number(data?.progress?.rank?.tier ?? -1);
   const canShareArtifact = shareTier >= 2;
-  const shareVariant = win ? 'conquest' : ((data?.progress?.streak ?? 0) >= 3 ? 'streak' : 'invitation');
+  const interviewReady = data?.progress?.hireReadiness?.hireReady === true;
+  const shareVariant = interviewReady ? 'training-record'
+    : win ? 'conquest' : ((data?.progress?.streak ?? 0) >= 3 ? 'streak' : 'invitation');
   const bossTitle = (bossName || r.bossId || 'INTERVIEWER').toString().toUpperCase();
-  const shareHero = shareVariant === 'conquest'
+  const shareHero = shareVariant === 'training-record'
+    ? 'TRAININGSNACHWEIS · INTERVIEW-BEREIT'
+    : shareVariant === 'conquest'
     ? `${bossTitle} · BESIEGT`
     : shareVariant === 'streak'
       ? `${data.progress.streak} TAGE SERIE`
       : 'EINLADUNG ZUR NÄCHSTEN RUNDE';
   const shareText = [
-    `OMNI-PERFORM · ${shareHero}`,
+    `DIE ARENA · ${shareHero}`,
+    ...(shareVariant === 'training-record' ? ['Trainingsnachweis — kein offizielles Sprach- oder Arbeitgeberzertifikat.'] : []),
     `Rang: ${rank}`,
     ``,
     `Trainiere dein deutsches Bewerbungsgespräch:`,
@@ -1638,9 +1643,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       x.fillStyle = g; x.fillRect(0, 0, W, H);
       x.fillStyle = accent; x.fillRect(0, 0, W, 14);
       x.textAlign = 'center';
-      x.fillStyle = '#94a3b8'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('OMNI-PERFORM', W / 2, 130);
+      x.fillStyle = '#94a3b8'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('DIE ARENA', W / 2, 130);
       x.fillStyle = '#e2e8f0'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
-      x.fillStyle = shareVariant === 'conquest' ? '#3b82f6' : '#f97316';
+      x.fillStyle = (shareVariant === 'conquest' || shareVariant === 'training-record') ? '#3b82f6' : '#f97316';
       x.font = 'bold 72px system-ui,sans-serif';
       const heroWords = shareHero.split(' '); let heroLine = '', heroY = 420;
       for (const word of heroWords) {
@@ -1648,10 +1653,18 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
         heroLine += `${word} `;
       }
       if (heroLine.trim()) x.fillText(heroLine.trim(), W / 2, heroY);
-      x.fillStyle = '#e2e8f0'; x.font = 'bold 54px system-ui,sans-serif'; x.fillText(`RANG · ${rank}`, W / 2, 700);
+      x.fillStyle = '#e2e8f0'; x.font = 'bold 54px system-ui,sans-serif';
+      x.fillText(shareVariant === 'training-record' && nm ? nm.toUpperCase() : `RANG · ${rank}`, W / 2, 700);
       x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif';
-      x.fillText(shareVariant === 'invitation' ? 'SALMA · RECRUITING DESK' : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
+      x.fillText(shareVariant === 'invitation' ? 'SALMA · RECRUITING DESK'
+        : shareVariant === 'training-record'
+          ? `${data.progress.hireReadiness.measuredSignals}/${data.progress.hireReadiness.totalSignals} TRAININGSSIGNALE GEMESSEN · ${new Date().toLocaleDateString('de-DE')}`
+          : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
       x.fillStyle = '#f97316'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('DEINE NÄCHSTE RUNDE WARTET', W / 2, 930);
+      if (shareVariant === 'training-record') {
+        x.fillStyle = '#64748b'; x.font = '24px system-ui,sans-serif';
+        x.fillText('TRAININGSNACHWEIS · KEIN OFFIZIELLES SPRACH- ODER ARBEITGEBERZERTIFIKAT', W / 2, 970);
+      }
       x.fillStyle = '#64748b'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
       return await new Promise((res) => c.toBlob(res, 'image/png'));
     } catch { return null; }
@@ -2417,7 +2430,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
             letterSpacing:'0.08em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
             border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
-            {copied ? '✓ KOPIERT' : `↗ ${shareVariant === 'conquest' ? 'SIEG' : shareVariant === 'streak' ? 'SERIE' : 'EINLADUNG'} TEILEN`}
+            {copied ? '✓ KOPIERT' : `↗ ${shareVariant === 'training-record' ? 'NACHWEIS' : shareVariant === 'conquest' ? 'SIEG' : shareVariant === 'streak' ? 'SERIE' : 'EINLADUNG'} TEILEN`}
           </button>
         )}
       </div>
