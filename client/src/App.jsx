@@ -4,16 +4,10 @@ import { ClipRecorder } from './clipRecorder.js';
 import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
 import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
-import DailyTraining from './DailyTraining.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { PushReminder } from './PushReminder.jsx';
-import { Assessment } from './Assessment.jsx';
-import { Shadowing } from './Shadowing.jsx';
-import { Listening } from './Listening.jsx';
-import { SpokenReview } from './SpokenReview.jsx';
-import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
-import { BrainGuide } from './BrainGuide.jsx';
+import { BrainGuide } from './BrainGuide.jsx';   // eager: rendered inline on the home screen (not an overlay)
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
@@ -26,6 +20,12 @@ import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
 const FluencyDrill = lazy(() => import('./FluencyDrill.jsx').then((m) => ({ default: m.FluencyDrill })));
 const PressureLadder = lazy(() => import('./PressureLadder.jsx').then((m) => ({ default: m.PressureLadder })));
 const VideoLessons = lazy(() => import('./VideoLessons.jsx').then((m) => ({ default: m.VideoLessons })));
+const DailyTraining = lazy(() => import('./DailyTraining.jsx'));
+const Assessment = lazy(() => import('./Assessment.jsx').then((m) => ({ default: m.Assessment })));
+const Shadowing = lazy(() => import('./Shadowing.jsx').then((m) => ({ default: m.Shadowing })));
+const Listening = lazy(() => import('./Listening.jsx').then((m) => ({ default: m.Listening })));
+const SpokenReview = lazy(() => import('./SpokenReview.jsx').then((m) => ({ default: m.SpokenReview })));
+const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => ({ default: m.SatzbauSchmiede })));
 
 // Full-screen spinner shown while a lazy overlay's chunk loads (Suspense fallback). Self-contained
 // (own keyframe) so it never depends on a global style being present. Dark bg matches the app so
@@ -5557,9 +5557,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       {/* Tägliches Training — the cheap daily habit loop */}
       {dailyOpen && (
         <OverlayBoundary onClose={() => setDailyOpen(false)}>
-          <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-            onClose={() => setDailyOpen(false)}
-            onComplete={(s) => setDaily(prev => ({ ...prev, streak: s.streak ?? 0, completedToday: true, streakShield: s.streakShield ?? prev.streakShield, best: Math.max(prev.best ?? 0, s.streak ?? 0) }))} />
+          <Suspense fallback={<OverlayLoading />}>
+            <DailyTraining token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+              onClose={() => setDailyOpen(false)}
+              onComplete={(s) => setDaily(prev => ({ ...prev, streak: s.streak ?? 0, completedToday: true, streakShield: s.streakShield ?? prev.streakShield, best: Math.max(prev.best ?? 0, s.streak ?? 0) }))} />
+          </Suspense>
         </OverlayBoundary>
       )}
 
@@ -5573,13 +5575,15 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           When Salma's cold-open is active, BOTH exits return to HER (she delivers the verdict and
           does the booking herself — the agency handoff), never a raw jump into a fight. */}
       {assessmentOpen && (
-        <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
-          onClose={salma
-            ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
-            : () => setAssessmentOpen(false)}
-          onStartInterview={salma
-            ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
-            : () => { setAssessmentOpen(false); setTimeout(() => beginSession(), 60); }} />
+        <Suspense fallback={<OverlayLoading />}>
+          <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            onClose={salma
+              ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
+              : () => setAssessmentOpen(false)}
+            onStartInterview={salma
+              ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
+              : () => { setAssessmentOpen(false); setTimeout(() => beginSession(), 60); }} />
+        </Suspense>
       )}
 
       {/* Salma's cold-open — hidden while her screening (the Assessment) runs, and while the
@@ -5594,9 +5598,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Shadowing pronunciation practice (PAID — cheap models + browser TTS, never Realtime) */}
       {shadowingOpen && (
-        <Shadowing token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
-          onClose={() => { setShadowingOpen(false); setDrillWhy(null); }}
-          onGoPricing={() => { setShadowingOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        <Suspense fallback={<OverlayLoading />}>
+          <Shadowing token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+            onClose={() => { setShadowingOpen(false); setDrillWhy(null); }}
+            onGoPricing={() => { setShadowingOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        </Suspense>
       )}
 
       {/* 4-3-2 spoken-fluency drill (PAID — Groq Whisper STT, deterministic feedback) */}
@@ -5610,23 +5616,29 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Listening & live data-capture drill (PAID — browser TTS, deterministic grading, zero cost) */}
       {listeningOpen && (
-        <Listening token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
-          onClose={() => { setListeningOpen(false); setDrillWhy(null); }}
-          onGoPricing={() => { setListeningOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        <Suspense fallback={<OverlayLoading />}>
+          <Listening token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+            onClose={() => { setListeningOpen(false); setDrillWhy(null); }}
+            onGoPricing={() => { setListeningOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        </Suspense>
       )}
 
       {/* Spoken-production SRS — say YOUR own errors correctly, spaced (PAID; Groq Whisper, deterministic) */}
       {spokenReviewOpen && (
-        <SpokenReview token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
-          onClose={() => { setSpokenReviewOpen(false); setDrillWhy(null); }}
-          onGoPricing={() => { setSpokenReviewOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        <Suspense fallback={<OverlayLoading />}>
+          <SpokenReview token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+            onClose={() => { setSpokenReviewOpen(false); setDrillWhy(null); }}
+            onGoPricing={() => { setSpokenReviewOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        </Suspense>
       )}
 
       {/* Satzbau-Schmiede — verb-final word-order builder (PAID; deterministic order grading, zero cost) */}
       {satzbauOpen && (
-        <SatzbauSchmiede token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
-          onClose={() => { setSatzbauOpen(false); setDrillWhy(null); }}
-          onGoPricing={() => { setSatzbauOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        <Suspense fallback={<OverlayLoading />}>
+          <SatzbauSchmiede token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
+            onClose={() => { setSatzbauOpen(false); setDrillWhy(null); }}
+            onGoPricing={() => { setSatzbauOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        </Suspense>
       )}
 
       {/* Pressure Ladder — overload training (native Aura-2 voice via the server TTS route, zero cost) */}
