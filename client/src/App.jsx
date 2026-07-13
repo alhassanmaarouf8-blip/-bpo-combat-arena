@@ -16,8 +16,8 @@ import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
 
 // Lazy-loaded overlays — each is rendered only behind a boolean flag and is heavy (FluencyDrill,
 // PressureLadder, VideoLessons together ≈ 126KB of source). Splitting them out of the main chunk
-// speeds first paint on the slow Messenger WebViews 96% of users arrive in. Each is wrapped in a
-// <Suspense> at its render site with a full-screen spinner fallback while its chunk loads.
+// speeds first paint on the slow in-app-browser (Messenger/Facebook) most users arrive in. Each is
+// wrapped in a <Suspense> at its render site with a full-screen spinner fallback while its chunk loads.
 const FluencyDrill = lazy(() => import('./FluencyDrill.jsx').then((m) => ({ default: m.FluencyDrill })));
 const PressureLadder = lazy(() => import('./PressureLadder.jsx').then((m) => ({ default: m.PressureLadder })));
 const VideoLessons = lazy(() => import('./VideoLessons.jsx').then((m) => ({ default: m.VideoLessons })));

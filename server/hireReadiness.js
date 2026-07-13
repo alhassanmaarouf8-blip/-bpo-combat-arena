@@ -1,7 +1,7 @@
 /**
- * hireReadiness.js — the hire-readiness diagnostic, ported from the auto-research winner
- * (Diagnostic Accuracy 96.9 vs expert labels). Maps a student's measured signals →
- * { level, hireReady, limitingSkill } for a German BPO account.
+ * hireReadiness.js — the hire-readiness diagnostic. Maps a student's measured signals →
+ * { level, hireReady, limitingSkill } for a German BPO account. (No external accuracy claim: there
+ * is no expert-labelled eval set for THIS app, so none is asserted.)
  *
  * HONEST STATUS: the app currently measures only ~4 of the 9 signals this was calibrated on
  * (wpm, fillers, grammar-errors, a CEFR estimate). intelligibility, subordinate-clause rate,
