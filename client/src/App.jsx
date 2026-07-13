@@ -5788,14 +5788,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               <Icon name="chartUp" size={17} />
             </button>
             </div>}
-            {/* Loss-aversion (evidence-based retention): the pending LOSS, framed gently, drives return. */}
-            {streak > 0 && !trainedToday && (
-              <div style={{ marginTop:-4, marginBottom:10, padding:'6px 10px', borderRadius:8,
-                background:'rgba(249,115,22,0.10)', border:'1px solid rgba(249,115,22,0.35)',
-                fontSize:'var(--fs-meta)', color:'var(--action)', textAlign:'center', lineHeight:1.4 }}>
-                Heute üben, sonst endet deine {streak}-Tage-Serie · درّب النهاردة عشان متخسرش سلسلتك
-              </div>
-            )}
 
             {/* HERO CARD "Dein Interview" (uplift) — the one place everything about starting lives:
                 readiness, level, interviewer, options. The glass card + the orange button below read
