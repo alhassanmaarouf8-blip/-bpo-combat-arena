@@ -365,9 +365,9 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
         justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
       <div className="stack">
-        <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
-        <img className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
-        <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
+        <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
+        <img className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
+        <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
       </div>
     </div>
   );

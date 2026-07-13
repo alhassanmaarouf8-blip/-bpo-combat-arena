@@ -2754,13 +2754,15 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
           {/* The real artifact: a printable evidence one-pager for real applications. */}
           {!loading && data && (
             <button onClick={() => setDossier(true)} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
-              padding:'6px 12px', minHeight:32, borderRadius:6, border:'1px solid rgba(59,130,246,0.5)',
+              padding:'6px 12px', minHeight:44, display:'inline-flex', alignItems:'center', justifyContent:'center',
+              borderRadius:6, border:'1px solid rgba(59,130,246,0.5)',
               background:'rgba(59,130,246,0.12)', color:'var(--accent-2)' }}>
               DOSSIER
             </button>
           )}
           <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
-            padding:'6px 12px', borderRadius:6, border:'1px solid rgba(59,130,246,0.3)', background:'transparent', color:'var(--accent)' }}>
+            padding:'6px 12px', minHeight:44, display:'inline-flex', alignItems:'center', justifyContent:'center',
+            borderRadius:6, border:'1px solid rgba(59,130,246,0.3)', background:'transparent', color:'var(--accent)' }}>
             ZURÜCK
           </button>
         </div>
@@ -2785,7 +2787,8 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
                 </div>
               </div>
               <button onClick={onLogout} style={{ fontSize:9, cursor:'pointer', fontFamily:'var(--font-display)',
-                padding:'5px 9px', borderRadius:6, border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#fca5a5' }}>
+                padding:'5px 12px', minHeight:44, display:'inline-flex', alignItems:'center', justifyContent:'center', flex:'none',
+                borderRadius:6, border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#fca5a5' }}>
                 ABMELDEN
               </button>
             </div>
