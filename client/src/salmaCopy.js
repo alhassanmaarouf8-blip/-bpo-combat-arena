@@ -13,43 +13,43 @@
 
 export const SALMA = {
   name: 'Salma',
-  nameAr: '', // OWNER-AR · EN: Arabic spelling of her name (renders "Salma" until filled)
-  role: { de: 'Deine Recruiterin', ar: '' }, // OWNER-AR · EN: "Your recruiter"
+  nameAr: 'سلمى', // OWNER-AR · EN: Arabic spelling of her name (renders "Salma" until filled)
+  role: { de: 'Deine Recruiterin', ar: 'الريكروتر بتاعتك' }, // OWNER-AR · EN: "Your recruiter"
 };
 
 export const SALMA_COPY = {
   // ── cold-open · variant "new" ─────────────────────────────────────────────────────────────
-  intro_welcome: { de: 'Willkommen! Ich bin Salma, deine Recruiterin. Ab heute gehst du in kein Interview mehr allein: ich bereite dich vor, und ich buche deine Termine.', ar: '' }, // OWNER-AR · EN: "Welcome! I'm Salma, your recruiter. From today you never walk into an interview alone: I prepare you, and I book your appointments."
+  intro_welcome: { de: 'Willkommen! Ich bin Salma, deine Recruiterin. Ab heute gehst du in kein Interview mehr allein: ich bereite dich vor, und ich buche deine Termine.', ar: 'أهلاً وسهلاً! أنا سلمى، الريكروتر بتاعتك. من النهارده مش هتدخل أي انترڤيو لوحدك تاني: أنا هجهّزك، وهحجزلك مواعيدك.' }, // OWNER-AR · EN: "Welcome! I'm Salma, your recruiter. From today you never walk into an interview alone: I prepare you, and I book your appointments."
   // {days} ← auth.account.entitlement.trial.daysLeft
-  intro_trial: { de: 'Deine ersten {days} Tage sind komplett frei — echte Interviews inklusive.', ar: '' }, // OWNER-AR · EN: "Your first {days} days are fully free — real interviews included."
-  name_ask: { de: 'Zuerst: Wie soll ich dich nennen?', ar: '' }, // OWNER-AR · EN: "First: what should I call you?"
-  name_label: { de: 'Dein Name', ar: '' }, // OWNER-AR · EN: "Your name" (input label)
-  goal_ask: { de: 'Und was ist dein Ziel?', ar: '' }, // OWNER-AR · EN: "And what is your goal?"
-  goal_bpo: { de: 'Einen deutschen BPO-Job', ar: '' }, // OWNER-AR · EN: "A German BPO job" (chip, value bpo-job)
-  goal_german: { de: 'Besseres Deutsch', ar: '' }, // OWNER-AR · EN: "Better German" (chip, value better-german)
-  goal_other: { de: 'Etwas anderes', ar: '' }, // OWNER-AR · EN: "Something else" (chip, value other)
-  screening_invite: { de: 'Bevor ich dich vermitteln kann, muss ich dich hören. Fünf kurze Fragen, du sprichst frei — das ist dein Screening. Danach sage ich dir ehrlich, wo du stehst.', ar: '' }, // OWNER-AR · EN: "Before I can place you, I need to hear you. Five short questions, you speak freely — that's your screening. Then I tell you honestly where you stand."
-  screening_cta: { de: 'Screening starten', ar: '' }, // OWNER-AR · EN: "Start screening" (button)
+  intro_trial: { de: 'Deine ersten {days} Tage sind komplett frei — echte Interviews inklusive.', ar: 'أول {days} أيام ليك هيبقوا فري خالص — إنترڤيوهات حقيقية كمان.' }, // OWNER-AR · EN: "Your first {days} days are fully free — real interviews included."
+  name_ask: { de: 'Zuerst: Wie soll ich dich nennen?', ar: 'الأول: أحب أناديك إيه؟' }, // OWNER-AR · EN: "First: what should I call you?"
+  name_label: { de: 'Dein Name', ar: 'اسمك' }, // OWNER-AR · EN: "Your name" (input label)
+  goal_ask: { de: 'Und was ist dein Ziel?', ar: 'وإيه هدفك؟' }, // OWNER-AR · EN: "And what is your goal?"
+  goal_bpo: { de: 'Einen deutschen BPO-Job', ar: 'شغل BPO ألماني' }, // OWNER-AR · EN: "A German BPO job" (chip, value bpo-job)
+  goal_german: { de: 'Besseres Deutsch', ar: 'ألماني أحسن' }, // OWNER-AR · EN: "Better German" (chip, value better-german)
+  goal_other: { de: 'Etwas anderes', ar: 'حاجة تانية' }, // OWNER-AR · EN: "Something else" (chip, value other)
+  screening_invite: { de: 'Bevor ich dich vermitteln kann, muss ich dich hören. Fünf kurze Fragen, du sprichst frei — das ist dein Screening. Danach sage ich dir ehrlich, wo du stehst.', ar: 'قبل ما أقدر أوصلك بشغل، لازم أسمعك. خمس أسئلة صغيرة، هتتكلم براحتك — ده السكرينينج بتاعك. وبعدين هقولك بصراحة إنت فين بالظبط.' }, // OWNER-AR · EN: "Before I can place you, I need to hear you. Five short questions, you speak freely — that's your screening. Then I tell you honestly where you stand."
+  screening_cta: { de: 'Screening starten', ar: 'ابدأ السكرينينج' }, // OWNER-AR · EN: "Start screening" (button)
 
   // ── cold-open · verdict + booking ─────────────────────────────────────────────────────────
   // {level} ← GET /api/assessment/status → result.estimatedLevel · {focus} ← result.recommendedFocus (verbatim)
-  verdict_summary: { de: 'Dein Screening ist ausgewertet: Niveau {level}. Woran wir zuerst arbeiten: {focus}', ar: '' }, // OWNER-AR · EN: "Your screening is in: level {level}. What we work on first: {focus}"
+  verdict_summary: { de: 'Dein Screening ist ausgewertet: Niveau {level}. Woran wir zuerst arbeiten: {focus}', ar: 'السكرينينج بتاعك خلص: مستواك {level}. واللي هنشتغل عليه الأول: {focus}' }, // OWNER-AR · EN: "Your screening is in: level {level}. What we work on first: {focus}"
   // {quote} ← result.blockers[0] own-words example (substring-verified upstream — never invented)
-  verdict_blocker: { de: 'Aus deiner eigenen Antwort notiert: „{quote}“ — genau da setzen wir an.', ar: '' }, // OWNER-AR · EN: "Noted from your own answer: '{quote}' — exactly where we start."
-  booking_yasmin: { de: 'Ich habe deinen ersten Termin gebucht: Yasmin, Junior-Recruiterin. Sie ist die Freundlichste im Haus — genau richtig für den Anfang.', ar: '' }, // OWNER-AR · EN: "I've booked your first appointment: Yasmin, junior recruiter. The friendliest in the building — exactly right to start."
-  booking_karim: { de: 'Dein Screening zeigt: Du brauchst keinen Anfängertermin. Ich buche dich direkt bei Karim, dem Teamleiter — sachlich, schneller und auf deinem Niveau.', ar: '' }, // OWNER-AR · EN: "Your screening shows you do not need a beginner appointment. I am booking you directly with Karim, the team lead — direct, faster, and at your level."
-  booking_hana: { de: 'Dein Niveau ist stark. Ich buche dich direkt bei Hana, der Hiring Managerin — dort wird nicht dein Grunddeutsch getestet, sondern ob du unter Druck überzeugst.', ar: '' }, // OWNER-AR · EN: "Your level is strong. I am booking you directly with Hana, the hiring manager — there the test is not basic German, but whether you persuade under pressure."
-  booking_cta: { de: 'Zum Interview', ar: '' }, // OWNER-AR · EN: "To the interview" (the one orange CTA)
-  no_verdict: { de: 'Dein Screening ist noch nicht fertig — kein Problem. Du entscheidest, wie wir weitermachen.', ar: '' }, // OWNER-AR · EN: "Your screening isn't finished yet — no problem. You decide how we continue."
-  no_verdict_resume: { de: 'Screening fortsetzen', ar: '' }, // OWNER-AR · EN: "Continue screening" (button)
-  no_verdict_direct: { de: 'Direkt ins Interview', ar: '' }, // OWNER-AR · EN: "Straight to the interview" (button)
+  verdict_blocker: { de: 'Aus deiner eigenen Antwort notiert: „{quote}“ — genau da setzen wir an.', ar: 'أخدت بالي من إجابتك: „{quote}“ — بالظبط ده اللي هنبتدي بيه.' }, // OWNER-AR · EN: "Noted from your own answer: '{quote}' — exactly where we start."
+  booking_yasmin: { de: 'Ich habe deinen ersten Termin gebucht: Yasmin, Junior-Recruiterin. Sie ist die Freundlichste im Haus — genau richtig für den Anfang.', ar: 'أنا حجزتلك أول ميعاد: ياسمين، جونيور ريكروتر. دي ألطف واحدة في المكان كله — بالظبط كده عشان نبتدي.' }, // OWNER-AR · EN: "I've booked your first appointment: Yasmin, junior recruiter. The friendliest in the building — exactly right to start."
+  booking_karim: { de: 'Dein Screening zeigt: Du brauchst keinen Anfängertermin. Ich buche dich direkt bei Karim, dem Teamleiter — sachlich, schneller und auf deinem Niveau.', ar: 'السكرينينج بتاعك بيبيّن إن: مش محتاج ميعاد للمبتدئين. أنا هحجزلك على طول مع كريم، التيم ليدر — مباشر، أسرع، وعلى مستواك.' }, // OWNER-AR · EN: "Your screening shows you do not need a beginner appointment. I am booking you directly with Karim, the team lead — direct, faster, and at your level."
+  booking_hana: { de: 'Dein Niveau ist stark. Ich buche dich direkt bei Hana, der Hiring Managerin — dort wird nicht dein Grunddeutsch getestet, sondern ob du unter Druck überzeugst.', ar: 'مستواك قوي. أنا هحجزلك على طول مع هنا، الهايرنج مانجر — هناك مش بيختبروا ألمانيّك الأساسي، لأ، بيشوفوا هتقدر تقنع تحت ضغط ولا لأ.' }, // OWNER-AR · EN: "Your level is strong. I am booking you directly with Hana, the hiring manager — there the test is not basic German, but whether you persuade under pressure."
+  booking_cta: { de: 'Zum Interview', ar: 'للانترڤيو' }, // OWNER-AR · EN: "To the interview" (the one orange CTA)
+  no_verdict: { de: 'Dein Screening ist noch nicht fertig — kein Problem. Du entscheidest, wie wir weitermachen.', ar: 'السكرينينج بتاعك لسه مخلصش — مفيش مشكلة. أنت اللي هتختار هنكمل إزاي.' }, // OWNER-AR · EN: "Your screening isn't finished yet — no problem. You decide how we continue."
+  no_verdict_resume: { de: 'Screening fortsetzen', ar: 'أكمل السكرينينج' }, // OWNER-AR · EN: "Continue screening" (button)
+  no_verdict_direct: { de: 'Direkt ins Interview', ar: 'على طول للانترڤيو' }, // OWNER-AR · EN: "Straight to the interview" (button)
 
   // ── cold-open · variant "returning" ───────────────────────────────────────────────────────
-  returning_welcome: { de: 'Kurz vorstellen: Ich bin Salma, ab heute deine Recruiterin. Ich habe deine Akte schon gelesen.', ar: '' }, // OWNER-AR · EN: "Quick intro: I'm Salma, your recruiter from today. I've already read your file."
+  returning_welcome: { de: 'Kurz vorstellen: Ich bin Salma, ab heute deine Recruiterin. Ich habe deine Akte schon gelesen.', ar: 'بسرعة كده: أنا سلمى، الريكروتر بتاعتك من النهارده. أنا قريت ملفك خلاص.' }, // OWNER-AR · EN: "Quick intro: I'm Salma, your recruiter from today. I've already read your file."
   // {name} ← GET /api/guide/profile → name
-  returning_welcome_named: { de: '{name} — schön, dich zu sehen. Ich bin Salma, ab heute deine Recruiterin. Deine Akte habe ich schon gelesen.', ar: '' }, // OWNER-AR · EN: "{name} — good to see you. I'm Salma, your recruiter from today. I've already read your file."
-  returning_handoff: { de: 'Meine Notizen zu dir findest du ab jetzt direkt auf deinem Startbildschirm — mit deinem nächsten Schritt. Ich melde mich nach jedem Interview.', ar: '' }, // OWNER-AR · EN: "You'll find my notes on your home screen from now on — with your next step. I'll follow up after every interview."
-  returning_cta: { de: 'Verstanden', ar: '' }, // OWNER-AR · EN: "Understood" (button)
+  returning_welcome_named: { de: '{name} — schön, dich zu sehen. Ich bin Salma, ab heute deine Recruiterin. Deine Akte habe ich schon gelesen.', ar: '{name} — مبسوطة إني شفتك. أنا سلمى، الريكروتر بتاعتك من النهارده. ملفك أنا قريته خلاص.' }, // OWNER-AR · EN: "{name} — good to see you. I'm Salma, your recruiter from today. I've already read your file."
+  returning_handoff: { de: 'Meine Notizen zu dir findest du ab jetzt direkt auf deinem Startbildschirm — mit deinem nächsten Schritt. Ich melde mich nach jedem Interview.', ar: 'ملاحظاتي عنك هتلاقيها من دلوقتي على شاشتك الرئيسية على طول — ومعاها خطوتك الجاية. أنا هكلمك بعد كل انترڤيو.' }, // OWNER-AR · EN: "You'll find my notes on your home screen from now on — with your next step. I'll follow up after every interview."
+  returning_cta: { de: 'Verstanden', ar: 'تمام' }, // OWNER-AR · EN: "Understood" (button)
 
   // ── rank ceremony ───────────────────────────────────────────────────────────────────────────
   rank_anwaerter: { de: 'Du bist nicht mehr nur neu hier. Dein Rang ist jetzt Anwärter — verdient durch deine gespeicherten Interviews.', ar: '' }, // OWNER-AR · EN: "You are no longer simply new here. Your rank is now Candidate — earned through your stored interviews."
