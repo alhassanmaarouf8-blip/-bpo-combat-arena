@@ -278,11 +278,13 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
           <button aria-label="Salma anhören" onClick={() => {
             if (spoken.length) salmaSpeak({ apiUrl, token, items: spoken });
           }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
-            background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>🔊</button>
+            background: 'rgba(59,130,246,0.10)' }}><SpeakerIcon /></button>
           <button aria-label="Schließen" onClick={() => finish('salma_skipped')}
             style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none',
-              color: '#64748b', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#64748b', cursor: 'pointer' }}><CloseIcon /></button>
         </div>
 
         {/* her chat bubbles — dir=auto so owner-filled masri renders RTL natively */}
@@ -361,6 +363,27 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
         <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
       </div>
     </div>
+  );
+}
+
+// Machined stroke icons (design-system icon law: never emoji as UI chrome). Inline because App.jsx's
+// <Icon> isn't exported to sibling components. currentColor inherits the button's own color token.
+function SpeakerIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4V5z" />
+      <path d="M15.4 8.6a5 5 0 0 1 0 6.8" />
+      <path d="M18.3 5.7a9 9 0 0 1 0 12.6" />
+    </svg>
+  );
+}
+function CloseIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
   );
 }
 
