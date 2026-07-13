@@ -95,9 +95,9 @@ const LADDER = [
   { id: 'yasmin', name: 'Yasmin', tier: 'Junior-Recruiterin', minLevel: 1 },
   { id: 'karim', name: 'Karim', tier: 'Teamleiter', minLevel: 2 },
   { id: 'hana', name: 'Hana', tier: 'Hiring Managerin', minLevel: 4 },
-  { id: 'tarek', name: 'Tarek', tier: 'Eskalations-Boss', minLevel: 6 },
+  { id: 'tarek', name: 'Tarek', tier: 'Eskalations-Manager', minLevel: 6 },
   { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
-  { id: 'lukas', name: 'Lukas', tier: 'Reality-Check', minLevel: 9 },
+  { id: 'lukas', name: 'Lukas', tier: 'Agent-Trainer', minLevel: 9 },
 ];
 
 // She greets + directs out loud ONCE per page-load session (see the proactive-speak effect below).

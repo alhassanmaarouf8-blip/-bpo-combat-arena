@@ -14,9 +14,9 @@ export const BOSS_LADDER = [
   { id: 'yasmin',         name: 'YASMIN',         tier: 'Junior-Recruiterin', minLevel: 1 },
   { id: 'karim',          name: 'KARIM',          tier: 'Teamleiter',         minLevel: 2 },
   { id: 'hana',           name: 'HANA',           tier: 'Hiring Managerin',   minLevel: 4 },
-  { id: 'tarek',          name: 'TAREK',          tier: 'Eskalations-Boss',   minLevel: 6 },
+  { id: 'tarek',          name: 'TAREK',          tier: 'Eskalations-Manager', minLevel: 6 },
   { id: 'frau-mona-adel', name: 'FRAU MONA ADEL', tier: 'Geschäftsführerin',  minLevel: 8 },
-  { id: 'lukas',          name: 'LUKAS',          tier: 'Reality-Check',      minLevel: 9 },
+  { id: 'lukas',          name: 'LUKAS',          tier: 'Agent-Trainer',      minLevel: 9 },
 ];
 
 export function levelFor(xp) {
