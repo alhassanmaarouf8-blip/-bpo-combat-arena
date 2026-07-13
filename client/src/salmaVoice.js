@@ -24,6 +24,32 @@ import { SALMA_COPY, salmaLine } from './salmaCopy.js';
 export const SALMA_VOICE_DE = 'salma-de';
 export const SALMA_VOICE_AR = 'salma-masri';
 
+// ── Live "is Salma speaking" signal ────────────────────────────────────────────────
+// Every word she says goes through salmaModel/salmaSpeak → playNative. We broadcast the
+// real playback start/end so ANY <SalmaPortrait> on screen moves her mouth exactly while
+// her audio plays — no per-call-site wiring. Ref-counted so overlapping utterances behave.
+const speakingSubs = new Set();
+let speakingCount = 0;
+function emitSpeaking() {
+  const v = speakingCount > 0;
+  speakingSubs.forEach((fn) => { try { fn(v); } catch { /* ignore */ } });
+}
+export function subscribeSalmaSpeaking(fn) {
+  speakingSubs.add(fn);
+  try { fn(speakingCount > 0); } catch { /* ignore */ }
+  return () => speakingSubs.delete(fn);
+}
+// Wrap a caller's callbacks so start/end (or error) flip the shared signal exactly once.
+function withSpeakingSignal({ onStart, onError, onEnd } = {}) {
+  let started = false, done = false;
+  const finish = () => { if (started && !done) { done = true; speakingCount = Math.max(0, speakingCount - 1); emitSpeaking(); } };
+  return {
+    onStart: () => { if (!started) { started = true; speakingCount++; emitSpeaking(); } try { onStart?.(); } catch { /* ignore */ } },
+    onError: (e) => { finish(); try { onError?.(e); } catch { /* ignore */ } },
+    onEnd: () => { finish(); try { onEnd?.(); } catch { /* ignore */ } },
+  };
+}
+
 export function composeSalmaSpoken(items) {
   const real = (items || []).filter((it) => it && SALMA_COPY[it.key]);
   const ar = real.length > 0 && real.every((it) => SALMA_COPY[it.key].ar);
@@ -39,7 +65,8 @@ export function composeSalmaSpoken(items) {
  * salma:true keeps it working from second zero of a fresh account.
  */
 export function salmaModel({ apiUrl, token, text, onStart, onError, onEnd }) {
-  return playNative({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, onStart, onError, onEnd });
+  const cb = withSpeakingSignal({ onStart, onError, onEnd });
+  return playNative({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, ...cb });
 }
 
 /**
@@ -53,5 +80,6 @@ export function salmaSpeak({ apiUrl, token, items, dePrefix, onStart, onError, o
   if (!spoken) { try { onEnd?.(); } catch { /* ignore */ } return () => {}; }
   // salma:true = the server-side plan-gate exemption for her own fixed lines: her voice must work
   // from second zero of a fresh account (the trial clock only starts at the first interview).
-  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, salma: true, onStart, onError, onEnd });
+  const cb = withSpeakingSignal({ onStart, onError, onEnd });
+  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, salma: true, ...cb });
 }

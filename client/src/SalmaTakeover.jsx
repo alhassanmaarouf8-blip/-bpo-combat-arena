@@ -10,7 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { salmaSpeak, composeSalmaSpoken, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
+import { salmaSpeak, composeSalmaSpoken, subscribeSalmaSpeaking, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -351,8 +351,14 @@ const SALMA_FACE_CSS = `
 @media (prefers-reduced-motion:reduce){.salma-photo .stack{animation:none}.salma-photo .lids,.salma-photo.talk .mouth{animation:none;opacity:0}.salma-photo.talk{animation:none}}`;
 export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   const hideOnErr = (e) => { e.currentTarget.style.display = 'none'; };
+  // Live-talk: she moves her mouth whenever her voice is actually playing anywhere in the app
+  // (broadcast from the salmaVoice funnel). OR'd with an explicit `speaking` prop for callers
+  // that want to drive it directly.
+  const [liveSpeaking, setLiveSpeaking] = useState(false);
+  useEffect(() => subscribeSalmaSpeaking(setLiveSpeaking), []);
+  const talk = speaking || liveSpeaking;
   return (
-    <div style={{ ...portrait, width: size, height: size }} className={`salma-photo${speaking ? ' talk' : ''}`}
+    <div style={{ ...portrait, width: size, height: size }} className={`salma-photo${talk ? ' talk' : ''}`}
       role="img" aria-label="Salma, Recruiterin">
       <style>{SALMA_FACE_CSS}</style>
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
