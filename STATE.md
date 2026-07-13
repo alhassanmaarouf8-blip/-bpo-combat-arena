@@ -1,5 +1,18 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 👩‍💼 SALMA REAL PHOTO AVATAR (2026-07-13, HEAD `ff48910`, live)
+Owner: "an attractive German young lady it should look like that, find me one." Illustration hit its
+ceiling (SVG v1→v3), so pivoted to a REAL-looking face. Generated a **SYNTHETIC** portrait (no real
+person → no likeness/impersonation risk) via `gemini-3-pro-image-preview` on the free no-billing
+gemini-worker key (**$0**), picked best of 4, ffmpeg-cropped to the face + shrank 600KB→**18KB**
+`client/public/salma.jpg` (Vercel serves `/salma.jpg`, verified HTTP 200 image/jpeg). `SalmaPortrait`
+now renders the `<img>` (was inline SVG) with motion: gentle sway/breathe + a ring GLOW while
+`speaking`; initials fallback on error; reduced-motion-safe. Verified: deploy `ff48910` + asset 200 +
+build clean (couldn't grab a live in-card screenshot — browser tools were glitching, owner using
+Chrome). Reusable $0 image-gen capability recorded → memory [[gemini-image-generation]]. ★ NEVER use a
+real person's photo for a persona. Blink/talking-mouth on the photo = future (needs multi-frame gen).
+
+
 ## 🗣️👩 SALMA: NO-SYMBOL HUMAN VOICE + BIGGER ANIMATED FACE (2026-07-12, HEAD `7117117`, live)
 Owner: "voice is ok, but she can't read * / symbols like Google read — talk like a GENUINE human" +
 "make her face bigger, extremely attractive and moving." SHIPPED:
