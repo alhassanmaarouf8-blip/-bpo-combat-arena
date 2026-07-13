@@ -5466,7 +5466,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={`app-shell ${shakeScreen ? 'shake' : ''}`} style={{
+    <div className="app-shell" style={{
       minHeight:'100svh',
       display:'flex', flexDirection:'column', position:'relative', overflowX:'hidden',
       paddingBottom: 'env(safe-area-inset-bottom)',
@@ -5528,26 +5528,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         </div>
       )}
 
-      {/* Screen flash */}
-      {screenFlash && (
-        <div style={{ position:'absolute', inset:0, zIndex:50, pointerEvents:'none',
-          background: screenFlash === 'green' ? 'rgba(59,130,246,0.16)' : 'rgba(239,68,68,0.2)',
-          transition:'opacity 0.1s' }} />
-      )}
-
-      {/* Cinematic round-advance banner ("RUNDE 2 — VERHALTENSFRAGE") */}
-      {roundFlash && (
-        <div key={roundFlash.id} style={{ position:'absolute', left:'50%', top:'40%', zIndex:55,
-          pointerEvents:'none', textAlign:'center', whiteSpace:'nowrap',
-          animation:'round-pop 1.7s var(--ease-out) forwards' }}>
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, letterSpacing:'0.3em',
-            color:'var(--accent)', textShadow:'var(--glow-accent)' }}>RUNDE {roundFlash.n}</div>
-          <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:26, color:'#fff',
-            letterSpacing:'0.04em', textShadow:'0 0 18px rgba(59,130,246,0.55), 0 2px 10px rgba(0,0,0,0.8)' }}>
-            {(roundFlash.label || '').toUpperCase()}
-          </div>
-        </div>
-      )}
 
       {/* Subscription paywall (trial exhausted) */}
       {paywall && (
@@ -6084,13 +6064,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           the hero card + the one orange button ARE the invitation now. */}
       {funnel && (
       <div style={{ padding:'4px 14px 0' }}>
-        {/* BOSS HP — top frame. paddingLeft clears the global fixed back button (top:10/left:10,
-            z:400) which floated OVER the label — the "sloppy app" screenshot class (audit S23). */}
-        <div style={{ paddingLeft:44 }}>
-          <HpBar label="INTERVIEW · REST" value={bossHp} isPlayer={false} reason={bossReason} />
-        </div>
-
-        <div className={bossHurt ? 'hurt' : ''} style={{ marginTop:5, borderRadius:16, position:'relative', overflow:'hidden',
+        <div style={{ marginTop:5, borderRadius:16, position:'relative', overflow:'hidden',
           height:'min(50vh, 400px)', minHeight:300,
           background:'radial-gradient(120% 85% at 50% -8%, #0d1828 0%, #070e1a 48%, #02050b 100%)',
           border:`1px solid ${boss.color}66`,
@@ -6120,29 +6094,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             color:boss.color, padding:'3px 9px', borderRadius:'var(--r-pill)',
             background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
             textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
-
-          {/* Damage numbers RE-ENABLED (07-12 owner north star: "not boring at all") — the 10560f1
-              hardening had them {false}'d; the panel unanimously ordered the punch replugged, tuned
-              premium: crisp 34px, 1.6s, combo bursts only from ×3. A strong German sentence visibly
-              wounds the boss — the entertainment IS feedback on language quality. */}
-          {scoreFlash && scoreFlash.hit > 0 && (
-            <div key={`h${scoreFlash.id}`} style={{ position:'absolute', top:'26%', left:'50%', zIndex:7,
-              transform:'translateX(-50%)', pointerEvents:'none',
-              fontFamily:'var(--font-display)', fontWeight:800, fontSize:34, lineHeight:1,
-              color:'#93c5fd', textShadow:'0 2px 6px rgba(0,0,0,0.8)',
-              animation:'dmg-pop 1.6s var(--ease) forwards' }}>
-              −{scoreFlash.hit}
-            </div>
-          )}
-          {scoreFlash && scoreFlash.combo >= 3 && scoreFlash.hit > 0 && (
-            <div key={`c${scoreFlash.id}`} style={{ position:'absolute', top:'44%', left:'50%', zIndex:7,
-              transform:'translateX(-50%)', pointerEvents:'none',
-              fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, letterSpacing:'0.2em',
-              color:'#fdba74', textShadow:'0 2px 5px rgba(0,0,0,0.8)',
-              animation:'combo-pop 1.6s var(--ease) forwards' }}>
-              SERIE ×{scoreFlash.combo}
-            </div>
-          )}
 
           {/* the lit opponent — leans in to listen while YOU speak; posture shifts with mood */}
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:56, zIndex:3 }}>
