@@ -1,13 +1,9 @@
 /**
- * DailyTraining.jsx — "Tägliches Training": a 3–5 minute daily micro-session.
- *
- * Science-backed learning engine:
- *  • Interleaved practice  (Shea & Morgan 1979)  — server shuffles item sources
- *  • Active recall / write-it-again (Bjork 1994)  — wrong answer requires re-typing correct form
- *  • Generation effect (Slamecka & Graf 1978)     — first-letter cue hides answer until requested
- *  • Variable ratio reward (Skinner 1938)         — ~15% mystery XP bonus on correct answers
- *  • Combo counter                                — consecutive streak drives flow state
- *  • Streak shield (Kahneman loss aversion)       — 7-day shield display + earned notification
+ * DailyTraining.jsx — "Tägliches Training": a 3–5 minute daily micro-session on the learner's own
+ * mistakes. Real methods only: interleaved item sources (server-shuffled), active recall (a wrong
+ * answer must be re-typed correctly before advancing), and a first-letter cue that hides the answer
+ * until requested. The engagement gimmicks it once carried (random-XP jackpot, combo meter, streak
+ * shield) were removed 2026-07-13 as AI slop — see the anti-slop skill.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SpeakerIcon, SpeakerQuietIcon, CloseIcon } from './icons/AudioIcons';
@@ -31,7 +27,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const [busy, setBusy]   = useState(false);
   const [done, setDone]   = useState(false);
   const [finalStreak, setFinalStreak] = useState(null);
-  const [shieldMsg, setShieldMsg] = useState(null); // 'earned' | 'used' | null
   const [err, setErr]     = useState('');
 
   // ── Science engine state ────────────────────────────────────────────────────
@@ -134,8 +129,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       const r = await fetch(`${apiUrl}/api/daily/complete`, { method: 'POST', headers: headers(), body: '{}' });
       const s = await r.json();
       setFinalStreak(s.streak ?? data?.streak ?? 0);
-      if (s.shieldEarned) setShieldMsg('earned');
-      else if (s.shieldUsed) setShieldMsg('used');
       onComplete?.(s);
     } catch { setFinalStreak(data?.streak ?? 0); }
     setBusy(false);
@@ -172,7 +165,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   }, [done, apiUrl, token]);
 
   // ── Combo label (flow state calibration) ─────────────────────────────────────
-  const comboLabel = combo >= 5 ? `${combo}x SERIE ⚡` : combo >= 3 ? `${combo}x 🔥` : null;
 
   return (
     <div style={ov}>
@@ -183,11 +175,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
           <div style={{ fontSize: 9, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>3–5 MINUTEN · DEINE FEHLER VON GESTERN</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {comboLabel && (
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 11,
-              color: combo >= 5 ? 'var(--action)' : '#f97316', letterSpacing: '0.1em',
-              textShadow: combo >= 5 ? '0 0 10px rgba(249,115,22,0.7)' : 'none' }}>{comboLabel}</span>
-          )}
           <button onClick={onClose} aria-label="Schließen" style={ghost}><CloseIcon /></button>
         </div>
       </div>
@@ -199,23 +186,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       {/* ── Completion screen ── */}
       {done && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center' }}>
-          <div style={{ fontSize: 56, animation: 'rank-pop 0.7s var(--ease-spring)' }}>🔥</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 26, color: 'var(--action)', textShadow: '0 0 18px rgba(249,115,22,0.6)' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: '#e2e8f0' }}>
             Trainingsserie: {finalStreak} {finalStreak === 1 ? 'Tag' : 'Tage'}
           </div>
-          {/* Streak shield notifications — loss aversion (Kahneman & Tversky 1979) */}
-          {shieldMsg === 'earned' && (
-            <div style={{ padding: '8px 14px', borderRadius: 'var(--r-sm)', background: 'rgba(249,115,22,0.15)',
-              border: '1px solid rgba(249,115,22,0.4)', fontSize: 12, color: 'var(--action)', fontWeight: 700 }}>
-              🛡 SCHUTZSCHILD VERDIENT! 7 Tage am Stück — ein verpasster Tag wird vergeben.
-            </div>
-          )}
-          {shieldMsg === 'used' && (
-            <div style={{ padding: '8px 14px', borderRadius: 'var(--r-sm)', background: 'rgba(59,130,246,0.12)',
-              border: '1px solid rgba(59,130,246,0.35)', fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>
-              🛡 SCHUTZSCHILD AKTIVIERT! Deine Serie ist gerettet.
-            </div>
-          )}
           {/* Deterministic receipt — counted client-side from graded answers; rendered ONLY when the
               payload actually carries per-question `source`, so "deiner Fehler" always has real data
               behind it (never invented numbers). */}
@@ -234,7 +207,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               {salmaLine('drill_done', lang)}
             </div>
           </div>
-          <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute. Komm morgen wieder, um die Serie zu halten.</div>
+          <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute.</div>
           <button onClick={loadMore} disabled={busy} style={{ ...primary, marginTop: 8, opacity: busy ? 0.5 : 1 }}>
             {busy ? '…' : (lang === 'ar' ? 'جولة تانية ↻' : 'NOCH EINE RUNDE ↻')}
           </button>
