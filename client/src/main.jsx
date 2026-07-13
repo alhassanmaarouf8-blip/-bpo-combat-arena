@@ -50,13 +50,22 @@ class RootBoundary extends Component {
   render() { return this.state.error ? null : this.props.children; }
 }
 
+// "Empty" = React hasn't rendered yet. The inline boot splash (index.html) seeds #root with ONE
+// child so a slow WebView isn't blank; treat splash-only as still-empty, or a boot-time chunk error
+// would leave the user stuck on the spinner instead of the honest reload screen. paintError itself
+// clears #root, so the splash is wiped when an error IS painted.
+function rootNotYetRendered(root) {
+  if (!root) return false;
+  if (root.childElementCount === 0) return true;
+  return root.childElementCount === 1 && root.firstElementChild?.id === 'boot-splash';
+}
 window.addEventListener('error', (e) => {
   const root = document.getElementById('root');
-  if (root && root.childElementCount === 0) paintError('JavaScript-Fehler', e.error?.stack || e.message);
+  if (rootNotYetRendered(root)) paintError('JavaScript-Fehler', e.error?.stack || e.message);
 });
 window.addEventListener('unhandledrejection', (e) => {
   const root = document.getElementById('root');
-  if (root && root.childElementCount === 0) paintError('Unbehandelter Promise-Fehler', e.reason?.stack || String(e.reason));
+  if (rootNotYetRendered(root)) paintError('Unbehandelter Promise-Fehler', e.reason?.stack || String(e.reason));
 });
 
 try {
