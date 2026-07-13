@@ -2865,6 +2865,101 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 //  same SRS items. One review surface, spoken + on-mission. Server /api/review[/grade] now unused.)
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
+// Sharp, code-native product proof for the public landing. The old raster
+// screenshot became soft when cropped and scaled, and went stale whenever the
+// real home changed. This stays readable at every viewport and is explicitly a
+// preview rather than pretending to be a live session.
+function ProductHomePreview() {
+  return (
+    <figure aria-label="Vorschau des OMNI-PERFORM Interview-Trainings"
+      style={{ maxWidth:420, margin:'24px auto 4px', padding:0 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em',
+        color:'var(--accent)', marginBottom:8 }}>
+        PRODUKTVORSCHAU · DEIN ERSTES INTERVIEW
+      </div>
+      <div style={{ position:'relative', overflow:'hidden', padding:'22px 20px 20px',
+        borderRadius:24, border:'1px solid rgba(148,163,184,0.2)',
+        background:'linear-gradient(160deg,#0b1422 0%,#050a12 58%,#080b10 100%)',
+        boxShadow:'0 24px 64px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+        <div aria-hidden="true" style={{ position:'absolute', width:260, height:260, borderRadius:'50%',
+          top:-150, right:-100, background:'radial-gradient(circle,rgba(59,130,246,0.22),transparent 68%)' }} />
+        <div aria-hidden="true" style={{ position:'absolute', width:220, height:220, borderRadius:'50%',
+          bottom:-170, left:-110, background:'radial-gradient(circle,rgba(249,115,22,0.12),transparent 68%)' }} />
+
+        <div style={{ position:'relative', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+            <div style={{ width:34, height:34, borderRadius:11, display:'grid', placeItems:'center',
+              border:'1px solid rgba(96,165,250,0.35)', background:'rgba(59,130,246,0.1)', color:'#93c5fd' }}>
+              <Icon name="mic" size={17} />
+            </div>
+            <div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
+                letterSpacing:'0.08em', color:'#f8fafc' }}>OMNI-PERFORM</div>
+              <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:2 }}>Deutsches Interview-Training</div>
+            </div>
+          </div>
+          <span style={{ padding:'5px 9px', borderRadius:'var(--r-pill)', fontFamily:'var(--font-display)',
+            fontSize:9, fontWeight:700, letterSpacing:'0.1em', color:'#bfdbfe',
+            border:'1px solid rgba(96,165,250,0.3)', background:'rgba(59,130,246,0.08)' }}>A2–B1</span>
+        </div>
+
+        <div style={{ position:'relative', marginTop:24 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(24px,7vw,32px)', fontWeight:750,
+            lineHeight:1.08, letterSpacing:'-0.025em', color:'#f8fafc', maxWidth:330 }}>
+            Trainiere, bis deine Antwort sitzt.
+          </div>
+          <div style={{ marginTop:10, color:'#aab7c8', fontSize:13, lineHeight:1.6, maxWidth:340 }}>
+            Realistische Fragen. Direkte Korrekturen. Ein klarer nächster Schritt.
+          </div>
+        </div>
+
+        <div style={{ position:'relative', marginTop:20, padding:'14px', borderRadius:16,
+          border:'1px solid rgba(148,163,184,0.16)', background:'rgba(2,6,14,0.66)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:12 }}>
+            <div style={{ width:42, height:42, borderRadius:'50%', display:'grid', placeItems:'center',
+              fontFamily:'var(--font-display)', fontWeight:750, fontSize:17, color:'#eff6ff',
+              border:'1px solid rgba(96,165,250,0.5)', background:'linear-gradient(145deg,#172338,#0b111d)' }}>Y</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ color:'#f1f5f9', fontWeight:700, fontSize:13 }}>Yasmin · HR-Interviewerin</div>
+              <div style={{ color:'#7f8da1', fontSize:10.5, marginTop:2 }}>Geduldig · nur Deutsch</div>
+            </div>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'#60a5fa',
+              boxShadow:'0 0 0 4px rgba(96,165,250,0.1)' }} />
+          </div>
+          <div style={{ padding:'12px 13px', borderRadius:12, color:'#dbe5f2', fontSize:12.5, lineHeight:1.55,
+            borderLeft:'2px solid #60a5fa', background:'rgba(59,130,246,0.07)' }}>
+            „Erzählen Sie mir kurz, warum Sie im Kundenservice arbeiten möchten.“
+          </div>
+        </div>
+
+        <div style={{ position:'relative', display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))',
+          gap:8, marginTop:12 }}>
+          {[['1','Sprechen'],['2','Korrektur'],['3','Nächster Schritt']].map(([n, label]) => (
+            <div key={n} style={{ minWidth:0, padding:'9px 7px', borderRadius:11, textAlign:'center',
+              background:'rgba(255,255,255,0.035)', border:'1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:750, fontSize:10, color:'#60a5fa' }}>{n}</div>
+              <div style={{ marginTop:3, color:'#a6b2c2', fontSize:9.5, lineHeight:1.25 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ position:'relative', marginTop:14, minHeight:50, borderRadius:14,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:9,
+          fontFamily:'var(--font-display)', fontSize:13, fontWeight:750, color:'#111827',
+          background:'linear-gradient(180deg,#fb923c,#f97316)', boxShadow:'0 12px 28px rgba(249,115,22,0.2)' }}>
+          <Icon name="mic" size={17} /> Interview starten
+        </div>
+        <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
+          Etwa 7 Minuten · sofortiges, persönliches Feedback
+        </div>
+      </div>
+      <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, marginTop:9 }}>
+        Vorschau des bestehenden OMNI-PERFORM Trainings — Sprache, Fragen und Feedback passen sich deinem Niveau an.
+      </figcaption>
+    </figure>
+  );
+}
+
 function VoiceReadinessCheck() {
   const [state, setState] = useState('idle');
   const run = async () => {
@@ -3118,19 +3213,9 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
       </div>
 
-      <figure style={{ maxWidth:420, margin:'24px auto 4px', padding:0, ...rise(2) }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em', color:'var(--accent)', marginBottom:8 }}>
-          ECHTE PRODUKTANSICHT · BEISPIELKONTO
-        </div>
-        <img src="/product-home.png" width="390" height="844" loading="lazy" decoding="async"
-          alt="OMNI-PERFORM mobile training home with interview start, readiness tracker, and level assessment"
-          style={{ display:'block', width:'100%', height:'auto', maxHeight:430, objectFit:'cover', objectPosition:'top',
-            borderRadius:'var(--r-lg)', border:'1px solid var(--line)', boxShadow:'0 22px 55px rgba(0,0,0,0.38)' }} />
-        <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.5, marginTop:8 }}>
-          Aktuelle mobile Oberfläche, aufgenommen aus dem laufenden Produkt mit einem synthetischen Testkonto.
-          {' '}<span dir="rtl">صورة حقيقية من المنتج الحالي بحساب تجريبي.</span>
-        </figcaption>
-      </figure>
+      <div style={rise(2)}>
+        <ProductHomePreview />
+      </div>
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
       <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
