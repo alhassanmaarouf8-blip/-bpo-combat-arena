@@ -353,9 +353,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {LEVELS.map((lv, i) => (
         <div key={i} style={{ flex: 1, height: 5, borderRadius: 99,
-          background: i < survived ? 'var(--accent)' : (i === idx && !endless) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
+          background: i < survived ? 'var(--accent)' : (i === idx) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
       ))}
-      <div style={{ flex: 0.5, height: 5, borderRadius: 99, background: endless ? 'var(--action)' : 'rgba(255,255,255,0.08)' }} />
     </div>
   );
 
@@ -365,8 +364,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>{T(lang, 'Härter als jedes echte Interview.', 'أصعب من أي مقابلة حقيقية.')}</div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.7 }}>
         {T(lang,
-          '5 Stufen + Überlebensmodus. Jede Stufe: schneller, unhöflicher, weniger Zeit — und der Boss redet dir rein. Dein Job: WEITERREDEN, nicht einfrieren. Wer hier besteht, für den fühlt sich das echte Gespräch wie Zeitlupe an.',
-          '5 مستويات + وضع البقاء. كل مستوى: أسرع، أقل أدبًا، وقت أقل — والـ boss بيقاطعك. مهمتك: تفضل تتكلم، متجمدش. اللي بينجح هنا، المقابلة الحقيقية بتبقى بطيئة قدامه.')}
+          '5 Stufen. Jede Stufe: schneller, unhöflicher, weniger Zeit — und der Boss redet dir rein. Dein Job: WEITERREDEN, nicht einfrieren. Wer hier besteht, für den fühlt sich das echte Gespräch wie Zeitlupe an.',
+          '5 مستويات. كل مستوى: أسرع، أقل أدبًا، وقت أقل — والـ boss بيقاطعك. مهمتك: تفضل تتكلم، متجمدش. اللي بينجح هنا، المقابلة الحقيقية بتبقى بطيئة قدامه.')}
       </div>
     </div>
     <button onClick={() => setPhase('ready')} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Leiter besteigen ▸', 'اطلع السلّم ▸')}</button>
