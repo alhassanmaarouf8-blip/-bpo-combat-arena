@@ -6536,19 +6536,14 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                 { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', hint:'Aussprache angleichen',         open:() => setShadowingOpen(true) },
                 { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   hint:'Schneller, ohne Stocken',       open:() => setFluencyOpen(true) },
                 { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     hint:'Am Telefon verstehen',          open:() => setListeningOpen(true) },
-                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Deine Fehler laut korrigieren', due:(data?.progress?.dueReviews || 0), open:() => setSpokenReviewOpen(true) },
+                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Deine Fehler laut korrigieren', open:() => setSpokenReviewOpen(true) },
                 { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            hint:'Verb ans Ende — automatisch',   open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
               ].map((t, i) => (
                 <button key={i} onClick={t.open} style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
                   display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
-                  {t.due > 0 ? (
-                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
-                      color:'var(--action)', border:'1px solid rgba(249,115,22,0.5)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
-                      {t.due} fällig
-                    </span>
-                  ) : t.badge && (
+                  {t.badge && (
                     <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:600, letterSpacing:'0.06em',
                       color:'var(--text-dim)', border:'1px solid var(--line-strong)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       {t.badge}
