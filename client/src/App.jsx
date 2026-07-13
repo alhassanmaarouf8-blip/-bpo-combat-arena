@@ -6118,19 +6118,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           </div>
         </div>
 
-        {/* DEINE HP — bottom frame */}
-        <div style={{ marginTop:6, position:'relative' }}>
-          <HpBar label="ANTWORTQUALITÄT" value={playerHp} isPlayer={true} reason={playerReason} />
-          {/* damage you took this turn — orange burst rising off your own bar (re-enabled 07-12) */}
-          {scoreFlash && scoreFlash.taken > 0 && (
-            <div key={`t${scoreFlash.id}`} style={{ position:'absolute', top:-8, right:18, zIndex:7,
-              pointerEvents:'none', fontFamily:'var(--font-display)', fontWeight:800, fontSize:22,
-              lineHeight:1, color:'#fdba74', textShadow:'0 2px 5px rgba(0,0,0,0.8)',
-              animation:'dmg-pop 1.6s var(--ease) forwards' }}>
-              −{scoreFlash.taken}
-            </div>
-          )}
-        </div>
       </div>
       )}
 
@@ -6152,12 +6139,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </span>
             {userSpeak && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--player)', boxShadow:'0 0 6px var(--player)', animation:'pulse 0.8s infinite' }} />}
             <div style={{ flex:1 }} />
-            {scoreFlash && (
-              <span className="flash" style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10,
-                color: scoreFlash.score >= 60 ? 'var(--accent)' : '#f87171' }}>
-                {scoreFlash.score}/100
-              </span>
-            )}
           </div>
           {/* the boss's current line — the prominent subtitle */}
           <div style={{ padding:'9px 13px 5px', fontSize:13.5, lineHeight:1.6, minHeight:34, overflowWrap:'anywhere',
