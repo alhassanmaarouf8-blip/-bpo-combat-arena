@@ -1,5 +1,22 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🎨 UI REVOLUTION SHIPPED + MOBBIN=PAID (2026-07-13, HEAD `69704ed` live-verified)
+- **Mobbin MCP = PAID.** Post-restart its tools loaded, but the FIRST `search_screens` 402'd
+  (`requires a paid plan`). Zero-spend → did NOT buy. Free alts told to owner: shadcn/ui MCP,
+  Framelink Figma MCP, 21st.dev (tier), Context7 — but **Chrome+Playwright MCP** browsing live apps/
+  free galleries beats paid Mobbin $0 (proven: opened the live app with it).
+- **Emoji-chrome sweep DONE (`1461762`):** 🔊/🔈/🔇 → one shared `client/src/icons/AudioIcons.jsx`
+  (Speaker/SpeakerQuiet/SpeakerMute; currentColor, aria-hidden, style prop) across 8 screens
+  (Listening, Shadowing, SatzbauSchmiede, PressureLadder, BrainGuide, DailyTraining, App +
+  SalmaTakeover `5eba995`). Build+lint clean; deploy-verified. Remaining chrome to hunt: ✕ text closes.
+- **★ SALMA TALKS LIVE, APP-WIDE (`69704ed`):** ref-counted "is Salma speaking" signal broadcast from
+  the salmaVoice funnel (salmaModel/salmaSpeak→playNative onStart/onEnd) → `subscribeSalmaSpeaking`;
+  `SalmaPortrait` subscribes so her mouth moves in sync with real audio on EVERY card, no per-call
+  wiring. Reuses the shipped 3-frame talk stack; reduced-motion strips it. Deploy-verified live.
+  ⚠ Audio-sync gate = owner taps any 🔊 listen button and watches her mouth (like the clip ear-check).
+- **STILL UNSOLD:** `salma-demo.mp4` (last session) — copy written, NOT posted. Distribution-first
+  nag stands: a build-only session with that clip un-posted is not "done" per owner's standing order.
+
 ## 🎬 SALMA DEMO CLIP + 🎨 UI-UPGRADE WORKSTREAM + Mobbin (2026-07-13)
 - **Demo clip (sent to owner, $0):** `salma-demo.mp4` 720² 10s — her living face (amplitude-driven
   mouth from the real audio + blinks) + her voice speaking the real `intro_welcome` line, warm-steered
