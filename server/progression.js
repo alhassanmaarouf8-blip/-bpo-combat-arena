@@ -57,7 +57,7 @@ export function levelProgress(xp) {
 // Computed from STORED session scores (backend = source of truth). Fluency is the
 // spine; clean speech (few fillers) and real structure (connectors) nudge it; top
 // tiers require some experience so one lucky session can't fake "Interview-Bereit".
-export const RANKS = ['Rekrut', 'Anwärter', 'Geübt', 'Profi', 'Interview-Bereit'];
+export const RANKS = ['Einsteiger', 'Anwärter', 'Geübt', 'Profi', 'Interview-Bereit'];
 // Each tier needs BOTH a minimum readiness score AND a minimum number of sessions
 // (so a couple of lucky sessions can't fake the top ranks).
 const TIER_REQ = [

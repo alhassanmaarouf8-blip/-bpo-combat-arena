@@ -2669,7 +2669,7 @@ function DossierSheet({ token, data, account, onClose }) {
 
   const rows = [
     ['Geschätztes Deutsch-Niveau', hr.level || '—'],
-    ['Interview-Rang', `${rank.label || 'Rekrut'} (Stufe ${(rank.tier ?? 0) + 1}/${(rank.ranks || []).length || 5})`],
+    ['Interview-Rang', `${rank.label || 'Einsteiger'} (Stufe ${(rank.tier ?? 0) + 1}/${(rank.ranks || []).length || 5})`],
     ['Live-Interviews absolviert', String(totals.sessions ?? 0)],
     ['Trainings-Serie (aktuell)', `${data?.streak ?? 0} Tage`],
     ['Vokabeln gelernt', String(totals.vocabLearned ?? 0)],
