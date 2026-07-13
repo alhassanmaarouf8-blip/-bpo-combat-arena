@@ -14,6 +14,7 @@
  * shown as a secondary signal and never overclaimed.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
 
@@ -165,7 +166,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     );
   }
 
-  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+  if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
 
   if (phase === 'error') return shell(<>
     {header}
@@ -705,7 +706,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     </div>
   );
 
-  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+  if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
 
   if (phase === 'error') return shell(<>
     {header}

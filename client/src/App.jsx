@@ -7,6 +7,7 @@ import PlacementPrompt from './PlacementPrompt.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { PushReminder } from './PushReminder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
+import { Spinner } from './Loading.jsx';
 import { BrainGuide } from './BrainGuide.jsx';   // eager: rendered inline on the home screen (not an overlay)
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
@@ -33,10 +34,8 @@ const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => (
 function OverlayLoading() {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#020409' }} role="status" aria-label="Lädt…">
-      <style>{`@keyframes omni-overlay-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width: 34, height: 34, borderRadius: '50%', border: '2.5px solid rgba(59,130,246,0.22)',
-        borderTopColor: '#3b82f6', animation: 'omni-overlay-spin 0.8s linear infinite' }} />
+      justifyContent: 'center', background: '#020409' }}>
+      <Spinner size={34} />
     </div>
   );
 }

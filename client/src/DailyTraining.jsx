@@ -11,6 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SpeakerIcon, SpeakerQuietIcon, CloseIcon } from './icons/AudioIcons';
+import { Spinner } from './Loading.jsx';
 import { playNative } from './nativeVoice.js';
 import { salmaLine, salmaName } from './salmaCopy.js';
 import { salmaSpeak } from './salmaVoice.js';
@@ -217,7 +218,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 
       {err && <div style={errBox}>⚠ {err}</div>}
 
-      {!data && !err && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>Lade…</div>}
+      {!data && !err && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner /></div>}
 
       {/* ── Completion screen ── */}
       {done && (

@@ -16,6 +16,7 @@
  * T() falls back to German while the slot is empty).
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
@@ -169,7 +170,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     </>
   );
 
-  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+  if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
 
   if (phase === 'error') return shell(<>
     {header}

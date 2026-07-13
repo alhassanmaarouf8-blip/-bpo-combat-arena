@@ -7,6 +7,7 @@
  * of their personal weaknesses. This is the compounding core of spoken-German mastery.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { DrillIntro } from './drillIntros.jsx';
 
@@ -110,7 +111,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     </>
   );
 
-  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+  if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
   if (phase === 'error') return shell(<>{header}<div style={{ textAlign: 'center', padding: '30px 0' }}><div style={{ fontSize: 36 }}>⚠</div><div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div><button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'تاني')}</button></div></>);
 
   if (phase === 'empty') return shell(<>{header}

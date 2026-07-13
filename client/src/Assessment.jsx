@@ -10,6 +10,7 @@
  * replace the verdict block with the polished arena results screen.
  */
 import { useState, useRef, useEffect } from 'react';
+import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 
 const MAX_SEC = 60;
@@ -147,7 +148,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     </div>
   );
 
-  if (phase === 'loading') return shell(<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div>);
+  if (phase === 'loading') return shell(<LoadingPane />);
 
   // ── INTRO ──
   if (phase === 'intro') return shell(<>

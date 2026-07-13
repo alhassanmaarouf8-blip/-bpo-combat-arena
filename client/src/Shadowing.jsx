@@ -8,6 +8,7 @@
  * Gating is server-side: GET/POST return 402 for free/expired accounts → we route to pricing.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
@@ -190,7 +191,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     </>
   );
 
-  if (phase === 'loading') return shell(<>{header}<div style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>…</div></>);
+  if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
 
   if (phase === 'error') return shell(<>
     {header}
