@@ -5,7 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isCleanGermanText, isCleanArabicOrGermanText, scrubForeignScript, scrubStringsDeep } from './langGuard.js';
+import { isCleanGermanText, isCleanArabicOrGermanText, scrubForeignScript, scrubStringsDeep, formalArabicMarkers, hasFormalArabicDrift } from './langGuard.js';
 
 test('isCleanGermanText: accepts real German with umlauts/punctuation', () => {
   assert.equal(isCleanGermanText('Guten Tag, meine Kundennummer ist vier sieben zwei — wie kann ich helfen?'), true);
@@ -67,6 +67,27 @@ test('regression: the exact Alhassan CJK-glitch reply is rejected', () => {
 });
 test('regression: a clean Egyptian-Arabic mentor reply (with allowed German code-switch) passes', () => {
   assert.equal(isCleanArabicOrGermanText('ماشي يا سطا، إنت عملت تقدم كويس في الـ Fluency. كمّل كده.'), true);
+});
+
+// ── formalArabicMarkers / hasFormalArabicDrift — same-script masri-vs-fusha drift detector ───────
+
+test('hasFormalArabicDrift: real owner-authored Cairo masri (from the app) has NO formal markers', () => {
+  // These are actual shipped strings (App.jsx) — owner-written masri, not authored here.
+  assert.equal(hasFormalArabicDrift('درّب النهاردة عشان متخسرش سلسلتك'), false);
+  assert.equal(hasFormalArabicDrift('من دلوقتي أنا معاك خطوة بخطوة'), false);
+  assert.deepEqual(formalArabicMarkers('قول الجملة صح'), []);
+});
+
+test('hasFormalArabicDrift: flags formal MSA/fusha the coach prompt forbids', () => {
+  assert.equal(hasFormalArabicDrift('هذا هو السبب الذي يجب أن تركز عليه الآن.'), true);   // الذي · يجب أن · الآن
+  assert.equal(hasFormalArabicDrift('ماذا تريد أن تتعلم؟ سوف نبدأ.'), true);              // ماذا · تريد · سوف
+  assert.ok(formalArabicMarkers('لماذا لم تكمل؟ لأنّ الوقت انتهى.').length >= 2);          // لماذا · لأنّ
+});
+
+test('hasFormalArabicDrift: ignores German/empty (only judges Arabic-script text)', () => {
+  assert.equal(hasFormalArabicDrift('Der Relativsatz schiebt das Verb ans Ende.'), false);
+  assert.equal(hasFormalArabicDrift(''), false);
+  assert.equal(hasFormalArabicDrift(null), false);
 });
 
 // ── scrubForeignScript / scrubStringsDeep — the boundary scrubber for one-of-a-kind text ─────────

@@ -16,7 +16,7 @@ import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { buildGrammarLLM } from './grammarLLM.js';
 import { evaluateNaturalness } from './naturalness.js';
 import { looksTruncatedDE, sessionSubstance, quoteHasLowConfidence } from './scoring/turnQuality.js';
-import { scrubStringsDeep } from './langGuard.js';
+import { scrubStringsDeep, formalArabicMarkers } from './langGuard.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
 // stays authoritative from LanguageTool; the model only writes strengths/study-next/
@@ -223,6 +223,25 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     // field, incl. _ar: the debrief is one-of-a-kind text with no curated pool to fall back to,
     // so stripping the glyph is the only $0 fix that keeps the rest of the (fine) content.
     const parsed = scrubStringsDeep(JSON.parse(txt));
+    // MASRI-DRIFT METER (non-destructive): the _ar fields are LLM-translated and explicitly prompted
+    // for Cairo masri (not fusha). scrubStringsDeep already removed wrong-script glitches, but can't
+    // see same-script drift into formal MSA — the fake-masri class the owner worries about. Measure
+    // it here so drift is visible in logs (does NOT alter the debrief the learner sees; enforcement,
+    // if ever wanted, is a separate product decision). Walk every string under an `ar`/`*_ar` key.
+    try {
+      const hits = [];
+      const walkAr = (v, key = '') => {
+        if (typeof v === 'string') {
+          if ((key === 'ar' || key.endsWith('_ar'))) {
+            const m = formalArabicMarkers(v);
+            if (m.length) hits.push(`${key}:[${m.join(' ')}]`);
+          }
+        } else if (Array.isArray(v)) v.forEach((x) => walkAr(x, key));
+        else if (v && typeof v === 'object') for (const k of Object.keys(v)) walkAr(v[k], k);
+      };
+      walkAr(parsed);
+      if (hits.length) console.warn(`[coach] masri-drift: ${hits.length} _ar field(s) carry formal MSA markers — ${hits.slice(0, 6).join(' · ')}`);
+    } catch { /* measurement must never break the debrief */ }
     const norm   = normalize(parsed);
     // GUARD (anti-fabrication): an "upgrade" must reword words the candidate REALLY said.
     const saidCanon = _canon((utterances || []).map((u) => u?.text || '').join(' '));

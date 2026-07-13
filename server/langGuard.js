@@ -37,6 +37,32 @@ export function isCleanArabicOrGermanText(s) {
   return !FOREIGN_SCRIPT.test(t);
 }
 
+// ── Same-script dialect drift (the gap this file admits above) ────────────────────────────────
+// Character-range checks can't tell Cairo masri from formal MSA/fusha — but the LLM debrief
+// (coach.js _ar fields) is explicitly prompted for عامية مصرية, so formal-Arabic markers in its
+// output mean the model DISOBEYED and produced stiff, less-trustworthy Arabic for an Egyptian
+// learner (the fake-masri class the owner worries about). This is a WORD-list heuristic, not a
+// model call: it flags high-confidence formal markers a Cairo native avoids in casual coaching.
+// Non-destructive by design — callers use it to LOG/measure drift, not to blank real feedback.
+// (Sourced from the owner's own coach.js anti-fusha rules + scripts/masri-check.mjs.)
+const FORMAL_AR_MARKERS = [
+  'الذي', 'التي', 'الذين', 'لأنّ', 'لأن ', 'كي ', 'ماذا', 'لماذا', 'كيف ', 'الآن', 'سوف ',
+  'ليس ', 'يجب أن', 'ينبغي', 'يمكنك أن', 'نستطيع', 'تريد', 'هكذا', 'عندما', 'أيضاً', 'أيضًا',
+  'كذلك', 'إنّ ', 'قد قمت', 'بفضل', 'اختتم',
+];
+
+/** Count formal-MSA markers in a string (0 = looks like clean masri by this heuristic). */
+export function formalArabicMarkers(s) {
+  const t = String(s ?? '');
+  if (!ARABIC_SCRIPT.test(t)) return [];
+  return FORMAL_AR_MARKERS.filter((m) => t.includes(m));
+}
+
+/** True if the string carries formal-MSA markers — i.e. probable dialect drift away from masri. */
+export function hasFormalArabicDrift(s) {
+  return formalArabicMarkers(s).length > 0;
+}
+
 // ── Scrubbing (for surfaces where REJECTING isn't possible) ───────────────────────────────────
 // The drills above can reject a glitched item and fall back to a curated pool. But the DEBRIEF,
 // the BOSS's live streamed turn, the assessment verdict etc. have no pool to fall back to — the
