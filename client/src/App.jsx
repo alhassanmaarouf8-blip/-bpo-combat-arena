@@ -6529,18 +6529,26 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   removed — the real interview trains pressure better than a simulator of it, and
                   passive slide-lessons are minutes not spent speaking. Their overlays/handlers stay
                   wired (brain prescriptions and deep links keep working); only the menu offer is gone. */}
+              {/* Meaningful tiles: a one-line PURPOSE (what you gain — honest German), and on Sag es
+                  richtig the REAL count of SRS items due (data.progress.dueReviews) — never an invented
+                  mastery number. The `hint` is builder-authored German; masri stays an OWNER-AR slot. */}
               {[
-                { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', open:() => setShadowingOpen(true) },
-                { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   open:() => setFluencyOpen(true) },
-                { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     open:() => setListeningOpen(true) },
-                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      open:() => setSpokenReviewOpen(true) },
-                { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
+                { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', hint:'Aussprache angleichen',         open:() => setShadowingOpen(true) },
+                { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   hint:'Schneller, ohne Stocken',       open:() => setFluencyOpen(true) },
+                { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     hint:'Am Telefon verstehen',          open:() => setListeningOpen(true) },
+                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Deine Fehler laut korrigieren', due:(data?.progress?.dueReviews || 0), open:() => setSpokenReviewOpen(true) },
+                { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            hint:'Verb ans Ende — automatisch',   open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
               ].map((t, i) => (
-                <button key={i} onClick={t.open} style={{ minHeight:88, padding:'12px', cursor:'pointer', textAlign:'left',
+                <button key={i} onClick={t.open} style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
                   display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
-                  {t.badge && (
+                  {t.due > 0 ? (
+                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
+                      color:'var(--action)', border:'1px solid rgba(249,115,22,0.5)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
+                      {t.due} fällig
+                    </span>
+                  ) : t.badge && (
                     <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:600, letterSpacing:'0.06em',
                       color:'var(--text-dim)', border:'1px solid var(--line-strong)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       {t.badge}
@@ -6549,7 +6557,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   <span style={{ color:'var(--accent)', display:'flex' }}><Icon name={t.icon} size={22} /></span>
                   <span>
                     <span style={{ display:'block', fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-label)', color:'var(--text)' }}>{t.de}</span>
-                    <span style={{ display:'block', fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:2 }}>{t.ar}</span>
+                    <span style={{ display:'block', fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:2, lineHeight:1.35 }}>{t.hint}</span>
+                    {t.ar && <span dir="rtl" style={{ display:'block', fontSize:9.5, color:'var(--text-faint)', marginTop:1 }}>{t.ar}</span>}
                   </span>
                 </button>
               ))}
