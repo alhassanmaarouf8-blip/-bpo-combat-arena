@@ -11,12 +11,15 @@ const DAY = 24 * 60 * 60 * 1000;
 // Ordered easiest → hardest. bossId must exist in realtimeClient BOSS_CONFIGS.
 // 5-character ladder — ids MUST match interviewer-characters.json / BOSS_CONFIGS.
 export const BOSS_LADDER = [
-  { id: 'yasmin',         name: 'YASMIN',         tier: 'Junior-Recruiterin', minLevel: 1 },
-  { id: 'karim',          name: 'KARIM',          tier: 'Teamleiter',         minLevel: 2 },
-  { id: 'hana',           name: 'HANA',           tier: 'Hiring Managerin',   minLevel: 4 },
+  // Order = ascending minLevel = easiest→hardest by seniority (CEO Mona hardest). The nextBoss/boss
+  // logic iterates ARRAY ORDER, so the array MUST stay sorted by minLevel. (Fixed 2026-07-13: Lukas the
+  // junior agent-trainer was ranked ABOVE the CEO — inverted; moved to an early casual screen.)
+  { id: 'yasmin',         name: 'YASMIN',         tier: 'Junior-Recruiterin',  minLevel: 1 },
+  { id: 'lukas',          name: 'LUKAS',          tier: 'Agent-Trainer',       minLevel: 2 },
+  { id: 'karim',          name: 'KARIM',          tier: 'Teamleiter',          minLevel: 3 },
+  { id: 'hana',           name: 'HANA',           tier: 'Hiring Managerin',    minLevel: 4 },
   { id: 'tarek',          name: 'TAREK',          tier: 'Eskalations-Manager', minLevel: 6 },
-  { id: 'frau-mona-adel', name: 'FRAU MONA ADEL', tier: 'Geschäftsführerin',  minLevel: 8 },
-  { id: 'lukas',          name: 'LUKAS',          tier: 'Agent-Trainer',      minLevel: 9 },
+  { id: 'frau-mona-adel', name: 'FRAU MONA ADEL', tier: 'Geschäftsführerin',   minLevel: 8 },
 ];
 
 export function levelFor(xp) {

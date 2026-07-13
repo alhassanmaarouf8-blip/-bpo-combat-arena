@@ -91,13 +91,15 @@ function whyLine(d) {
 // The interviewer org ladder (mirror of server/progression.js BOSS_LADDER — ids/tiers/minLevels
 // are stable product canon). Salma's pipeline renders progression against it; the SERVER still
 // decides every real unlock.
+// Mirror of server/progression.js BOSS_LADDER — MUST stay in the same order (ascending minLevel =
+// easiest→hardest by seniority, CEO Mona hardest). Lukas moved to an early casual screen (was inverted).
 const LADDER = [
   { id: 'yasmin', name: 'Yasmin', tier: 'Junior-Recruiterin', minLevel: 1 },
-  { id: 'karim', name: 'Karim', tier: 'Teamleiter', minLevel: 2 },
+  { id: 'lukas', name: 'Lukas', tier: 'Agent-Trainer', minLevel: 2 },
+  { id: 'karim', name: 'Karim', tier: 'Teamleiter', minLevel: 3 },
   { id: 'hana', name: 'Hana', tier: 'Hiring Managerin', minLevel: 4 },
   { id: 'tarek', name: 'Tarek', tier: 'Eskalations-Manager', minLevel: 6 },
   { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
-  { id: 'lukas', name: 'Lukas', tier: 'Agent-Trainer', minLevel: 9 },
 ];
 
 // She greets + directs out loud ONCE per page-load session (see the proactive-speak effect below).
