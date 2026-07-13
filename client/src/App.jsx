@@ -1211,44 +1211,18 @@ function FillerCounter({ count }) {
   );
 }
 
-// Combo / streak multiplier — escalates glow and size as the streak climbs.
-function ComboMeter({ combo }) {
-  const active = combo >= 2;
-  const intensity = Math.min(combo, 6);
-  return (
-    <div style={{ textAlign:'center', minWidth:64 }}>
-      <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8, letterSpacing:'0.12em',
-        color:'var(--text-dim)', marginBottom:3 }}>SERIE</div>
-      {active ? (
-        <div key={combo} style={{ fontFamily:'var(--font-display)', fontWeight:700,
-          fontSize: 14 + intensity * 1.5, lineHeight:1,
-          color:'var(--action)',
-          textShadow:`0 0 ${6 + intensity * 3}px rgba(249,115,22,${0.5 + intensity * 0.08})`,
-          animation:'combo-in 0.35s var(--ease-spring)' }}>
-          x{combo}
-        </div>
-      ) : (
-        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:14, lineHeight:1, color:'#64748b' }}>—</div>
-      )}
-    </div>
-  );
-}
-
-// The strip that holds the three live meters. Glows brighter as the combo climbs.
-function PerformanceHud({ wpm, fillers, combo }) {
-  const hot = combo >= 3;
+// The strip that holds the live speech meters: words-per-minute and filler count —
+// honest, real-time feedback on how the candidate is actually speaking.
+function PerformanceHud({ wpm, fillers }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:'var(--sp-3)', marginBottom:'var(--sp-3)',
       padding:'8px 12px', borderRadius:'var(--r-md)',
       background:'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))',
-      border:`1px solid ${hot ? 'rgba(249,115,22,0.45)' : 'var(--line)'}`,
-      boxShadow: hot ? '0 0 22px rgba(249,115,22,0.18), inset 0 0 24px rgba(0,0,0,0.5)' : 'inset 0 0 24px rgba(0,0,0,0.5)',
-      transition:'border-color var(--dur-slow), box-shadow var(--dur-slow)' }}>
+      border:'1px solid var(--line)',
+      boxShadow:'inset 0 0 24px rgba(0,0,0,0.5)' }}>
       <WpmMeter wpm={wpm} />
       <div style={{ width:1, alignSelf:'stretch', background:'var(--line)' }} />
       <FillerCounter count={fillers} />
-      <div style={{ width:1, alignSelf:'stretch', background:'var(--line)' }} />
-      <ComboMeter combo={combo} />
     </div>
   );
 }
@@ -1846,14 +1820,6 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 {r.jobLabel && (
                   <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'var(--action)', textShadow:'0 0 10px rgba(249,115,22,0.35)', marginTop:4 }}>
                     {r.jobLabel.toUpperCase()}
-                  </div>
-                )}
-                {/* Best answer streak of the fight — comboBest was computed+sent since day one and
-                    never rendered (panel find). Only shown when a real streak happened. */}
-                {(r.comboBest ?? 0) >= 3 && (
-                  <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:10.5, letterSpacing:'0.14em',
-                    color:'#94a3b8', marginTop:5 }}>
-                    BESTE SERIE · {r.comboBest} STARKE ANTWORTEN IN FOLGE
                   </div>
                 )}
               </>
@@ -5973,7 +5939,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         )}
 
         {/* Phase 2: live performance HUD (appears once a fight is in progress) */}
-        {funnel && <PerformanceHud wpm={liveWpm} fillers={fillerCount} combo={combo} />}
+        {funnel && <PerformanceHud wpm={liveWpm} fillers={fillerCount} />}
       </div>
 
       {/* ── PRE-FIGHT BRIEFING CARD — scenario context + key phrases (dismissed when boss speaks) ── */}
