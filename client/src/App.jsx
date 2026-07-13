@@ -1862,8 +1862,8 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             <div style={{ marginTop:8, fontSize:12, color: win ? 'var(--accent-2)' : 'var(--action)', lineHeight:1.5,
               animation:'result-rise 0.6s var(--ease-out)' }}>
               {win
-                ? `Stark${nm ? ', ' + nm : ''}! Du hast das Trainingsziel dieser Simulation erreicht.`
-                : `Weiter so${nm ? ', ' + nm : ''}: Die Auswertung zeigt dir jetzt den wichtigsten nächsten Trainingsschritt.`}
+                ? 'Du hast das Trainingsziel dieser Simulation erreicht.'
+                : 'Dein wichtigster nächster Schritt steht unten.'}
             </div>
             {data?.progress?.personalBest && (
               <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
