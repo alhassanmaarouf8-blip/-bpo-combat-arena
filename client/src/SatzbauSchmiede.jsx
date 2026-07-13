@@ -157,7 +157,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         🏗️ SATZBAU-SCHMIEDE
       </span>
-      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (

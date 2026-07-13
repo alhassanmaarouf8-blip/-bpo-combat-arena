@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
+import { SpeakerIcon, CloseIcon } from './icons/AudioIcons';
 import { salmaSpeak, composeSalmaSpoken, subscribeSalmaSpeaking, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
 
 const GOALS = [
@@ -369,27 +370,6 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
         <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
       </div>
     </div>
-  );
-}
-
-// Machined stroke icons (design-system icon law: never emoji as UI chrome). Inline because App.jsx's
-// <Icon> isn't exported to sibling components. currentColor inherits the button's own color token.
-function SpeakerIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M11 5 6 9H3v6h3l5 4V5z" />
-      <path d="M15.4 8.6a5 5 0 0 1 0 6.8" />
-      <path d="M18.3 5.7a9 9 0 0 1 0 12.6" />
-    </svg>
-  );
-}
-function CloseIcon({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
   );
 }
 

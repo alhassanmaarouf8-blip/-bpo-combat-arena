@@ -135,7 +135,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         🎧 HÖR-CHECK · فهم السمع
       </span>
-      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (

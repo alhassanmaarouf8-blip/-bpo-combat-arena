@@ -143,7 +143,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
         EINSTUFUNG · تقييم مستواك
       </span>
-      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
   );
 

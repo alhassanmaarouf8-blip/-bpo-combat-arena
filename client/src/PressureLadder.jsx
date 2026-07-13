@@ -338,7 +338,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
         🔥 DRUCK-LEITER · سُلّم الضغط
       </span>
-      <button onClick={() => { cleanup(); onClose?.(); }} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      <button onClick={() => { cleanup(); onClose?.(); }} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (

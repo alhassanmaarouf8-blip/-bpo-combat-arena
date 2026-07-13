@@ -575,7 +575,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
       </span>
       <div style={{ display: 'flex', gap: 8 }}>
         {backBtn && <button onClick={backToList} style={ghostBtn}>‹ Übersicht{/* OWNER-AR slot */}</button>}
-        <button onClick={close} style={ghostBtn}>Schließen ✕{/* OWNER-AR slot */}</button>
+        <button onClick={close} style={ghostBtn}>Schließen{/* OWNER-AR slot */}</button>
       </div>
     </div>
   );

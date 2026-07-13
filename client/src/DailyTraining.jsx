@@ -10,7 +10,7 @@
  *  • Streak shield (Kahneman loss aversion)       — 7-day shield display + earned notification
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { SpeakerIcon, SpeakerQuietIcon } from './icons/AudioIcons';
+import { SpeakerIcon, SpeakerQuietIcon, CloseIcon } from './icons/AudioIcons';
 import { playNative } from './nativeVoice.js';
 import { salmaLine, salmaName } from './salmaCopy.js';
 import { salmaSpeak } from './salmaVoice.js';
@@ -210,7 +210,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               color: combo >= 5 ? 'var(--action)' : '#f97316', letterSpacing: '0.1em',
               textShadow: combo >= 5 ? '0 0 10px rgba(249,115,22,0.7)' : 'none' }}>{comboLabel}</span>
           )}
-          <button onClick={onClose} style={ghost}>✕</button>
+          <button onClick={onClose} aria-label="Schließen" style={ghost}><CloseIcon /></button>
         </div>
       </div>
 

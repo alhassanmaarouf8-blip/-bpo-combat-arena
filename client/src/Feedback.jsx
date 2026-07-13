@@ -6,6 +6,7 @@
  * Both POST to /api/feedback and show a short "شكرًا!" confirmation.
  */
 import { useState } from 'react';
+import { CloseIcon } from './icons/AudioIcons';
 
 async function postFeedback(apiUrl, token, body) {
   try {
@@ -110,7 +111,7 @@ export function FirstFightCard({ token, apiUrl }) {
     <div style={{ ...card, direction: 'rtl', textAlign: 'right' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--accent)' }}>رأيك يهمنا</span>
-        <button onClick={() => setStage('hidden')} style={{ ...btnGhost, padding: '4px 10px', fontSize: 10 }}>تخطّي ✕</button>
+        <button onClick={() => setStage('hidden')} style={{ ...btnGhost, padding: '4px 10px', fontSize: 10 }}>تخطّي</button>
       </div>
 
       {/* Q1: felt real? */}
@@ -214,7 +215,7 @@ export function AdminFeedback({ token, apiUrl }) {
           <div onClick={(e) => e.stopPropagation()} style={{ ...modal, maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, color: 'var(--accent)' }}>Feedback-Daten</span>
-              <button onClick={() => setOpen(false)} style={{ ...btnGhost, flex: 'none', padding: '4px 10px', fontSize: 11 }}>✕</button>
+              <button onClick={() => setOpen(false)} aria-label="Schließen" style={{ ...btnGhost, flex: 'none', padding: '4px 10px', fontSize: 11 }}><CloseIcon size={14} /></button>
             </div>
 
             <GrantPro token={token} apiUrl={apiUrl} />

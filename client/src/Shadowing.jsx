@@ -177,7 +177,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent-2)' }}>
         🗣️ SHADOWING · ترديد
       </span>
-      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill — the honest,
         personal reason THIS student is here (owner law 5: all surfaces one organism). */}

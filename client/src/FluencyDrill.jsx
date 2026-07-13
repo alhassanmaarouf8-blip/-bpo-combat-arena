@@ -144,7 +144,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
         ⚡ FLOW-DRILL · سرعة الكلام
       </span>
-      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+      <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
@@ -690,7 +690,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
       </span>
       <span style={{ display: 'flex', gap: 8 }}>
         <button onClick={onBack} style={ghostBtn}>◂ 4-3-2</button>
-        <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')} ✕</button>
+        <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
       </span>
     </div>
   );

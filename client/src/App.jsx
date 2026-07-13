@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
-import { SpeakerIcon, SpeakerMuteIcon } from './icons/AudioIcons';
+import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
 import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
 import DailyTraining from './DailyTraining.jsx';
@@ -2743,7 +2743,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
           )}
           <button onClick={onClose} style={{ fontFamily:'var(--font-display)', fontSize:10, cursor:'pointer',
             padding:'6px 12px', borderRadius:6, border:'1px solid rgba(59,130,246,0.3)', background:'transparent', color:'var(--accent)' }}>
-            ✕ ZURÜCK
+            ZURÜCK
           </button>
         </div>
       </div>
@@ -6286,7 +6286,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.28)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
               <span style={{ fontFamily:'var(--font-display)', fontSize:9.5, letterSpacing:'0.12em', color:'var(--accent)' }}>SO FUNKTIONIERT'S · إزّاي تلعب</span>
-              <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'#64748b', background:'none', border:'none', padding:'2px 4px' }}>✕</button>
+              <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'#64748b', background:'none', border:'none', padding:'2px 4px' }}><CloseIcon /></button>
             </div>
             <div style={{ fontSize:11, color:'#cbd5e1', lineHeight:1.55 }}>
               1) „INTERVIEW STARTEN" drücken und laut Deutsch sprechen · 2) dein Niveau wird automatisch erkannt · 3) am Ende sofortiges Feedback.
@@ -6715,7 +6715,7 @@ function InstallCard() {
         </button>
       )}
       <button aria-label="Ausblenden" onClick={dismiss} style={{ flexShrink: 0, minWidth: 40, minHeight: 40,
-        background: 'none', border: 'none', color: '#64748b', fontSize: 16, cursor: 'pointer' }}>✕</button>
+        background: 'none', border: 'none', color: '#64748b', fontSize: 16, cursor: 'pointer' }}><CloseIcon /></button>
     </div>
   );
 }
