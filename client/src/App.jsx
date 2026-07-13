@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useReducer, Component, lazy, 
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
-import { GeminiVoicePlayer } from './geminiVoice.js';
+import { GeminiVoicePlayer, emitBossLevel, subscribeBossLevel } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { PushReminder } from './PushReminder.jsx';
@@ -1030,8 +1030,6 @@ const GLOBAL_CSS = `
   @keyframes boss-blink { 0%,93%,100%{transform:scaleY(1)} 96%{transform:scaleY(0.08)} }
   .boss-blink { animation: boss-blink 5.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes boss-sway { 0%,100%{transform:translateX(0) rotate(0deg)} 50%{transform:translateX(-2px) rotate(-0.6deg)} }
-  @keyframes boss-talk { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1)} }
-  .boss-talk { animation: boss-talk 0.22s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes breathe { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-3px) scale(1.012)} }
   .breathe { animation: breathe 4.5s ease-in-out infinite; }
   /* Listening nod: a real interviewer nods along while you talk instead of freezing. Subtle, slightly
@@ -1053,13 +1051,35 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--acc
   // SPEAKING halo animates (one meaningful loop — never an idle pulse).
   const glow = ({ composed: 0.45, skeptical: 0.5, smug: 0.5, impressed: 0.7, furious: 0.9, shaken: 0.7 })[emotion] ?? 0.45;
   const initial = (name || '?').trim().charAt(0).toUpperCase();
+  // Reactive presence ring (mirrors SalmaPortrait). On the Gemini path the ring's brightness + scale
+  // track his REAL voice loudness (emitBossLevel); until a level arrives / on the $0 MP3 path it shows
+  // a calm slow "breathing" presence — never a mechanical metronome, never faked amplitude.
+  const ringRef = useRef(null);
+  const speakingRef = useRef(speaking); speakingRef.current = speaking;
+  const [lvlActive, setLvlActive] = useState(false);
+  const lvlActiveRef = useRef(false);
+  const hex2 = (a) => Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, '0');
+  useEffect(() => subscribeBossLevel((v) => {
+    if (!lvlActiveRef.current) { lvlActiveRef.current = true; setLvlActive(true); }
+    const on = speakingRef.current;
+    const ring = ringRef.current;
+    if (ring) {
+      ring.style.opacity   = on ? Math.min(0.9, v * 1.7).toFixed(2) : '0';
+      ring.style.transform = `scale(${(1 + v * 0.12).toFixed(3)})`;
+      ring.style.boxShadow = on ? `0 0 ${Math.round(12 + v * 26)}px ${color}${hex2(0.35 + v * 0.5)}` : 'none';
+    }
+  }), [color]);
   return (
     <div style={{ width:'100%', height:'100%', display:'grid', placeItems:'center' }}>
+      <style>{`@keyframes bossBreathe{0%,100%{opacity:0.28;transform:scale(1)}50%{opacity:0.6;transform:scale(1.035)}}
+        .boss-ring.breathe-on{animation:bossBreathe 2.1s ease-in-out infinite}
+        @media(prefers-reduced-motion:reduce){.boss-ring.breathe-on{animation:none;opacity:0.4}}`}</style>
       <div style={{ position:'relative', width:'min(62%, 190px)', aspectRatio:'1', display:'grid', placeItems:'center' }}>
-        {speaking && (
-          <div style={{ position:'absolute', inset:-14, borderRadius:'50%',
-            border:`2px solid ${color}`, opacity:0.5, animation:'pulse 1.1s ease-in-out infinite' }} />
-        )}
+        {/* Reactive on Gemini (ref-driven), calm breathing when speaking without a live level (MP3 path). */}
+        <div ref={ringRef} aria-hidden="true"
+          className={`boss-ring${speaking && !lvlActive ? ' breathe-on' : ''}`}
+          style={{ position:'absolute', inset:-14, borderRadius:'50%', border:`2px solid ${color}`,
+            opacity:0, pointerEvents:'none', transition:'opacity 70ms linear, transform 70ms linear' }} />
         <div style={{ position:'absolute', inset:0, borderRadius:'50%',
           border:`2.5px solid ${color}`,
           boxShadow:`0 0 ${Math.round(28 * glow + 12)}px ${color}${speaking ? 'aa' : '55'}, inset 0 0 22px ${color}22`,
@@ -4361,6 +4381,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
     try {
       geminiPlayerRef.current = new GeminiVoicePlayer({
         onSpeakStart: () => { setBossSpeak(true); setBossThinking(false); setShowBriefing(false); },
+        onLevel: emitBossLevel,   // real PCM loudness → the interviewer avatar's reactive presence ring
       });
       geminiPlayerRef.current.resume();
     } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
