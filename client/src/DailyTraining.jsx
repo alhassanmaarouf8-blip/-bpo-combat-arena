@@ -36,7 +36,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 
   // ── Science engine state ────────────────────────────────────────────────────
   const [combo, setCombo] = useState(0);
-  const [bonus, setBonus] = useState(null);   // { label, xp } — variable ratio reward
   const [showCue, setShowCue] = useState(false); // first-letter generation cue
   // Session receipt: counted from REAL graded answers only (source==='mistake' items answered
   // correctly + total correct) — deterministic, never invented, shown on the completion screen.
@@ -47,7 +46,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const [retypeOk, setRetypeOk] = useState(false);
 
   const [speaking, setSpeaking] = useState(null);   // which text id is being spoken
-  const bonusTimer = useRef(null);
   const stopSpeakRef = useRef(null);                // stop() of the current playNative playback
   const headers = useCallback(() => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }), [token]);
 
@@ -79,7 +77,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     return () => { cancelled = true; };
   }, [apiUrl, headers]);
 
-  useEffect(() => () => { clearTimeout(bonusTimer.current); }, []);
   useEffect(() => () => { stopSpeakRef.current?.(); }, []);   // don't let audio outlive the overlay
 
   const questions = data?.questions || [];
@@ -104,17 +101,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
         setCombo(newCombo);
         // submit() is guarded (`|| result`) so each question grades exactly ONCE — no double counts.
         setTally((t) => ({ correct: t.correct + 1, mistakeFixed: t.mistakeFixed + (q?.source === 'mistake' ? 1 : 0) }));
-        // Variable ratio reinforcement (Skinner VR schedule): random ~15% bonus XP.
-        // Variable rewards produce the highest response rate and greatest extinction resistance.
-        if (Math.random() < 0.15) {
-          clearTimeout(bonusTimer.current);
-          const isJackpot = newCombo >= 5;
-          setBonus({
-            label: isJackpot ? '⚡ JACKPOT!' : '🎲 GLÜCKSTAG!',
-            xp: isJackpot ? Math.floor(Math.random() * 4) + 5 : Math.floor(Math.random() * 3) + 3,
-          });
-          bonusTimer.current = setTimeout(() => setBonus(null), 2600);
-        }
       } else {
         setCombo(0);
         // Active recall / write-it-again (desirable difficulty, Bjork 1994):
@@ -190,16 +176,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 
   return (
     <div style={ov}>
-      {/* Variable ratio bonus pop — Skinner VR schedule: unexpected reward maximises engagement */}
-      {bonus && (
-        <div style={{ position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
-          background: 'linear-gradient(135deg,var(--action),var(--action))', color: '#04070d',
-          fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 18, letterSpacing: '0.12em',
-          padding: '10px 22px', borderRadius: 'var(--r-sm)', boxShadow: '0 0 32px rgba(249,115,22,0.7)',
-          animation: 'rank-pop 0.4s var(--ease-spring)', pointerEvents: 'none' }}>
-          {bonus.label} <span style={{ fontSize: 13 }}>+{bonus.xp} XP</span>
-        </div>
-      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '0.1em',
