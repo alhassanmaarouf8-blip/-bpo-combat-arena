@@ -1,0 +1,3608 @@
+1
+00:00:01,430 --> 00:00:11,700
+<font color="white" size=".72c">[Music]</font>
+
+2
+00:00:08,780 --> 00:00:13,920
+<font color="white" size=".72c">all right hello everyone</font>
+
+3
+00:00:11,700 --> 00:00:17,220
+<font color="white" size=".72c">I've got a lot of content to get through</font>
+
+4
+00:00:13,920 --> 00:00:19,560
+<font color="white" size=".72c">so I'm gonna move fast Buckle in if you</font>
+
+5
+00:00:17,220 --> 00:00:21,300
+<font color="white" size=".72c">are looking for a startup idea right now</font>
+
+6
+00:00:19,560 --> 00:00:22,740
+<font color="white" size=".72c">I'm going to try to help but more</font>
+
+7
+00:00:21,300 --> 00:00:24,779
+<font color="white" size=".72c">importantly I'm going to try to give you</font>
+
+8
+00:00:22,740 --> 00:00:27,180
+<font color="white" size=".72c">the conceptual tools to think about</font>
+
+9
+00:00:24,779 --> 00:00:28,980
+<font color="white" size=".72c">startup ideas in a sophisticated way the</font>
+
+10
+00:00:27,180 --> 00:00:31,859
+<font color="white" size=".72c">way that we think about them at YC</font>
+
+11
+00:00:28,980 --> 00:00:34,380
+<font color="white" size=".72c">here's the thing uh no one not even YC</font>
+
+12
+00:00:31,859 --> 00:00:37,260
+<font color="white" size=".72c">knows for sure which ideas will succeed</font>
+
+13
+00:00:34,380 --> 00:00:38,880
+<font color="white" size=".72c">and in any case if your idea succeeds</font>
+
+14
+00:00:37,260 --> 00:00:41,760
+<font color="white" size=".72c">has much to do with how well you execute</font>
+
+15
+00:00:38,880 --> 00:00:43,980
+<font color="white" size=".72c">as your initial idea anyway but certain</font>
+
+16
+00:00:41,760 --> 00:00:46,739
+<font color="white" size=".72c">ideas are much more likely to succeed</font>
+
+17
+00:00:43,980 --> 00:00:48,960
+<font color="white" size=".72c">than others and so my goal here is to</font>
+
+18
+00:00:46,739 --> 00:00:50,940
+<font color="white" size=".72c">help you stack the deck in your favor by</font>
+
+19
+00:00:48,960 --> 00:00:52,260
+<font color="white" size=".72c">starting with a promising idea the</font>
+
+20
+00:00:50,940 --> 00:00:55,980
+<font color="white" size=".72c">advice in this talk came from several</font>
+
+21
+00:00:52,260 --> 00:00:57,539
+<font color="white" size=".72c">places first I analyzed the top 100 YC</font>
+
+22
+00:00:55,980 --> 00:00:59,940
+<font color="white" size=".72c">companies by evaluation and I looked at</font>
+
+23
+00:00:57,539 --> 00:01:01,800
+<font color="white" size=".72c">how they all got their idea so I started</font>
+
+24
+00:00:59,940 --> 00:01:03,480
+<font color="white" size=".72c">with some hard quantitative data on how</font>
+
+25
+00:01:01,800 --> 00:01:06,299
+<font color="white" size=".72c">recent billion dollar companies actually</font>
+
+26
+00:01:03,480 --> 00:01:08,220
+<font color="white" size=".72c">came up with their idea it also draws on</font>
+
+27
+00:01:06,299 --> 00:01:09,539
+<font color="white" size=".72c">a classic essay by Paul Graham that I</font>
+
+28
+00:01:08,220 --> 00:01:11,340
+<font color="white" size=".72c">really recommend it's called how to get</font>
+
+29
+00:01:09,539 --> 00:01:12,900
+<font color="white" size=".72c">startup ideas</font>
+
+30
+00:01:11,340 --> 00:01:15,060
+<font color="white" size=".72c">um it also comes from helping YC</font>
+
+31
+00:01:12,900 --> 00:01:16,860
+<font color="white" size=".72c">companies that pivot in the middle of</font>
+
+32
+00:01:15,060 --> 00:01:19,320
+<font color="white" size=".72c">the batch and learning over the years</font>
+
+33
+00:01:16,860 --> 00:01:20,939
+<font color="white" size=".72c">what advice helps them to find a new</font>
+
+34
+00:01:19,320 --> 00:01:23,039
+<font color="white" size=".72c">good startup idea</font>
+
+35
+00:01:20,939 --> 00:01:25,080
+<font color="white" size=".72c">and then finally it comes from Reading</font>
+
+36
+00:01:23,039 --> 00:01:27,539
+<font color="white" size=".72c">thousands of YC applications that we</font>
+
+37
+00:01:25,080 --> 00:01:29,340
+<font color="white" size=".72c">rejected and looking at the mistakes</font>
+
+38
+00:01:27,539 --> 00:01:31,320
+<font color="white" size=".72c">that caused good Founders to come up</font>
+
+39
+00:01:29,340 --> 00:01:33,119
+<font color="white" size=".72c">with bad ideas and those are the</font>
+
+40
+00:01:31,320 --> 00:01:35,880
+<font color="white" size=".72c">mistakes I want to help you all avoid</font>
+
+41
+00:01:33,119 --> 00:01:36,960
+<font color="white" size=".72c">this Talk's got three parts first I'm</font>
+
+42
+00:01:35,880 --> 00:01:38,400
+<font color="white" size=".72c">going to tell you the most common</font>
+
+43
+00:01:36,960 --> 00:01:39,240
+<font color="white" size=".72c">mistakes Founders make with startup</font>
+
+44
+00:01:38,400 --> 00:01:40,979
+<font color="white" size=".72c">ideas</font>
+
+45
+00:01:39,240 --> 00:01:42,780
+<font color="white" size=".72c">then I'm going to talk about how to know</font>
+
+46
+00:01:40,979 --> 00:01:45,479
+<font color="white" size=".72c">if your idea is good and then about how</font>
+
+47
+00:01:42,780 --> 00:01:47,280
+<font color="white" size=".72c">to come up with new ones okay the four</font>
+
+48
+00:01:45,479 --> 00:01:49,740
+<font color="white" size=".72c">most common mistakes with startup ideas</font>
+
+49
+00:01:47,280 --> 00:01:51,960
+<font color="white" size=".72c">so the most common mistake is just</font>
+
+50
+00:01:49,740 --> 00:01:54,180
+<font color="white" size=".72c">building something that doesn't solve a</font>
+
+51
+00:01:51,960 --> 00:01:55,500
+<font color="white" size=".72c">real problem for your users typically</font>
+
+52
+00:01:54,180 --> 00:01:57,000
+<font color="white" size=".72c">you can</font>
+
+53
+00:01:55,500 --> 00:01:59,220
+<font color="white" size=".72c">articulate the problem that you're</font>
+
+54
+00:01:57,000 --> 00:02:00,960
+<font color="white" size=".72c">solving you can put it in words but when</font>
+
+55
+00:01:59,220 --> 00:02:03,299
+<font color="white" size=".72c">you actually go and talk to the users</font>
+
+56
+00:02:00,960 --> 00:02:04,439
+<font color="white" size=".72c">it's just not something that they really</font>
+
+57
+00:02:03,299 --> 00:02:06,540
+<font color="white" size=".72c">care about</font>
+
+58
+00:02:04,439 --> 00:02:09,360
+<font color="white" size=".72c">we call it a solution in search of a</font>
+
+59
+00:02:06,540 --> 00:02:11,459
+<font color="white" size=".72c">problem or a cisp</font>
+
+60
+00:02:09,360 --> 00:02:13,440
+<font color="white" size=".72c">let's go through an example so a lot of</font>
+
+61
+00:02:11,459 --> 00:02:16,739
+<font color="white" size=".72c">Founders come up with an idea with this</font>
+
+62
+00:02:13,440 --> 00:02:20,220
+<font color="white" size=".72c">kind of thought process they go hmm AI</font>
+
+63
+00:02:16,739 --> 00:02:21,900
+<font color="white" size=".72c">is cool what could I apply AI to</font>
+
+64
+00:02:20,220 --> 00:02:24,000
+<font color="white" size=".72c">and then they go look for a problem that</font>
+
+65
+00:02:21,900 --> 00:02:25,739
+<font color="white" size=".72c">they could solve with AI That's a</font>
+
+66
+00:02:24,000 --> 00:02:27,660
+<font color="white" size=".72c">solution in search of a problem and the</font>
+
+67
+00:02:25,739 --> 00:02:30,000
+<font color="white" size=".72c">reason it's dangerous is that if you do</font>
+
+68
+00:02:27,660 --> 00:02:31,680
+<font color="white" size=".72c">that you'll probably find a problem but</font>
+
+69
+00:02:30,000 --> 00:02:33,599
+<font color="white" size=".72c">it will it will be a superficially</font>
+
+70
+00:02:31,680 --> 00:02:35,160
+<font color="white" size=".72c">plausible problem it'll be a made-up</font>
+
+71
+00:02:33,599 --> 00:02:37,319
+<font color="white" size=".72c">problem that people don't really care</font>
+
+72
+00:02:35,160 --> 00:02:39,180
+<font color="white" size=".72c">about rather than a real problem that</font>
+
+73
+00:02:37,319 --> 00:02:40,920
+<font color="white" size=".72c">people actually care about</font>
+
+74
+00:02:39,180 --> 00:02:43,019
+<font color="white" size=".72c">and if people don't really care about</font>
+
+75
+00:02:40,920 --> 00:02:45,900
+<font color="white" size=".72c">the problem they won't really care about</font>
+
+76
+00:02:43,019 --> 00:02:48,360
+<font color="white" size=".72c">your solution so instead you want to</font>
+
+77
+00:02:45,900 --> 00:02:50,819
+<font color="white" size=".72c">fall in love with a problem</font>
+
+78
+00:02:48,360 --> 00:02:53,519
+<font color="white" size=".72c">the best way to find a startup idea is</font>
+
+79
+00:02:50,819 --> 00:02:55,319
+<font color="white" size=".72c">to start with a high quality problem now</font>
+
+80
+00:02:53,519 --> 00:02:58,200
+<font color="white" size=".72c">Sunrise Founders hear this and they</font>
+
+81
+00:02:55,319 --> 00:03:00,000
+<font color="white" size=".72c">decide to interpret that as guidance to</font>
+
+82
+00:02:58,200 --> 00:03:02,580
+<font color="white" size=".72c">work on some like huge societal problem</font>
+
+83
+00:03:00,000 --> 00:03:03,420
+<font color="white" size=".72c">like I don't know Global poverty or</font>
+
+84
+00:03:02,580 --> 00:03:05,760
+<font color="white" size=".72c">something</font>
+
+85
+00:03:03,420 --> 00:03:07,319
+<font color="white" size=".72c">um no doubt those are real problems but</font>
+
+86
+00:03:05,760 --> 00:03:08,640
+<font color="white" size=".72c">they're they're too abstract to make</font>
+
+87
+00:03:07,319 --> 00:03:10,319
+<font color="white" size=".72c">good starting points for startup ideas</font>
+
+88
+00:03:08,640 --> 00:03:11,640
+<font color="white" size=".72c">you need something that's more specific</font>
+
+89
+00:03:10,319 --> 00:03:13,200
+<font color="white" size=".72c">something that's tractable with a</font>
+
+90
+00:03:11,640 --> 00:03:16,280
+<font color="white" size=".72c">startup the next mistake is getting</font>
+
+91
+00:03:13,200 --> 00:03:19,739
+<font color="white" size=".72c">stuck on what we call tar pit ideas</font>
+
+92
+00:03:16,280 --> 00:03:22,140
+<font color="white" size=".72c">what's a tar pit idea so there's this</font>
+
+93
+00:03:19,739 --> 00:03:24,239
+<font color="white" size=".72c">certain set of common startup ideas that</font>
+
+94
+00:03:22,140 --> 00:03:26,879
+<font color="white" size=".72c">have been around for forever they have</font>
+
+95
+00:03:24,239 --> 00:03:29,159
+<font color="white" size=".72c">been applying inroves to YC batch after</font>
+
+96
+00:03:26,879 --> 00:03:31,260
+<font color="white" size=".72c">batch for years and when founders start</font>
+
+97
+00:03:29,159 --> 00:03:33,060
+<font color="white" size=".72c">working on these ideas it's like they've</font>
+
+98
+00:03:31,260 --> 00:03:35,340
+<font color="white" size=".72c">gotten stuck in tar they never seem to</font>
+
+99
+00:03:33,060 --> 00:03:37,980
+<font color="white" size=".72c">go anywhere so we call them tar pit</font>
+
+100
+00:03:35,340 --> 00:03:40,079
+<font color="white" size=".72c">ideas here's what causes tarpet ideas</font>
+
+101
+00:03:37,980 --> 00:03:41,879
+<font color="white" size=".72c">they all form around some like</font>
+
+102
+00:03:40,079 --> 00:03:44,280
+<font color="white" size=".72c">widespread problem that lots of</font>
+
+103
+00:03:41,879 --> 00:03:46,440
+<font color="white" size=".72c">potential Founders encounter and it's a</font>
+
+104
+00:03:44,280 --> 00:03:48,000
+<font color="white" size=".72c">problem it seems like it could be easily</font>
+
+105
+00:03:46,440 --> 00:03:50,459
+<font color="white" size=".72c">solved with a startup but it's an</font>
+
+106
+00:03:48,000 --> 00:03:52,860
+<font color="white" size=".72c">illusion there's actually a structural</font>
+
+107
+00:03:50,459 --> 00:03:54,900
+<font color="white" size=".72c">reason why it's very hard or impossible</font>
+
+108
+00:03:52,860 --> 00:03:56,879
+<font color="white" size=".72c">to solve which is why after all these</font>
+
+109
+00:03:54,900 --> 00:03:58,620
+<font color="white" size=".72c">years no one has solved it</font>
+
+110
+00:03:56,879 --> 00:04:00,480
+<font color="white" size=".72c">and you can see why ideas like this</font>
+
+111
+00:03:58,620 --> 00:04:02,280
+<font color="white" size=".72c">would be so dangerous why they will</font>
+
+112
+00:04:00,480 --> 00:04:04,019
+<font color="white" size=".72c">cause so many Founders to waste months</font>
+
+113
+00:04:02,280 --> 00:04:05,819
+<font color="white" size=".72c">of their life stuck on a tarpet like</font>
+
+114
+00:04:04,019 --> 00:04:07,200
+<font color="white" size=".72c">they're very tantalizing from a distance</font>
+
+115
+00:04:05,819 --> 00:04:09,299
+<font color="white" size=".72c">because they're so superficially</font>
+
+116
+00:04:07,200 --> 00:04:11,159
+<font color="white" size=".72c">plausible as startup ideas here's a</font>
+
+117
+00:04:09,299 --> 00:04:12,900
+<font color="white" size=".72c">concrete example this is a very common</font>
+
+118
+00:04:11,159 --> 00:04:14,819
+<font color="white" size=".72c">tarpet idea that's been applied to YC</font>
+
+119
+00:04:12,900 --> 00:04:17,100
+<font color="white" size=".72c">for like 20 years this is like the</font>
+
+120
+00:04:14,819 --> 00:04:19,858
+<font color="white" size=".72c">stereotypical college student idea and</font>
+
+121
+00:04:17,100 --> 00:04:22,560
+<font color="white" size=".72c">it goes like this you think</font>
+
+122
+00:04:19,858 --> 00:04:24,720
+<font color="white" size=".72c">man every Friday or Saturday Saturday</font>
+
+123
+00:04:22,560 --> 00:04:26,580
+<font color="white" size=".72c">night when I'm making plans to meet up</font>
+
+124
+00:04:24,720 --> 00:04:28,620
+<font color="white" size=".72c">with my friends it's so inefficient I'm</font>
+
+125
+00:04:26,580 --> 00:04:30,600
+<font color="white" size=".72c">in all these different text threads and</font>
+
+126
+00:04:28,620 --> 00:04:32,220
+<font color="white" size=".72c">chat groups and we're like trying to</font>
+
+127
+00:04:30,600 --> 00:04:34,199
+<font color="white" size=".72c">make plans to meet up I'm just going to</font>
+
+128
+00:04:32,220 --> 00:04:35,699
+<font color="white" size=".72c">make an app to make it more efficient</font>
+
+129
+00:04:34,199 --> 00:04:37,919
+<font color="white" size=".72c">Well turns out that there are some</font>
+
+130
+00:04:35,699 --> 00:04:40,020
+<font color="white" size=".72c">structural reasons why this idea is hard</font>
+
+131
+00:04:37,919 --> 00:04:42,120
+<font color="white" size=".72c">which is why in like 20 years of people</font>
+
+132
+00:04:40,020 --> 00:04:44,280
+<font color="white" size=".72c">applying to YC with this idea nobody has</font>
+
+133
+00:04:42,120 --> 00:04:45,960
+<font color="white" size=".72c">actually pulled it off you can see why</font>
+
+134
+00:04:44,280 --> 00:04:47,759
+<font color="white" size=".72c">so many people have been attracted to it</font>
+
+135
+00:04:45,960 --> 00:04:49,860
+<font color="white" size=".72c">it's like it's a problem that almost</font>
+
+136
+00:04:47,759 --> 00:04:51,419
+<font color="white" size=".72c">everyone encounters at some point and it</font>
+
+137
+00:04:49,860 --> 00:04:52,800
+<font color="white" size=".72c">seems like it would be so easy to solve</font>
+
+138
+00:04:51,419 --> 00:04:54,540
+<font color="white" size=".72c">like you can just imagine the app it's</font>
+
+139
+00:04:52,800 --> 00:04:55,979
+<font color="white" size=".72c">just got like a list of events and you</font>
+
+140
+00:04:54,540 --> 00:04:58,020
+<font color="white" size=".72c">invite friends to it like it seems so</font>
+
+141
+00:04:55,979 --> 00:05:00,360
+<font color="white" size=".72c">simple the thing about tarpet ideas is</font>
+
+142
+00:04:58,020 --> 00:05:02,520
+<font color="white" size=".72c">that they are not necessarily impossible</font>
+
+143
+00:05:00,360 --> 00:05:04,320
+<font color="white" size=".72c">like I'm even open-minded that somebody</font>
+
+144
+00:05:02,520 --> 00:05:06,020
+<font color="white" size=".72c">will eventually make the like app to</font>
+
+145
+00:05:04,320 --> 00:05:08,759
+<font color="white" size=".72c">meet up with your friends idea of work</font>
+
+146
+00:05:06,020 --> 00:05:11,340
+<font color="white" size=".72c">is more accurate to think of them as</font>
+
+147
+00:05:08,759 --> 00:05:13,500
+<font color="white" size=".72c">common ideas that are much harder than</font>
+
+148
+00:05:11,340 --> 00:05:15,600
+<font color="white" size=".72c">they seem</font>
+
+149
+00:05:13,500 --> 00:05:19,500
+<font color="white" size=".72c">so if you want to work on one</font>
+
+150
+00:05:15,600 --> 00:05:21,419
+<font color="white" size=".72c">um here's my advice first Google it it's</font>
+
+151
+00:05:19,500 --> 00:05:23,220
+<font color="white" size=".72c">amazing how many Founders skip the step</font>
+
+152
+00:05:21,419 --> 00:05:25,020
+<font color="white" size=".72c">of just like Googling for their own</font>
+
+153
+00:05:23,220 --> 00:05:27,780
+<font color="white" size=".72c">startup idea to see who has worked on it</font>
+
+154
+00:05:25,020 --> 00:05:29,639
+<font color="white" size=".72c">in the past you should find who's worked</font>
+
+155
+00:05:27,780 --> 00:05:32,580
+<font color="white" size=".72c">on this in the past and actually talk to</font>
+
+156
+00:05:29,639 --> 00:05:35,880
+<font color="white" size=".72c">them if you can try to figure out what</font>
+
+157
+00:05:32,580 --> 00:05:37,800
+<font color="white" size=".72c">the hard part of this idea is that has</font>
+
+158
+00:05:35,880 --> 00:05:39,860
+<font color="white" size=".72c">caused other people to not be able to</font>
+
+159
+00:05:37,800 --> 00:05:43,139
+<font color="white" size=".72c">solve it yet the next mistake is simple</font>
+
+160
+00:05:39,860 --> 00:05:44,699
+<font color="white" size=".72c">it is amazing how many Founders will</font>
+
+161
+00:05:43,139 --> 00:05:46,800
+<font color="white" size=".72c">basically just like jump into the first</font>
+
+162
+00:05:44,699 --> 00:05:48,479
+<font color="white" size=".72c">idea they have without even stopping to</font>
+
+163
+00:05:46,800 --> 00:05:49,800
+<font color="white" size=".72c">consider whether it would actually make</font>
+
+164
+00:05:48,479 --> 00:05:52,320
+<font color="white" size=".72c">a good business</font>
+
+165
+00:05:49,800 --> 00:05:54,120
+<font color="white" size=".72c">but more dangerous is the founders on</font>
+
+166
+00:05:52,320 --> 00:05:55,380
+<font color="white" size=".72c">the opposite side of the spectrum who</font>
+
+167
+00:05:54,120 --> 00:05:57,840
+<font color="white" size=".72c">sit around waiting for the perfect</font>
+
+168
+00:05:55,380 --> 00:05:59,159
+<font color="white" size=".72c">startup idea and of course there is no</font>
+
+169
+00:05:57,840 --> 00:06:00,900
+<font color="white" size=".72c">such thing so these people just never</font>
+
+170
+00:05:59,159 --> 00:06:02,220
+<font color="white" size=".72c">actually start a company so if you</font>
+
+171
+00:06:00,900 --> 00:06:04,020
+<font color="white" size=".72c">imagine that there's like a spectrum</font>
+
+172
+00:06:02,220 --> 00:06:05,940
+<font color="white" size=".72c">between picking the first idea that</font>
+
+173
+00:06:04,020 --> 00:06:08,160
+<font color="white" size=".72c">comes to mind and waiting for the</font>
+
+174
+00:06:05,940 --> 00:06:09,600
+<font color="white" size=".72c">perfect idea and you know somewhere in</font>
+
+175
+00:06:08,160 --> 00:06:11,280
+<font color="white" size=".72c">the middle there is this like happy</font>
+
+176
+00:06:09,600 --> 00:06:13,560
+<font color="white" size=".72c">place which is the place that you want</font>
+
+177
+00:06:11,280 --> 00:06:15,780
+<font color="white" size=".72c">to be right and the way that Paul Graham</font>
+
+178
+00:06:13,560 --> 00:06:19,020
+<font color="white" size=".72c">put this is that you should think of</font>
+
+179
+00:06:15,780 --> 00:06:21,060
+<font color="white" size=".72c">your idea as a good starting point</font>
+
+180
+00:06:19,020 --> 00:06:22,259
+<font color="white" size=".72c">new startup idea is perfect and no</font>
+
+181
+00:06:21,060 --> 00:06:24,120
+<font color="white" size=".72c">matter what you start with it's probably</font>
+
+182
+00:06:22,259 --> 00:06:26,400
+<font color="white" size=".72c">going to morph anyway so you just want</font>
+
+183
+00:06:24,120 --> 00:06:29,039
+<font color="white" size=".72c">to have an initial idea that has enough</font>
+
+184
+00:06:26,400 --> 00:06:30,840
+<font color="white" size=".72c">interesting qualities that can morph in</font>
+
+185
+00:06:29,039 --> 00:06:32,759
+<font color="white" size=".72c">the right direction so now suppose you</font>
+
+186
+00:06:30,840 --> 00:06:34,800
+<font color="white" size=".72c">have a startup idea and you want to know</font>
+
+187
+00:06:32,759 --> 00:06:37,080
+<font color="white" size=".72c">if it's good I'm going to give you a</font>
+
+188
+00:06:34,800 --> 00:06:39,479
+<font color="white" size=".72c">framework for this and the format of the</font>
+
+189
+00:06:37,080 --> 00:06:41,819
+<font color="white" size=".72c">framework is 10 key questions to ask</font>
+
+190
+00:06:39,479 --> 00:06:44,520
+<font color="white" size=".72c">about any startup idea so the first one</font>
+
+191
+00:06:41,819 --> 00:06:46,500
+<font color="white" size=".72c">is do you have founder market fit if I</font>
+
+192
+00:06:44,520 --> 00:06:48,659
+<font color="white" size=".72c">depict like one most important criteria</font>
+
+193
+00:06:46,500 --> 00:06:50,639
+<font color="white" size=".72c">it'd probably be this one and what I</font>
+
+194
+00:06:48,659 --> 00:06:52,620
+<font color="white" size=".72c">mean by founder market fit is just are</font>
+
+195
+00:06:50,639 --> 00:06:53,759
+<font color="white" size=".72c">you the right team to be working on this</font>
+
+196
+00:06:52,620 --> 00:06:56,100
+<font color="white" size=".72c">idea</font>
+
+197
+00:06:53,759 --> 00:06:58,440
+<font color="white" size=".72c">and a great example of what good founder</font>
+
+198
+00:06:56,100 --> 00:07:01,139
+<font color="white" size=".72c">market fit looks like is plan grid so</font>
+
+199
+00:06:58,440 --> 00:07:03,600
+<font color="white" size=".72c">plan grid makes an iPad app to view</font>
+
+200
+00:07:01,139 --> 00:07:05,520
+<font color="white" size=".72c">construction Blueprints and to the</font>
+
+201
+00:07:03,600 --> 00:07:08,460
+<font color="white" size=".72c">founders of plan grid were Tracy and</font>
+
+202
+00:07:05,520 --> 00:07:09,840
+<font color="white" size=".72c">Ralph and Tracy had worked in the</font>
+
+203
+00:07:08,460 --> 00:07:12,180
+<font color="white" size=".72c">construction industry and she knew a lot</font>
+
+204
+00:07:09,840 --> 00:07:14,039
+<font color="white" size=".72c">about construction and Ralph was an</font>
+
+205
+00:07:12,180 --> 00:07:15,900
+<font color="white" size=".72c">awesome developer who was like the</font>
+
+206
+00:07:14,039 --> 00:07:17,639
+<font color="white" size=".72c">perfect person to build this iPad out if</font>
+
+207
+00:07:15,900 --> 00:07:19,620
+<font color="white" size=".72c">you're going to imagine a team to start</font>
+
+208
+00:07:17,639 --> 00:07:21,060
+<font color="white" size=".72c">playing grid the team that you would</font>
+
+209
+00:07:19,620 --> 00:07:22,800
+<font color="white" size=".72c">imagine would look you know something</font>
+
+210
+00:07:21,060 --> 00:07:24,479
+<font color="white" size=".72c">like that and that's what good founder</font>
+
+211
+00:07:22,800 --> 00:07:26,039
+<font color="white" size=".72c">market fit looks like it's like this</font>
+
+212
+00:07:24,479 --> 00:07:28,139
+<font color="white" size=".72c">team is obviously the right team to work</font>
+
+213
+00:07:26,039 --> 00:07:30,000
+<font color="white" size=".72c">on the idea in fact founder market fit</font>
+
+214
+00:07:28,139 --> 00:07:33,780
+<font color="white" size=".72c">is so important</font>
+
+215
+00:07:30,000 --> 00:07:36,539
+<font color="white" size=".72c">that I would recast your search for a</font>
+
+216
+00:07:33,780 --> 00:07:39,720
+<font color="white" size=".72c">startup idea when most people go to pick</font>
+
+217
+00:07:36,539 --> 00:07:42,300
+<font color="white" size=".72c">a startup idea they try to look for a</font>
+
+218
+00:07:39,720 --> 00:07:44,340
+<font color="white" size=".72c">good startup idea like in the abstract</font>
+
+219
+00:07:42,300 --> 00:07:46,680
+<font color="white" size=".72c">and instead I would think about this</font>
+
+220
+00:07:44,340 --> 00:07:49,800
+<font color="white" size=".72c">exercise as an exercise to pick a good</font>
+
+221
+00:07:46,680 --> 00:07:51,479
+<font color="white" size=".72c">idea for your team you with me it</font>
+
+222
+00:07:49,800 --> 00:07:53,639
+<font color="white" size=".72c">doesn't matter if something is a good</font>
+
+223
+00:07:51,479 --> 00:07:56,039
+<font color="white" size=".72c">startup idea for someone else if it's</font>
+
+224
+00:07:53,639 --> 00:07:58,139
+<font color="white" size=".72c">not a good idea for your team so you may</font>
+
+225
+00:07:56,039 --> 00:07:59,819
+<font color="white" size=".72c">as well just look for ideas that you</font>
+
+226
+00:07:58,139 --> 00:08:01,319
+<font color="white" size=".72c">would actually be good at executing okay</font>
+
+227
+00:07:59,819 --> 00:08:03,479
+<font color="white" size=".72c">number two how big is the market</font>
+
+228
+00:08:01,319 --> 00:08:04,919
+<font color="white" size=".72c">obviously you need a big Market which</font>
+
+229
+00:08:03,479 --> 00:08:07,800
+<font color="white" size=".72c">for startups typically means like a</font>
+
+230
+00:08:04,919 --> 00:08:09,780
+<font color="white" size=".72c">billion dollar market but actually less</font>
+
+231
+00:08:07,800 --> 00:08:11,460
+<font color="white" size=".72c">obviously there are two kinds of markets</font>
+
+232
+00:08:09,780 --> 00:08:13,500
+<font color="white" size=".72c">for startups that are good</font>
+
+233
+00:08:11,460 --> 00:08:15,840
+<font color="white" size=".72c">um ones that are big now and ones that</font>
+
+234
+00:08:13,500 --> 00:08:17,819
+<font color="white" size=".72c">are small but rapidly growing</font>
+
+235
+00:08:15,840 --> 00:08:20,039
+<font color="white" size=".72c">and an example of the second one is</font>
+
+236
+00:08:17,819 --> 00:08:22,440
+<font color="white" size=".72c">coinbase so when coinbase got started in</font>
+
+237
+00:08:20,039 --> 00:08:24,960
+<font color="white" size=".72c">2012 the Bitcoin trading Market was</font>
+
+238
+00:08:22,440 --> 00:08:27,300
+<font color="white" size=".72c">minuscule but even at that time it was</font>
+
+239
+00:08:24,960 --> 00:08:29,039
+<font color="white" size=".72c">pretty obvious that if Bitcoin succeeded</font>
+
+240
+00:08:27,300 --> 00:08:30,300
+<font color="white" size=".72c">the way people hoped that it would that</font>
+
+241
+00:08:29,039 --> 00:08:31,259
+<font color="white" size=".72c">this would eventually be a billion</font>
+
+242
+00:08:30,300 --> 00:08:34,559
+<font color="white" size=".72c">dollar market</font>
+
+243
+00:08:31,259 --> 00:08:36,299
+<font color="white" size=".72c">number three how acute is this problem</font>
+
+244
+00:08:34,559 --> 00:08:38,338
+<font color="white" size=".72c">so as I said earlier the most common</font>
+
+245
+00:08:36,299 --> 00:08:39,899
+<font color="white" size=".72c">mistake is just like working on</font>
+
+246
+00:08:38,338 --> 00:08:41,760
+<font color="white" size=".72c">something that just isn't really a</font>
+
+247
+00:08:39,899 --> 00:08:43,919
+<font color="white" size=".72c">problem or it's just not a problem that</font>
+
+248
+00:08:41,760 --> 00:08:45,720
+<font color="white" size=".72c">people care enough about</font>
+
+249
+00:08:43,919 --> 00:08:47,700
+<font color="white" size=".72c">um here's an example of the opposite</font>
+
+250
+00:08:45,720 --> 00:08:50,160
+<font color="white" size=".72c">here's an example of what a good problem</font>
+
+251
+00:08:47,700 --> 00:08:53,880
+<font color="white" size=".72c">looks like Rex</font>
+
+252
+00:08:50,160 --> 00:08:55,800
+<font color="white" size=".72c">so Brax from Winter 2017 makes a credit</font>
+
+253
+00:08:53,880 --> 00:08:58,740
+<font color="white" size=".72c">card for startups</font>
+
+254
+00:08:55,800 --> 00:09:00,720
+<font color="white" size=".72c">and before brex if a startup NYC wanted</font>
+
+255
+00:08:58,740 --> 00:09:02,640
+<font color="white" size=".72c">a corporate credit card they literally</font>
+
+256
+00:09:00,720 --> 00:09:05,220
+<font color="white" size=".72c">could not get one because a no bank</font>
+
+257
+00:09:02,640 --> 00:09:07,320
+<font color="white" size=".72c">would give a credit card to a startup</font>
+
+258
+00:09:05,220 --> 00:09:09,060
+<font color="white" size=".72c">that's a good problem like if you're if</font>
+
+259
+00:09:07,320 --> 00:09:10,800
+<font color="white" size=".72c">the alternative to your solution is</font>
+
+260
+00:09:09,060 --> 00:09:13,080
+<font color="white" size=".72c">literally nothing that's what a good</font>
+
+261
+00:09:10,800 --> 00:09:14,700
+<font color="white" size=".72c">problem looks like okay next do you have</font>
+
+262
+00:09:13,080 --> 00:09:16,560
+<font color="white" size=".72c">competition</font>
+
+263
+00:09:14,700 --> 00:09:18,660
+<font color="white" size=".72c">now most Founders think that if you have</font>
+
+264
+00:09:16,560 --> 00:09:21,779
+<font color="white" size=".72c">competition that that's bad but</font>
+
+265
+00:09:18,660 --> 00:09:24,480
+<font color="white" size=".72c">counter-intuitively it is the opposite</font>
+
+266
+00:09:21,779 --> 00:09:26,339
+<font color="white" size=".72c">most good startup ideas have competition</font>
+
+267
+00:09:24,480 --> 00:09:28,800
+<font color="white" size=".72c">but if you were going up against</font>
+
+268
+00:09:26,339 --> 00:09:31,560
+<font color="white" size=".72c">especially entrenched competition you</font>
+
+269
+00:09:28,800 --> 00:09:34,440
+<font color="white" size=".72c">typically need a new insight next one is</font>
+
+270
+00:09:31,560 --> 00:09:36,720
+<font color="white" size=".72c">like do you want this personally</font>
+
+271
+00:09:34,440 --> 00:09:39,720
+<font color="white" size=".72c">do you know people personally who want</font>
+
+272
+00:09:36,720 --> 00:09:41,820
+<font color="white" size=".72c">this it's amazing how often people start</font>
+
+273
+00:09:39,720 --> 00:09:44,760
+<font color="white" size=".72c">companies where the answer to both these</font>
+
+274
+00:09:41,820 --> 00:09:46,200
+<font color="white" size=".72c">questions is no if that's the case you</font>
+
+275
+00:09:44,760 --> 00:09:48,420
+<font color="white" size=".72c">definitely got to worry that you know</font>
+
+276
+00:09:46,200 --> 00:09:51,000
+<font color="white" size=".72c">maybe nobody wants this so definitely</font>
+
+277
+00:09:48,420 --> 00:09:53,700
+<font color="white" size=".72c">time to go talk to some users</font>
+
+278
+00:09:51,000 --> 00:09:55,740
+<font color="white" size=".72c">only recently become possible or only</font>
+
+279
+00:09:53,700 --> 00:09:57,959
+<font color="white" size=".72c">recently become necessary</font>
+
+280
+00:09:55,740 --> 00:10:00,540
+<font color="white" size=".72c">so something has recently changed in the</font>
+
+281
+00:09:57,959 --> 00:10:04,140
+<font color="white" size=".72c">world like a new technology regulatory</font>
+
+282
+00:10:00,540 --> 00:10:06,839
+<font color="white" size=".72c">change or a new problem that is often</font>
+
+283
+00:10:04,140 --> 00:10:08,700
+<font color="white" size=".72c">what creates a new opportunity</font>
+
+284
+00:10:06,839 --> 00:10:10,800
+<font color="white" size=".72c">and a great example of this is company</font>
+
+285
+00:10:08,700 --> 00:10:14,519
+<font color="white" size=".72c">called Checker which does background</font>
+
+286
+00:10:10,800 --> 00:10:16,800
+<font color="white" size=".72c">checks via VIA an API so it's an API for</font>
+
+287
+00:10:14,519 --> 00:10:20,220
+<font color="white" size=".72c">doing background checks on people and</font>
+
+288
+00:10:16,800 --> 00:10:23,100
+<font color="white" size=".72c">roughly the story of Checker is delivery</font>
+
+289
+00:10:20,220 --> 00:10:25,140
+<font color="white" size=".72c">services like doordash and instacart and</font>
+
+290
+00:10:23,100 --> 00:10:27,660
+<font color="white" size=".72c">Uber started to take off</font>
+
+291
+00:10:25,140 --> 00:10:29,220
+<font color="white" size=".72c">and they were all hiring huge pools of</font>
+
+292
+00:10:27,660 --> 00:10:30,959
+<font color="white" size=".72c">delivery people and workers and they</font>
+
+293
+00:10:29,220 --> 00:10:33,420
+<font color="white" size=".72c">needed to run background checks on all</font>
+
+294
+00:10:30,959 --> 00:10:35,640
+<font color="white" size=".72c">of these people and there were at the</font>
+
+295
+00:10:33,420 --> 00:10:37,320
+<font color="white" size=".72c">time already a bunch of large existing</font>
+
+296
+00:10:35,640 --> 00:10:39,120
+<font color="white" size=".72c">companies that run background checks but</font>
+
+297
+00:10:37,320 --> 00:10:42,540
+<font color="white" size=".72c">they weren't well suited for this very</font>
+
+298
+00:10:39,120 --> 00:10:44,820
+<font color="white" size=".72c">new use case and that is like exactly</font>
+
+299
+00:10:42,540 --> 00:10:47,040
+<font color="white" size=".72c">the kind of change in the world that</font>
+
+300
+00:10:44,820 --> 00:10:48,899
+<font color="white" size=".72c">creates a new opportunity let's talk</font>
+
+301
+00:10:47,040 --> 00:10:52,560
+<font color="white" size=".72c">about proxies</font>
+
+302
+00:10:48,899 --> 00:10:54,779
+<font color="white" size=".72c">so a proxy is a large company that does</font>
+
+303
+00:10:52,560 --> 00:10:56,820
+<font color="white" size=".72c">something similar to your startup but it</font>
+
+304
+00:10:54,779 --> 00:10:58,800
+<font color="white" size=".72c">is not a direct competitor</font>
+
+305
+00:10:56,820 --> 00:11:00,540
+<font color="white" size=".72c">and so um</font>
+
+306
+00:10:58,800 --> 00:11:02,160
+<font color="white" size=".72c">a good example of this in practice is a</font>
+
+307
+00:11:00,540 --> 00:11:04,200
+<font color="white" size=".72c">company called rapid which does food</font>
+
+308
+00:11:02,160 --> 00:11:06,000
+<font color="white" size=".72c">delivery in Latin America and when</font>
+
+309
+00:11:04,200 --> 00:11:07,560
+<font color="white" size=".72c">rapping got started there were already a</font>
+
+310
+00:11:06,000 --> 00:11:09,000
+<font color="white" size=".72c">few delivery companies in other parts of</font>
+
+311
+00:11:07,560 --> 00:11:11,279
+<font color="white" size=".72c">the world like doordash they're doing</font>
+
+312
+00:11:09,000 --> 00:11:14,100
+<font color="white" size=".72c">very well they just hadn't caught on in</font>
+
+313
+00:11:11,279 --> 00:11:16,019
+<font color="white" size=".72c">Latin America yet and so doordash was a</font>
+
+314
+00:11:14,100 --> 00:11:17,220
+<font color="white" size=".72c">great proxy to show that this idea of</font>
+
+315
+00:11:16,019 --> 00:11:19,620
+<font color="white" size=".72c">doing food delivery in Latin America</font>
+
+316
+00:11:17,220 --> 00:11:22,320
+<font color="white" size=".72c">would probably work is this an idea</font>
+
+317
+00:11:19,620 --> 00:11:24,540
+<font color="white" size=".72c">you'd want to work on for years but this</font>
+
+318
+00:11:22,320 --> 00:11:26,220
+<font color="white" size=".72c">is a tricky one like sure if the answer</font>
+
+319
+00:11:24,540 --> 00:11:29,220
+<font color="white" size=".72c">to this question is yes that's a good</font>
+
+320
+00:11:26,220 --> 00:11:32,160
+<font color="white" size=".72c">sign but often it's not often an idea</font>
+
+321
+00:11:29,220 --> 00:11:34,320
+<font color="white" size=".72c">grows on Founders over time as it starts</font>
+
+322
+00:11:32,160 --> 00:11:35,820
+<font color="white" size=".72c">to work as I'm going to talk about in a</font>
+
+323
+00:11:34,320 --> 00:11:39,060
+<font color="white" size=".72c">moment a lot of the best startup ideas</font>
+
+324
+00:11:35,820 --> 00:11:40,680
+<font color="white" size=".72c">are in boring spaces like tax accounting</font>
+
+325
+00:11:39,060 --> 00:11:41,820
+<font color="white" size=".72c">software or something like that like no</font>
+
+326
+00:11:40,680 --> 00:11:44,640
+<font color="white" size=".72c">one is particularly passionate about</font>
+
+327
+00:11:41,820 --> 00:11:46,740
+<font color="white" size=".72c">like nobody starts off being passionate</font>
+
+328
+00:11:44,640 --> 00:11:48,420
+<font color="white" size=".72c">about tax accounting software</font>
+
+329
+00:11:46,740 --> 00:11:50,100
+<font color="white" size=".72c">um but tax accounting software is</font>
+
+330
+00:11:48,420 --> 00:11:52,079
+<font color="white" size=".72c">probably a good business and if you're</font>
+
+331
+00:11:50,100 --> 00:11:54,420
+<font color="white" size=".72c">actually running a successful business</font>
+
+332
+00:11:52,079 --> 00:11:57,000
+<font color="white" size=".72c">you tend to become passionate about it</font>
+
+333
+00:11:54,420 --> 00:11:57,899
+<font color="white" size=".72c">over time okay is this a scalable</font>
+
+334
+00:11:57,000 --> 00:12:00,000
+<font color="white" size=".72c">business</font>
+
+335
+00:11:57,899 --> 00:12:01,560
+<font color="white" size=".72c">so if you're building pure software the</font>
+
+336
+00:12:00,000 --> 00:12:03,060
+<font color="white" size=".72c">answer is yes because software skills</font>
+
+337
+00:12:01,560 --> 00:12:04,800
+<font color="white" size=".72c">infinitely and you can just like check</font>
+
+338
+00:12:03,060 --> 00:12:06,600
+<font color="white" size=".72c">this one off</font>
+
+339
+00:12:04,800 --> 00:12:08,279
+<font color="white" size=".72c">um the place for Founders most often get</font>
+
+340
+00:12:06,600 --> 00:12:10,980
+<font color="white" size=".72c">into trouble here is with Services</font>
+
+341
+00:12:08,279 --> 00:12:12,839
+<font color="white" size=".72c">businesses like agencies or Dev shops</font>
+
+342
+00:12:10,980 --> 00:12:14,579
+<font color="white" size=".72c">anything that requires like high skill</font>
+
+343
+00:12:12,839 --> 00:12:17,160
+<font color="white" size=".72c">human labor in order to serve your</font>
+
+344
+00:12:14,579 --> 00:12:20,459
+<font color="white" size=".72c">customers okay and my last question is</font>
+
+345
+00:12:17,160 --> 00:12:22,320
+<font color="white" size=".72c">is this a good idea space which of</font>
+
+346
+00:12:20,459 --> 00:12:24,540
+<font color="white" size=".72c">course means I need to tell you what an</font>
+
+347
+00:12:22,320 --> 00:12:26,040
+<font color="white" size=".72c">idea space is this is a concept from my</font>
+
+348
+00:12:24,540 --> 00:12:27,779
+<font color="white" size=".72c">colleague Dalton who you'll hear from</font>
+
+349
+00:12:26,040 --> 00:12:30,839
+<font color="white" size=".72c">later in this course</font>
+
+350
+00:12:27,779 --> 00:12:32,519
+<font color="white" size=".72c">an idea space is like one level of</font>
+
+351
+00:12:30,839 --> 00:12:35,160
+<font color="white" size=".72c">abstraction out from a particular</font>
+
+352
+00:12:32,519 --> 00:12:37,140
+<font color="white" size=".72c">startup idea it is a class of closely</font>
+
+353
+00:12:35,160 --> 00:12:40,200
+<font color="white" size=".72c">related startup ideas</font>
+
+354
+00:12:37,140 --> 00:12:42,240
+<font color="white" size=".72c">like software for hospitals or</font>
+
+355
+00:12:40,200 --> 00:12:45,660
+<font color="white" size=".72c">infrastructure monitoring tools or food</font>
+
+356
+00:12:42,240 --> 00:12:48,060
+<font color="white" size=".72c">delivery services and here's the thing</font>
+
+357
+00:12:45,660 --> 00:12:49,700
+<font color="white" size=".72c">different idea spaces have wildly</font>
+
+358
+00:12:48,060 --> 00:12:52,500
+<font color="white" size=".72c">different hit rates</font>
+
+359
+00:12:49,700 --> 00:12:54,600
+<font color="white" size=".72c">over the last 10 years if you started a</font>
+
+360
+00:12:52,500 --> 00:12:57,060
+<font color="white" size=".72c">company that did like fintech</font>
+
+361
+00:12:54,600 --> 00:12:59,700
+<font color="white" size=".72c">infrastructure or vertical SAS for</font>
+
+362
+00:12:57,060 --> 00:13:01,440
+<font color="white" size=".72c">Enterprise the the probability that your</font>
+
+363
+00:12:59,700 --> 00:13:03,660
+<font color="white" size=".72c">company became a billion dollar company</font>
+
+364
+00:13:01,440 --> 00:13:05,579
+<font color="white" size=".72c">was astonishingly High</font>
+
+365
+00:13:03,660 --> 00:13:08,940
+<font color="white" size=".72c">whereas if you started something in</font>
+
+366
+00:13:05,579 --> 00:13:12,180
+<font color="white" size=".72c">consumer Hardware or social networks or</font>
+
+367
+00:13:08,940 --> 00:13:13,980
+<font color="white" size=".72c">ad Tech the success rate was like orders</font>
+
+368
+00:13:12,180 --> 00:13:15,360
+<font color="white" size=".72c">of magnitude loader and I can't say that</font>
+
+369
+00:13:13,980 --> 00:13:17,220
+<font color="white" size=".72c">that will continue to be the case for</font>
+
+370
+00:13:15,360 --> 00:13:19,800
+<font color="white" size=".72c">those specific areas because spaces</font>
+
+371
+00:13:17,220 --> 00:13:22,320
+<font color="white" size=".72c">flipped from hot to cold over time but</font>
+
+372
+00:13:19,800 --> 00:13:24,240
+<font color="white" size=".72c">it is still worth thinking about picking</font>
+
+373
+00:13:22,320 --> 00:13:26,700
+<font color="white" size=".72c">a good idea space</font>
+
+374
+00:13:24,240 --> 00:13:28,620
+<font color="white" size=".72c">and a good idea Space is really just one</font>
+
+375
+00:13:26,700 --> 00:13:30,180
+<font color="white" size=".72c">that like you expect is going to have a</font>
+
+376
+00:13:28,620 --> 00:13:32,040
+<font color="white" size=".72c">reasonable hit rate for new startup</font>
+
+377
+00:13:30,180 --> 00:13:33,000
+<font color="white" size=".72c">ideas and one that has founder market</font>
+
+378
+00:13:32,040 --> 00:13:35,399
+<font color="white" size=".72c">fit</font>
+
+379
+00:13:33,000 --> 00:13:37,260
+<font color="white" size=".72c">that way even if your initial idea isn't</font>
+
+380
+00:13:35,399 --> 00:13:39,240
+<font color="white" size=".72c">quite right there are probably good</font>
+
+381
+00:13:37,260 --> 00:13:40,620
+<font color="white" size=".72c">adjacent ideas that you can sort of like</font>
+
+382
+00:13:39,240 --> 00:13:42,180
+<font color="white" size=".72c">drift into</font>
+
+383
+00:13:40,620 --> 00:13:43,860
+<font color="white" size=".72c">I'm going to give a good example of like</font>
+
+384
+00:13:42,180 --> 00:13:45,240
+<font color="white" size=".72c">how this played out in practice so a</font>
+
+385
+00:13:43,860 --> 00:13:47,339
+<font color="white" size=".72c">good example of picking a good idea</font>
+
+386
+00:13:45,240 --> 00:13:50,820
+<font color="white" size=".72c">space is this company called 5tran from</font>
+
+387
+00:13:47,339 --> 00:13:52,980
+<font color="white" size=".72c">yc1213 and basically it's already 5tran</font>
+
+388
+00:13:50,820 --> 00:13:54,540
+<font color="white" size=".72c">is they started making this tool for</font>
+
+389
+00:13:52,980 --> 00:13:56,880
+<font color="white" size=".72c">data analysis</font>
+
+390
+00:13:54,540 --> 00:13:58,560
+<font color="white" size=".72c">and they went to some companies and they</font>
+
+391
+00:13:56,880 --> 00:14:00,899
+<font color="white" size=".72c">tried to sell it and the companies</font>
+
+392
+00:13:58,560 --> 00:14:02,639
+<font color="white" size=".72c">didn't want it so they pivoted and they</font>
+
+393
+00:14:00,899 --> 00:14:04,620
+<font color="white" size=".72c">built a different tool for data analysis</font>
+
+394
+00:14:02,639 --> 00:14:06,600
+<font color="white" size=".72c">and they went back to the same companies</font>
+
+395
+00:14:04,620 --> 00:14:08,579
+<font color="white" size=".72c">and they tried to sell them that one and</font>
+
+396
+00:14:06,600 --> 00:14:10,560
+<font color="white" size=".72c">the companies didn't want that either</font>
+
+397
+00:14:08,579 --> 00:14:12,120
+<font color="white" size=".72c">but each time they went to companies and</font>
+
+398
+00:14:10,560 --> 00:14:13,560
+<font color="white" size=".72c">tried to sell them some tool for data</font>
+
+399
+00:14:12,120 --> 00:14:15,420
+<font color="white" size=".72c">analysis they would learn more about</font>
+
+400
+00:14:13,560 --> 00:14:17,279
+<font color="white" size=".72c">what those companies actually wanted and</font>
+
+401
+00:14:15,420 --> 00:14:19,320
+<font color="white" size=".72c">So eventually they sort of stumbled into</font>
+
+402
+00:14:17,279 --> 00:14:21,000
+<font color="white" size=".72c">an actual problem into an actual tool</font>
+
+403
+00:14:19,320 --> 00:14:22,380
+<font color="white" size=".72c">for data analysis that companies</font>
+
+404
+00:14:21,000 --> 00:14:23,700
+<font color="white" size=".72c">actually wanted</font>
+
+405
+00:14:22,380 --> 00:14:26,399
+<font color="white" size=".72c">and</font>
+
+406
+00:14:23,700 --> 00:14:28,380
+<font color="white" size=".72c">this is why picking a good idea space to</font>
+
+407
+00:14:26,399 --> 00:14:30,899
+<font color="white" size=".72c">start with is so important like because</font>
+
+408
+00:14:28,380 --> 00:14:33,180
+<font color="white" size=".72c">the five Tran Founders were shopping for</font>
+
+409
+00:14:30,899 --> 00:14:35,279
+<font color="white" size=".72c">ideas and a fertile idea space they put</font>
+
+410
+00:14:33,180 --> 00:14:37,380
+<font color="white" size=".72c">themselves in a good position to like</font>
+
+411
+00:14:35,279 --> 00:14:39,420
+<font color="white" size=".72c">bump into a good startup idea if they</font>
+
+412
+00:14:37,380 --> 00:14:40,380
+<font color="white" size=".72c">had picked a bad idea space they</font>
+
+413
+00:14:39,420 --> 00:14:43,740
+<font color="white" size=".72c">probably wouldn't have found anything</font>
+
+414
+00:14:40,380 --> 00:14:45,899
+<font color="white" size=".72c">okay before I talk about how to generate</font>
+
+415
+00:14:43,740 --> 00:14:47,519
+<font color="white" size=".72c">startup ideas I've got one important</font>
+
+416
+00:14:45,899 --> 00:14:50,519
+<font color="white" size=".72c">topic to tell you about</font>
+
+417
+00:14:47,519 --> 00:14:53,459
+<font color="white" size=".72c">these are three things that make your</font>
+
+418
+00:14:50,519 --> 00:14:55,920
+<font color="white" size=".72c">startup idea seem bad</font>
+
+419
+00:14:53,459 --> 00:14:57,480
+<font color="white" size=".72c">but actually make them good and the</font>
+
+420
+00:14:55,920 --> 00:15:00,120
+<font color="white" size=".72c">reason that they make them good is that</font>
+
+421
+00:14:57,480 --> 00:15:02,220
+<font color="white" size=".72c">most Founders will shy away from ideas</font>
+
+422
+00:15:00,120 --> 00:15:04,560
+<font color="white" size=".72c">like these which leaves them on the</font>
+
+423
+00:15:02,220 --> 00:15:06,720
+<font color="white" size=".72c">table for smarter Founders to go and</font>
+
+424
+00:15:04,560 --> 00:15:09,720
+<font color="white" size=".72c">grab them and here they are</font>
+
+425
+00:15:06,720 --> 00:15:12,300
+<font color="white" size=".72c">ideas that are hard to get started ideas</font>
+
+426
+00:15:09,720 --> 00:15:14,579
+<font color="white" size=".72c">that are in a boring space and ideas</font>
+
+427
+00:15:12,300 --> 00:15:17,100
+<font color="white" size=".72c">that have existing competitors</font>
+
+428
+00:15:14,579 --> 00:15:19,139
+<font color="white" size=".72c">ideas that are hard to get started so</font>
+
+429
+00:15:17,100 --> 00:15:21,000
+<font color="white" size=".72c">Paul Graham wrote a terrific article</font>
+
+430
+00:15:19,139 --> 00:15:22,680
+<font color="white" size=".72c">about this called schlep blindness which</font>
+
+431
+00:15:21,000 --> 00:15:24,300
+<font color="white" size=".72c">I'd really recommend reading and the</font>
+
+432
+00:15:22,680 --> 00:15:26,100
+<font color="white" size=".72c">example that Paul discusses is stripe</font>
+
+433
+00:15:24,300 --> 00:15:28,079
+<font color="white" size=".72c">you all know stripe they make it easy to</font>
+
+434
+00:15:26,100 --> 00:15:28,980
+<font color="white" size=".72c">integrate credit card payments to your</font>
+
+435
+00:15:28,079 --> 00:15:31,380
+<font color="white" size=".72c">website</font>
+
+436
+00:15:28,980 --> 00:15:33,839
+<font color="white" size=".72c">and the fascinating thing about stripe</font>
+
+437
+00:15:31,380 --> 00:15:36,779
+<font color="white" size=".72c">is that when stripe launched there were</font>
+
+438
+00:15:33,839 --> 00:15:39,000
+<font color="white" size=".72c">thousands of developers who already knew</font>
+
+439
+00:15:36,779 --> 00:15:40,320
+<font color="white" size=".72c">that this was a problem they had tried</font>
+
+440
+00:15:39,000 --> 00:15:41,760
+<font color="white" size=".72c">to integrate credit card payments to</font>
+
+441
+00:15:40,320 --> 00:15:43,500
+<font color="white" size=".72c">their site and they realized that the</font>
+
+442
+00:15:41,760 --> 00:15:47,100
+<font color="white" size=".72c">existing options sucked</font>
+
+443
+00:15:43,500 --> 00:15:50,040
+<font color="white" size=".72c">but strangely not one of them even tried</font>
+
+444
+00:15:47,100 --> 00:15:51,839
+<font color="white" size=".72c">to start striping and it's kind of a</font>
+
+445
+00:15:50,040 --> 00:15:53,820
+<font color="white" size=".72c">kind of a fascinating question why</font>
+
+446
+00:15:51,839 --> 00:15:55,560
+<font color="white" size=".72c">nobody else tried when so many people</font>
+
+447
+00:15:53,820 --> 00:15:56,820
+<font color="white" size=".72c">were in a perfect position to see this</font>
+
+448
+00:15:55,560 --> 00:16:00,720
+<font color="white" size=".72c">problem</font>
+
+449
+00:15:56,820 --> 00:16:03,480
+<font color="white" size=".72c">and the reason is that getting</font>
+
+450
+00:16:00,720 --> 00:16:05,579
+<font color="white" size=".72c">started building stripe required some</font>
+
+451
+00:16:03,480 --> 00:16:08,220
+<font color="white" size=".72c">things that seemed really hard you had</font>
+
+452
+00:16:05,579 --> 00:16:09,779
+<font color="white" size=".72c">to get a special deal with a bank you</font>
+
+453
+00:16:08,220 --> 00:16:11,579
+<font color="white" size=".72c">get to learn a lot about the</font>
+
+454
+00:16:09,779 --> 00:16:14,519
+<font color="white" size=".72c">nitty-gritty details of credit card</font>
+
+455
+00:16:11,579 --> 00:16:17,220
+<font color="white" size=".72c">infrastructure those things seemed so</font>
+
+456
+00:16:14,519 --> 00:16:18,959
+<font color="white" size=".72c">hard that they scared off all the other</font>
+
+457
+00:16:17,220 --> 00:16:21,240
+<font color="white" size=".72c">people who might have started stripe</font>
+
+458
+00:16:18,959 --> 00:16:22,980
+<font color="white" size=".72c">which caused them to leave this like 100</font>
+
+459
+00:16:21,240 --> 00:16:24,720
+<font color="white" size=".72c">billion dollar opportunity on the table</font>
+
+460
+00:16:22,980 --> 00:16:27,540
+<font color="white" size=".72c">for the stripe Founders to go and pick</font>
+
+461
+00:16:24,720 --> 00:16:30,779
+<font color="white" size=".72c">up okay the second one is ideas that are</font>
+
+462
+00:16:27,540 --> 00:16:32,519
+<font color="white" size=".72c">in a boring space and a great example of</font>
+
+463
+00:16:30,779 --> 00:16:34,019
+<font color="white" size=".72c">this is Gusto which makes payroll</font>
+
+464
+00:16:32,519 --> 00:16:37,199
+<font color="white" size=".72c">software</font>
+
+465
+00:16:34,019 --> 00:16:39,000
+<font color="white" size=".72c">payroll software pretty boring right</font>
+
+466
+00:16:37,199 --> 00:16:40,380
+<font color="white" size=".72c">the thing is there are thousands of</font>
+
+467
+00:16:39,000 --> 00:16:42,660
+<font color="white" size=".72c">people who must have realized that</font>
+
+468
+00:16:40,380 --> 00:16:44,100
+<font color="white" size=".72c">payroll software sucked but because it</font>
+
+469
+00:16:42,660 --> 00:16:45,779
+<font color="white" size=".72c">was kind of a boring problem nobody</font>
+
+470
+00:16:44,100 --> 00:16:47,880
+<font color="white" size=".72c">tried to fix it until the Gusto Founders</font>
+
+471
+00:16:45,779 --> 00:16:50,399
+<font color="white" size=".72c">came along and the thing is that because</font>
+
+472
+00:16:47,880 --> 00:16:51,240
+<font color="white" size=".72c">most Founders shy away from ideas like</font>
+
+473
+00:16:50,399 --> 00:16:53,759
+<font color="white" size=".72c">this</font>
+
+474
+00:16:51,240 --> 00:16:56,459
+<font color="white" size=".72c">boring ideas like payroll software have</font>
+
+475
+00:16:53,759 --> 00:16:57,839
+<font color="white" size=".72c">a much higher hit rate than fun ideas</font>
+
+476
+00:16:56,459 --> 00:17:00,120
+<font color="white" size=".72c">like</font>
+
+477
+00:16:57,839 --> 00:17:02,699
+<font color="white" size=".72c">apps to find new restaurants to eat at</font>
+
+478
+00:17:00,120 --> 00:17:04,500
+<font color="white" size=".72c">or like apps to find the next song to</font>
+
+479
+00:17:02,699 --> 00:17:07,380
+<font color="white" size=".72c">listen to something like that like fun</font>
+
+480
+00:17:04,500 --> 00:17:10,380
+<font color="white" size=".72c">ideas get picked over boring ideas get</font>
+
+481
+00:17:07,380 --> 00:17:13,439
+<font color="white" size=".72c">left on the table for a long time</font>
+
+482
+00:17:10,380 --> 00:17:15,119
+<font color="white" size=".72c">now you might be thinking Jared why</font>
+
+483
+00:17:13,439 --> 00:17:17,220
+<font color="white" size=".72c">would I want to work on a boring idea</font>
+
+484
+00:17:15,119 --> 00:17:19,740
+<font color="white" size=".72c">that sounds you know boring</font>
+
+485
+00:17:17,220 --> 00:17:22,380
+<font color="white" size=".72c">but here's the thing even if you work on</font>
+
+486
+00:17:19,740 --> 00:17:24,720
+<font color="white" size=".72c">an idea that sounds fun at the outset</font>
+
+487
+00:17:22,380 --> 00:17:27,599
+<font color="white" size=".72c">the day-to-day reality of your startup</font>
+
+488
+00:17:24,720 --> 00:17:30,260
+<font color="white" size=".72c">is going to be mostly the same anyway</font>
+
+489
+00:17:27,599 --> 00:17:34,500
+<font color="white" size=".72c">either way you'll be mostly writing code</font>
+
+490
+00:17:30,260 --> 00:17:36,660
+<font color="white" size=".72c">fixing bugs talking to users like pretty</font>
+
+491
+00:17:34,500 --> 00:17:39,780
+<font color="white" size=".72c">much the same stuff and so I would argue</font>
+
+492
+00:17:36,660 --> 00:17:43,320
+<font color="white" size=".72c">that once the initial excitement of your</font>
+
+493
+00:17:39,780 --> 00:17:45,960
+<font color="white" size=".72c">idea has worn off and you are 6 or 12</font>
+
+494
+00:17:43,320 --> 00:17:47,820
+<font color="white" size=".72c">months in and you are grinding out the</font>
+
+495
+00:17:45,960 --> 00:17:49,140
+<font color="white" size=".72c">execution that makes your idea actually</font>
+
+496
+00:17:47,820 --> 00:17:51,840
+<font color="white" size=".72c">work</font>
+
+497
+00:17:49,140 --> 00:17:53,640
+<font color="white" size=".72c">how fun the initial idea sounded</font>
+
+498
+00:17:51,840 --> 00:17:56,640
+<font color="white" size=".72c">actually has little to no correlation</font>
+
+499
+00:17:53,640 --> 00:17:59,039
+<font color="white" size=".72c">with how much fun you will actually be</font>
+
+500
+00:17:56,640 --> 00:18:01,260
+<font color="white" size=".72c">having working on your company</font>
+
+501
+00:17:59,039 --> 00:18:03,179
+<font color="white" size=".72c">and the last one is that Founders</font>
+
+502
+00:18:01,260 --> 00:18:04,760
+<font color="white" size=".72c">incorrectly shy away from spaces where</font>
+
+503
+00:18:03,179 --> 00:18:07,260
+<font color="white" size=".72c">there are existing competitors</font>
+
+504
+00:18:04,760 --> 00:18:09,539
+<font color="white" size=".72c">counter-intuitively most startup ideas</font>
+
+505
+00:18:07,260 --> 00:18:11,460
+<font color="white" size=".72c">most good startup ideas have existing</font>
+
+506
+00:18:09,539 --> 00:18:13,679
+<font color="white" size=".72c">competitors when founders go into spaces</font>
+
+507
+00:18:11,460 --> 00:18:15,059
+<font color="white" size=".72c">with no existing competitors they often</font>
+
+508
+00:18:13,679 --> 00:18:17,039
+<font color="white" size=".72c">find out that the reason that there are</font>
+
+509
+00:18:15,059 --> 00:18:18,720
+<font color="white" size=".72c">no competitors is because no one wants</font>
+
+510
+00:18:17,039 --> 00:18:21,000
+<font color="white" size=".72c">the product</font>
+
+511
+00:18:18,720 --> 00:18:23,100
+<font color="white" size=".72c">a great situation is actually a market</font>
+
+512
+00:18:21,000 --> 00:18:24,660
+<font color="white" size=".72c">where there are existing competitors but</font>
+
+513
+00:18:23,100 --> 00:18:26,400
+<font color="white" size=".72c">you've noticed something that they all</font>
+
+514
+00:18:24,660 --> 00:18:28,260
+<font color="white" size=".72c">seem to have missed or they all just</font>
+
+515
+00:18:26,400 --> 00:18:31,799
+<font color="white" size=".72c">kind of suck a classic example of this</font>
+
+516
+00:18:28,260 --> 00:18:34,880
+<font color="white" size=".72c">is Dropbox so when Dropbox launched they</font>
+
+517
+00:18:31,799 --> 00:18:37,080
+<font color="white" size=".72c">were already about 20.</font>
+
+518
+00:18:34,880 --> 00:18:39,059
+<font color="white" size=".72c">cloud-based file storage companies</font>
+
+519
+00:18:37,080 --> 00:18:41,160
+<font color="white" size=".72c">Dropbox was like the 20th company and</font>
+
+520
+00:18:39,059 --> 00:18:42,480
+<font color="white" size=".72c">it's space to launch naively you might</font>
+
+521
+00:18:41,160 --> 00:18:44,460
+<font color="white" size=".72c">have thought that that made this a bad</font>
+
+522
+00:18:42,480 --> 00:18:45,419
+<font color="white" size=".72c">Market I mean you would have gone and</font>
+
+523
+00:18:44,460 --> 00:18:46,679
+<font color="white" size=".72c">looked and said like oh there are</font>
+
+524
+00:18:45,419 --> 00:18:48,539
+<font color="white" size=".72c">already 20 competitors it seems like a</font>
+
+525
+00:18:46,679 --> 00:18:50,520
+<font color="white" size=".72c">bad Market to go into but if you were</font>
+
+526
+00:18:48,539 --> 00:18:52,200
+<font color="white" size=".72c">Savvy about startup ideas you would have</font>
+
+527
+00:18:50,520 --> 00:18:54,840
+<font color="white" size=".72c">realized that it actually made it a</font>
+
+528
+00:18:52,200 --> 00:18:56,220
+<font color="white" size=".72c">great Market and the reason is that even</font>
+
+529
+00:18:54,840 --> 00:18:59,940
+<font color="white" size=".72c">though there were like 20 companies</font>
+
+530
+00:18:56,220 --> 00:19:02,340
+<font color="white" size=".72c">doing this most people didn't use any of</font>
+
+531
+00:18:59,940 --> 00:19:04,740
+<font color="white" size=".72c">them and that strongly suggests that</font>
+
+532
+00:19:02,340 --> 00:19:07,260
+<font color="white" size=".72c">there actually was a problem here but</font>
+
+533
+00:19:04,740 --> 00:19:10,080
+<font color="white" size=".72c">the existing products hadn't solved it</font>
+
+534
+00:19:07,260 --> 00:19:12,900
+<font color="white" size=".72c">and Drew the founder of Dropbox had a</font>
+
+535
+00:19:10,080 --> 00:19:14,400
+<font color="white" size=".72c">very specific insight about what all of</font>
+
+536
+00:19:12,900 --> 00:19:16,620
+<font color="white" size=".72c">them were missing his Insight was</font>
+
+537
+00:19:14,400 --> 00:19:18,600
+<font color="white" size=".72c">basically their UI sucked and the reason</font>
+
+538
+00:19:16,620 --> 00:19:20,039
+<font color="white" size=".72c">their UI stopped was that at the time</font>
+
+539
+00:19:18,600 --> 00:19:22,799
+<font color="white" size=".72c">the way that they all worked is you had</font>
+
+540
+00:19:20,039 --> 00:19:24,900
+<font color="white" size=".72c">to like go to their website and manually</font>
+
+541
+00:19:22,799 --> 00:19:27,059
+<font color="white" size=".72c">upload your files one at a time into</font>
+
+542
+00:19:24,900 --> 00:19:29,280
+<font color="white" size=".72c">their website which sucked of course and</font>
+
+543
+00:19:27,059 --> 00:19:31,380
+<font color="white" size=".72c">Drew had really a technical Insight</font>
+
+544
+00:19:29,280 --> 00:19:33,480
+<font color="white" size=".72c">which was that if he integrated directly</font>
+
+545
+00:19:31,380 --> 00:19:34,740
+<font color="white" size=".72c">into the host operating system he could</font>
+
+546
+00:19:33,480 --> 00:19:36,480
+<font color="white" size=".72c">just sync your files automatically</font>
+
+547
+00:19:34,740 --> 00:19:38,820
+<font color="white" size=".72c">without you having to do anything and</font>
+
+548
+00:19:36,480 --> 00:19:40,500
+<font color="white" size=".72c">that was a real step function change in</font>
+
+549
+00:19:38,820 --> 00:19:43,140
+<font color="white" size=".72c">how convenient these Services were to</font>
+
+550
+00:19:40,500 --> 00:19:46,140
+<font color="white" size=".72c">use and that was the right insight okay</font>
+
+551
+00:19:43,140 --> 00:19:49,559
+<font color="white" size=".72c">let's talk about how to come up with</font>
+
+552
+00:19:46,140 --> 00:19:51,240
+<font color="white" size=".72c">startup ideas so it is possible to sit</font>
+
+553
+00:19:49,559 --> 00:19:53,160
+<font color="white" size=".72c">down and explicitly think of startup</font>
+
+554
+00:19:51,240 --> 00:19:55,380
+<font color="white" size=".72c">ideas and in a moment I'm going to talk</font>
+
+555
+00:19:53,160 --> 00:19:57,539
+<font color="white" size=".72c">about how to do this but it is actually</font>
+
+556
+00:19:55,380 --> 00:19:59,340
+<font color="white" size=".72c">not the best way the best way to have</font>
+
+557
+00:19:57,539 --> 00:20:01,740
+<font color="white" size=".72c">startup ideas is to just notice them</font>
+
+558
+00:19:59,340 --> 00:20:04,080
+<font color="white" size=".72c">organically and if you look at the YC</font>
+
+559
+00:20:01,740 --> 00:20:05,220
+<font color="white" size=".72c">top 100 companies at least 70 percent of</font>
+
+560
+00:20:04,080 --> 00:20:07,559
+<font color="white" size=".72c">them have their startup ideas</font>
+
+561
+00:20:05,220 --> 00:20:09,120
+<font color="white" size=".72c">organically rather than by like sitting</font>
+
+562
+00:20:07,559 --> 00:20:11,280
+<font color="white" size=".72c">down and explicitly trying to think of a</font>
+
+563
+00:20:09,120 --> 00:20:13,620
+<font color="white" size=".72c">startup idea and the problem is that</font>
+
+564
+00:20:11,280 --> 00:20:15,900
+<font color="white" size=".72c">when people sit down and try to think of</font>
+
+565
+00:20:13,620 --> 00:20:18,059
+<font color="white" size=".72c">startup ideas they tend to think of bad</font>
+
+566
+00:20:15,900 --> 00:20:20,160
+<font color="white" size=".72c">ones they're especially likely to think</font>
+
+567
+00:20:18,059 --> 00:20:22,320
+<font color="white" size=".72c">of the same set of tar pit ideas that I</font>
+
+568
+00:20:20,160 --> 00:20:24,840
+<font color="white" size=".72c">talked about earlier whereas startup</font>
+
+569
+00:20:22,320 --> 00:20:27,299
+<font color="white" size=".72c">ideas that occur to you organically are</font>
+
+570
+00:20:24,840 --> 00:20:28,440
+<font color="white" size=".72c">more likely to be good ones so if you're</font>
+
+571
+00:20:27,299 --> 00:20:30,179
+<font color="white" size=".72c">not planning on starting a company</font>
+
+572
+00:20:28,440 --> 00:20:32,280
+<font color="white" size=".72c">imminently and you just want to put</font>
+
+573
+00:20:30,179 --> 00:20:34,740
+<font color="white" size=".72c">yourself in a position to have organic</font>
+
+574
+00:20:32,280 --> 00:20:36,299
+<font color="white" size=".72c">startup ideas in the future here are</font>
+
+575
+00:20:34,740 --> 00:20:38,100
+<font color="white" size=".72c">three ways to do that this is like</font>
+
+576
+00:20:36,299 --> 00:20:39,720
+<font color="white" size=".72c">playing the long game to set yourself up</font>
+
+577
+00:20:38,100 --> 00:20:41,940
+<font color="white" size=".72c">for future success</font>
+
+578
+00:20:39,720 --> 00:20:44,280
+<font color="white" size=".72c">um first is just like become an expert</font>
+
+579
+00:20:41,940 --> 00:20:46,380
+<font color="white" size=".72c">on something valuable if you're working</font>
+
+580
+00:20:44,280 --> 00:20:48,360
+<font color="white" size=".72c">at the Forefront of some field you'll</font>
+
+581
+00:20:46,380 --> 00:20:50,700
+<font color="white" size=".72c">see good startup ideas in that field</font>
+
+582
+00:20:48,360 --> 00:20:52,740
+<font color="white" size=".72c">and a great way to do that is to go work</font>
+
+583
+00:20:50,700 --> 00:20:54,660
+<font color="white" size=".72c">at a startup Harge talked about this in</font>
+
+584
+00:20:52,740 --> 00:20:56,220
+<font color="white" size=".72c">his talk last week if you're working at</font>
+
+585
+00:20:54,660 --> 00:20:57,960
+<font color="white" size=".72c">a startup you will become an expert in</font>
+
+586
+00:20:56,220 --> 00:20:59,520
+<font color="white" size=".72c">the thing that that startup does and</font>
+
+587
+00:20:57,960 --> 00:21:01,620
+<font color="white" size=".72c">that is really putting yourself in a</font>
+
+588
+00:20:59,520 --> 00:21:03,720
+<font color="white" size=".72c">position to have great startup ideas and</font>
+
+589
+00:21:01,620 --> 00:21:05,400
+<font color="white" size=".72c">finally if you're a programmer one thing</font>
+
+590
+00:21:03,720 --> 00:21:07,440
+<font color="white" size=".72c">that can work is to just build things</font>
+
+591
+00:21:05,400 --> 00:21:08,820
+<font color="white" size=".72c">that you find interesting even if</font>
+
+592
+00:21:07,440 --> 00:21:10,919
+<font color="white" size=".72c">they're not businesses they're not</font>
+
+593
+00:21:08,820 --> 00:21:12,059
+<font color="white" size=".72c">clearly startup ideas sometimes they</font>
+
+594
+00:21:10,919 --> 00:21:16,320
+<font color="white" size=".72c">like</font>
+
+595
+00:21:12,059 --> 00:21:18,960
+<font color="white" size=".72c">turn into them over time and a really</font>
+
+596
+00:21:16,320 --> 00:21:20,760
+<font color="white" size=".72c">striking example of this is the story of</font>
+
+597
+00:21:18,960 --> 00:21:22,740
+<font color="white" size=".72c">replica this is exactly how replica</font>
+
+598
+00:21:20,760 --> 00:21:24,240
+<font color="white" size=".72c">started it was just something that amjad</font>
+
+599
+00:21:22,740 --> 00:21:26,520
+<font color="white" size=".72c">found interesting it wasn't supposed to</font>
+
+600
+00:21:24,240 --> 00:21:28,140
+<font color="white" size=".72c">be a startup originally okay but if you</font>
+
+601
+00:21:26,520 --> 00:21:29,880
+<font color="white" size=".72c">want to generate ideas for startups</font>
+
+602
+00:21:28,140 --> 00:21:32,580
+<font color="white" size=".72c">right now I'm going to walk through</font>
+
+603
+00:21:29,880 --> 00:21:34,860
+<font color="white" size=".72c">seven recipes for doing that I've tried</font>
+
+604
+00:21:32,580 --> 00:21:37,260
+<font color="white" size=".72c">to list these in order of How likely</font>
+
+605
+00:21:34,860 --> 00:21:40,679
+<font color="white" size=".72c">they are to lead to actually good ideas</font>
+
+606
+00:21:37,260 --> 00:21:43,320
+<font color="white" size=".72c">so start with the first ones okay here's</font>
+
+607
+00:21:40,679 --> 00:21:46,260
+<font color="white" size=".72c">the first one and the best one</font>
+
+608
+00:21:43,320 --> 00:21:47,520
+<font color="white" size=".72c">start with what your team is especially</font>
+
+609
+00:21:46,260 --> 00:21:49,679
+<font color="white" size=".72c">good at</font>
+
+610
+00:21:47,520 --> 00:21:52,260
+<font color="white" size=".72c">and think of ideas that take advantage</font>
+
+611
+00:21:49,679 --> 00:21:54,240
+<font color="white" size=".72c">of your expertise the reason that this</font>
+
+612
+00:21:52,260 --> 00:21:56,280
+<font color="white" size=".72c">is so effective is that any idea you</font>
+
+613
+00:21:54,240 --> 00:21:58,320
+<font color="white" size=".72c">come up with this way has automatic</font>
+
+614
+00:21:56,280 --> 00:22:00,179
+<font color="white" size=".72c">founder market fit do you see how this</font>
+
+615
+00:21:58,320 --> 00:22:02,460
+<font color="white" size=".72c">is almost like a hack to generate the</font>
+
+616
+00:22:00,179 --> 00:22:04,500
+<font color="white" size=".72c">set of ideas that has founder market fit</font>
+
+617
+00:22:02,460 --> 00:22:05,820
+<font color="white" size=".72c">here's a great example of like how this</font>
+
+618
+00:22:04,500 --> 00:22:08,039
+<font color="white" size=".72c">worked in practice</font>
+
+619
+00:22:05,820 --> 00:22:10,620
+<font color="white" size=".72c">so a good example is this company resi</font>
+
+620
+00:22:08,039 --> 00:22:13,440
+<font color="white" size=".72c">which is like open door for rental</font>
+
+621
+00:22:10,620 --> 00:22:15,600
+<font color="white" size=".72c">apartments and before starting resi the</font>
+
+622
+00:22:13,440 --> 00:22:17,640
+<font color="white" size=".72c">founders have worked in real estate and</font>
+
+623
+00:22:15,600 --> 00:22:18,780
+<font color="white" size=".72c">debt financing and they were experts in</font>
+
+624
+00:22:17,640 --> 00:22:21,059
+<font color="white" size=".72c">those areas</font>
+
+625
+00:22:18,780 --> 00:22:23,760
+<font color="white" size=".72c">and where they got into YC they spent</font>
+
+626
+00:22:21,059 --> 00:22:25,559
+<font color="white" size=".72c">the first month looking for ideas</font>
+
+627
+00:22:23,760 --> 00:22:28,440
+<font color="white" size=".72c">but the smart thing that they did is</font>
+
+628
+00:22:25,559 --> 00:22:30,240
+<font color="white" size=".72c">they only looked at ideas in that idea</font>
+
+629
+00:22:28,440 --> 00:22:31,799
+<font color="white" size=".72c">space in like the rough idea space at</font>
+
+630
+00:22:30,240 --> 00:22:34,140
+<font color="white" size=".72c">like the intersection of like real</font>
+
+631
+00:22:31,799 --> 00:22:36,960
+<font color="white" size=".72c">estate and fintech and that was a smart</font>
+
+632
+00:22:34,140 --> 00:22:39,000
+<font color="white" size=".72c">move because that is a very fertile idea</font>
+
+633
+00:22:36,960 --> 00:22:40,440
+<font color="white" size=".72c">space for startups like many billion</font>
+
+634
+00:22:39,000 --> 00:22:42,360
+<font color="white" size=".72c">dollar companies have come out of that</font>
+
+635
+00:22:40,440 --> 00:22:44,159
+<font color="white" size=".72c">idea space and the resi founders were</font>
+
+636
+00:22:42,360 --> 00:22:45,600
+<font color="white" size=".72c">experts in that idea space and so</font>
+
+637
+00:22:44,159 --> 00:22:47,820
+<font color="white" size=".72c">because of that</font>
+
+638
+00:22:45,600 --> 00:22:49,740
+<font color="white" size=".72c">their search for a startup idea was</font>
+
+639
+00:22:47,820 --> 00:22:51,299
+<font color="white" size=".72c">pretty quick and painless and pretty</font>
+
+640
+00:22:49,740 --> 00:22:53,520
+<font color="white" size=".72c">quickly they came up with the idea for</font>
+
+641
+00:22:51,299 --> 00:22:56,039
+<font color="white" size=".72c">Rezi which is like an excellent idea and</font>
+
+642
+00:22:53,520 --> 00:22:58,320
+<font color="white" size=".72c">has perfect founder market fit so if you</font>
+
+643
+00:22:56,039 --> 00:23:00,720
+<font color="white" size=".72c">have specific expertise like the resi</font>
+
+644
+00:22:58,320 --> 00:23:03,419
+<font color="white" size=".72c">founders did you should definitely start</font>
+
+645
+00:23:00,720 --> 00:23:05,280
+<font color="white" size=".72c">by looking at ideas in you know the</font>
+
+646
+00:23:03,419 --> 00:23:08,520
+<font color="white" size=".72c">things that you're experts in</font>
+
+647
+00:23:05,280 --> 00:23:10,320
+<font color="white" size=".72c">um it is weird how many startups apply</font>
+
+648
+00:23:08,520 --> 00:23:11,820
+<font color="white" size=".72c">to YC and we look at their applications</font>
+
+649
+00:23:10,320 --> 00:23:13,740
+<font color="white" size=".72c">and the founders like are actually</font>
+
+650
+00:23:11,820 --> 00:23:15,120
+<font color="white" size=".72c">legitimate experts in something but the</font>
+
+651
+00:23:13,740 --> 00:23:17,580
+<font color="white" size=".72c">idea that they're applying with is like</font>
+
+652
+00:23:15,120 --> 00:23:19,500
+<font color="white" size=".72c">something completely different</font>
+
+653
+00:23:17,580 --> 00:23:21,299
+<font color="white" size=".72c">now if you're if you're a young founder</font>
+
+654
+00:23:19,500 --> 00:23:23,340
+<font color="white" size=".72c">if you're in college or something you</font>
+
+655
+00:23:21,299 --> 00:23:25,440
+<font color="white" size=".72c">may not have had a chance to develop</font>
+
+656
+00:23:23,340 --> 00:23:27,600
+<font color="white" size=".72c">it's like the level of domain expertise</font>
+
+657
+00:23:25,440 --> 00:23:29,940
+<font color="white" size=".72c">that the resi founders had so this may</font>
+
+658
+00:23:27,600 --> 00:23:31,260
+<font color="white" size=".72c">not be the right recipe for you so let's</font>
+
+659
+00:23:29,940 --> 00:23:33,240
+<font color="white" size=".72c">talk about some other ones</font>
+
+660
+00:23:31,260 --> 00:23:35,700
+<font color="white" size=".72c">the next recipe is to start with a</font>
+
+661
+00:23:33,240 --> 00:23:38,580
+<font color="white" size=".72c">problem you've personally encountered</font>
+
+662
+00:23:35,700 --> 00:23:43,919
+<font color="white" size=".72c">ideally one that you're in an unusual</font>
+
+663
+00:23:38,580 --> 00:23:46,320
+<font color="white" size=".72c">position to see so vetco is a website</font>
+
+664
+00:23:43,919 --> 00:23:48,360
+<font color="white" size=".72c">for veterinarians to order supplies so</font>
+
+665
+00:23:46,320 --> 00:23:49,860
+<font color="white" size=".72c">you can think about it like amazon.com</font>
+
+666
+00:23:48,360 --> 00:23:52,320
+<font color="white" size=".72c">for vets</font>
+
+667
+00:23:49,860 --> 00:23:53,580
+<font color="white" size=".72c">and the short story of vetcove is that</font>
+
+668
+00:23:52,320 --> 00:23:56,400
+<font color="white" size=".72c">the founders are brothers</font>
+
+669
+00:23:53,580 --> 00:23:58,980
+<font color="white" size=".72c">and their dad is a veterinarian</font>
+
+670
+00:23:56,400 --> 00:24:00,960
+<font color="white" size=".72c">and growing up they would notice that</font>
+
+671
+00:23:58,980 --> 00:24:02,580
+<font color="white" size=".72c">the way he ordered supplies was like</font>
+
+672
+00:24:00,960 --> 00:24:05,280
+<font color="white" size=".72c">super old-fashioned like you'd have to</font>
+
+673
+00:24:02,580 --> 00:24:07,080
+<font color="white" size=".72c">like call up a supplier on the phone and</font>
+
+674
+00:24:05,280 --> 00:24:10,260
+<font color="white" size=".72c">like order stuff through like a 1-800</font>
+
+675
+00:24:07,080 --> 00:24:11,580
+<font color="white" size=".72c">number or something it was like very</font>
+
+676
+00:24:10,260 --> 00:24:13,140
+<font color="white" size=".72c">obvious that you could build an</font>
+
+677
+00:24:11,580 --> 00:24:14,460
+<font color="white" size=".72c">amazon.com kind of thing that would</font>
+
+678
+00:24:13,140 --> 00:24:16,860
+<font color="white" size=".72c">replace that</font>
+
+679
+00:24:14,460 --> 00:24:20,460
+<font color="white" size=".72c">and I I love the story of vetco because</font>
+
+680
+00:24:16,860 --> 00:24:22,080
+<font color="white" size=".72c">it's such a great example of what a</font>
+
+681
+00:24:20,460 --> 00:24:25,140
+<font color="white" size=".72c">great startup opportunity looks like</font>
+
+682
+00:24:22,080 --> 00:24:27,240
+<font color="white" size=".72c">because thousands of veterinarians must</font>
+
+683
+00:24:25,140 --> 00:24:28,919
+<font color="white" size=".72c">have known that this was a real problem</font>
+
+684
+00:24:27,240 --> 00:24:30,240
+<font color="white" size=".72c">that it was really annoying there wasn't</font>
+
+685
+00:24:28,919 --> 00:24:32,400
+<font color="white" size=".72c">like a basic website where you could</font>
+
+686
+00:24:30,240 --> 00:24:34,320
+<font color="white" size=".72c">just go to order supplies but the thing</font>
+
+687
+00:24:32,400 --> 00:24:36,840
+<font color="white" size=".72c">is veterinarians don't start Tech</font>
+
+688
+00:24:34,320 --> 00:24:38,520
+<font color="white" size=".72c">startups very often and then on the</font>
+
+689
+00:24:36,840 --> 00:24:40,080
+<font color="white" size=".72c">other hand you had like thousands of</font>
+
+690
+00:24:38,520 --> 00:24:42,659
+<font color="white" size=".72c">programmers in Silicon Valley who were</font>
+
+691
+00:24:40,080 --> 00:24:45,120
+<font color="white" size=".72c">begging their heads against cisps and</font>
+
+692
+00:24:42,659 --> 00:24:47,460
+<font color="white" size=".72c">tarpet ideas totally unaware that over</font>
+
+693
+00:24:45,120 --> 00:24:50,220
+<font color="white" size=".72c">here there was like a really great</font>
+
+694
+00:24:47,460 --> 00:24:52,200
+<font color="white" size=".72c">genuine problem to work on</font>
+
+695
+00:24:50,220 --> 00:24:54,539
+<font color="white" size=".72c">and because of this when the vet</font>
+
+696
+00:24:52,200 --> 00:24:56,940
+<font color="white" size=".72c">co-founders got started they had no</font>
+
+697
+00:24:54,539 --> 00:24:59,520
+<font color="white" size=".72c">competition so this amazing idea just</font>
+
+698
+00:24:56,940 --> 00:25:01,260
+<font color="white" size=".72c">got left on the table for years so if</font>
+
+699
+00:24:59,520 --> 00:25:03,840
+<font color="white" size=".72c">you want to try to actually use recipes</font>
+
+700
+00:25:01,260 --> 00:25:05,460
+<font color="white" size=".72c">one and two here's a specific set of</font>
+
+701
+00:25:03,840 --> 00:25:07,799
+<font color="white" size=".72c">instructions for how to do it this is</font>
+
+702
+00:25:05,460 --> 00:25:09,059
+<font color="white" size=".72c">advice I often give to Founders NYC who</font>
+
+703
+00:25:07,799 --> 00:25:12,059
+<font color="white" size=".72c">are pivoting and who are looking for a</font>
+
+704
+00:25:09,059 --> 00:25:14,760
+<font color="white" size=".72c">new idea here's how it works</font>
+
+705
+00:25:12,059 --> 00:25:17,340
+<font color="white" size=".72c">for each founder on your team</font>
+
+706
+00:25:14,760 --> 00:25:20,640
+<font color="white" size=".72c">go through every job you've ever had</font>
+
+707
+00:25:17,340 --> 00:25:23,039
+<font color="white" size=".72c">plus all your internships plus like</font>
+
+708
+00:25:20,640 --> 00:25:25,740
+<font color="white" size=".72c">other life experiences</font>
+
+709
+00:25:23,039 --> 00:25:26,940
+<font color="white" size=".72c">and think really carefully about each of</font>
+
+710
+00:25:25,740 --> 00:25:30,120
+<font color="white" size=".72c">them</font>
+
+711
+00:25:26,940 --> 00:25:32,700
+<font color="white" size=".72c">what problems did you come across</font>
+
+712
+00:25:30,120 --> 00:25:34,020
+<font color="white" size=".72c">what did you learn that other people</font>
+
+713
+00:25:32,700 --> 00:25:36,659
+<font color="white" size=".72c">don't know</font>
+
+714
+00:25:34,020 --> 00:25:38,100
+<font color="white" size=".72c">What are problems or opportunities that</font>
+
+715
+00:25:36,659 --> 00:25:40,440
+<font color="white" size=".72c">you've been in kind of a special</font>
+
+716
+00:25:38,100 --> 00:25:42,539
+<font color="white" size=".72c">position to see</font>
+
+717
+00:25:40,440 --> 00:25:45,480
+<font color="white" size=".72c">those are the best places to start</font>
+
+718
+00:25:42,539 --> 00:25:47,159
+<font color="white" size=".72c">looking for startup ideas okay the next</font>
+
+719
+00:25:45,480 --> 00:25:49,020
+<font color="white" size=".72c">one is to just think of things you</font>
+
+720
+00:25:47,159 --> 00:25:50,940
+<font color="white" size=".72c">personally wish existed this is like a</font>
+
+721
+00:25:49,020 --> 00:25:52,860
+<font color="white" size=".72c">really classic recipe this is very</font>
+
+722
+00:25:50,940 --> 00:25:55,200
+<font color="white" size=".72c">common advice great example of this is</font>
+
+723
+00:25:52,860 --> 00:25:56,460
+<font color="white" size=".72c">doordash the short story of doordash is</font>
+
+724
+00:25:55,200 --> 00:25:58,380
+<font color="white" size=".72c">that the founders of doordash were</font>
+
+725
+00:25:56,460 --> 00:26:00,120
+<font color="white" size=".72c">undergrads at Stanford and the thing</font>
+
+726
+00:25:58,380 --> 00:26:01,980
+<font color="white" size=".72c">they really wanted was to be able to</font>
+
+727
+00:26:00,120 --> 00:26:03,900
+<font color="white" size=".72c">just order food from local restaurants</font>
+
+728
+00:26:01,980 --> 00:26:05,700
+<font color="white" size=".72c">and have it delivered to their dorm and</font>
+
+729
+00:26:03,900 --> 00:26:08,159
+<font color="white" size=".72c">before doordash you couldn't do that so</font>
+
+730
+00:26:05,700 --> 00:26:10,679
+<font color="white" size=".72c">they started doordash and this is a</font>
+
+731
+00:26:08,159 --> 00:26:13,140
+<font color="white" size=".72c">great recipe but</font>
+
+732
+00:26:10,679 --> 00:26:15,360
+<font color="white" size=".72c">this is the recipe that is most</font>
+
+733
+00:26:13,140 --> 00:26:17,279
+<font color="white" size=".72c">dangerous and potentially leading to tar</font>
+
+734
+00:26:15,360 --> 00:26:19,140
+<font color="white" size=".72c">pit ideas so if you're using this recipe</font>
+
+735
+00:26:17,279 --> 00:26:20,760
+<font color="white" size=".72c">you just gotta stop and think for a</font>
+
+736
+00:26:19,140 --> 00:26:23,039
+<font color="white" size=".72c">second is there a reason why this thing</font>
+
+737
+00:26:20,760 --> 00:26:24,779
+<font color="white" size=".72c">doesn't exist yet okay the next one is</font>
+
+738
+00:26:23,039 --> 00:26:26,700
+<font color="white" size=".72c">to look for things in the world that</font>
+
+739
+00:26:24,779 --> 00:26:28,799
+<font color="white" size=".72c">have changed recently that might have</font>
+
+740
+00:26:26,700 --> 00:26:30,840
+<font color="white" size=".72c">created a new opportunity a great</font>
+
+741
+00:26:28,799 --> 00:26:32,880
+<font color="white" size=".72c">example of this is covet</font>
+
+742
+00:26:30,840 --> 00:26:35,880
+<font color="white" size=".72c">so when the pandemic started it changed</font>
+
+743
+00:26:32,880 --> 00:26:37,559
+<font color="white" size=".72c">daily life for all of us and many</font>
+
+744
+00:26:35,880 --> 00:26:39,600
+<font color="white" size=".72c">Founders realize that this created the</font>
+
+745
+00:26:37,559 --> 00:26:41,039
+<font color="white" size=".72c">opportunity for new companies and some</font>
+
+746
+00:26:39,600 --> 00:26:42,559
+<font color="white" size=".72c">very successful startups came out of it</font>
+
+747
+00:26:41,039 --> 00:26:44,520
+<font color="white" size=".72c">and</font>
+
+748
+00:26:42,559 --> 00:26:46,500
+<font color="white" size=".72c">one of them is this company called</font>
+
+749
+00:26:44,520 --> 00:26:48,120
+<font color="white" size=".72c">gather town which builds like this fun</font>
+
+750
+00:26:46,500 --> 00:26:50,279
+<font color="white" size=".72c">way to hang out with other people online</font>
+
+751
+00:26:48,120 --> 00:26:51,480
+<font color="white" size=".72c">and the founders of gathered town were</font>
+
+752
+00:26:50,279 --> 00:26:53,880
+<font color="white" size=".72c">actually working on a different idea</font>
+
+753
+00:26:51,480 --> 00:26:55,620
+<font color="white" size=".72c">that wasn't going so well and when the</font>
+
+754
+00:26:53,880 --> 00:26:57,480
+<font color="white" size=".72c">pandemic started they pivoted to this</font>
+
+755
+00:26:55,620 --> 00:26:59,520
+<font color="white" size=".72c">because it was obvious that like the</font>
+
+756
+00:26:57,480 --> 00:27:01,980
+<font color="white" size=".72c">change in behavior of the pandemic had</font>
+
+757
+00:26:59,520 --> 00:27:03,779
+<font color="white" size=".72c">created a bunch of new opportunities you</font>
+
+758
+00:27:01,980 --> 00:27:06,539
+<font color="white" size=".72c">can also look for companies that have</font>
+
+759
+00:27:03,779 --> 00:27:08,940
+<font color="white" size=".72c">been successful recently and look for</font>
+
+760
+00:27:06,539 --> 00:27:10,559
+<font color="white" size=".72c">new variants on them</font>
+
+761
+00:27:08,940 --> 00:27:13,020
+<font color="white" size=".72c">a good example of this is a company</font>
+
+762
+00:27:10,559 --> 00:27:15,179
+<font color="white" size=".72c">called Nuvo cargo Nuvo cargo is a good</font>
+
+763
+00:27:13,020 --> 00:27:16,559
+<font color="white" size=".72c">example of explicitly sitting down to</font>
+
+764
+00:27:15,179 --> 00:27:17,940
+<font color="white" size=".72c">try to think about startup ideas and</font>
+
+765
+00:27:16,559 --> 00:27:19,080
+<font color="white" size=".72c">actually finding a good one which is the</font>
+
+766
+00:27:17,940 --> 00:27:21,360
+<font color="white" size=".72c">thing that I told you is hard to do</font>
+
+767
+00:27:19,080 --> 00:27:24,120
+<font color="white" size=".72c">pneumo cargo is basically flexport for</font>
+
+768
+00:27:21,360 --> 00:27:26,400
+<font color="white" size=".72c">Latin America they help U.S companies to</font>
+
+769
+00:27:24,120 --> 00:27:28,679
+<font color="white" size=".72c">import stuff from Mexico</font>
+
+770
+00:27:26,400 --> 00:27:30,659
+<font color="white" size=".72c">and the story of nuva cargo is that</font>
+
+771
+00:27:28,679 --> 00:27:32,940
+<font color="white" size=".72c">Deepak the founder was working on a</font>
+
+772
+00:27:30,659 --> 00:27:35,220
+<font color="white" size=".72c">different idea NYC and he realized that</font>
+
+773
+00:27:32,940 --> 00:27:37,380
+<font color="white" size=".72c">his idea wasn't going to work</font>
+
+774
+00:27:35,220 --> 00:27:39,900
+<font color="white" size=".72c">and he went on like a systematic search</font>
+
+775
+00:27:37,380 --> 00:27:42,539
+<font color="white" size=".72c">for better ideas</font>
+
+776
+00:27:39,900 --> 00:27:44,159
+<font color="white" size=".72c">and he picked Nuvo cargo for for very</font>
+
+777
+00:27:42,539 --> 00:27:45,900
+<font color="white" size=".72c">analytical reasons he picked it because</font>
+
+778
+00:27:44,159 --> 00:27:47,700
+<font color="white" size=".72c">it was a large Market</font>
+
+779
+00:27:45,900 --> 00:27:49,980
+<font color="white" size=".72c">because they were good</font>
+
+780
+00:27:47,700 --> 00:27:52,320
+<font color="white" size=".72c">proxies from other companies flexport</font>
+
+781
+00:27:49,980 --> 00:27:54,960
+<font color="white" size=".72c">and he picked it even though he didn't</font>
+
+782
+00:27:52,320 --> 00:27:57,480
+<font color="white" size=".72c">have deep domain expertise in the import</font>
+
+783
+00:27:54,960 --> 00:27:58,919
+<font color="white" size=".72c">export space because he had some</font>
+
+784
+00:27:57,480 --> 00:28:00,539
+<font color="white" size=".72c">connections that would enable him to get</font>
+
+785
+00:27:58,919 --> 00:28:02,340
+<font color="white" size=".72c">started and he felt like he would just</font>
+
+786
+00:28:00,539 --> 00:28:04,620
+<font color="white" size=".72c">be very good at running this kind of</font>
+
+787
+00:28:02,340 --> 00:28:06,720
+<font color="white" size=".72c">operationally intensive business</font>
+
+788
+00:28:04,620 --> 00:28:09,600
+<font color="white" size=".72c">and that worked really well Niva cargo</font>
+
+789
+00:28:06,720 --> 00:28:11,760
+<font color="white" size=".72c">is doing super well you can also go and</font>
+
+790
+00:28:09,600 --> 00:28:13,740
+<font color="white" size=".72c">talk to people and just ask them what</font>
+
+791
+00:28:11,760 --> 00:28:15,720
+<font color="white" size=".72c">problems they have this this can work</font>
+
+792
+00:28:13,740 --> 00:28:17,820
+<font color="white" size=".72c">the the downside with this recipe is it</font>
+
+793
+00:28:15,720 --> 00:28:19,980
+<font color="white" size=".72c">actually requires a lot of skill if you</font>
+
+794
+00:28:17,820 --> 00:28:23,100
+<font color="white" size=".72c">want to do this I would recommend first</font>
+
+795
+00:28:19,980 --> 00:28:25,260
+<font color="white" size=".72c">picking a fertile idea space and then</font>
+
+796
+00:28:23,100 --> 00:28:27,840
+<font color="white" size=".72c">going and talking to people within that</font>
+
+797
+00:28:25,260 --> 00:28:30,539
+<font color="white" size=".72c">idea space and I would also recommend</font>
+
+798
+00:28:27,840 --> 00:28:33,120
+<font color="white" size=".72c">talking not just to potential customers</font>
+
+799
+00:28:30,539 --> 00:28:36,600
+<font color="white" size=".72c">but also to potent but also to founders</font>
+
+800
+00:28:33,120 --> 00:28:38,340
+<font color="white" size=".72c">of companies in that idea space to get</font>
+
+801
+00:28:36,600 --> 00:28:40,380
+<font color="white" size=".72c">advice about what ideas are actually</font>
+
+802
+00:28:38,340 --> 00:28:43,200
+<font color="white" size=".72c">worth pursuing and a good example of</font>
+
+803
+00:28:40,380 --> 00:28:45,179
+<font color="white" size=".72c">doing this successfully is a to B and A</font>
+
+804
+00:28:43,200 --> 00:28:47,039
+<font color="white" size=".72c">to B was in the position that a lot of</font>
+
+805
+00:28:45,179 --> 00:28:48,720
+<font color="white" size=".72c">Founders that struggle to find good</font>
+
+806
+00:28:47,039 --> 00:28:50,340
+<font color="white" size=".72c">startup ideas are in which is that the</font>
+
+807
+00:28:48,720 --> 00:28:52,620
+<font color="white" size=".72c">founders were pretty young and they</font>
+
+808
+00:28:50,340 --> 00:28:54,659
+<font color="white" size=".72c">hadn't acquired a lot of specific domain</font>
+
+809
+00:28:52,620 --> 00:28:56,220
+<font color="white" size=".72c">expertise like the resi founders had yet</font>
+
+810
+00:28:54,659 --> 00:28:57,600
+<font color="white" size=".72c">but they really wanted to do a startup</font>
+
+811
+00:28:56,220 --> 00:28:59,340
+<font color="white" size=".72c">and they wanted to do a startup that had</font>
+
+812
+00:28:57,600 --> 00:29:01,320
+<font color="white" size=".72c">like a genuinely good idea the way that</font>
+
+813
+00:28:59,340 --> 00:29:03,360
+<font color="white" size=".72c">they came up with the idea for ADB was</font>
+
+814
+00:29:01,320 --> 00:29:05,760
+<font color="white" size=".72c">very systematic and so I'm going to walk</font>
+
+815
+00:29:03,360 --> 00:29:08,039
+<font color="white" size=".72c">you through how they did it and really</font>
+
+816
+00:29:05,760 --> 00:29:10,260
+<font color="white" size=".72c">break it down for you so A to B makes</font>
+
+817
+00:29:08,039 --> 00:29:12,900
+<font color="white" size=".72c">fuel cards and if you haven't heard of a</font>
+
+818
+00:29:10,260 --> 00:29:15,059
+<font color="white" size=".72c">fuel card it's like a special kind of</font>
+
+819
+00:29:12,900 --> 00:29:17,220
+<font color="white" size=".72c">credit card for truck drivers when the A</font>
+
+820
+00:29:15,059 --> 00:29:19,679
+<font color="white" size=".72c">to B Founders got into YC they pivoted</font>
+
+821
+00:29:17,220 --> 00:29:21,659
+<font color="white" size=".72c">and they spent the whole YC batch</font>
+
+822
+00:29:19,679 --> 00:29:24,899
+<font color="white" size=".72c">looking for a new idea and here's how</font>
+
+823
+00:29:21,659 --> 00:29:26,460
+<font color="white" size=".72c">they did it first they picked an idea</font>
+
+824
+00:29:24,899 --> 00:29:28,860
+<font color="white" size=".72c">space and the idea space that they</font>
+
+825
+00:29:26,460 --> 00:29:30,779
+<font color="white" size=".72c">picked was essentially software for the</font>
+
+826
+00:29:28,860 --> 00:29:33,179
+<font color="white" size=".72c">trucking industry</font>
+
+827
+00:29:30,779 --> 00:29:35,279
+<font color="white" size=".72c">and they picked this idea space despite</font>
+
+828
+00:29:33,179 --> 00:29:38,100
+<font color="white" size=".72c">not being experts at the trucking</font>
+
+829
+00:29:35,279 --> 00:29:40,559
+<font color="white" size=".72c">industry because they felt that it just</font>
+
+830
+00:29:38,100 --> 00:29:42,960
+<font color="white" size=".72c">should be a fertile idea space to go</font>
+
+831
+00:29:40,559 --> 00:29:45,539
+<font color="white" size=".72c">hunting for startup ideas the trucking</font>
+
+832
+00:29:42,960 --> 00:29:47,399
+<font color="white" size=".72c">industry is as like Big Industry hasn't</font>
+
+833
+00:29:45,539 --> 00:29:48,779
+<font color="white" size=".72c">been that disrupted by startups and</font>
+
+834
+00:29:47,399 --> 00:29:50,460
+<font color="white" size=".72c">software yet so they just felt like</font>
+
+835
+00:29:48,779 --> 00:29:53,220
+<font color="white" size=".72c">there were probably some good problems</font>
+
+836
+00:29:50,460 --> 00:29:54,539
+<font color="white" size=".72c">to work on in the trucking industry but</font>
+
+837
+00:29:53,220 --> 00:29:55,919
+<font color="white" size=".72c">the problem is</font>
+
+838
+00:29:54,539 --> 00:29:57,360
+<font color="white" size=".72c">they didn't know that much about the</font>
+
+839
+00:29:55,919 --> 00:29:58,919
+<font color="white" size=".72c">trucking industry so they didn't know</font>
+
+840
+00:29:57,360 --> 00:30:01,380
+<font color="white" size=".72c">what those problems were and so they</font>
+
+841
+00:29:58,919 --> 00:30:04,679
+<font color="white" size=".72c">decided that they would turn themselves</font>
+
+842
+00:30:01,380 --> 00:30:06,419
+<font color="white" size=".72c">into experts in the trucking industry</font>
+
+843
+00:30:04,679 --> 00:30:08,880
+<font color="white" size=".72c">and what they did is they actually</font>
+
+844
+00:30:06,419 --> 00:30:10,380
+<font color="white" size=".72c">physically drove two truck stops which</font>
+
+845
+00:30:08,880 --> 00:30:11,419
+<font color="white" size=".72c">were places where truck drivers are just</font>
+
+846
+00:30:10,380 --> 00:30:13,919
+<font color="white" size=".72c">kind of</font>
+
+847
+00:30:11,419 --> 00:30:16,020
+<font color="white" size=".72c">Milling about and they would just walk</font>
+
+848
+00:30:13,919 --> 00:30:18,120
+<font color="white" size=".72c">up to truck drivers and like start</font>
+
+849
+00:30:16,020 --> 00:30:20,820
+<font color="white" size=".72c">talking to them and ask them questions</font>
+
+850
+00:30:18,120 --> 00:30:23,100
+<font color="white" size=".72c">about what their problems were</font>
+
+851
+00:30:20,820 --> 00:30:24,720
+<font color="white" size=".72c">they also talked to a lot of Founders</font>
+
+852
+00:30:23,100 --> 00:30:28,260
+<font color="white" size=".72c">who had started companies in the</font>
+
+853
+00:30:24,720 --> 00:30:30,600
+<font color="white" size=".72c">trucking space to get ideas for what</font>
+
+854
+00:30:28,260 --> 00:30:32,700
+<font color="white" size=".72c">problems were actually worth working on</font>
+
+855
+00:30:30,600 --> 00:30:34,500
+<font color="white" size=".72c">they would basically talk to like anyone</font>
+
+856
+00:30:32,700 --> 00:30:36,600
+<font color="white" size=".72c">who knew anything about Trucking that</font>
+
+857
+00:30:34,500 --> 00:30:38,820
+<font color="white" size=".72c">was willing to talk to them and as they</font>
+
+858
+00:30:36,600 --> 00:30:41,580
+<font color="white" size=".72c">did that they began to put together like</font>
+
+859
+00:30:38,820 --> 00:30:43,799
+<font color="white" size=".72c">a mental map of the space and where the</font>
+
+860
+00:30:41,580 --> 00:30:45,720
+<font color="white" size=".72c">good ideas were where the bad ideas were</font>
+
+861
+00:30:43,799 --> 00:30:47,520
+<font color="white" size=".72c">and they actually went through a whole</font>
+
+862
+00:30:45,720 --> 00:30:49,559
+<font color="white" size=".72c">bunch of different potential ideas</font>
+
+863
+00:30:47,520 --> 00:30:52,799
+<font color="white" size=".72c">before eventually deciding to work on</font>
+
+864
+00:30:49,559 --> 00:30:55,020
+<font color="white" size=".72c">fuel cards and I love the example of a</font>
+
+865
+00:30:52,799 --> 00:30:57,539
+<font color="white" size=".72c">to B Because A to B is one of the best</font>
+
+866
+00:30:55,020 --> 00:31:00,000
+<font color="white" size=".72c">new ideas to come out of YC in several</font>
+
+867
+00:30:57,539 --> 00:31:01,919
+<font color="white" size=".72c">years A to B is a phenomenal company and</font>
+
+868
+00:31:00,000 --> 00:31:03,960
+<font color="white" size=".72c">the approach that they used to find this</font>
+
+869
+00:31:01,919 --> 00:31:07,919
+<font color="white" size=".72c">idea is something that really anyone</font>
+
+870
+00:31:03,960 --> 00:31:10,140
+<font color="white" size=".72c">could do and most Founders don't do this</font>
+
+871
+00:31:07,919 --> 00:31:12,539
+<font color="white" size=".72c">because it just sounds like too much</font>
+
+872
+00:31:10,140 --> 00:31:14,820
+<font color="white" size=".72c">work so if you're willing to put in the</font>
+
+873
+00:31:12,539 --> 00:31:17,460
+<font color="white" size=".72c">work this is an amazing way to find a</font>
+
+874
+00:31:14,820 --> 00:31:19,559
+<font color="white" size=".72c">startup idea okay and my last recipe is</font>
+
+875
+00:31:17,460 --> 00:31:21,120
+<font color="white" size=".72c">to just like look for big industries</font>
+
+876
+00:31:19,559 --> 00:31:23,399
+<font color="white" size=".72c">that seem broken</font>
+
+877
+00:31:21,120 --> 00:31:25,020
+<font color="white" size=".72c">any Big Industry that seems broken is</font>
+
+878
+00:31:23,399 --> 00:31:26,899
+<font color="white" size=".72c">probably right for disruption and</font>
+
+879
+00:31:25,020 --> 00:31:30,059
+<font color="white" size=".72c">finally I've got kind of a bonus recipe</font>
+
+880
+00:31:26,899 --> 00:31:31,980
+<font color="white" size=".72c">which is to just find a co-founder that</font>
+
+881
+00:31:30,059 --> 00:31:33,539
+<font color="white" size=".72c">already has an idea they're actually</font>
+
+882
+00:31:31,980 --> 00:31:34,919
+<font color="white" size=".72c">like a lot of people just on Startup</font>
+
+883
+00:31:33,539 --> 00:31:36,419
+<font color="white" size=".72c">School co-founder matching right now</font>
+
+884
+00:31:34,919 --> 00:31:38,100
+<font color="white" size=".72c">that already have an idea and are</font>
+
+885
+00:31:36,419 --> 00:31:39,899
+<font color="white" size=".72c">looking for a co-founder so if you don't</font>
+
+886
+00:31:38,100 --> 00:31:41,880
+<font color="white" size=".72c">have a co-founder and you don't have an</font>
+
+887
+00:31:39,899 --> 00:31:43,679
+<font color="white" size=".72c">idea that could be a great hack to</font>
+
+888
+00:31:41,880 --> 00:31:45,240
+<font color="white" size=".72c">getting both at the same time the last</font>
+
+889
+00:31:43,679 --> 00:31:47,520
+<font color="white" size=".72c">point that I want to leave you with is</font>
+
+890
+00:31:45,240 --> 00:31:49,799
+<font color="white" size=".72c">just to remember that it's often hard to</font>
+
+891
+00:31:47,520 --> 00:31:52,380
+<font color="white" size=".72c">tell if a startup idea is good or not</font>
+
+892
+00:31:49,799 --> 00:31:54,960
+<font color="white" size=".72c">and so while I hope the concepts that I</font>
+
+893
+00:31:52,380 --> 00:31:57,120
+<font color="white" size=".72c">talked about here will help</font>
+
+894
+00:31:54,960 --> 00:31:59,760
+<font color="white" size=".72c">typically the only way to know for sure</font>
+
+895
+00:31:57,120 --> 00:32:02,580
+<font color="white" size=".72c">if your startup idea is good is to Just</font>
+
+896
+00:31:59,760 --> 00:32:04,080
+<font color="white" size=".72c">Launch it and find out so if after all</font>
+
+897
+00:32:02,580 --> 00:32:05,340
+<font color="white" size=".72c">this you've got a startup idea and</font>
+
+898
+00:32:04,080 --> 00:32:07,140
+<font color="white" size=".72c">you're still kind of on the fence about</font>
+
+899
+00:32:05,340 --> 00:32:09,720
+<font color="white" size=".72c">whether it's actually a good idea or not</font>
+
+900
+00:32:07,140 --> 00:32:12,090
+<font color="white" size=".72c">that is my advice for you just launch it</font>
+
+901
+00:32:09,720 --> 00:32:22,869
+<font color="white" size=".72c">and find it</font>
+
+902
+00:32:12,090 --> 00:32:22,869
+<font color="white" size=".72c">[Music]</font>
+

@@ -8,6 +8,7 @@
  * being guided step-by-step, progressively, toward getting hired (the journey bar makes it visible).
  */
 import { useEffect, useState } from 'react';
+import { SpeakerIcon } from './icons/AudioIcons';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SalmaPortrait } from './SalmaTakeover.jsx';
 import { salmaSpeak } from './salmaVoice.js';
@@ -191,7 +192,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
           style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: '8px 10px', cursor: speaking ? 'wait' : 'pointer',
             borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
             background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>
-          {speaking ? '…' : '🔊'}
+          {speaking ? '…' : <SpeakerIcon />}
         </button>
       </div>
 

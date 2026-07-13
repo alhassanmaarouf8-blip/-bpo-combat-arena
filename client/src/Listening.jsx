@@ -8,6 +8,7 @@
  * rejected: understanding a fast native speaker and capturing data correctly. Zero added cost.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { SpeakerIcon } from './icons/AudioIcons';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
 
@@ -192,7 +193,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {/* Play card — NO text shown; the whole point is to catch it by ear */}
     <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
       <button onClick={play} disabled={!canPlay} style={{ ...primaryBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
-        🔊 {playing
+        <SpeakerIcon style={{ marginRight: 6 }} /> {playing
           ? T(lang, 'Audio wird vorbereitet…', 'بنجهّز الصوت…')
           : (played === 0 ? T(lang, 'Anruf abspielen', 'شغّل المكالمة') : T(lang, `Nochmal (${maxPlays - played} übrig)`, `كمان مرة (فاضل ${maxPlays - played})`))}
       </button>

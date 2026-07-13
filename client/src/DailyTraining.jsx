@@ -10,6 +10,7 @@
  *  • Streak shield (Kahneman loss aversion)       — 7-day shield display + earned notification
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { SpeakerIcon, SpeakerQuietIcon } from './icons/AudioIcons';
 import { playNative } from './nativeVoice.js';
 import { salmaLine, salmaName } from './salmaCopy.js';
 import { salmaSpeak } from './salmaVoice.js';
@@ -281,7 +282,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#e2e8f0', lineHeight: 1.4 }}>{data.phrase.de}</div>
                 <button onClick={() => speakCard(data.phrase.de, 'phrase')} style={speakBtnSt} title="Anhören">
-                  {speaking === 'phrase' ? '🔊' : '🔈'}
+                  {speaking === 'phrase' ? <SpeakerIcon /> : <SpeakerQuietIcon />}
                 </button>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 3 }}>{data.phrase.en}</div>
@@ -301,7 +302,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1, fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>{q.prompt}</div>
                 <button onClick={() => speakCard(q.prompt, 'prompt')} style={speakBtnSt} title="Frage vorlesen">
-                  {speaking === 'prompt' ? '🔊' : '🔈'}
+                  {speaking === 'prompt' ? <SpeakerIcon /> : <SpeakerQuietIcon />}
                 </button>
               </div>
               {q.hint && <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 5, fontStyle: 'italic' }}>{q.hint}</div>}
@@ -334,7 +335,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
                       <div style={{ fontSize: 12, color: '#cbd5e1' }}>Lösung: <b style={{ color: '#e2e8f0' }}>{result.expected}</b></div>
                       <button onClick={() => speakCard(result.expected, 'answer')} style={speakBtnSt} title="Lösung anhören">
-                        {speaking === 'answer' ? '🔊' : '🔈'}
+                        {speaking === 'answer' ? <SpeakerIcon /> : <SpeakerQuietIcon />}
                       </button>
                     </div>
                   )}

@@ -9,6 +9,7 @@
  * resilience debrief. 100% client-side: free browser voice + ClipRecorder. No server, no API.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { SpeakerIcon } from './icons/AudioIcons';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
 
@@ -436,7 +437,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(59,130,246,0.07)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.25)' }}>
       <div style={{ fontSize: 10, color: 'var(--good)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>💬 {T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
       <div style={{ color: '#f1f5f9', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
-      <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}>🔊 {T(lang, 'Anhören', 'اسمع')}</button>
+      <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}><SpeakerIcon style={{ marginRight: 6 }} /> {T(lang, 'Anhören', 'اسمع')}</button>
     </div>
     <div style={{ display: 'flex', gap: 8 }}>
       {froze && <button onClick={() => setPhase('ready')} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>}

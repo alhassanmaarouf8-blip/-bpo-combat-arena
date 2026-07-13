@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
+import { SpeakerIcon, SpeakerMuteIcon } from './icons/AudioIcons';
 import { GeminiVoicePlayer } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
 import DailyTraining from './DailyTraining.jsx';
@@ -1959,7 +1960,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                     <button onClick={() => salmaModel({ apiUrl, token, text: ritualFix.say })}
                       style={{ minHeight:44, padding:'10px 14px', borderRadius:10, cursor:'pointer', fontSize:12,
                         border:'1px solid rgba(59,130,246,0.45)', color:'#bfdbfe', background:'rgba(59,130,246,0.10)' }}>
-                      🔊 {salmaLine('ritual_replay', lang)}
+                      <SpeakerIcon style={{ marginRight: 6 }} /> {salmaLine('ritual_replay', lang)}
                     </button>
                     <button onClick={() => { setRitualDone(true); beacon('ritual_done'); }}
                       style={{ minHeight:44, padding:'10px 16px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:800,
@@ -3868,7 +3869,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   items: [{ key, slots: { days: info?.trial?.daysLeft ?? 0 } }] })}
                   style={{ minWidth:44, minHeight:44, padding:7, cursor:'pointer', borderRadius:9,
                     border:'1px solid rgba(59,130,246,0.4)', color:'#bfdbfe',
-                    background:'rgba(59,130,246,0.10)', fontSize:15 }}>🔊</button>
+                    background:'rgba(59,130,246,0.10)' }}><SpeakerIcon /></button>
               </div>
               <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>{text}</div>
             </div>
@@ -6337,7 +6338,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                     style={{ flex:'0 0 auto', padding:'10px 12px', cursor:'pointer', borderRadius:8,
                       fontFamily:'var(--font-display)', fontSize:13, letterSpacing:'0.08em',
                       border:'1px solid #475569', color:'#94a3b8', background:'rgba(148,163,184,0.06)' }}>
-                    {ttsMuted ? '🔇' : '🔊'}
+                    {ttsMuted ? <SpeakerMuteIcon /> : <SpeakerIcon />}
                   </button>
                   {/* Manual record (with STOPP) is ONLY for the typing fallback when Freisprech is OFF.
                       In hands-free the live VAD auto-starts/stops/sends — showing a STOPP button here

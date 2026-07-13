@@ -16,6 +16,7 @@
  * T() falls back to German while the slot is empty).
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { SpeakerIcon } from './icons/AudioIcons';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
 
@@ -262,7 +263,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
               {T(lang, 'Richtig war: ', '')}<b style={{ color: 'var(--action)' }}>{result.target}</b>{/* OWNER-AR slot */}
             </div>
           )}
-          <button onClick={hear} style={{ ...ghostBtn, marginTop: 8 }}>🔊 {T(lang, 'Anhören', '')}</button>{/* OWNER-AR slot */}
+          <button onClick={hear} style={{ ...ghostBtn, marginTop: 8 }}><SpeakerIcon style={{ marginRight: 6 }} /> {T(lang, 'Anhören', '')}</button>{/* OWNER-AR slot */}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           {!result.correct && <button onClick={retry} style={ghostBtnWide}>{T(lang, 'Nochmal', '')}</button>}{/* OWNER-AR slot */}

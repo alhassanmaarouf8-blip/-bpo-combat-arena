@@ -1,6 +1,42 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
-## 👩‍💼 SALMA REAL PHOTO AVATAR (2026-07-13, HEAD `ff48910`, live)
+## 🎬 SALMA DEMO CLIP + 🎨 UI-UPGRADE WORKSTREAM + Mobbin (2026-07-13)
+- **Demo clip (sent to owner, $0):** `salma-demo.mp4` 720² 10s — her living face (amplitude-driven
+  mouth from the real audio + blinks) + her voice speaking the real `intro_welcome` line, warm-steered
+  Gemini Kore (same as app), peak-normalized. Built offline via free key. Distribution copy (LinkedIn EN
+  + WhatsApp masri-structure) handed over. Owner ear-check on the voice pending. Scripts in job tmp:
+  genframes/genneutral/genaudio/buildclip/makepreview.mjs.
+- **Mobbin MCP:** added `claude mcp add mobbin --scope user --transport http https://api.mobbin.com/mcp`,
+  owner authenticated → `claude mcp get mobbin` = ✔ Connected. ★ BUT its tools are NOT in this session's
+  registry (ToolSearch "mobbin" → none) — mid-session MCP servers only expose tools after a Claude Code
+  RESTART. Next session I'll have Mobbin's design refs.
+- **UI-upgrade workstream (owner: "upgrade any UI via Mobbin, all free"):** design system is already
+  mature+enforced (design-lint), so real level-up = Mobbin refs (post-restart). Found a concrete app-wide
+  slop meanwhile: **emoji-as-chrome** (🔊 listen, 🔈/🔇 toggles, ✕ close) across Listening, PressureLadder,
+  Shadowing, DailyTraining, BrainGuide, App, Feedback, SalmaTakeover — violates the icon law. Landed the
+  machined stroke-icon PATTERN on the cold-open (`5eba995`: inline SpeakerIcon/CloseIcon, currentColor).
+  NEXT: sweep the rest into one consistent icon set (App.jsx <Icon> not exported to siblings → export it
+  or share inline set), preserving DailyTraining's playing/idle/muted semantic as icon variants. Then
+  Mobbin-informed visual refresh, highest-leverage screens first (cold-open ✓ · paywall · auth/landing).
+
+
+## 👁️👄 SALMA BLINKS + TALKS (2026-07-13, HEAD `5acb16c`, LIVE + verified)
+Owner picked "b) make her blink/talk with frames." Delivered via **identity-preserving image EDITING**
+(not new generation): fed the shipped `salma.jpg` back to `gemini-3-pro-image-preview` ($0 free key)
+with minimal-edit prompts → **eyes-closed** frame + **mouth-open** frame of the SAME woman, plus a
+matched **neutral** sibling (eyes-open, closed-lip smile). Cropped all 3 with ONE ffmpeg box (the
+editor re-frames wider + ignores "keep crop", so a tight original won't align — regenerate a sibling).
+**Alignment blend-proven** (`ffmpeg blend=average` 50/50 → ghosting ONLY at eyes/mouth, silhouette
+clean → no pop). `SalmaPortrait` = 3-layer `<img>` stack, pure-CSS opacity keyframes: `salmaBlink`
+(lids, always, slow loop) + `salmaTalk` (mouth crossfade, ONLY while `.talk`/speaking) + sway + glow;
+reduced-motion strips all. Assets `client/public/salma{,-blink,-talk}.jpg` (~20KB each). VERIFIED:
+build `5acb16c`==HEAD, all 3 frames HTTP 200 at exact bytes (20222/20539/17673); build+design-lint
+clean. Self-contained preview `salma-preview-live.html` sent to owner for the motion ear-check (curl
+can't prove motion looks good). Capability recorded → [[gemini-image-generation]] (editing section).
+Note: closed-lip neutral is the new RESTING face (permanent teeth-grin reads "frozen"; she opens into
+the smile when talking) — one-line swap back to teeth-smile base if owner prefers.
+
+## 👩‍💼 SALMA REAL PHOTO AVATAR (2026-07-13, HEAD `ff48910`, live — blink/talk now DONE above)
 Owner: "an attractive German young lady it should look like that, find me one." Illustration hit its
 ceiling (SVG v1→v3), so pivoted to a REAL-looking face. Generated a **SYNTHETIC** portrait (no real
 person → no likeness/impersonation risk) via `gemini-3-pro-image-preview` on the free no-billing

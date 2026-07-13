@@ -8,6 +8,7 @@
  * Gating is server-side: GET/POST return 402 for free/expired accounts → we route to pricing.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { SpeakerIcon } from './icons/AudioIcons';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
@@ -244,7 +245,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
         <button onClick={play} style={{ ...ghostBtnWide }}>
-          🔊 {T(lang, 'Anhören', 'استمع')}
+          <SpeakerIcon style={{ marginRight: 6 }} /> {T(lang, 'Anhören', 'استمع')}
         </button>
         {clipUrl && (
           <button onClick={playMine} style={{ ...ghostBtnWide }}>

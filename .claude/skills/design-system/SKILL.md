@@ -116,4 +116,9 @@ Paste-able, standing, forceful. Apply to EVERY surface, EVERY state, EVERY word 
 > 9. **Proof or it didn't happen:** fresh prod screenshots (mobile + desktop), zero console
 >    errors, gates green, and the owner's eye. "Elite" is a verdict he gives, not one you claim.
 
-Enforcement history: landing (1242802), fight screen de-arcade (042a3fb), email reset flow (9c434ac).
+Enforcement history: landing (1242802), fight screen de-arcade (042a3fb), email reset flow (9c434ac),
+home readiness ladder de-arcade (26eb853 — killed: glowing rank text, idle pulse dot, glow bars,
+"SO NAH! 🔥" near-miss flasher, 🏆/🎯 chrome emoji, 9px micro-caps, orange-as-second-accent,
+label/rank collision at 390px). Still standing (known, parked): `--shadow-action` token carries a
+glow bloom on every action CTA (app-wide token — its tightening is a deliberate separate ship);
+rank VOCABULARY (Rekrut/Anwärter) is arcade-flavored — renaming is an owner product call.
