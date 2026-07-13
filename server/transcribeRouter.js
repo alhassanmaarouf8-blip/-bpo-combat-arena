@@ -17,6 +17,7 @@ import { activeFightUsers } from './liveFights.js';
 import { voicedDurationMs } from './audioGuard.js';
 import { expandForSpeechDE } from './speechExpandDE.js';
 import { mintMediaTicket, consumeMediaTicket } from './mediaTickets.js';
+import { vertexConfigured, getVertexAccessToken } from './vertexToken.js';
 
 const router = express.Router();
 
@@ -45,6 +46,13 @@ const DEFAULT_VOICE = 'aura-2-julius-de';
 const SALMA_MASRI_VOICE = 'salma-masri';
 const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
 const GEMINI_TTS_VOICE = process.env.GEMINI_TTS_VOICE || 'Kore';
+// Vertex AI transport for TTS: when GEMINI_USE_VERTEX=1 + creds exist, the SAME generateContent
+// call bills the $300 GCP credit (project) instead of the AI Studio key (owner's card). Vertex
+// publisher-model ids can differ from AI Studio's — override with GEMINI_TTS_MODEL_VERTEX if the
+// default 404s (mirrors the live model needing an explicit id, not the `-latest` alias).
+const GEMINI_TTS_MODEL_VERTEX = process.env.GEMINI_TTS_MODEL_VERTEX || GEMINI_TTS_MODEL;
+const VERTEX_PROJECT  = process.env.GOOGLE_CLOUD_PROJECT  || 'gen-lang-client-0719205380';
+const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 const MASRI_STYLE = 'اقري الجملة دي بصوت دافي وودود بلهجة مصرية قاهرية أصيلة تماماً — زي موظفة استقبال مصرية بجد، ' +
   'الجيم تتنطق مصري زي «جنيه/جمب» (مش جيم فصحى) والقاف مهموزة: ';
 // Salma's GERMAN lines (what she speaks until the owner fills a row's masri) run on the SAME Gemini
@@ -377,12 +385,28 @@ router.post('/tts', requireAuth,
 // One Gemini-TTS call, steered by `style` (Cairo-masri for her Arabic, warm-German for her German) —
 // SAME Kore voice either way, so Salma sounds like ONE person across both languages.
 async function geminiTTS(text, style) {
-  const key = process.env.GEMINI_API_KEY;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${key}`;
-  const body = { contents: [{ parts: [{ text: style + text }] }],
+  // role:'user' is REQUIRED by Vertex ("Please use a valid role") and accepted by AI Studio — so
+  // one body works on both transports (probe-verified 2026-07-13, tts-vertex-proof.test.mjs).
+  const body = { contents: [{ role: 'user', parts: [{ text: style + text }] }],
     generationConfig: { responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE } } } } };
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+
+  // Vertex first when configured (bills the $300 GCP credit, not the card); same generateContent
+  // body, but the model is a publisher path and auth is a Bearer token, not a `?key=` query param.
+  // Falls through to the AI Studio key path otherwise — identical contract, so callers don't change.
+  let url, headers;
+  if (vertexConfigured()) {
+    const token = await getVertexAccessToken();
+    url = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT}`
+        + `/locations/${VERTEX_LOCATION}/publishers/google/models/${GEMINI_TTS_MODEL_VERTEX}:generateContent`;
+    headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  } else {
+    const key = process.env.GEMINI_API_KEY;
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${key}`;
+    headers = { 'Content-Type': 'application/json' };
+  }
+
+  const r = await fetch(url, { method: 'POST', headers,
     body: JSON.stringify(body), signal: AbortSignal.timeout(25_000) });
   if (!r.ok) throw new Error(`gemini tts ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}`);
   const j = await r.json();
@@ -437,7 +461,7 @@ router.get('/tts-stream', async (req, res) => {
   // are 1–3 short sentences and every repeat is a cache hit above. Missing key → 503 so the client
   // applies the native-or-silence law (never a robotic fallback voice), same contract as Deepgram below.
   if (voice === SALMA_MASRI_VOICE || voice === SALMA_DE_VOICE) {
-    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'tts_unavailable' });
+    if (!process.env.GEMINI_API_KEY && !vertexConfigured()) return res.status(503).json({ error: 'tts_unavailable' });
     try {
       const wav = await (voice === SALMA_MASRI_VOICE ? geminiMasriTTS(text) : geminiGermanTTS(text));
       res.set('Content-Type', 'audio/wav');
