@@ -1408,7 +1408,6 @@ function GameOver({ winner, onRestart }) {
     <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
       background:'rgba(0,0,0,0.88)', backdropFilter:'blur(6px)', flexDirection:'column', padding:24,
       animation:'flash-in 0.4s ease' }}>
-      <div style={{ fontSize:70, marginBottom:16 }}>{win ? '🏆' : '💀'}</div>
       <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
         color: win ? 'var(--accent)' : '#ef4444',
         textShadow:`0 0 30px ${win ? 'rgba(59,130,246,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
@@ -3941,7 +3940,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
             background:'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(249,115,22,0.05))',
             border:'1px solid var(--action)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:14, letterSpacing:'0.04em', color:'var(--action)' }}>
-              🔥 {offer.pct}% RABATT · {offer.label}
+              {offer.pct}% RABATT · {offer.label}
             </div>
             <div style={{ fontSize:11, color:'#e2e8f0', marginTop:3 }}>
               Nur noch {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'} — endet {endsTxt}.
@@ -5668,7 +5667,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           background:'rgba(2,4,9,0.92)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
             background:'linear-gradient(180deg, rgba(0,22,44,0.98), rgba(0,8,18,0.99))', border:'1px solid rgba(59,130,246,0.5)', boxShadow:'0 0 40px rgba(59,130,246,0.2)' }}>
-            <div style={{ fontSize:52 }}>🎉</div>
             <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, color:'var(--accent)', marginTop:6 }}>
               {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
             </div>

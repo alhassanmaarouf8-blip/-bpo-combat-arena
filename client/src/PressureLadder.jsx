@@ -418,7 +418,6 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   if (phase === 'round') return shell(<>
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-      <div style={{ fontSize: 44 }}>{froze ? '🥶' : souveraen ? '🏅' : '💪'}</div>
       <div style={{ fontSize: 18, color: froze ? '#fca5a5' : souveraen ? 'var(--accent)' : 'var(--accent-2)', fontWeight: 800, marginTop: 8 }}>
         {froze
           ? T(lang, 'Eingefroren.', 'اتجمدت.')
@@ -453,7 +452,6 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   return shell(<>
     {header}
     <div style={{ textAlign: 'center', padding: '22px 0' }}>
-      <div style={{ fontSize: 48 }}>🏆</div>
       <div style={{ fontSize: 18, color: '#f8fafc', fontWeight: 800, marginTop: 8 }}>{T(lang, 'Leiter bestiegen.', 'طلعت السلّم.')}</div>
       <div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 10, lineHeight: 1.7, padding: '0 6px' }}>
         {T(lang,
@@ -462,7 +460,6 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       </div>
       <div style={{ fontSize: 12, color: 'var(--accent-2)', marginTop: 12, fontWeight: 700 }}>{T(lang, `Stufen standgehalten: ${survived}/5`, `مستويات صمدت فيها: ${survived}/5`)}</div>
     </div>
-    <button onClick={goEndless} style={{ ...primaryBtn, background: 'linear-gradient(135deg,var(--action),#dc2626)', borderColor: 'var(--action)' }}>♾️ {T(lang, 'ÜBERLEBENSMODUS — endlos', 'وضع البقاء — بلا حدود')}</button>
     <button onClick={() => { setIdx(0); setSurvived(0); setPhase('intro'); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 10 }}>{T(lang, 'Von vorne', 'من الأول')}</button>
     <button onClick={() => { cleanup(); onClose?.(); }} style={{ ...ghostBtnWide, width: '100%', marginTop: 8 }}>{T(lang, 'Fertig', 'تمام')}</button>
   </>);
