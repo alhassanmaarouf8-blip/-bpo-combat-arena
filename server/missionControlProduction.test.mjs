@@ -12,7 +12,7 @@ const ROOT = resolve(SERVER_DIR, '..');
 const CLIENT_SRC = join(ROOT, 'client', 'src');
 const PUBLIC_DIR = join(ROOT, 'client', 'public');
 const DOCS_DIR = join(ROOT, 'docs');
-const FEATURE_BASE_SHA = process.env.MISSION_CONTROL_BASE_SHA || '180663b';
+const FEATURE_BASE_OVERRIDE = process.env.MISSION_CONTROL_BASE_SHA || '';
 process.env.AUTH_SECRET ||= 'mission-control-production-test-secret';
 const core = await import('./missionControlCore.js');
 const vacancyCore = await import('./vacancyTargetCore.js');
@@ -72,6 +72,24 @@ function walkSources(dir) {
 
 function git(args) {
   return execFileSync('git', args, { cwd:ROOT, encoding:'utf8', stdio:['ignore', 'pipe', 'ignore'] }).trim();
+}
+
+function featureBaseSha() {
+  if (FEATURE_BASE_OVERRIDE) return FEATURE_BASE_OVERRIDE;
+  try {
+    const featureCommit = git([
+      'log', '-1', '--format=%H', '--fixed-strings',
+      '--grep=feat: add job-to-offer mission control', 'HEAD',
+    ]);
+    if (featureCommit) return git(['rev-parse', `${featureCommit}^`]);
+  } catch { /* fall through to a branch-base check */ }
+  for (const ref of ['origin/main', 'main']) {
+    try {
+      const base = git(['merge-base', 'HEAD', ref]);
+      if (base) return base;
+    } catch { /* source archives may not expose branch refs */ }
+  }
+  return '180663b';
 }
 
 async function withMissionApi(router, run) {
@@ -628,8 +646,9 @@ test('Mission Control modules remain isolated from microphone, persona and live-
   for (const path of missionFiles) assert.doesNotMatch(text(path), forbidden, `voice dependency leaked into ${path}`);
 
   try {
-    git(['cat-file', '-e', `${FEATURE_BASE_SHA}^{commit}`]);
-    const changed = git(['diff', '--name-only', FEATURE_BASE_SHA, '--']).split(/\r?\n/u).filter(Boolean);
+    const featureBase = featureBaseSha();
+    git(['cat-file', '-e', `${featureBase}^{commit}`]);
+    const changed = git(['diff', '--name-only', featureBase, '--']).split(/\r?\n/u).filter(Boolean);
     const protectedVoiceFiles = [
       'client/src/audioRecorder.js',
       'client/src/geminiVoice.js',
@@ -648,7 +667,7 @@ test('Mission Control modules remain isolated from microphone, persona and live-
       const manager = text(join(SERVER_DIR, 'websocketManager.js'));
       assert.match(manager, /import \{ missionControlVacancyLiveContext \} from '\.\/missionControlCore\.js';/u);
       assert.match(manager, /missionControlVacancyLiveContext\(prof, account\)\s*\|\|\s*vacancyLiveContext\(prof, account\)/u);
-      const addedLines = git(['diff', '--unified=0', FEATURE_BASE_SHA, '--', 'server/websocketManager.js'])
+      const addedLines = git(['diff', '--unified=0', featureBase, '--', 'server/websocketManager.js'])
         .split(/\r?\n/u)
         .filter((line) => line.startsWith('+') && !line.startsWith('+++'));
       assert.ok(addedLines.length > 0);

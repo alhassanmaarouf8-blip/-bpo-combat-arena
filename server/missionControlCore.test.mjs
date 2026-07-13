@@ -437,11 +437,12 @@ test('state normalization preserves only bounded response events and valid track
 
 test('encrypted idempotency ledger and active vacancy bridge are bounded and relationship-safe', () => {
   const opportunity = readyOpportunity(passport());
+  const packId = `pack_${'c'.repeat(24)}`;
   let state = { ...emptyMissionControlState(), passport:passport(), opportunities:[opportunity], updatedAt:NOW };
   const payloadHash = idempotencyPayloadHash({ opportunityId:opportunity.id, confirmed:true });
   const first = storeIdempotencyRecord(state, {
     key:'request_00000001', operation:'application_pack_approve', payloadHash,
-    responseStatus:200, responseValue:{ id:'safe_result', created:true }, createdAt:NOW,
+    responseStatus:200, responseValue:{ applicationPack:{ id:packId } }, createdAt:NOW,
   });
   state = first.state;
   assert.equal(first.created, true);
@@ -458,7 +459,7 @@ test('encrypted idempotency ledger and active vacancy bridge are bounded and rel
     state = storeIdempotencyRecord(state, {
       key:`request_${String(index).padStart(8, '0')}`,
       operation:'application_pack_approve', payloadHash, responseStatus:200,
-      responseValue:{ index }, createdAt:NOW + index,
+      responseValue:{ applicationPack:{ id:packId } }, createdAt:NOW + index,
     }).state;
   }
   assert.equal(state.idempotencyRecords.length, 100);

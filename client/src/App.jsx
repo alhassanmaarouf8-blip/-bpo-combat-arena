@@ -2943,12 +2943,14 @@ function ProductHomePreview() {
           ))}
         </div>
 
-        <div style={{ position:'relative', marginTop:14, minHeight:50, borderRadius:14,
+        <button type="button" onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
+          aria-label="Kostenlos registrieren und Interview starten"
+          style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14, border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', justifyContent:'center', gap:9,
           fontFamily:'var(--font-display)', fontSize:13, fontWeight:750, color:'#111827',
           background:'linear-gradient(180deg,#fb923c,#f97316)', boxShadow:'0 12px 28px rgba(249,115,22,0.2)' }}>
           <Icon name="mic" size={17} /> Interview starten
-        </div>
+        </button>
         <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
           Etwa 7 Minuten · sofortiges, persönliches Feedback
         </div>

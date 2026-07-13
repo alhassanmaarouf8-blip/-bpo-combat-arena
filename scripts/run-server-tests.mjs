@@ -16,6 +16,7 @@ async function walk(dir) {
 
 const providerProofs = new Set([
   path.normalize('server/vertex-proof.test.mjs'),
+  path.normalize('server/tts-vertex-proof.test.mjs'),
 ]);
 const all = (await walk('server')).sort();
 const files = all.filter((file) => process.env.RUN_PROVIDER_PROOFS === '1' || !providerProofs.has(path.normalize(file)));
