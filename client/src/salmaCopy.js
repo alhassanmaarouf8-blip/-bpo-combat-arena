@@ -107,11 +107,6 @@ export const SALMA_COPY = {
   // {name} ← /api/progress nextBoss.name · {tier} ← nextBoss.tier (the real org ladder)
   pipeline_next: { de: 'Als Nächstes buche ich dir: {name} · {tier}.', ar: '' }, // OWNER-AR · EN: "Next I book you: {name} · {tier}."
   pipeline_top: { de: 'Du hast die ganze Leiter vor dir — jede Stufe ist ein echtes Interview.', ar: '' }, // OWNER-AR · EN: "The whole ladder is ahead of you — every rung is a real interview."
-  // {masked} ← /api/leaderboard entry.masked (server-masked email) · {sessions} ← entry.liveSessions
-  note_rival_ahead: { de: 'Kandidat {masked} liegt direkt vor dir — {sessions} Live-Interviews diese Woche. Der Platz ist zu holen.', ar: '' }, // OWNER-AR · EN: "Candidate {masked} is right ahead of you — {sessions} live interviews this week. The spot is takeable."
-  note_rival_leader: { de: 'Du führst mein Kandidaten-Feld diese Woche an — halte den Platz.', ar: '' }, // OWNER-AR · EN: "You lead my candidate field this week — hold the spot."
-  // {count} ← entries.length · {masked}/{sessions} ← the current leader
-  note_rival_field: { de: '{count} Kandidaten trainieren diese Woche — {masked} führt mit {sessions} Interviews.', ar: '' }, // OWNER-AR · EN: "{count} candidates are training this week — {masked} leads with {sessions} interviews."
 
   // ── paywall (Phase C) ─────────────────────────────────────────────────────────────────────
   // {days} ← entitlement.trial.daysLeft

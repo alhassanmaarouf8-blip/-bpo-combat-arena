@@ -4148,7 +4148,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
   const [topWeakness, setTopWeakness] = useState(null);    // /api/progress topWeakness — Salma's home-card note
   const [pipeline, setPipeline] = useState(null);          // { currentBoss, nextBoss } — her bookings ladder
-  const [rival, setRival] = useState(null);                // { key, slots } — the leaderboard rival note
   const [salma, setSalma] = useState(null);                // recruiter cold-open ctx | null (SalmaTakeover)
   const [salmaResume, setSalmaResume] = useState(0);       // bumped when the assessment closes → her flow resumes
   // Deep audit D10 (2026-07-10): the level was NEVER persisted (a B2 user restarted at slow A2–B1
@@ -5406,21 +5405,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
         if (!cancelled && data.currentBoss) setPipeline({ currentBoss: data.currentBoss, nextBoss: data.nextBoss || null });   // her bookings ladder
       } catch { /* keep cached value */ }
     })();
-    // The rival — real weekly leaderboard (server-masked emails). One quiet fetch; fail-silent.
-    fetch(`${API_URL}/api/leaderboard`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled || !Array.isArray(d?.entries) || !d.entries.length) return;
-        const my = d.entries.findIndex((e) => e.id === auth.account?.id);
-        if (my === 0) setRival({ key: 'note_rival_leader', slots: {} });
-        else if (my > 0) {
-          const r = d.entries[my - 1];
-          setRival({ key: 'note_rival_ahead', slots: { masked: r.masked, sessions: r.liveSessions } });
-        } else {
-          const top = d.entries[0];
-          setRival({ key: 'note_rival_field', slots: { count: d.entries.length, masked: top.masked, sessions: top.liveSessions } });
-        }
-      }).catch(() => {});
     return () => { cancelled = true; };
   }, [authHeaders]);
 
@@ -5851,7 +5835,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
                 <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
-                  pipeline={pipeline} rival={rival}
+                  pipeline={pipeline}
                   onAction={(d, why) => {
                   const p = d?.prescription || {};
                   const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,

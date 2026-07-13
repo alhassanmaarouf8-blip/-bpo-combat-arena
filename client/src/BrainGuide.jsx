@@ -104,7 +104,7 @@ const LADDER = [
 // A module flag, not state, so returning to the home mid-session doesn't re-trigger her every time.
 let greetedThisSession = false;
 
-export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, rival = null }) {
+export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null }) {
   const [data, setData] = useState(null);
   const [speaking, setSpeaking] = useState(false);
   useEffect(() => {
@@ -159,10 +159,6 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     : null;
   const trialNote = trial?.active && Number.isFinite(trial?.daysLeft)
     ? salmaLine('note_trial', lang, { days: trial.daysLeft })
-    : null;
-  // The rival — computed in App from the REAL leaderboard (server-masked emails, honest counts).
-  const rivalNote = rival
-    ? salmaLine(rival.key, lang, rival.slots)
     : null;
   // Her pipeline — where the candidate stands on the interviewer org ladder (level-derived).
   const curLevel = pipeline?.currentBoss?.minLevel ?? null;
@@ -238,12 +234,11 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
         </div>
       )}
       {/* Salma's quiet file notes — real dashboard/entitlement/leaderboard values only. */}
-      {(weaknessNote || trialNote || rivalNote) && (
+      {(weaknessNote || trialNote) && (
         <div dir="ltr" style={{ margin: '8px 0 2px', padding: '8px 10px', borderRadius: 8, textAlign: 'left',
           background: 'rgba(59,130,246,0.07)', borderLeft: '2px solid rgba(59,130,246,0.45)' }}>
           {weaknessNote && <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55 }}>{weaknessNote}</div>}
-          {rivalNote && <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{rivalNote}</div>}
-          {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: (weaknessNote || rivalNote) ? 4 : 0 }}>{trialNote}</div>}
+          {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{trialNote}</div>}
         </div>
       )}
 
