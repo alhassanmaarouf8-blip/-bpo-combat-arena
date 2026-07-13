@@ -342,10 +342,12 @@ const SALMA_FACE_CSS = `
 .salma-photo .stack{position:absolute;inset:0;transform-origin:50% 82%;animation:salmaSwy 4.6s ease-in-out infinite}
 .salma-photo .face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%;display:block}
 .salma-photo .lids{opacity:0;animation:salmaBlink 5.4s ease-in-out infinite}
-.salma-photo .mouth{opacity:0}
-.salma-photo.talk .mouth{animation:salmaTalk 0.28s ease-in-out infinite}
-.salma-photo.lvl.talk .mouth{animation:none}
+/* The mouth photo is never shown: a 2-frame stack (closed + one open shape) cannot lip-sync — a
+   single fading open-mouth reads as uncanny garbage. Honest aliveness instead = blink + a glow that
+   reacts to her REAL voice level (below). True photoreal lip-sync needs viseme frames / a video avatar. */
+.salma-photo .mouth{opacity:0 !important}
 .salma-photo.talk{animation:salmaGlow 1.3s ease-in-out infinite}
+.salma-photo.lvl.talk{animation:none}   /* level-active → the ref drives box-shadow, not the keyframe */
 @keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.03)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.05)}}
 @keyframes salmaGlow{0%,100%{box-shadow:0 0 14px rgba(59,130,246,0.4)}50%{box-shadow:0 0 24px rgba(59,130,246,0.9),0 0 8px rgba(59,130,246,0.6)}}
 @keyframes salmaBlink{0%,92%{opacity:0}95%{opacity:1}98%,100%{opacity:0}}
@@ -359,22 +361,24 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   const [liveSpeaking, setLiveSpeaking] = useState(false);
   useEffect(() => subscribeSalmaSpeaking(setLiveSpeaking), []);
   const talk = speaking || liveSpeaking;
-  // Real-envelope mouth: her mouth opens PROPORTIONAL to the actual audio loudness (open on syllables,
-  // closed on pauses) — congruent + simultaneous with the words, not a robotic fixed flap. Driven via a
-  // REF straight to the img's opacity (no per-frame React re-render → smooth on low-end phones).
-  // `lvlActive` flips true once (a one-time re-render) so the CSS keyframe flap yields to the level;
-  // until then, or if the analyser can't attach, the flap is the graceful fallback.
-  const mouthRef = useRef(null);
+  // Honest aliveness: her ring GLOW reacts to her REAL voice loudness (brighter on syllables, calm on
+  // pauses) — a truthful "she's speaking" cue, not a fake mouth. Driven via a REF straight to the
+  // container's box-shadow (no per-frame re-render → smooth on low-end). `lvlActive` flips true once so
+  // the CSS glow keyframe yields to the level; until then / if the analyser can't attach, the keyframe
+  // glow is the graceful fallback. (2-frame photos can't lip-sync — see the CSS note.)
+  const rootRef = useRef(null);
   const talkRef = useRef(talk); talkRef.current = talk;
   const [lvlActive, setLvlActive] = useState(false);
   const lvlActiveRef = useRef(false);
   useEffect(() => subscribeSalmaLevel((v) => {
     if (!lvlActiveRef.current) { lvlActiveRef.current = true; setLvlActive(true); }
-    const el = mouthRef.current;
-    if (el) el.style.opacity = talkRef.current ? String(Math.min(1, Math.pow(v, 0.7) * 1.25)) : '0';
+    const el = rootRef.current;
+    if (el) el.style.boxShadow = talkRef.current
+      ? `0 0 ${14 + v * 24}px rgba(59,130,246,${(0.4 + v * 0.5).toFixed(2)})`
+      : '';
   }), []);
   return (
-    <div style={{ ...portrait, width: size, height: size }}
+    <div ref={rootRef} style={{ ...portrait, width: size, height: size }}
       className={`salma-photo${talk ? ' talk' : ''}${lvlActive ? ' lvl' : ''}`}
       role="img" aria-label="Salma, Recruiterin">
       <style>{SALMA_FACE_CSS}</style>
@@ -382,7 +386,7 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
         justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
       <div className="stack">
         <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
-        <img ref={mouthRef} className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
+        <img className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
         <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
       </div>
     </div>
