@@ -67,6 +67,16 @@ export function defaultProfile(userId) {
     // accidentally expose Candidate Passport or opportunity data.
     missionControlEncrypted: null,
 
+    // Salma Personal Tutor: bounded structured state, keyed by immutable account ID.
+    // Raw audio, free-form questions, transcripts, and email addresses never live here.
+    salmaCoach: {
+      version: 1,
+      preferences: { dailyMinutes: 10, preferredWindows: [], languageSupport: 'de', autoSpeak: false, muted: false },
+      activePrescription: null,
+      coachState: { lastHandledEventId: null, repeatedErrorCounts: {}, completedBlocks: {}, lastRetestSessionId: null,
+        questionUsage: { day: '', count: 0 } },
+    },
+
   };
 }
 

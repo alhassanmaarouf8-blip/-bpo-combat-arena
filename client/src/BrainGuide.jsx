@@ -12,6 +12,7 @@ import { SpeakerIcon } from './icons/AudioIcons';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SalmaPortrait } from './SalmaTakeover.jsx';
 import { salmaSpeak } from './salmaVoice.js';
+import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // The guide's masri voice. Owner-ordered to finish 2026-07-10 ("go do them, the eight brain copy —
@@ -104,10 +105,6 @@ const LADDER = [
   { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
 ];
 
-// She greets + directs out loud ONCE per page-load session (see the proactive-speak effect below).
-// A module flag, not state, so returning to the home mid-session doesn't re-trigger her every time.
-let greetedThisSession = false;
-
 export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [speaking, setSpeaking] = useState(false);
@@ -163,24 +160,6 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     return () => { alive = false; stopSpeaking(); };
   }, [token, apiUrl, refreshKey, stopSpeaking]);
 
-  // THE FATHER SPEAKS FIRST (owner 07-12: "she's slow, passive, waits for me to click, doesn't
-  // guide"). The instant her card has a real directive she GREETS + directs OUT LOUD — once per
-  // session — instead of sitting silent behind a 🔊. Autoplay-safe: if the browser blocks audio
-  // (no gesture yet) playNative fails silently and the button still works. The module flag makes
-  // her lead you in ONCE, then respect that you're working (no repeat every time you return home).
-  useEffect(() => {
-    if (!data?.directive || greetedThisSession) return undefined;
-    const dir = data.directive;
-    const items = [];
-    if (topWeakness?.rule) items.push({ key: 'note_weakness', slots: { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 } });
-    if (trial?.active && Number.isFinite(trial?.daysLeft)) items.push({ key: 'note_trial', slots: { days: trial.daysLeft } });
-    const pre = whyLine(dir);
-    if (!items.length && !pre) return undefined;
-    greetedThisSession = true;
-    return startSpeaking({ items, dePrefix: pre });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, startSpeaking]);
-
   if (!data?.directive) return null;
   const d = data.directive;
   const j = d.journey || {};
@@ -228,8 +207,8 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
           <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0' }}>{salmaName(lang)}</div>
           <div style={{ fontSize: 10.5, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
         </div>
-        <button onClick={speakSalma} disabled={speaking} aria-label="Salma anhören"
-          style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: '8px 10px', cursor: speaking ? 'wait' : 'pointer',
+        <button onClick={speaking ? stopSpeaking : speakSalma} aria-label={speaking ? 'Salma unterbrechen' : 'Salma anhören'}
+          style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: '8px 10px', cursor: 'pointer',
             borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
             background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>
           {speaking ? '…' : <SpeakerIcon />}
@@ -285,6 +264,8 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
           {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{trialNote}</div>}
         </div>
       )}
+
+      <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="home" />
 
       {/* Her pipeline — the interviewer org ladder as her bookings. Filled = passed rungs
           (level-derived, server-decided), ring = the current appointment, dim = still locked. */}

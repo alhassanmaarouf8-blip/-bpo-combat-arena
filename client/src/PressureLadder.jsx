@@ -10,6 +10,8 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { SpeakerIcon } from './icons/AudioIcons';
+import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { reportDrillEvent } from './salmaCoachClient.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
 
@@ -222,6 +224,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   const [souveraen, setSouveraen] = useState(false);   // server-verified: a real de-escalation move landed
   const [endlessStreak, setEndlessStreak] = useState(0);
   const [curLine, setCurLine] = useState('');
+  const [coachCue, setCoachCue] = useState(null);
 
   const recRef = useRef(null); const tickRef = useRef(null); const barbRefs = useRef([]);
   const endingRef = useRef(false);          // re-entrancy guard: timer + Fertig can both fire endRound
@@ -308,7 +311,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     setSouveraen(wasSouveraen);
     // Feed the brain: held the line or froze, and — if held — was it actually souverän? (correct/voicedMs
     // are the fields /api/drill-event persists.) DRUCK-LEITER fed back nothing before — loop now closes.
-    try { if (token && apiUrl) fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'druck-leiter', froze: !kept, voicedMs, ...(kept ? { correct: wasSouveraen } : {}) }) }); } catch { /* fire-and-forget */ }
+    const nextCoachCue = await reportDrillEvent({ apiUrl, token, event: { drill: 'druck-leiter', froze: !kept, voicedMs, ...(kept ? { correct: wasSouveraen } : {}) } });
+    setCoachCue(nextCoachCue);
     if (kept) {
       if (endless) setEndlessStreak((n) => n + 1);
       else setSurvived((n) => Math.max(n, idx + 1));
@@ -445,6 +449,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
           : (idx < LEVELS.length - 1 ? T(lang, 'Nächste Stufe ▸', 'المستوى اللي بعده ▸') : T(lang, 'Finale ▸', 'النهاية ▸'))}
       </button>
     </div>
+    <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="druck-leiter" initialCue={coachCue} />
   </>);
 
   // done (cleared rung 5)

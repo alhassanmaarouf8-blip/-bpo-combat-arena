@@ -9,6 +9,8 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { SpeakerIcon } from './icons/AudioIcons';
+import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { reportDrillEvent } from './salmaCoachClient.js';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
 
@@ -103,7 +105,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'grade_failed');
-      setResult(d);
+      const coachCue = await reportDrillEvent({ apiUrl, token, event: { drill: 'hoer-check', correct: d.correct === true } });
+      setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
     } catch {
       setErr({ de: 'Konnte nicht prüfen. Bitte erneut.', ar: 'مقدرناش نصحّح. حاول تاني.' });
     }
@@ -117,7 +120,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     else {
       // Feed the brain: a completed Hör-Check set is listening prep (per-answer accuracy already
       // lands in listeningStats server-side; this event is what flips the brain's prep/READY).
-      try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'hoer-check' }) }).catch(() => {}); } catch { /* fire-and-forget */ }
+      reportDrillEvent({ apiUrl, token, event: { drill: 'hoer-check' } });
       setPhase('done');
     }
   };
@@ -276,6 +279,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         {busy ? T(lang, 'Prüfe…', 'بصحّح…') : T(lang, 'Antwort prüfen', 'صحّح الإجابة')}
       </button>
     ) : null}
+    {result && !busy && !playing && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="hoer-check" initialCue={result.coachCue} />}
   </>);
 }
 

@@ -28,6 +28,7 @@ import { downsamplePcm24to16 }    from './geminiAudio.js';
 import { vertexConfigured }       from './vertexToken.js';
 import { completeVacancySession, vacancyLiveContext } from './vacancyTargetCore.js';
 import { missionControlVacancyLiveContext } from './missionControlCore.js';
+import { recordMeaningfulRetest, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -1510,6 +1511,16 @@ export class WebSocketManager {
           sessionId: ctx.sessionId,
           now,
         });
+      }
+
+      // Salma may nominate drill progress, but only this already-gated meaningful live interview
+      // can close the measurement loop. With the tutor flag off this is a byte-for-byte no-op on
+      // persisted learner state.
+      const salmaAccount = await getAccountById(ctx.userId);
+      if (salmaCoachFlags(process.env, salmaAccount).enabled) {
+        const prior = p.salmaCoach?.activePrescription;
+        if (prior) p.salmaCoach = recordMeaningfulRetest(p.salmaCoach, ctx.sessionId);
+        syncSalmaCoach(p, { now });
       }
 
       await saveUser(p);

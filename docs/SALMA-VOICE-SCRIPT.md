@@ -1,25 +1,33 @@
-# SALMA — voice-clip script (owner's one-time generation, OPTIONAL)
+# Salma — fixed Masri phrase-pack release gate
 
-Salma ships **text-only** ($0). If you want her to speak at the big ceremonial moments, these
-~12 **slot-free** lines (voice clips can't carry dynamic values) are the complete set. Generate
-them ONCE (ElevenLabs, your voice pick — a warm Egyptian female), drop the mp3s into
-`client/public/salma/<key>.mp3`, and a follow-up session wires playback through the existing
-gesture-unlocked player (`playClipFromUrl`, App.jsx) at the trigger moments below.
+Salma is German-only until a complete, versioned phrase pack passes this gate. Historical Arabic
+copy is review material, not production approval. Runtime generation is not a substitute for native
+review, and the app must fall back to German whenever a phrase or asset is missing.
 
-**Rules:** you re-voice each line in your own masri before generating (the DE column is the
-meaning, not the script). Keep each clip ≤ 6 seconds. One-time cost, cached forever after.
+## Required approval record
 
-| key | German (meaning) | EN gloss | Trigger moment |
-|---|---|---|---|
-| welcome | Willkommen! Ich bin Salma, deine Recruiterin. | Welcome! I'm Salma, your recruiter. | Cold-open WELCOME beat |
-| screening_start | Fünf Fragen. Sprich frei — ich höre zu. | Five questions. Speak freely — I'm listening. | Assessment opens from her flow |
-| verdict_ready | Deine Auswertung ist da. | Your evaluation is in. | VERDICT beat appears |
-| booking | Dein Termin steht. Zeig, was du kannst. | Your appointment is set. Show what you can do. | Tapping "Zum Interview" |
-| first_win | Erstes Interview gewonnen — ich hab's notiert. | First interview won — I've noted it. | First fight ends in a win |
-| warm_loss | Kopf hoch. Genau dafür trainieren wir. | Chin up. That's exactly what we train for. | A fight ends in a loss |
-| comeback | Da bist du ja wieder — deine Akte liegt noch auf meinem Tisch. | There you are — your file is still on my desk. | First open after ≥3 idle days |
-| streak_praise | Jeden Tag da — so sehen Kandidaten aus, die es schaffen. | Here every day — that's what candidates who make it look like. | Streak hits 3, 7, 14 |
-| level_up | Neuer Rang. Ich kann dich jetzt weiter oben vorstellen. | New rank. I can now put you forward higher up. | Rank-up in the debrief |
-| final_boss | Die Geschäftsführerin will dich sehen. Bereit? | The managing director wants to see you. Ready? | Frau Mona Adel unlocked |
-| paywall_honest | Auf der freien Akte kann ich nur screenen — du entscheidest. | On the free file I can only screen — you decide. | Paywall shown |
-| sign_off | Ich bin da, wenn du bereit bist. | I'm here when you're ready. | Cold-open skipped/closed |
+Every candidate phrase needs one immutable record containing:
+
+- a stable phrase key and exact German meaning;
+- the exact Cairene written line;
+- native-owner approval of its vocabulary, register, rhythm, and code-switching;
+- the exact frozen audio asset and its SHA-256 hash;
+- native-owner approval of that audio;
+- verified playback on phone, laptop, and headphones;
+- the pack version that contains the phrase.
+
+Parameterized phrases are permitted only when every grammatical form is a separately approved,
+hashed asset. German technical terms stay in German script. Free-form tutor answers stay German.
+
+## Release conditions
+
+The server may advertise a Masri pack only when all of these are true:
+
+1. `SALMA_COACH_MODE` enables the owner beta or release cohort.
+2. `SALMA_COACH_VOICE_ENABLED=true`.
+3. `SALMA_MASRI_PACK_VERSION` names a complete approved manifest.
+4. Every referenced asset hash matches the manifest.
+5. The client and server reject unlisted phrases and fall back to German.
+
+Until a real manifest and frozen assets exist, `masriAvailable` remains false and the runtime
+`salma-masri` TTS ticket is rejected. No paid provider is required or authorized by this document.

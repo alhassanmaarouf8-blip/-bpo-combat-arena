@@ -1,25 +1,25 @@
 /**
- * salmaCopy.js — every word "Salma" (the recruiter) ever says, as FIXED owner-authorable templates.
+ * salmaCopy.js — every fixed line spoken by Salma, the personal interview tutor.
  *
  * THE LAW (El-Captain precedent, deleted 2026-07-10): none of her lines are ever LLM-generated.
- * Each template is {de:'…', ar:''} on ONE line with an OWNER-AR marker + EN gloss, so
- * scripts/owner-ar-sheet.mjs extracts them all into the owner's one-sitting masri fill sheet.
- * Empty ar falls back to de at runtime — a raw placeholder can never render.
+ * Each template keeps its historical {de:'…', ar:'…'} shape so the owner review sheet remains
+ * usable. Runtime delivery is deliberately German-only until an exact written line AND its frozen
+ * audio have passed the native-owner approval gate. Historical Arabic values are review material,
+ * not production-approved copy.
  *
  * {slots} carry REAL backend values only; the source field is named beside every slotted key.
- * Her ~12 slot-free ceremonial lines are also listed in docs/SALMA-VOICE-SCRIPT.md for the owner's
- * optional one-time voice-clip generation (v1 ships silent).
+ * The release process for a future fixed Masri pack lives in docs/SALMA-VOICE-SCRIPT.md.
  */
 
 export const SALMA = {
   name: 'Salma',
   nameAr: 'سلمى', // OWNER-AR · EN: Arabic spelling of her name (renders "Salma" until filled)
-  role: { de: 'Deine Recruiterin', ar: 'الريكروتر بتاعتك' }, // OWNER-AR · EN: "Your recruiter"
+  role: { de: 'Persönliche Interviewtrainerin', ar: '' }, // OWNER-AR · native review required
 };
 
 export const SALMA_COPY = {
   // ── cold-open · variant "new" ─────────────────────────────────────────────────────────────
-  intro_welcome: { de: 'Ich bin Salma, deine Recruiterin. Ich bereite dich auf echte Interviews vor und melde dich an, wenn du bereit bist. Fangen wir an.', ar: 'أنا سلمى، الريكروتر بتاعتك. بجهزك للانترفيوهات الحقيقية وبظبط لك مواعيدك لما تبقى جاهز. يلا نبدأ.' }, // OWNER-AR · EN: "Welcome! I'm Salma, your recruiter. From today you never walk into an interview alone: I prepare you, and I book your appointments."
+  intro_welcome: { de: 'Ich bin Salma, deine persönliche Interviewtrainerin. Ich erkläre dir deinen nächsten Schritt und trainiere mit dir, bis er im Interview hält.', ar: '' }, // OWNER-AR · native review required
   // {days} ← auth.account.entitlement.trial.daysLeft
   intro_trial: { de: 'Die ersten {days} Tage sind kostenlos, mit echten Interviews.', ar: 'أول {days} أيام مجاناً، وده شامل الانترفيوهات الحقيقية.' }, // OWNER-AR · EN: "Your first {days} days are fully free — real interviews included."
   name_ask: { de: 'Zuerst — wie soll ich dich nennen?', ar: 'مبدئياً، أناديك إيه؟' }, // OWNER-AR · EN: "First: what should I call you?"
@@ -28,7 +28,7 @@ export const SALMA_COPY = {
   goal_bpo: { de: 'Ein deutscher BPO-Job', ar: 'وظيفة BPO ألماني' }, // OWNER-AR · EN: "A German BPO job" (chip, value bpo-job)
   goal_german: { de: 'Besseres Deutsch', ar: 'أحسن ألماني' }, // OWNER-AR · EN: "Better German" (chip, value better-german)
   goal_other: { de: 'Etwas anderes', ar: 'حاجة تانية' }, // OWNER-AR · EN: "Something else" (chip, value other)
-  screening_invite: { de: 'Bevor ich dich vermittle, muss ich dich hören. Fünf kurze Fragen, du sprichst frei — das ist das Screening. Danach sage ich dir klar, wo du stehst.', ar: 'قبل ما أقدِّمك في أي مكان، لازم أسمعك. خمس أسئلة قصيرة تتكلم فيهم براحتك – ده السكرينينج. وبعده هقول لك بصراحة مستواك إيه.' }, // OWNER-AR · EN: "Before I can place you, I need to hear you. Five short questions, you speak freely — that's your screening. Then I tell you honestly where you stand."
+  screening_invite: { de: 'Bevor ich dir einen persönlichen Trainingsplan gebe, muss ich dich hören. Fünf kurze Fragen. Danach bekommst du eine ehrliche erste Messung.', ar: '' }, // OWNER-AR · native review required
   screening_cta: { de: 'Screening starten', ar: 'ابدأ السكرينينج' }, // OWNER-AR · EN: "Start screening" (button)
 
   // ── cold-open · verdict + booking ─────────────────────────────────────────────────────────
@@ -36,18 +36,18 @@ export const SALMA_COPY = {
   verdict_summary: { de: 'Screening ausgewertet: Niveau {level}. Zuerst arbeiten wir an: {focus}', ar: 'السكرينينج خلص: مستواك {level}. أول حاجة هنشتغل عليها: {focus}' }, // OWNER-AR · EN: "Your screening is in: level {level}. What we work on first: {focus}"
   // {quote} ← result.blockers[0] own-words example (substring-verified upstream — never invented)
   verdict_blocker: { de: 'Aus deiner eigenen Antwort notiert: „{quote}“ — genau da fangen wir an.', ar: 'من إجابتك نفسها لاحظت: "{quote}" – ومن هنا هنبدأ.' }, // OWNER-AR · EN: "Noted from your own answer: '{quote}' — exactly where we start."
-  booking_yasmin: { de: 'Dein erstes Interview: Yasmin, Junior-Recruiterin. Ein fairer Einstieg, um deinen Stand zu sehen.', ar: 'أول انترڤيو بتاعك: ياسمين، جونيور ريكروتر. دي بداية مناسبة عشان نشوف مستواك فين.' }, // OWNER-AR · EN: "I've booked your first appointment: Yasmin, junior recruiter. The friendliest in the building — exactly right to start."
-  booking_karim: { de: 'Dein Screening zeigt: Du brauchst keine Anfängerrunde. Ich setze dich zu Karim, dem Teamleiter — direkt und auf deinem Niveau.', ar: 'السكرينينج بتاعك بيقول إنك مش محتاج جولة للمبتدئين. هنزلّك مع كريم، التيم ليدر – ده مباشر وعلى مستواك.' }, // OWNER-AR · EN: "Your screening shows you do not need a beginner appointment. I am booking you directly with Karim, the team lead — direct, faster, and at your level."
-  booking_hana: { de: 'Dein Niveau ist stark. Ich setze dich zu Hana, der Hiring Managerin — dort wird nicht Grunddeutsch getestet, sondern ob du unter Druck standhältst.', ar: 'مستواك قوي. هنزلّك مع هناء، الهايرنج مانجر – هناك مش بيقيسوا ألماني أساسي، بيشوفوا هتقدر تستحمل ضغط الشغل ولا لأ.' }, // OWNER-AR · EN: "Your level is strong. I am booking you directly with Hana, the hiring manager — there the test is not basic German, but whether you persuade under pressure."
+  booking_yasmin: { de: 'Dein erstes Trainingsinterview führt Yasmin. Es ist ein fairer Einstieg, um deinen aktuellen Stand zu messen.', ar: '' }, // OWNER-AR · native review required
+  booking_karim: { de: 'Dein Screening zeigt: Du brauchst keine Anfängerrunde. Dein nächstes Trainingsinterview ist auf deinem gemessenen Niveau.', ar: '' }, // OWNER-AR · native review required
+  booking_hana: { de: 'Dein Niveau ist stark. Das nächste Trainingsinterview prüft deshalb gezielt, ob deine Antworten auch unter Druck halten.', ar: '' }, // OWNER-AR · native review required
   booking_cta: { de: 'Zum Interview', ar: 'على الانترڤيو' }, // OWNER-AR · EN: "To the interview" (the one orange CTA)
   no_verdict: { de: 'Dein Screening ist noch nicht fertig. Kein Problem — du entscheidest, wie wir weitermachen.', ar: 'السكرينينج بتاعك لسه مخلصش. مفيش مشكلة – إنت اللي بتقرر هنكمل إزاي.' }, // OWNER-AR · EN: "Your screening isn't finished yet — no problem. You decide how we continue."
   no_verdict_resume: { de: 'Screening fortsetzen', ar: 'كمل السكرينينج' }, // OWNER-AR · EN: "Continue screening" (button)
   no_verdict_direct: { de: 'Direkt ins Interview', ar: 'على الانترڤيو على طول' }, // OWNER-AR · EN: "Straight to the interview" (button)
 
   // ── cold-open · variant "returning" ───────────────────────────────────────────────────────
-  returning_welcome: { de: 'Ich bin Salma, deine Recruiterin. Ich habe deine Akte gelesen.', ar: 'أنا سلمى، الريكروتر بتاعتك. قرأت ملفك.' }, // OWNER-AR · EN: "Quick intro: I'm Salma, your recruiter from today. I've already read your file."
+  returning_welcome: { de: 'Ich bin Salma, deine persönliche Interviewtrainerin. Ich habe deinen bestätigten Trainingsstand gelesen.', ar: '' }, // OWNER-AR · native review required
   // {name} ← GET /api/guide/profile → name
-  returning_welcome_named: { de: '{name} — ich bin Salma, deine Recruiterin. Ich habe deine Akte gelesen.', ar: '{name} – أنا سلمى، الريكروتر بتاعتك. قرأت ملفك.' }, // OWNER-AR · EN: "{name} — good to see you. I'm Salma, your recruiter from today. I've already read your file."
+  returning_welcome_named: { de: '{name} — ich bin Salma, deine persönliche Interviewtrainerin. Ich habe deinen bestätigten Trainingsstand gelesen.', ar: '' }, // OWNER-AR · native review required
   returning_handoff: { de: 'Meine Notizen findest du ab jetzt auf deinem Startbildschirm, mit deinem nächsten Schritt. Ich melde mich nach jedem Interview.', ar: 'من دلوقتي، هتلاقي ملاحظاتي على شاشتك الرئيسية، ومعاها خطوتك الجاية. وبتابع معاك بعد كل انترڤيو.' }, // OWNER-AR · EN: "You'll find my notes on your home screen from now on — with your next step. I'll follow up after every interview."
   returning_cta: { de: 'Verstanden', ar: 'تمام' }, // OWNER-AR · EN: "Understood" (button)
 
@@ -64,12 +64,12 @@ export const SALMA_COPY = {
 
   // ── debrief · her follow-up after every interview (keeps returning_handoff's promise) ──────
   // {name} ← fight result progress.nextBoss.name · {tier} ← progress.nextBoss.tier
-  debrief_followup_next: { de: 'Ich habe dein Interview gelesen. Dein nächster Termin bei mir: {name} · {tier} — ich buche, sobald du bereit bist.', ar: '' }, // OWNER-AR · EN: "I have read your interview. Your next appointment with me: {name} · {tier} — I book the moment you are ready."
+  debrief_followup_next: { de: 'Ich habe dein Trainingsinterview ausgewertet. Als Nächstes testet {name} · {tier} genau die Fähigkeit, an der du jetzt arbeitest.', ar: '' }, // OWNER-AR · native review required
   debrief_followup_top: { de: 'Ich habe dein Interview gelesen. Du stehst ganz oben auf meiner Leiter — ab hier zählt Bestätigung unter Druck.', ar: '' }, // OWNER-AR · EN: "I have read your interview. You are at the top of my ladder — from here it is about confirming under pressure."
 
   // ── debrief · the expert-teacher homework order (07-12): dose + exit criterion + unlock ─────
   // {boss} ← fight result progress.nextBoss.name
-  homework_order: { de: 'Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Dann buche ich dir {boss}.', ar: '' }, // OWNER-AR · EN: "Your assignment: 15 minutes today and 15 tomorrow — exactly this weakness. Target in the next interview: under 5 grammar errors. Then I book you {boss}."
+  homework_order: { de: 'Dein persönlicher Trainingsblock steht bereit. Im nächsten Interview prüft {boss}, ob die Fähigkeit unter Druck hält.', ar: '' }, // OWNER-AR · native review required
   homework_order_top: { de: 'Dein Auftrag: 15 Minuten heute und 15 Minuten morgen — genau diese Baustelle. Ziel im nächsten Interview: unter 5 Grammatik-Fehler. Du stehst ganz oben auf meiner Leiter — bestätige es.', ar: '' }, // OWNER-AR · EN: "Your assignment: 15 minutes today and 15 tomorrow — exactly this weakness. Target in the next interview: under 5 grammar errors. You are at the top of my ladder — confirm it."
 
   // ── B1+ admission bar (owner law 07-12: customer = B1 aufwärts; Harvard framing — selective,
@@ -79,10 +79,10 @@ export const SALMA_COPY = {
   gate_question: { de: 'Bevor ich dich aufnehme, eine ehrliche Frage: Diese Arena ist für Kandidaten ab B1. Wo stehst du?', ar: '' }, // OWNER-AR · EN: "Before I take you on, one honest question: this arena is for candidates from B1 up. Where do you stand?"
   gate_b1: { de: 'B1 oder höher', ar: '' }, // OWNER-AR · EN: "B1 or higher" (chip)
   gate_below: { de: 'Noch nicht B1', ar: '' }, // OWNER-AR · EN: "Not B1 yet" (chip)
-  gate_denied: { de: 'Respekt für die Ehrlichkeit — die meisten trauen sich das nicht. Mein Rat als Recruiterin: Festige deine Grundlagen bis B1, dann komm zurück und ich nehme dich auf. Die Tür bleibt für dich offen.', ar: '' }, // OWNER-AR · EN: "Respect for the honesty — most don't dare. My advice as a recruiter: solidify your basics to B1, then come back and I take you on. The door stays open for you."
+  gate_denied: { de: 'Danke für die ehrliche Antwort. Festige zuerst deine Grundlagen bis B1; danach kann das Training hier verlässlich auf echte BPO-Interviews vorbereiten.', ar: '' }, // OWNER-AR · native review required
   gate_denied_browse: { de: 'Trotzdem umsehen', ar: '' }, // OWNER-AR · EN: "Look around anyway" (quiet link)
   // {level} ← assessment result.estimatedLevel (A1/A2 branch only)
-  verdict_below_b1: { de: 'Ehrliches Wort von deiner Recruiterin: Dein Screening zeigt {level}. Diese Arena ist für B1 aufwärts gebaut — du kannst trotzdem trainieren, aber der schnellste Weg ist: erst die Grundlagen festigen, dann zu mir zurückkommen.', ar: '' }, // OWNER-AR · EN: "Honest word from your recruiter: your screening shows {level}. This arena is built for B1 and up — you can still train, but the fastest path is: solidify the basics first, then come back to me."
+  verdict_below_b1: { de: 'Ehrliche Messung: Dein Screening zeigt {level}. Dieses Training ist für B1 aufwärts gebaut; festige deshalb zuerst die Grundlagen und miss deinen Stand danach erneut.', ar: '' }, // OWNER-AR · native review required
 
   // ── debrief · the correction ritual (expert-teacher doctrine 07-12: spoken errors die by spoken
   //    correction — she models the verified fix, the candidate says it back ALOUD) ───────────
@@ -103,29 +103,30 @@ export const SALMA_COPY = {
   note_trial: { de: 'Dein freier Zugang läuft noch {days} Tage — nutze sie.', ar: '' }, // OWNER-AR · EN: "Your free access runs {days} more days — use them."
 
   // ── pipeline board + rival (post-v1) ──────────────────────────────────────────────────────
-  pipeline_label: { de: 'Deine Termine bei mir', ar: '' }, // OWNER-AR · EN: "Your appointments with me" (pipeline heading)
+  pipeline_label: { de: 'Deine Trainingsstufen', ar: '' }, // OWNER-AR · native review required
   // {name} ← /api/progress nextBoss.name · {tier} ← nextBoss.tier (the real org ladder)
-  pipeline_next: { de: 'Als Nächstes buche ich dir: {name} · {tier}.', ar: '' }, // OWNER-AR · EN: "Next I book you: {name} · {tier}."
+  pipeline_next: { de: 'Dein nächstes Trainingsinterview: {name} · {tier}.', ar: '' }, // OWNER-AR · native review required
   pipeline_top: { de: 'Du hast die ganze Leiter vor dir — jede Stufe ist ein echtes Interview.', ar: '' }, // OWNER-AR · EN: "The whole ladder is ahead of you — every rung is a real interview."
 
   // ── paywall (Phase C) ─────────────────────────────────────────────────────────────────────
   // {days} ← entitlement.trial.daysLeft
-  paywall_trial_active: { de: 'Du bist noch {days} Tage in deiner freien Testphase — echte Interviews inklusive. Danach brauche ich den vollen Auftrag, um weiter für dich zu buchen.', ar: '' }, // OWNER-AR · EN: "You have {days} more days of your free trial — real interviews included. After that I need the full mandate to keep booking for you."
-  paywall_trial_over: { de: 'Ehrlich gesagt: Auf der kostenlosen Akte kann ich dich nur screenen. Wenn ich weiter Interviews für dich buchen soll, brauche ich den vollen Auftrag.', ar: '' }, // OWNER-AR · EN: "Honestly: on the free file I can only screen you. If I'm to keep booking interviews for you, I need the full mandate."
-  paywall_free_file: { de: 'Dein nächstes Interview ist bereit, sobald du dein Konto freischaltest — dann buche ich sofort.', ar: '' }, // OWNER-AR · EN: "Your next interview is ready as soon as you activate your account — then I book immediately."
+  paywall_trial_active: { de: 'Du bist noch {days} Tage in deiner freien Testphase — Trainingsinterviews inklusive. Danach richtet sich die Tiefe deiner Begleitung nach deinem Plan.', ar: '' }, // OWNER-AR · native review required
+  paywall_trial_over: { de: 'Deine Testphase ist beendet. Dein gemessener nächster Schritt bleibt sichtbar; vollständige Begleitung und weitere Trainingsinterviews gehören zum passenden Plan.', ar: '' }, // OWNER-AR · native review required
+  paywall_free_file: { de: 'Dein nächster gemessener Schritt ist bereit. Mit dem passenden Plan kannst du ihn vollständig trainieren und im Live-Interview prüfen.', ar: '' }, // OWNER-AR · native review required
 };
 
 // salmaLine('verdict_summary', lang, { level:'B1', focus:'…' }) → the filled string.
-// ar wins only when the owner has actually written it; empty ar falls back to de so an
-// unfilled slot can never leak a placeholder. Unfilled {slots} are left visible on purpose
-// in dev (easier to spot than silently vanishing text).
-export function salmaLine(key, lang, slots = {}) {
+// Unfilled {slots} are left visible on purpose in dev (easier to spot than silently vanishing text).
+export function salmaLine(key, _lang, slots = {}) {
   const entry = SALMA_COPY[key];
   if (!entry) return '';
-  let s = (lang === 'ar' && entry.ar) ? entry.ar : entry.de;
+  // Fail closed: an Arabic string in this source file is not proof that the exact text and audio
+  // were natively approved. A future hashed phrase-pack loader may opt into approved assets; until
+  // then every fixed and dynamic tutor line uses the reviewed German source of truth.
+  let s = entry.de;
   for (const [k, v] of Object.entries(slots)) s = s.split(`{${k}}`).join(String(v ?? ''));
   return s;
 }
 
-export const salmaName = (lang) => (lang === 'ar' && SALMA.nameAr) ? SALMA.nameAr : SALMA.name;
-export const salmaRole = (lang) => (lang === 'ar' && SALMA.role.ar) ? SALMA.role.ar : SALMA.role.de;
+export const salmaName = () => SALMA.name;
+export const salmaRole = () => SALMA.role.de;

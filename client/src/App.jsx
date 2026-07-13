@@ -4312,8 +4312,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [totals, setTotals] = useState({});                // from /api/progress totals
   const [lastDebrief, setLastDebrief] = useState(null);    // unseen feedback from an interview whose debrief never reached the user (tab closed mid-fight)
   const [topWeakness, setTopWeakness] = useState(null);    // /api/progress topWeakness — Salma's home-card note
-  const [pipeline, setPipeline] = useState(null);          // { currentBoss, nextBoss } — her bookings ladder
-  const [salma, setSalma] = useState(null);                // recruiter cold-open ctx | null (SalmaTakeover)
+  const [pipeline, setPipeline] = useState(null);          // { currentBoss, nextBoss } — training-interview progression
+  const [salma, setSalma] = useState(null);                // tutor introduction context | null (SalmaTakeover)
   const [salmaResume, setSalmaResume] = useState(0);       // bumped when the assessment closes → her flow resumes
   // Deep audit D10 (2026-07-10): the level was NEVER persisted (a B2 user restarted at slow A2–B1
   // German every visit) and "dein Niveau wird automatisch erkannt" had no mechanism behind it.
@@ -5501,8 +5501,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     start();
   }, [start, auth.account]);
 
-  // ── Salma's booking: she hands the candidate to Yasmin (the ladder's Junior-Recruiterin) at
-  // the level her screening measured. result=null (screening skipped) books at the current level.
+  // Start the measured training interview. Yasmin remains an interviewer persona; Salma is the
+  // tutor who explains the progression. result=null (screening skipped) uses the current level.
   const closeSalma = useCallback((why) => { setSalma(null); if (why) beacon(String(why)); }, []);
   const bookSalmaFight = useCallback((result) => {
     const mapped = ASSESS_LEVEL_MAP[result?.estimatedLevel];
@@ -5573,7 +5573,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
         if (!cancelled && data.lastDebrief) setLastDebrief(data.lastDebrief);         // one-shot proof card (server clears it after debrief-seen)
         if (!cancelled && data.topWeakness) setTopWeakness(data.topWeakness);         // Salma's file note (#1 lapsed rule — was computed but never surfaced)
-        if (!cancelled && data.currentBoss) setPipeline({ currentBoss: data.currentBoss, nextBoss: data.nextBoss || null });   // her bookings ladder
+        if (!cancelled && data.currentBoss) setPipeline({ currentBoss: data.currentBoss, nextBoss: data.nextBoss || null });   // training-interview progression
       } catch { /* keep cached value */ }
     })();
     return () => { cancelled = true; };
@@ -5711,8 +5711,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       )}
 
       {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session).
-          When Salma's cold-open is active, BOTH exits return to HER (she delivers the verdict and
-          does the booking herself — the agency handoff), never a raw jump into a fight. */}
+          When Salma's introduction is active, both exits return to the tutor so the measured result
+          and next training interview are explained before the interview starts. */}
       {assessmentOpen && (
         <Suspense fallback={<OverlayLoading />}>
           <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}

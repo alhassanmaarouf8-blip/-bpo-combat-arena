@@ -28,6 +28,7 @@ import {
 } from './vacancyTargetCore.js';
 import { missionNextAction } from './missionControlCore.js';
 import { governedMissionControlFlagsFor } from './missionControlGovernance.js';
+import { coachCueForDrill, recordDrillOutcome, salmaCoachEventId, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
 
 export const progressRouter = express.Router();
 
@@ -165,8 +166,15 @@ progressRouter.post('/drill-event', requireAuth, async (req, res) => {
     } else {
       p.drillLog = (p.drillLog || []).concat(ev).slice(-100);   // not tied to a rule (general pressure/shadowing)
     }
+    let coachCue = null;
+    if (salmaCoachFlags(process.env, req.account).enabled) {
+      const { state: salmaState } = syncSalmaCoach(p);
+      const eventId = salmaCoachEventId({ accountId: req.account.id, ...ev });
+      p.salmaCoach = recordDrillOutcome(salmaState, ev, ev.at);
+      coachCue = coachCueForDrill({ drill: ev.drill, correct: ev.correct, froze: ev.froze, eventId });
+    }
     await saveUser(p);
-    res.json({ ok: true });
+    res.json({ ok: true, ...(coachCue ? { coachCue } : {}) });
   } catch (err) {
     console.error('[drill-event] error:', err.message);
     res.status(500).json({ error: 'drill_event_failed' });

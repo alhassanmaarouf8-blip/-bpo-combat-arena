@@ -76,13 +76,8 @@ function git(args) {
 
 function featureBaseSha() {
   if (FEATURE_BASE_OVERRIDE) return FEATURE_BASE_OVERRIDE;
-  try {
-    const featureCommit = git([
-      'log', '-1', '--format=%H', '--fixed-strings',
-      '--grep=feat: add job-to-offer mission control', 'HEAD',
-    ]);
-    if (featureCommit) return git(['rev-parse', `${featureCommit}^`]);
-  } catch { /* fall through to a branch-base check */ }
+  const featureCommit = featureCommitSha();
+  if (featureCommit) return git(['rev-parse', `${featureCommit}^`]);
   for (const ref of ['origin/main', 'main']) {
     try {
       const base = git(['merge-base', 'HEAD', ref]);
@@ -90,6 +85,18 @@ function featureBaseSha() {
     } catch { /* source archives may not expose branch refs */ }
   }
   return '180663b';
+}
+
+function featureCommitSha() {
+  if (FEATURE_BASE_OVERRIDE) return 'HEAD';
+  try {
+    const featureCommit = git([
+      'log', '-1', '--format=%H', '--fixed-strings',
+      '--grep=feat: add job-to-offer mission control', 'HEAD',
+    ]);
+    if (featureCommit) return featureCommit;
+    return git(['log', '-1', '--format=%H', '--diff-filter=A', '--', 'server/missionControlCore.js']);
+  } catch { return null; }
 }
 
 async function withMissionApi(router, run) {
@@ -714,8 +721,10 @@ test('Mission Control modules remain isolated from microphone, persona and live-
 
   try {
     const featureBase = featureBaseSha();
+    const featureHead = featureCommitSha() || 'HEAD';
     git(['cat-file', '-e', `${featureBase}^{commit}`]);
-    const changed = git(['diff', '--name-only', featureBase, '--']).split(/\r?\n/u).filter(Boolean);
+    git(['cat-file', '-e', `${featureHead}^{commit}`]);
+    const changed = git(['diff', '--name-only', featureBase, featureHead, '--']).split(/\r?\n/u).filter(Boolean);
     const protectedVoiceFiles = [
       'client/src/audioRecorder.js',
       'client/src/geminiVoice.js',
@@ -734,7 +743,7 @@ test('Mission Control modules remain isolated from microphone, persona and live-
       const manager = text(join(SERVER_DIR, 'websocketManager.js'));
       assert.match(manager, /import \{ missionControlVacancyLiveContext \} from '\.\/missionControlCore\.js';/u);
       assert.match(manager, /missionControlVacancyLiveContext\(prof, account\)\s*\|\|\s*vacancyLiveContext\(prof, account\)/u);
-      const addedLines = git(['diff', '--unified=0', featureBase, '--', 'server/websocketManager.js'])
+      const addedLines = git(['diff', '--unified=0', featureBase, featureHead, '--', 'server/websocketManager.js'])
         .split(/\r?\n/u)
         .filter((line) => line.startsWith('+') && !line.startsWith('+++'));
       assert.ok(addedLines.length > 0);

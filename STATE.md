@@ -1,5 +1,22 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## SALMA PERSONAL INTERVIEW TUTOR COMPLETE (2026-07-14, branch `codex/salma-coach-v1`)
+- Implemented on a clean worktree from `origin/main`; production folder, live deployment, payment
+  infrastructure, microphone acquisition, Gemini Live, Deepgram, interview WebSocket format, personas,
+  timing, and fallback behavior were not changed.
+- Salma is now an account-isolated, evidence-driven interview tutor under BrainGuide: exact bounded
+  prescriptions, personal dosage/spacing/success gates, drill help, deterministic questions, verified
+  between-attempt cues, idempotent speech acknowledgements, and live-interview retest recording.
+- Ordinary-open speeches, repeated greetings, recruiter/employer/booking claims, and the fake mouth
+  animation were removed. The portrait keeps natural blink plus a ring driven only by real audio.
+- Masri fails closed: unapproved historical text cannot render or speak; runtime Masri TTS is rejected;
+  German is the fallback until an owner-approved, hashed frozen phrase pack exists.
+- Feature controls default off: `SALMA_COACH_MODE`, `SALMA_COACH_AI_ENABLED`,
+  `SALMA_COACH_VOICE_ENABLED`, and `SALMA_MASRI_PACK_VERSION`; `SALMA_LIVE` remains the master switch.
+- Verification is green: secret scan (311 files), lint, design lint, syntax (200 files), 393/393 server
+  tests, production client build, 40-file artifact verification, and 320/375px no-overflow browser QA.
+- No push, merge, public deployment, paid service, or production-data mutation was performed.
+
 ## 🎨 UI REVOLUTION SHIPPED + MOBBIN=PAID (2026-07-13, HEAD `69704ed` live-verified)
 - **Mobbin MCP = PAID.** Post-restart its tools loaded, but the FIRST `search_screens` 402'd
   (`requires a paid plan`). Zero-spend → did NOT buy. Free alts told to owner: shadcn/ui MCP,

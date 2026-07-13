@@ -2,7 +2,7 @@
  * SalmaTakeover.jsx — the recruiter cold-open. Fires ONCE per account (server flag salmaIntroAt,
  * localStorage mirror): Salma introduces herself, takes the candidate's name + goal, runs their
  * "screening call" (the existing free Assessment), delivers HER verdict from the REAL assessment
- * result, and books the first interview (Yasmin, the ladder's Junior-Recruiterin).
+ * result, and hands the learner into the first measured training interview.
  *
  * LAW: every word comes from salmaCopy.js owner templates — no LLM, no invented data (El-Captain
  * precedent). The Assessment itself is untouched; while it runs, App hides this overlay and bumps
@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SpeakerIcon, CloseIcon } from './icons/AudioIcons';
-import { salmaSpeak, composeSalmaSpoken, subscribeSalmaSpeaking, subscribeSalmaLevel, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
+import { salmaSpeak, subscribeSalmaSpeaking, subscribeSalmaLevel } from './salmaVoice.js';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -37,7 +37,6 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   const [result, setResult] = useState(ctx.result || null);
   const returning = ctx.variant === 'returning';
   const seenTick  = useRef(0);
-  const [talking, setTalking] = useState(false);   // drives her mouth animation while she speaks
 
   const line = (key, slots) => salmaLine(key, lang, slots);
 
@@ -77,56 +76,6 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   //    auto-login on a returning visit), onStart never fires, so she never SILENTLY auto-rushes;
   //    she waits for the one tap that unlocks audio, then leads from there. Decision/input beats
   //    (gate, name, screening, verdict) always wait for the human, by design.
-  const speakStop = useRef(null);
-  const spokenRef = useRef([]);
-  // Beats Salma walks through on her own voice → the next beat (value may depend on ctx).
-  const autoNext = { welcome: () => (returning ? (ctx.profile?.name ? 'handoff' : 'name_goal') : 'name_goal') };
-  useEffect(() => {
-    try { speakStop.current?.(); } catch { /* ignore */ }
-    speakStop.current = null;
-    const target = autoNext[beat]?.();
-    let started = false, ended = false, dwellDone = false, fired = false;
-    const advance = () => { if (fired || !target) return; fired = true; setBeat(target); };
-    const maybe = () => { if (started && ended && dwellDone) advance(); };
-    if (spokenRef.current.length) {
-      speakStop.current = salmaSpeak({
-        apiUrl, token, items: spokenRef.current,
-        onStart: () => { started = true; setTalking(true); },
-        onEnd: () => { ended = true; setTalking(false); maybe(); },
-      });
-    }
-    let dwell = null, cap = null;
-    if (target) {
-      const chars = spokenRef.current.reduce((n, it) => n + (line(it.key, it.slots)?.length || 0), 0);
-      const minMs = Math.min(6500, 1600 + chars * 42);   // scale the dwell to how much she says
-      dwell = setTimeout(() => { dwellDone = true; maybe(); }, minMs);
-      cap = setTimeout(() => { if (started) advance(); }, minMs + 6000);   // safety — only if she spoke
-    }
-    return () => {
-      try { speakStop.current?.(); } catch { /* ignore */ }
-      speakStop.current = null;
-      setTalking(false);
-      if (dwell) clearTimeout(dwell); if (cap) clearTimeout(cap);
-    };
-  }, [beat, lang, apiUrl, token]);   // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Warm the dyno + pre-synthesize her OPENING line so her first words land instantly instead of
-  // after a cold synth round-trip (owner 07-12: "extremely slow"). The first-mount profile fetch
-  // already woke Render; this caches the opener in the background so real playback replays from
-  // cache. Fire-and-forget, slot-exact so the cache key matches what she actually speaks.
-  useEffect(() => {
-    const opener = returning
-      ? { key: ctx.profile?.name ? 'returning_welcome_named' : 'returning_welcome', slots: { name: ctx.profile?.name } }
-      : { key: 'gate_question' };
-    const { text, ar } = composeSalmaSpoken([opener]);
-    if (!text) return;
-    fetch(`${apiUrl}/api/media-ticket`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ kind: 'aura', voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, text, drill: true, salma: true }),
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // The Assessment closed (App bumped resumeTick) → fetch the fresh server-persisted verdict and
   // resume on the right beat. Only reacts while we're waiting on the screening.
   useEffect(() => {
@@ -146,8 +95,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   }, [resumeTick, apiUrl, token]);
 
   // ── Beat content ────────────────────────────────────────────────────────────
-  // `say` = a bubble Salma also SPEAKS: it renders via line() in the UI language AND records
-  // {key, slots} so the speak effect can re-resolve the same lines masri-first for her voice.
+  // `say` renders a bubble and records its fixed template for the explicit listen button.
   const bubbles = [];
   const spoken = [];
   const say = (key, slots, arSlots) => { spoken.push({ key, slots, arSlots }); return line(key, slots); };
@@ -264,14 +212,12 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     bubbles.push('…');   // verdict fetch in flight (sub-second on a warm server); resolves to verdict | no_verdict
   }
 
-  spokenRef.current = spoken;   // snapshot for the speak effect (runs post-render per beat)
-
   return (
     <div style={backdrop}>
       <div style={card}>
         {/* header — her face on the door */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={52} speaking={talking} />
+          <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={52} />
           <div style={{ lineHeight: 1.25, textAlign: 'left' }}>
             <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</div>
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
@@ -325,27 +271,20 @@ function bookingCopyKey(level) {
 
 // Salma's face — a warm, ATTRACTIVE, LIVING illustrated portrait (owner 07-12: "make her face
 // bigger, extremely attractive and moving"). Self-contained inline SVG ($0, crisp at any size).
-// Motion: she gently sways/breathes and BLINKS on a loop; when `speaking` she also moves her mouth
-// (a talking loop) — the aliveness the owner asked for. prefers-reduced-motion disables all of it.
+// Motion is limited to a gentle sway, natural blink, and the real-audio presence ring.
 // Static gradient ids + shared keyframes are identical across instances, so any duplication on a
 // page resolves to the same visuals.
 // Salma's face — the app's recruiter avatar. A SYNTHETIC (AI-generated, no real person → no likeness
 // risk) attractive young-woman photo, cropped to the face + downscaled to an 18KB /salma.jpg (owner
 // 07-13: "an attractive German young lady, find me one"). Motion: she gently sways/breathes on a loop
-// and her ring GLOWS while she speaks — the aliveness he asked for. prefers-reduced-motion disables it.
+// and her ring reacts to real audio while she speaks. prefers-reduced-motion disables it.
 // Generated once via gemini-3-pro-image-preview on the free no-billing worker key ($0); regen script
-// in the session scratch. She BLINKS and moves her mouth while speaking via a 3-frame photo stack —
-// neutral base + eyes-closed + mouth-open, all edited from the SAME shot so they align pixel-for-pixel
-// (only the eyes/mouth differ). Pure-CSS opacity keyframes drive it: the lids blink on a slow loop
-// always; the mouth crossfades open/closed ONLY while `speaking`. Reduced-motion strips all of it.
+// Pure CSS drives the natural blink only; the portrait never claims lip synchronization.
 const SALMA_FACE_CSS = `
 .salma-photo .stack{position:absolute;inset:0;transform-origin:50% 82%;animation:salmaSwy 4.6s ease-in-out infinite}
 .salma-photo .face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%;display:block}
 .salma-photo .lids{opacity:0;animation:salmaBlink 5.4s ease-in-out infinite}
-/* The mouth photo is never shown: a 2-frame stack (closed + one open shape) cannot lip-sync — a
-   single fading open-mouth reads as uncanny garbage. Honest aliveness instead = blink + a glow that
-   reacts to her REAL voice level (below). True photoreal lip-sync needs viseme frames / a video avatar. */
-.salma-photo .mouth{opacity:0 !important}
+/* Honest aliveness = blink + a glow that reacts to her real voice level. */
 .salma-photo.talk{animation:salmaGlow 1.3s ease-in-out infinite}
 .salma-photo.lvl.talk{animation:none}   /* level-active → the ref drives box-shadow, not the keyframe */
 /* World-class voice presence (ChatGPT-voice / Siri): a reactive ring, NOT fake lips. Its brightness +
@@ -357,18 +296,15 @@ const SALMA_FACE_CSS = `
 @keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.03)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.05)}}
 @keyframes salmaGlow{0%,100%{box-shadow:0 0 14px rgba(59,130,246,0.4)}50%{box-shadow:0 0 24px rgba(59,130,246,0.9),0 0 8px rgba(59,130,246,0.6)}}
 @keyframes salmaBlink{0%,92%{opacity:0}95%{opacity:1}98%,100%{opacity:0}}
-@keyframes salmaTalk{0%,100%{opacity:0}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.salma-photo .stack{animation:none}.salma-photo .lids,.salma-photo.talk .mouth{animation:none;opacity:0}.salma-photo.talk{animation:none}}`;
+@media (prefers-reduced-motion:reduce){.salma-photo .stack{animation:none}.salma-photo .lids{animation:none;opacity:0}.salma-photo.talk{animation:none}}`;
 export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   const hideOnErr = (e) => { e.currentTarget.style.display = 'none'; };
-  // Live-talk: she moves her mouth whenever her voice is actually playing anywhere in the app
-  // (broadcast from the salmaVoice funnel). OR'd with an explicit `speaking` prop for callers
-  // that want to drive it directly.
+  // Real Salma playback activates the presence ring; callers may also set `speaking` explicitly.
   const [liveSpeaking, setLiveSpeaking] = useState(false);
   useEffect(() => subscribeSalmaSpeaking(setLiveSpeaking), []);
   const talk = speaking || liveSpeaking;
   // Honest aliveness: her ring GLOW reacts to her REAL voice loudness (brighter on syllables, calm on
-  // pauses) — a truthful "she's speaking" cue, not a fake mouth. Driven via a REF straight to the
+  // pauses) — a truthful "she's speaking" cue. Driven via a REF straight to the
   // container's box-shadow (no per-frame re-render → smooth on low-end). `lvlActive` flips true once so
   // the CSS glow keyframe yields to the level; until then / if the analyser can't attach, the keyframe
   // glow is the graceful fallback. (2-frame photos can't lip-sync — see the CSS note.)
@@ -388,14 +324,13 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   return (
     <div ref={rootRef} style={{ ...portrait, width: size, height: size }}
       className={`salma-photo${talk ? ' talk' : ''}${lvlActive ? ' lvl' : ''}`}
-      role="img" aria-label="Salma, Recruiterin">
+      role="img" aria-label="Salma, persönliche Interviewtrainerin">
       <style>{SALMA_FACE_CSS}</style>
       <div className="vring" ref={ringRef} aria-hidden="true" />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
         justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
       <div className="stack">
         <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
-        <img className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
         <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
       </div>
     </div>

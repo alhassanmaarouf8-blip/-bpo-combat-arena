@@ -10,6 +10,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
+import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { reportDrillEvent } from './salmaCoachClient.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
@@ -147,7 +149,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       if (!r.ok) throw new Error(d.error || 'shadowing_failed');
       setResult(d);   // may be { retry:true } when nothing was transcribed
       // Feed the brain: pronunciation drill done (closes the loop — Shadowing fed back nothing before).
-      try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'shadowing', voicedMs: clip.durationMs }) }); } catch { /* fire-and-forget */ }
+      reportDrillEvent({ apiUrl, token, event: { drill: 'shadowing', voicedMs: clip.durationMs } });
     } catch (e) {
       setErr(e.message === 'no_api_key'
         ? { de: 'Dienst gerade nicht verfügbar. Bitte später.', ar: 'الخدمة مش متاحة دلوقتي. جرّب بعدين.' }
@@ -325,6 +327,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         </>
       )}
     </div>
+    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="shadowing" />}
   </>);
 }
 

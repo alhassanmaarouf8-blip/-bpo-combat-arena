@@ -1,15 +1,8 @@
 /**
  * salmaVoice.js — ONE brain for every word Salma speaks aloud.
  *
- * The voice rule (owner order 2026-07-12, "full Egyptian masri"): the moment the owner has
- * authored a line's masri (salmaCopy `ar` filled), Salma SPEAKS masri — in BOTH UI languages.
- * She is the Egyptian recruiter; masri is her voice, German is the training room's. While a
- * line's `ar` is still empty she speaks the German original in her native Aura voice, so she
- * is never silent just because a row isn't filled yet.
- *
- * 'salma-masri' is a server voice id: /api/tts-stream routes it to Gemini-TTS steered to Cairo
- * masri (the engine the owner's own ear picked on the Sara compare page) and caches the clip
- * like every other fixed line — replays are instant and free.
+ * Masri is fail-closed. Written Arabic alone is not approval: production requires native review of
+ * both the exact line and its frozen audio asset. Until that pack exists, Salma speaks German.
  *
  * An utterance = a list of {key, slots, arSlots?}. It goes masri only when EVERY key in it has
  * owner masri (no mid-sentence language flips); `arSlots` lets a caller pass Arabic slot values
@@ -22,12 +15,10 @@ import { SALMA_COPY, salmaLine } from './salmaCopy.js';
 // "robotic, low, unhuman"). Same Kore voice as her masri → ONE Salma across both languages.
 // Server routes 'salma-de' → geminiGermanTTS; 'salma-masri' → geminiMasriTTS.
 export const SALMA_VOICE_DE = 'salma-de';
-export const SALMA_VOICE_AR = 'salma-masri';
 
 // ── Live "is Salma speaking" signal ────────────────────────────────────────────────
 // Every word she says goes through salmaModel/salmaSpeak → playNative. We broadcast the
-// real playback start/end so ANY <SalmaPortrait> on screen moves her mouth exactly while
-// her audio plays — no per-call-site wiring. Ref-counted so overlapping utterances behave.
+// Real playback start/end lets any <SalmaPortrait> show an honest speaking ring.
 const speakingSubs = new Set();
 let speakingCount = 0;
 function emitSpeaking() {
@@ -39,9 +30,7 @@ export function subscribeSalmaSpeaking(fn) {
   try { fn(speakingCount > 0); } catch { /* ignore */ }
   return () => speakingSubs.delete(fn);
 }
-// Live mouth LEVEL (0..1) sampled from the real audio envelope (nativeVoice onLevel). Lets the
-// portrait open her mouth WITH the words — congruent + simultaneous — instead of a robotic flap.
-// Falls back to null (portrait uses the idle flap) when the analyser can't attach.
+// Real audio level (0..1) drives only the speaking ring, never a fake mouth layer.
 const levelSubs = new Set();
 export function emitSalmaLevel(v) { levelSubs.forEach((fn) => { try { fn(v); } catch { /* ignore */ } }); }
 export function subscribeSalmaLevel(fn) { levelSubs.add(fn); return () => levelSubs.delete(fn); }
@@ -58,11 +47,10 @@ function withSpeakingSignal({ onStart, onError, onEnd } = {}) {
 
 export function composeSalmaSpoken(items) {
   const real = (items || []).filter((it) => it && SALMA_COPY[it.key]);
-  const ar = real.length > 0 && real.every((it) => SALMA_COPY[it.key].ar);
   const text = real
-    .map((it) => salmaLine(it.key, ar ? 'ar' : 'de', (ar && it.arSlots) || it.slots || {}))
+    .map((it) => salmaLine(it.key, 'de', it.slots || {}))
     .filter(Boolean).join(' … ');
-  return { text, ar };
+  return { text, ar: false };
 }
 
 /**
@@ -76,16 +64,14 @@ export function salmaModel({ apiUrl, token, text, onStart, onError, onEnd }) {
 }
 
 /**
- * Speak salmaCopy items (masri-first). Returns playNative's stop(). `dePrefix` is an optional
- * German sentence (e.g. the brain directive) prepended ONLY on the German path — it has no masri
- * twin, and gluing German prose into a masri utterance would flip languages mid-breath.
+ * Speak reviewed German salmaCopy items. Masri ships only as a separate frozen asset pack.
  */
 export function salmaSpeak({ apiUrl, token, items, dePrefix, onStart, onError, onEnd }) {
-  const { text, ar } = composeSalmaSpoken(items);
-  const spoken = ar ? text : [dePrefix, text].filter(Boolean).join(' … ');
+  const { text } = composeSalmaSpoken(items);
+  const spoken = [dePrefix, text].filter(Boolean).join(' … ');
   if (!spoken) { try { onEnd?.(); } catch { /* ignore */ } return () => {}; }
   // salma:true = the server-side plan-gate exemption for her own fixed lines: her voice must work
   // from second zero of a fresh account (the trial clock only starts at the first interview).
   const cb = withSpeakingSignal({ onStart, onError, onEnd });
-  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel, ...cb });
+  return playNative({ apiUrl, token, text: spoken, voice: SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel, ...cb });
 }

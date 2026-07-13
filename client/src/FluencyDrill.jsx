@@ -17,6 +17,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
+import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { reportDrillEvent } from './salmaCoachClient.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
@@ -118,7 +120,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       if (isLast) {
         // Feed the brain: a completed 4-3-2 set is fluency prep (the rounds reported NOTHING
         // before, so the brain couldn't see that its flow-drill prescription was followed).
-        try { fetch(`${apiUrl}/api/drill-event`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ drill: 'flow-drill', voicedMs: clip.durationMs }) }).catch(() => {}); } catch { /* fire-and-forget */ }
+        reportDrillEvent({ apiUrl, token, event: { drill: 'flow-drill', voicedMs: clip.durationMs } });
       }
       setPhase(isLast ? 'done' : 'between');
     } catch (e) {
@@ -177,7 +179,8 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     </div>
   </>);
 
-  if (phase === 'done') return shell(<>{header}<Debrief lang={lang} prompt={prompt} rounds={rounds} results={results} onAgain={load} onClose={onClose} /></>);
+  if (phase === 'done') return shell(<>{header}<Debrief lang={lang} prompt={prompt} rounds={rounds} results={results} onAgain={load} onClose={onClose} />
+    <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="flow-drill" /></>);
 
   // The shared prompt card + round tracker (shown across ready/practice/scoring/between).
   const promptCard = (

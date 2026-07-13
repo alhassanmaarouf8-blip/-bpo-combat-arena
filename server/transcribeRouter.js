@@ -18,6 +18,7 @@ import { voicedDurationMs } from './audioGuard.js';
 import { expandForSpeechDE } from './speechExpandDE.js';
 import { mintMediaTicket, consumeMediaTicket } from './mediaTickets.js';
 import { vertexConfigured, getVertexAccessToken } from './vertexToken.js';
+import { salmaCoachFlags } from './salmaCoachCore.js';
 
 const router = express.Router();
 
@@ -62,7 +63,7 @@ const MASRI_STYLE = 'اقري الجملة دي بصوت دافي وودود ب�
 const SALMA_DE_VOICE = 'salma-de';
 // Owner 07-12: "she has to talk like a GENUINE human, not just read what's there / like Google read."
 // So the style demands SPOKEN conversation, not narration — living intonation + small natural pauses.
-const DE_WARM_STYLE = 'Sprich den folgenden Satz so, wie eine echte, herzliche Personalvermittlerin '
+const DE_WARM_STYLE = 'Sprich den folgenden Satz so, wie eine echte, herzliche Interviewtrainerin '
   + 'ihn frei im Gespräch sagen würde: warm, natürlich und ermutigend, mit lebendiger Betonung und '
   + 'kleinen natürlichen Pausen. Rede mit dem Kandidaten, lies nicht vor, klinge nie roboterhaft. '
   + 'Sprich ausschließlich den eigentlichen Satz, keinerlei Symbole oder Zeichen: ';
@@ -195,6 +196,7 @@ router.post('/media-ticket', requireAuth,
               keyExtra: (req) => req.account.id, accountOnly: true }), (req, res) => {
   const kind = req.body?.kind === 'eleven' ? 'eleven' : 'aura';
   const wantsMasri = kind === 'aura' && req.body?.voice === SALMA_MASRI_VOICE;
+  if (wantsMasri) return res.status(409).json({ error: 'masri_pack_unavailable' });
   const wantsSalmaDe = kind === 'aura' && req.body?.voice === SALMA_DE_VOICE;   // her German on Gemini
   const raw = String(req.body?.text || '').slice(0, 600);
   const text = wantsMasri ? cleanForTTSAr(raw) : cleanForTTS(raw);
@@ -279,7 +281,8 @@ router.post('/transcribe',
   async (req, res) => {
     res.set('Cache-Control', 'no-store');
     const account = req.account;
-    if (dailyMinutesFor(account) <= 0 && !activeFightUsers.has(account.id)) return res.status(402).json({ error: 'daily_limit' });
+    const tutorQuestion = req.headers['x-salma-coach'] === '1' && salmaCoachFlags(process.env, account).enabled;
+    if (dailyMinutesFor(account) <= 0 && !activeFightUsers.has(account.id) && !tutorQuestion) return res.status(402).json({ error: 'daily_limit' });
     if (transcribeInFlight.has(account.id)) return res.status(409).json({ error: 'transcribe_in_progress' });
 
     const buffer = req.body;
