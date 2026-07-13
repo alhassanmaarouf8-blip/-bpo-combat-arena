@@ -58,6 +58,42 @@ function wirePhoneAudio(a) {
   }
 }
 
+/**
+ * Tap the REAL audio envelope of a playing <audio> so a talking-head's mouth moves WITH the words
+ * (congruent + simultaneous), instead of a robotic fixed-rate flap. Routes the element through an
+ * AnalyserNode → destination (so it still plays) and calls onLevel(0..1) each frame with the RMS
+ * amplitude. Cross-origin caveat is the SAME as wirePhoneAudio: createMediaElementSource silences a
+ * cross-origin element unless crossOrigin='anonymous' was set before src (the caller does this) AND
+ * the server sends CORS (proven by the phone path). Returns {ctx, stop} or null on any failure — in
+ * which case the element must play DIRECT (caller falls back to the idle flap). NEVER throws.
+ */
+function wireLevelAnalyser(a, onLevel) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    const ctx = new AC();
+    const src = ctx.createMediaElementSource(a);       // taints (silences) cross-origin w/o CORS
+    const an = ctx.createAnalyser(); an.fftSize = 256; an.smoothingTimeConstant = 0.6;
+    src.connect(an); an.connect(ctx.destination);      // MUST reach destination or the voice is muted
+    const buf = new Uint8Array(an.fftSize);
+    let raf = 0, alive = true;
+    const tick = () => {
+      if (!alive) return;
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / buf.length);         // ~0 silence … ~0.3+ loud speech
+      try { onLevel(Math.min(1, rms * 3.2)); } catch { /* ignore */ }
+      raf = requestAnimationFrame(tick);
+    };
+    try { ctx.resume(); } catch { /* ignore */ }
+    raf = requestAnimationFrame(tick);
+    return { ctx, stop: () => { alive = false; cancelAnimationFrame(raf); try { onLevel(0); } catch { /* ignore */ } } };
+  } catch {
+    return null;   // caller plays the element direct; mouth uses the idle flap
+  }
+}
+
 function browserSpeak(text, rate, onEnd, onStart, onError) {
   try {
     const s = window.speechSynthesis;
@@ -93,7 +129,7 @@ function browserSpeak(text, rate, onEnd, onStart, onError) {
  * trial clock starts at the first interview) while keeping every rate/char cap.
  * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, salma?:boolean, noBrowserFallback?:boolean, onStart?:()=>void, onError?:()=>void, onEnd?:()=>void }} o
  */
-export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, salma = false, noBrowserFallback = true, onStart, onError, onEnd } = {}) {
+export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, salma = false, noBrowserFallback = true, onStart, onError, onEnd, onLevel } = {}) {
   let startNotified = false;
   let errorNotified = false;
   const startedPlaying = () => {
@@ -124,11 +160,12 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     let cancelled = false;
     // For the phone filter the element feeds createMediaElementSource, which taints/silences on a
     // cross-origin src unless CORS is anonymous — set it BEFORE the src loads. No effect when phone is off.
-    if (phone) { try { a.crossOrigin = 'anonymous'; } catch { /* ignore */ } }
+    if (phone || onLevel) { try { a.crossOrigin = 'anonymous'; } catch { /* ignore */ } }
     try { a.playbackRate = rate || 1; a.preservesPitch = true; } catch { /* Safari: ignore */ }
-    let started = false, fellBack = null, phoneCtx = null, retried = false;
+    let started = false, fellBack = null, phoneCtx = null, levelWire = null, retried = false;
+    const closeGraphs = () => { try { levelWire?.stop(); } catch { /* ignore */ } try { levelWire?.ctx?.close(); } catch { /* ignore */ } try { phoneCtx?.close(); } catch { /* ignore */ } };
     a.onplaying = () => { started = true; startedPlaying(); };
-    a.onended = () => { try { phoneCtx?.close(); } catch { /* ignore */ } done(); };
+    a.onended = () => { closeGraphs(); done(); };
     // Pre-start failure. On the phone path the element is a CORS-mode load (crossOrigin='anonymous'):
     // the client (Vercel) and API (Render) are DIFFERENT origins, so a missing/mismatched CORS header
     // fails the load where the plain, unflagged load used to just play. Retry ONCE as a plain native
@@ -136,11 +173,13 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     // to the browser voice. The non-phone path is unchanged: it falls straight through to the browser voice.
     const onFail = () => {
       if (started || fellBack) return;
-      if (phone && !retried) {
+      if ((phone || onLevel) && !retried) {
         retried = true;
-        try { phoneCtx?.close(); } catch { /* ignore */ } phoneCtx = null;
+        closeGraphs(); phoneCtx = null; levelWire = null;
+        // A crossOrigin load can fail if CORS is momentarily off → retry PLAIN (no filter, no analyser):
+        // the native voice is preserved; the talking-head simply falls back to its idle flap.
         fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, noBrowserFallback,
-          onStart: startedPlaying, onError: failedToPlay, onEnd });   // plain native, no filter
+          onStart: startedPlaying, onError: failedToPlay, onEnd });
       } else {
         fellBack = fallbackOrSilence();   // server failed before any audio → browser voice, or silence if forbidden
       }
@@ -148,6 +187,9 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     a.onerror = onFail;
     // Wire the telephone band-pass; if it can't (unsupported/tainted) the element plays direct, unfiltered.
     if (phone) phoneCtx = wirePhoneAudio(a);
+    // Talking-head mouth: tap the real envelope so the mouth moves WITH the words. Only when NOT phone
+    // (one createMediaElementSource per element). On failure → null, plain playback + idle flap.
+    else if (onLevel) levelWire = wireLevelAnalyser(a, onLevel);
     fetch(`${apiUrl}/api/media-ticket`, {
       method: 'POST', signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -162,7 +204,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     return () => {
       cancelled = true; ctrl.abort();
       try { a.pause(); a.src = ''; } catch { /* ignore */ }
-      try { phoneCtx?.close(); } catch { /* ignore */ }
+      closeGraphs();
       if (fellBack) fellBack();
     };
   } catch {

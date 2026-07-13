@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SpeakerIcon, CloseIcon } from './icons/AudioIcons';
-import { salmaSpeak, composeSalmaSpoken, subscribeSalmaSpeaking, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
+import { salmaSpeak, composeSalmaSpoken, subscribeSalmaSpeaking, subscribeSalmaLevel, SALMA_VOICE_AR, SALMA_VOICE_DE } from './salmaVoice.js';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -344,6 +344,7 @@ const SALMA_FACE_CSS = `
 .salma-photo .lids{opacity:0;animation:salmaBlink 5.4s ease-in-out infinite}
 .salma-photo .mouth{opacity:0}
 .salma-photo.talk .mouth{animation:salmaTalk 0.28s ease-in-out infinite}
+.salma-photo.lvl.talk .mouth{animation:none}
 .salma-photo.talk{animation:salmaGlow 1.3s ease-in-out infinite}
 @keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.03)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.05)}}
 @keyframes salmaGlow{0%,100%{box-shadow:0 0 14px rgba(59,130,246,0.4)}50%{box-shadow:0 0 24px rgba(59,130,246,0.9),0 0 8px rgba(59,130,246,0.6)}}
@@ -358,15 +359,30 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   const [liveSpeaking, setLiveSpeaking] = useState(false);
   useEffect(() => subscribeSalmaSpeaking(setLiveSpeaking), []);
   const talk = speaking || liveSpeaking;
+  // Real-envelope mouth: her mouth opens PROPORTIONAL to the actual audio loudness (open on syllables,
+  // closed on pauses) — congruent + simultaneous with the words, not a robotic fixed flap. Driven via a
+  // REF straight to the img's opacity (no per-frame React re-render → smooth on low-end phones).
+  // `lvlActive` flips true once (a one-time re-render) so the CSS keyframe flap yields to the level;
+  // until then, or if the analyser can't attach, the flap is the graceful fallback.
+  const mouthRef = useRef(null);
+  const talkRef = useRef(talk); talkRef.current = talk;
+  const [lvlActive, setLvlActive] = useState(false);
+  const lvlActiveRef = useRef(false);
+  useEffect(() => subscribeSalmaLevel((v) => {
+    if (!lvlActiveRef.current) { lvlActiveRef.current = true; setLvlActive(true); }
+    const el = mouthRef.current;
+    if (el) el.style.opacity = talkRef.current ? String(Math.min(1, Math.pow(v, 0.7) * 1.25)) : '0';
+  }), []);
   return (
-    <div style={{ ...portrait, width: size, height: size }} className={`salma-photo${talk ? ' talk' : ''}`}
+    <div style={{ ...portrait, width: size, height: size }}
+      className={`salma-photo${talk ? ' talk' : ''}${lvlActive ? ' lvl' : ''}`}
       role="img" aria-label="Salma, Recruiterin">
       <style>{SALMA_FACE_CSS}</style>
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
         justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
       <div className="stack">
         <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
-        <img className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
+        <img ref={mouthRef} className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
         <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
       </div>
     </div>

@@ -39,6 +39,12 @@ export function subscribeSalmaSpeaking(fn) {
   try { fn(speakingCount > 0); } catch { /* ignore */ }
   return () => speakingSubs.delete(fn);
 }
+// Live mouth LEVEL (0..1) sampled from the real audio envelope (nativeVoice onLevel). Lets the
+// portrait open her mouth WITH the words — congruent + simultaneous — instead of a robotic flap.
+// Falls back to null (portrait uses the idle flap) when the analyser can't attach.
+const levelSubs = new Set();
+export function emitSalmaLevel(v) { levelSubs.forEach((fn) => { try { fn(v); } catch { /* ignore */ } }); }
+export function subscribeSalmaLevel(fn) { levelSubs.add(fn); return () => levelSubs.delete(fn); }
 // Wrap a caller's callbacks so start/end (or error) flip the shared signal exactly once.
 function withSpeakingSignal({ onStart, onError, onEnd } = {}) {
   let started = false, done = false;
@@ -66,7 +72,7 @@ export function composeSalmaSpoken(items) {
  */
 export function salmaModel({ apiUrl, token, text, onStart, onError, onEnd }) {
   const cb = withSpeakingSignal({ onStart, onError, onEnd });
-  return playNative({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, ...cb });
+  return playNative({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel, ...cb });
 }
 
 /**
@@ -81,5 +87,5 @@ export function salmaSpeak({ apiUrl, token, items, dePrefix, onStart, onError, o
   // salma:true = the server-side plan-gate exemption for her own fixed lines: her voice must work
   // from second zero of a fresh account (the trial clock only starts at the first interview).
   const cb = withSpeakingSignal({ onStart, onError, onEnd });
-  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, salma: true, ...cb });
+  return playNative({ apiUrl, token, text: spoken, voice: ar ? SALMA_VOICE_AR : SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel, ...cb });
 }
