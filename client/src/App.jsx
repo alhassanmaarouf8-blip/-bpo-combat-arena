@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useReducer, Component } from 'react';
+import { useState, useEffect, useRef, useCallback, useReducer, Component, lazy, Suspense } from 'react';
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
@@ -9,18 +9,37 @@ import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { PushReminder } from './PushReminder.jsx';
 import { Assessment } from './Assessment.jsx';
 import { Shadowing } from './Shadowing.jsx';
-import { FluencyDrill } from './FluencyDrill.jsx';
 import { Listening } from './Listening.jsx';
 import { SpokenReview } from './SpokenReview.jsx';
 import { SatzbauSchmiede } from './SatzbauSchmiede.jsx';
-import { PressureLadder } from './PressureLadder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { BrainGuide } from './BrainGuide.jsx';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
-import { VideoLessons } from './VideoLessons.jsx';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
+
+// Lazy-loaded overlays — each is rendered only behind a boolean flag and is heavy (FluencyDrill,
+// PressureLadder, VideoLessons together ≈ 126KB of source). Splitting them out of the main chunk
+// speeds first paint on the slow Messenger WebViews 96% of users arrive in. Each is wrapped in a
+// <Suspense> at its render site with a full-screen spinner fallback while its chunk loads.
+const FluencyDrill = lazy(() => import('./FluencyDrill.jsx').then((m) => ({ default: m.FluencyDrill })));
+const PressureLadder = lazy(() => import('./PressureLadder.jsx').then((m) => ({ default: m.PressureLadder })));
+const VideoLessons = lazy(() => import('./VideoLessons.jsx').then((m) => ({ default: m.VideoLessons })));
+
+// Full-screen spinner shown while a lazy overlay's chunk loads (Suspense fallback). Self-contained
+// (own keyframe) so it never depends on a global style being present. Dark bg matches the app so
+// there's no flash. The overlays are full-screen modals, so covering the viewport is correct.
+function OverlayLoading() {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: '#020409' }} role="status" aria-label="Lädt…">
+      <style>{`@keyframes omni-overlay-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 34, height: 34, borderRadius: '50%', border: '2.5px solid rgba(59,130,246,0.22)',
+        borderTopColor: '#3b82f6', animation: 'omni-overlay-spin 0.8s linear infinite' }} />
+    </div>
+  );
+}
 
 // Isolates an overlay so a crash inside it shows a readable message instead of blacking
 // out the whole app (and survives Vite HMR glitches when a new module is added mid-session).
@@ -5582,9 +5601,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* 4-3-2 spoken-fluency drill (PAID — Groq Whisper STT, deterministic feedback) */}
       {fluencyOpen && (
-        <FluencyDrill token={auth.token} apiUrl={API_URL} lang={feedbackLang} level={level} why={drillWhy}
-          onClose={() => { setFluencyOpen(false); setDrillWhy(null); }}
-          onGoPricing={() => { setFluencyOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        <Suspense fallback={<OverlayLoading />}>
+          <FluencyDrill token={auth.token} apiUrl={API_URL} lang={feedbackLang} level={level} why={drillWhy}
+            onClose={() => { setFluencyOpen(false); setDrillWhy(null); }}
+            onGoPricing={() => { setFluencyOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+        </Suspense>
       )}
 
       {/* Listening & live data-capture drill (PAID — browser TTS, deterministic grading, zero cost) */}
@@ -5610,7 +5631,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Pressure Ladder — overload training (native Aura-2 voice via the server TTS route, zero cost) */}
       {pressureOpen && (
-        <PressureLadder lang={feedbackLang} onClose={() => { setPressureOpen(false); setDrillWhy(null); }} token={auth.token} apiUrl={API_URL} why={drillWhy} />
+        <Suspense fallback={<OverlayLoading />}>
+          <PressureLadder lang={feedbackLang} onClose={() => { setPressureOpen(false); setDrillWhy(null); }} token={auth.token} apiUrl={API_URL} why={drillWhy} />
+        </Suspense>
       )}
 
       {/* (El-Captain mentor chat DELETED on owner order 2026-07-10: the LLM's Egyptian Arabic was
@@ -5619,7 +5642,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
 
       {/* Video lessons — the $0 "video" engine: animated slides + native German narration */}
       {videoLessonsOpen && (
-        <VideoLessons token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setVideoLessonsOpen(false)} />
+        <Suspense fallback={<OverlayLoading />}>
+          <VideoLessons token={auth.token} apiUrl={API_URL} lang={feedbackLang} onClose={() => setVideoLessonsOpen(false)} />
+        </Suspense>
       )}
 
 
