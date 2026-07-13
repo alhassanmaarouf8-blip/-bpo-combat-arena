@@ -348,6 +348,12 @@ const SALMA_FACE_CSS = `
 .salma-photo .mouth{opacity:0 !important}
 .salma-photo.talk{animation:salmaGlow 1.3s ease-in-out infinite}
 .salma-photo.lvl.talk{animation:none}   /* level-active → the ref drives box-shadow, not the keyframe */
+/* World-class voice presence (ChatGPT-voice / Siri): a reactive ring, NOT fake lips. Its brightness +
+   scale track her REAL audio level (set via ref), and a slow sonar pulse reads as "speaking". */
+.salma-photo .vring{position:absolute;inset:-3px;border-radius:inherit;border:2.5px solid var(--accent, #3b82f6);opacity:0;pointer-events:none;transition:opacity 70ms linear,transform 70ms linear}
+.salma-photo.talk .vring{animation:salmaSonar 1.5s ease-out infinite}
+@keyframes salmaSonar{0%{box-shadow:0 0 0 0 rgba(59,130,246,0.35)}70%,100%{box-shadow:0 0 0 10px rgba(59,130,246,0)}}
+@media (prefers-reduced-motion:reduce){.salma-photo.talk .vring{animation:none}}
 @keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.03)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.05)}}
 @keyframes salmaGlow{0%,100%{box-shadow:0 0 14px rgba(59,130,246,0.4)}50%{box-shadow:0 0 24px rgba(59,130,246,0.9),0 0 8px rgba(59,130,246,0.6)}}
 @keyframes salmaBlink{0%,92%{opacity:0}95%{opacity:1}98%,100%{opacity:0}}
@@ -367,21 +373,24 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   // the CSS glow keyframe yields to the level; until then / if the analyser can't attach, the keyframe
   // glow is the graceful fallback. (2-frame photos can't lip-sync — see the CSS note.)
   const rootRef = useRef(null);
+  const ringRef = useRef(null);
   const talkRef = useRef(talk); talkRef.current = talk;
   const [lvlActive, setLvlActive] = useState(false);
   const lvlActiveRef = useRef(false);
   useEffect(() => subscribeSalmaLevel((v) => {
     if (!lvlActiveRef.current) { lvlActiveRef.current = true; setLvlActive(true); }
+    const on = talkRef.current;
     const el = rootRef.current;
-    if (el) el.style.boxShadow = talkRef.current
-      ? `0 0 ${14 + v * 24}px rgba(59,130,246,${(0.4 + v * 0.5).toFixed(2)})`
-      : '';
+    if (el) el.style.boxShadow = on ? `0 0 ${14 + v * 26}px rgba(59,130,246,${(0.4 + v * 0.5).toFixed(2)})` : '';
+    const ring = ringRef.current;   // the voice-ring tracks her real loudness (world-class reactive presence)
+    if (ring) { ring.style.opacity = on ? Math.min(0.95, v * 1.7).toFixed(2) : '0'; ring.style.transform = `scale(${(1 + v * 0.09).toFixed(3)})`; }
   }), []);
   return (
     <div ref={rootRef} style={{ ...portrait, width: size, height: size }}
       className={`salma-photo${talk ? ' talk' : ''}${lvlActive ? ' lvl' : ''}`}
       role="img" aria-label="Salma, Recruiterin">
       <style>{SALMA_FACE_CSS}</style>
+      <div className="vring" ref={ringRef} aria-hidden="true" />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
         justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
       <div className="stack">
