@@ -27,6 +27,7 @@ import geminiBudget               from './geminiBudget.js';
 import { downsamplePcm24to16 }    from './geminiAudio.js';
 import { vertexConfigured }       from './vertexToken.js';
 import { completeVacancySession, vacancyLiveContext } from './vacancyTargetCore.js';
+import { missionControlVacancyLiveContext } from './missionControlCore.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -609,7 +610,8 @@ export class WebSocketManager {
     // Ziel-Stelle (Elite/trial): the stored target account type steers the roleplay scenario pick
     // + the boss framing. Entitlement-gated HERE (single enforcement point) — a free user with a
     // stored preference simply gets the normal global rotation, never an error.
-    const vacancySnapshot = vacancyLiveContext(prof, account);
+    const vacancySnapshot = missionControlVacancyLiveContext(prof, account)
+      || vacancyLiveContext(prof, account);
     ctx.vacancySnapshot = vacancySnapshot;
     const legacyTargetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
     const targetIndustry = vacancySnapshot?.industryKey || legacyTargetIndustry;

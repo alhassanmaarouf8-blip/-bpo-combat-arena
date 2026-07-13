@@ -26,6 +26,8 @@ import {
   normalizeVacancyState,
   vacancyFlagsFor,
 } from './vacancyTargetCore.js';
+import { missionNextAction } from './missionControlCore.js';
+import { governedMissionControlFlagsFor } from './missionControlGovernance.js';
 
 export const progressRouter = express.Router();
 
@@ -190,7 +192,13 @@ progressRouter.get('/brain', requireAuth, async (req, res) => {
       scheduledDate: vacancyDue.scheduledDate,
       liveRequired: isLiveVacancyMilestone(vacancyDue.id),
     } : null;
-    const directive = decide({ ...snapshot, vacancyDue: safeDue });
+    // Mission Control contributes to the same deterministic decision spine. Active
+    // interview preparation remains higher priority, so the student still sees one
+    // next action instead of a competing dashboard recommendation.
+    const missionDue = missionNextAction(p, req.account, {
+      flags: governedMissionControlFlagsFor(req.account),
+    });
+    const directive = decide({ ...snapshot, vacancyDue: safeDue, missionDue });
     res.json({ directive, level: snapshot.level, hireReady: snapshot.hireReady, hireNote: snapshot.hireNote });
   } catch (err) {
     console.error('[brain] error:', err.message);

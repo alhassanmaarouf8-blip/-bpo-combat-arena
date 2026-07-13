@@ -13,6 +13,14 @@ import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from 
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
+import {
+  bindPendingInterviewPassClaimToEmail,
+  clearPendingInterviewPassClaim,
+  markInterviewPassClaimed,
+  readPendingInterviewPassClaim,
+  wasInterviewPassClaimed,
+  writePendingInterviewPassClaim,
+} from './interviewPassClaimStore.js';
 
 // Lazy-loaded overlays — each is rendered only behind a boolean flag and is heavy (FluencyDrill,
 // PressureLadder, VideoLessons together ≈ 126KB of source). Splitting them out of the main chunk
@@ -28,6 +36,11 @@ const Listening = lazy(() => import('./Listening.jsx').then((m) => ({ default: m
 const SpokenReview = lazy(() => import('./SpokenReview.jsx').then((m) => ({ default: m.SpokenReview })));
 const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => ({ default: m.SatzbauSchmiede })));
 const VacancyTargetCard = lazy(() => import('./VacancyTargetCard.jsx').then((m) => ({ default: m.VacancyTargetCard })));
+const InterviewPassPreview = lazy(() => import('./InterviewPassPreview.jsx').then((m) => ({ default: m.InterviewPassPreview })));
+const CandidateMissionControl = lazy(() => import('./CandidateMissionControl.jsx').then((m) => ({ default: m.CandidateMissionControl })));
+
+// The pre-signup pass stores only its short-lived opaque claim token. Raw CV text stays inside
+// InterviewPassPreview's local React state and is cleared before this handoff is ever called.
 
 // Full-screen spinner shown while a lazy overlay's chunk loads (Suspense fallback). Self-contained
 // (own keyframe) so it never depends on a global style being present. Dark bg matches the app so
@@ -2977,6 +2990,17 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
     return () => { cancelled = true; };
   }, []);
 
+  const saveInterviewPassForSignup = useCallback(({ previewToken, expiresAt }) => {
+    if (typeof previewToken !== 'string' || !previewToken.trim()) return;
+    writePendingInterviewPassClaim({
+      previewToken: previewToken.trim(),
+      expiresAt: typeof expiresAt === 'string' ? expiresAt : '',
+    });
+    setMode('signup');
+    setErr('');
+    window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
+  }, []);
+
   const submit = async () => {
     if (busy) return;
     if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
@@ -2995,11 +3019,23 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       if (!r.ok) {
         setErr(authErrText(data.error)); setBusy(false);
         // Email already registered → flip to LOGIN (keep the email) so the user isn't stuck re-signing-up.
-        if (data.error === 'email_taken' && mode === 'signup') setMode('login');
+        if (data.error === 'email_taken' && mode === 'signup') {
+          bindPendingInterviewPassClaimToEmail(email);
+          setMode('login');
+        }
         return;
       }
-      // Honor the landing promise: open the free assessment right after a fresh signup.
-      if (mode === 'signup') { try { localStorage.setItem('bpo_pending_assessment', '1'); } catch {} }
+      // A successful authentication is an explicit account handoff. Bind an unscoped local
+      // preview to that verified login email, but the store refuses to rebind another account.
+      bindPendingInterviewPassClaimToEmail(email);
+      // A visitor who already built an Interview Pass continues that exact mission after
+      // verification. Only ordinary signups enter the legacy level-assessment promise.
+      if (mode === 'signup') {
+        try {
+          if (readPendingInterviewPassClaim()) localStorage.removeItem('bpo_pending_assessment');
+          else localStorage.setItem('bpo_pending_assessment', '1');
+        } catch { /* storage is optional */ }
+      }
       onAuth({ token: data.token, account: data.account });
     } catch (error) {
       setErr(error?.name === 'AbortError'
@@ -3160,6 +3196,15 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           )}
         </div>
       )}
+
+      <Suspense fallback={null}>
+        <InterviewPassPreview apiUrl={API_URL} enabled featureState="on" onBeacon={beacon}
+          onSave={saveInterviewPassForSignup}
+          onLogin={() => {
+            setMode('login'); setErr('');
+            window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
+          }} />
+      </Suspense>
 
       <VoiceReadinessCheck />
 
@@ -4063,7 +4108,7 @@ function PendingBadge({ pending, whatsapp, lang }) {
   );
 }
 
-function Arena({ auth, onLogout, onAccountUpdate }) {
+function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0, hasClaimedInterviewPass = false }) {
   // (Global CSS is injected once at the app root so the cold-start + auth screens share it.)
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -4156,6 +4201,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
   const [vacancyLiveActive, setVacancyLiveActive] = useState(false); // keep the legacy picker unless live tailoring is truly active
   const [vacancyOpenRequest, setVacancyOpenRequest] = useState(0);
+  const [missionOpenRequest, setMissionOpenRequest] = useState(null);
+  const [brainGuideRefresh, setBrainGuideRefresh] = useState(0);
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
@@ -5408,6 +5455,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // here — the fight-result object lives in a child component, not this scope (it crashed the home).
   // seenInterview (set at beginSession) already covers the "has interviewed" case, so `data` is redundant.
   const firstRun     = canStart && !seenInterview && !streak;
+  // A pass-funnel signup already completed a meaningful first action. Preserve that exact
+  // continuation instead of hiding BrainGuide/Mission Control behind the generic first fight.
+  const missionContinuation = !firstRun || hasClaimedInterviewPass || interviewPassClaimRevision > 0;
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
 
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
@@ -5812,8 +5862,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   FIRST actionable thing a returning user sees — above level/interviewer choices.
                   Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
                   first-run (its prescription would duplicate the diagnosis-interview CTA). */}
-              {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
-                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta
+              {BRAIN_GUIDE_LIVE && canStart && missionContinuation && (
+                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta refreshKey={brainGuideRefresh + interviewPassClaimRevision}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
                   pipeline={pipeline}
                   onAction={(d, why) => {
@@ -5833,6 +5883,11 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   else if (p.action === 'interview' || p.action === 'measure') beginSession();
                   else if (p.action === 'assessment') setAssessmentOpen(true);
                   else if (p.action === 'vacancy') setVacancyOpenRequest((value) => value + 1);
+                  else if (p.action === 'mission') setMissionOpenRequest((current) => ({
+                    id:(current?.id || 0) + 1,
+                    step:typeof p.step === 'string' ? p.step : 'today',
+                    ...(typeof p.opportunityId === 'string' ? { opportunityId:p.opportunityId } : {}),
+                  }));
                   else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
                 }} />
               )}
@@ -5962,6 +6017,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </>
             )}
             </div>{/* /hero card */}
+            {canStart && missionContinuation && (
+              <Suspense fallback={null}>
+                <CandidateMissionControl apiUrl={API_URL} token={auth.token} enabled featureState="on"
+                  entitlement={auth.account?.entitlement || null} onBeacon={beacon}
+                  openRequest={missionOpenRequest} refreshKey={interviewPassClaimRevision}
+                  onMissionStateChange={() => setBrainGuideRefresh((value) => value + 1)}
+                  onOpenOfficialApplication={({ url }) => window.open(url, '_blank', 'noopener,noreferrer')}
+                  onStartAssessment={() => setAssessmentOpen(true)}
+                  onInterviewConfirmed={(payload) => {
+                    if (payload?.routeOnly) setVacancyOpenRequest((value) => value + 1);
+                    else setBrainGuideRefresh((value) => value + 1);
+                  }}
+                  onRequestUpgrade={() => setPaywall(auth.account?.entitlement || { plan:'free' })} />
+              </Suspense>
+            )}
           </div>
         )}
 
@@ -6681,6 +6751,7 @@ function AuthedApp() {
   });
   const [verificationState, setVerificationState] = useState(verification ? 'working' : null);
   const [verificationAttempt, setVerificationAttempt] = useState(0);
+  const [interviewPassClaimRevision, setInterviewPassClaimRevision] = useState(0);
 
   useEffect(() => {
     if (!verification) return;
@@ -6747,10 +6818,52 @@ function AuthedApp() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAuth    = useCallback((a) => { persistAuth(a); setAuth(a); }, []);
-  const handleLogout  = useCallback(() => { persistAuth(null); setAuth(null); }, []);
+  // Claim a pre-signup Interview Pass only after the account is authenticated and verified. The
+  // stored value is an opaque, one-use token; no CV or preview copy crosses this boundary.
+  useEffect(() => {
+    if (!auth?.token || auth.account?.emailVerified !== true) return undefined;
+    const unscoped = readPendingInterviewPassClaim();
+    const stored = readPendingInterviewPassClaim({ accountEmail:auth.account?.email });
+    if (unscoped && !stored) {
+      // An unbound preview (or one bound to a different email) must never jump accounts.
+      clearPendingInterviewPassClaim();
+      return undefined;
+    }
+    const previewToken = stored?.previewToken || '';
+    if (!previewToken) return undefined;
+    const controller = new AbortController();
+    import('./missionControlClient.js')
+      .then(({ createMissionControlClient }) => createMissionControlClient({ apiUrl:API_URL, token:auth.token })
+        .claim(previewToken, { signal:controller.signal }))
+      .then(() => {
+        clearPendingInterviewPassClaim();
+        markInterviewPassClaimed(auth.account?.id);
+        setInterviewPassClaimRevision((value) => value + 1);
+        beacon('interview_pass_claimed');
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        if ([400, 409, 410].includes(Number(error?.status))) {
+          clearPendingInterviewPassClaim();
+        }
+      });
+    return () => controller.abort();
+  }, [auth?.token, auth?.account?.emailVerified, auth?.account?.id, auth?.account?.email]);
+
+  const handleAuth = useCallback((a) => {
+    setAuth((current) => {
+      if (current?.account?.id && current.account.id !== a?.account?.id) clearPendingInterviewPassClaim();
+      persistAuth(a);
+      return a;
+    });
+  }, []);
+  const handleLogout  = useCallback(() => { clearPendingInterviewPassClaim(); persistAuth(null); setAuth(null); }, []);
   const handleAccount = useCallback((account) => {
-    setAuth((cur) => { if (!cur) return cur; const a = { token: cur.token, account }; persistAuth(a); return a; });
+    setAuth((cur) => {
+      if (!cur) return cur;
+      if (cur.account?.id && cur.account.id !== account?.id) clearPendingInterviewPassClaim();
+      const a = { token: cur.token, account }; persistAuth(a); return a;
+    });
   }, []);
 
   // Tiny build badge on every screen so the running version is provable (kills "nothing changed" guessing).
@@ -6770,7 +6883,9 @@ function AuthedApp() {
     verificationNotice={verificationState === 'success' || verificationState === 'invalid' ? { state:verificationState } : null} /></>;
   if (auth.account?.emailVerified === false) return <>{buildBadge}<EmailVerificationGate auth={auth}
     onLogout={handleLogout} linkState={verificationState} /></>;
-  return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} /></>;
+  return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount}
+    interviewPassClaimRevision={interviewPassClaimRevision}
+    hasClaimedInterviewPass={wasInterviewPassClaimed(auth.account?.id)} /></>;
 }
 
 // ── Cold-start gate ───────────────────────────────────────────────────────────

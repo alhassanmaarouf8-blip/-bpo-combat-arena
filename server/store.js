@@ -62,6 +62,10 @@ export function defaultProfile(userId) {
       previewUsedAt: null,
       analysisUsage: { hour: '', hourCount: 0, month: '', monthCount: 0 },
     },
+    // Job-to-Offer Mission Control stores only a versioned encrypted envelope.
+    // Its module owns decryption/normalization so general progress code can never
+    // accidentally expose Candidate Passport or opportunity data.
+    missionControlEncrypted: null,
 
   };
 }

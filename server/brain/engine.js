@@ -21,6 +21,7 @@ const LIMIT_TO_SKILL = {
   // grammar handled specially (pick the worst frontier grammar skill from weakLog)
 };
 const GRAMMAR_SKILLS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
+const MISSION_STEPS = new Set(['passport', 'measure', 'prep', 'shortlist', 'pack', 'submit', 'response', 'interview']);
 
 function pickTarget(fr, limitingSkill, weakLog) {
   if (!fr.length) return null;
@@ -66,6 +67,7 @@ export function decide(snapshot = {}) {
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
     vacancyDue = null,
+    missionDue = null,
   } = snapshot;
 
   // Journey toward the goal — handed to the UI so the app REFLECTS step-by-step advancement back to
@@ -93,6 +95,29 @@ export function decide(snapshot = {}) {
         objective: vacancyDue.objective || '',
         scheduledDate: vacancyDue.scheduledDate || null,
         liveRequired: vacancyDue.liveRequired === true,
+      },
+      tier: tierStatus(masteredSkills),
+      journey,
+      aha: null,
+      measure: [],
+    };
+  }
+
+  // Mission Control contributes to the same decision spine instead of creating a
+  // second dashboard CTA. Only an allowlisted, copy-free step can reach the client;
+  // employer names, vacancy prose, and candidate facts stay outside this engine.
+  if (MISSION_STEPS.has(missionDue?.step)) {
+    const opportunityId = typeof missionDue.opportunityId === 'string'
+      && /^[a-zA-Z0-9_-]{1,64}$/u.test(missionDue.opportunityId)
+      ? missionDue.opportunityId : null;
+    return {
+      state: 'MISSION_CONTROL',
+      confidence: 'high',
+      target: null,
+      prescription: {
+        action: 'mission',
+        step: missionDue.step,
+        ...(opportunityId ? { opportunityId } : {}),
       },
       tier: tierStatus(masteredSkills),
       journey,

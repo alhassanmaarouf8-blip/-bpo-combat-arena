@@ -7,7 +7,7 @@
  * Design it must serve: sophisticated inside, ONE dead-simple step outside; the student FEELS they are
  * being guided step-by-step, progressively, toward getting hired (the journey bar makes it visible).
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SpeakerIcon } from './icons/AudioIcons';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SalmaPortrait } from './SalmaTakeover.jsx';
@@ -74,6 +74,8 @@ function whyLine(d) {
       return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: die Interviewerin kennt deine Akte und testet genau diese Stelle erneut. Erst wenn sie im Interview hält, gilt sie als gelöst.`;
     case 'APPLY':
       return 'Deine Entry-Skills sind komplett. Ab hier bringt dich jede Bewerbung weiter als jede weitere Übung.';
+    case 'MISSION_CONTROL':
+      return 'Dein nächster Schritt folgt aus deinen bestätigten Fakten, deiner gemessenen Bereitschaft und deinem aktuellen Bewerbungsstand — ohne geratenen Fit.';
     case 'PLATEAU':
       return `Du warst ein paar Tage weg — ${label ? `mit ${label} ` : ''}machst du am schnellsten wieder Boden gut.`;
     default:   // POST_FIGHT — the fresh prescription
@@ -106,11 +108,50 @@ const LADDER = [
 // A module flag, not state, so returning to the home mid-session doesn't re-trigger her every time.
 let greetedThisSession = false;
 
-export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null }) {
+export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [speaking, setSpeaking] = useState(false);
+  const speechStopRef = useRef(null);
+  const speechRunRef = useRef(0);
+  const stopSpeaking = useCallback(() => {
+    speechRunRef.current += 1;
+    const stop = speechStopRef.current;
+    speechStopRef.current = null;
+    try { stop?.(); } catch { /* audio cleanup is best-effort */ }
+    setSpeaking(false);
+  }, []);
+  const startSpeaking = useCallback((args) => {
+    stopSpeaking();
+    const run = ++speechRunRef.current;
+    setSpeaking(true);
+    let stop = null;
+    try {
+      stop = salmaSpeak({
+        apiUrl,
+        token,
+        ...args,
+        onEnd: () => {
+          if (speechRunRef.current !== run) return;
+          speechStopRef.current = null;
+          setSpeaking(false);
+        },
+      });
+    } catch {
+      if (speechRunRef.current === run) setSpeaking(false);
+    }
+    speechStopRef.current = stop;
+    return () => {
+      try { stop?.(); } catch { /* audio cleanup is best-effort */ }
+      if (speechRunRef.current === run) {
+        speechRunRef.current += 1;
+        speechStopRef.current = null;
+        setSpeaking(false);
+      }
+    };
+  }, [apiUrl, stopSpeaking, token]);
   useEffect(() => {
     let alive = true;
+    stopSpeaking();
     (async () => {
       try {
         const r = await fetch(`${apiUrl}/api/brain`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
@@ -119,8 +160,8 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
         if (alive) setData(d);
       } catch { /* fail silent — the guide simply doesn't render */ }
     })();
-    return () => { alive = false; };
-  }, [token, apiUrl]);
+    return () => { alive = false; stopSpeaking(); };
+  }, [token, apiUrl, refreshKey, stopSpeaking]);
 
   // THE FATHER SPEAKS FIRST (owner 07-12: "she's slow, passive, waits for me to click, doesn't
   // guide"). The instant her card has a real directive she GREETS + directs OUT LOUD — once per
@@ -136,11 +177,9 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     const pre = whyLine(dir);
     if (!items.length && !pre) return undefined;
     greetedThisSession = true;
-    setSpeaking(true);
-    const stop = salmaSpeak({ apiUrl, token, items, dePrefix: pre, onEnd: () => setSpeaking(false) });
-    return () => { try { stop?.(); } catch { /* ignore */ } };
+    return startSpeaking({ items, dePrefix: pre });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, startSpeaking]);
 
   if (!data?.directive) return null;
   const d = data.directive;
@@ -154,6 +193,10 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     : d.prescription?.action === 'measure'    ? BRAIN_COPY.measure
     : d.prescription?.action === 'apply'      ? BRAIN_COPY.apply
     : d.prescription?.action === 'vacancy'    ? `ZIEL-STELLE · ${d.prescription.title || 'HEUTIGER SCHRITT'}`
+    : d.prescription?.action === 'mission'    ? `BEWERBUNG · ${({
+      passport:'PASS PRÜFEN', measure:'BEREITSCHAFT MESSEN', prep:'VORBEREITEN', shortlist:'PASSENDE STELLEN',
+      pack:'BEWERBUNGS-PACK', submit:'OFFIZIELL EINREICHEN', response:'ANTWORT EINORDNEN', interview:'INTERVIEW VORBEREITEN',
+    })[d.prescription.step] || 'NÄCHSTER SCHRITT'}`
     : BRAIN_COPY.startCta;
 
   // Salma's notes — each only when its REAL datum exists (she never speaks without evidence).
@@ -173,9 +216,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     if (weaknessNote) items.push({ key: 'note_weakness', slots: { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 } });
     if (trialNote) items.push({ key: 'note_trial', slots: { days: trial.daysLeft } });
     if (!items.length && !whyLine(d)) return;
-    setSpeaking(true);
-    salmaSpeak({ apiUrl, token, items, dePrefix: whyLine(d),
-      onEnd: () => setSpeaking(false) });
+    startSpeaking({ items, dePrefix: whyLine(d) });
   };
 
   return (

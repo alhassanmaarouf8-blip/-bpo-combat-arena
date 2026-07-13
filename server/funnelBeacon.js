@@ -46,6 +46,15 @@ const ALLOWED = new Set([
   'vacancy_import_paste_required', 'vacancy_import_failed', 'vacancy_preview_shown',
   'vacancy_target_confirmed', 'vacancy_day1_completed', 'vacancy_target_removed',
   'vacancy_targeted_interview_completed',
+  // Job-to-Offer Mission Control. Names only: never attach CV text, Passport
+  // facts, employer/role, opportunity ids, response text, dates, or user ids.
+  'interview_pass_opened', 'interview_pass_cv_local_ready', 'interview_pass_previewed',
+  'interview_pass_signup_clicked', 'interview_pass_claimed',
+  'candidate_passport_opened', 'candidate_passport_saved', 'mission_control_opened',
+  'job_radar_viewed', 'opportunity_imported', 'application_pack_opened',
+  'application_pack_created', 'application_pack_approved', 'application_pack_exported', 'official_apply_opened',
+  'application_marked_submitted', 'response_classified', 'interview_confirmed',
+  'application_outcome_recorded', 'mission_paywall_shown',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

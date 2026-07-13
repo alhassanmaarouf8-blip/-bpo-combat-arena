@@ -293,9 +293,11 @@ export function trialDaysLeft(account, now = Date.now()) {
   const days = FREE_TRIAL_DAYS;
   return Math.max(0, Math.ceil((days * FREE_TRIAL_DAY_MS - (now - start)) / FREE_TRIAL_DAY_MS));
 }
-// During the trial a free user gets Fokus-level daily minutes; otherwise the plan's own value.
+// During the trial a free user gets the complete Elite experience promised by the
+// current offer, including the same live-session allowance. Otherwise use the
+// account's paid/free plan value.
 export function dailyMinutesFor(account) {
-  if (trialActive(account)) return PLANS.basic.dailyLiveMinutes || 0;
+  if (trialActive(account)) return PLANS.elite.dailyLiveMinutes || 0;
   return PLANS[planOf(account)]?.dailyLiveMinutes || 0;
 }
 // Drills (listening, fluency, spoken-review, shadowing) — unlocked for any paid plan OR an active trial.
@@ -320,7 +322,7 @@ export function entitlement(account) {
   const freeFight = freeFightAvailable(account);
   const trial = trialActive(account);
   // Interviews/day for display — plans are SOLD as full daily interviews (owner quota law 07-11).
-  const sessions = trial ? (PLANS.basic.dailySessions || 0) : (feat.dailySessions || 0);
+  const sessions = trial ? (PLANS.elite.dailySessions || 0) : (feat.dailySessions || 0);
   return {
     allowed:               mins > 0 || freeFight,
     freeFight,                                   // true → client shows "1 kostenloses Interview"
