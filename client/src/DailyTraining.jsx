@@ -70,6 +70,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     (async () => {
       try {
         const r = await fetch(`${apiUrl}/api/daily?t=${Date.now()}`, { headers: headers(), cache: 'no-store' });
+        if (!r.ok) throw new Error(`daily ${r.status}`);   // a non-OK JSON body must NOT become card data
         const d = await r.json();
         if (!cancelled) setData(d);
       } catch { if (!cancelled) setErr('Server nicht erreichbar.'); }
