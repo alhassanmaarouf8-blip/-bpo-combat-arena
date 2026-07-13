@@ -331,23 +331,35 @@ function bookingCopyKey(level) {
 // 07-13: "an attractive German young lady, find me one"). Motion: she gently sways/breathes on a loop
 // and her ring GLOWS while she speaks — the aliveness he asked for. prefers-reduced-motion disables it.
 // Generated once via gemini-3-pro-image-preview on the free no-billing worker key ($0); regen script
-// in the session scratch. A talking/blinking version would need multiple frames (future).
+// in the session scratch. She BLINKS and moves her mouth while speaking via a 3-frame photo stack —
+// neutral base + eyes-closed + mouth-open, all edited from the SAME shot so they align pixel-for-pixel
+// (only the eyes/mouth differ). Pure-CSS opacity keyframes drive it: the lids blink on a slow loop
+// always; the mouth crossfades open/closed ONLY while `speaking`. Reduced-motion strips all of it.
 const SALMA_FACE_CSS = `
-.salma-photo .face{width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block;
-transform-origin:50% 82%;animation:salmaSwy 4.6s ease-in-out infinite}
+.salma-photo .stack{position:absolute;inset:0;transform-origin:50% 82%;animation:salmaSwy 4.6s ease-in-out infinite}
+.salma-photo .face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%;display:block}
+.salma-photo .lids{opacity:0;animation:salmaBlink 5.4s ease-in-out infinite}
+.salma-photo .mouth{opacity:0}
+.salma-photo.talk .mouth{animation:salmaTalk 0.28s ease-in-out infinite}
 .salma-photo.talk{animation:salmaGlow 1.3s ease-in-out infinite}
-@keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.04)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.06)}}
+@keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.03)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.05)}}
 @keyframes salmaGlow{0%,100%{box-shadow:0 0 14px rgba(59,130,246,0.4)}50%{box-shadow:0 0 24px rgba(59,130,246,0.9),0 0 8px rgba(59,130,246,0.6)}}
-@media (prefers-reduced-motion:reduce){.salma-photo .face{animation:none}.salma-photo.talk{animation:none}}`;
+@keyframes salmaBlink{0%,92%{opacity:0}95%{opacity:1}98%,100%{opacity:0}}
+@keyframes salmaTalk{0%,100%{opacity:0}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.salma-photo .stack{animation:none}.salma-photo .lids,.salma-photo.talk .mouth{animation:none;opacity:0}.salma-photo.talk{animation:none}}`;
 export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
+  const hideOnErr = (e) => { e.currentTarget.style.display = 'none'; };
   return (
     <div style={{ ...portrait, width: size, height: size }} className={`salma-photo${speaking ? ' talk' : ''}`}
       role="img" aria-label="Salma, Recruiterin">
       <style>{SALMA_FACE_CSS}</style>
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
         justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
-      <img className="face" src="/salma.jpg" alt="" aria-hidden="true"
-        onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+      <div className="stack">
+        <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
+        <img className="face mouth" src="/salma-talk.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
+        <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" onError={hideOnErr} />
+      </div>
     </div>
   );
 }
