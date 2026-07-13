@@ -30,7 +30,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   const [err, setErr]     = useState('');
 
   // ── Science engine state ────────────────────────────────────────────────────
-  const [combo, setCombo] = useState(0);
   const [showCue, setShowCue] = useState(false); // first-letter generation cue
   // Session receipt: counted from REAL graded answers only (source==='mistake' items answered
   // correctly + total correct) — deterministic, never invented, shown on the completion screen.
@@ -92,12 +91,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       const res = await r.json();
       setResult(res);
       if (res.correct) {
-        const newCombo = combo + 1;
-        setCombo(newCombo);
         // submit() is guarded (`|| result`) so each question grades exactly ONCE — no double counts.
         setTally((t) => ({ correct: t.correct + 1, mistakeFixed: t.mistakeFixed + (q?.source === 'mistake' ? 1 : 0) }));
       } else {
-        setCombo(0);
         // Active recall / write-it-again (desirable difficulty, Bjork 1994):
         // After seeing the correct answer, student MUST re-type it before advancing.
         // Passive reading has near-zero transfer to spoken production.
@@ -143,7 +139,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       const d = await r.json();
       if (!r.ok || !Array.isArray(d.questions) || !d.questions.length) throw new Error('no_set');
       setData(d); setIdx(0); resetItemState(); setFinalStreak(null); setDone(false);
-      setCombo(0); setShieldMsg(null); setTally({ correct: 0, mistakeFixed: 0 });   // fresh round, fresh receipt
+      setTally({ correct: 0, mistakeFixed: 0 });   // fresh round, fresh receipt
     } catch { setErr(lang === 'ar' ? 'مقدرناش نجيب جولة جديدة.' : 'Konnte keine neue Runde laden.'); }
     setBusy(false);
   };
@@ -163,8 +159,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     stopSpeakRef.current?.();
     stopSpeakRef.current = salmaSpeak({ apiUrl, token, items: [{ key: 'drill_done' }] });
   }, [done, apiUrl, token]);
-
-  // ── Combo label (flow state calibration) ─────────────────────────────────────
 
   return (
     <div style={ov}>
