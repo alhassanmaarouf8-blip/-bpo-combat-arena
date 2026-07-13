@@ -528,9 +528,20 @@ export function createMissionControlClient({ apiUrl, token = '', fetchFn = globa
   return Object.freeze({
     getPreviewStatus: async (options = {}) => {
       const payload = await request('/api/interview-pass/preview', { signal: options.signal, auth: false });
+      const root = objectOf(payload);
+      const enabled = root.enabled === true;
+      const hasAdvertisedMode = Object.prototype.hasOwnProperty.call(root, 'mode');
+      const advertisedMode = root.mode;
+      const validAdvertisedMode = advertisedMode === 'on' || advertisedMode === 'beta';
+      const mode = enabled && (!hasAdvertisedMode || validAdvertisedMode)
+        ? hasAdvertisedMode ? advertisedMode : 'on'
+        : 'off';
       return {
-        enabled: objectOf(payload).enabled === true,
-        mode: textOf(objectOf(payload).mode, 20),
+        enabled:mode !== 'off',
+        // Older/safer probes expose only a boolean. Treat a positive server
+        // attestation as `on`. If mode is advertised, it must be exact; a
+        // malformed or unknown execution mode fails closed.
+        mode,
       };
     },
     preview: async (input, options = {}) => normalizeInterviewPassPreview(await request('/api/interview-pass/preview', {

@@ -444,11 +444,64 @@ test('Mission Control HTTP feature gates fail closed and public preview rejects 
     const probe = await requestJson(base, '/api/interview-pass/preview');
     assert.equal(probe.response.status, 200);
     assert.deepEqual(probe.body, { enabled:false });
+    assert.match(probe.response.headers.get('cache-control') || '', /no-store/u);
     const disabled = await requestJson(base, '/api/interview-pass/preview', {
       method:'POST', body:previewBody,
     });
     assert.equal(disabled.response.status, 404);
     assert.equal(disabled.body.error, 'feature_disabled');
+  });
+
+  for (const privacyEnv of [
+    {
+      INTERVIEW_PASS_MODE:'on',
+      MISSION_CONTROL_SINGLE_WRITER_CONFIRMED:'true',
+    },
+    {
+      MISSION_CONTROL_ENCRYPTION_KEY:'not-a-valid-32-byte-key',
+      INTERVIEW_PASS_MODE:'on',
+      MISSION_CONTROL_SINGLE_WRITER_CONFIRMED:'true',
+    },
+  ]) {
+    await withMissionApi(createMissionControlRouter({ env:privacyEnv, now }), async (base) => {
+      const probe = await requestJson(base, '/api/interview-pass/preview');
+      assert.deepEqual(probe.body, { enabled:false });
+      assert.match(probe.response.headers.get('cache-control') || '', /no-store/u);
+      const unavailable = await requestJson(base, '/api/interview-pass/preview', {
+        method:'POST', body:previewBody,
+      });
+      assert.equal(unavailable.response.status, 503);
+      assert.equal(unavailable.body.error, 'privacy_configuration_required');
+    });
+  }
+
+  await withMissionApi(createMissionControlRouter({
+    env:{ MISSION_CONTROL_ENCRYPTION_KEY:key, INTERVIEW_PASS_MODE:'on' }, now,
+  }), async (base) => {
+    const probe = await requestJson(base, '/api/interview-pass/preview');
+    assert.deepEqual(probe.body, { enabled:false });
+    const locked = await requestJson(base, '/api/interview-pass/preview', {
+      method:'POST', body:previewBody,
+    });
+    assert.equal(locked.response.status, 404);
+    assert.equal(locked.body.error, 'feature_disabled');
+  });
+
+  await withMissionApi(createMissionControlRouter({
+    env:{
+      MISSION_CONTROL_ENCRYPTION_KEY:key,
+      INTERVIEW_PASS_MODE:'beta',
+      MISSION_CONTROL_SINGLE_WRITER_CONFIRMED:'true',
+    },
+    now,
+  }), async (base) => {
+    const probe = await requestJson(base, '/api/interview-pass/preview');
+    assert.deepEqual(probe.body, { enabled:false });
+    const betaOnly = await requestJson(base, '/api/interview-pass/preview', {
+      method:'POST', body:previewBody,
+    });
+    assert.equal(betaOnly.response.status, 404);
+    assert.equal(betaOnly.body.error, 'feature_disabled');
   });
 
   await withMissionApi(createMissionControlRouter({
@@ -476,6 +529,9 @@ test('Mission Control HTTP feature gates fail closed and public preview rejects 
     },
     now,
   }), async (base) => {
+    const probe = await requestJson(base, '/api/interview-pass/preview');
+    assert.deepEqual(probe.body, { enabled:true });
+    assert.match(probe.response.headers.get('cache-control') || '', /no-store/u);
     const valid = await requestJson(base, '/api/interview-pass/preview', {
       method:'POST', body:previewBody,
     });
@@ -631,10 +687,21 @@ test('pre-signup Interview Pass sends only selected enums and never raw CV text'
 
 test('client feature surface fails closed until the server explicitly enables it', () => {
   const preview = text(join(CLIENT_SRC, 'InterviewPassPreview.jsx'));
+  const app = text(join(CLIENT_SRC, 'App.jsx'));
   assert.match(preview, /enabled\s*=\s*false/u);
   assert.match(preview, /featureState\s*=\s*['"]off['"]/u);
   assert.match(preview, /enabled\s*===\s*true/u);
   assert.match(preview, /featureState\s*===\s*['"]on['"]\s*\|\|\s*featureState\s*===\s*['"]beta['"]/u);
+  assert.match(app, /useState\(['"]off['"]\)/u);
+  assert.match(app, /createPublicPreviewMonitor\(/u);
+  assert.match(app, /getPreviewStatus\(options\)/u);
+  assert.match(app, /addEventListener\(['"]focus['"],\s*revalidateWhenVisible\)/u);
+  assert.match(app, /addEventListener\(['"]visibilitychange['"],\s*revalidateWhenVisible\)/u);
+  assert.match(app, /interviewPassFeatureState\s*===\s*['"]on['"]\s*&&\s*<Suspense/u);
+  assert.doesNotMatch(app, /interviewPassFeatureState\s*===\s*['"]beta['"]/u);
+  assert.match(app, /featureState=\{interviewPassFeatureState\}/u);
+  assert.match(app, /onUnavailable=\{hideUnavailableInterviewPass\}/u);
+  assert.doesNotMatch(app, /<InterviewPassPreview[^>]*featureState=['"]on['"]/u);
 });
 
 test('Mission Control modules remain isolated from microphone, persona and live-voice internals', () => {

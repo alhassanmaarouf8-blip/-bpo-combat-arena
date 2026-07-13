@@ -60,6 +60,26 @@ test('an incomplete prediction response fails instead of rendering an empty or m
   );
 });
 
+test('public Interview Pass status fails closed and preserves explicit on/beta attestations', async () => {
+  const statusFor = async (payload) => createMissionControlClient({
+    apiUrl:'https://example.test',
+    fetchFn:async () => new Response(JSON.stringify(payload), {
+      status:200, headers:{ 'content-type':'application/json' },
+    }),
+  }).getPreviewStatus();
+
+  assert.deepEqual(await statusFor({}), { enabled:false, mode:'off' });
+  assert.deepEqual(await statusFor({ enabled:false, mode:'on' }), { enabled:false, mode:'off' });
+  assert.deepEqual(await statusFor({ enabled:true }), { enabled:true, mode:'on' });
+  assert.deepEqual(await statusFor({ enabled:true, mode:'on' }), { enabled:true, mode:'on' });
+  assert.deepEqual(await statusFor({ enabled:true, mode:'beta' }), { enabled:true, mode:'beta' });
+  assert.deepEqual(await statusFor({ enabled:'true', mode:'beta' }), { enabled:false, mode:'off' });
+  assert.deepEqual(await statusFor({ enabled:true, mode:'future' }), { enabled:false, mode:'off' });
+  assert.deepEqual(await statusFor({ enabled:true, mode:null }), { enabled:false, mode:'off' });
+  assert.deepEqual(await statusFor({ enabled:true, mode:7 }), { enabled:false, mode:'off' });
+  assert.deepEqual(await statusFor({ enabled:true, mode:' on ' }), { enabled:false, mode:'off' });
+});
+
 test('post-signup bundle preserves only the entitled Interview Pass schedule', () => {
   const bundle = normalizeMissionBundle({
     enabled:true,

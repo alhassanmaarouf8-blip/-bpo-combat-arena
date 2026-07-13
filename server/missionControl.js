@@ -36,6 +36,7 @@ import {
   getIdempotencyRecord,
   jobRadar,
   markApplicationSubmitted,
+  missionControlEncryptionKey,
   missionControlView,
   normalizeConfirmInterview,
   normalizeInterviewPassPreviewRequest,
@@ -196,6 +197,16 @@ function privacyOptions(dependencies) {
   return { env:dependencies.env, ...(dependencies.encryptionKey ? { key:dependencies.encryptionKey } : {}) };
 }
 
+function privacyConfigured(dependencies) {
+  if (dependencies.encryptionKey !== null && dependencies.encryptionKey !== undefined) {
+    return Buffer.isBuffer(dependencies.encryptionKey) && dependencies.encryptionKey.length === 32;
+  }
+  try {
+    missionControlEncryptionKey(dependencies.env);
+    return true;
+  } catch { return false; }
+}
+
 function readState(profile, dependencies) {
   return readEncryptedMissionControl(profile, privacyOptions(dependencies));
 }
@@ -301,8 +312,12 @@ export function createMissionControlRouter(overrides = {}) {
     rateLimit({ windowMs:60 * 1000, max:120, tag:'interview-pass-probe' }),
     (req, res) => {
       const flags = statusFlags(null, dependencies);
-      res.set('Cache-Control', 'public, max-age=60');
-      return res.json({ enabled:flags.interviewPassEnabled === true });
+      // This is an execution gate, not marketing content. Never let a cached
+      // positive survive an emergency rollback and expose a dead public form.
+      res.set('Cache-Control', 'no-store');
+      return res.json({
+        enabled:flags.interviewPassEnabled === true && privacyConfigured(dependencies),
+      });
     });
 
   router.post('/interview-pass/preview',

@@ -3080,11 +3080,56 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // feedback.js buildPublicRatings); `null` here just means "don't render the section", never a
   // fabricated placeholder.
   const [publicRatings, setPublicRatings] = useState(null);
+  // Fail closed and preserve the legacy landing page until the backend itself
+  // attests that the public Interview Pass is available. This avoids loading or
+  // displaying an enabled form during flags-off, paused, beta-only, or failed probes.
+  const [interviewPassFeatureState, setInterviewPassFeatureState] = useState('off');
+  const interviewPassUnavailableRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_URL}/api/feedback/public`).then((r) => r.json())
       .then((d) => { if (!cancelled && d?.available) setPublicRatings(d); }).catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    let monitor = null;
+    let rollbackTimer = null;
+    const revalidateWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') monitor?.revalidate();
+    };
+    import('./interviewPassAvailability.js')
+      .then(({ createPublicPreviewMonitor, PUBLIC_PREVIEW_REVALIDATE_MS }) => {
+        if (!active) return;
+        monitor = createPublicPreviewMonitor({
+          getStatus:async (options) => {
+            const { createMissionControlClient } = await import('./missionControlClient.js');
+            return createMissionControlClient({ apiUrl:API_URL }).getPreviewStatus(options);
+          },
+          onAvailability:(state) => {
+            if (!active) return;
+            if (state === 'on' && interviewPassUnavailableRef.current) return;
+            setInterviewPassFeatureState(state === 'on' ? 'on' : 'off');
+          },
+        });
+        window.addEventListener('focus', revalidateWhenVisible);
+        document.addEventListener('visibilitychange', revalidateWhenVisible);
+        rollbackTimer = window.setInterval(revalidateWhenVisible, PUBLIC_PREVIEW_REVALIDATE_MS);
+        monitor.start();
+      })
+      .catch(() => { if (active) setInterviewPassFeatureState('off'); });
+    return () => {
+      active = false;
+      window.removeEventListener('focus', revalidateWhenVisible);
+      document.removeEventListener('visibilitychange', revalidateWhenVisible);
+      if (rollbackTimer !== null) window.clearInterval(rollbackTimer);
+      monitor?.stop();
+    };
+  }, []);
+
+  const hideUnavailableInterviewPass = useCallback(() => {
+    interviewPassUnavailableRef.current = true;
+    setInterviewPassFeatureState('off');
   }, []);
 
   const saveInterviewPassForSignup = useCallback(({ previewToken, expiresAt }) => {
@@ -3284,14 +3329,15 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
       )}
 
-      <Suspense fallback={null}>
-        <InterviewPassPreview apiUrl={API_URL} enabled featureState="on" onBeacon={beacon}
+      {interviewPassFeatureState === 'on' && <Suspense fallback={null}>
+        <InterviewPassPreview apiUrl={API_URL} enabled featureState={interviewPassFeatureState}
+          serverVerified onUnavailable={hideUnavailableInterviewPass} onBeacon={beacon}
           onSave={saveInterviewPassForSignup}
           onLogin={() => {
             setMode('login'); setErr('');
             window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
           }} />
-      </Suspense>
+      </Suspense>}
 
       <VoiceReadinessCheck />
 

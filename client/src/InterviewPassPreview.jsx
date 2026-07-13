@@ -8,6 +8,7 @@ import {
   MissionControlRequestError,
   createMissionControlClient,
 } from './missionControlClient.js';
+import { isPreviewUnavailableError } from './interviewPassAvailability.js';
 
 const CV_MIN_CHARS = 80;
 const CV_MAX_CHARS = 16_000;
@@ -124,6 +125,8 @@ export function InterviewPassPreview({
   apiUrl,
   enabled = false,
   featureState = 'off',
+  serverVerified = false,
+  onUnavailable,
   onSave,
   onLogin,
   onBeacon,
@@ -139,12 +142,13 @@ export function InterviewPassPreview({
   const [timing, setTiming] = useState('');
   const [evidenceCategories, setEvidenceCategories] = useState([]);
   const [preview, setPreview] = useState(null);
-  const [availability, setAvailability] = useState('checking');
+  const [availability, setAvailability] = useState(serverVerified ? 'enabled' : 'checking');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const controllerRef = useRef(null);
   const resultRef = useRef(null);
   const openedRef = useRef(false);
+  const unavailableNotifiedRef = useRef(false);
 
   const client = useMemo(() => {
     if (!active || !apiUrl) return null;
@@ -156,14 +160,27 @@ export function InterviewPassPreview({
     try { onBeacon?.(event); } catch { /* analytics never changes the proof */ }
   }, [onBeacon]);
 
+  const markUnavailable = useCallback((code) => {
+    setAvailability('hidden');
+    controllerRef.current?.abort();
+    setCvText('');
+    setSuggested([]);
+    setPreview(null);
+    setError(null);
+    if (unavailableNotifiedRef.current) return;
+    unavailableNotifiedRef.current = true;
+    try { onUnavailable?.(code); } catch { /* parent notification must not block rollback */ }
+  }, [onUnavailable]);
+
   useEffect(() => {
     if (!active || !client) { setAvailability('hidden'); return undefined; }
+    if (serverVerified) { setAvailability('enabled'); return undefined; }
     const controller = new AbortController();
     client.getPreviewStatus({ signal: controller.signal })
       .then((status) => setAvailability(status.enabled ? 'enabled' : 'hidden'))
       .catch(() => setAvailability('hidden'));
     return () => controller.abort();
-  }, [active, client]);
+  }, [active, client, serverVerified]);
 
   useEffect(() => {
     if (availability === 'enabled' && !openedRef.current) {
@@ -219,7 +236,8 @@ export function InterviewPassPreview({
       setStep(3);
       emit('interview_pass_previewed');
     } catch (requestError) {
-      if (requestError?.name !== 'AbortError') setError(errorCopy(requestError));
+      if (isPreviewUnavailableError(requestError)) markUnavailable(requestError.code);
+      else if (requestError?.name !== 'AbortError') setError(errorCopy(requestError));
     } finally {
       if (controllerRef.current === controller) controllerRef.current = null;
       setBusy(false);

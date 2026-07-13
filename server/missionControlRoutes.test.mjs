@@ -69,6 +69,60 @@ async function accountForTest({ admin = true, plan = 'free' } = {}) {
   return { account, token:auth.signToken(account) };
 }
 
+async function removeAccountForTest(account) {
+  await deleteUser(account.id);
+  await auth.deleteAccount(account);
+}
+
+test('owner beta is account-isolated and off mode restores invisible routes', async () => {
+  const owner = await accountForTest({ admin:false, plan:'elite' });
+  const outsider = await accountForTest({ admin:false, plan:'elite' });
+  const betaEnv = {
+    INTERVIEW_PASS_MODE:'beta',
+    OPPORTUNITY_COPILOT_MODE:'beta',
+    MISSION_CONTROL_BETA_ACCOUNT_IDS:owner.account.id,
+    MISSION_CONTROL_SINGLE_WRITER_CONFIRMED:'true',
+  };
+  try {
+    await withApi(createMissionControlRouter({
+      env:betaEnv, encryptionKey:KEY, now:() => NOW,
+    }), async (base) => {
+      const publicProbe = await request(base, '/api/interview-pass/preview');
+      assert.equal(publicProbe.status, 200);
+      assert.deepEqual(publicProbe.body, { enabled:false });
+
+      const ownerView = await request(base, '/api/candidate-passport', { token:owner.token });
+      assert.equal(ownerView.status, 200);
+      assert.equal(ownerView.body.enabled, true);
+
+      const outsiderView = await request(base, '/api/candidate-passport', { token:outsider.token });
+      assert.equal(outsiderView.status, 404);
+      assert.equal(outsiderView.body.error, 'feature_disabled');
+    });
+
+    await withApi(createMissionControlRouter({
+      env:{
+        ...betaEnv,
+        INTERVIEW_PASS_MODE:'off',
+        OPPORTUNITY_COPILOT_MODE:'off',
+      },
+      encryptionKey:KEY,
+      now:() => NOW,
+    }), async (base) => {
+      const publicProbe = await request(base, '/api/interview-pass/preview');
+      assert.deepEqual(publicProbe.body, { enabled:false });
+      const ownerView = await request(base, '/api/candidate-passport', { token:owner.token });
+      assert.equal(ownerView.status, 404);
+      assert.equal(ownerView.body.error, 'feature_disabled');
+    });
+  } finally {
+    await Promise.all([
+      removeAccountForTest(owner.account),
+      removeAccountForTest(outsider.account),
+    ]);
+  }
+});
+
 test('response and pack tracker references survive encrypted HTTP reloads without recruiter text', async () => {
   const { account, token } = await accountForTest();
   const router = createMissionControlRouter({
