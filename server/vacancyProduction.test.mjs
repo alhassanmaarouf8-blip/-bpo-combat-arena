@@ -100,7 +100,10 @@ test('Cairo schedule supports daily, compressed, emergency and rolling modes', (
 
   const sixDays = core.buildVacancySchedule({ ...base, interviewDate:'2026-07-18' }, { now });
   assert.equal(sixDays.length, 7);
-  const perDate = Object.values(Object.groupBy(sixDays, (row) => row.scheduledDate)).map((rows) => rows.length);
+  const perDate = Object.values(sixDays.reduce((groups, row) => {
+    groups[row.scheduledDate] = (groups[row.scheduledDate] || 0) + 1;
+    return groups;
+  }, {}));
   assert.ok(perDate.every((count) => count <= 2));
 
   const twoDays = core.buildVacancySchedule({ ...base, interviewDate:'2026-07-15' }, { now });
