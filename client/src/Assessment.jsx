@@ -153,7 +153,6 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   // ── INTRO ──
   if (phase === 'intro') return shell(<>
     {header}
-    <div style={{ fontSize: 22 }}>🎯</div>
     <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#f8fafc', margin: '8px 0' }}>
       {T(lang, 'Kostenlose Einstufung', 'تقييم مستواك المجاني')}
     </h2>
@@ -241,7 +240,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
           </button>
         </>
       ) : busy ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>⏳ {T(lang, 'Wird verarbeitet…', 'بنحوّل صوتك لنص…')}</div>
+        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>{T(lang, 'Wird verarbeitet…', 'بنحوّل صوتك لنص…')}</div>
       ) : answer ? (
         <>
           <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' }}>

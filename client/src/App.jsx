@@ -1870,7 +1870,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em',
                 color:'#04070d', background:'linear-gradient(135deg,var(--action-2),var(--action))', boxShadow:'0 0 22px rgba(249,115,22,0.55)',
                 animation:'rank-pop 0.7s var(--ease-spring)' }}>
-                🏆 BESTLEISTUNG!
+                BESTLEISTUNG!
               </div>
             )}
           </div>
@@ -1914,9 +1914,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               : rank === 'B1'
                 ? { icon:'⏸', label:'BASIS VORHANDEN', de:'In dieser Simulation wurden B1-Signale gemessen. Trainiere jetzt den größten Hebel.', ar:'في المحاكاة دي اتقاست إشارات B1. درّب أهم نقطة دلوقتي.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               : rank === 'A2'
-                ? { icon:'🌱', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               // A1/unknown → match the server jobLabel's gentle tone, NOT a harsh red "DIESMAL NICHT".
-              : { icon:'🌱', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
+              : { icon:'', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
             return (
               <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
                 animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
@@ -2003,7 +2003,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
                 <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(249,115,22,0.2)',
                   border:'1.5px solid rgba(249,115,22,0.6)', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:14, flexShrink:0 }}>⭐</div>
+                  justifyContent:'center', fontSize:14, flexShrink:0 }}></div>
                 <div>
                   <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'var(--action)' }}>
                     WOCHENFOKUS · DEIN TÄGLICHES ZIEL
@@ -2829,7 +2829,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
             <button onClick={onReview} style={{ width:'100%', fontFamily:'var(--font-display)', fontSize:11,
               letterSpacing:'0.12em', padding:'11px', borderRadius:8, cursor:'pointer',
               border:'1px solid var(--action)', color:'var(--action)', background:'rgba(249,115,22,0.08)' }}>
-              ⚡ {t.dueReviews} WIEDERHOLUNG{(t.dueReviews) === 1 ? '' : 'EN'} JETZT ÜBEN
+              {t.dueReviews} WIEDERHOLUNG{(t.dueReviews) === 1 ? '' : 'EN'} JETZT ÜBEN
             </button>
           )}
 
@@ -2893,7 +2893,7 @@ function VoiceReadinessCheck() {
         <button type="button" onClick={run} disabled={state === 'checking'}
           style={{ width:'100%', minHeight:42, marginTop:9, borderRadius:9, cursor:state === 'checking' ? 'wait' : 'pointer',
             border:'1px solid var(--accent)', background:'rgba(59,130,246,0.14)', color:'var(--accent-2)', fontWeight:800 }}>
-          {state === 'checking' ? 'PRÜFE…' : '🎤 المايك · MIKROFON TESTEN'}
+          {state === 'checking' ? 'PRÜFE…' : 'المايك · MIKROFON TESTEN'}
         </button>
       )}
       <details style={{ marginTop:10, textAlign:'left' }}>
@@ -3678,7 +3678,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           style={{ display:'block', textAlign:'center', textDecoration:'none', padding:'13px', minHeight:48, lineHeight:'22px',
             fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.06em', borderRadius:9, fontWeight:700,
             color:'#04130c', background:'linear-gradient(135deg,var(--accent),var(--accent))', border:'1px solid var(--accent)' }}>
-          💬 {ar ? 'ابعت إثبات الدفع على واتساب' : 'Zahlungsbeleg per WhatsApp senden'}
+          {ar ? 'ابعت إثبات الدفع على واتساب' : 'Zahlungsbeleg per WhatsApp senden'}
         </a>
       )}
       <button onClick={() => copyText(code, 'code')}
@@ -3827,7 +3827,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     const code = pendingPayment.referenceCode || refCode;
     return shell(<>
       <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
-        <div style={{ fontSize:46 }}>⏳</div>
+        <div style={{ marginBottom:6 }}><Spinner size={38} /></div>
         <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:800, color:'var(--accent)', marginTop:8 }}>
           {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
         </div>
@@ -4055,7 +4055,7 @@ function PendingBadge({ pending, whatsapp, lang }) {
     <div onClick={() => setOpen((o) => !o)} style={{ marginBottom: 8, padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
       background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.4)' }}>
       <div style={{ fontSize: 10.5, color: 'var(--action)', lineHeight: 1.5, textAlign: 'center' }}>
-        {ar ? 'اشتراكك قيد التأكيد ⏳ — التفعيل عادة خلال ساعتين في مواعيد العمل' : 'Zahlung wird geprüft — meist innerhalb von 2 Stunden während der Geschäftszeiten'}
+        {ar ? 'اشتراكك قيد التأكيد — التفعيل عادة خلال ساعتين في مواعيد العمل' : 'Zahlung wird geprüft — meist innerhalb von 2 Stunden während der Geschäftszeiten'}
         <span style={{ color: '#94a3b8' }}> {open ? '▲' : '▼'}</span>
       </div>
       {open && (
@@ -5625,7 +5625,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       )}
 
 
-      {/* One-time "plan activated 🎉" celebration after the owner activates the payment */}
+      {/* One-time "plan activated" celebration after the owner activates the payment */}
       {billing?.justActivated && (
         <div onClick={ackActivation} style={{ position:'absolute', inset:0, zIndex:240, display:'grid', placeItems:'center', padding:20,
           background:'rgba(2,4,9,0.92)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
@@ -5767,9 +5767,6 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   color: streak > 0 ? 'var(--action)' : 'var(--text-dim)' }}>
                   Serie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
                 </span>
-                {daily.streakShield && (
-                  <span title="Schutzschild aktiv — ein verpasster Tag wird vergeben" style={{ fontSize:12, lineHeight:1, cursor:'default' }}>🛡</span>
-                )}
                 <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {daily.completedToday ? '✓ Heute erledigt' : 'Tägliches Training · 3–5 Min'}
                 </span>
@@ -6303,7 +6300,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                       border:`1px solid ${recording ? '#ef4444' : '#475569'}`,
                       color: recording ? '#fca5a5' : '#94a3b8',
                       background: recording ? 'rgba(239,68,68,0.1)' : 'rgba(148,163,184,0.06)' }}>
-                    {transcribing ? '⏳…' : recording ? '■ STOPP' : '🎤 SPRECHEN'}
+                    {transcribing ? '…' : recording ? '■ STOPP' : 'SPRECHEN'}
                   </button>
                   )}
                   <button onClick={sendAnswer} disabled={!answerText.trim() || transcribing}
@@ -6360,8 +6357,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
           {isConnecting && (
             <div style={{ fontSize:9.5, color:'var(--action)', marginTop:4, lineHeight:1.4 }}>
               {feedbackLang === 'ar'
-                ? '⏳ بنحضّر المحاوِر… أول مرة ممكن تاخد لحد ٣٠ ثانية. استنى من فضلك.'
-                : '⏳ Der Interviewer wird vorbereitet… der erste Start kann bis zu 30 Sek. dauern. Bitte warten.'}
+                ? 'بنحضّر المحاوِر… أول مرة ممكن تاخد لحد ٣٠ ثانية. استنى من فضلك.'
+                : 'Der Interviewer wird vorbereitet… der erste Start kann bis zu 30 Sek. dauern. Bitte warten.'}
             </div>
           )}
         </div>
@@ -6844,7 +6841,6 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
         </>
       ) : (
         <>
-          <div style={{ fontSize:42 }}>⏳</div>
           <div style={{ maxWidth:330, fontSize:13, color:'#fca5a5', lineHeight:1.6 }}>
             Der Server braucht länger als erwartet. Bitte erneut versuchen.
             <br /><span dir="rtl">السيرفر بياخد وقت أطول من المعتاد. من فضلك حاول تاني.</span>
@@ -6946,7 +6942,7 @@ function InAppBrowserGate({ onContinue }) {
       <div style={{ width:'100%', maxWidth:400, textAlign:'center' }}>
         <div style={{ width:72, height:72, margin:'0 auto 20px', borderRadius:20, display:'flex',
           alignItems:'center', justifyContent:'center', background:'rgba(59,130,246,0.12)',
-          border:'1px solid rgba(59,130,246,0.4)', fontSize:36 }}>🎤</div>
+          border:'1px solid rgba(59,130,246,0.4)' }}><Icon name="mic" size={32} color="var(--accent)" /></div>
         <div style={{ fontSize:23, fontWeight:800, lineHeight:1.25, marginBottom:10 }}>
           Zum Sprechen: in Chrome öffnen
         </div>

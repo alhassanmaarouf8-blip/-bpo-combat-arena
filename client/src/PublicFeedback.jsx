@@ -103,7 +103,7 @@ export default function PublicFeedback() {
                   onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 34, lineHeight: 1, padding: 2,
                     filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.35)', transition: 'filter .15s', transform: (hover || rating) >= n ? 'scale(1.05)' : 'none' }}>
-                  ⭐
+                 
                 </button>
               ))}
             </div>
@@ -112,7 +112,7 @@ export default function PublicFeedback() {
             <textarea value={liked} onChange={(e) => setLiked(e.target.value)} maxLength={1000}
               placeholder="Was hat dir am Training geholfen oder Spaß gemacht?" style={S.textarea} />
 
-            <label style={S.label}>Was können wir besser machen? 🔧</label>
+            <label style={S.label}>Was können wir besser machen?</label>
             <textarea value={disliked} onChange={(e) => setDisliked(e.target.value)} maxLength={1000}
               placeholder="Was hat gefehlt oder gestört?" style={S.textarea} />
 

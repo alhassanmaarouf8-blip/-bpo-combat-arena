@@ -143,7 +143,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
-        ⚡ FLOW-DRILL · سرعة الكلام
+        FLOW-DRILL · سرعة الكلام
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -201,7 +201,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
           <div style={{ marginTop: 9, paddingTop: 9, borderTop: '1px solid rgba(249,115,22,0.2)',
             ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
             <span style={{ fontSize: 11.5, color: 'var(--action)', fontWeight: 700 }}>
-              {T(lang, `🎯 Achte diesmal besonders auf: ${focus}`, `🎯 ركّز المرة دي بالذات على: ${focus}`)}
+              {T(lang, `Achte diesmal besonders auf: ${focus}`, `ركّز المرة دي بالذات على: ${focus}`)}
             </span>
           </div>
         )}
@@ -230,7 +230,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     </div>
     {round === 0 && results.length === 0 && (
       <button onClick={() => setMode('chunks')} style={{ ...ghostBtnWide, width: '100%', marginTop: 14, textAlign: 'left', lineHeight: 1.5 }}>
-        <span style={{ color: 'var(--accent-2)', fontWeight: 700 }}>⚡ Blitz-Formeln</span>
+        <span style={{ color: 'var(--accent-2)', fontWeight: 700 }}>Blitz-Formeln</span>
         <span style={{ color: '#94a3b8' }}> — feste Callcenter-Formeln so lange üben, bis sie ohne Nachdenken kommen. Verpasste Formeln kommen automatisch wieder. ▸</span>
       </button>
     )}
@@ -251,7 +251,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   </>);
 
   if (phase === 'scoring') return shell(<>{header}{promptCard}
-    <div style={{ color: '#94a3b8', fontSize: 13, padding: 20, textAlign: 'center' }}>⏳ {T(lang, 'Wird gemessen…', 'بنقيس…')}</div>
+    <div style={{ color: '#94a3b8', fontSize: 13, padding: 20, textAlign: 'center' }}>{T(lang, 'Wird gemessen…', 'بنقيس…')}</div>
   </>);
 
   // between rounds: show this round's quick numbers + push to the next, harder round.
@@ -380,7 +380,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
   return (
     <>
       <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
-        <div style={{ fontSize: 38 }}>{wpmGood ? '🚀' : '✅'}</div>
+        <div style={{ fontSize: 38 }}>{wpmGood ? '' : '✅'}</div>
         <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 6 }}>{T(lang, 'Drei Runden geschafft', 'خلّصت تلت جولات')}</div>
       </div>
 
@@ -687,7 +687,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
-        ⚡ BLITZ-FORMELN
+        BLITZ-FORMELN
       </span>
       <span style={{ display: 'flex', gap: 8 }}>
         <button onClick={onBack} style={ghostBtn}>◂ 4-3-2</button>
@@ -725,7 +725,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     return shell(<>
       {header}
       <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
-        <div style={{ fontSize: 38 }}>{hits === results.length ? '⚡' : '✅'}</div>
+        <div style={{ fontSize: 38 }}>{hits === results.length ? '' : '✅'}</div>
         <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 6 }}>Runde geschafft</div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -784,13 +784,13 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
   </>);
 
   if (phase === 'scoring') return shell(<>{header}{progress}
-    <div style={{ color: '#94a3b8', fontSize: 13, padding: 30, textAlign: 'center' }}>⏳ Wird geprüft…</div>
+    <div style={{ color: '#94a3b8', fontSize: 13, padding: 30, textAlign: 'center' }}>Wird geprüft…</div>
   </>);
 
   if (phase === 'verdict' && last) {
     const v = last.verdict;
     const latS = last.latencyMs > 0 ? `${(last.latencyMs / 1000).toFixed(1)} s` : null;
-    const title = v === 'automatic' ? `⚡ Automatisch!${latS ? ` (${latS})` : ''}`
+    const title = v === 'automatic' ? `Automatisch!${latS ? ` (${latS})` : ''}`
                 : v === 'ok'        ? `✓ Richtig${latS ? ` (${latS})` : ''}`
                 : v === 'slow'      ? `✓ Richtig — aber langsam${latS ? ` (${latS})` : ''}. Ziel: unter 1,5 s.`
                 : '✗ Das war nicht die Formel.';

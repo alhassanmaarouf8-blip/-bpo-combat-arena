@@ -42,7 +42,7 @@ export function HomeFeedback({ token, apiUrl }) {
       <button onClick={() => setOpen(true)} style={{ width: '100%', marginTop: 8, padding: '10px',
         cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.14em',
         borderRadius: 8, border: '1px solid rgba(148,163,184,0.35)', color: '#94a3b8', background: 'rgba(255,255,255,0.02)' }}>
-        💬  FEEDBACK GEBEN
+         FEEDBACK GEBEN
       </button>
 
       {open && (
@@ -58,7 +58,7 @@ export function HomeFeedback({ token, apiUrl }) {
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 28, lineHeight: 1, padding: 0,
-                        filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.4)', transition: 'filter 0.15s' }}>⭐</button>
+                        filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.4)', transition: 'filter 0.15s' }}></button>
                   ))}
                 </div>
                 <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000}
@@ -226,7 +226,7 @@ export function AdminFeedback({ token, apiUrl }) {
             {data && (
               <>
                 <div style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.7, marginBottom: 12 }}>
-                  <div><b>{data.summary.total}</b> Rückmeldungen · ⭐ Ø {data.summary.avgRating ?? '—'} ({data.summary.ratingCount})</div>
+                  <div><b>{data.summary.total}</b> Rückmeldungen · Ø {data.summary.avgRating ?? '—'} ({data.summary.ratingCount})</div>
                   <div>Wirkte echt: <span style={{ color: 'var(--accent)' }}>{data.summary.feltRealYes} ✓</span> · <span style={{ color: '#f87171' }}>{data.summary.feltRealNo} ✗</span></div>
                   <div style={{ marginTop: 6, fontSize: 11, color: '#94a3b8' }}>Zahlungsbereitschaft:</div>
                   {priceRows.length === 0
@@ -242,11 +242,11 @@ export function AdminFeedback({ token, apiUrl }) {
                     <div style={{ color: '#64748b', fontSize: 9.5 }}>
                       {(e.timestamp || '').slice(0, 16).replace('T', ' ')} · {e.screen === 'public-link' ? '🔗 Link' : e.screen} · {e.name || e.email || 'anon'}
                     </div>
-                    {e.rating ? <span style={{ color: 'var(--action)' }}>⭐ {e.rating} </span> : null}
+                    {e.rating ? <span style={{ color: 'var(--action)' }}>{e.rating} </span> : null}
                     {e.answers?.feltReal != null && <span>· echt: {e.answers.feltReal ? '✓' : '✗'} </span>}
                     {e.answers?.price && <span dir="rtl">· {e.answers.price} </span>}
                     {(e.answers?.liked || e.text) ? <div style={{ color: '#94a3b8', marginTop: 2, overflowWrap: 'anywhere' }}>👍 „{e.answers?.liked || e.text}"</div> : null}
-                    {e.answers?.disliked ? <div style={{ color: 'var(--action-2)', marginTop: 2, overflowWrap: 'anywhere' }}>🔧 „{e.answers.disliked}"</div> : null}
+                    {e.answers?.disliked ? <div style={{ color: 'var(--action-2)', marginTop: 2, overflowWrap: 'anywhere' }}>„{e.answers.disliked}"</div> : null}
                   </div>
                 ))}
               </>

@@ -336,7 +336,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
-        🔥 DRUCK-LEITER · سُلّم الضغط
+        DRUCK-LEITER · سُلّم الضغط
       </span>
       <button onClick={() => { cleanup(); onClose?.(); }} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -385,7 +385,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       </div>
     </div>
     <div style={{ fontSize: 12, color: 'var(--action)', margin: '4px 0 12px', lineHeight: 1.55, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)' }}>
-      🎯 <b>{T(lang, 'Dein Ziel: ', 'هدفك: ')}</b>{T(lang, konterFor(L).goal_de, konterFor(L).goal_ar)}
+      <b>{T(lang, 'Dein Ziel: ', 'هدفك: ')}</b>{T(lang, konterFor(L).goal_de, konterFor(L).goal_ar)}
     </div>
     <button onClick={beginRound} style={{ ...primaryBtn }}>● {T(lang, 'START — Boss kommt', 'ابدأ — الـ boss جاي')}</button>
   </>);
@@ -434,7 +434,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       </div>
     </div>
     <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(59,130,246,0.07)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.25)' }}>
-      <div style={{ fontSize: 10, color: 'var(--good)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>💬 {T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
+      <div style={{ fontSize: 10, color: 'var(--good)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>{T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
       <div style={{ color: '#f1f5f9', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
       <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}><SpeakerIcon style={{ marginRight: 6 }} /> {T(lang, 'Anhören', 'اسمع')}</button>
     </div>

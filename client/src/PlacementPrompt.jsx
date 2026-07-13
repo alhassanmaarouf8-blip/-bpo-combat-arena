@@ -12,7 +12,7 @@ const STAGES = [
   { id: 'applying',     de: 'Ich bewerbe mich',        ar: 'بقدّم على شغل',        ask: false },
   { id: 'interviewing', de: 'Ich habe Interviews',      ar: 'عندي إنترفيوهات',      ask: false },
   { id: 'offer',        de: 'Ich habe ein Angebot',     ar: 'عندي عرض شغل',         ask: true  },
-  { id: 'hired',        de: 'Ich wurde eingestellt! 🎉', ar: 'اتعيّنت! 🎉',          ask: true  },
+  { id: 'hired',        de: 'Ich wurde eingestellt!', ar: 'اتعيّنت!',          ask: true  },
   { id: 'not_hired',    de: 'Noch nicht / abgelehnt',   ar: 'لسه لأ / مرفوض',       ask: false },
 ];
 
@@ -91,7 +91,7 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
       <div style={card}>
         <div style={title}>
           {stage?.id === 'hired'
-            ? (ar ? 'مبروووك! 🎉 مين الشركة؟' : 'Glückwunsch! 🎉 Welcher Arbeitgeber?')
+            ? (ar ? 'مبروووك! مين الشركة؟' : 'Glückwunsch! Welcher Arbeitgeber?')
             : (ar ? 'حلو! مين الشركة؟ (اختياري)' : 'Stark! Welcher Arbeitgeber? (optional)')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

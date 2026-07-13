@@ -97,7 +97,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
-        🗯️ SAG ES RICHTIG · قولها صح
+        SAG ES RICHTIG · قولها صح
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -116,7 +116,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
 
   if (phase === 'empty') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
-      <div style={{ fontSize: 40 }}>🎉</div>
+      <div style={{ fontSize: 40 }}></div>
       <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Nichts fällig — alles aufgeholt!', 'مفيش حاجة مستحقة — كله متعمل!')}</div>
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>{T(lang, 'Mach ein Interview — neue Fehler werden hier zum Laut-Üben.', 'اعمل مقابلة — الأخطاء الجديدة هتظهر هنا علشان تتمرن عليها بصوتك.')}</div>
       <button onClick={onClose} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Fertig', 'تمام')}</button>
@@ -184,7 +184,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
           <button onClick={stopRec} style={{ ...primaryBtn, marginTop: 8, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}>⏹ {T(lang, 'Fertig', 'خلصت')}</button>
         </>
       ) : busy ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>⏳ {T(lang, 'Wird geprüft…', 'بصحّح…')}</div>
+        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>{T(lang, 'Wird geprüft…', 'بصحّح…')}</div>
       ) : result ? (
         <>
           {result.retry ? (

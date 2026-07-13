@@ -673,7 +673,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
     return shell(<>
       {header(true)}
       <div style={{ textAlign: 'center', padding: '30px 0' }}>
-        <div style={{ fontSize: 40 }}>{perfect ? '🏆' : '✅'}</div>
+        <div style={{ fontSize: 40 }}>{perfect ? '' : '✅'}</div>
         <div style={{ fontSize: 17, color: '#f8fafc', fontWeight: 800, marginTop: 10 }}>
           Lektion beendet{/* OWNER-AR slot */}
         </div>

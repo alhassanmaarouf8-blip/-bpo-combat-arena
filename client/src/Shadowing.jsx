@@ -281,7 +281,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
           </button>
         </>
       ) : busy ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>⏳ {T(lang, 'Wird ausgewertet…', 'بنحلّل…')}</div>
+        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>{T(lang, 'Wird ausgewertet…', 'بنحلّل…')}</div>
       ) : result ? (
         <>
           {result.retry ? (
