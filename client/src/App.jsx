@@ -13,6 +13,14 @@ import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from 
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
+import {
+  bindPendingInterviewPassClaimToEmail,
+  clearPendingInterviewPassClaim,
+  markInterviewPassClaimed,
+  readPendingInterviewPassClaim,
+  wasInterviewPassClaimed,
+  writePendingInterviewPassClaim,
+} from './interviewPassClaimStore.js';
 
 // Lazy-loaded overlays — each is rendered only behind a boolean flag and is heavy (FluencyDrill,
 // PressureLadder, VideoLessons together ≈ 126KB of source). Splitting them out of the main chunk
@@ -27,6 +35,12 @@ const Shadowing = lazy(() => import('./Shadowing.jsx').then((m) => ({ default: m
 const Listening = lazy(() => import('./Listening.jsx').then((m) => ({ default: m.Listening })));
 const SpokenReview = lazy(() => import('./SpokenReview.jsx').then((m) => ({ default: m.SpokenReview })));
 const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => ({ default: m.SatzbauSchmiede })));
+const VacancyTargetCard = lazy(() => import('./VacancyTargetCard.jsx').then((m) => ({ default: m.VacancyTargetCard })));
+const InterviewPassPreview = lazy(() => import('./InterviewPassPreview.jsx').then((m) => ({ default: m.InterviewPassPreview })));
+const CandidateMissionControl = lazy(() => import('./CandidateMissionControl.jsx').then((m) => ({ default: m.CandidateMissionControl })));
+
+// The pre-signup pass stores only its short-lived opaque claim token. Raw CV text stays inside
+// InterviewPassPreview's local React state and is cleared before this handoff is ever called.
 
 // Full-screen spinner shown while a lazy overlay's chunk loads (Suspense fallback). Self-contained
 // (own keyframe) so it never depends on a global style being present. Dark bg matches the app so
@@ -2851,6 +2865,103 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 //  same SRS items. One review surface, spoken + on-mission. Server /api/review[/grade] now unused.)
 
 // ── Component: AuthScreen (login / signup gate) ───────────────────────────────
+// Sharp, code-native product proof for the public landing. The old raster
+// screenshot became soft when cropped and scaled, and went stale whenever the
+// real home changed. This stays readable at every viewport and is explicitly a
+// preview rather than pretending to be a live session.
+function ProductHomePreview() {
+  return (
+    <figure aria-label="Vorschau des OMNI-PERFORM Interview-Trainings"
+      style={{ maxWidth:420, margin:'24px auto 4px', padding:0 }}>
+      <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em',
+        color:'var(--accent)', marginBottom:8 }}>
+        PRODUKTVORSCHAU · DEIN ERSTES INTERVIEW
+      </div>
+      <div style={{ position:'relative', overflow:'hidden', padding:'22px 20px 20px',
+        borderRadius:24, border:'1px solid rgba(148,163,184,0.2)',
+        background:'linear-gradient(160deg,#0b1422 0%,#050a12 58%,#080b10 100%)',
+        boxShadow:'0 24px 64px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+        <div aria-hidden="true" style={{ position:'absolute', width:260, height:260, borderRadius:'50%',
+          top:-150, right:-100, background:'radial-gradient(circle,rgba(59,130,246,0.22),transparent 68%)' }} />
+        <div aria-hidden="true" style={{ position:'absolute', width:220, height:220, borderRadius:'50%',
+          bottom:-170, left:-110, background:'radial-gradient(circle,rgba(249,115,22,0.12),transparent 68%)' }} />
+
+        <div style={{ position:'relative', display:'flex', justifyContent:'space-between', alignItems:'center', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+            <div style={{ width:34, height:34, borderRadius:11, display:'grid', placeItems:'center',
+              border:'1px solid rgba(96,165,250,0.35)', background:'rgba(59,130,246,0.1)', color:'#93c5fd' }}>
+              <Icon name="mic" size={17} />
+            </div>
+            <div>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
+                letterSpacing:'0.08em', color:'#f8fafc' }}>OMNI-PERFORM</div>
+              <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:2 }}>Deutsches Interview-Training</div>
+            </div>
+          </div>
+          <span style={{ padding:'5px 9px', borderRadius:'var(--r-pill)', fontFamily:'var(--font-display)',
+            fontSize:9, fontWeight:700, letterSpacing:'0.1em', color:'#bfdbfe',
+            border:'1px solid rgba(96,165,250,0.3)', background:'rgba(59,130,246,0.08)' }}>A2–B1</span>
+        </div>
+
+        <div style={{ position:'relative', marginTop:24 }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(24px,7vw,32px)', fontWeight:750,
+            lineHeight:1.08, letterSpacing:'-0.025em', color:'#f8fafc', maxWidth:330 }}>
+            Trainiere, bis deine Antwort sitzt.
+          </div>
+          <div style={{ marginTop:10, color:'#aab7c8', fontSize:13, lineHeight:1.6, maxWidth:340 }}>
+            Realistische Fragen. Direkte Korrekturen. Ein klarer nächster Schritt.
+          </div>
+        </div>
+
+        <div style={{ position:'relative', marginTop:20, padding:'14px', borderRadius:16,
+          border:'1px solid rgba(148,163,184,0.16)', background:'rgba(2,6,14,0.66)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:12 }}>
+            <div style={{ width:42, height:42, borderRadius:'50%', display:'grid', placeItems:'center',
+              fontFamily:'var(--font-display)', fontWeight:750, fontSize:17, color:'#eff6ff',
+              border:'1px solid rgba(96,165,250,0.5)', background:'linear-gradient(145deg,#172338,#0b111d)' }}>Y</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ color:'#f1f5f9', fontWeight:700, fontSize:13 }}>Yasmin · HR-Interviewerin</div>
+              <div style={{ color:'#7f8da1', fontSize:10.5, marginTop:2 }}>Geduldig · nur Deutsch</div>
+            </div>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'#60a5fa',
+              boxShadow:'0 0 0 4px rgba(96,165,250,0.1)' }} />
+          </div>
+          <div style={{ padding:'12px 13px', borderRadius:12, color:'#dbe5f2', fontSize:12.5, lineHeight:1.55,
+            borderLeft:'2px solid #60a5fa', background:'rgba(59,130,246,0.07)' }}>
+            „Erzählen Sie mir kurz, warum Sie im Kundenservice arbeiten möchten.“
+          </div>
+        </div>
+
+        <div style={{ position:'relative', display:'grid', gridTemplateColumns:'repeat(3,minmax(0,1fr))',
+          gap:8, marginTop:12 }}>
+          {[['1','Sprechen'],['2','Korrektur'],['3','Nächster Schritt']].map(([n, label]) => (
+            <div key={n} style={{ minWidth:0, padding:'9px 7px', borderRadius:11, textAlign:'center',
+              background:'rgba(255,255,255,0.035)', border:'1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ fontFamily:'var(--font-display)', fontWeight:750, fontSize:10, color:'#60a5fa' }}>{n}</div>
+              <div style={{ marginTop:3, color:'#a6b2c2', fontSize:9.5, lineHeight:1.25 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        <button type="button" onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
+          aria-label="Kostenlos registrieren und Interview starten"
+          style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14, border:'none', cursor:'pointer',
+          display:'flex', alignItems:'center', justifyContent:'center', gap:9,
+          fontFamily:'var(--font-display)', fontSize:13, fontWeight:750, color:'#111827',
+          background:'linear-gradient(180deg,#fb923c,#f97316)', boxShadow:'0 12px 28px rgba(249,115,22,0.2)' }}>
+          <Icon name="mic" size={17} /> Interview starten
+        </button>
+        <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
+          Etwa 7 Minuten · sofortiges, persönliches Feedback
+        </div>
+      </div>
+      <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, marginTop:9 }}>
+        Vorschau des bestehenden OMNI-PERFORM Trainings — Sprache, Fragen und Feedback passen sich deinem Niveau an.
+      </figcaption>
+    </figure>
+  );
+}
+
 function VoiceReadinessCheck() {
   const [state, setState] = useState('idle');
   const run = async () => {
@@ -2969,11 +3080,67 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // feedback.js buildPublicRatings); `null` here just means "don't render the section", never a
   // fabricated placeholder.
   const [publicRatings, setPublicRatings] = useState(null);
+  // Fail closed and preserve the legacy landing page until the backend itself
+  // attests that the public Interview Pass is available. This avoids loading or
+  // displaying an enabled form during flags-off, paused, beta-only, or failed probes.
+  const [interviewPassFeatureState, setInterviewPassFeatureState] = useState('off');
+  const interviewPassUnavailableRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_URL}/api/feedback/public`).then((r) => r.json())
       .then((d) => { if (!cancelled && d?.available) setPublicRatings(d); }).catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    let monitor = null;
+    let rollbackTimer = null;
+    const revalidateWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') monitor?.revalidate();
+    };
+    import('./interviewPassAvailability.js')
+      .then(({ createPublicPreviewMonitor, PUBLIC_PREVIEW_REVALIDATE_MS }) => {
+        if (!active) return;
+        monitor = createPublicPreviewMonitor({
+          getStatus:async (options) => {
+            const { createMissionControlClient } = await import('./missionControlClient.js');
+            return createMissionControlClient({ apiUrl:API_URL }).getPreviewStatus(options);
+          },
+          onAvailability:(state) => {
+            if (!active) return;
+            if (state === 'on' && interviewPassUnavailableRef.current) return;
+            setInterviewPassFeatureState(state === 'on' ? 'on' : 'off');
+          },
+        });
+        window.addEventListener('focus', revalidateWhenVisible);
+        document.addEventListener('visibilitychange', revalidateWhenVisible);
+        rollbackTimer = window.setInterval(revalidateWhenVisible, PUBLIC_PREVIEW_REVALIDATE_MS);
+        monitor.start();
+      })
+      .catch(() => { if (active) setInterviewPassFeatureState('off'); });
+    return () => {
+      active = false;
+      window.removeEventListener('focus', revalidateWhenVisible);
+      document.removeEventListener('visibilitychange', revalidateWhenVisible);
+      if (rollbackTimer !== null) window.clearInterval(rollbackTimer);
+      monitor?.stop();
+    };
+  }, []);
+
+  const hideUnavailableInterviewPass = useCallback(() => {
+    interviewPassUnavailableRef.current = true;
+    setInterviewPassFeatureState('off');
+  }, []);
+
+  const saveInterviewPassForSignup = useCallback(({ previewToken, expiresAt }) => {
+    if (typeof previewToken !== 'string' || !previewToken.trim()) return;
+    writePendingInterviewPassClaim({
+      previewToken: previewToken.trim(),
+      expiresAt: typeof expiresAt === 'string' ? expiresAt : '',
+    });
+    setMode('signup');
+    setErr('');
+    window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
   }, []);
 
   const submit = async () => {
@@ -2994,11 +3161,23 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       if (!r.ok) {
         setErr(authErrText(data.error)); setBusy(false);
         // Email already registered → flip to LOGIN (keep the email) so the user isn't stuck re-signing-up.
-        if (data.error === 'email_taken' && mode === 'signup') setMode('login');
+        if (data.error === 'email_taken' && mode === 'signup') {
+          bindPendingInterviewPassClaimToEmail(email);
+          setMode('login');
+        }
         return;
       }
-      // Honor the landing promise: open the free assessment right after a fresh signup.
-      if (mode === 'signup') { try { localStorage.setItem('bpo_pending_assessment', '1'); } catch {} }
+      // A successful authentication is an explicit account handoff. Bind an unscoped local
+      // preview to that verified login email, but the store refuses to rebind another account.
+      bindPendingInterviewPassClaimToEmail(email);
+      // A visitor who already built an Interview Pass continues that exact mission after
+      // verification. Only ordinary signups enter the legacy level-assessment promise.
+      if (mode === 'signup') {
+        try {
+          if (readPendingInterviewPassClaim()) localStorage.removeItem('bpo_pending_assessment');
+          else localStorage.setItem('bpo_pending_assessment', '1');
+        } catch { /* storage is optional */ }
+      }
       onAuth({ token: data.token, account: data.account });
     } catch (error) {
       setErr(error?.name === 'AbortError'
@@ -3081,19 +3260,9 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
       </div>
 
-      <figure style={{ maxWidth:420, margin:'24px auto 4px', padding:0, ...rise(2) }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em', color:'var(--accent)', marginBottom:8 }}>
-          ECHTE PRODUKTANSICHT · BEISPIELKONTO
-        </div>
-        <img src="/product-home.png" width="390" height="844" loading="lazy" decoding="async"
-          alt="OMNI-PERFORM mobile training home with interview start, readiness tracker, and level assessment"
-          style={{ display:'block', width:'100%', height:'auto', maxHeight:430, objectFit:'cover', objectPosition:'top',
-            borderRadius:'var(--r-lg)', border:'1px solid var(--line)', boxShadow:'0 22px 55px rgba(0,0,0,0.38)' }} />
-        <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.5, marginTop:8 }}>
-          Aktuelle mobile Oberfläche, aufgenommen aus dem laufenden Produkt mit einem synthetischen Testkonto.
-          {' '}<span dir="rtl">صورة حقيقية من المنتج الحالي بحساب تجريبي.</span>
-        </figcaption>
-      </figure>
+      <div style={rise(2)}>
+        <ProductHomePreview />
+      </div>
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
       <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
@@ -3159,6 +3328,16 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           )}
         </div>
       )}
+
+      {interviewPassFeatureState === 'on' && <Suspense fallback={null}>
+        <InterviewPassPreview apiUrl={API_URL} enabled featureState={interviewPassFeatureState}
+          serverVerified onUnavailable={hideUnavailableInterviewPass} onBeacon={beacon}
+          onSave={saveInterviewPassForSignup}
+          onLogin={() => {
+            setMode('login'); setErr('');
+            window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
+          }} />
+      </Suspense>}
 
       <VoiceReadinessCheck />
 
@@ -4062,7 +4241,7 @@ function PendingBadge({ pending, whatsapp, lang }) {
   );
 }
 
-function Arena({ auth, onLogout, onAccountUpdate }) {
+function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0, hasClaimedInterviewPass = false }) {
   // (Global CSS is injected once at the app root so the cold-start + auth screens share it.)
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -4153,6 +4332,10 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
+  const [vacancyLiveActive, setVacancyLiveActive] = useState(false); // keep the legacy picker unless live tailoring is truly active
+  const [vacancyOpenRequest, setVacancyOpenRequest] = useState(0);
+  const [missionOpenRequest, setMissionOpenRequest] = useState(null);
+  const [brainGuideRefresh, setBrainGuideRefresh] = useState(0);
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
@@ -4497,6 +4680,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.DEBRIEF:
         stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
         beacon('debrief_shown');   // funnel: a full interview reached its results screen
+        if (msg.progress?.vacancyMilestoneCompleted) beacon('vacancy_targeted_interview_completed');
         if (verdictTimerRef.current) clearTimeout(verdictTimerRef.current);
         setVerdictHold(true);
         setDebriefPending(true);
@@ -5404,6 +5588,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   // here — the fight-result object lives in a child component, not this scope (it crashed the home).
   // seenInterview (set at beginSession) already covers the "has interviewed" case, so `data` is redundant.
   const firstRun     = canStart && !seenInterview && !streak;
+  // A pass-funnel signup already completed a meaningful first action. Preserve that exact
+  // continuation instead of hiding BrainGuide/Mission Control behind the generic first fight.
+  const missionContinuation = !firstRun || hasClaimedInterviewPass || interviewPassClaimRevision > 0;
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
 
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
@@ -5808,8 +5995,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   FIRST actionable thing a returning user sees — above level/interviewer choices.
                   Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
                   first-run (its prescription would duplicate the diagnosis-interview CTA). */}
-              {BRAIN_GUIDE_LIVE && canStart && !firstRun && (
-                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta
+              {BRAIN_GUIDE_LIVE && canStart && missionContinuation && (
+                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta refreshKey={brainGuideRefresh + interviewPassClaimRevision}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
                   pipeline={pipeline}
                   onAction={(d, why) => {
@@ -5828,14 +6015,22 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   }
                   else if (p.action === 'interview' || p.action === 'measure') beginSession();
                   else if (p.action === 'assessment') setAssessmentOpen(true);
+                  else if (p.action === 'vacancy') setVacancyOpenRequest((value) => value + 1);
+                  else if (p.action === 'mission') setMissionOpenRequest((current) => ({
+                    id:(current?.id || 0) + 1,
+                    step:typeof p.step === 'string' ? p.step : 'today',
+                    ...(typeof p.opportunityId === 'string' ? { opportunityId:p.opportunityId } : {}),
+                  }));
                   else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
                 }} />
               )}
 
-
-
-
-
+              {canStart && (
+                <Suspense fallback={null}>
+                  <VacancyTargetCard apiUrl={API_URL} token={auth.token} onBeacon={beacon}
+                    onActiveChange={setVacancyLiveActive} openRequest={vacancyOpenRequest} />
+                </Suspense>
+              )}
             {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
             <div style={{ textAlign:'center', marginTop:10 }}>
               <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
@@ -5899,10 +6094,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </select>
             </div>
 
-            {/* Ziel-Stelle (Elite perk, server-enforced): the target account TYPE steers the roleplay
-                scenario + boss framing. Storing the pick is free (aspiration + upsell); the row says
-                honestly when it only becomes active with Elite. Keys mirror server INDUSTRIES. */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
+            {/* Legacy industry fallback. A genuinely active, entitled vacancy target supersedes it;
+                disabled, ineligible, failed, Free, and Basic states keep this control available. */}
+            {!vacancyLiveActive && <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>
                 Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · mit Elite</span>}
@@ -5925,7 +6119,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   ['energie','Energie'],['versicherung','Versicherungen'],['streaming','Streaming & Abo-Dienste'],
                   ['b2b','B2B & Werbekonten']].map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
               </select>
-            </div>
+            </div>}
 
             {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}
             <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,
@@ -5956,6 +6150,21 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
             </>
             )}
             </div>{/* /hero card */}
+            {canStart && missionContinuation && (
+              <Suspense fallback={null}>
+                <CandidateMissionControl apiUrl={API_URL} token={auth.token} enabled featureState="on"
+                  entitlement={auth.account?.entitlement || null} onBeacon={beacon}
+                  openRequest={missionOpenRequest} refreshKey={interviewPassClaimRevision}
+                  onMissionStateChange={() => setBrainGuideRefresh((value) => value + 1)}
+                  onOpenOfficialApplication={({ url }) => window.open(url, '_blank', 'noopener,noreferrer')}
+                  onStartAssessment={() => setAssessmentOpen(true)}
+                  onInterviewConfirmed={(payload) => {
+                    if (payload?.routeOnly) setVacancyOpenRequest((value) => value + 1);
+                    else setBrainGuideRefresh((value) => value + 1);
+                  }}
+                  onRequestUpgrade={() => setPaywall(auth.account?.entitlement || { plan:'free' })} />
+              </Suspense>
+            )}
           </div>
         )}
 
@@ -6675,6 +6884,7 @@ function AuthedApp() {
   });
   const [verificationState, setVerificationState] = useState(verification ? 'working' : null);
   const [verificationAttempt, setVerificationAttempt] = useState(0);
+  const [interviewPassClaimRevision, setInterviewPassClaimRevision] = useState(0);
 
   useEffect(() => {
     if (!verification) return;
@@ -6741,10 +6951,52 @@ function AuthedApp() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAuth    = useCallback((a) => { persistAuth(a); setAuth(a); }, []);
-  const handleLogout  = useCallback(() => { persistAuth(null); setAuth(null); }, []);
+  // Claim a pre-signup Interview Pass only after the account is authenticated and verified. The
+  // stored value is an opaque, one-use token; no CV or preview copy crosses this boundary.
+  useEffect(() => {
+    if (!auth?.token || auth.account?.emailVerified !== true) return undefined;
+    const unscoped = readPendingInterviewPassClaim();
+    const stored = readPendingInterviewPassClaim({ accountEmail:auth.account?.email });
+    if (unscoped && !stored) {
+      // An unbound preview (or one bound to a different email) must never jump accounts.
+      clearPendingInterviewPassClaim();
+      return undefined;
+    }
+    const previewToken = stored?.previewToken || '';
+    if (!previewToken) return undefined;
+    const controller = new AbortController();
+    import('./missionControlClient.js')
+      .then(({ createMissionControlClient }) => createMissionControlClient({ apiUrl:API_URL, token:auth.token })
+        .claim(previewToken, { signal:controller.signal }))
+      .then(() => {
+        clearPendingInterviewPassClaim();
+        markInterviewPassClaimed(auth.account?.id);
+        setInterviewPassClaimRevision((value) => value + 1);
+        beacon('interview_pass_claimed');
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        if ([400, 409, 410].includes(Number(error?.status))) {
+          clearPendingInterviewPassClaim();
+        }
+      });
+    return () => controller.abort();
+  }, [auth?.token, auth?.account?.emailVerified, auth?.account?.id, auth?.account?.email]);
+
+  const handleAuth = useCallback((a) => {
+    setAuth((current) => {
+      if (current?.account?.id && current.account.id !== a?.account?.id) clearPendingInterviewPassClaim();
+      persistAuth(a);
+      return a;
+    });
+  }, []);
+  const handleLogout  = useCallback(() => { clearPendingInterviewPassClaim(); persistAuth(null); setAuth(null); }, []);
   const handleAccount = useCallback((account) => {
-    setAuth((cur) => { if (!cur) return cur; const a = { token: cur.token, account }; persistAuth(a); return a; });
+    setAuth((cur) => {
+      if (!cur) return cur;
+      if (cur.account?.id && cur.account.id !== account?.id) clearPendingInterviewPassClaim();
+      const a = { token: cur.token, account }; persistAuth(a); return a;
+    });
   }, []);
 
   // Tiny build badge on every screen so the running version is provable (kills "nothing changed" guessing).
@@ -6764,7 +7016,9 @@ function AuthedApp() {
     verificationNotice={verificationState === 'success' || verificationState === 'invalid' ? { state:verificationState } : null} /></>;
   if (auth.account?.emailVerified === false) return <>{buildBadge}<EmailVerificationGate auth={auth}
     onLogout={handleLogout} linkState={verificationState} /></>;
-  return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount} /></>;
+  return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount}
+    interviewPassClaimRevision={interviewPassClaimRevision}
+    hasClaimedInterviewPass={wasInterviewPassClaimed(auth.account?.id)} /></>;
 }
 
 // ── Cold-start gate ───────────────────────────────────────────────────────────

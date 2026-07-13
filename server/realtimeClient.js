@@ -681,6 +681,7 @@ export class RealtimeClient {
       recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
       sessionSeed: this._sessionId,   // seeds the intro-variant pick (phone-real opening variety)
       targetIndustry: opts.targetIndustry || null,   // Ziel-Stelle: industry-first scenario + boss framing
+      jobContext: opts.jobContext || null,   // vacancy-v1: server-owned enum snapshot; never raw ad text
       revanche: opts.revanche || null,
     });
 

@@ -24,6 +24,14 @@ export const PLANS = {
     dailyLiveMinutes: 0,     // NO recurring live fight (assessment + the one-time free fight only)
     dailySessions:    0,
     sessionMinutes:   0,
+    vacancyTarget:    'preview', // one lifetime preview; API exposes Day 1 only
+    vacancyPlanDays:  1,
+    interviewPass:    'preview', // one claimed X-Ray/Day 1; raw CV never leaves the browser
+    candidatePassport:'limited', // confirmed evidence cards only
+    opportunityCopilot:'preview',
+    jobFitPreviewsMonthly: 3,
+    trackedApplications: 1,
+    applicationPacks: false,
   },
   // Owner order 07-11 (supersedes the same-day 599/1499 ship): Basic = 15 live minutes/day,
   // Elite = 30, prices raised. Sold as full interviews: 2×7.5 and 4×7.5 (MAX_FIGHT_MS = 7.5 min).
@@ -37,6 +45,14 @@ export const PLANS = {
     dailySessions:    2,     // 2 FULL HR interviews per day — the daily-quota law
     sessionMinutes:   7.5,
     dailyLiveMinutes: 15,    // 2 × 7.5 — hard daily spend cap
+    vacancyTarget:    'full',
+    vacancyPlanDays:  7,
+    interviewPass:    'full',
+    candidatePassport:'full',
+    opportunityCopilot:'full',
+    jobRadarDaily:    5,
+    trackedApplications: 100, // operational ceiling, not a volume promise
+    applicationPacks: true,
   },
   elite: {
     id:                     'elite',
@@ -47,6 +63,15 @@ export const PLANS = {
     sessionMinutes:         7.5,
     dailyLiveMinutes:       30,    // 4 × 7.5 — hard daily spend cap
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
+    vacancyTarget:          'full',
+    vacancyPlanDays:        7,
+    vacancyLive:            true,  // also requires the independent VACANCY_LIVE_ENABLED kill switch
+    interviewPass:          'full',
+    candidatePassport:      'full',
+    opportunityCopilot:     'full',
+    jobRadarDaily:          5,
+    trackedApplications:    250, // operational ceiling, not a volume promise
+    applicationPacks:       true,
   },
   // "Bis zum Job" one-time plan: KILLED by owner order 2026-07-10 evening ("cancel that shit",
   // he saw the live card and vetoed the whole tier — outranks the morning teardown's approval).
@@ -58,6 +83,13 @@ export const PLANS = {
 // Convenience accessors (kept in ONE place).
 export const FREE_ASSESSMENTS = PLANS.free.assessments;
 export const PLAN_IDS = Object.keys(PLANS); // ['free','basic','elite']
+export function trackedApplicationsFor(planId = 'free') {
+  const value = Number(PLANS[planId]?.trackedApplications);
+  return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+}
+export const MAX_TRACKED_APPLICATIONS = Math.max(
+  ...PLAN_IDS.map((planId) => trackedApplicationsFor(planId)),
+);
 
 // ── Limited-time launch offer — the SINGLE source of truth for the discount ──────────────────
 // When active, BOTH the payable amount (payments.js) and the pricing page (billing/status) use the
@@ -66,7 +98,7 @@ export const PLAN_IDS = Object.keys(PLANS); // ['free','basic','elite']
 // advertised price and the charged amount can never disagree (no "advertised 50% but charged full"
 // half-deployed state). Applies to BOTH plans, monthly AND yearly.
 export const OFFER = {
-  active: true,
+  active: false,                                   // normal prices during Mission Control validation
   pct:    50,                                    // percent off
   // 3-day window. Ends 23:59:59 Africa/Cairo (UTC+3 in July DST) on 2026-07-11.
   endsAt: Date.parse('2026-07-11T20:59:59Z'),

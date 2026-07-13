@@ -261,7 +261,7 @@ export async function authenticateAndIssueSession(email, password) {
 // ── Plans (the single source of truth: server/plans.config.js) ───────────────
 // Which plan does this account have? Admin → elite; legacy pro/team grants → elite;
 // an explicit subscription.plan wins; everyone else is free.
-export function planOf(account) {
+export function planOf(account, now = Date.now()) {
   if (isAdminAccount(account)) return 'elite';
   const s = account?.subscription || {};
   // Comp access (server/compAccess.js): a standing owner grant, immune to billingPeriodEnd —
@@ -269,7 +269,7 @@ export function planOf(account) {
   if (s.comp && s.plan && PLANS[s.plan]) return s.plan;
   if (s.plan && PLANS[s.plan]) {
     // A paid plan with a billing end-date reverts to free once it expires.
-    if (s.billingPeriodEnd && Date.now() > s.billingPeriodEnd) return 'free';
+    if (s.billingPeriodEnd && now > s.billingPeriodEnd) return 'free';
     return s.plan;
   }
   if (s.tier === 'pro' || s.tier === 'team') return 'elite'; // legacy paid grants keep access
@@ -278,24 +278,26 @@ export function planOf(account) {
 // FREE TRIAL — the acquisition engine. New free users live the full Fokus product (daily interview
 // minutes + ALL drills) for their first FREE_TRIAL_DAYS, so they FEEL the benefit before the paywall —
 // not just one cold interview. Bounded per account (a few days), so cost exposure is capped. Tunable.
-const FREE_TRIAL_DAYS = 3;
+export const FREE_TRIAL_DAYS = 3;
 const FREE_TRIAL_DAY_MS = 86400000;
-export function trialActive(account) {
+export function trialActive(account, now = Date.now()) {
   if (!account || isAdminAccount(account)) return false;   // admins are already elite
-  if (planOf(account) !== 'free') return false;                // paid users don't need the trial
+  if (planOf(account, now) !== 'free') return false;                // paid users don't need the trial
   const start = account.subscription?.trialStartedAt;
   const days = FREE_TRIAL_DAYS;
-  return !!start && (Date.now() - start) < days * FREE_TRIAL_DAY_MS;
+  return !!start && now >= start && (now - start) < days * FREE_TRIAL_DAY_MS;
 }
-export function trialDaysLeft(account) {
+export function trialDaysLeft(account, now = Date.now()) {
   const start = account?.subscription?.trialStartedAt;
   if (!start) return 0;
   const days = FREE_TRIAL_DAYS;
-  return Math.max(0, Math.ceil((days * FREE_TRIAL_DAY_MS - (Date.now() - start)) / FREE_TRIAL_DAY_MS));
+  return Math.max(0, Math.ceil((days * FREE_TRIAL_DAY_MS - (now - start)) / FREE_TRIAL_DAY_MS));
 }
-// During the trial a free user gets Fokus-level daily minutes; otherwise the plan's own value.
+// During the trial a free user gets the complete Elite experience promised by the
+// current offer, including the same live-session allowance. Otherwise use the
+// account's paid/free plan value.
 export function dailyMinutesFor(account) {
-  if (trialActive(account)) return PLANS.basic.dailyLiveMinutes || 0;
+  if (trialActive(account)) return PLANS.elite.dailyLiveMinutes || 0;
   return PLANS[planOf(account)]?.dailyLiveMinutes || 0;
 }
 // Drills (listening, fluency, spoken-review, shadowing) — unlocked for any paid plan OR an active trial.
@@ -320,7 +322,7 @@ export function entitlement(account) {
   const freeFight = freeFightAvailable(account);
   const trial = trialActive(account);
   // Interviews/day for display — plans are SOLD as full daily interviews (owner quota law 07-11).
-  const sessions = trial ? (PLANS.basic.dailySessions || 0) : (feat.dailySessions || 0);
+  const sessions = trial ? (PLANS.elite.dailySessions || 0) : (feat.dailySessions || 0);
   return {
     allowed:               mins > 0 || freeFight,
     freeFight,                                   // true → client shows "1 kostenloses Interview"

@@ -101,3 +101,33 @@ test('engine: a weakness with <2 sessions of evidence is LOW confidence (no over
     limitingSkill: 'grammar', weakLog: { 'dativ-akkusativ': { errCounts: [{ count: 3 }] } } });
   assert.equal(d.confidence, 'low');
 });
+
+test('engine: a due vacancy step becomes the one next action after the honest cold-start assessment', () => {
+  const vacancyDue = {
+    id:'day_3_evidence', title:'Relevante STAR-Geschichte', objective:'Formuliere einen Beleg.',
+    scheduledDate:'2026-07-13', liveRequired:false,
+  };
+  const cold = decide({ sessionCount:0, vacancyDue });
+  assert.equal(cold.prescription.action, 'assessment');
+  const active = decide({ sessionCount:1, vacancyDue });
+  assert.equal(active.state, 'VACANCY_PREP');
+  assert.deepEqual(active.prescription, { action:'vacancy', milestoneId:'day_3_evidence', title:vacancyDue.title,
+    objective:vacancyDue.objective, scheduledDate:'2026-07-13', liveRequired:false });
+});
+
+test('engine: Mission Control is one copy-free next action and never outranks interview preparation', () => {
+  const missionDue = { step:'pack', opportunityId:'opp_123', employer:'must-not-leak' };
+  const mission = decide({ sessionCount:2, missionDue });
+  assert.equal(mission.state, 'MISSION_CONTROL');
+  assert.deepEqual(mission.prescription, { action:'mission', step:'pack', opportunityId:'opp_123' });
+  assert.equal(JSON.stringify(mission).includes('must-not-leak'), false);
+
+  const vacancyDue = { id:'day_6_mock', title:'Probeinterview', objective:'Drucktest', scheduledDate:'2026-07-13' };
+  const interviewFirst = decide({ sessionCount:2, missionDue, vacancyDue });
+  assert.equal(interviewFirst.prescription.action, 'vacancy');
+});
+
+test('engine: unknown Mission Control steps fail closed into the legacy policy', () => {
+  const legacy = decide({ sessionCount:2, missionDue:{ step:'__proto__', opportunityId:'bad/id' } });
+  assert.notEqual(legacy.state, 'MISSION_CONTROL');
+});

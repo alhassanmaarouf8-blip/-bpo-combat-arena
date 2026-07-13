@@ -26,6 +26,8 @@ import { activeFightUsers }       from './liveFights.js';
 import geminiBudget               from './geminiBudget.js';
 import { downsamplePcm24to16 }    from './geminiAudio.js';
 import { vertexConfigured }       from './vertexToken.js';
+import { completeVacancySession, vacancyLiveContext } from './vacancyTargetCore.js';
+import { missionControlVacancyLiveContext } from './missionControlCore.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -359,6 +361,7 @@ export class WebSocketManager {
       connectionReleased: false,
       authenticated:      false,
       authDeadline:       null,
+      vacancySnapshot:    null,
     };
 
     this._sessions.set(sessionId, ctx);
@@ -607,8 +610,13 @@ export class WebSocketManager {
     // Ziel-Stelle (Elite/trial): the stored target account type steers the roleplay scenario pick
     // + the boss framing. Entitlement-gated HERE (single enforcement point) — a free user with a
     // stored preference simply gets the normal global rotation, never an error.
-    const targetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
-    if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
+    const vacancySnapshot = missionControlVacancyLiveContext(prof, account)
+      || vacancyLiveContext(prof, account);
+    ctx.vacancySnapshot = vacancySnapshot;
+    const legacyTargetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
+    const targetIndustry = vacancySnapshot?.industryKey || legacyTargetIndustry;
+    if (vacancySnapshot) console.log(`[vacancy-target] fight snapshot  user=${ctx.userId}  target=${vacancySnapshot.targetId}`);
+    else if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
     console.log(`[wsManager] Starting fight  user=${ctx.userId}  bossId=${bossId}  level=${level}  dossier=${dossier ?? '—'}  focus=${focusTitle ?? '—'}  session=${ctx.sessionId}`);
 
@@ -636,6 +644,7 @@ export class WebSocketManager {
         candidateName,
         recent,
         targetIndustry,
+        jobContext: vacancySnapshot,
         revanche,
         allowElevenVoice: ELEVEN_VOICE_ACCOUNT_IDS.has(account.id),
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
@@ -1294,6 +1303,7 @@ export class WebSocketManager {
     try {
       const p   = await loadUser(ctx.userId);
       const now = Date.now();
+      let vacancyMilestoneCompleted = false;
 
       // ── Anti-farm gate ──────────────────────────────────────────────────────────
       // Only a session with REAL speech counts toward XP / level / streak / rank. Without
@@ -1388,6 +1398,7 @@ export class WebSocketManager {
         // and the single fix we told them to work on. Without these the mentor had no idea of the result.
         rank: result?.rank ?? null, verdict: result?.verdict ?? null, jobLabel: result?.jobLabel ?? null,
         priorityFix: debrief?.priorityFix?.de || null,
+        ...(ctx.vacancySnapshot?.targetId ? { vacancyTargetId: ctx.vacancySnapshot.targetId } : {}),
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
         // Per-session grammar errors with BOTH the canonical Trainingslager ruleId (the STABLE id the
@@ -1489,6 +1500,18 @@ export class WebSocketManager {
         : null;
       p.maxRankTier = maxRankTier;
 
+      // Vacancy completion is bound to the immutable fight-start snapshot. If the
+      // learner changes targets while the interview is running, the new target is
+      // deliberately untouched. Live-only milestones can never be checked off by
+      // the client and are idempotent per completed session.
+      if (ctx.vacancySnapshot?.targetId) {
+        vacancyMilestoneCompleted = completeVacancySession(p, ctx.vacancySnapshot, {
+          meaningful: true,
+          sessionId: ctx.sessionId,
+          now,
+        });
+      }
+
       await saveUser(p);
 
       // ── Visible-progress signals for the end screen ──
@@ -1575,6 +1598,7 @@ export class WebSocketManager {
         trend:         { fluency: flAll.slice(-5), fillers: fiAll.slice(-5) },
         personalBest,
         bestFluency:   Math.max(...flAll),
+        vacancyMilestoneCompleted,
       };
     } catch (err) {
       console.error(`[wsManager] persist progress failed session=${ctx.sessionId}:`, err.message);
