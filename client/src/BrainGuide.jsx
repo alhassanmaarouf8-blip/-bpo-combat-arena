@@ -153,6 +153,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     : d.prescription?.action === 'assessment' ? `${BRAIN_COPY.startCta} · EINSTUFUNG`
     : d.prescription?.action === 'measure'    ? BRAIN_COPY.measure
     : d.prescription?.action === 'apply'      ? BRAIN_COPY.apply
+    : d.prescription?.action === 'vacancy'    ? `ZIEL-STELLE · ${d.prescription.title || 'HEUTIGER SCHRITT'}`
     : BRAIN_COPY.startCta;
 
   // Salma's notes — each only when its REAL datum exists (she never speaks without evidence).

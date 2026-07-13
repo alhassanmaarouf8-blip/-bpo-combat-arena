@@ -20,6 +20,12 @@ import { decide } from './brain/engine.js';
 import { classifyGrammar } from './errorTags.js';
 import { INDUSTRIES } from './scenarios.js';
 import { adminRequestOk } from './adminAuth.js';
+import {
+  dueVacancyMilestone,
+  isLiveVacancyMilestone,
+  normalizeVacancyState,
+  vacancyFlagsFor,
+} from './vacancyTargetCore.js';
 
 export const progressRouter = express.Router();
 
@@ -173,7 +179,18 @@ progressRouter.get('/brain', requireAuth, async (req, res) => {
   try {
     const p = await loadUser(req.account.id);
     const snapshot = buildSnapshot(p);
-    const directive = decide(snapshot);
+    const vacancyFlags = vacancyFlagsFor(req.account);
+    const vacancyState = vacancyFlags.enabled ? normalizeVacancyState(p.vacancyTarget) : null;
+    let vacancyDue = vacancyState?.active ? dueVacancyMilestone(vacancyState.active) : null;
+    if (!vacancyFlags.fullPlan && vacancyDue?.id !== vacancyState?.active?.schedule?.[0]?.id) vacancyDue = null;
+    const safeDue = vacancyDue ? {
+      id: vacancyDue.id,
+      title: vacancyDue.title,
+      objective: vacancyDue.objective,
+      scheduledDate: vacancyDue.scheduledDate,
+      liveRequired: isLiveVacancyMilestone(vacancyDue.id),
+    } : null;
+    const directive = decide({ ...snapshot, vacancyDue: safeDue });
     res.json({ directive, level: snapshot.level, hireReady: snapshot.hireReady, hireNote: snapshot.hireNote });
   } catch (err) {
     console.error('[brain] error:', err.message);

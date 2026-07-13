@@ -695,7 +695,66 @@ export function pickOpeningPair(greetings, intros, sessionSeed = '') {
   return { greeting: g.text, intro: i.text, scenes: { greeting: g.scene, intro: i.scene } };
 }
 
-export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, revanche = null }) {
+const VACANCY_ROLE_LABELS = Object.freeze({
+  customer_service:  'deutschsprachigen Kundenservice',
+  technical_support: 'deutschsprachigen technischen Support',
+  sales:             'deutschsprachigen Vertrieb',
+  retention:         'Kundenbindung und R\u00fcckgewinnung',
+  backoffice:        'deutschsprachiges Backoffice',
+});
+
+const VACANCY_SKILL_GUIDANCE = Object.freeze({
+  self_intro:          'eine klare, kurze Selbstvorstellung',
+  motivation:          'glaubw\u00fcrdige Motivation f\u00fcr die Rolle',
+  availability:        'Verf\u00fcgbarkeit und Schichtflexibilit\u00e4t',
+  star_story:          'ein konkretes STAR-Beispiel aus der Arbeit',
+  data_capture:        'genaue Datenerfassung und aktives Zuh\u00f6ren',
+  deescalation:        'ruhige Deeskalation unter Druck',
+  objection_handling:  'professioneller Umgang mit Einw\u00e4nden',
+  closing:             'ein klarer Gespr\u00e4chsabschluss',
+});
+
+const VACANCY_TOPIC_GUIDANCE = Object.freeze({
+  self_introduction:   'Selbstvorstellung',
+  motivation:          'Motivation f\u00fcr die Rollenart',
+  work_experience:     'einschl\u00e4gige Berufserfahrung',
+  shift_flexibility:   'Schicht- und Startverf\u00fcgbarkeit',
+  customer_escalation: 'Umgang mit einer Kundeneskalation',
+  data_accuracy:       'genaue Aufnahme und Best\u00e4tigung von Kundendaten',
+  sales_objection:     'Umgang mit einem Verkaufseinwand',
+  technical_triage:   'strukturierte technische Erstdiagnose',
+  closing_questions:  'professionelle Abschlussfragen',
+});
+
+/**
+ * Convert a server-owned, enum-only vacancy snapshot into one bounded prompt block.
+ * Free-form vacancy text and employer names are intentionally not accepted here.
+ */
+export function buildVacancyInstruction(jobContext) {
+  if (!jobContext || typeof jobContext !== 'object') return '';
+  const role = Object.hasOwn(VACANCY_ROLE_LABELS, jobContext.roleType)
+    ? VACANCY_ROLE_LABELS[jobContext.roleType] : null;
+  if (!role) return '';
+
+  const uniqKnown = (values, table, max) => [...new Set(Array.isArray(values) ? values : [])]
+    .filter((id) => Object.hasOwn(table, id)).slice(0, max).map((id) => table[id]);
+  const skills = uniqKnown(jobContext.skillIds, VACANCY_SKILL_GUIDANCE, 4);
+  const topics = uniqKnown(jobContext.questionTopicIds, VACANCY_TOPIC_GUIDANCE, 4);
+  const levelLabels = {
+    'a2-b1': 'A2 bis B1', b2: 'B2', c1: 'C1', unspecified: '',
+  };
+  const advertisedLevel = Object.hasOwn(levelLabels, jobContext.germanLevel)
+    ? levelLabels[jobContext.germanLevel] : '';
+
+  return `\nSTELLENANZEIGEN-FOKUS (aus einer serverseitig validierten, anonymisierten Zusammenfassung): ` +
+    `Trainiere f\u00fcr eine Stelle im Bereich ${role}. ` +
+    (advertisedLevel ? `Die Anzeige nennt Deutsch auf Niveau ${advertisedLevel}; die festgelegte Gespr\u00e4chsschwierigkeit bleibt trotzdem unver\u00e4ndert. ` : '') +
+    (skills.length ? `Pr\u00fcfe besonders: ${skills.join(', ')}. ` : '') +
+    (topics.length ? `Verteile diese Themen nat\u00fcrlich auf die bestehenden drei Teile: ${topics.join(', ')}. ` : '') +
+    `Behaupte nie, echte interne Fragen des Arbeitgebers zu kennen, nenne keinen Firmennamen und f\u00fcge keinen vierten Gespr\u00e4chsteil hinzu.\n`;
+}
+
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -741,9 +800,13 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   // already picked from that industry (pickCsScenario above); this line makes the boss FRAME the
   // whole interview as a hiring conversation for exactly that account. Industries only, never a
   // company name (owner doctrine).
-  const zielLine = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+  const zielLine = !jobContext && targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
     ? `\nBEWERBUNGSZIEL: Der Kandidat bewirbt sich gezielt für ein Konto im Bereich ${INDUSTRIES[targetIndustry]}. Behandle ihn wie einen Bewerber für genau diesen Konto-Typ und nutze im Rollenspiel die branchentypische Terminologie. Nenne dabei NIEMALS einen echten Firmennamen.\n`
     : '';
+
+  // Vacancy v1 is additive and fail-closed: when no validated server snapshot is supplied this is
+  // the empty string, leaving the legacy prompt byte-identical. It never receives raw ad text.
+  const vacancyLine = buildVacancyInstruction(jobContext);
 
   const revancheFocus = [
     'Selbstvorstellung und Motivation',
@@ -788,7 +851,7 @@ Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz u
 Wenn der Kandidat dich beleidigt oder respektlos wird, beende das Gespräch SOFORT professionell und ruhig („Ich beende das Gespräch.“) — zeige niemals Wut.
 Achte auf natürliche Prosodie: Sag nur einen Gedanken pro Redebeitrag, mach natürlich Pausen, vermeide zusammengepresste Wörter.
 ${level.speechStyle}
-${delivery}${dossierLine}${memoryLine}${focusLine}${zielLine}${revancheLine}
+${delivery}${dossierLine}${memoryLine}${focusLine}${zielLine}${vacancyLine}${revancheLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - GESPROCHENE SPRACHE, KEIN vorgelesener Text (wichtigster Natürlichkeits-Hebel): Sprich in lockerer, gesprochener Hochsprache — mit Kontraktionen ("ich hab", "gibt's", "so was", "ne?") — und beginne deine Reaktion oft mit einem kurzen, echten mündlichen Marker, wie ein Mensch am Telefon ("Gut.", "Okay.", "Aha.", "Na gut.", "Also,", "Mhm,"). Variiere diese Marker, wiederhole nicht denselben. So klingt deine Stimme nach einem echten Menschen, nicht nach abgelesenem Schriftdeutsch.

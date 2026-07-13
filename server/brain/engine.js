@@ -65,6 +65,7 @@ export function decide(snapshot = {}) {
     limitingSkill = null, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
+    vacancyDue = null,
   } = snapshot;
 
   // Journey toward the goal — handed to the UI so the app REFLECTS step-by-step advancement back to
@@ -75,6 +76,29 @@ export function decide(snapshot = {}) {
   if (sessionCount <= 0) {
     return { state: 'NEW', confidence: 'low', target: null,
       prescription: { action: 'assessment' }, tier: tierStatus(masteredSkills), journey, aha: null, measure: [] };
+  }
+
+  // A confirmed vacancy target adds one due preparation step to the same
+  // decision spine. It never creates a second home-screen CTA or bypasses the
+  // initial assessment needed to make later coaching honest.
+  if (vacancyDue?.id && vacancyDue?.title) {
+    return {
+      state: 'VACANCY_PREP',
+      confidence: 'high',
+      target: null,
+      prescription: {
+        action: 'vacancy',
+        milestoneId: vacancyDue.id,
+        title: vacancyDue.title,
+        objective: vacancyDue.objective || '',
+        scheduledDate: vacancyDue.scheduledDate || null,
+        liveRequired: vacancyDue.liveRequired === true,
+      },
+      tier: tierStatus(masteredSkills),
+      journey,
+      aha: null,
+      measure: [],
+    };
   }
 
   const mastered = new Set(masteredSkills);

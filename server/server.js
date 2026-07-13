@@ -28,6 +28,7 @@ import { elevenRouter }          from './elevenRouter.js';
 import { vertexConfigured }     from './vertexToken.js';
 import { dbEnabled, ensureDatabaseReady } from './db.js';
 import { mailerConfigured } from './mailer.js';
+import { vacancyTargetRouter } from './vacancyTarget.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
@@ -142,6 +143,7 @@ app.use('/api', spokenReviewRouter); // GET /api/spoken-review + POST /api/spoke
 app.use('/api', guideRouter);
 app.use('/api', paymentsRouter);
 app.use('/api', transcribeRouter);  // POST /api/transcribe — spoken-answer STT (Groq Whisper / Deepgram)
+app.use('/api', vacancyTargetRouter); // Vacancy Target v1 (authenticated, independently kill-switched)
 app.use(engagementRouter);  // /admin/engagement — ADMIN_KEY-gated per-user engagement analytics (paths absolute)
 app.use(pushRouter);        // /api/push/* (opt-in) + /admin/push/daily (cron) — web-push reminders; paths absolute
 app.use(placementRouter);   // /api/placement (user) + /admin/placements (founder KPI) — paths are absolute

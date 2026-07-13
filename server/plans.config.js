@@ -24,6 +24,8 @@ export const PLANS = {
     dailyLiveMinutes: 0,     // NO recurring live fight (assessment + the one-time free fight only)
     dailySessions:    0,
     sessionMinutes:   0,
+    vacancyTarget:    'preview', // one lifetime preview; API exposes Day 1 only
+    vacancyPlanDays:  1,
   },
   // Owner order 07-11 (supersedes the same-day 599/1499 ship): Basic = 15 live minutes/day,
   // Elite = 30, prices raised. Sold as full interviews: 2×7.5 and 4×7.5 (MAX_FIGHT_MS = 7.5 min).
@@ -37,6 +39,8 @@ export const PLANS = {
     dailySessions:    2,     // 2 FULL HR interviews per day — the daily-quota law
     sessionMinutes:   7.5,
     dailyLiveMinutes: 15,    // 2 × 7.5 — hard daily spend cap
+    vacancyTarget:    'full',
+    vacancyPlanDays:  7,
   },
   elite: {
     id:                     'elite',
@@ -47,6 +51,9 @@ export const PLANS = {
     sessionMinutes:         7.5,
     dailyLiveMinutes:       30,    // 4 × 7.5 — hard daily spend cap
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
+    vacancyTarget:          'full',
+    vacancyPlanDays:        7,
+    vacancyLive:            true,  // also requires the independent VACANCY_LIVE_ENABLED kill switch
   },
   // "Bis zum Job" one-time plan: KILLED by owner order 2026-07-10 evening ("cancel that shit",
   // he saw the live card and vetoed the whole tier — outranks the morning teardown's approval).

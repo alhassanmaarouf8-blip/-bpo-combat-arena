@@ -40,6 +40,12 @@ const ALLOWED = new Set([
   // B1+ admission gate (2026-07-12, owner positioning law): Salma's door question at the
   // cold-open — measures the true level mix of the funnel.
   'gate_b1_yes', 'gate_b1_no',
+  // Vacancy training is deliberately PII-free: events contain no employer,
+  // title, URL, source text, target id, or user id.
+  'vacancy_target_opened', 'vacancy_import_link_ok', 'vacancy_import_paste_ok',
+  'vacancy_import_paste_required', 'vacancy_import_failed', 'vacancy_preview_shown',
+  'vacancy_target_confirmed', 'vacancy_day1_completed', 'vacancy_target_removed',
+  'vacancy_targeted_interview_completed',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

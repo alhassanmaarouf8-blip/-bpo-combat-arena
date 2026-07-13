@@ -27,6 +27,7 @@ const Shadowing = lazy(() => import('./Shadowing.jsx').then((m) => ({ default: m
 const Listening = lazy(() => import('./Listening.jsx').then((m) => ({ default: m.Listening })));
 const SpokenReview = lazy(() => import('./SpokenReview.jsx').then((m) => ({ default: m.SpokenReview })));
 const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => ({ default: m.SatzbauSchmiede })));
+const VacancyTargetCard = lazy(() => import('./VacancyTargetCard.jsx').then((m) => ({ default: m.VacancyTargetCard })));
 
 // Full-screen spinner shown while a lazy overlay's chunk loads (Suspense fallback). Self-contained
 // (own keyframe) so it never depends on a global style being present. Dark bg matches the app so
@@ -4153,6 +4154,8 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
   const [dashboard, setDashboard] = useState(null);        // { data, loading } | null
   const [paywall, setPaywall]     = useState(null);        // entitlement info when blocked | null
   const [billing, setBilling]     = useState(null);        // { plan, minutesRemaining, pendingPayment, justActivated, ... }
+  const [vacancyLiveActive, setVacancyLiveActive] = useState(false); // keep the legacy picker unless live tailoring is truly active
+  const [vacancyOpenRequest, setVacancyOpenRequest] = useState(0);
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
@@ -4497,6 +4500,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
       case S.DEBRIEF:
         stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
         beacon('debrief_shown');   // funnel: a full interview reached its results screen
+        if (msg.progress?.vacancyMilestoneCompleted) beacon('vacancy_targeted_interview_completed');
         if (verdictTimerRef.current) clearTimeout(verdictTimerRef.current);
         setVerdictHold(true);
         setDebriefPending(true);
@@ -5828,14 +5832,17 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   }
                   else if (p.action === 'interview' || p.action === 'measure') beginSession();
                   else if (p.action === 'assessment') setAssessmentOpen(true);
+                  else if (p.action === 'vacancy') setVacancyOpenRequest((value) => value + 1);
                   else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
                 }} />
               )}
 
-
-
-
-
+              {canStart && (
+                <Suspense fallback={null}>
+                  <VacancyTargetCard apiUrl={API_URL} token={auth.token} onBeacon={beacon}
+                    onActiveChange={setVacancyLiveActive} openRequest={vacancyOpenRequest} />
+                </Suspense>
+              )}
             {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
             <div style={{ textAlign:'center', marginTop:10 }}>
               <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
@@ -5899,10 +5906,9 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
               </select>
             </div>
 
-            {/* Ziel-Stelle (Elite perk, server-enforced): the target account TYPE steers the roleplay
-                scenario + boss framing. Storing the pick is free (aspiration + upsell); the row says
-                honestly when it only becomes active with Elite. Keys mirror server INDUSTRIES. */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
+            {/* Legacy industry fallback. A genuinely active, entitled vacancy target supersedes it;
+                disabled, ineligible, failed, Free, and Basic states keep this control available. */}
+            {!vacancyLiveActive && <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>
                 Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · mit Elite</span>}
@@ -5925,7 +5931,7 @@ function Arena({ auth, onLogout, onAccountUpdate }) {
                   ['energie','Energie'],['versicherung','Versicherungen'],['streaming','Streaming & Abo-Dienste'],
                   ['b2b','B2B & Werbekonten']].map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
               </select>
-            </div>
+            </div>}
 
             {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}
             <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,

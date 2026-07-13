@@ -13,6 +13,8 @@ import { dbEnabled, kvGet, kvSet, kvDel } from './db.js';
 const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'users');
 const cache    = new Map();
 const NS       = 'profile';   // durable-store namespace for per-user profiles
+const saveTails = new Map();
+const mutationTails = new Map();
 
 function safeId(id) {
   return String(id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || 'anon';
@@ -51,6 +53,15 @@ export function defaultProfile(userId) {
     // history is the audit trail; lastPromptedAt throttles the "any job news?" nudge to weekly.
     placement: { status: 'none', employer: '', role: '', updatedAt: null, history: [], lastPromptedAt: null },
     targetIndustry: null,  // Ziel-Stelle: INDUSTRIES key (scenarios.js) the candidate is applying for, or null
+    // Vacancy Target v1: one bounded draft + one active target. Only derived,
+    // allowlisted facts live here; source text and source URLs are never persisted.
+    vacancyTarget: {
+      version: 1,
+      draft: null,
+      active: null,
+      previewUsedAt: null,
+      analysisUsage: { hour: '', hourCount: 0, month: '', monthCount: 0 },
+    },
 
   };
 }
@@ -77,13 +88,46 @@ export async function saveUser(profile) {
   const id = safeId(profile.userId);
   profile.userId = id;
   cache.set(id, profile);
-  if (dbEnabled()) {
-    await kvSet(NS, id, profile);
-  } else {
-    if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
-    await writeFile(path.join(DATA_DIR, `${id}.json`), JSON.stringify(profile, null, 2), 'utf8');
-  }
+  // Snapshot now and preserve call order. A later mutation of the cached object must
+  // not change an already-queued write, and an older slow write must never land last.
+  const snapshot = JSON.stringify(profile);
+  const previous = saveTails.get(id) || Promise.resolve();
+  const operation = previous.catch(() => {}).then(async () => {
+    if (dbEnabled()) {
+      await kvSet(NS, id, JSON.parse(snapshot));
+    } else {
+      if (!existsSync(DATA_DIR)) await mkdir(DATA_DIR, { recursive: true });
+      await writeFile(path.join(DATA_DIR, `${id}.json`), JSON.stringify(JSON.parse(snapshot), null, 2), 'utf8');
+    }
+  });
+  saveTails.set(id, operation);
+  try { await operation; }
+  finally { if (saveTails.get(id) === operation) saveTails.delete(id); }
   return profile;
+}
+
+/**
+ * Serialize a short read-modify-write for one profile. The callback may return
+ * `{ save:false, value }` for an idempotent read; otherwise its mutations are
+ * persisted once and `value` is returned when supplied.
+ */
+export async function mutateUser(userId, callback) {
+  const id = safeId(userId);
+  const previous = mutationTails.get(id) || Promise.resolve();
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  mutationTails.set(id, gate);
+  await previous.catch(() => {});
+  try {
+    const profile = await loadUser(id);
+    const decision = await callback(profile);
+    if (decision?.save === false) return decision.value;
+    await saveUser(profile);
+    return decision && Object.hasOwn(decision, 'value') ? decision.value : decision;
+  } finally {
+    release();
+    if (mutationTails.get(id) === gate) mutationTails.delete(id);
+  }
 }
 
 // Hard-delete a user's progress profile (cache + DB row / file). Used by admin account
