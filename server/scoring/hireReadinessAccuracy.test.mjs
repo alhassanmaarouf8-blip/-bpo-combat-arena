@@ -1,22 +1,22 @@
 /**
- * hireReadinessAccuracy.test.mjs — GROUND-TRUTH CORPUS + REGRESS-GUARD for the hire-readiness VERDICT.
+ * hireReadinessAccuracy.test.mjs — SYNTHETIC BOUNDARY CORPUS + regression guard for the internal
+ * simulation classifier. These cases are authored threshold probes, not real recruiter outcomes.
  *
- * The verdict ("INTERVIEW-BEREIT" / "your one wall") is now shown PROMINENTLY on the home, so a false
- * verdict is a front-and-center trust-killer: telling someone they're hireable when they'll bomb a real
- * interview, or crushing a ready candidate with "not ready". This locks the verdict behind the
- * Compounding Accuracy Engine (owner 2026-07-05) — the classify() gate can never silently regress.
+ * The simulation diagnostic is visible on the home, so a false internal pass/fail is a trust-killer.
+ * This locks authored simulation thresholds so the classifier cannot silently regress while real
+ * outcome calibration remains explicitly absent.
  *
- * THE RATCHET (invariants enforced here):
+ * THE BOUNDARY RATCHET (invariants enforced here):
  *   1. ZERO-HARM — HARD FAIL, count MUST be 0:
- *        (a) FALSE HIREABLE: a clearly NOT-hireable candidate is never classified hireReady === true.
- *        (b) FALSE FAIL:     a clearly hireable candidate is never classified hireReady === false.
+ *        (a) FALSE INTERNAL PASS: a profile below a simulation gate never passes the classifier.
+ *        (b) FALSE INTERNAL FAIL: a profile above every authored gate never fails the classifier.
  *      These guard the hire GATES (level ≥ B1, intelligibility ≥ 0.7, de-escalation ≥ 0.5,
  *      giveUp ≤ 0.3, wpm ≥ 90). Break a gate → this fails → it can never be committed.
  *   2. RATCHET — CEFR-level match and limiting-skill match are pinned to floors that only rise.
  *
- * HOW IT COMPOUNDS: append every confirmed real case (a session's measured signals + the expert verdict)
- * below. The nightly loop proposes cases + gate tweaks; this file proves the whole set still holds.
- * classify() is the auto-research winner (do NOT edit it here — improve in the research loop, re-port).
+ * Real consented outcomes belong in a separate outcome-evaluation dataset. They must never be mixed
+ * into this source file or implied by these synthetic cases.
+ * classify() is a locked internal boundary function; it is never evidence of hiring probability.
  *
  * Run: node --test server/scoring/hireReadinessAccuracy.test.mjs
  */
@@ -30,11 +30,7 @@ const BASE = { wpm: 100, fillerPer100: 6, errPer100: 6, subClauseRate: 0.3, voca
   deescalation: 0.6, giveUpRate: 0.15, intelligibility: 0.8, latencyS: 3 };
 const mk = (o) => ({ ...BASE, ...o });
 
-// ── THE CORPUS. { f, hire: 'yes'|'no'|'edge', level?, limit? }. Append confirmed real cases forever. ──
-//   hire 'yes'  = a real recruiter would hire → hireReady must NEVER be false  (guards FALSE FAIL)
-//   hire 'no'   = clearly not ready           → hireReady must NEVER be true   (guards FALSE HIREABLE)
-//   hire 'edge' = arguable (excluded from zero-harm; still used for level/limit ratchet)
-//   level/limit = expert labels for the ratchet (optional; only where confidently known)
+// Authored synthetic cases. `hire` means pass/fail against the internal gates only.
 const CORPUS = [
   // ── clearly HIREABLE (never fail them) ──
   { f: mk({ wpm: 130, errPer100: 3, subClauseRate: 0.5, vocabDiversity: 0.7, deescalation: 0.8, giveUpRate: 0.05, intelligibility: 0.9, fillerPer100: 4, latencyS: 2 }), hire: 'yes', level: 'B2' },
@@ -64,15 +60,15 @@ const CORPUS = [
 const LEVEL_FLOOR = 0.80;   // ratchets UP as the corpus grows / the classifier improves. Never lower.
 const LIMIT_FLOOR = 0.80;
 
-test('ZERO-HARM — no FALSE HIREABLE and no FALSE FAIL (HARD invariant, must be 0)', () => {
+test('synthetic boundary guard — no false internal pass or false internal fail', () => {
   const falseHireable = [], falseFail = [];
   for (const c of CORPUS) {
     const { hireReady } = classify(c.f);
     if (c.hire === 'no'  && hireReady === true)  falseHireable.push(JSON.stringify(c.f));
     if (c.hire === 'yes' && hireReady === false) falseFail.push(JSON.stringify(c.f));
   }
-  assert.equal(falseHireable.length, 0, `FALSE HIREABLE — told a NOT-ready candidate they're hireable (must be 0):\n  ${falseHireable.join('\n  ')}`);
-  assert.equal(falseFail.length, 0,     `FALSE FAIL — told a hireable candidate they're not ready (must be 0):\n  ${falseFail.join('\n  ')}`);
+  assert.equal(falseHireable.length, 0, `FALSE INTERNAL PASS:\n  ${falseHireable.join('\n  ')}`);
+  assert.equal(falseFail.length, 0,     `FALSE INTERNAL FAIL:\n  ${falseFail.join('\n  ')}`);
 });
 
 test('RATCHET — CEFR-level and limiting-skill match stay above their floors', () => {
@@ -84,7 +80,7 @@ test('RATCHET — CEFR-level and limiting-skill match stay above their floors', 
   const liHit = li.filter((c) => classify(c.f).limitingSkill === c.limit).length;
   const liRate = li.length ? liHit / li.length : 1;
 
-  console.log(`\n[hire-verdict-accuracy] zero-harm 0/0 · level ${(lvRate * 100).toFixed(0)}% (${lvHit}/${lv.length}) · limiting-skill ${(liRate * 100).toFixed(0)}% (${liHit}/${li.length}) · corpus ${CORPUS.length} cases`);
+  console.log(`\n[simulation-boundary-ratchet] level ${(lvRate * 100).toFixed(0)}% (${lvHit}/${lv.length}) · limiting-skill ${(liRate * 100).toFixed(0)}% (${liHit}/${li.length}) · synthetic corpus ${CORPUS.length} cases`);
   const lvMiss = lv.filter((c) => classify(c.f).level !== c.level).map((c) => `level→got ${classify(c.f).level} want ${c.level}`);
   const liMiss = li.filter((c) => classify(c.f).limitingSkill !== c.limit).map((c) => `limit→got ${classify(c.f).limitingSkill} want ${c.limit}`);
   if (lvMiss.length || liMiss.length) console.log('  gaps: ' + [...lvMiss, ...liMiss].join(' | '));

@@ -66,9 +66,8 @@ function buildDashboard(p) {
     if (b) topWeakness = { rule: b.rule, lapses: 0, fromAssessment: true };
   }
 
-  // HIRE-READINESS DIAGNOSTIC (auto-research winner, 96.9 vs expert labels), ported + additive.
-  // Preliminary: runs on the ~3-4 signals the app measures today (the rest are flagged, not guessed).
-  // Additive field only — no existing behaviour changes. Logged so it can be validated on real data.
+  // SIMULATION DIAGNOSTIC. Its thresholds are internal training references, not an employer-outcome
+  // model. The outcome-calibration field stays explicit until real consented hiring outcomes exist.
   const hireReadiness = hireReadinessFor(p);
   try { console.log(`[hire-readiness] user=${p.userId} level=${hireReadiness.level} ready=${hireReadiness.hireReady} gap=${hireReadiness.limitingSkill} signals=${hireReadiness.measuredSignals}/9`); } catch {}
 

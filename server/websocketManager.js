@@ -625,6 +625,10 @@ export class WebSocketManager {
     ctx.vacancySnapshot = vacancySnapshot;
     const legacyTargetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
     const targetIndustry = vacancySnapshot?.industryKey || legacyTargetIndustry;
+    // Snapshot only bounded target IDs. The eventual forecast must describe the exact simulation
+    // the evidence came from, never whichever target happens to be active days later.
+    ctx.targetIndustry = targetIndustry || null;
+    ctx.targetRoleType = vacancySnapshot?.roleType || 'customer_service';
     if (vacancySnapshot) console.log(`[vacancy-target] fight snapshot  user=${ctx.userId}  target=${vacancySnapshot.targetId}`);
     else if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
@@ -919,6 +923,9 @@ export class WebSocketManager {
       // fresh from this pick; otherwise append). Best-effort: a save failure must not block the
       // fight — worst case is one possible repeat, never a crash.
       const picks = ctx.realtimeClient.picks;
+      // Snapshot the exact scenario independently of profile persistence. A DB/profile failure may
+      // allow a future repeat, but it must never erase the target used by this live evaluation.
+      ctx.csScenarioId = picks?.cs?.id || null;
       if (picks && prof) {
         try {
           prof.behavioralSeen = picks.behavioral.reset ? [picks.behavioral.id] : [...recent.behavioral, picks.behavioral.id];
@@ -1278,7 +1285,7 @@ export class WebSocketManager {
         history,                      // prior sessions, for the "you progressed" narrative
         metrics,
         level:        ctx.level,
-        csScenarioId: ctx.csScenario,
+        csScenarioId: ctx.csScenarioId || 'general',
       });
     } catch (err) {
       console.error(`[wsManager] Debrief generation error session=${ctx.sessionId}:`, err.message);
@@ -1412,6 +1419,9 @@ export class WebSocketManager {
         rank: result?.rank ?? null, verdict: result?.verdict ?? null, jobLabel: result?.jobLabel ?? null,
         priorityFix: debrief?.priorityFix?.de || null,
         ...(ctx.vacancySnapshot?.targetId ? { vacancyTargetId: ctx.vacancySnapshot.targetId } : {}),
+        ...(ctx.targetIndustry ? { targetIndustry: ctx.targetIndustry } : {}),
+        targetRoleType: ctx.targetRoleType,
+        ...(ctx.csScenarioId ? { scenarioId: ctx.csScenarioId } : {}),
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
         grammarMeasured: debrief?.grammarUnavailable === false,
@@ -1600,10 +1610,9 @@ export class WebSocketManager {
         }
       }
 
-      // HIRE-READINESS verdict for the debrief — computed AFTER this session was persisted, so it
-      // includes tonight's real signals (subclause rate, de-escalation, intelligibility, latency…).
-      // The judge itself (hireReadiness.js classify) is the locked auto-research winner — untouched.
-      // Best-effort: the debrief must never fail because the verdict did.
+      // Internal simulation diagnostic for the debrief — computed AFTER this session was persisted,
+      // so it includes tonight's reliable signals. It is not an employer-decision prediction.
+      // Best-effort: the debrief must never fail because the diagnostic did.
       let hireReadiness = null;
       try { hireReadiness = hireReadinessFor(p); } catch { /* verdict is optional */ }
 
@@ -1622,7 +1631,7 @@ export class WebSocketManager {
           currentForm: { tier: currentRank.tier, label: currentRank.label, score: currentRank.score },
           rankUp,
         },
-        hireReadiness,   // { level, hireReady|null, readyCaveat, limitingSkill, partial, measuredSignals, totalSignals }
+        hireReadiness,   // simulation evidence + one observed risk; never an employer decision
         trainingDelta,
         weakRuleDelta,
         weekTrend,
@@ -1741,7 +1750,7 @@ export class WebSocketManager {
         const graded = await gradeTranscript({
           transcript: fullTranscript,
           level:      ctx.level,
-          scenarioId: ctx.csScenario || 'general',
+          scenarioId: ctx.csScenarioId || 'general',
           userId:     ctx.userId,
         });
         verdict = graded?.verdict ?? null;

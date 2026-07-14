@@ -71,6 +71,15 @@ test('the live interview snapshots the completed prescription and closes only th
   assert.match(websocket, /recordMeaningfulRetest\(p\.salmaCoach, p/u);
 });
 
+test('the live evaluator snapshots and forwards the exact scenario id instead of an object', async () => {
+  const websocket = await read('server/websocketManager.js');
+  assert.match(websocket, /ctx\.csScenarioId = picks\?\.cs\?\.id \|\| null/u);
+  assert.match(websocket, /csScenarioId: ctx\.csScenarioId \|\| 'general'/u);
+  assert.match(websocket, /scenarioId: ctx\.csScenarioId \|\| 'general'/u);
+  assert.doesNotMatch(websocket, /csScenarioId: ctx\.csScenario(?:\s|,|\})/u);
+  assert.doesNotMatch(websocket, /scenarioId: ctx\.csScenario(?:\s|,|\})/u);
+});
+
 test('the product measures the prescription → block → verified-retest funnel without identifiers', async () => {
   const panel = await read('client/src/SalmaTutorPanel.jsx');
   const beacon = await read('server/funnelBeacon.js');
@@ -82,9 +91,13 @@ test('the product measures the prescription → block → verified-retest funnel
 
 test('the tutor labels observed risk honestly and exposes delayed listening retest timing without another CTA', async () => {
   const panel = await read('client/src/SalmaTutorPanel.jsx');
-  assert.match(panel, /BEOBACHTETES INTERVIEW-RISIKO/u);
-  assert.match(panel, /Keine Vorhersage einer Arbeitgeberentscheidung/u);
+  const app = await read('client/src/App.jsx');
+  assert.match(panel, /GRÖSSTES RISIKO IM ZIELINTERVIEW/u);
+  assert.match(panel, /keine Vorhersage einer Arbeitgeberentscheidung/u);
+  assert.match(panel, /interne Referenz/u);
   assert.match(panel, /Hörnachweis/u);
   assert.match(panel, /gilt aber nicht als Retest/u);
+  assert.doesNotMatch(app, /JETZT GEZIELT TRAINIEREN/u);
+  assert.doesNotMatch(app, /INTERVIEW-BEREITSCHAFT/u);
   assert.doesNotMatch(panel, /90%|Einstellung garantiert|wirst eingestellt/u);
 });

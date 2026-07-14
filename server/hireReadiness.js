@@ -1,19 +1,21 @@
 /**
  * hireReadiness.js — the hire-readiness diagnostic. Maps a student's measured signals →
- * { level, hireReady, limitingSkill } for a German BPO account. (No external accuracy claim: there
- * is no expert-labelled eval set for THIS app, so none is asserted.)
+ * measured simulation evidence for a German BPO account. It never predicts an employer decision:
+ * there is no outcome-linked validation set for this app yet, so `hireReady` remains null.
  *
- * HONEST STATUS: the app currently measures only ~4 of the 9 signals this was calibrated on
- * (wpm, fillers, grammar-errors, a CEFR estimate). intelligibility, subordinate-clause rate,
- * vocab diversity, give-up rate and latency are NOT yet measured. So the verdict here is marked
- * PRELIMINARY (partial), and hireReady is returned as null when the hire-GATING signals
- * (intelligibility / de-escalation) are unmeasured — we do not guess "hireable". Every computed
- * feature vector is logged so the diagnostic can be validated on REAL students later (free).
- *
- * `classify(f)` is byte-for-byte the auto-research winner — do not "improve" it here; improve it in
- * the research loop against the locked scorer, then re-port.
+ * HONEST STATUS: the available signals vary by session. A missing signal stays explicitly
+ * unmeasured and can never be substituted with a favorable default. The internal classifier below
+ * protects authored simulation boundaries only; it is not trained or validated on hiring outcomes.
+ * Real consented outcomes must be evaluated separately before any employment-probability claim.
  */
 const ORD = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5 };
+const INDUSTRIES = new Set(['telecom', 'ecommerce', 'fintech', 'airline', 'delivery', 'logistik',
+  'energie', 'versicherung', 'streaming', 'b2b']);
+const ROLE_TYPES = new Set(['customer_service', 'technical_support', 'sales', 'retention', 'backoffice']);
+const BOSS_ARCHETYPES = Object.freeze({
+  yasmin: 'coach', karim: 'facts_first', hana: 'skeptical_qa', tarek: 'kpi_pressure',
+  'frau-mona-adel': 'formal_gatekeeper', lukas: 'self_sufficiency',
+});
 const clampN = (x) => Math.max(0, Math.min(1, x));
 const pos = (x) => (x > 0 ? x : 0);
 
@@ -24,21 +26,29 @@ function levelOf(f) {
   const P = 0.30 * fluency + 0.40 * accuracy + 0.30 * range;
   return P < 0.30 ? 'A1' : P < 0.47 ? 'A2' : P < 0.71 ? 'B1' : P < 0.90 ? 'B2' : 'C1';
 }
-function limitingSkillOf(f) {
+function limitingSkillOf(f, measured = null) {
+  const available = (key) => !measured || measured[key] === true;
   const deficits = {
-    fluency:         pos((110 - f.wpm) / 110),
-    grammar:         pos((f.errPer100 - 8) / 8),
-    intelligibility: pos((0.8 - f.intelligibility) / 0.8),
-    confidence:      Math.max(pos((f.fillerPer100 - 10) / 10), pos((f.giveUpRate - 0.2) / 0.2), pos((f.latencyS - 4) / 4)),
-    deescalation:    pos((0.6 - f.deescalation) / 0.6),
-    complexity:      Math.max(pos((0.2 - f.subClauseRate) / 0.2), pos((0.45 - f.vocabDiversity) / 0.45)),
+    fluency: available('wpm') ? pos((110 - f.wpm) / 110) : null,
+    grammar: available('errPer100') ? pos((f.errPer100 - 8) / 8) : null,
+    intelligibility: available('intelligibility') ? pos((0.8 - f.intelligibility) / 0.8) : null,
+    confidence: ['fillerPer100', 'giveUpRate', 'latencyS'].some(available)
+      ? Math.max(available('fillerPer100') ? pos((f.fillerPer100 - 10) / 10) : 0,
+        available('giveUpRate') ? pos((f.giveUpRate - 0.2) / 0.2) : 0,
+        available('latencyS') ? pos((f.latencyS - 4) / 4) : 0) : null,
+    deescalation: available('deescalation') ? pos((0.6 - f.deescalation) / 0.6) : null,
+    complexity: available('subClauseRate') && available('vocabDiversity')
+      ? Math.max(pos((0.2 - f.subClauseRate) / 0.2), pos((0.45 - f.vocabDiversity) / 0.45)) : null,
   };
   const importance = { intelligibility: 1.30, fluency: 1.15, deescalation: 1.05, grammar: 1.05, complexity: 1.0, confidence: 0.85 };
   let best = 'none', bestV = 0.05;
-  for (const [k, v] of Object.entries(deficits)) { const w = v * (importance[k] || 1); if (v > 0.05 && w > bestV) { bestV = w; best = k; } }
+  for (const [k, v] of Object.entries(deficits)) {
+    if (!Number.isFinite(v)) continue;
+    const w = v * (importance[k] || 1); if (v > 0.05 && w > bestV) { bestV = w; best = k; }
+  }
   return best;
 }
-/** The auto-research winner — verbatim. */
+/** Locked internal simulation-boundary classifier. Not an employer-decision model. */
 export function classify(f) {
   const level = levelOf(f);
   const hireReady = ORD[level] >= 3 && f.intelligibility >= 0.7 && f.deescalation >= 0.5 && f.giveUpRate <= 0.3 && f.wpm >= 90;
@@ -65,11 +75,13 @@ export function featuresFromProfile(p) {
   const s = [...(Array.isArray(p?.sessions) ? p.sessions : [])].reverse().find((session) => (
     session?.evidenceQuality?.version === 1 && session.evidenceQuality.prescriptionEligible === true
   )) || {};
-  const grammarCount = Array.isArray(s.grammarRules) ? s.grammarRules.reduce((a, r) => a + (r.count || 0), 0) : null;
+  const wordCount = Math.max(0, Number(s?.evidenceQuality?.words) || Number(s.words) || 0);
+  const grammarCount = s.grammarMeasured === true && Array.isArray(s.grammarRules)
+    ? s.grammarRules.reduce((a, r) => a + Math.max(0, Number(r?.count) || 0), 0) : null;
   const measured = {
     wpm: typeof s.wpm === 'number' && s.wpm > 0,
-    fillerPer100: typeof s.fillers === 'number',
-    errPer100: grammarCount != null,
+    fillerPer100: typeof s.fillers === 'number' && wordCount >= 80,
+    errPer100: grammarCount != null && wordCount >= 80,
     subClauseRate: typeof s.subClauseRate === 'number',   // computed from transcript at session end
     vocabDiversity: typeof s.vocabDiversity === 'number', // computed from transcript at session end
     deescalation: typeof s.deescalation === 'number',     // CS-roleplay (stage 2) score proxy
@@ -79,8 +91,8 @@ export function featuresFromProfile(p) {
   };
   const f = {
     wpm:             measured.wpm ? s.wpm : 100,
-    fillerPer100:    measured.fillerPer100 ? s.fillers : 6,
-    errPer100:       measured.errPer100 ? Math.min(20, grammarCount) : 6,  // rough proxy (no per-100 normalization yet)
+    fillerPer100:    measured.fillerPer100 ? Math.min(100, (Math.max(0, s.fillers) / wordCount) * 100) : 6,
+    errPer100:       measured.errPer100 ? Math.min(100, (grammarCount / wordCount) * 100) : 6,
     subClauseRate:   measured.subClauseRate ? s.subClauseRate : 0.3,
     vocabDiversity:  measured.vocabDiversity ? s.vocabDiversity : 0.5,
     deescalation:    measured.deescalation ? s.deescalation : 0.6,
@@ -88,45 +100,100 @@ export function featuresFromProfile(p) {
     intelligibility: measured.intelligibility ? s.intelligibility : 0.8,
     latencyS:        measured.latencyS ? s.latencyS : 3,
   };
-  return { f, measured, evidenceQuality: s.evidenceQuality || null };
+  return { f, measured, evidenceQuality: s.evidenceQuality || null, session: s, wordCount };
 }
 
-function limitingSignalMeasured(skill, measured) {
-  if (skill === 'fluency') return measured.wpm;
-  if (skill === 'grammar') return measured.errPer100;
-  if (skill === 'intelligibility') return measured.intelligibility;
-  if (skill === 'deescalation') return measured.deescalation;
-  if (skill === 'complexity') return measured.subClauseRate && measured.vocabDiversity;
-  if (skill === 'confidence') return measured.fillerPer100 || measured.giveUpRate || measured.latencyS;
-  return false;
+function safeSessionTarget(session) {
+  const industryKey = INDUSTRIES.has(session?.targetIndustry) ? session.targetIndustry : 'general';
+  const roleType = ROLE_TYPES.has(session?.targetRoleType) ? session.targetRoleType : 'customer_service';
+  const scenarioId = typeof session?.scenarioId === 'string' && /^[a-z0-9_-]{1,80}$/u.test(session.scenarioId)
+    ? session.scenarioId : null;
+  return {
+    roleType,
+    industryKey,
+    bossArchetype: BOSS_ARCHETYPES[session?.bossId] || 'professional_interviewer',
+    scenarioId,
+    source: session?.vacancyTargetId ? 'vacancy_snapshot' : industryKey !== 'general' ? 'industry_snapshot' : 'generic_simulation',
+  };
 }
 
-/** Preliminary, honest hire-readiness for a profile. Prefers the app's existing CEFR estimate for
- *  level; returns hireReady=null when the hire-gating signals are unmeasured (no guessing). */
+function confidenceForEvidence(evidenceQuality) {
+  return evidenceQuality?.highConfidence === true ? 'high'
+    : evidenceQuality?.prescriptionEligible === true ? 'medium' : 'insufficient';
+}
+
+function riskCriterion(skill, f, measured) {
+  if (skill === 'fluency') return { stageId: 'spoken_interview', criterionId: 'sustained_pace',
+    observed: Math.round(f.wpm), reference: 90, direction: 'at_least', unit: 'wpm' };
+  if (skill === 'grammar') return { stageId: 'spoken_interview', criterionId: 'grammar_control',
+    observed: Math.round(f.errPer100 * 10) / 10, reference: 8, direction: 'at_most', unit: 'errors_per_100_words' };
+  if (skill === 'intelligibility') return { stageId: 'phone_roleplay', criterionId: 'speech_recognition_proxy',
+    observed: Math.round(f.intelligibility * 100), reference: 80, direction: 'at_least', unit: 'percent' };
+  if (skill === 'deescalation') return { stageId: 'customer_roleplay', criterionId: 'deescalation_response',
+    observed: Math.round(f.deescalation * 100), reference: 60, direction: 'at_least', unit: 'percent' };
+  if (skill === 'confidence') {
+    const candidates = [
+      measured.giveUpRate && { severity: Math.max(0, (f.giveUpRate - 0.2) / 0.2), stageId: 'pressure_followup', criterionId: 'complete_response',
+        observed: Math.round(f.giveUpRate * 100), reference: 20, direction: 'at_most', unit: 'percent_incomplete_turns' },
+      measured.latencyS && { severity: Math.max(0, (f.latencyS - 4) / 4), stageId: 'pressure_followup', criterionId: 'response_latency',
+        observed: Math.round(f.latencyS * 10) / 10, reference: 4, direction: 'at_most', unit: 'seconds' },
+      measured.fillerPer100 && { severity: Math.max(0, (f.fillerPer100 - 10) / 10), stageId: 'spoken_interview', criterionId: 'filler_dependence',
+        observed: Math.round(f.fillerPer100 * 10) / 10, reference: 10, direction: 'at_most', unit: 'fillers_per_100_words' },
+    ].filter(Boolean).sort((a, b) => b.severity - a.severity);
+    if (!candidates.length) return null;
+    const { severity: _severity, ...criterion } = candidates[0];
+    return criterion;
+  }
+  if (skill === 'complexity') {
+    return f.subClauseRate < 0.2
+      ? { stageId: 'behavioral_interview', criterionId: 'connected_answer_structure', observed: Math.round(f.subClauseRate * 100),
+        reference: 20, direction: 'at_least', unit: 'subordinate_clauses_per_100_sentences' }
+      : { stageId: 'behavioral_interview', criterionId: 'lexical_range_proxy', observed: Math.round(f.vocabDiversity * 100),
+        reference: 45, direction: 'at_least', unit: 'type_token_percent' };
+  }
+  return null;
+}
+
+function rejectionForecast({ session, evidenceQuality, limitingSkill, f, measured }) {
+  const target = safeSessionTarget(session);
+  const confidence = confidenceForEvidence(evidenceQuality);
+  if (confidence === 'insufficient') return { state: 'measure_first', confidence, target, riskId: null, criterion: null };
+  const criterion = limitingSkill ? riskCriterion(limitingSkill, f, measured) : null;
+  return criterion
+    ? { state: 'observed_simulation_risk', confidence, target, riskId: limitingSkill, criterion,
+      calibration: 'internal_simulation_reference_only' }
+    : { state: 'no_single_risk_observed', confidence, target, riskId: null, criterion: null,
+      calibration: 'internal_simulation_reference_only' };
+}
+
+/** Preliminary simulation diagnostic. Prefers the app's existing CEFR estimate for level and keeps
+ *  employer-level hire readiness unknown until real outcome-linked validation exists. */
 export function hireReadinessFor(p) {
-  const { f, measured, evidenceQuality } = featuresFromProfile(p);
+  const { f, measured, evidenceQuality, session } = featuresFromProfile(p);
   const raw = classify(f);
   const measuredCount = Object.values(measured).filter(Boolean).length;
   const missing = Object.entries(measured).filter(([, v]) => !v).map(([k]) => k);
-  // Hire-readiness gating: needs intelligibility + de-escalation + wpm. When ONLY intelligibility is
-  // missing, return a PROVISIONAL verdict (assumes clear pronunciation) with a caveat — honest, useful.
+  // These gates can describe performance inside this simulation. They cannot establish that a real
+  // employer would hire the learner until outcome-linked validation exists.
   const gatingFull = measured.intelligibility && measured.deescalation && measured.wpm;
-  const gatingExceptIntel = !measured.intelligibility && measured.deescalation && measured.wpm && measured.giveUpRate;
-  let hireReady = null, readyCaveat = null;
-  if (evidenceQuality && gatingFull) hireReady = raw.hireReady;
-  else if (evidenceQuality && gatingExceptIntel) { hireReady = raw.hireReady; readyCaveat = 'provisional — assumes clear pronunciation (intelligibility not yet measured)'; }
-  const limitingSkill = evidenceQuality && limitingSignalMeasured(raw.limitingSkill, measured) ? raw.limitingSkill : null;
+  const simulationReady = evidenceQuality?.highConfidence === true && gatingFull && measuredCount === 9
+    ? raw.hireReady : null;
+  const hireReady = null;
+  const limitingSkill = evidenceQuality ? limitingSkillOf(f, measured) : null;
   const interviewRisk = !evidenceQuality
     ? { state: 'measure_first', confidence: 'insufficient', limitingSkill: null }
     : limitingSkill
       ? { state: 'observed_risk', confidence: evidenceQuality.highConfidence === true ? 'high' : 'medium', limitingSkill }
       : { state: 'no_single_risk_observed', confidence: evidenceQuality.highConfidence === true ? 'high' : 'medium', limitingSkill: null };
+  const forecast = rejectionForecast({ session, evidenceQuality, limitingSkill, f, measured });
   const out = {
     level: p?.assessmentResult?.estimatedLevel || raw.level,   // prefer the real CEFR estimate
-    hireReady,                                                 // null only when a non-intelligibility gating signal is missing
-    readyCaveat,
+    hireReady,
+    simulationReady,
+    outcomeCalibration: 'not_yet_validated_against_real_hiring_outcomes',
     limitingSkill,
     interviewRisk,
+    rejectionForecast: forecast,
     partial: measuredCount < 9,
     measuredSignals: measuredCount,
     totalSignals: 9,

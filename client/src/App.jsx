@@ -152,9 +152,8 @@ const SALMA_LIVE = true;
 // differs on a phone speaker vs headphones, so it stays OFF until the owner phone-tests + tunes the
 // sensitivity (rule 2.5). When false, NO extra mic stream is even opened. Flip to true to test on device.
 const BARGE_IN_LIVE = false;
-// INTERVIEW-BEREITSCHAFT card in the debrief: the hire-readiness judge's verdict (ready / almost +
-// the ONE blocking skill). Honest — it names how many of the 9 signals were really measured and
-// says "vorläufig" when pronunciation wasn't. Flip to false to hide the card in one line.
+// Simulation-evidence card: reports the one observed bottleneck and measured-signal coverage.
+// It never predicts an employer decision. Flip to false to hide the card in one line.
 const HIRE_VERDICT_LIVE = true;
 // Referral: capture ?ref=<inviter id> from the invite link (persist so it survives navigation), read at signup.
 function getRefCode() {
@@ -1477,7 +1476,7 @@ function RankLadder({ rank }) {
   return (
     <div style={{ padding:'10px 12px', borderRadius:'var(--r-md)', background:'rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:10, flexWrap:'wrap', marginBottom:9 }}>
-        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-meta)', letterSpacing:'0.1em', color:'var(--text-dim)' }}>INTERVIEW-BEREITSCHAFT</span>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-meta)', letterSpacing:'0.1em', color:'var(--text-dim)' }}>SIMULATIONSFORTSCHRITT</span>
         <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)' }}>{rank.label}</span>
       </div>
       <div style={{ display:'flex', alignItems:'center' }}>
@@ -1515,71 +1514,43 @@ function RankLadder({ rank }) {
 // ── Component: Debrief (end-of-session feedback) ──────────────────────────────
 // lang: 'de' | 'ar' — toggles the EXPLANATION prose only. German targets/phrases/
 // corrections always stay German. All values are backend-supplied (display-only).
-// The one-tap interview→drill handoff: the hire-readiness judge names the ONE blocking skill,
-// this maps it to the drill that trains exactly that skill (drill key + on-screen name kept
-// together so the button label can never drift from what actually opens). `confidence`
-// (hesitation/latency) trains with the 4-3-2 fluency drill; `grammar`/`complexity`
-// (Satzbau/Nebensätze — the verb-final wall) train with the dedicated Satzbau-Schmiede drill.
-const TRAIN_FOR_SKILL = {
-  fluency:         { drill: 'fluency',   label: 'FLUENCY 4-3-2' },
-  confidence:      { drill: 'fluency',   label: 'FLUENCY 4-3-2' },
-  intelligibility: { drill: 'shadowing', label: 'SHADOWING' },
-  deescalation:    { drill: 'pressure',  label: 'DRUCK-LEITER' },
-  grammar:         { drill: 'satzbau',   label: 'SATZBAU-SCHMIEDE' },
-  complexity:      { drill: 'satzbau',   label: 'SATZBAU-SCHMIEDE' },
-};
-
-// The honest hire-readiness verdict — ONE source of truth, used on BOTH the post-interview results
-// screen AND the home, so "am I hireable yet?" is answered where the user actually asks it (every
-// session on the home), not only once after a fight. Honest by construction: tri-state (BEREIT / FAST
-// BEREIT / your biggest lever), shows how many of the 9 signals were really measured, and returns null
-// rather than guess. `compact` = the calmer home variant (no entrance animation). See hireReadiness.js.
-function HireVerdict({ h, onTrain, compact = false }) {
+// Evidence from this app's simulation—not an employer prediction. BrainGuide remains the only
+// next-action authority, so this surface reports evidence and never adds another training CTA.
+function HireVerdict({ h, compact = false }) {
   if (!h) return null;
   const SKILL = {
     fluency:         { de: 'Flüssigkeit — sprich in ganzen Sätzen, ohne lange Pausen', ar: 'الطلاقة — اتكلم بجمل كاملة من غير وقفات طويلة' },
     grammar:         { de: 'Grammatik — zu viele Fehler pro Antwort', ar: 'القواعد — أخطاء كتير في كل إجابة' },
-    intelligibility: { de: 'Verständlichkeit — deine Aussprache kommt noch nicht klar an', ar: 'وضوح النطق — نطقك لسه مش واصل بوضوح' },
+    intelligibility: { de: 'Verständlichkeit — dein Sprachsignal wurde in der Simulation nicht zuverlässig erkannt', ar: 'وضوح الكلام — الإشارة الصوتية في المحاكاة لم يتم التعرّف عليها بثبات' },
     confidence:      { de: 'Sicherheit — weniger zögern, schneller antworten', ar: 'الثقة — تردد أقل ورد أسرع' },
     deescalation:    { de: 'Deeskalation — wütende Kunden ruhig und sicher auffangen', ar: 'التهدئة — استيعاب العميل الغضبان بهدوء وثقة' },
     complexity:      { de: 'Satzbau & Wortschatz — mehr Nebensätze, mehr Vielfalt', ar: 'تركيب الجمل والمفردات — جمل مركّبة أكتر وتنوّع أكبر' },
   }[h.limitingSkill] || null;
   const levelOk = { B1: 1, B2: 1, C1: 1 }[h.level] === 1;
   let v = null;
-  if (h.hireReady === true) {
-    v = { label: 'INTERVIEW-BEREIT', color: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)',
-          de: 'Alle gemessenen Interview-Signale sind im grünen Bereich — du bist bereit, dich in einem echten Interview zu testen.',
-          ar: 'كل إشارات التوظيف المتقاسة في النطاق الأخضر — انت جاهز لمقابلة حقيقية.' };
-  } else if (h.hireReady === false && levelOk && SKILL) {
-    v = { label: 'FAST INTERVIEW-BEREIT', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
+  if (h.simulationReady === true) {
+    v = { label: 'SIMULATIONSKRITERIEN ERFÜLLT', color: 'var(--accent)', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)',
+          de: 'Alle neun internen Simulationssignale wurden gemessen und lagen innerhalb der Trainingsreferenzen.',
+          ar: 'تم قياس إشارات المحاكاة التسع وكانت داخل المراجع التدريبية الداخلية.' };
+  } else if (h.simulationReady === false && levelOk && SKILL) {
+    v = { label: 'SIMULATION: GRÖSSTER HEBEL', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
           de: `Was dich gerade am stärksten blockiert: ${SKILL.de}`, ar: `أكتر حاجة بتعطّلك دلوقتي: ${SKILL.ar}` };
   } else if (SKILL) {
     v = { label: 'DEIN GRÖSSTER HEBEL', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
           de: SKILL.de, ar: SKILL.ar };
   }
   if (!v) return null;   // no verdict AND no measurable lever → say nothing rather than guess
-  const T = TRAIN_FOR_SKILL[h.limitingSkill];
   return (
     <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:v.bg, border:`1px solid ${v.border}`,
       animation: compact ? 'none' : 'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
       <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:v.color, marginBottom:6 }}>
-        INTERVIEW-BEREITSCHAFT · {v.label}
+        ZIELINTERVIEW-SIMULATION · {v.label}
       </div>
       <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{v.de}</div>
       <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{v.ar}</div>
-      {(h.partial || h.readyCaveat) && (
-        <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
-          vorläufig · {h.measuredSignals}/{h.totalSignals} Signale gemessen{h.readyCaveat ? ' · Aussprache als klar angenommen' : ''}
-        </div>
-      )}
-      {SKILL && onTrain && T && (
-        <button onClick={() => onTrain(T.drill, v.de)}
-          style={{ width:'100%', marginTop:10, padding:'12px', minHeight:46, cursor:'pointer',
-            fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', fontWeight:700,
-            borderRadius:9, border:`1px solid ${v.border}`, color:v.color, background:'rgba(0,0,0,0.25)' }}>
-          ▶ JETZT GEZIELT TRAINIEREN: {T.label}
-        </button>
-      )}
+      <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
+        {h.measuredSignals}/{h.totalSignals} Signale gemessen · interne Simulationsreferenz, keine Arbeitgeberentscheidung
+      </div>
     </div>
   );
 }
@@ -1675,12 +1646,12 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
   const shareTier = Number(data?.progress?.rank?.tier ?? -1);
   const canShareArtifact = shareTier >= 2;
-  const interviewReady = data?.progress?.hireReadiness?.hireReady === true;
-  const shareVariant = interviewReady ? 'training-record'
+  const simulationPassed = data?.progress?.hireReadiness?.simulationReady === true;
+  const shareVariant = simulationPassed ? 'simulation-record'
     : win ? 'conquest' : ((data?.progress?.streak ?? 0) >= 3 ? 'streak' : 'invitation');
   const bossTitle = (bossName || r.bossId || 'INTERVIEWER').toString().toUpperCase();
-  const shareHero = shareVariant === 'training-record'
-    ? 'TRAININGSNACHWEIS · INTERVIEW-BEREIT'
+  const shareHero = shareVariant === 'simulation-record'
+    ? 'TRAININGSNACHWEIS · SIMULATIONSKRITERIEN ERFÜLLT'
     : shareVariant === 'conquest'
     ? `${bossTitle} · BESIEGT`
     : shareVariant === 'streak'
@@ -1688,7 +1659,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       : 'EINLADUNG ZUR NÄCHSTEN RUNDE';
   const shareText = [
     `DIE ARENA · ${shareHero}`,
-    ...(shareVariant === 'training-record' ? ['Trainingsnachweis — kein offizielles Sprach- oder Arbeitgeberzertifikat.'] : []),
+    ...(shareVariant === 'simulation-record' ? ['Interne Simulationsreferenz — kein Sprach-, Arbeitgeber- oder Einstellungszertifikat.'] : []),
     `Rang: ${rank}`,
     ``,
     `Trainiere dein deutsches Bewerbungsgespräch:`,
@@ -1707,7 +1678,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       x.textAlign = 'center';
       x.fillStyle = '#94a3b8'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('DIE ARENA', W / 2, 130);
       x.fillStyle = '#e2e8f0'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
-      x.fillStyle = (shareVariant === 'conquest' || shareVariant === 'training-record') ? '#3b82f6' : '#f97316';
+      x.fillStyle = (shareVariant === 'conquest' || shareVariant === 'simulation-record') ? '#3b82f6' : '#f97316';
       x.font = 'bold 72px system-ui,sans-serif';
       const heroWords = shareHero.split(' '); let heroLine = '', heroY = 420;
       for (const word of heroWords) {
@@ -1716,14 +1687,14 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       }
       if (heroLine.trim()) x.fillText(heroLine.trim(), W / 2, heroY);
       x.fillStyle = '#e2e8f0'; x.font = 'bold 54px system-ui,sans-serif';
-      x.fillText(shareVariant === 'training-record' && nm ? nm.toUpperCase() : `RANG · ${rank}`, W / 2, 700);
+      x.fillText(shareVariant === 'simulation-record' && nm ? nm.toUpperCase() : `RANG · ${rank}`, W / 2, 700);
       x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif';
       x.fillText(shareVariant === 'invitation' ? 'SALMA · RECRUITING DESK'
-        : shareVariant === 'training-record'
-          ? `${data.progress.hireReadiness.measuredSignals}/${data.progress.hireReadiness.totalSignals} TRAININGSSIGNALE GEMESSEN · ${new Date().toLocaleDateString('de-DE')}`
+        : shareVariant === 'simulation-record'
+          ? `${data.progress.hireReadiness.measuredSignals}/${data.progress.hireReadiness.totalSignals} SIMULATIONSSIGNALE GEMESSEN · ${new Date().toLocaleDateString('de-DE')}`
           : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
       x.fillStyle = '#f97316'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('DEINE NÄCHSTE RUNDE WARTET', W / 2, 930);
-      if (shareVariant === 'training-record') {
+      if (shareVariant === 'simulation-record') {
         x.fillStyle = '#64748b'; x.font = '24px system-ui,sans-serif';
         x.fillText('TRAININGSNACHWEIS · KEIN OFFIZIELLES SPRACH- ODER ARBEITGEBERZERTIFIKAT', W / 2, 970);
       }
@@ -1929,11 +1900,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             );
           })()}
 
-          {/* ── INTERVIEW-BEREITSCHAFT — the hire-readiness judge (auto-research winner, server-side).
-                Unlike ENTSCHEIDUNG (this fight's result), this reads the student's OVERALL measured
-                signals and names the ONE skill blocking hire-readiness. Honest by construction: it
-                shows how many of the 9 signals were really measured, never guesses the missing ones,
-                and only says "fast bereit" when the level gate (B1+) is actually met. ── */}
+          {/* Simulation evidence only: one observed bottleneck, measured coverage, no employer claim. */}
           {HIRE_VERDICT_LIVE && !gradeUnavailable && data?.progress?.hireReadiness && (
             <HireVerdict h={data.progress.hireReadiness} onTrain={onTrainSkill} />
           )}
@@ -2546,7 +2513,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
             letterSpacing:'0.08em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
             border:'1px solid var(--accent)', color:'var(--accent)', background:'rgba(59,130,246,0.08)' }}>
-            {copied ? '✓ KOPIERT' : `↗ ${shareVariant === 'training-record' ? 'NACHWEIS' : shareVariant === 'conquest' ? 'SIEG' : shareVariant === 'streak' ? 'SERIE' : 'EINLADUNG'} TEILEN`}
+            {copied ? '✓ KOPIERT' : `↗ ${shareVariant === 'simulation-record' ? 'NACHWEIS' : shareVariant === 'conquest' ? 'SIEG' : shareVariant === 'streak' ? 'SERIE' : 'EINLADUNG'} TEILEN`}
           </button>
         )}
       </div>
@@ -2661,10 +2628,10 @@ function DossierSheet({ token, data, account, onClose }) {
   const flu    = (data?.trends?.fluency || []).filter(Number.isFinite);
   const fluDelta = flu.length >= 2 ? Math.round(flu[flu.length - 1] - flu[0]) : null;
   const today  = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' });
-  const readiness = hr.hireReady === true
-    ? 'Interview-bereit (alle Signale gemessen)'
-    : hr.hireReady === false
-      ? `In Arbeit — größter Hebel: ${DOSSIER_SKILL_DE[hr.limitingSkill] || hr.limitingSkill || '—'}`
+  const readiness = hr.simulationReady === true
+    ? 'Interne Simulationskriterien erfüllt (keine Arbeitgeberprognose)'
+    : hr.simulationReady === false
+      ? `Simulationskriterium offen — größter Hebel: ${DOSSIER_SKILL_DE[hr.limitingSkill] || hr.limitingSkill || '—'}`
       : `In Messung (${hr.measuredSignals ?? 0}/${hr.totalSignals ?? 9} Signale erfasst)`;
 
   const rows = [
@@ -2675,7 +2642,7 @@ function DossierSheet({ token, data, account, onClose }) {
     ['Vokabeln gelernt', String(totals.vocabLearned ?? 0)],
     ['Grammatik-Regeln gemeistert', String(totals.rulesMastered ?? 0)],
     ...(fluDelta !== null ? [['Flüssigkeit (Trend über die letzten Interviews)', `${fluDelta >= 0 ? '+' : ''}${fluDelta} Punkte`]] : []),
-    ['Hire-Readiness', readiness],
+    ['Simulationsstatus', readiness],
   ];
 
   return (

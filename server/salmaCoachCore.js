@@ -376,7 +376,8 @@ export function safeIntervention(state) {
 
 export function publicSalmaCoach(profile, account, flags) {
   const { state, directive } = syncSalmaCoach(profile); const capabilities = salmaCoachCapabilities(account);
-  const interviewRisk = hireReadinessFor(profile).interviewRisk;
+  const readiness = hireReadinessFor(profile);
+  const interviewRisk = readiness.interviewRisk;
   const limited = capabilities.fullTutor ? state.activePrescription : state.activePrescription && { ...state.activePrescription, blocks: 1, timesPerDay: 1, nextEligibleAt: null };
   const attempt = limited ? state.coachState.repeatedErrorCounts[limited.id] : null;
   const history = state.coachState.improvementHistory || [];
@@ -399,6 +400,7 @@ export function publicSalmaCoach(profile, account, flags) {
   const speakingRetest = publicSpeakingRetest(state);
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
     interviewRisk,
+    rejectionForecast: readiness.rejectionForecast,
     listeningRetest,
     speakingRetest,
     preferences: state.preferences, activePrescription: publicPrescription, intervention: safeIntervention({ ...state, activePrescription: limited }),

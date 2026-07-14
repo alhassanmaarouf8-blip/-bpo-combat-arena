@@ -17,6 +17,20 @@ const RISK_LABELS = Object.freeze({
   deescalation: 'Deeskalation im Kundengespräch',
   complexity: 'sprachliche Bandbreite',
 });
+const ROLE_LABELS = Object.freeze({ customer_service: 'Kundenservice', technical_support: 'Technischer Support',
+  sales: 'Vertrieb', retention: 'Kundenbindung', backoffice: 'Backoffice' });
+const INDUSTRY_LABELS = Object.freeze({ general: 'allgemeines deutsches BPO', telecom: 'Telekommunikation',
+  ecommerce: 'E-Commerce', fintech: 'Banken & Fintech', airline: 'Airlines & Reisen', delivery: 'Lieferdienste',
+  logistik: 'Logistik', energie: 'Energie', versicherung: 'Versicherung', streaming: 'Streaming', b2b: 'B2B' });
+const STAGE_LABELS = Object.freeze({ spoken_interview: 'gesprochenes Interview', phone_roleplay: 'Telefon-Rollenspiel',
+  customer_roleplay: 'Kunden-Rollenspiel', pressure_followup: 'unerwartete Rückfrage', behavioral_interview: 'Verhaltensinterview' });
+const CRITERION_LABELS = Object.freeze({ sustained_pace: 'durchgängiges Antworttempo', grammar_control: 'Grammatikkontrolle',
+  speech_recognition_proxy: 'Erkennbarkeit des Sprachsignals', deescalation_response: 'Deeskalationsantwort',
+  complete_response: 'vollständige Antworten', response_latency: 'Reaktionszeit', filler_dependence: 'Füllwortabhängigkeit',
+  connected_answer_structure: 'verbundene Antwortstruktur', lexical_range_proxy: 'Wortschatzbreite' });
+const UNIT_LABELS = Object.freeze({ wpm: 'Wörter/Min.', errors_per_100_words: 'Fehler/100 Wörter', percent: '%',
+  percent_incomplete_turns: '% unvollständige Antworten', seconds: 'Sek.', fillers_per_100_words: 'Füllwörter/100 Wörter',
+  subordinate_clauses_per_100_sentences: 'Nebensätze/100 Sätze', type_token_percent: '% verschiedene Wörter' });
 
 export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null }) {
   const [coach, setCoach] = useState(null);
@@ -161,6 +175,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   if (!coach?.feature?.enabled) return null;
   const p = coach.activePrescription;
   const risk = coach.interviewRisk;
+  const forecast = coach.rejectionForecast;
   const listeningRetest = coach.listeningRetest;
   const speakingRetest = coach.speakingRetest;
   const proof = coach.progress?.verifiedRetest || null;
@@ -176,13 +191,22 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         <strong style={{ color: '#e2e8f0' }}>Noch keine belastbare Diagnose.</strong>{' '}
         Beende zuerst das vollständige Diagnose-Interview. Salma nennt keinen Engpass aus einer kurzen oder unterbrochenen Aufnahme.
       </div>}
-      {risk?.state === 'observed_risk' && RISK_LABELS[risk.limitingSkill] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
+      {forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
         background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: '#dbeafe' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>BEOBACHTETES INTERVIEW-RISIKO</div>
-        <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[risk.limitingSkill]}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>GRÖSSTES RISIKO IM ZIELINTERVIEW</div>
+        <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[forecast.riskId]}</div>
+        <div style={{ marginTop: 3, color: '#cbd5e1', fontSize: 11.5, lineHeight: 1.5 }}>
+          {ROLE_LABELS[forecast.target?.roleType] || 'Kundenservice'} · {INDUSTRY_LABELS[forecast.target?.industryKey] || 'allgemeines deutsches BPO'} ·{' '}
+          {STAGE_LABELS[forecast.criterion?.stageId] || 'Interview'}
+        </div>
+        {forecast.criterion && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
+          {CRITERION_LABELS[forecast.criterion.criterionId] || forecast.criterion.criterionId}: gemessen {forecast.criterion.observed}{' '}
+          {UNIT_LABELS[forecast.criterion.unit] || forecast.criterion.unit}; interne Referenz{' '}
+          {forecast.criterion.direction === 'at_least' ? 'mindestens' : 'höchstens'} {forecast.criterion.reference}.
+        </div>}
         <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
-          {risk.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
-          {' '}Keine Vorhersage einer Arbeitgeberentscheidung.
+          {forecast.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
+          {' '}Interne Trainingsreferenz, keine Vorhersage einer Arbeitgeberentscheidung.
         </div>
       </div>}
       {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>

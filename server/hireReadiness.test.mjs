@@ -50,11 +50,42 @@ test('hire readiness refuses perfect-looking metrics from a thin session', () =>
 
 test('hire readiness names only an observed risk from a reliable packet', () => {
   const result = hireReadinessFor({ sessions: [{
-    date: 1, wpm: 120, fillers: 2, grammarRules: [], subClauseRate: 0.3,
+    date: 1, wpm: 120, fillers: 2, words: 120, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
     vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
-    evidenceQuality: { version: 1, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true },
   }] });
-  assert.equal(result.hireReady, false);
+  assert.equal(result.hireReady, null, 'internal simulation evidence cannot claim an employer outcome');
+  assert.equal(result.simulationReady, false);
   assert.equal(result.limitingSkill, 'intelligibility');
   assert.deepEqual(result.interviewRisk, { state: 'observed_risk', confidence: 'high', limitingSkill: 'intelligibility' });
+  assert.equal(result.rejectionForecast.state, 'observed_simulation_risk');
+  assert.equal(result.rejectionForecast.criterion.criterionId, 'speech_recognition_proxy');
+  assert.equal(result.rejectionForecast.calibration, 'internal_simulation_reference_only');
+});
+
+test('grammar and fillers are normalized per 100 reliable spoken words', () => {
+  const result = hireReadinessFor({ sessions: [{
+    date: 10, bossId: 'tarek', targetIndustry: 'telecom', targetRoleType: 'technical_support', scenarioId: 'telecom-router-1',
+    wpm: 125, words: 200, fillers: 24, grammarMeasured: true,
+    grammarRules: [{ ruleId: 'word-order-sub', count: 20 }], subClauseRate: 0.4, vocabDiversity: 0.6,
+    deescalation: 0.8, giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
+    evidenceQuality: { version: 1, words: 200, prescriptionEligible: true, highConfidence: true },
+  }] });
+  assert.equal(result.limitingSkill, 'grammar');
+  assert.equal(result.rejectionForecast.criterion.observed, 10);
+  assert.deepEqual(result.rejectionForecast.target, {
+    roleType: 'technical_support', industryKey: 'telecom', bossArchetype: 'kpi_pressure',
+    scenarioId: 'telecom-router-1', source: 'industry_snapshot',
+  });
+});
+
+test('unavailable grammar analysis cannot manufacture a zero-error measurement', () => {
+  const result = hireReadinessFor({ sessions: [{
+    date: 10, wpm: 125, words: 200, fillers: 2, grammarMeasured: false, grammarRules: [],
+    subClauseRate: 0.4, vocabDiversity: 0.6, deescalation: 0.8, giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
+    evidenceQuality: { version: 1, words: 200, prescriptionEligible: true, highConfidence: true },
+  }] });
+  assert.ok(result.note.includes('errPer100'));
+  assert.notEqual(result.limitingSkill, 'grammar');
+  assert.equal(result.simulationReady, null);
 });
