@@ -180,6 +180,11 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const listeningRetest = coach.listeningRetest;
   const speakingRetest = coach.speakingRetest;
   const proof = coach.progress?.verifiedRetest || null;
+  const forecastHeading = forecast?.target?.source === 'vacancy_snapshot' && forecast.target.current === true
+    ? 'GRÖSSTES RISIKO IM AKTUELLEN ZIELINTERVIEW'
+    : forecast?.target?.source === 'industry_snapshot'
+      ? 'BEOBACHTETES RISIKO IN DIESER BRANCHEN-SIMULATION'
+      : 'BEOBACHTETES RISIKO IN DIESER SIMULATION';
   const proofOutcome = proof?.status === 'improved' && proof?.phase === 'transfer'
     ? 'Die Verbesserung hielt auch in der neuen Transfersituation.'
     : proof?.status === 'improved' ? 'Verbesserung im passenden Vergleichstest; der Transfernachweis steht noch aus.'
@@ -192,9 +197,13 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         <strong style={{ color: '#e2e8f0' }}>Noch keine belastbare Diagnose.</strong>{' '}
         Beende zuerst das vollständige Diagnose-Interview. Salma nennt keinen Engpass aus einer kurzen oder unterbrochenen Aufnahme.
       </div>}
+      {forecast?.state === 'historical_only' && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
+        <strong style={{ color: '#e2e8f0' }}>Die letzte Messung ist nicht mehr aktuell.</strong>{' '}
+        Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht auf dein heutiges Risiko.
+      </div>}
       {forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
         background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: '#dbeafe' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>GRÖSSTES RISIKO IM ZIELINTERVIEW</div>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>{forecastHeading}</div>
         <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[forecast.riskId]}</div>
         <div style={{ marginTop: 3, color: '#cbd5e1', fontSize: 11.5, lineHeight: 1.5 }}>
           {ROLE_LABELS[forecast.target?.roleType] || 'Kundenservice'} · {INDUSTRY_LABELS[forecast.target?.industryKey] || 'allgemeines deutsches BPO'} ·{' '}

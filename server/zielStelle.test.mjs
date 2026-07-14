@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { BEHAVIORAL_QUESTIONS, BPO_SCREENING_QUESTIONS, CS_SCENARIOS, INDUSTRIES,
-  TARGET_ROLE_SCENARIOS, pickCsScenario, pickTargetRoleScenario, buildSessionScript } from './scenarios.js';
+  TARGET_ROLE_SCENARIOS, scenarioSupportsRole, pickCsScenario, pickTargetRoleScenario, buildSessionScript } from './scenarios.js';
 import { PLANS } from './plans.config.js';
 
 test('the plans that ADVERTISE Ziel-Stelle actually carry the flag (perk must never be a phantom again)', () => {
@@ -142,6 +142,33 @@ test('targeted sales and backoffice sessions get exact roleplay rules, not the a
     assert.doesNotMatch(script.instructions, /KUNDENSERVICE-ROLLENSPIEL|w\u00fctenden Kunden/u);
     assert.notEqual(script.stages[2].label, 'Kundenservice-Rollenspiel');
   }
+});
+
+test('targeted role content is valid German at runtime and registry-bound', () => {
+  const serialized = JSON.stringify(TARGET_ROLE_SCENARIOS);
+  assert.doesNotMatch(serialized, /Ã|â€|KÃ|fÃ|RÃ|nÃ/u);
+  for (const [roleType, pool] of Object.entries(TARGET_ROLE_SCENARIOS)) {
+    for (const scenario of pool) assert.equal(scenarioSupportsRole(scenario.id, roleType), true);
+  }
+  assert.equal(scenarioSupportsRole('telecom-kuendigung', 'technical_support'), false);
+});
+
+test('missing role-industry coverage uses a generic same-role case, never another industry', () => {
+  for (const [roleType, pool] of Object.entries(TARGET_ROLE_SCENARIOS)) {
+    const covered = new Set(pool.map((scenario) => scenario.industry).filter(Boolean));
+    for (const industry of Object.keys(INDUSTRIES).filter((key) => !covered.has(key))) {
+      const picked = pickTargetRoleScenario([], industry, roleType).item;
+      assert.equal(picked.roleType, roleType);
+      assert.equal(picked.industry, undefined);
+    }
+  }
+});
+
+test('retention excludes post-cancellation billing and generic technical support has usable facts', () => {
+  assert.equal(TARGET_ROLE_SCENARIOS.retention.some((scenario) => scenario.id === 'streaming-abbuchung'), false);
+  const genericTechnical = TARGET_ROLE_SCENARIOS.technical_support.find((scenario) => scenario.industry === undefined);
+  assert.ok(genericTechnical);
+  assert.match(`${genericTechnical.problem} ${genericTechnical.opening}`, /WLAN|Update|Gerät|Router/u);
 });
 
 test('generic session output remains byte-identical to the verified pre-change contract', () => {

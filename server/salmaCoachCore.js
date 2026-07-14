@@ -112,8 +112,10 @@ export function measurementForSkill(profile, skillId) {
     if (value === null) continue;
     const measuredAt = Number(session?.date) || 0;
     if (!measuredAt) continue;
-    return { metricKey: metric.key, value: roundMetric(value), measuredAt,
-      evidenceId: hash({ skillId, metricKey: metric.key, measuredAt, bossId: session?.bossId || '' }, 12) };
+    const evidenceId = metric.key === 'deescalation_score' && typeof session?.deescalationEvidence?.binding === 'string'
+      ? hash({ skillId, binding: session.deescalationEvidence.binding }, 12)
+      : hash({ skillId, metricKey: metric.key, measuredAt, bossId: session?.bossId || '' }, 12);
+    return { metricKey: metric.key, value: roundMetric(value), measuredAt, evidenceId };
   }
   return null;
 }
@@ -265,15 +267,39 @@ export function normalizeSalmaCoachState(value) {
         count: Number.isInteger(coach.questionUsage?.count) ? Math.max(0, Math.min(100, coach.questionUsage.count)) : 0 } } };
 }
 
-function sessionEvidenceIds(profile) {
-  return reliableSpeakingSessions(profile).slice(-2).map((s) => hash({ date: s?.date || 0, bossId: s?.bossId || '', verdict: s?.verdict || '', limitingSkill: s?.hireReadiness?.limitingSkill || s?.limitingSkill || '' }, 12));
+function recentReliableSessions(profile, now) {
+  return reliableSpeakingSessions(profile).filter((session) => {
+    const observedAt = Number(session?.date) || 0;
+    return observedAt > 0 && now - observedAt >= 0 && now - observedAt <= 14 * 24 * 60 * 60 * 1000;
+  }).sort((a, b) => Number(a?.date || 0) - Number(b?.date || 0));
 }
-function evidenceOccurrences(profile, skillId) {
+function sessionEvidenceIds(profile, skillId, now) {
+  const sessions = recentReliableSessions(profile, now);
+  if (skillId === 'deescalate') {
+    const latest = [...sessions].reverse().find((session) => serviceRecoveryScoreFromSession(session) != null);
+    if (!latest) return [];
+    const targetId = latest.vacancyTargetId ?? null;
+    return sessions.filter((session) => (session.vacancyTargetId ?? null) === targetId
+      && serviceRecoveryScoreFromSession(session) != null)
+      .slice(-2).map((session) => hash({ skillId, binding: session.deescalationEvidence.binding }, 12));
+  }
+  return sessions.slice(-2).map((session) => hash({ date: session?.date || 0, bossId: session?.bossId || '',
+    verdict: session?.verdict || '', limitingSkill: session?.hireReadiness?.limitingSkill || session?.limitingSkill || '' }, 12));
+}
+function evidenceOccurrences(profile, skillId, now) {
   if (skillId === 'listen-clear' || skillId === 'listen-phone') {
     return new Set(listeningEvidence(profile, skillId).map((row) => row.issuedAt)).size;
   }
+  const sessions = recentReliableSessions(profile, now);
+  if (skillId === 'deescalate') {
+    const latest = [...sessions].reverse().find((session) => serviceRecoveryScoreFromSession(session) != null);
+    if (!latest) return 0;
+    const targetId = latest.vacancyTargetId ?? null;
+    return Math.min(2, sessions.filter((session) => (session.vacancyTargetId ?? null) === targetId
+      && serviceRecoveryScoreFromSession(session) != null).length);
+  }
   const counts = profile?.weakLog?.[skillId]?.errCounts;
-  const reliableDates = new Set(reliableSpeakingSessions(profile).map((session) => Number(session?.date)).filter(Boolean));
+  const reliableDates = new Set(sessions.map((session) => Number(session?.date)).filter(Boolean));
   if (Array.isArray(counts)) return counts.filter((row) => Number(row?.count) > 0 && reliableDates.has(Number(row?.date))).length;
   return Math.min(2, reliableDates.size);
 }
@@ -283,13 +309,14 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   const drillId = directive?.prescription?.action === 'drill' ? directive.prescription.drill : null;
   const skillId = directive?.prescription?.skillId || directive?.target?.skillId || '';
   if (!DRILLS.has(drillId) || !skillId || snapshot.sessionCount < 1) return { directive, prescription: null };
-  const protocol = PROTOCOLS[drillId]; const occurrences = evidenceOccurrences(profile, skillId);
+  const protocol = PROTOCOLS[drillId]; const occurrences = evidenceOccurrences(profile, skillId, now);
   const listeningRows = skillId === 'listen-clear' || skillId === 'listen-phone' ? listeningEvidence(profile, skillId) : [];
   if (drillId === 'hoer-check' && listeningRows.length < 5) return { directive, prescription: null };
   const durationSeconds = Math.min(protocol.durationSeconds, Math.max(300, [5, 10, 20].includes(Number(dailyMinutes)) ? Number(dailyMinutes) * 60 : 600));
   const blocks = occurrences >= 2 && Number(dailyMinutes) >= 20 ? 2 : 1;
   const evidenceIds = listeningRows.length
-    ? listeningRows.slice(-4).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile);
+    ? listeningRows.slice(-4).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile, skillId, now);
+  if (!evidenceIds.length) return { directive, prescription: null };
   const baseline = measurementForSkill(profile, skillId);
   if (!baseline) return { directive, prescription: null };
   const evidenceConfidence = directive.confidence === 'high' ? 'high' : 'low';

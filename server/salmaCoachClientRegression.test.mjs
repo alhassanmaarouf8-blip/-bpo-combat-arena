@@ -93,7 +93,9 @@ test('the tutor labels observed risk honestly and exposes delayed listening rete
   const panel = await read('client/src/SalmaTutorPanel.jsx');
   const app = await read('client/src/App.jsx');
   const brain = await read('client/src/BrainGuide.jsx');
-  assert.match(panel, /GRÖSSTES RISIKO IM ZIELINTERVIEW/u);
+  assert.match(panel, /GRÖSSTES RISIKO IM AKTUELLEN ZIELINTERVIEW/u);
+  assert.match(panel, /BEOBACHTETES RISIKO IN DIESER SIMULATION/u);
+  assert.match(panel, /alte oder entfernte Stellenziele/u);
   assert.match(panel, /keine Vorhersage einer Arbeitgeberentscheidung/u);
   assert.match(panel, /interne Referenz/u);
   assert.match(panel, /Hörnachweis/u);

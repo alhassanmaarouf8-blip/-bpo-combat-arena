@@ -140,7 +140,7 @@ export async function gradeTranscript({ transcript = '', level = 'a2-b1', scenar
   };
 }
 
-function buildScoringPrompt({ level, scenarioId, transcript }) {
+export function buildScoringPrompt({ level, scenarioId, transcript }) {
   return {
     messages: [
       {
@@ -167,10 +167,10 @@ Return a compact JSON object with this exact shape:
 }
 
 Rules:
-- "verdict" encodes real Cairo-BPO hireability, not effort or politeness, and MUST be derived from concrete evidence in the transcript:
-    "pass" = would be SEATED on a live German customer line: C1-level control (fluent, precise, complex) AND it held up as the questions got harder — answers stayed coherent, complete and on-topic under pressure.
-    "weak" = would clear the HR phone-screen but is NOT yet floor-ready: solid B2 (clear, controlled, complex sentences) with the spoken-pressure gap still open. B2 is a screen pass, not a seat.
-    "fail" = below B2, OR collapsed under pressure — empty, one-word, or broken-off answers on the harder turns even if earlier German was strong. Freezing under pressure disqualifies regardless of vocabulary.
+- "verdict" describes performance inside this internal training simulation only. It is not an employer decision, hiring probability, job guarantee, or claim that the candidate would be seated on a real account:
+    "pass" = C1-level control was observed in the supplied transcript (fluent, precise, complex) AND the completed answers stayed coherent, complete and on-topic under simulated pressure.
+    "weak" = solid B2 language was observed, but the supplied transcript still shows a spoken-pressure gap inside this simulation.
+    "fail" = the supplied transcript is below B2, OR completed answers became empty, one-word, or broken under the simulated pressure even if earlier German was stronger.
   Judge "collapse / freeze" ONLY from the transcript itself (answers that thin out, break off, or fall silent as the questions escalate). Never infer it from audio, timing, or anything not present in the text.
   CRITICAL — INTERRUPTED TURNS: any candidate line ending with the marker "⟨ABGEBROCHEN⟩" was CUT OFF by the interviewer before the candidate could finish; it is NOT the candidate choosing to stop. NEVER count an ⟨ABGEBROCHEN⟩ line as a break-off, freeze, one-word answer, or collapse, and never let it lower the CEFR level. Judge collapse/freeze and CEFR ONLY from turns the candidate actually completed themselves. If almost every turn is ⟨ABGEBROCHEN⟩ (too little complete speech to judge), do NOT return "fail" — the session was interrupted, not failed.
 - "cefrLevel" is the candidate's CEFR level, judged ONLY from the German actually present (grammar control, vocabulary range, sentence complexity, coherence). Apply these anchors HONESTLY — do not deflate a genuinely strong answer to B1, and never inflate a weak one:

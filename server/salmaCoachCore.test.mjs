@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultProfile } from './store.js';
+import { CS_SCENARIOS } from './scenarios.js';
+import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
 import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
   deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
   publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
@@ -13,15 +15,28 @@ function reliableSession(value) {
   return { ...value, evidenceQuality: { version: 1, words: 120, completeTurns: 5, truncatedTurns: 0,
     stageCoverage: 2, prescriptionEligible: true, highConfidence: false } };
 }
+function recoveryFields(date) {
+  const context = { sessionId: `session_${date}`, targetId: null, roleType: 'customer_service',
+    scenarioId: CS_SCENARIOS[0].id, observedAt: date };
+  const evidence = serviceRecoveryEvidence([
+    'Das tut mir wirklich leid, und ich kann Ihren \u00c4rger gut nachvollziehen.',
+    'Ich k\u00fcmmere mich pers\u00f6nlich um Ihren Fall und dokumentiere ihn jetzt sorgf\u00e4ltig.',
+  ], context);
+  const stored = Object.fromEntries(['version', 'criterionId', 'criterionVersion', 'binding', 'roleType',
+    'scenarioId', 'targetId', 'sessionId', 'observedAt', 'contradicted', 'observedSteps', 'totalSteps',
+    'turnCount', 'wordCount'].map((key) => [key, evidence[key]]));
+  return { sessionId: context.sessionId, targetRoleType: context.roleType, scenarioId: context.scenarioId,
+    deescalation: evidence.score, deescalationEvidence: stored };
+}
 function measuredProfile(sessionCount = 1) {
   const p = defaultProfile('acct-1');
-  p.sessions = Array.from({ length: sessionCount }, (_, i) => reliableSession({ date: 1_700_000_000_000 + i, bossId: 'yasmin', verdict: 'review',
-    targetRoleType: 'customer_service',
+  p.sessions = Array.from({ length: sessionCount }, (_, i) => {
+    const date = 1_700_000_000_000 + i;
+    return reliableSession({ date, ...recoveryFields(date), bossId: 'yasmin', verdict: 'review',
     wpm: 95, fluency: 52, fillers: 6, grammarRules: [{ rule: 'x', count: 4 }], subClauseRate: 0.2,
-    vocabDiversity: 0.5, deescalation: 2 / 3,
-    deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure', roleType: 'customer_service', observedSteps: 2,
-      totalSteps: 3, turnCount: 3, wordCount: 70 },
-    giveUpRate: 0.1, intelligibility: 0.75, latencyS: 3 }));
+    vocabDiversity: 0.5,
+    giveUpRate: 0.1, intelligibility: 0.75, latencyS: 3 });
+  });
   return p;
 }
 
@@ -42,8 +57,8 @@ test('entitlements expose 3/30/60 questions without changing plan truth', () => 
 
 test('prescription is evidence-hashed, idempotent and respects a five-minute budget', () => {
   const p = measuredProfile(1);
-  const a = deriveSalmaPrescription(p, { now: 1_800_000_000_000, dailyMinutes: 5 }).prescription;
-  const b = deriveSalmaPrescription(p, { now: 1_900_000_000_000, dailyMinutes: 5 }).prescription;
+  const a = deriveSalmaPrescription(p, { now: 1_700_000_001_000, dailyMinutes: 5 }).prescription;
+  const b = deriveSalmaPrescription(p, { now: 1_700_000_002_000, dailyMinutes: 5 }).prescription;
   assert.ok(a); assert.equal(a.id, b.id); assert.equal(a.durationSeconds <= 300, true);
   assert.equal(a.timesPerDay, 1); assert.equal(a.evidenceIds.length, 1);
 });
@@ -51,6 +66,12 @@ test('prescription is evidence-hashed, idempotent and respects a five-minute bud
 test('thin evidence produces no confident prescription', () => {
   const result = deriveSalmaPrescription(defaultProfile('acct-1'), { now: 1_800_000_000_000 });
   assert.equal(result.prescription, null); assert.equal(result.directive.state, 'NEW');
+});
+
+test('stale speaking evidence cannot create a new personal prescription', () => {
+  const p = measuredProfile(1);
+  const result = deriveSalmaPrescription(p, { now: 1_700_000_000_000 + 15 * 24 * 60 * 60 * 1000 });
+  assert.equal(result.prescription, null);
 });
 
 test('a short persisted practice session cannot become Salma diagnostic evidence', () => {
@@ -83,7 +104,7 @@ test('new intervention disappears after idempotent acknowledgement', () => {
 
 test('a one-session signal is prescribed as a hypothesis, never spoken as a confirmed bottleneck', () => {
   const p = measuredProfile(1);
-  const { directive, prescription } = deriveSalmaPrescription(p, { now: 1_800_000_000_100 });
+  const { directive, prescription } = deriveSalmaPrescription(p, { now: 1_700_000_001_000 });
   assert.equal(directive.confidence, 'low');
   assert.equal(prescription.evidenceConfidence, 'low');
   const state = normalizeSalmaCoachState({ activePrescription: prescription });
@@ -94,12 +115,13 @@ test('a one-session signal is prescribed as a hypothesis, never spoken as a conf
 
 test('the same reliable risk across two sessions earns a spaced second block and high-evidence wording', () => {
   const p = measuredProfile(2);
-  const { directive, prescription } = deriveSalmaPrescription(p, { now: 1_800_000_000_100, dailyMinutes: 20 });
+  const now = 1_700_000_010_000;
+  const { directive, prescription } = deriveSalmaPrescription(p, { now, dailyMinutes: 20 });
   assert.equal(directive.confidence, 'high');
   assert.equal(prescription.evidenceConfidence, 'high');
   assert.equal(prescription.blocks, 2);
   assert.equal(prescription.timesPerDay, 2);
-  assert.equal(prescription.nextEligibleAt, 1_800_000_000_100 + prescription.minimumSpacingMinutes * 60_000);
+  assert.equal(prescription.nextEligibleAt, now + prescription.minimumSpacingMinutes * 60_000);
   assert.match(safeIntervention(normalizeSalmaCoachState({ activePrescription: prescription })).text,
     /wiederholter zuverlässiger Evidenz/u);
 });

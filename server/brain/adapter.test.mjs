@@ -150,6 +150,18 @@ test('adapter: criterion confidence counts only reliable sessions that measured 
   assert.equal(decide(snap).confidence, 'high');
 });
 
+test('non-customer-service roles do not enter an impossible deescalation measurement loop', () => {
+  const p = { sessions: [{ date: NOW - DAY, targetRoleType: 'technical_support',
+    scenarioId: 'telecom-portierung', targetIndustry: 'telecom', wpm: 120, intelligibility: 0.8,
+    words: 120, fillers: 2, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
+    vocabDiversity: 0.5, giveUpRate: 0.1, latencyS: 2,
+    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true } }] };
+  const snapshot = buildSnapshot(p, NOW);
+  assert.equal(snapshot.roleMeasurementState, 'role_criterion_not_yet_validated');
+  assert.equal(snapshot.unmeasuredGates.includes('deescalation'), false);
+  assert.notEqual(decide(snapshot).prescription?.signal, 'deescalation');
+});
+
 test('adapter: only delayed transfer proof enters readiness-authorizing mastery', () => {
   const proof = (overrides = {}) => ({
     id: '1111111111111111', prescriptionId: '2222222222222222', measurementEvidenceId: '333333333333',

@@ -9,46 +9,15 @@
 import { masteryFromHistory, MASTERY_GATE } from './bkt.js';
 import { hireReadinessFor, featuresFromProfile } from '../hireReadiness.js';
 import { listeningMasteryEvidence } from '../listeningEvidence.js';
-import { SKILL_BY_ID } from './skillGraph.js';
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from '../scoring/serviceRecoveryEvidence.js';
+import { validatedTransferProofs } from '../scoring/transferProofs.js';
 
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
-const GATING = ['intelligibility', 'deescalation', 'wpm'];   // the hire-readiness gating signals
+const CUSTOMER_SERVICE_GATING = ['intelligibility', 'deescalation', 'wpm'];
+const GENERAL_ROLE_GATING = ['intelligibility', 'wpm'];
 const DAY_MS = 86400000;
-const TRANSFER_METRIC_BY_SKILL = Object.freeze({
-  'word-order-sub': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
-  'dativ-akkusativ': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
-  'konjunktiv-2': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
-  'fluency-interrupt': { metricKey: 'fluency_score', direction: 'higher', minimumDelta: 5 },
-  deescalate: { metricKey: 'deescalation_score', direction: 'higher', minimumDelta: 5 },
-  'no-freeze-expected': { metricKey: 'response_continuity', direction: 'higher', minimumDelta: 5 },
-  'pronunciation-phone': { metricKey: 'intelligibility_score', direction: 'higher', minimumDelta: 3 },
-});
 
-function validatedTransferProofs(p, now = Date.now()) {
-  const history = Array.isArray(p?.salmaCoach?.coachState?.improvementHistory)
-    ? p.salmaCoach.coachState.improvementHistory : [];
-  return history.flatMap((proof) => {
-    const skillId = typeof proof?.skillId === 'string' ? proof.skillId : '';
-    const metric = Object.hasOwn(TRANSFER_METRIC_BY_SKILL, skillId) ? TRANSFER_METRIC_BY_SKILL[skillId] : null;
-    const before = Number(proof?.before); const after = Number(proof?.after); const verifiedAt = Number(proof?.verifiedAt);
-    const delta = metric?.direction === 'higher' ? after - before : before - after;
-    const valuesAreBounded = before >= 0 && after >= 0
-      && (metric?.metricKey === 'grammar_errors' || (before <= 100 && after <= 100));
-    if (!metric || !Object.hasOwn(SKILL_BY_ID, skillId) || proof?.phase !== 'transfer' || proof?.status !== 'improved'
-      || proof?.metricKey !== metric.metricKey || !/^[a-f0-9]{16}$/u.test(proof?.id || '')
-      || !/^[a-f0-9]{16}$/u.test(proof?.prescriptionId || '')
-      || !/^[a-f0-9]{12}$/u.test(proof?.measurementEvidenceId || '')
-      || typeof proof?.retestSessionId !== 'string' || !proof.retestSessionId.trim() || proof.retestSessionId.length > 100
-      || !Number.isFinite(before) || !Number.isFinite(after) || !valuesAreBounded
-      || !Number.isFinite(verifiedAt) || verifiedAt <= 0 || verifiedAt > now + 300_000
-      || delta < metric.minimumDelta) return [];
-    return [{ skillId, metricKey: metric.metricKey, before, after, direction: metric.direction,
-      phase: 'transfer', verifiedAt }];
-  });
-}
-
-function criterionEvidenceCount(sessions, criterionId) {
+function criterionEvidenceCount(sessions, criterionId, referenceSession, now) {
   const measured = (session) => {
     const words = Number(session?.evidenceQuality?.words) || Number(session?.words) || 0;
     if (criterionId === 'sustained_pace') return Number.isFinite(session?.wpm);
@@ -62,8 +31,16 @@ function criterionEvidenceCount(sessions, criterionId) {
     if (criterionId === 'lexical_range_proxy') return Number.isFinite(session?.vocabDiversity);
     return false;
   };
-  return sessions.filter((session) => session?.evidenceQuality?.version === 1
-    && session.evidenceQuality.prescriptionEligible === true && measured(session)).length;
+  const referenceTargetId = referenceSession?.vacancyTargetId ?? null;
+  return sessions.filter((session) => {
+    const observedAt = Number(session?.date) || 0;
+    const fresh = observedAt > 0 && now - observedAt >= 0 && now - observedAt <= 14 * DAY_MS;
+    const sameRecoveryTarget = criterionId !== SERVICE_RECOVERY_CRITERION_ID
+      || (session?.targetRoleType === referenceSession?.targetRoleType
+        && (session?.vacancyTargetId ?? null) === referenceTargetId);
+    return fresh && sameRecoveryTarget && session?.evidenceQuality?.version === 1
+      && session.evidenceQuality.prescriptionEligible === true && measured(session);
+  }).length;
 }
 
 export function masteredSkillsFromProfile(p) {
@@ -157,8 +134,8 @@ export function buildSnapshot(p, now = Date.now()) {
   const weakLog  = p?.weakLog || {};
   const last = sessions[sessions.length - 1] || null;
   const prev = sessions[sessions.length - 2] || null;
-  const hr = hireReadinessFor(p);
-  const { measured } = featuresFromProfile(p);
+  const hr = hireReadinessFor(p, now);
+  const { measured, session: evidenceSession } = featuresFromProfile(p);
   const limitingCriterionId = hr.rejectionForecast?.criterion?.criterionId || null;
 
   const lastDate = last?.date || 0;
@@ -187,8 +164,11 @@ export function buildSnapshot(p, now = Date.now()) {
     lastTargetRuleId: targetRuleId,
     limitingSkill:    hr.limitingSkill && hr.limitingSkill !== 'none' ? hr.limitingSkill : null,
     limitingCriterionId,
-    limitingEvidenceCount: criterionEvidenceCount(sessions, limitingCriterionId),
-    unmeasuredGates:  GATING.filter((g) => !measured[g]),
+    limitingEvidenceCount: criterionEvidenceCount(sessions, limitingCriterionId, evidenceSession, now),
+    unmeasuredGates:  (evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'
+      ? GENERAL_ROLE_GATING : CUSTOMER_SERVICE_GATING).filter((g) => !measured[g]),
+    roleMeasurementState: evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'
+      ? 'role_criterion_not_yet_validated' : 'customer_service_criterion_available',
     sessionCount:     sessions.length,
     daysSinceActive:  lastDate ? Math.floor((now - lastDate) / DAY_MS) : 0,
     prepDone,

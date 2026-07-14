@@ -2112,7 +2112,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               <CatBar label="Flüssigkeit"   value={cats.fluency}      color="var(--accent)" />
               <CatBar label="Grammatik"     value={cats.grammar}      color="var(--accent)" />
               <CatBar label="Wortschatz"    value={cats.vocab}        color="var(--accent)" />
-              <CatBar label="De-Eskalation" value={cats.deescalation} color="var(--action)" />
+              {cats.roleplay && Number.isFinite(cats.roleplay.score) && (
+                <CatBar label={cats.roleplay.label || 'Rollenspiel'} value={cats.roleplay.score} color="var(--action)" />
+              )}
             </Section>
           )}
 

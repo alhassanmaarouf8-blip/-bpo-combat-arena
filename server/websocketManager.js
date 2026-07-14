@@ -5,6 +5,7 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
 import { serviceRecoveryEvidenceFromUtterances } from './scoring/serviceRecoveryEvidence.js';
+import { roleplayTurnFactors, roleplayTurnSummary } from './scoring/roleplayTurnScoring.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
 import { topStructureWins, debriefStructureWins } from './scoring/structureWins.js';
 import { isSpeakableRule } from './grammarCheck.js';
@@ -1393,7 +1394,13 @@ export class WebSocketManager {
       const _giveUpRate = _candTurns.length ? _candTurns.filter((d) => (d.words || 0) < 3).length / _candTurns.length : null;
       // Observable service-recovery structure from the customer roleplay. The broad combat score also
       // rewards pace, length and vocabulary, so it must never be mislabeled as de-escalation evidence.
-      const _serviceRecovery = serviceRecoveryEvidenceFromUtterances(ctx.utterances, ctx.targetRoleType);
+      const _serviceRecovery = serviceRecoveryEvidenceFromUtterances(ctx.utterances, {
+        sessionId: ctx.sessionId,
+        targetId: ctx.vacancySnapshot?.targetId || null,
+        roleType: ctx.targetRoleType,
+        scenarioId: ctx.csScenarioId,
+        observedAt: now,
+      });
       const _deescalation = _serviceRecovery.eligible ? _serviceRecovery.score : null;
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
@@ -1401,7 +1408,7 @@ export class WebSocketManager {
       const _evidenceQuality = speakingEvidenceQuality(ctx.utterances);
 
       p.sessions.push({
-        date: now, level: ctx.level, bossId: ctx.bossId,
+        date: now, sessionId: ctx.sessionId, level: ctx.level, bossId: ctx.bossId,
         fluency: metrics.fluency, wpm: metrics.wpm, fillers: metrics.fillers,
         ...(_tf.subClauseRate != null ? { subClauseRate: _tf.subClauseRate, vocabDiversity: _tf.vocabDiversity } : {}),
         ...(_giveUpRate != null ? { giveUpRate: _giveUpRate } : {}),
@@ -1410,7 +1417,14 @@ export class WebSocketManager {
           deescalationEvidence: {
             version: _serviceRecovery.version,
             criterionId: _serviceRecovery.criterionId,
+            criterionVersion: _serviceRecovery.criterionVersion,
+            binding: _serviceRecovery.binding,
             roleType: _serviceRecovery.roleType,
+            scenarioId: _serviceRecovery.scenarioId,
+            targetId: _serviceRecovery.targetId,
+            sessionId: _serviceRecovery.sessionId,
+            observedAt: _serviceRecovery.observedAt,
+            contradicted: _serviceRecovery.contradicted,
             observedSteps: _serviceRecovery.observedSteps,
             totalSteps: _serviceRecovery.totalSteps,
             turnCount: _serviceRecovery.turnCount,
@@ -1732,11 +1746,12 @@ export class WebSocketManager {
     }
 
     // Per-skill damage 0–100 — DISPLAY BARS ONLY. These do NOT decide the grade.
+    const roleplay = roleplayTurnSummary(ctx.utterances, ctx.targetRoleType || 'customer_service');
     const categories = {
       fluency:      clamp(metrics.fluency),
       grammar:      grammarBar,
       vocab:        clamp(40 + metrics.c1Hits * 18),
-      deescalation: clamp(34 + metrics.politenessHits * 15 + metrics.konjunktivHits * 6),
+      ...(roleplay ? { roleplay } : {}),
     };
 
     // ── Headline CEFR grade — from the validated transcript scorer, NOT a fluency
@@ -1991,7 +2006,11 @@ export class WebSocketManager {
     // runs many rounds instead of ending in one or two.
     // Cause-driven scoring: every HP change is the sum of SPECIFIC detected signals,
     // each with its own label (see _scoreFactors). Nothing here is random.
-    const { score, factors } = this._scoreFactors(transcript, durationMs, wordCount, { levelId: ctx.level, stage: ctx.stageIdx });
+    const { score, factors } = this._scoreFactors(transcript, durationMs, wordCount, {
+      levelId: ctx.level,
+      stage: ctx.stageIdx,
+      roleType: ctx.targetRoleType || 'customer_service',
+    });
     const lastUtterance = ctx.utterances[ctx.utterances.length - 1];
     const lastQuestion = [...ctx.dialogue].reverse().find((turn) => turn.role === 'boss')?.text || '';
     const topSlip = factors.filter((f) => f.side === 'player').sort((a, b) => b.hp - a.hp)[0];
@@ -2230,18 +2249,14 @@ export class WebSocketManager {
                       'genauer gesagt','besser gesagt','also ich meinte'];
     if (selfCorr.some(w => text.includes(w))) { score += 4; add('boss', 'Selbstkorrektur', 4); }
 
-    // Customer-service roleplay: reward empathy → ownership → clear next step (on-topic).
+    // Roleplay content is role-specific. This only affects the cinematic live HUD; durable mastery
+    // still requires the stricter multi-turn evidence gate after the session.
     if (stage === 2) {
-      const empathy   = ['verstehe','tut mir leid','entschuldigung','entschuldige','nachvollziehen','verständlich','bedauere'];
-      const ownership = ['ich kümmere','ich übernehme','ich sorge','ich kläre','ich prüfe','ich schaue','ich veranlasse'];
-      const nextStep  = ['ich würde vorschlagen','ich schlage vor','als nächstes','ich werde','wir werden','umgehend'];
-      if (empathy.some(w => text.includes(w)))   { score += 10; add('boss', 'Empathie', 6); }
-      if (ownership.some(w => text.includes(w))) { score += 8;  add('boss', 'Verantwortung', 5); }
-      if (nextStep.some(w => text.includes(w)))  { score += 8;  add('boss', 'klare Lösung', 5); }
-      if (text.includes('könnten sie') || text.includes('würden sie') || text.includes('dürfte ich')) { score += 4; add('boss', 'höfliche Rückfrage', 3); }
-      // C1 BPO register: reward sophisticated de-escalation phrases from the playbook
-      const c1Deesc = ['zusammenfassen','ihr anliegen','zuständige stelle','sachlich bleiben','umgehend darum','konkret für sie','nicht rückgängig machen'];
-      if (c1Deesc.some(w => text.includes(w))) { score += 6; add('boss', 'C1-Deeskalation', 4); }
+      const roleResult = roleplayTurnFactors(transcript, opts.roleType || 'customer_service');
+      for (const factor of roleResult.factors) {
+        add(factor.side, factor.label, factor.hp);
+        score += factor.side === 'boss' ? factor.hp : -factor.hp;
+      }
     }
 
     // C1 formal register bonuses: Nominalisierung, Funktionsverbgefüge, Passiversatzformen
