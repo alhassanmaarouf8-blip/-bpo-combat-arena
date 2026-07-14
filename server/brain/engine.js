@@ -25,7 +25,7 @@ const LIMIT_TO_SKILL = {
 const CRITERION_TO_SKILL = Object.freeze({
   sustained_pace: 'fluency-interrupt',
   speech_recognition_proxy: 'pronunciation-phone',
-  deescalation_response: 'deescalate',
+  service_recovery_structure: 'deescalate',
   complete_response: 'no-freeze-expected',
   response_latency: 'no-freeze-expected',
   filler_dependence: 'fluency-interrupt',

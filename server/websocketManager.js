@@ -4,6 +4,7 @@ import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
+import { serviceRecoveryEvidenceFromUtterances } from './scoring/serviceRecoveryEvidence.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
 import { topStructureWins, debriefStructureWins } from './scoring/structureWins.js';
 import { isSpeakableRule } from './grammarCheck.js';
@@ -314,8 +315,6 @@ export class WebSocketManager {
       bossId:         'yasmin',
       scoreSum:       0,
       scoreCount:     0,
-      csScoreSum:     0,       // de-escalation proxy: sum of CS-roleplay (stage 2) answer scores
-      csScoreCount:   0,
       confSum:        0,       // intelligibility proxy: sum of Deepgram word confidences
       confCount:      0,
       latSum:         0,       // composure proxy: sum of per-turn reaction latencies (s)
@@ -1392,8 +1391,10 @@ export class WebSocketManager {
       const _tf = textFeatures(_candidateText);
       // give-up rate: share of candidate turns that were empty/near-silent (<3 words).
       const _giveUpRate = _candTurns.length ? _candTurns.filter((d) => (d.words || 0) < 3).length / _candTurns.length : null;
-      // de-escalation proxy: average CS-roleplay (stage 2) answer score, 0..1.
-      const _deescalation = ctx.csScoreCount ? Math.max(0, Math.min(1, (ctx.csScoreSum / ctx.csScoreCount) / 100)) : null;
+      // Observable service-recovery structure from the customer roleplay. The broad combat score also
+      // rewards pace, length and vocabulary, so it must never be mislabeled as de-escalation evidence.
+      const _serviceRecovery = serviceRecoveryEvidenceFromUtterances(ctx.utterances);
+      const _deescalation = _serviceRecovery.eligible ? _serviceRecovery.score : null;
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
       const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
@@ -1404,7 +1405,17 @@ export class WebSocketManager {
         fluency: metrics.fluency, wpm: metrics.wpm, fillers: metrics.fillers,
         ...(_tf.subClauseRate != null ? { subClauseRate: _tf.subClauseRate, vocabDiversity: _tf.vocabDiversity } : {}),
         ...(_giveUpRate != null ? { giveUpRate: _giveUpRate } : {}),
-        ...(_deescalation != null ? { deescalation: _deescalation } : {}),
+        ...(_deescalation != null ? {
+          deescalation: _deescalation,
+          deescalationEvidence: {
+            version: _serviceRecovery.version,
+            criterionId: _serviceRecovery.criterionId,
+            observedSteps: _serviceRecovery.observedSteps,
+            totalSteps: _serviceRecovery.totalSteps,
+            turnCount: _serviceRecovery.turnCount,
+            wordCount: _serviceRecovery.wordCount,
+          },
+        } : {}),
         ...(_intelligibility != null ? { intelligibility: _intelligibility } : {}),
         ...(_latencyS != null ? { latencyS: _latencyS } : {}),
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
@@ -1997,8 +2008,6 @@ export class WebSocketManager {
     // Snapshot the claim-ledger every scored turn (not at teardown, where realtimeClient may be
     // gone) → persisted as `lastTopics` so the NEXT session's boss can reference what he SAID.
     try { ctx.lastLedger = ctx.realtimeClient?.ledgerTerms || ctx.lastLedger; } catch {}
-    if (ctx.stageIdx === 2) { ctx.csScoreSum += score; ctx.csScoreCount += 1; }   // CS roleplay → de-escalation proxy
-
     // Combo: consecutive STRONG answers build a multiplier; a clear MISS breaks it.
     // 45–64 holds the current streak (neither builds nor breaks). Display-only meter —
     // it does NOT alter HP, so the tuned damage balance is untouched.

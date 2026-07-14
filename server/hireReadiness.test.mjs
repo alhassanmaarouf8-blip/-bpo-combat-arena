@@ -51,7 +51,10 @@ test('hire readiness refuses perfect-looking metrics from a thin session', () =>
 test('hire readiness names only an observed risk from a reliable packet', () => {
   const result = hireReadinessFor({ sessions: [{
     date: 1, wpm: 120, fillers: 2, words: 120, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
-    vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
+    vocabDiversity: 0.5, deescalation: 1,
+    deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure', observedSteps: 3,
+      totalSteps: 3, turnCount: 3, wordCount: 70 },
+    giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
     evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.equal(result.hireReady, null, 'internal simulation evidence cannot claim an employer outcome');
@@ -68,7 +71,10 @@ test('grammar and fillers are normalized per 100 reliable spoken words', () => {
     date: 10, bossId: 'tarek', targetIndustry: 'telecom', targetRoleType: 'technical_support', scenarioId: 'telecom-router-1',
     wpm: 125, words: 200, fillers: 24, grammarMeasured: true,
     grammarRules: [{ ruleId: 'word-order-sub', count: 20 }], subClauseRate: 0.4, vocabDiversity: 0.6,
-    deescalation: 0.8, giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
+    deescalation: 1,
+    deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure', observedSteps: 3,
+      totalSteps: 3, turnCount: 3, wordCount: 70 },
+    giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
     evidenceQuality: { version: 1, words: 200, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.equal(result.limitingSkill, 'grammar');
@@ -88,4 +94,30 @@ test('unavailable grammar analysis cannot manufacture a zero-error measurement',
   assert.ok(result.note.includes('errPer100'));
   assert.notEqual(result.limitingSkill, 'grammar');
   assert.equal(result.simulationReady, null);
+});
+
+test('a broad legacy combat score cannot become service-recovery evidence', () => {
+  const result = hireReadinessFor({ sessions: [{
+    date: 10, wpm: 120, words: 160, fillers: 2, grammarMeasured: true, grammarRules: [],
+    subClauseRate: 0.4, vocabDiversity: 0.6, deescalation: 1, giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
+    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true, highConfidence: true },
+  }] });
+  assert.ok(result.note.includes('deescalation'));
+  assert.equal(result.measuredSignals, 8);
+  assert.notEqual(result.limitingSkill, 'deescalation');
+});
+
+test('forecast reports exact observed recovery steps rather than a generic combat percentage', () => {
+  const result = hireReadinessFor({ sessions: [{
+    date: 10, wpm: 125, words: 160, fillers: 2, grammarMeasured: true, grammarRules: [],
+    subClauseRate: 0.4, vocabDiversity: 0.6, deescalation: 1 / 3,
+    deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure', observedSteps: 1,
+      totalSteps: 3, turnCount: 3, wordCount: 70 },
+    giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
+    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true, highConfidence: true },
+  }] });
+  assert.equal(result.limitingSkill, 'deescalation');
+  assert.deepEqual(result.rejectionForecast.criterion, { stageId: 'customer_roleplay',
+    criterionId: 'service_recovery_structure', observed: 1, reference: 2,
+    direction: 'at_least', unit: 'recovery_steps_out_of_3' });
 });

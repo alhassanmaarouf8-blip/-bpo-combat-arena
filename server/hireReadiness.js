@@ -8,6 +8,8 @@
  * protects authored simulation boundaries only; it is not trained or validated on hiring outcomes.
  * Real consented outcomes must be evaluated separately before any employment-probability claim.
  */
+import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
+
 const ORD = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5 };
 const INDUSTRIES = new Set(['telecom', 'ecommerce', 'fintech', 'airline', 'delivery', 'logistik',
   'energie', 'versicherung', 'streaming', 'b2b']);
@@ -78,13 +80,14 @@ export function featuresFromProfile(p) {
   const wordCount = Math.max(0, Number(s?.evidenceQuality?.words) || Number(s.words) || 0);
   const grammarCount = s.grammarMeasured === true && Array.isArray(s.grammarRules)
     ? s.grammarRules.reduce((a, r) => a + Math.max(0, Number(r?.count) || 0), 0) : null;
+  const serviceRecoveryScore = serviceRecoveryScoreFromSession(s);
   const measured = {
     wpm: typeof s.wpm === 'number' && s.wpm > 0,
     fillerPer100: typeof s.fillers === 'number' && wordCount >= 80,
     errPer100: grammarCount != null && wordCount >= 80,
     subClauseRate: typeof s.subClauseRate === 'number',   // computed from transcript at session end
     vocabDiversity: typeof s.vocabDiversity === 'number', // computed from transcript at session end
-    deescalation: typeof s.deescalation === 'number',     // CS-roleplay (stage 2) score proxy
+    deescalation: serviceRecoveryScore != null, // 3-step service-recovery structure in stage 3
     giveUpRate: typeof s.giveUpRate === 'number',         // empty/near-silent turn share
     intelligibility: typeof s.intelligibility === 'number', // avg STT word-confidence proxy
     latencyS: typeof s.latencyS === 'number',             // avg reaction latency (s)
@@ -95,7 +98,7 @@ export function featuresFromProfile(p) {
     errPer100:       measured.errPer100 ? Math.min(100, (grammarCount / wordCount) * 100) : 6,
     subClauseRate:   measured.subClauseRate ? s.subClauseRate : 0.3,
     vocabDiversity:  measured.vocabDiversity ? s.vocabDiversity : 0.5,
-    deescalation:    measured.deescalation ? s.deescalation : 0.6,
+    deescalation:    measured.deescalation ? serviceRecoveryScore : 0.6,
     giveUpRate:      measured.giveUpRate ? s.giveUpRate : 0.15,
     intelligibility: measured.intelligibility ? s.intelligibility : 0.8,
     latencyS:        measured.latencyS ? s.latencyS : 3,
@@ -129,8 +132,8 @@ function riskCriterion(skill, f, measured) {
     observed: Math.round(f.errPer100 * 10) / 10, reference: 8, direction: 'at_most', unit: 'errors_per_100_words' };
   if (skill === 'intelligibility') return { stageId: 'phone_roleplay', criterionId: 'speech_recognition_proxy',
     observed: Math.round(f.intelligibility * 100), reference: 80, direction: 'at_least', unit: 'percent' };
-  if (skill === 'deescalation') return { stageId: 'customer_roleplay', criterionId: 'deescalation_response',
-    observed: Math.round(f.deescalation * 100), reference: 60, direction: 'at_least', unit: 'percent' };
+  if (skill === 'deescalation') return { stageId: 'customer_roleplay', criterionId: SERVICE_RECOVERY_CRITERION_ID,
+    observed: Math.round(f.deescalation * 3), reference: 2, direction: 'at_least', unit: 'recovery_steps_out_of_3' };
   if (skill === 'confidence') {
     const candidates = [
       measured.giveUpRate && { severity: Math.max(0, (f.giveUpRate - 0.2) / 0.2), stageId: 'pressure_followup', criterionId: 'complete_response',
@@ -201,7 +204,7 @@ export function hireReadinessFor(p) {
       ? 'measure first — no reliable multi-turn interview packet is available'
       : measuredCount < 9
       ? `preliminary — ${measuredCount}/9 signals measured; not yet measured: ${missing.join(', ')}`
-      : 'full (intelligibility = STT word-confidence proxy; de-escalation = CS-roleplay score proxy)',
+      : 'full (intelligibility = STT word-confidence proxy; service recovery = 3 observable response steps)',
   };
   return out;
 }

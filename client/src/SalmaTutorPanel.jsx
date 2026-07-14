@@ -14,7 +14,7 @@ const RISK_LABELS = Object.freeze({
   grammar: 'Grammatik in vollständigen Antworten',
   intelligibility: 'Verständlichkeit am Telefon',
   confidence: 'Antwortkontinuität unter Druck',
-  deescalation: 'Deeskalation im Kundengespräch',
+  deescalation: 'Service-Recovery-Struktur im Kundengespräch',
   complexity: 'sprachliche Bandbreite',
 });
 const ROLE_LABELS = Object.freeze({ customer_service: 'Kundenservice', technical_support: 'Technischer Support',
@@ -25,12 +25,13 @@ const INDUSTRY_LABELS = Object.freeze({ general: 'allgemeines deutsches BPO', te
 const STAGE_LABELS = Object.freeze({ spoken_interview: 'gesprochenes Interview', phone_roleplay: 'Telefon-Rollenspiel',
   customer_roleplay: 'Kunden-Rollenspiel', pressure_followup: 'unerwartete Rückfrage', behavioral_interview: 'Verhaltensinterview' });
 const CRITERION_LABELS = Object.freeze({ sustained_pace: 'durchgängiges Antworttempo', grammar_control: 'Grammatikkontrolle',
-  speech_recognition_proxy: 'Erkennbarkeit des Sprachsignals', deescalation_response: 'Deeskalationsantwort',
+  speech_recognition_proxy: 'Erkennbarkeit des Sprachsignals', service_recovery_structure: 'Service-Recovery-Struktur',
   complete_response: 'vollständige Antworten', response_latency: 'Reaktionszeit', filler_dependence: 'Füllwortabhängigkeit',
   connected_answer_structure: 'verbundene Antwortstruktur', lexical_range_proxy: 'Wortschatzbreite' });
 const UNIT_LABELS = Object.freeze({ wpm: 'Wörter/Min.', errors_per_100_words: 'Fehler/100 Wörter', percent: '%',
   percent_incomplete_turns: '% unvollständige Antworten', seconds: 'Sek.', fillers_per_100_words: 'Füllwörter/100 Wörter',
-  subordinate_clauses_per_100_sentences: 'Nebensätze/100 Sätze', type_token_percent: '% verschiedene Wörter' });
+  subordinate_clauses_per_100_sentences: 'Nebensätze/100 Sätze', type_token_percent: '% verschiedene Wörter',
+  recovery_steps_out_of_3: 'von 3 Schritten (Empathie, Verantwortung, nächster Schritt)' });
 
 export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null }) {
   const [coach, setCoach] = useState(null);

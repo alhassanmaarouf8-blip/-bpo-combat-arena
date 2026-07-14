@@ -4,12 +4,13 @@ import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
 import { listeningEvidence, listeningEvidenceSummary, listeningRetestEvidence } from './listeningEvidence.js';
 import { hireReadinessFor } from './hireReadiness.js';
+import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
 
 const MODES = new Set(['off', 'beta', 'on']);
 const WINDOWS = new Set(['morning', 'afternoon', 'evening']);
 const LANGUAGES = new Set(['de']);
 const DRILLS = new Set(['satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs']);
-const CRITERION_IDS = new Set(['sustained_pace', 'grammar_control', 'speech_recognition_proxy', 'deescalation_response',
+const CRITERION_IDS = new Set(['sustained_pace', 'grammar_control', 'speech_recognition_proxy', SERVICE_RECOVERY_CRITERION_ID,
   'complete_response', 'response_latency', 'filler_dependence', 'connected_answer_structure', 'lexical_range_proxy']);
 const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
 const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -100,8 +101,9 @@ export function measurementForSkill(profile, skillId) {
         .reduce((sum, row) => sum + Math.max(0, Number(row?.count) || 0), 0);
     } else if (metric.key === 'fluency_score' && Number.isFinite(session?.fluency)) {
       value = Math.max(0, Math.min(100, Number(session.fluency)));
-    } else if (metric.key === 'deescalation_score' && Number.isFinite(session?.deescalation)) {
-      value = Math.max(0, Math.min(100, Number(session.deescalation) * 100));
+    } else if (metric.key === 'deescalation_score') {
+      const serviceRecoveryScore = serviceRecoveryScoreFromSession(session);
+      if (serviceRecoveryScore != null) value = serviceRecoveryScore * 100;
     } else if (metric.key === 'response_continuity' && Number.isFinite(session?.giveUpRate)) {
       value = Math.max(0, Math.min(100, (1 - Number(session.giveUpRate)) * 100));
     } else if (metric.key === 'intelligibility_score' && Number.isFinite(session?.intelligibility)) {

@@ -17,7 +17,10 @@ function measuredProfile(sessionCount = 1) {
   const p = defaultProfile('acct-1');
   p.sessions = Array.from({ length: sessionCount }, (_, i) => reliableSession({ date: 1_700_000_000_000 + i, bossId: 'yasmin', verdict: 'review',
     wpm: 95, fluency: 52, fillers: 6, grammarRules: [{ rule: 'x', count: 4 }], subClauseRate: 0.2,
-    vocabDiversity: 0.5, deescalation: 0.55, giveUpRate: 0.1, intelligibility: 0.75, latencyS: 3 }));
+    vocabDiversity: 0.5, deescalation: 2 / 3,
+    deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure', observedSteps: 2,
+      totalSteps: 3, turnCount: 3, wordCount: 70 },
+    giveUpRate: 0.1, intelligibility: 0.75, latencyS: 3 }));
   return p;
 }
 

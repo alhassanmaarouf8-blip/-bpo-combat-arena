@@ -10,6 +10,7 @@ import { masteryFromHistory, MASTERY_GATE } from './bkt.js';
 import { hireReadinessFor, featuresFromProfile } from '../hireReadiness.js';
 import { listeningMasteryEvidence } from '../listeningEvidence.js';
 import { SKILL_BY_ID } from './skillGraph.js';
+import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from '../scoring/serviceRecoveryEvidence.js';
 
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const GATING = ['intelligibility', 'deescalation', 'wpm'];   // the hire-readiness gating signals
@@ -53,7 +54,7 @@ function criterionEvidenceCount(sessions, criterionId) {
     if (criterionId === 'sustained_pace') return Number.isFinite(session?.wpm);
     if (criterionId === 'grammar_control') return session?.grammarMeasured === true && words >= 80;
     if (criterionId === 'speech_recognition_proxy') return Number.isFinite(session?.intelligibility);
-    if (criterionId === 'deescalation_response') return Number.isFinite(session?.deescalation);
+    if (criterionId === SERVICE_RECOVERY_CRITERION_ID) return serviceRecoveryScoreFromSession(session) != null;
     if (criterionId === 'complete_response') return Number.isFinite(session?.giveUpRate);
     if (criterionId === 'response_latency') return Number.isFinite(session?.latencyS);
     if (criterionId === 'filler_dependence') return Number.isFinite(session?.fillers) && words >= 80;
@@ -117,7 +118,9 @@ export function masteredSkillsFromProfile(p) {
 
   // Measured interview signals → specific competencies (ONLY when the signal is actually measured).
   const gu = avg('giveUpRate');      if (gu != null && gu < 0.2)  mastered.add('no-freeze-expected');
-  const de = avg('deescalation');    if (de != null && de >= 0.6) mastered.add('deescalate');
+  const recoveryScores = recent.map(serviceRecoveryScoreFromSession).filter((value) => value != null);
+  const de = recoveryScores.length ? recoveryScores.reduce((sum, value) => sum + value, 0) / recoveryScores.length : null;
+  if (de != null && de >= 0.6) mastered.add('deescalate');
   const wpm = avg('wpm');            if (wpm != null && wpm >= 120) mastered.add('fluency-interrupt');
   const intel = avg('intelligibility'); if (intel != null && intel >= 0.8) mastered.add('pronunciation-phone');
 
