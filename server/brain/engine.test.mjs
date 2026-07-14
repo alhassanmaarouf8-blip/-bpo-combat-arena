@@ -76,22 +76,35 @@ test('engine: provisional legacy mastery can guide navigation but never authoriz
   assert.equal(d.journey.entryDone, 0);
 });
 
-test('engine: aha fires ONLY on a confirmed closed loop (drilled + sustained drop)', () => {
-  const weakLog = { 'konjunktiv-2': { ruleId: 'konjunktiv-2', errCounts: [{ count: 4 }, { count: 1 }], drills: [{ drill: 'sag-es-richtig' }] } };
-  const d = decide({ sessionCount: 3, masteredSkills: SKILLS.filter(s=>s.layer===0).map(s=>s.id), weakLog, lastTargetRuleId: 'konjunktiv-2' });
-  assert.deepEqual(d.aha, { ruleId: 'konjunktiv-2', before: 4, after: 1 });
+test('engine: aha exposes only a validated delayed transfer measurement', () => {
+  const verifiedImprovement = { skillId: 'fluency-interrupt', metricKey: 'fluency_score', before: 52, after: 61,
+    direction: 'higher', phase: 'transfer' };
+  const d = decide({ sessionCount: 3, masteredSkills: SKILLS.filter(s=>s.layer===0).map(s=>s.id), verifiedImprovement });
+  assert.deepEqual(d.aha, verifiedImprovement);
 });
 
-test('engine: NO aha when there was no drill (improvement unattributed)', () => {
-  const weakLog = { 'konjunktiv-2': { errCounts: [{ count: 4 }, { count: 1 }], drills: [] } };
+test('engine: legacy error drops and matched-only retests cannot produce an aha', () => {
+  const weakLog = { 'konjunktiv-2': { errCounts: [{ count: 4 }, { count: 1 }], drills: [{ drill: 'sag-es-richtig' }] } };
   const d = decide({ sessionCount: 3, weakLog, lastTargetRuleId: 'konjunktiv-2' });
   assert.equal(d.aha, null);
+  const matched = decide({ sessionCount: 3, verifiedImprovement: { skillId: 'konjunktiv-2', metricKey: 'grammar_errors',
+    before: 4, after: 1, direction: 'lower', phase: 'matched' } });
+  assert.equal(matched.aha, null);
 });
 
 test('engine: global regression vetoes a local celebration (honesty)', () => {
-  const weakLog = { 'konjunktiv-2': { errCounts: [{ count: 4 }, { count: 1 }], drills: [{ drill: 'x' }] } };
-  const d = decide({ sessionCount: 3, weakLog, lastTargetRuleId: 'konjunktiv-2', globalRegressed: true });
+  const d = decide({ sessionCount: 3, verifiedImprovement: { skillId: 'konjunktiv-2', metricKey: 'grammar_errors',
+    before: 4, after: 1, direction: 'lower', phase: 'transfer' }, globalRegressed: true });
   assert.equal(d.aha, null);
+});
+
+test('engine: spoofed metrics, prototype keys and wrong-way changes fail closed', () => {
+  const base = { sessionCount: 3, verifiedImprovement: { skillId: 'fluency-interrupt', metricKey: 'fluency_score',
+    before: 60, after: 50, direction: 'higher', phase: 'transfer' } };
+  assert.equal(decide(base).aha, null);
+  assert.equal(decide({ ...base, verifiedImprovement: { ...base.verifiedImprovement, skillId: '__proto__', before: 50, after: 60 } }).aha, null);
+  assert.equal(decide({ ...base, verifiedImprovement: { ...base.verifiedImprovement, metricKey: '__proto__', before: 50, after: 60 } }).aha, null);
+  assert.equal(decide({ ...base, verifiedImprovement: { ...base.verifiedImprovement, direction: 'lower', before: 50, after: 60 } }).aha, null);
 });
 
 test('engine: every directive carries a journey the UI can reflect, and it advances with mastery', () => {

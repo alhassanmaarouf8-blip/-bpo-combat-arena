@@ -104,3 +104,17 @@ test('the tutor labels observed risk honestly and exposes delayed listening rete
   assert.doesNotMatch(brain, /blockiert.*Einstellung|جاهز تشتغل/u);
   assert.match(brain, /internen Einstiegskriterien der Simulation/u);
 });
+
+test('improvement copy is metric-correct transfer evidence without causal or hiring overclaim', async () => {
+  const [brain, alhassan] = await Promise.all([
+    read('client/src/BrainGuide.jsx'),
+    read('server/alhassan.js'),
+  ]);
+  assert.match(brain, /VERIFIZIERTER TRANSFER/u);
+  assert.match(brain, /verzögerten Transfer-Retest mit neuer Situation bestätigt/u);
+  assert.match(brain, /fluency_score: \{ label: 'Sprechfluss', unit: 'Punkte' \}/u);
+  assert.doesNotMatch(brain, /nicht Zufall|von \$\{d\.aha\.before\} Fehlern auf/u);
+  assert.doesNotMatch(alhassan, /CONFIRMED, REAL WIN|living proof their work pays off/u);
+  assert.match(alhassan, /do not claim the drill alone caused it/u);
+  assert.match(alhassan, /do not call them hired or hireable/u);
+});

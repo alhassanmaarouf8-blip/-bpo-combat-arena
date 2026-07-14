@@ -14,6 +14,38 @@ import { SKILL_BY_ID } from './skillGraph.js';
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const GATING = ['intelligibility', 'deescalation', 'wpm'];   // the hire-readiness gating signals
 const DAY_MS = 86400000;
+const TRANSFER_METRIC_BY_SKILL = Object.freeze({
+  'word-order-sub': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
+  'dativ-akkusativ': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
+  'konjunktiv-2': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
+  'fluency-interrupt': { metricKey: 'fluency_score', direction: 'higher', minimumDelta: 5 },
+  deescalate: { metricKey: 'deescalation_score', direction: 'higher', minimumDelta: 5 },
+  'no-freeze-expected': { metricKey: 'response_continuity', direction: 'higher', minimumDelta: 5 },
+  'pronunciation-phone': { metricKey: 'intelligibility_score', direction: 'higher', minimumDelta: 3 },
+});
+
+function validatedTransferProofs(p, now = Date.now()) {
+  const history = Array.isArray(p?.salmaCoach?.coachState?.improvementHistory)
+    ? p.salmaCoach.coachState.improvementHistory : [];
+  return history.flatMap((proof) => {
+    const skillId = typeof proof?.skillId === 'string' ? proof.skillId : '';
+    const metric = Object.hasOwn(TRANSFER_METRIC_BY_SKILL, skillId) ? TRANSFER_METRIC_BY_SKILL[skillId] : null;
+    const before = Number(proof?.before); const after = Number(proof?.after); const verifiedAt = Number(proof?.verifiedAt);
+    const delta = metric?.direction === 'higher' ? after - before : before - after;
+    const valuesAreBounded = before >= 0 && after >= 0
+      && (metric?.metricKey === 'grammar_errors' || (before <= 100 && after <= 100));
+    if (!metric || !Object.hasOwn(SKILL_BY_ID, skillId) || proof?.phase !== 'transfer' || proof?.status !== 'improved'
+      || proof?.metricKey !== metric.metricKey || !/^[a-f0-9]{16}$/u.test(proof?.id || '')
+      || !/^[a-f0-9]{16}$/u.test(proof?.prescriptionId || '')
+      || !/^[a-f0-9]{12}$/u.test(proof?.measurementEvidenceId || '')
+      || typeof proof?.retestSessionId !== 'string' || !proof.retestSessionId.trim() || proof.retestSessionId.length > 100
+      || !Number.isFinite(before) || !Number.isFinite(after) || !valuesAreBounded
+      || !Number.isFinite(verifiedAt) || verifiedAt <= 0 || verifiedAt > now + 300_000
+      || delta < metric.minimumDelta) return [];
+    return [{ skillId, metricKey: metric.metricKey, before, after, direction: metric.direction,
+      phase: 'transfer', verifiedAt }];
+  });
+}
 
 function criterionEvidenceCount(sessions, criterionId) {
   const measured = (session) => {
@@ -100,19 +132,21 @@ export function masteredSkillsFromProfile(p) {
 // The legacy model helps select a sensible next curriculum node for existing accounts, but it must
 // never authorize an application/readiness claim. Only delayed novel listening packets or an
 // improvement proof explicitly recorded in the transfer phase can enter this set.
-export function verifiedMasteredSkillsFromProfile(p) {
+export function verifiedMasteredSkillsFromProfile(p, now = Date.now()) {
   const verified = new Set();
   const listening = listeningMasteryEvidence(p);
   if (listening.clear) verified.add('listen-clear');
   if (listening.phone) verified.add('listen-phone');
-  const history = Array.isArray(p?.salmaCoach?.coachState?.improvementHistory)
-    ? p.salmaCoach.coachState.improvementHistory : [];
-  for (const proof of history) {
-    if (proof?.phase !== 'transfer' || proof?.status !== 'improved' || !Object.hasOwn(SKILL_BY_ID, proof?.skillId)
-      || !Number.isFinite(Number(proof?.verifiedAt))) continue;
+  for (const proof of validatedTransferProofs(p, now)) {
     verified.add(proof.skillId);
   }
   return verified;
+}
+
+export function latestVerifiedImprovementFromProfile(p, now = Date.now()) {
+  const proofs = validatedTransferProofs(p, now);
+  if (!proofs.length) return null;
+  return proofs.reduce((latest, proof) => proof.verifiedAt >= latest.verifiedAt ? proof : latest);
 }
 
 export function buildSnapshot(p, now = Date.now()) {
@@ -144,7 +178,8 @@ export function buildSnapshot(p, now = Date.now()) {
 
   return {
     masteredSkills:   [...masteredSkillsFromProfile(p)],
-    verifiedMasteredSkills: [...verifiedMasteredSkillsFromProfile(p)],
+    verifiedMasteredSkills: [...verifiedMasteredSkillsFromProfile(p, now)],
+    verifiedImprovement: latestVerifiedImprovementFromProfile(p, now),
     weakLog,
     lastTargetRuleId: targetRuleId,
     limitingSkill:    hr.limitingSkill && hr.limitingSkill !== 'none' ? hr.limitingSkill : null,

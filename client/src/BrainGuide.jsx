@@ -29,8 +29,8 @@ const BRAIN_COPY = {
   // "أكونت ألماني … في" = the owner's own correction (2026-07-10) — his verbatim phrasing wins.
   apply:         'برافو يا وحش! خلّصت معايير المحاكاة الأساسية — دلوقتي قدّم عشان نختبر جاهزيتك مع فرص حقيقية.',
   measure:       'قبل ما نكمّل، محتاج أقيس حاجة واحدة عشان أظبّط طريقك صح — يلا نعملها في دقيقتين.',
-  ahaTitle:      'شوف بنفسك — تدريبك جاب نتيجة:',
-  ahaBody:       (label, before, after) => `${label}: كنت بتغلط فيها ${before} مرّة، دلوقتي ${after} بس — ده مجهودك انت، مش صدفة.`,
+  ahaTitle:      'VERIFIZIERTER TRANSFER',
+  ahaBody:       (skill, metric, before, after, unit) => `${skill}: ${metric} ${before} → ${after} ${unit}. Im verzögerten Retest mit einer neuen Situation bestätigt.`,
 };
 const DRILL_LABEL = {
   'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL',
@@ -55,6 +55,14 @@ const SKILL_LABEL = {
   'spontaneous-precise': 'Spontan & präzise', 'behavioral-salary': 'Verhaltensfragen & Gehalt',
   'konjunktiv-2': 'Konjunktiv II',
 };
+const AHA_METRIC = Object.freeze({
+  grammar_errors: { label: 'Fehlerzahl', unit: 'Fehler' },
+  fluency_score: { label: 'Sprechfluss', unit: 'Punkte' },
+  deescalation_score: { label: 'Deeskalation', unit: 'Punkte' },
+  response_continuity: { label: 'Antwortkontinuität', unit: 'Punkte' },
+  intelligibility_score: { label: 'Verständlichkeit', unit: 'Punkte' },
+  listening_accuracy: { label: 'Hörgenauigkeit', unit: '%' },
+});
 const MEASURE_LABEL = { intelligibility: 'deine Verständlichkeit am Telefon', deescalation: 'deine Deeskalation', wpm: 'dein Sprechtempo' };
 
 // THE FATHER EXPLAINS (bottleneck-doctrine D1–D4): one German sentence saying WHY this is the
@@ -164,6 +172,8 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
   const d = data.directive;
   const j = d.journey || {};
   const pct = Math.max(0, Math.min(100, j.pctToApply || 0));
+  const ahaMetric = d.aha && Object.hasOwn(AHA_METRIC, d.aha.metricKey) ? AHA_METRIC[d.aha.metricKey] : null;
+  const ahaSkill = d.aha ? (SKILL_LABEL[d.aha.skillId] || ruleLabel(d.aha.skillId)) : null;
 
   const ctaText =
       d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}`
@@ -215,16 +225,15 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
         </button>
       </div>
 
-      {/* The aha — only when the engine confirmed a real closed loop (it never fabricates one). */}
-      {d.aha && (
+      {/* This is a narrow delayed-transfer measurement, not proof that training caused the change. */}
+      {d.aha && ahaMetric && (
         <div style={ahaBox}>
           <div style={{ fontWeight: 800, color: 'var(--accent)' }}>{BRAIN_COPY.ahaTitle}</div>
-          <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(ruleLabel(d.aha.ruleId), d.aha.before, d.aha.after)}</div>
-          {/* The tell-everyone moment (R4, WOW plan): the aha is engine-verified truth (D3 closed
-              loop), so sharing it can never brag a lie. Quiet link — the aha stays the hero. */}
+          <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(ahaSkill, ahaMetric.label, d.aha.before, d.aha.after, ahaMetric.unit)}</div>
+          {/* Share only the observed metric and transfer context; never claim causality or hiring proof. */}
           <button
             onClick={() => {
-              const text = `${ruleLabel(d.aha.ruleId)}: von ${d.aha.before} Fehlern auf ${d.aha.after} — mit echten Live-Interviews auf Deutsch. https://omni-perform.vercel.app/?src=aha`;
+              const text = `${ahaSkill}: ${ahaMetric.label} ${d.aha.before} → ${d.aha.after} ${ahaMetric.unit} — in einem verzögerten Transfer-Retest mit neuer Situation bestätigt. https://omni-perform.vercel.app/?src=aha`;
               if (navigator.share) navigator.share({ text }).catch(() => {});
               else navigator.clipboard?.writeText(text).catch(() => {});
             }}

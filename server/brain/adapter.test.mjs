@@ -1,7 +1,8 @@
 // Bridge proof — adapter (profile → snapshot). Deterministic (fixed `now`). `node --test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSnapshot, masteredSkillsFromProfile, verifiedMasteredSkillsFromProfile } from './adapter.js';
+import { buildSnapshot, latestVerifiedImprovementFromProfile, masteredSkillsFromProfile,
+  verifiedMasteredSkillsFromProfile } from './adapter.js';
 import { decide } from './engine.js';
 
 const NOW = 1_700_000_000_000;
@@ -150,22 +151,40 @@ test('adapter: criterion confidence counts only reliable sessions that measured 
 });
 
 test('adapter: only delayed transfer proof enters readiness-authorizing mastery', () => {
+  const proof = (overrides = {}) => ({
+    id: '1111111111111111', prescriptionId: '2222222222222222', measurementEvidenceId: '333333333333',
+    retestSessionId: 'live-transfer', skillId: 'word-order-sub', metricKey: 'grammar_errors',
+    phase: 'transfer', status: 'improved', before: 4, after: 1, verifiedAt: NOW, ...overrides,
+  });
   const p = {
     sessions: [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - DAY, verdict: 'pass' }],
     salmaCoach: { coachState: { improvementHistory: [
-      { skillId: 'fluency-interrupt', phase: 'matched', status: 'improved', verifiedAt: NOW - DAY },
-      { skillId: 'deescalate', phase: 'transfer', status: 'held', verifiedAt: NOW - DAY },
-      { skillId: 'word-order-sub', phase: 'transfer', status: 'improved', verifiedAt: NOW },
-      { skillId: '__proto__', phase: 'transfer', status: 'improved', verifiedAt: NOW },
+      proof({ id: '4444444444444444', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
+        phase: 'matched', before: 50, after: 60, verifiedAt: NOW - DAY }),
+      proof({ id: '5555555555555555', skillId: 'deescalate', metricKey: 'deescalation_score',
+        status: 'held', before: 50, after: 52, verifiedAt: NOW - DAY }),
+      proof(),
+      proof({ id: '6666666666666666', skillId: '__proto__' }),
+      proof({ id: '7777777777777777', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
+        before: 60, after: 50, verifiedAt: NOW + DAY }),
+      proof({ id: '8888888888888888', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
+        before: 50, after: 60, verifiedAt: NOW + DAY }),
+      proof({ id: '9999999999999999', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
+        before: 50, after: 150, verifiedAt: NOW }),
     ] } },
   };
   const provisional = masteredSkillsFromProfile(p);
-  const verified = verifiedMasteredSkillsFromProfile(p);
+  const verified = verifiedMasteredSkillsFromProfile(p, NOW);
   assert.equal(provisional.has('self-intro'), true);
   assert.deepEqual([...verified], ['word-order-sub']);
   const snapshot = buildSnapshot(p, NOW);
   assert.equal(snapshot.masteredSkills.includes('self-intro'), true);
   assert.deepEqual(snapshot.verifiedMasteredSkills, ['word-order-sub']);
+  assert.deepEqual(latestVerifiedImprovementFromProfile(p, NOW), {
+    skillId: 'word-order-sub', metricKey: 'grammar_errors', before: 4, after: 1,
+    direction: 'lower', phase: 'transfer', verifiedAt: NOW,
+  });
+  assert.deepEqual(snapshot.verifiedImprovement, latestVerifiedImprovementFromProfile(p, NOW));
 });
 
 // Pins on-target prep (doctrine D3) at the ENGINE: with a concrete target, a drill event earns

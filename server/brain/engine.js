@@ -7,8 +7,8 @@
  * Honesty gates baked in (so it cannot confidently lie):
  *  - cold-start → low confidence, no causal claims
  *  - a weakness is only asserted with ≥2 sessions of evidence (hysteresis)
- *  - an "aha" fires ONLY on a confirmed closed loop (targeted → drilled → sustained drop) AND only
- *    when overall errors didn't rise (global regression vetoes a local celebration)
+ *  - an "aha" fires ONLY on a delayed novel transfer proof recorded by the server AND only when
+ *    overall errors did not rise (global regression vetoes a local celebration)
  *  - when a hire-gating signal is unmeasured, the next action is to MEASURE it, not guess
  */
 import { frontier, tierStatus, progress, SKILL_BY_ID } from './skillGraph.js';
@@ -73,22 +73,28 @@ function lastErr(weakLog, ruleId) {
   return s && s.length ? (s[s.length - 1].count || 0) : 0;
 }
 
-// Confirmed closed loop → an honest "aha". Returns {ruleId, before, after} or null.
-function detectAha(weakLog, lastTargetRuleId, globalRegressed) {
-  if (globalRegressed) return null;                       // never celebrate amid an overall regression
-  const e = lastTargetRuleId && weakLog?.[lastTargetRuleId];
-  if (!e) return null;
-  const drilled = (e.drills || []).length > 0;            // they actually did a prescribed drill
-  const s = e.errCounts || [];
-  if (!drilled || s.length < 2) return null;              // need a drill + ≥2 measurements (hysteresis)
-  const before = s[s.length - 2].count || 0;
-  const after  = s[s.length - 1].count || 0;
-  return (before > 0 && after < before) ? { ruleId: lastTargetRuleId, before, after } : null;
+const AHA_METRIC_DIRECTIONS = Object.freeze({
+  grammar_errors: 'lower', fluency_score: 'higher', deescalation_score: 'higher',
+  response_continuity: 'higher', intelligibility_score: 'higher', listening_accuracy: 'higher',
+});
+
+// A delayed novel transfer proof can support a narrow observed change. It cannot prove that the
+// drill caused the change, predict an employer decision, or authorize a different next action.
+function detectAha(verifiedImprovement, globalRegressed) {
+  if (globalRegressed || !verifiedImprovement || verifiedImprovement.phase !== 'transfer') return null;
+  const skillId = verifiedImprovement.skillId;
+  const metricKey = verifiedImprovement.metricKey;
+  const before = Number(verifiedImprovement.before); const after = Number(verifiedImprovement.after);
+  const direction = Object.hasOwn(AHA_METRIC_DIRECTIONS, metricKey) ? AHA_METRIC_DIRECTIONS[metricKey] : null;
+  const changedInExpectedDirection = direction === 'higher' ? after > before : direction === 'lower' ? after < before : false;
+  if (!Object.hasOwn(SKILL_BY_ID, skillId) || direction !== verifiedImprovement.direction
+    || !Number.isFinite(before) || !Number.isFinite(after) || !changedInExpectedDirection) return null;
+  return { skillId, metricKey, before, after, direction, phase: 'transfer' };
 }
 
 export function decide(snapshot = {}) {
   const {
-    masteredSkills = [], verifiedMasteredSkills = [], weakLog = {}, lastTargetRuleId = null,
+    masteredSkills = [], verifiedMasteredSkills = [], verifiedImprovement = null, weakLog = {},
     limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
@@ -157,7 +163,7 @@ export function decide(snapshot = {}) {
   const mastered = new Set(masteredSkills);
   const fr = frontier(mastered);
   const tier = tierStatus(new Set(verifiedMasteredSkills));
-  const aha = detectAha(weakLog, lastTargetRuleId, globalRegressed);
+  const aha = detectAha(verifiedImprovement, globalRegressed);
 
   // Entry tier cleared → stop drilling, start applying (the loop must end in a JOB, not a treadmill).
   if (tier.applyNow) {

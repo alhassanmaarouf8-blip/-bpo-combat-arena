@@ -253,11 +253,11 @@ async function buildFacts(account, g) {
         : pr.action === 'interview'  ? 'send them into a live interview NOW'
         : pr.action === 'measure'    ? `they need a live interview so we can MEASURE their ${pr.signal} — we don't guide on what we haven't measured`
         : pr.action === 'assessment' ? 'send them to the free level assessment first (they have no data yet)'
-        : pr.action === 'apply'      ? 'they CLEARED the entry tier — STOP drilling, push them to APPLY to a German line this week (confident, not "one day")'
+        : pr.action === 'apply'      ? 'they cleared every transfer-verified internal entry criterion — recommend applying now to collect real employer evidence; do not call them hired or hireable'
         :                              'send them into a live interview';
       lines.push(`THE BRAIN'S NEXT MOVE FOR THEM (push EXACTLY this, in your voice — do NOT invent a different plan): ${step}.`);
       if (dir.journey && dir.journey.entryTotal) lines.push(`Journey to apply-ready: ${dir.journey.entryDone}/${dir.journey.entryTotal} steps done (${dir.journey.pctToApply}%). Make how CLOSE they are to being able to apply feel real and motivating.`);
-      if (dir.aha) lines.push(`A CONFIRMED, REAL WIN to celebrate (the engine verified it — not hype): their "${dir.aha.ruleId}" errors dropped ${dir.aha.before} → ${dir.aha.after} after the drill you sent them to. Celebrate THIS specifically as living proof their work pays off, then point forward.`);
+      if (dir.aha) lines.push(`A delayed novel transfer retest measured "${dir.aha.skillId}" / "${dir.aha.metricKey}" at ${dir.aha.before} → ${dir.aha.after}. State exactly this narrow observation; do not claim the drill alone caused it, do not turn it into hiring proof, and do not invent a stronger conclusion.`);
       if (dir.confidence === 'low') lines.push(`Low confidence on their weakness (not enough data yet) — ask ONE sharp question or send them to practice; do NOT assert a weakness as fact.`);
     } catch { /* brain facts best-effort — never block the reply */ }
   } catch (e) { /* facts are best-effort; never block the reply */ }
