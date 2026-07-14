@@ -8,10 +8,11 @@
  * precedent). The Assessment itself is untouched; while it runs, App hides this overlay and bumps
  * `resumeTick` when it closes so the flow resumes on the verdict beat.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SpeakerIcon, CloseIcon } from './icons/AudioIcons';
 import { salmaSpeak, subscribeSalmaSpeaking, subscribeSalmaLevel } from './salmaVoice.js';
+import { stopTutorWhenDocumentHidden } from './salmaAudioSafety.js';
 
 const GOALS = [
   { value: 'bpo-job',       key: 'goal_bpo' },
@@ -37,6 +38,16 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   const [result, setResult] = useState(ctx.result || null);
   const returning = ctx.variant === 'returning';
   const seenTick  = useRef(0);
+  const speechStopRef = useRef(null);
+
+  const stopSpeech = useCallback(() => {
+    try { speechStopRef.current?.(); } catch { /* audio cleanup is best-effort */ }
+    speechStopRef.current = null;
+  }, []);
+  useEffect(() => {
+    const removeHiddenStop = stopTutorWhenDocumentHidden();
+    return () => { removeHiddenStop(); stopSpeech(); };
+  }, [stopSpeech]);
 
   const line = (key, slots) => salmaLine(key, lang, slots);
 
@@ -49,7 +60,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
       body: JSON.stringify({ salmaIntroSeen: true }),
     }).catch(() => {});
   };
-  const finish = (beaconId) => { markSeen(); onClose(beaconId); };
+  const finish = (beaconId) => { stopSpeech(); markSeen(); onClose(beaconId); };
 
   // Best-effort profile save — the flow never blocks on it (fights auto-capture names anyway).
   const saveProfile = () => {
@@ -172,7 +183,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     bubbles.push(say('screening_invite'));
     actions = (
       <>
-        <button style={btnOrange} onClick={onStartScreening}>{line('screening_cta')}</button>
+        <button style={btnOrange} onClick={() => { stopSpeech(); onStartScreening(); }}>{line('screening_cta')}</button>
         {skipLink(line('skip_label'), () => finish('salma_skipped'))}
       </>
     );
@@ -191,7 +202,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     bubbles.push(say(bookingCopyKey(result?.estimatedLevel)));
     actions = (
       <>
-        <button style={btnOrange} onClick={() => { markSeen(); onBookFight(result); }}>{line('booking_cta')}</button>
+        <button style={btnOrange} onClick={() => { stopSpeech(); markSeen(); onBookFight(result); }}>{line('booking_cta')}</button>
         {skipLink(line('later_label'), () => finish('salma_later'))}
       </>
     );
@@ -199,9 +210,9 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     bubbles.push(say('no_verdict'));
     actions = (
       <>
-        <button style={btnBlue} onClick={onStartScreening}>{line('no_verdict_resume')}</button>
+        <button style={btnBlue} onClick={() => { stopSpeech(); onStartScreening(); }}>{line('no_verdict_resume')}</button>
         <button style={{ ...btnBlue, background: 'rgba(59,130,246,0.14)', color: '#bfdbfe' }}
-          onClick={() => { markSeen(); onBookFight(null); }}>{line('no_verdict_direct')}</button>
+          onClick={() => { stopSpeech(); markSeen(); onBookFight(null); }}>{line('no_verdict_direct')}</button>
         {skipLink(line('later_label'), () => finish('salma_later'))}
       </>
     );
@@ -223,7 +234,9 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
           </div>
           <button aria-label="Salma anhören" onClick={() => {
-            if (spoken.length) salmaSpeak({ apiUrl, token, items: spoken });
+            stopSpeech();
+            if (spoken.length) speechStopRef.current = salmaSpeak({ apiUrl, token, items: spoken,
+              onEnd: () => { speechStopRef.current = null; } });
           }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',

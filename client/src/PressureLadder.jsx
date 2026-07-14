@@ -10,7 +10,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { SpeakerIcon } from './icons/AudioIcons';
-import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
@@ -216,6 +216,7 @@ async function voicedMsFromBlob(blob) {
 }
 
 export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null }) {
+  const tutorSession = useSalmaDrillSession(token, 'druck-leiter');
   const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
   const [phase, setPhase]   = useState('intro');    // intro | ready | answering | scoring | round | done
   const [left, setLeft]     = useState(0);
@@ -449,7 +450,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
           : (idx < LEVELS.length - 1 ? T(lang, 'Nächste Stufe ▸', 'المستوى اللي بعده ▸') : T(lang, 'Finale ▸', 'النهاية ▸'))}
       </button>
     </div>
-    <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="druck-leiter" initialCue={coachCue} />
+    <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="druck-leiter" initialCue={coachCue} drillSession={tutorSession} />
   </>);
 
   // done (cleared rung 5)

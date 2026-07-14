@@ -166,6 +166,8 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
   const proof = (overrides = {}) => ({
     id: '1111111111111111', prescriptionId: '2222222222222222', measurementEvidenceId: '333333333333',
     retestSessionId: 'live-transfer', skillId: 'word-order-sub', metricKey: 'grammar_errors',
+    contextId: '444444444444', noveltyId: '555555555555',
+    comparedContextId: '666666666666', comparedNoveltyId: '777777777777',
     phase: 'transfer', status: 'improved', before: 4, after: 1, verifiedAt: NOW, ...overrides,
   });
   const p = {
@@ -197,6 +199,11 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
     direction: 'lower', phase: 'transfer', verifiedAt: NOW,
   });
   assert.deepEqual(snapshot.verifiedImprovement, latestVerifiedImprovementFromProfile(p, NOW));
+  const replayedContext = { ...p, salmaCoach: { coachState: { improvementHistory: [
+    proof({ noveltyId: '777777777777' }),
+  ] } } };
+  assert.deepEqual([...verifiedMasteredSkillsFromProfile(replayedContext, NOW)], [],
+    'the same roleplay novelty identity cannot authorize mastery');
 });
 
 // Pins on-target prep (doctrine D3) at the ENGINE: with a concrete target, a drill event earns

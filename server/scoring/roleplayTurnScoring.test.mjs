@@ -26,16 +26,38 @@ test('sales rewards needs discovery and blocks pressure tactics', () => {
   assert.equal(bad.factors[0].side, 'player');
 });
 
+test('sales consent safeguards are distinguished from affirmative consent bypasses', () => {
+  const safe = roleplayTurnFactors('Danke f\u00fcr Ihre Offenheit. Darf ich fragen, was Ihnen wichtig ist? Ohne Ihre Zustimmung schlie\u00dfe ich keinen Vertrag ab.', 'sales');
+  assert.equal(safe.contradicted, false);
+  assert.deepEqual(labels(safe), ['Einwand anerkannt', 'Bedarf gekl\u00e4rt']);
+  assert.equal(roleplayTurnFactors('Ohne Ihre Zustimmung schlie\u00dfe ich den Vertrag ab.', 'sales').contradicted, true);
+  assert.equal(roleplayTurnFactors('Ohne Ihre Zustimmung biete ich keine Alternative an, aber ich schlie\u00dfe den Vertrag ab.', 'sales').contradicted, true);
+});
+
 test('retention rewards consent and respects cancellation', () => {
   const good = roleplayTurnFactors('Ich verstehe, dass Sie k\u00fcndigen. Darf ich fragen, warum? W\u00e4ren Sie offen f\u00fcr eine Alternative? Ich respektiere Ihre Entscheidung.', 'retention');
   assert.deepEqual(labels(good), ['K\u00fcndigungswunsch anerkannt', 'Grund gekl\u00e4rt', 'Erlaubnis vor Alternative', 'Entscheidung respektiert']);
   assert.equal(roleplayTurnFactors('Ich akzeptiere Ihre K\u00fcndigung nicht.', 'retention').contradicted, true);
 });
 
+test('retention consent safeguards are distinguished from unauthorized alternatives', () => {
+  const safe = roleplayTurnFactors('Ich verstehe, dass Sie k\u00fcndigen, und das respektiere ich. Ohne Ihre Zustimmung biete ich keine Alternative an.', 'retention');
+  assert.equal(safe.contradicted, false);
+  assert.deepEqual(labels(safe), ['K\u00fcndigungswunsch anerkannt']);
+  assert.equal(roleplayTurnFactors('Ohne Ihre Zustimmung biete ich Ihnen eine Alternative an.', 'retention').contradicted, true);
+});
+
 test('backoffice rewards source verification and blocks guessing', () => {
   const good = roleplayTurnFactors('Die Angaben widersprechen sich. Welche Quelle ist verbindlich? Ich dokumentiere den n\u00e4chsten Schritt.', 'backoffice');
   assert.deepEqual(labels(good), ['Datenkonflikt benannt', 'verbindliche Quelle erfragt', 'dokumentierter n\u00e4chster Schritt']);
   assert.equal(roleplayTurnFactors('Ich rate einfach die richtige Adresse.', 'backoffice').contradicted, true);
+});
+
+test('backoffice verification safeguards are distinguished from unverified changes', () => {
+  const safe = roleplayTurnFactors('Die Angaben widersprechen sich. Ohne Pr\u00fcfung \u00e4ndere ich die Daten nicht. Welche Quelle ist verbindlich? Ich dokumentiere den Fall.', 'backoffice');
+  assert.equal(safe.contradicted, false);
+  assert.deepEqual(labels(safe), ['Datenkonflikt benannt', 'verbindliche Quelle erfragt', 'dokumentierter n\u00e4chster Schritt']);
+  assert.equal(roleplayTurnFactors('Ohne Pr\u00fcfung \u00e4ndere ich die Daten.', 'backoffice').contradicted, true);
 });
 
 test('unknown roles fail closed', () => {

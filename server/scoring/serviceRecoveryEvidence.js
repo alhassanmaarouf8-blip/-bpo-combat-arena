@@ -10,7 +10,7 @@ import { looksTruncatedDE } from './turnQuality.js';
  * tone, employer acceptance, factual correctness, or real-world performance.
  */
 export const SERVICE_RECOVERY_CRITERION_ID = 'service_recovery_structure';
-export const SERVICE_RECOVERY_CRITERION_VERSION = 1;
+export const SERVICE_RECOVERY_CRITERION_VERSION = 2;
 export const SERVICE_RECOVERY_ROLE_TYPES = Object.freeze(['customer_service']);
 const SERVICE_RECOVERY_ROLES = new Set(SERVICE_RECOVERY_ROLE_TYPES);
 const TOTAL_STEPS = 3;
@@ -43,6 +43,8 @@ const HARD_NEGATIVES = Object.freeze([
   /\b(?:nicht|niemals)\s+(?:mein|unser)\s+problem\b/u,
   /\b(?:wir|ich)\s+(?:werden|werde|k\u00f6nnen|kann)\s+(?:gar\s+)?(?:nichts|nicht)\s+(?:tun|machen|pr\u00fcfen|kl\u00e4ren)\b/u,
   /\bich\s+k\u00fcmmere\s+mich\s+(?:gar\s+)?nicht\b/u,
+  /\b(?:ich|wir)\s+(?:pr\u00fcfe|pr\u00fcfen|kl\u00e4re|kl\u00e4ren|eskaliere|eskalieren|veranlasse|veranlassen|kontaktiere|kontaktieren|k\u00fcmmere|k\u00fcmmern)\b[^.!?]{0,70}\b(?:nicht(?!\s+(?:nur|heute|jetzt|sofort)\b)|nie|niemals|keinesfalls)\b/u,
+  /\b(?:ich\s+(?:werde|kann|k\u00f6nnte|will|m\u00f6chte)|(?:werde|kann|k\u00f6nnte|will|m\u00f6chte)\s+ich|wir\s+(?:werden|k\u00f6nnen|wollen|m\u00f6chten)|(?:werden|k\u00f6nnen|wollen|m\u00f6chten)\s+wir)\b[^.!?]{0,70}\b(?:nicht(?!\s+(?:nur|heute|jetzt|sofort)\b)|nie|niemals|keinesfalls)\b[^.!?]{0,40}\b(?:pr\u00fcfen|kl\u00e4ren|eskalieren|veranlassen|kontaktieren|k\u00fcmmern)\b/u,
   /\b(?:sie\s+sind|das\s+ist)\s+selbst\s+schuld\b/u,
 ]);
 

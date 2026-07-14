@@ -38,8 +38,11 @@ const RX = Object.freeze({
     negatives: [
       /\b(?:sie\s+m\u00fcssen|nur\s+heute|letzte\s+chance|garantiert|hundertprozentig)\b/u,
       /\bich\s+ignoriere\s+ihr\s+nein\b/u,
-      /\bohne\s+ihre\s+zustimmung\b/u,
     ],
+    guardedActions: Object.freeze({
+      guard: /\bohne\s+ihre\s+zustimmung\b/u,
+      action: /(?<![\p{L}\p{N}_])(?:abschlie\u00dfe|abschlie\u00dfen|schlie\u00dfe|aktiviere|aktivieren|bestelle|bestellen|biete|anbieten|buche|buchen|verl\u00e4ngere|verl\u00e4ngern|unterschreibe|unterschreiben|verkaufe|verkaufen)(?![\p{L}\p{N}_])/u,
+    }),
     acts: [
       ['Einwand anerkannt', 5, /\b(?:ich\s+verstehe\s+ihren\s+einwand|das\s+ist\s+nachvollziehbar|danke\s+f\u00fcr\s+ihre\s+offenheit)\b/u],
       ['Bedarf gekl\u00e4rt', 6, /\b(?:was\s+ist\s+ihnen|welches\s+ziel|woran\s+liegt|was\s+fehlt|welche\s+anforderung|darf\s+ich\s+fragen)\b[^?]{0,110}\?/u],
@@ -50,9 +53,12 @@ const RX = Object.freeze({
   retention: Object.freeze({
     negatives: [
       /\b(?:sie\s+d\u00fcrfen\s+nicht|ich\s+akzeptiere\s+ihre\s+k\u00fcndigung\s+nicht|nur\s+heute|letzte\s+chance)\b/u,
-      /\bohne\s+ihre\s+zustimmung\b/u,
       /\bich\s+verhindere\s+die\s+k\u00fcndigung\b/u,
     ],
+    guardedActions: Object.freeze({
+      guard: /\bohne\s+ihre\s+zustimmung\b/u,
+      action: /(?<![\p{L}\p{N}_])(?:abschlie\u00dfe|abschlie\u00dfen|schlie\u00dfe|aktiviere|aktivieren|biete|anbieten|buche|buchen|verl\u00e4ngere|verl\u00e4ngern|widerrufe|widerrufen|storniere|stornieren)(?![\p{L}\p{N}_])/u,
+    }),
     acts: [
       ['K\u00fcndigungswunsch anerkannt', 5, /\b(?:ich\s+verstehe,?\s+dass\s+sie\s+k\u00fcndigen|ihren\s+k\u00fcndigungswunsch\s+habe\s+ich\s+verstanden|das\s+respektiere\s+ich)\b/u],
       ['Grund gekl\u00e4rt', 6, /\b(?:darf\s+ich\s+fragen,?\s+warum|was\s+ist\s+der\s+hauptgrund|liegt\s+es\s+an)\b[^?]{0,100}\?/u],
@@ -63,9 +69,12 @@ const RX = Object.freeze({
   backoffice: Object.freeze({
     negatives: [
       /\bich\s+(?:rate|sch\u00e4tze|vermute)\b/u,
-      /\bohne\s+(?:pr\u00fcfung|beleg|freigabe|best\u00e4tigung)\b/u,
       /\bich\s+\u00e4ndere\s+(?:das|die\s+daten)\s+einfach\b/u,
     ],
+    guardedActions: Object.freeze({
+      guard: /\bohne\s+(?:pr\u00fcfung|beleg|freigabe|best\u00e4tigung)\b/u,
+      action: /(?<![\p{L}\p{N}_])(?:aktualisiere|aktualisieren|\u00e4ndere|\u00e4ndern|buche|buchen|freigebe|freigeben|l\u00f6sche|l\u00f6schen|speichere|speichern|\u00fcbernehme|\u00fcbernehmen|verarbeite|verarbeiten)(?![\p{L}\p{N}_])/u,
+    }),
     acts: [
       ['Datenkonflikt benannt', 5, /\b(?:die\s+angaben\s+widersprechen\s+sich|es\s+fehlt\s+.{0,50}\b(?:pflichtfeld|referenz|beleg)|die\s+adresse\s+ist\s+nicht\s+eindeutig|ich\s+sehe\s+zwei\s+unterschiedliche)\b/u],
       ['verbindliche Quelle erfragt', 6, /\b(?:welche\s+quelle\s+ist\s+verbindlich|k\u00f6nnen\s+sie\s+.{0,50}\b(?:beleg|referenz|best\u00e4tigung|freigabe)\b|bitte\s+best\u00e4tigen\s+sie)\b/u],
@@ -78,12 +87,39 @@ function normalize(text) {
   return ` ${String(text || '').normalize('NFKC').toLocaleLowerCase('de-DE').replace(/\s+/gu, ' ').trim()} `;
 }
 
+const SAFE_NEGATION = /\b(?:nicht|nie|niemals|keinesfalls|nichts|kein(?:e|en|em|er|es)?)\b/u;
+const CONTRAST = /\b(?:aber|doch|jedoch|sondern)\b/gu;
+
+/** A missing safeguard is unsafe only when it actually governs an affirmative role action. */
+function violatesGuardedAction(text, rule) {
+  if (!rule) return false;
+  const guardPattern = new RegExp(rule.guard.source, `${rule.guard.flags.replace('g', '')}g`);
+  for (const guard of text.matchAll(guardPattern)) {
+    const afterGuard = guard.index + guard[0].length;
+    const sentence = text.slice(afterGuard).split(/[.!?;\n]/u, 1)[0].slice(0, 180);
+    const actionPattern = new RegExp(rule.action.source, `${rule.action.flags.replace('g', '')}g`);
+    for (const action of sentence.matchAll(actionPattern)) {
+      const contrasts = [...sentence.slice(0, action.index).matchAll(CONTRAST)];
+      const lastContrast = contrasts.at(-1);
+      const start = Math.max(0, action.index - 45,
+        lastContrast ? lastContrast.index + lastContrast[0].length : 0);
+      const nextContrast = sentence.slice(action.index + action[0].length).search(/\b(?:aber|doch|jedoch|sondern)\b/u);
+      const end = nextContrast === -1
+        ? Math.min(sentence.length, action.index + action[0].length + 55)
+        : action.index + action[0].length + nextContrast;
+      if (!SAFE_NEGATION.test(sentence.slice(start, end))) return true;
+    }
+  }
+  return false;
+}
+
 /** Return only directly observed, role-specific live-HUD factors. */
 export function roleplayTurnFactors(transcript, roleType) {
   if (!ROLE_TYPES.has(roleType)) return Object.freeze({ roleType: null, contradicted: false, factors: Object.freeze([]) });
   const text = normalize(transcript);
   const rubric = RX[roleType];
-  const contradicted = rubric.negatives.some((pattern) => pattern.test(text));
+  const contradicted = rubric.negatives.some((pattern) => pattern.test(text))
+    || violatesGuardedAction(text, rubric.guardedActions);
   const factors = contradicted
     ? [{ side: 'player', label: 'widerspr\u00fcchliche Rollenhandlung', hp: 7 }]
     : rubric.acts.filter(([, , pattern]) => pattern.test(text)).map(([label, hp]) => ({ side: 'boss', label, hp }));

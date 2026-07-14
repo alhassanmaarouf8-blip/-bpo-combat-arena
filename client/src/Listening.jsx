@@ -9,7 +9,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { SpeakerIcon } from './icons/AudioIcons';
-import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
@@ -17,6 +17,7 @@ import { DrillIntro } from './drillIntros.jsx';
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
+  const tutorSession = useSalmaDrillSession(token, 'hoer-check');
   const [phase, setPhase] = useState('loading'); // loading | practice | done | error
   const [items, setItems] = useState([]);
   const [baseRate, setBaseRate] = useState(1.0);  // level-scaled base speed from the server
@@ -315,7 +316,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         {busy ? T(lang, 'Prüfe…', 'بصحّح…') : T(lang, 'Antwort prüfen', 'صحّح الإجابة')}
       </button>
     ) : null}
-    {result && !busy && !playing && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="hoer-check" initialCue={result.coachCue} />}
+    {result && !busy && !playing && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="hoer-check" initialCue={result.coachCue} drillSession={tutorSession} />}
   </>);
 }
 

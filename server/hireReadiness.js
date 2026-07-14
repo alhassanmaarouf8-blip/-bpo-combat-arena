@@ -10,6 +10,7 @@
  */
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
 import { validatedTransferProofs } from './scoring/transferProofs.js';
+import { missionControlActiveVacancyTargetId } from './missionControlCore.js';
 
 const ORD = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5 };
 const INDUSTRIES = new Set(['telecom', 'ecommerce', 'fintech', 'airline', 'delivery', 'logistik',
@@ -117,14 +118,21 @@ export function featuresFromProfile(p) {
   return { f, measured, evidenceQuality: s.evidenceQuality || null, session: s, wordCount };
 }
 
-function safeSessionTarget(session, profile) {
+function safeSessionTarget(session, profile, options = {}) {
   const industryKey = INDUSTRIES.has(session?.targetIndustry) ? session.targetIndustry : 'general';
   const roleType = ROLE_TYPES.has(session?.targetRoleType) ? session.targetRoleType : 'customer_service';
   const scenarioId = typeof session?.scenarioId === 'string' && /^[a-z0-9_-]{1,80}$/u.test(session.scenarioId)
     ? session.scenarioId : null;
   const sessionTargetId = typeof session?.vacancyTargetId === 'string' ? session.vacancyTargetId : null;
-  const activeTargetId = typeof profile?.vacancyTarget?.active?.id === 'string' ? profile.vacancyTarget.active.id : null;
-  const current = sessionTargetId ? sessionTargetId === activeTargetId : false;
+  const legacyActiveTargetId = typeof profile?.vacancyTarget?.active?.id === 'string'
+    ? profile.vacancyTarget.active.id : null;
+  const missionControlActiveTargetId = missionControlActiveVacancyTargetId(
+    profile,
+    options?.missionControl || {},
+  );
+  const current = sessionTargetId
+    ? sessionTargetId === legacyActiveTargetId || sessionTargetId === missionControlActiveTargetId
+    : false;
   return {
     roleType,
     industryKey,
@@ -196,8 +204,8 @@ function riskCriterion(skill, f, measured, target = null) {
   return null;
 }
 
-function rejectionForecast({ profile, session, evidenceQuality, limitingSkill, f, measured, now }) {
-  const target = safeSessionTarget(session, profile);
+function rejectionForecast({ profile, session, evidenceQuality, limitingSkill, f, measured, now, options }) {
+  const target = safeSessionTarget(session, profile, options);
   const freshness = freshnessFor(session, now);
   const confidence = confidenceForEvidence(evidenceQuality, profile, limitingSkill, now, session);
   if (confidence === 'insufficient') return { state: 'measure_first', confidence, target, riskId: null, criterion: null };
@@ -215,7 +223,7 @@ function rejectionForecast({ profile, session, evidenceQuality, limitingSkill, f
 
 /** Preliminary simulation diagnostic. Prefers the app's existing CEFR estimate for level and keeps
  *  employer-level hire readiness unknown until real outcome-linked validation exists. */
-export function hireReadinessFor(p, now = Date.now()) {
+export function hireReadinessFor(p, now = Date.now(), options = {}) {
   const { f, measured, evidenceQuality, session } = featuresFromProfile(p);
   const raw = classify(f);
   const measuredCount = Object.values(measured).filter(Boolean).length;
@@ -232,7 +240,9 @@ export function hireReadinessFor(p, now = Date.now()) {
     : limitingSkill
       ? { state: 'observed_risk', confidence: confidenceForEvidence(evidenceQuality, p, limitingSkill, now, session), limitingSkill }
       : { state: 'no_single_risk_observed', confidence: 'medium', limitingSkill: null };
-  const forecast = rejectionForecast({ profile: p, session, evidenceQuality, limitingSkill, f, measured, now });
+  const forecast = rejectionForecast({
+    profile: p, session, evidenceQuality, limitingSkill, f, measured, now, options,
+  });
   const out = {
     level: p?.assessmentResult?.estimatedLevel || raw.level,   // prefer the real CEFR estimate
     hireReady,

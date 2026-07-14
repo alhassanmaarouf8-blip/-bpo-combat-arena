@@ -9,13 +9,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
-import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { DrillIntro } from './drillIntros.jsx';
 
 const MAX_SEC = 18;
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
+  const tutorSession = useSalmaDrillSession(token, 'srs');
   const [phase, setPhase] = useState('loading'); // loading | practice | empty | done | error
   const [items, setItems] = useState([]);
   const [idx, setIdx]     = useState(0);
@@ -214,7 +215,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
         </>
       )}
     </div>
-    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="srs" initialCue={result.coachCue} />}
+    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="srs" initialCue={result.coachCue} drillSession={tutorSession} />}
   </>);
 }
 

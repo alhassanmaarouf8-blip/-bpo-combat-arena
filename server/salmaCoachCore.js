@@ -82,7 +82,21 @@ function reliableSpeakingSessions(profile) {
   ));
 }
 
-export function measurementForSkill(profile, skillId) {
+function speakingContextForSession(session) {
+  const scenarioId = boundedString(session?.scenarioId, 80);
+  const roleType = boundedString(session?.targetRoleType, 40);
+  if (!scenarioId || !roleType) return null;
+  const bossId = boundedString(session?.bossId, 40);
+  const industryKey = boundedString(session?.targetIndustry, 40);
+  const targetId = boundedString(session?.vacancyTargetId, 100);
+  return {
+    contextId: hash({ bossId, roleType, scenarioId, industryKey, targetId }, 12),
+    // Transfer means a different roleplay problem, not merely another session, boss, or timestamp.
+    noveltyId: hash({ roleType, scenarioId }, 12),
+  };
+}
+
+export function measurementForSkill(profile, skillId, { sessionId = null } = {}) {
   const metric = metricForSkill(skillId);
   if (!metric) return null;
   if (metric.key === 'listening_accuracy') {
@@ -91,7 +105,9 @@ export function measurementForSkill(profile, skillId) {
     return { metricKey: metric.key, value: roundMetric(summary.accuracy * 100), measuredAt: summary.measuredAt,
       evidenceId: hash({ skillId, evidenceIds: summary.evidenceIds }, 12) };
   }
-  const sessions = reliableSpeakingSessions(profile);
+  const requestedSessionId = boundedString(sessionId, 100);
+  const sessions = reliableSpeakingSessions(profile)
+    .filter((session) => !requestedSessionId || boundedString(session?.sessionId, 100) === requestedSessionId);
   for (let index = sessions.length - 1; index >= 0; index -= 1) {
     const session = sessions[index];
     let value = null;
@@ -115,7 +131,10 @@ export function measurementForSkill(profile, skillId) {
     const evidenceId = metric.key === 'deescalation_score' && typeof session?.deescalationEvidence?.binding === 'string'
       ? hash({ skillId, binding: session.deescalationEvidence.binding }, 12)
       : hash({ skillId, metricKey: metric.key, measuredAt, bossId: session?.bossId || '' }, 12);
-    return { metricKey: metric.key, value: roundMetric(value), measuredAt, evidenceId };
+    const sourceSessionId = boundedString(session?.sessionId, 100) || null;
+    const context = speakingContextForSession(session);
+    return { metricKey: metric.key, value: roundMetric(value), measuredAt, evidenceId,
+      sourceSessionId, contextId: context?.contextId || null, noveltyId: context?.noveltyId || null };
   }
   return null;
 }
@@ -124,7 +143,10 @@ function normalizeMeasurement(value, skillId) {
   const metric = metricForSkill(skillId);
   if (!metric || value?.metricKey !== metric.key || !Number.isFinite(value?.value) || !Number.isFinite(value?.measuredAt)
     || !/^[a-f0-9]{12}$/u.test(value?.evidenceId || '')) return null;
-  return { metricKey: metric.key, value: roundMetric(value.value), measuredAt: Number(value.measuredAt), evidenceId: value.evidenceId };
+  return { metricKey: metric.key, value: roundMetric(value.value), measuredAt: Number(value.measuredAt), evidenceId: value.evidenceId,
+    sourceSessionId: boundedString(value.sourceSessionId, 100) || null,
+    contextId: /^[a-f0-9]{12}$/u.test(value.contextId || '') ? value.contextId : null,
+    noveltyId: /^[a-f0-9]{12}$/u.test(value.noveltyId || '') ? value.noveltyId : null };
 }
 
 function normalizeImprovementProof(value) {
@@ -133,11 +155,18 @@ function normalizeImprovementProof(value) {
     || !['improved', 'held', 'regressed'].includes(value?.status) || !Number.isFinite(value?.before)
     || !Number.isFinite(value?.after) || !Number.isFinite(value?.verifiedAt)) return null;
   const phase = value.phase === 'transfer' ? 'transfer' : 'matched';
+  const contextId = /^[a-f0-9]{12}$/u.test(value.contextId || '') ? value.contextId : null;
+  const noveltyId = /^[a-f0-9]{12}$/u.test(value.noveltyId || '') ? value.noveltyId : null;
+  const comparedContextId = /^[a-f0-9]{12}$/u.test(value.comparedContextId || '') ? value.comparedContextId : null;
+  const comparedNoveltyId = /^[a-f0-9]{12}$/u.test(value.comparedNoveltyId || '') ? value.comparedNoveltyId : null;
+  if (phase === 'transfer' && (!contextId || !noveltyId || !comparedContextId || !comparedNoveltyId
+    || contextId === comparedContextId || noveltyId === comparedNoveltyId)) return null;
   return { id: value.id, prescriptionId: value.prescriptionId, skillId, metricKey: metric.key,
     before: roundMetric(value.before), after: roundMetric(value.after), status: value.status,
     phase, verifiedAt: Number(value.verifiedAt), measuredAt: Number(value.measuredAt) || Number(value.verifiedAt),
     measurementEvidenceId: /^[a-f0-9]{12}$/u.test(value.measurementEvidenceId || '') ? value.measurementEvidenceId : null,
-    retestSessionId: boundedString(value.retestSessionId, 100) || null };
+    retestSessionId: boundedString(value.retestSessionId, 100) || null,
+    contextId, noveltyId, comparedContextId, comparedNoveltyId };
 }
 
 function publicImprovementProof(value) {
@@ -367,22 +396,34 @@ export function recordMeaningfulRetest(state, profile, { sessionId, skillId, pha
   if (next.coachState.improvementHistory.some((proof) => proof.retestSessionId === safeId)) return next;
   const expected = speakingRetestState(next, now);
   if (!expected || expected.phase === 'complete' || expected.eligible !== true || phase !== expected.phase) return next;
-  const followup = measurementForSkill(profile, skillId);
+  // Bind the score to the exact server-recorded fight that requested closure. A newer unrelated
+  // session must never be substituted merely because it is last in the profile.
+  const followup = measurementForSkill(profile, skillId, { sessionId: safeId });
+  if (!followup || followup.sourceSessionId !== safeId) return next;
   const previousMeasurement = expected.phase === 'transfer' && expected.matched
     ? { measuredAt: expected.matched.measuredAt, evidenceId: expected.matched.measurementEvidenceId }
     : prescription.baseline;
-  if (!followup || followup.measuredAt <= previousMeasurement.measuredAt
+  if (followup.measuredAt <= previousMeasurement.measuredAt
     || (previousMeasurement.evidenceId && followup.evidenceId === previousMeasurement.evidenceId)) return next;
+  const comparedContextId = expected.phase === 'transfer' ? expected.matched?.contextId : prescription.baseline?.contextId;
+  const comparedNoveltyId = expected.phase === 'transfer' ? expected.matched?.noveltyId : prescription.baseline?.noveltyId;
+  if (expected.phase === 'transfer' && (!followup.contextId || !followup.noveltyId
+    || !comparedContextId || !comparedNoveltyId || followup.contextId === comparedContextId
+    || followup.noveltyId === comparedNoveltyId)) return next;
   const metric = metricForSkill(skillId); const rawDelta = followup.value - prescription.baseline.value;
   const signedImprovement = metric.direction === 'higher' ? rawDelta : -rawDelta;
   const status = signedImprovement >= metric.minimumDelta ? 'improved'
     : signedImprovement <= -metric.minimumDelta ? 'regressed' : 'held';
   const proof = normalizeImprovementProof({
     id: hash({ prescriptionId: prescription.id, skillId, before: prescription.baseline.value,
-      after: followup.value, retestSessionId: safeId, phase: expected.phase }, 16),
+      after: followup.value, retestSessionId: safeId, phase: expected.phase,
+      contextId: followup.contextId, noveltyId: followup.noveltyId,
+      comparedContextId, comparedNoveltyId }, 16),
     prescriptionId: prescription.id, skillId, before: prescription.baseline.value, after: followup.value,
     phase: expected.phase, status, verifiedAt: now, measuredAt: followup.measuredAt,
     measurementEvidenceId: followup.evidenceId, retestSessionId: safeId,
+    contextId: followup.contextId, noveltyId: followup.noveltyId,
+    comparedContextId, comparedNoveltyId,
   });
   next.coachState.lastRetestSessionId = safeId;
   next.coachState.improvementHistory = [...next.coachState.improvementHistory, proof].filter(Boolean).slice(-12);

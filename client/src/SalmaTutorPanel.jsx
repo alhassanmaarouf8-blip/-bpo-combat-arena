@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
 import { salmaModel } from './salmaVoice.js';
+import { consumeAutomaticTutorCue, createTutorDrillSession, stopTutorWhenDocumentHidden,
+  tutorDrillSessionMatches } from './salmaAudioSafety.js';
 
 const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, cursor: 'pointer',
   border: '1px solid rgba(96,165,250,0.34)', background: 'rgba(59,130,246,0.08)',
@@ -8,7 +10,6 @@ const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, curs
 
 function auth(token, extra = {}) { return { Authorization: `Bearer ${token}`, ...extra }; }
 
-const automaticCueCounts = new Map();
 const RISK_LABELS = Object.freeze({
   fluency: 'Antwortfluss unter Zeitdruck',
   grammar: 'Grammatik in vollständigen Antworten',
@@ -33,7 +34,15 @@ const UNIT_LABELS = Object.freeze({ wpm: 'Wörter/Min.', errors_per_100_words: '
   subordinate_clauses_per_100_sentences: 'Nebensätze/100 Sätze', type_token_percent: '% verschiedene Wörter',
   recovery_steps_out_of_3: 'von 3 Schritten (Empathie, Verantwortung, nächster Schritt)' });
 
-export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null }) {
+export function useSalmaDrillSession(token, drillId) {
+  const sessionRef = useRef(null);
+  if (!tutorDrillSessionMatches(sessionRef.current, token, drillId)) {
+    sessionRef.current = createTutorDrillSession(token, drillId);
+  }
+  return sessionRef.current;
+}
+
+export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null, drillSession = null }) {
   const [coach, setCoach] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -46,6 +55,8 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const speechStopRef = useRef(null);
   const spokenEventRef = useRef(null);
   const beaconedRef = useRef(new Set());
+  const localDrillSession = useSalmaDrillSession(token, drillId || screen);
+  const automaticSpeechSession = drillSession || localDrillSession;
 
   const stopSpeech = useCallback(() => {
     try { speechStopRef.current?.(); } catch { /* best-effort audio cleanup */ }
@@ -63,6 +74,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   }, [apiUrl, token]);
 
   useEffect(() => { loadCoach(); return stopSpeech; }, [loadCoach, stopSpeech]);
+  useEffect(() => stopTutorWhenDocumentHidden(), []);
   useEffect(() => { if (initialCue?.text) setCue(initialCue); }, [initialCue]);
   useEffect(() => {
     const events = [];
@@ -127,13 +139,10 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   }, [coach, speak]);
   useEffect(() => {
     if (!cue?.text || !coach?.feature?.voiceEnabled || !coach?.preferences?.autoSpeak || coach?.preferences?.muted) return;
-    // Keep the session cap free of account identifiers and bearer tokens.
-    const key = drillId || screen;
-    const count = automaticCueCounts.get(key) || 0;
-    if (count >= Math.min(2, cue.maxAutomaticSpeech || 2)) return;
-    automaticCueCounts.set(key, count + 1);
+    if (document.visibilityState !== 'visible') return;
+    if (!consumeAutomaticTutorCue(automaticSpeechSession, cue, cue.maxAutomaticSpeech)) return;
     speak(cue.text);
-  }, [coach, cue, drillId, screen, speak, token]);
+  }, [automaticSpeechSession, coach, cue, speak]);
 
   const ask = useCallback(async (text, speakReply = false) => {
     const clean = String(text || '').trim().slice(0, 400);

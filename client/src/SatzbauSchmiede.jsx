@@ -18,7 +18,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
-import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
@@ -30,6 +30,7 @@ const TIME_FLOOR = 10;   // never ramps below this
 const TIME_STEP  = 2;    // shaved off per subsequent item — the difficulty ramp
 
 export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
+  const tutorSession = useSalmaDrillSession(token, 'satzbau-schmiede');
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
   const [items, setItems]   = useState([]);
   const [idx, setIdx]       = useState(0);
@@ -277,7 +278,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
         {busy ? T(lang, 'Prüfe…', '') : T(lang, 'Prüfen', '')}{/* OWNER-AR slots */}
       </button>
     )}
-    {result && !busy && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="satzbau-schmiede" initialCue={result.coachCue} />}
+    {result && !busy && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="satzbau-schmiede" initialCue={result.coachCue} drillSession={tutorSession} />}
   </>);
 }
 

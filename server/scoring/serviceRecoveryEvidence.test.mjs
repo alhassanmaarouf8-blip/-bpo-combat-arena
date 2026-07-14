@@ -65,6 +65,30 @@ test('negation, refusal, and vague promises can never earn recovery credit', () 
   }
 });
 
+test('object-before-negation cannot manufacture ownership or next-step evidence', () => {
+  for (const phrase of [
+    'Das tut mir wirklich leid und ich kann Ihren \u00c4rger nachvollziehen. Ich pr\u00fcfe Ihren Fall nicht.',
+    'Das tut mir wirklich leid und ich kann Ihren \u00c4rger nachvollziehen. Als N\u00e4chstes werde ich den Vorgang nicht kl\u00e4ren.',
+    'Das tut mir wirklich leid und ich kann Ihren \u00c4rger nachvollziehen. Wir eskalieren Ihre Beschwerde keinesfalls.',
+  ]) {
+    const evidence = serviceRecoveryEvidence([phrase, 'Dazu mache ich heute keine weitere konkrete Zusage.'], baseContext);
+    assert.equal(evidence.eligible, true);
+    assert.equal(evidence.contradicted, true);
+    assert.equal(evidence.observedSteps, 0);
+    assert.equal(evidence.score, 0);
+  }
+});
+
+test('nicht nur does not falsely turn an affirmative recovery action into a contradiction', () => {
+  const evidence = serviceRecoveryEvidence([
+    'Das tut mir wirklich leid und ich kann Ihren \u00c4rger gut nachvollziehen.',
+    'Ich pr\u00fcfe nicht nur Ihren Fall, sondern ich kl\u00e4re die Lieferung. Ich melde mich morgen.',
+  ], baseContext);
+  assert.equal(evidence.contradicted, false);
+  assert.deepEqual(evidence.signals, { empathy: true, ownership: true, nextStep: true });
+  assert.equal(evidence.score, 1);
+});
+
 test('thin roleplay evidence fails closed even when all phrases are present', () => {
   const evidence = serviceRecoveryEvidence([
     'Das tut mir leid. Ich k\u00fcmmere mich und werde mich morgen melden.',

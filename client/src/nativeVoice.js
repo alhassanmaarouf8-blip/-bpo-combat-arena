@@ -7,6 +7,8 @@
  *
  * `drill=1` tells the server to skip the interview-minute gate (drills are unlimited).
  */
+import { beginIndependentPlayback } from './salmaAudioSafety.js';
+
 const DEFAULT_DRILL_VOICE = 'aura-2-julius-de';   // clear, neutral native-German Aura-2 voice
 
 /**
@@ -95,21 +97,29 @@ function wireLevelAnalyser(a, onLevel) {
 }
 
 function browserSpeak(text, rate, onEnd, onStart, onError) {
+  let releaseIndependent = null;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    try { releaseIndependent?.(); } catch { /* ignore */ }
+    onEnd?.();
+  };
   try {
     const s = window.speechSynthesis;
-    if (!s) { onError?.(); onEnd?.(); return () => {}; }
+    if (!s) { onError?.(); finish(); return () => {}; }
     s.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'de-DE';
     u.rate = Math.min(2, rate || 1);
     const de = (s.getVoices() || []).find((v) => /^de(-|_|$)/i.test(v.lang));
     if (de) u.voice = de;
-    u.onstart = () => onStart?.();
-    u.onend = () => onEnd?.();
-    u.onerror = () => { onError?.(); onEnd?.(); };
+    u.onstart = () => { releaseIndependent = beginIndependentPlayback(); onStart?.(); };
+    u.onend = finish;
+    u.onerror = () => { onError?.(); finish(); };
     s.speak(u);
-    return () => { try { s.cancel(); } catch { /* ignore */ } };
-  } catch { onError?.(); onEnd?.(); return () => {}; }
+    return () => { try { s.cancel(); } catch { /* ignore */ } finish(); };
+  } catch { onError?.(); finish(); return () => {}; }
 }
 
 /**
@@ -132,6 +142,7 @@ function browserSpeak(text, rate, onEnd, onStart, onError) {
 export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, salma = false, noBrowserFallback = true, onStart, onError, onEnd, onLevel } = {}) {
   let startNotified = false;
   let errorNotified = false;
+  let doneNotified = false;
   const startedPlaying = () => {
     if (startNotified) return;
     startNotified = true;
@@ -142,7 +153,11 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     errorNotified = true;
     try { onError?.(); } catch { /* ignore */ }
   };
-  const done = () => { try { onEnd?.(); } catch { /* ignore */ } };
+  const done = () => {
+    if (doneNotified) return;
+    doneNotified = true;
+    try { onEnd?.(); } catch { /* ignore */ }
+  };
   const t = String(text || '').trim();
   if (!t) { done(); return () => {}; }
   // The robotic-voice guard: either speak in the browser voice, or (rule on) stay silent but still
@@ -162,10 +177,15 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     // cross-origin src unless CORS is anonymous — set it BEFORE the src loads. No effect when phone is off.
     if (phone || onLevel) { try { a.crossOrigin = 'anonymous'; } catch { /* ignore */ } }
     try { a.playbackRate = rate || 1; a.preservesPitch = true; } catch { /* Safari: ignore */ }
-    let started = false, fellBack = null, phoneCtx = null, levelWire = null, retried = false;
+    let started = false, fellBack = null, phoneCtx = null, levelWire = null, retried = false, releaseIndependent = null;
+    const releasePlayback = () => { try { releaseIndependent?.(); } catch { /* ignore */ } releaseIndependent = null; };
     const closeGraphs = () => { try { levelWire?.stop(); } catch { /* ignore */ } try { levelWire?.ctx?.close(); } catch { /* ignore */ } try { phoneCtx?.close(); } catch { /* ignore */ } };
-    a.onplaying = () => { started = true; startedPlaying(); };
-    a.onended = () => { closeGraphs(); done(); };
+    a.onplaying = () => {
+      started = true;
+      if (!salma && !releaseIndependent) releaseIndependent = beginIndependentPlayback();
+      startedPlaying();
+    };
+    a.onended = () => { releasePlayback(); closeGraphs(); done(); };
     // Pre-start failure. On the phone path the element is a CORS-mode load (crossOrigin='anonymous'):
     // the client (Vercel) and API (Render) are DIFFERENT origins, so a missing/mismatched CORS header
     // fails the load where the plain, unflagged load used to just play. Retry ONCE as a plain native
@@ -175,16 +195,19 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
       if (started || fellBack) return;
       if ((phone || onLevel) && !retried) {
         retried = true;
-        closeGraphs(); phoneCtx = null; levelWire = null;
+        releasePlayback(); closeGraphs(); phoneCtx = null; levelWire = null;
         // A crossOrigin load can fail if CORS is momentarily off → retry PLAIN (no filter, no analyser):
         // the native voice is preserved; the talking-head simply falls back to its idle flap.
-        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, noBrowserFallback,
+        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, salma, noBrowserFallback,
           onStart: startedPlaying, onError: failedToPlay, onEnd });
       } else {
         fellBack = fallbackOrSilence();   // server failed before any audio → browser voice, or silence if forbidden
       }
     };
-    a.onerror = onFail;
+    a.onerror = () => {
+      if (!started) { onFail(); return; }
+      releasePlayback(); closeGraphs(); done();
+    };
     // Wire the telephone band-pass; if it can't (unsupported/tainted) the element plays direct, unfiltered.
     if (phone) phoneCtx = wirePhoneAudio(a);
     // Talking-head mouth: tap the real envelope so the mouth moves WITH the words. Only when NOT phone
@@ -204,6 +227,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     return () => {
       cancelled = true; ctrl.abort();
       try { a.pause(); a.src = ''; } catch { /* ignore */ }
+      releasePlayback();
       closeGraphs();
       if (fellBack) fellBack();
     };

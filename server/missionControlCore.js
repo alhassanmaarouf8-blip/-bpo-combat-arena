@@ -1686,6 +1686,21 @@ export function resolveActiveVacancyBridge(state, opportunityId = null) {
   };
 }
 
+/**
+ * Return only the opaque target id needed by other server-side diagnostics.
+ * Decryption, owner-bound AAD verification, state normalization, and the
+ * opportunity/bridge relationship all stay inside the Mission Control boundary.
+ * Any unavailable, malformed, orphaned, closed, or foreign state fails closed.
+ */
+export function missionControlActiveVacancyTargetId(profile, options = {}) {
+  try {
+    const bridge = resolveActiveVacancyBridge(readEncryptedMissionControl(profile, options));
+    return /^vac_[a-f0-9]{24}$/u.test(bridge?.targetId || '') ? bridge.targetId : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Governed, enum-only bridge for the existing live interview stack. */
 export function missionControlVacancyLiveContext(profile, account, options = {}) {
   const env = options?.env || process.env;

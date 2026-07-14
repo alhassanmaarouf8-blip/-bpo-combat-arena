@@ -10,16 +10,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
-import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
+import { beginIndependentPlayback } from './salmaAudioSafety.js';
 import { DrillIntro } from './drillIntros.jsx';
 
 const MAX_SEC = 20;   // a single sentence repeat is short
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
+  const tutorSession = useSalmaDrillSession(token, 'shadowing');
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
   const [sentences, setSen] = useState([]);
   const [idx, setIdx]       = useState(0);
@@ -44,6 +46,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const timerRef    = useRef(null);
   const stopRef     = useRef(null);
   const clipUrlRef  = useRef(null);   // mirror of clipUrl so we can revoke without stale closures
+  const ownTakeStopRef = useRef(null);
 
   const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
 
@@ -67,11 +70,17 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   // Keep the model-voice stop handle: closing the drill or playing something new must SILENCE
   // the previous line (an orphaned model voice talking over the next screen reads as a bug).
   const stopVoiceRef = useRef(null);
-  const stopVoice = () => { try { stopVoiceRef.current?.(); } catch { /* ignore */ } stopVoiceRef.current = null; };
+  const stopOwnTake = () => { try { ownTakeStopRef.current?.(); } catch { /* ignore */ } ownTakeStopRef.current = null; };
+  const stopVoice = () => {
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    stopVoiceRef.current = null;
+    stopOwnTake();
+  };
   useEffect(() => () => {
     clearInterval(timerRef.current); clearTimeout(stopRef.current);
     recRef.current?.stop?.().catch(() => {});
     try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    stopOwnTake();
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
   }, []);
 
@@ -94,8 +103,20 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   // Play the learner's own recorded take (honest prosody feedback: their ear judges rhythm vs the model).
   const playMine = () => {
     if (!clipUrlRef.current) return;
-    stopVoice();   // the model must not talk over the learner's own take
-    try { const a = new Audio(clipUrlRef.current); a.play().catch(() => {}); } catch { /* ignore */ }
+    stopVoice();   // the model/tutor must not talk over the learner's own take
+    try {
+      const release = beginIndependentPlayback();
+      const a = new Audio(clipUrlRef.current);
+      let done = false;
+      const stop = () => {
+        if (done) return; done = true;
+        try { a.pause(); } catch { /* ignore */ }
+        release();
+      };
+      ownTakeStopRef.current = stop;
+      a.onended = stop; a.onerror = stop;
+      a.play().catch(stop);
+    } catch { /* ignore */ }
   };
 
   const startRec = async () => {
@@ -327,7 +348,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         </>
       )}
     </div>
-    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="shadowing" />}
+    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="shadowing" drillSession={tutorSession} />}
   </>);
 }
 

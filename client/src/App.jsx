@@ -12,6 +12,7 @@ import { BrainGuide } from './BrainGuide.jsx';   // eager: rendered inline on th
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
+import { stopTutorPlayback } from './salmaAudioSafety.js';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
 import {
   bindPendingInterviewPassClaimToEmail,
@@ -5433,6 +5434,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
   const beginSession = useCallback(async () => {
+    // The interview owns audio/microphone from this point onward; no tutor line may leak in.
+    stopTutorPlayback();
     unlockAudioPlayback();   // MUST run synchronously inside the tap — unlocks mobile audio so boss TTS can play
     fightModeRef.current = 'daily';
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;

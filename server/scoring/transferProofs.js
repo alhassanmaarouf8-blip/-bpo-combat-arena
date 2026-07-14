@@ -19,6 +19,10 @@ export function validatedTransferProofs(profile, now = Date.now()) {
     const skillId = typeof proof?.skillId === 'string' ? proof.skillId : '';
     const metric = Object.hasOwn(TRANSFER_METRIC_BY_SKILL, skillId) ? TRANSFER_METRIC_BY_SKILL[skillId] : null;
     const before = Number(proof?.before); const after = Number(proof?.after); const verifiedAt = Number(proof?.verifiedAt);
+    const contextId = typeof proof?.contextId === 'string' ? proof.contextId : '';
+    const noveltyId = typeof proof?.noveltyId === 'string' ? proof.noveltyId : '';
+    const comparedContextId = typeof proof?.comparedContextId === 'string' ? proof.comparedContextId : '';
+    const comparedNoveltyId = typeof proof?.comparedNoveltyId === 'string' ? proof.comparedNoveltyId : '';
     const delta = metric?.direction === 'higher' ? after - before : before - after;
     const valuesAreBounded = before >= 0 && after >= 0
       && (metric?.metricKey === 'grammar_errors' || (before <= 100 && after <= 100));
@@ -26,6 +30,9 @@ export function validatedTransferProofs(profile, now = Date.now()) {
       || proof?.metricKey !== metric.metricKey || !/^[a-f0-9]{16}$/u.test(proof?.id || '')
       || !/^[a-f0-9]{16}$/u.test(proof?.prescriptionId || '')
       || !/^[a-f0-9]{12}$/u.test(proof?.measurementEvidenceId || '')
+      || !/^[a-f0-9]{12}$/u.test(contextId) || !/^[a-f0-9]{12}$/u.test(noveltyId)
+      || !/^[a-f0-9]{12}$/u.test(comparedContextId) || !/^[a-f0-9]{12}$/u.test(comparedNoveltyId)
+      || contextId === comparedContextId || noveltyId === comparedNoveltyId
       || typeof proof?.retestSessionId !== 'string' || !proof.retestSessionId.trim() || proof.retestSessionId.length > 100
       || !Number.isFinite(before) || !Number.isFinite(after) || !valuesAreBounded
       || !Number.isFinite(verifiedAt) || verifiedAt <= 0 || verifiedAt > now + 300_000

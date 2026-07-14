@@ -9,6 +9,14 @@ import assert from 'node:assert/strict';
 import { hireReadinessFor, textFeatures } from './hireReadiness.js';
 import { CS_SCENARIOS } from './scenarios.js';
 import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
+import {
+  buildOpportunity,
+  emptyMissionControlState,
+  encryptMissionControlState,
+  setActiveVacancyBridge,
+} from './missionControlCore.js';
+
+const MISSION_CONTROL_KEY = Buffer.alloc(32, 17);
 
 const RECOVERY_TURNS = Object.freeze({
   1: Object.freeze([
@@ -21,8 +29,8 @@ const RECOVERY_TURNS = Object.freeze({
   ]),
 });
 
-function recoveryFields(date, observedSteps = 3) {
-  const context = { sessionId: `session_${date}`, targetId: null, roleType: 'customer_service',
+function recoveryFields(date, observedSteps = 3, targetId = null) {
+  const context = { sessionId: `session_${date}`, targetId, roleType: 'customer_service',
     scenarioId: CS_SCENARIOS[0].id, observedAt: date };
   const evidence = serviceRecoveryEvidence(RECOVERY_TURNS[observedSteps], context);
   const stored = Object.fromEntries(['version', 'criterionId', 'criterionVersion', 'binding', 'roleType',
@@ -30,6 +38,66 @@ function recoveryFields(date, observedSteps = 3) {
     'turnCount', 'wordCount'].map((key) => [key, evidence[key]]));
   return { sessionId: context.sessionId, targetRoleType: context.roleType, scenarioId: context.scenarioId,
     deescalation: evidence.score, deescalationEvidence: stored };
+}
+
+function encryptedMissionControlProfile(targetId, now, userId = 'acct_hire_readiness') {
+  const opportunity = buildOpportunity({
+    sourceHash: 'b'.repeat(64),
+    sourceHost: 'jobs.lever.co',
+    officialApplyUrl: 'https://jobs.lever.co/example/german-support',
+  }, {
+    roleTitle: 'German Customer Support Agent',
+    employerDisplay: 'Example Support',
+    location: 'Cairo',
+    postedDate: '2026-07-14',
+    openState: 'open',
+    roleType: 'customer_service',
+    industryKey: 'telecom',
+    germanLevel: 'b2',
+    skillIds: ['deescalation'],
+    questionTopicIds: ['customer_escalation'],
+    displayRequirements: ['German customer support'],
+  }, null, now);
+  const state = setActiveVacancyBridge({
+    ...emptyMissionControlState(),
+    opportunities: [opportunity],
+    updatedAt: now,
+  }, {
+    opportunityId: opportunity.id,
+    targetId,
+    interviewDate: '2026-07-20',
+    activatedAt: now,
+  });
+  return {
+    userId,
+    vacancyTarget: { active: null },
+    missionControlEncrypted: encryptMissionControlState(state, userId, {
+      key: MISSION_CONTROL_KEY,
+      iv: Buffer.alloc(12, 9),
+    }),
+  };
+}
+
+function reliableTargetedSession(now, vacancyTargetId) {
+  return {
+    date: now - 1000,
+    vacancyTargetId,
+    targetRoleType: 'customer_service',
+    targetIndustry: 'telecom',
+    scenarioId: CS_SCENARIOS[0].id,
+    ...recoveryFields(now - 1000, 1, vacancyTargetId),
+    wpm: 125,
+    words: 160,
+    fillers: 2,
+    grammarMeasured: true,
+    grammarRules: [],
+    subClauseRate: 0.4,
+    vocabDiversity: 0.6,
+    giveUpRate: 0.05,
+    intelligibility: 0.9,
+    latencyS: 2,
+    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true },
+  };
 }
 
 test('textFeatures: under 20 words returns null rates (honest gate, no fabricated signal)', () => {
@@ -180,6 +248,55 @@ test('old evidence and deleted vacancy targets are historical, never current tar
   assert.equal(deleted.rejectionForecast.target.current, false);
 });
 
+test('a confirmed encrypted Mission Control vacancy is the current target without plaintext duplication', () => {
+  const now = Date.parse('2026-07-15T09:00:00.000Z');
+  const targetId = `vac_${'a'.repeat(24)}`;
+  const profile = encryptedMissionControlProfile(targetId, now);
+  const result = hireReadinessFor({
+    ...profile,
+    sessions: [reliableTargetedSession(now, targetId)],
+  }, now, { missionControl: { key: MISSION_CONTROL_KEY } });
+
+  assert.equal(profile.vacancyTarget.active, null, 'the encrypted bridge must remain the source of truth');
+  assert.equal(result.rejectionForecast.target.source, 'vacancy_snapshot');
+  assert.equal(result.rejectionForecast.target.current, true);
+  assert.notEqual(result.rejectionForecast.state, 'historical_only');
+  assert.equal(JSON.stringify(result).includes(targetId), false, 'readiness must not expose the private target id');
+  assert.equal(JSON.stringify(result).includes('ciphertext'), false, 'readiness must not expose the encrypted envelope');
+});
+
+test('Mission Control target checks fail closed for mismatches, stale evidence, and foreign ciphertext', () => {
+  const now = Date.parse('2026-07-15T09:00:00.000Z');
+  const currentTargetId = `vac_${'a'.repeat(24)}`;
+  const otherTargetId = `vac_${'b'.repeat(24)}`;
+  const profile = encryptedMissionControlProfile(currentTargetId, now);
+  const options = { missionControl: { key: MISSION_CONTROL_KEY } };
+
+  const mismatch = hireReadinessFor({
+    ...profile,
+    sessions: [reliableTargetedSession(now, otherTargetId)],
+  }, now, options);
+  assert.equal(mismatch.rejectionForecast.state, 'historical_only');
+  assert.equal(mismatch.rejectionForecast.target.current, false);
+
+  const staleSession = reliableTargetedSession(now, currentTargetId);
+  staleSession.date = now - 15 * 24 * 60 * 60 * 1000;
+  const stale = hireReadinessFor({ ...profile, sessions: [staleSession] }, now, options);
+  assert.equal(stale.rejectionForecast.state, 'historical_only');
+  assert.equal(stale.rejectionForecast.freshness, 'historical');
+  assert.equal(stale.rejectionForecast.target.current, true,
+    'matching target identity does not override evidence freshness');
+
+  const foreignOwner = hireReadinessFor({
+    ...profile,
+    userId: 'acct_foreign_owner',
+    sessions: [reliableTargetedSession(now, currentTargetId)],
+  }, now, options);
+  assert.equal(foreignOwner.rejectionForecast.state, 'historical_only');
+  assert.equal(foreignOwner.rejectionForecast.target.current, false,
+    'AES-GCM state must not be readable under a different account AAD');
+});
+
 test('high criterion confidence requires a validated recent transfer proof', () => {
   const now = 1_800_000_000_000;
   const session = { date: now - 1000, wpm: 120, words: 120, fillers: 2,
@@ -188,6 +305,8 @@ test('high criterion confidence requires a validated recent transfer proof', () 
     evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true } };
   const transfer = { id: '1111111111111111', prescriptionId: '2222222222222222',
     measurementEvidenceId: '333333333333', retestSessionId: 'transfer-session',
+    contextId: '444444444444', noveltyId: '555555555555',
+    comparedContextId: '666666666666', comparedNoveltyId: '777777777777',
     skillId: 'pronunciation-phone', metricKey: 'intelligibility_score', phase: 'transfer', status: 'improved',
     before: 60, after: 70, verifiedAt: now - 500 };
   const result = hireReadinessFor({ sessions: [session], salmaCoach: { coachState: { improvementHistory: [transfer] } } }, now);
@@ -202,4 +321,8 @@ test('high criterion confidence requires a validated recent transfer proof', () 
   assert.equal(targeted.rejectionForecast.target.current, true);
   assert.equal(targeted.rejectionForecast.confidence, 'medium',
   'a generic transfer proof cannot elevate an exact vacancy forecast without a target binding');
+  const repeatedContext = hireReadinessFor({ sessions: [session], salmaCoach: { coachState: {
+    improvementHistory: [{ ...transfer, noveltyId: transfer.comparedNoveltyId }] } } }, now);
+  assert.equal(repeatedContext.interviewRisk.confidence, 'medium',
+    'a repeated roleplay identity cannot elevate criterion confidence');
 });

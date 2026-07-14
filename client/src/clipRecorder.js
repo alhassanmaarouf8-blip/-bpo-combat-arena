@@ -6,6 +6,7 @@
  * It does NOT open a Realtime session — the bytes stay local until the user submits.
  */
 import { AudioRecorder } from './audioRecorder.js';
+import { stopTutorPlayback } from './salmaAudioSafety.js';
 
 const SAMPLE_RATE = 24_000;
 
@@ -25,6 +26,8 @@ export class ClipRecorder {
   }
   get isRecording() { return this._rec.isRecording; }
   async start() {
+    // Tutor narration must never be captured as if it were the learner's answer/question.
+    stopTutorPlayback();
     this._chunks = [];
     this._startedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     await this._rec.start();

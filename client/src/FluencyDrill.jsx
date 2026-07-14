@@ -17,12 +17,13 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
-import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onClose, onGoPricing, why = null }){
+  const tutorSession = useSalmaDrillSession(token, 'flow-drill');
   const [mode, setMode]     = useState('432');      // '432' (classic) | 'chunks' (Blitz-Formeln)
   const [phase, setPhase]   = useState('loading'); // loading | ready | practice | scoring | between | done | error
   const [prompt, setPrompt] = useState(null);      // { id, de, ar }
@@ -180,7 +181,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   </>);
 
   if (phase === 'done') return shell(<>{header}<Debrief lang={lang} prompt={prompt} rounds={rounds} results={results} onAgain={load} onClose={onClose} />
-    <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="flow-drill" /></>);
+    <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="flow-drill" drillSession={tutorSession} /></>);
 
   // The shared prompt card + round tracker (shown across ready/practice/scoring/between).
   const promptCard = (

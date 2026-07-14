@@ -10,6 +10,7 @@
  */
 import { playNative } from './nativeVoice.js';
 import { SALMA_COPY, salmaLine } from './salmaCopy.js';
+import { claimTutorPlayback } from './salmaAudioSafety.js';
 
 // Salma's German = Gemini (warm, human, normalized), NOT Deepgram Aura-2 (owner ear 07-12:
 // "robotic, low, unhuman"). Same Kore voice as her masri → ONE Salma across both languages.
@@ -45,6 +46,28 @@ function withSpeakingSignal({ onStart, onError, onEnd } = {}) {
   };
 }
 
+function startSalmaPlayback(options, callbacks) {
+  const lease = claimTutorPlayback();
+  if (!lease) {
+    try { callbacks.onError?.(); } catch { /* ignore */ }
+    try { callbacks.onEnd?.(); } catch { /* ignore */ }
+    return () => {};
+  }
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    lease.release();
+    callbacks.onEnd?.();
+  };
+  const stopNative = playNative({ ...options, onStart: callbacks.onStart, onError: callbacks.onError, onEnd: finish });
+  lease.attach(() => {
+    try { stopNative?.(); } catch { /* ignore */ }
+    finish();
+  });
+  return lease.stop;
+}
+
 export function composeSalmaSpoken(items) {
   const real = (items || []).filter((it) => it && SALMA_COPY[it.key]);
   const text = real
@@ -60,7 +83,7 @@ export function composeSalmaSpoken(items) {
  */
 export function salmaModel({ apiUrl, token, text, onStart, onError, onEnd }) {
   const cb = withSpeakingSignal({ onStart, onError, onEnd });
-  return playNative({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel, ...cb });
+  return startSalmaPlayback({ apiUrl, token, text, voice: SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel }, cb);
 }
 
 /**
@@ -73,5 +96,5 @@ export function salmaSpeak({ apiUrl, token, items, dePrefix, onStart, onError, o
   // salma:true = the server-side plan-gate exemption for her own fixed lines: her voice must work
   // from second zero of a fresh account (the trial clock only starts at the first interview).
   const cb = withSpeakingSignal({ onStart, onError, onEnd });
-  return playNative({ apiUrl, token, text: spoken, voice: SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel, ...cb });
+  return startSalmaPlayback({ apiUrl, token, text: spoken, voice: SALMA_VOICE_DE, salma: true, onLevel: emitSalmaLevel }, cb);
 }
