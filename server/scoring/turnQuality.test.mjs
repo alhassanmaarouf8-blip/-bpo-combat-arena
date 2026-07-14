@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { looksTruncatedDE, sessionSubstance, lowConfidenceWords, quoteHasLowConfidence, looksLikeTrustworthyCorrection } from './turnQuality.js';
+import { looksTruncatedDE, sessionSubstance, speakingEvidenceQuality, lowConfidenceWords, quoteHasLowConfidence, looksLikeTrustworthyCorrection } from './turnQuality.js';
 
 test('truncated: the owner\'s real cut-off fragments are flagged', () => {
   // straight from the reported broken interview
@@ -56,6 +56,37 @@ test('sessionSubstance: two real complete answers with enough words is judgeable
 
 test('sessionSubstance: empty session is trivially too thin', () => {
   assert.equal(sessionSubstance([]).tooThinToJudge, true);
+});
+
+test('speaking evidence distinguishes a useful debrief from a reliable prescription packet', () => {
+  const short = [
+    { text: 'Ich heiße Karim und arbeite seit drei Jahren sehr gern mit anspruchsvollen Kunden im Service.', words: 15, stage: 0 },
+    { text: 'Ich löse Beschwerden ruhig, erkläre den nächsten Schritt und dokumentiere danach die vereinbarte Lösung vollständig.', words: 15, stage: 1 },
+  ];
+  assert.equal(sessionSubstance(short).tooThinToJudge, false);
+  assert.equal(speakingEvidenceQuality(short).prescriptionEligible, false);
+
+  const diagnostic = Array.from({ length: 4 }, (_, index) => ({
+    text: `Ich gebe eine vollständige berufliche Antwort mit einem konkreten Beispiel aus meiner bisherigen Arbeit Nummer ${index}.`,
+    words: 21,
+    stage: index < 2 ? 0 : 1,
+  }));
+  const quality = speakingEvidenceQuality(diagnostic);
+  assert.equal(quality.prescriptionEligible, true);
+  assert.equal(quality.highConfidence, false);
+  assert.equal(quality.stageCoverage, 2);
+});
+
+test('high-confidence speaking evidence requires all three stages and six complete answers', () => {
+  const full = Array.from({ length: 6 }, (_, index) => ({
+    text: `Ich beantworte diese Interviewfrage vollständig, begründe meine Entscheidung und nenne ein konkretes Ergebnis aus einer realistischen Kundensituation Nummer ${index}, damit meine Leistung unter Druck messbar bleibt.`,
+    words: 31,
+    stage: Math.floor(index / 2),
+  }));
+  const quality = speakingEvidenceQuality(full);
+  assert.equal(quality.prescriptionEligible, true);
+  assert.equal(quality.highConfidence, true);
+  assert.equal(quality.stageCoverage, 3);
 });
 
 test('lowConfidenceWords: only sub-threshold words are flagged', () => {

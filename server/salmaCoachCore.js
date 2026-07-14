@@ -2,6 +2,8 @@ import { createHash } from 'crypto';
 import { planOf, trialActive } from './auth.js';
 import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
+import { listeningEvidence, listeningEvidenceSummary } from './listeningEvidence.js';
+import { hireReadinessFor } from './hireReadiness.js';
 
 const MODES = new Set(['off', 'beta', 'on']);
 const WINDOWS = new Set(['morning', 'afternoon', 'evening']);
@@ -30,6 +32,8 @@ const IMPROVEMENT_METRICS = Object.freeze({
   deescalate: { key: 'deescalation_score', label: 'Deeskalation', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
   'no-freeze-expected': { key: 'response_continuity', label: 'Antwortkontinuität', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
   'pronunciation-phone': { key: 'intelligibility_score', label: 'Verständlichkeit am Telefon', unit: 'Punkte', direction: 'higher', minimumDelta: 3 },
+  'listen-clear': { key: 'listening_accuracy', label: 'Hörverständnis beim ersten Hören', unit: 'Prozent', direction: 'higher', minimumDelta: 10 },
+  'listen-phone': { key: 'listening_accuracy', label: 'Hörverständnis am Telefon', unit: 'Prozent', direction: 'higher', minimumDelta: 10 },
 });
 const RETEST_DOSSIERS = Object.freeze({
   'word-order-sub': 'Verbendstellung in Nebensätzen mit weil, dass oder wenn',
@@ -46,11 +50,22 @@ function hash(value, length) { return createHash('sha256').update(JSON.stringify
 
 function roundMetric(value) { return Math.round(Number(value) * 10) / 10; }
 function metricForSkill(skillId) { return Object.hasOwn(IMPROVEMENT_METRICS, skillId) ? IMPROVEMENT_METRICS[skillId] : null; }
+function reliableSpeakingSessions(profile) {
+  return (Array.isArray(profile?.sessions) ? profile.sessions : []).filter((session) => (
+    session?.evidenceQuality?.version === 1 && session.evidenceQuality.prescriptionEligible === true
+  ));
+}
 
 export function measurementForSkill(profile, skillId) {
   const metric = metricForSkill(skillId);
   if (!metric) return null;
-  const sessions = Array.isArray(profile?.sessions) ? profile.sessions : [];
+  if (metric.key === 'listening_accuracy') {
+    const summary = listeningEvidenceSummary(profile, skillId);
+    if (!summary) return null;
+    return { metricKey: metric.key, value: roundMetric(summary.accuracy * 100), measuredAt: summary.measuredAt,
+      evidenceId: hash({ skillId, evidenceIds: summary.evidenceIds }, 12) };
+  }
+  const sessions = reliableSpeakingSessions(profile);
   for (let index = sessions.length - 1; index >= 0; index -= 1) {
     const session = sessions[index];
     let value = null;
@@ -171,12 +186,16 @@ export function normalizeSalmaCoachState(value) {
 }
 
 function sessionEvidenceIds(profile) {
-  return (profile?.sessions || []).slice(-2).map((s) => hash({ date: s?.date || 0, bossId: s?.bossId || '', verdict: s?.verdict || '', limitingSkill: s?.hireReadiness?.limitingSkill || s?.limitingSkill || '' }, 12));
+  return reliableSpeakingSessions(profile).slice(-2).map((s) => hash({ date: s?.date || 0, bossId: s?.bossId || '', verdict: s?.verdict || '', limitingSkill: s?.hireReadiness?.limitingSkill || s?.limitingSkill || '' }, 12));
 }
 function evidenceOccurrences(profile, skillId) {
+  if (skillId === 'listen-clear' || skillId === 'listen-phone') {
+    return new Set(listeningEvidence(profile, skillId).map((row) => row.issuedAt)).size;
+  }
   const counts = profile?.weakLog?.[skillId]?.errCounts;
-  if (Array.isArray(counts)) return counts.filter((row) => Number(row?.count) > 0).length;
-  return Math.min(2, Array.isArray(profile?.sessions) ? profile.sessions.length : 0);
+  const reliableDates = new Set(reliableSpeakingSessions(profile).map((session) => Number(session?.date)).filter(Boolean));
+  if (Array.isArray(counts)) return counts.filter((row) => Number(row?.count) > 0 && reliableDates.has(Number(row?.date))).length;
+  return Math.min(2, reliableDates.size);
 }
 
 export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinutes = 10 } = {}) {
@@ -185,9 +204,14 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   const skillId = directive?.prescription?.skillId || directive?.target?.skillId || '';
   if (!DRILLS.has(drillId) || !skillId || snapshot.sessionCount < 1) return { directive, prescription: null };
   const protocol = PROTOCOLS[drillId]; const occurrences = evidenceOccurrences(profile, skillId);
+  const listeningRows = skillId === 'listen-clear' || skillId === 'listen-phone' ? listeningEvidence(profile, skillId) : [];
+  if (drillId === 'hoer-check' && listeningRows.length < 5) return { directive, prescription: null };
   const durationSeconds = Math.min(protocol.durationSeconds, Math.max(300, [5, 10, 20].includes(Number(dailyMinutes)) ? Number(dailyMinutes) * 60 : 600));
-  const blocks = occurrences >= 2 && Number(dailyMinutes) >= 20 ? 2 : 1; const evidenceIds = sessionEvidenceIds(profile);
+  const blocks = occurrences >= 2 && Number(dailyMinutes) >= 20 ? 2 : 1;
+  const evidenceIds = listeningRows.length
+    ? listeningRows.slice(-4).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile);
   const baseline = measurementForSkill(profile, skillId);
+  if (!baseline) return { directive, prescription: null };
   const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds, minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate };
   return { directive, prescription: { id: hash(identity, 16), evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions,
     durationSeconds, timesPerDay: blocks, minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate,
@@ -262,6 +286,7 @@ export function safeIntervention(state) {
 
 export function publicSalmaCoach(profile, account, flags) {
   const { state, directive } = syncSalmaCoach(profile); const capabilities = salmaCoachCapabilities(account);
+  const interviewRisk = hireReadinessFor(profile).interviewRisk;
   const limited = capabilities.fullTutor ? state.activePrescription : state.activePrescription && { ...state.activePrescription, blocks: 1, timesPerDay: 1, nextEligibleAt: null };
   const attempt = limited ? state.coachState.repeatedErrorCounts[limited.id] : null;
   const history = state.coachState.improvementHistory || [];
@@ -280,6 +305,7 @@ export function publicSalmaCoach(profile, account, flags) {
     baseline: limited.baseline ? { metricKey: limited.baseline.metricKey, value: limited.baseline.value, measuredAt: limited.baseline.measuredAt } : null,
   } : null;
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
+    interviewRisk,
     preferences: state.preferences, activePrescription: publicPrescription, intervention: safeIntervention({ ...state, activePrescription: limited }),
     progress, brain: { state: directive?.state || 'NEW', action: directive?.prescription?.action || 'assessment' } };
 }

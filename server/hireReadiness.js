@@ -62,7 +62,9 @@ export function textFeatures(text) {
 
 /** Map the app's available session/profile signals → feature vector + provenance (which are real). */
 export function featuresFromProfile(p) {
-  const s = (p?.sessions || []).slice(-1)[0] || {};
+  const s = [...(Array.isArray(p?.sessions) ? p.sessions : [])].reverse().find((session) => (
+    session?.evidenceQuality?.version === 1 && session.evidenceQuality.prescriptionEligible === true
+  )) || {};
   const grammarCount = Array.isArray(s.grammarRules) ? s.grammarRules.reduce((a, r) => a + (r.count || 0), 0) : null;
   const measured = {
     wpm: typeof s.wpm === 'number' && s.wpm > 0,
@@ -86,13 +88,23 @@ export function featuresFromProfile(p) {
     intelligibility: measured.intelligibility ? s.intelligibility : 0.8,
     latencyS:        measured.latencyS ? s.latencyS : 3,
   };
-  return { f, measured };
+  return { f, measured, evidenceQuality: s.evidenceQuality || null };
+}
+
+function limitingSignalMeasured(skill, measured) {
+  if (skill === 'fluency') return measured.wpm;
+  if (skill === 'grammar') return measured.errPer100;
+  if (skill === 'intelligibility') return measured.intelligibility;
+  if (skill === 'deescalation') return measured.deescalation;
+  if (skill === 'complexity') return measured.subClauseRate && measured.vocabDiversity;
+  if (skill === 'confidence') return measured.fillerPer100 || measured.giveUpRate || measured.latencyS;
+  return false;
 }
 
 /** Preliminary, honest hire-readiness for a profile. Prefers the app's existing CEFR estimate for
  *  level; returns hireReady=null when the hire-gating signals are unmeasured (no guessing). */
 export function hireReadinessFor(p) {
-  const { f, measured } = featuresFromProfile(p);
+  const { f, measured, evidenceQuality } = featuresFromProfile(p);
   const raw = classify(f);
   const measuredCount = Object.values(measured).filter(Boolean).length;
   const missing = Object.entries(measured).filter(([, v]) => !v).map(([k]) => k);
@@ -101,17 +113,26 @@ export function hireReadinessFor(p) {
   const gatingFull = measured.intelligibility && measured.deescalation && measured.wpm;
   const gatingExceptIntel = !measured.intelligibility && measured.deescalation && measured.wpm && measured.giveUpRate;
   let hireReady = null, readyCaveat = null;
-  if (gatingFull) hireReady = raw.hireReady;
-  else if (gatingExceptIntel) { hireReady = raw.hireReady; readyCaveat = 'provisional — assumes clear pronunciation (intelligibility not yet measured)'; }
+  if (evidenceQuality && gatingFull) hireReady = raw.hireReady;
+  else if (evidenceQuality && gatingExceptIntel) { hireReady = raw.hireReady; readyCaveat = 'provisional — assumes clear pronunciation (intelligibility not yet measured)'; }
+  const limitingSkill = evidenceQuality && limitingSignalMeasured(raw.limitingSkill, measured) ? raw.limitingSkill : null;
+  const interviewRisk = !evidenceQuality
+    ? { state: 'measure_first', confidence: 'insufficient', limitingSkill: null }
+    : limitingSkill
+      ? { state: 'observed_risk', confidence: evidenceQuality.highConfidence === true ? 'high' : 'medium', limitingSkill }
+      : { state: 'no_single_risk_observed', confidence: evidenceQuality.highConfidence === true ? 'high' : 'medium', limitingSkill: null };
   const out = {
     level: p?.assessmentResult?.estimatedLevel || raw.level,   // prefer the real CEFR estimate
     hireReady,                                                 // null only when a non-intelligibility gating signal is missing
     readyCaveat,
-    limitingSkill: raw.limitingSkill,
+    limitingSkill,
+    interviewRisk,
     partial: measuredCount < 9,
     measuredSignals: measuredCount,
     totalSignals: 9,
-    note: measuredCount < 9
+    note: !evidenceQuality
+      ? 'measure first — no reliable multi-turn interview packet is available'
+      : measuredCount < 9
       ? `preliminary — ${measuredCount}/9 signals measured; not yet measured: ${missing.join(', ')}`
       : 'full (intelligibility = STT word-confidence proxy; de-escalation = CS-roleplay score proxy)',
   };

@@ -94,6 +94,32 @@ test('adapter: per-type listeningStats aggregate into listening mastery', () => 
 
 // The adapter surfaces recent drill events (with each event's rule identity) so the ENGINE can
 // judge whether prep addressed the target — kind and rule both travel.
+test('adapter: a complete server-issued listening packet overrides spoofable legacy totals', () => {
+  const sessions = [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - 1 * DAY, verdict: 'pass' }];
+  const listeningAttempts = Array.from({ length: 5 }, (_, index) => ({
+    attemptId: (index + 1).toString(16).padStart(24, '0'), skillId: 'listen-phone', kind: 'detail', type: 'nummer',
+    correct: index < 2, plays: 2, playbackRate: 1.1, responseLatencyMs: 1500,
+    issuedAt: NOW - DAY + index * 1000, gradedAt: NOW - DAY + index * 1000 + 500,
+  }));
+  const profile = { sessions, listeningStats: { verstehen: { seen: 100, correct: 100 } }, listeningAttempts };
+  const mastered = masteredSkillsFromProfile(profile);
+  assert.equal(mastered.has('listen-phone'), false);
+  assert.equal(mastered.has('listen-clear'), true, 'an unmeasured sibling skill keeps its temporary legacy state');
+});
+
+test('adapter: partial verified evidence does not demote a legacy learner before the packet is reliable', () => {
+  const sessions = [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - 1 * DAY, verdict: 'pass' }];
+  const listeningAttempts = Array.from({ length: 2 }, (_, index) => ({
+    attemptId: (index + 10).toString(16).padStart(24, '0'), skillId: 'listen-phone', kind: 'detail', type: 'nummer',
+    correct: false, plays: 2, playbackRate: 1.1, responseLatencyMs: 1500,
+    issuedAt: NOW - DAY + index * 1000, gradedAt: NOW - DAY + index * 1000 + 500,
+  }));
+  const profile = { sessions, listeningStats: { verstehen: { seen: 10, correct: 10 } }, listeningAttempts };
+  const mastered = masteredSkillsFromProfile(profile);
+  assert.equal(mastered.has('listen-clear'), true);
+  assert.equal(mastered.has('listen-phone'), true);
+});
+
 test('adapter: recentDrillEvents carry drill kind + rule identity, only post-fight events', () => {
   const p = {
     sessions: [{ date: NOW - 2 * DAY, verdict: 'weak' }],

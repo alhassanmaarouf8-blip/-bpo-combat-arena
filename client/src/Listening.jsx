@@ -57,12 +57,53 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   // Keep the stop handle so closing the drill (or replaying) actually SILENCES the caller —
   // an orphaned line talking over the next screen reads as a bug.
   const stopVoiceRef = useRef(null);
-  useEffect(() => () => { try { stopVoiceRef.current?.(); } catch { /* ignore */ } }, []);
+  const activePlayRef = useRef(null);
+  useEffect(() => () => {
+    try { stopVoiceRef.current?.(); } catch { /* ignore */ }
+    const active = activePlayRef.current;
+    if (active) fetch(`${apiUrl}/api/listening/play/complete`, {
+      method: 'POST', keepalive: true,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ...active, completed: false }),
+    }).catch(() => {});
+  }, [apiUrl, token]);
 
-  const play = () => {
+  const play = async () => {
     if (!item || !canPlay) return;
     setPlaying(true);
     setTtsOk(true);
+    let playNumber = null;
+    try {
+      const authorization = await fetch(`${apiUrl}/api/listening/play`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: item.id }),
+      });
+      const body = await authorization.json().catch(() => ({}));
+      if (!authorization.ok || !Number.isInteger(body.playNumber)) throw new Error(body.error || 'play_not_authorized');
+      playNumber = body.playNumber;
+      activePlayRef.current = { id: item.id, playNumber };
+    } catch {
+      setPlaying(false);
+      setTtsOk(false);
+      return;
+    }
+    const completePlayback = async (completed) => {
+      try {
+        const response = await fetch(`${apiUrl}/api/listening/play/complete`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ id: item.id, playNumber, completed }),
+        });
+        if (!response.ok) throw new Error('play_completion_failed');
+        activePlayRef.current = null;
+        if (completed) setPlayed(playNumber);
+        setPlaying(false);
+        setTtsOk(completed);
+      } catch {
+        activePlayRef.current = null;
+        setPlaying(false);
+        setTtsOk(false);
+      }
+    };
     // Level-scaled base speed (beginner slower, advanced faster) + progressive overload within the
     // session (each item faster than the last), so you train catching a native at YOUR edge.
     // Native Aura-2 caller voice; the level+overload speed ramp still applies via audio playbackRate.
@@ -79,22 +120,17 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       voice: item.voice || undefined,
       rate: Math.min(1.7, baseRate + idx * 0.12),
       phone: true,
-      onStart: () => {
-        setPlaying(false);
-        setTtsOk(true);
-        setPlayed((p) => p + 1);
-      },
+      onStart: () => setTtsOk(true),
       onError: () => {
-        setPlaying(false);
-        setTtsOk(false);
+        completePlayback(false);
       },
-      onEnd: () => setPlaying(false),
+      onEnd: () => completePlayback(true),
     });
   };
 
   const submit = async (explicit) => {
     const resp = explicit != null ? String(explicit) : response;   // MCQ passes the chosen index directly (no stale state)
-    if (resp.trim() === '' || busy || result) return;
+    if (resp.trim() === '' || busy || result || playing || played === 0) return;
     if (explicit != null) setResponse(resp);                        // remember the choice for the result highlight
     setBusy(true); setErr(null);
     try {
@@ -223,7 +259,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
               const chose   = result && Number(response) === oi;
               const isRight = result && result.correctIndex === oi;
               return (
-                <button key={oi} disabled={busy || !!result} onClick={() => submit(oi)}
+                <button key={oi} disabled={busy || playing || !!result} onClick={() => submit(oi)}
                   style={{ textAlign: lang === 'ar' ? 'right' : 'left', direction: lang === 'ar' ? 'rtl' : 'ltr',
                     padding: '11px 13px', borderRadius: 9, fontSize: 13.5, cursor: result ? 'default' : 'pointer', color: '#f1f5f9',
                     background: result && isRight ? 'rgba(34,197,94,0.12)' : (result && chose ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)'),
@@ -234,7 +270,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
             })}
           </div>
         ) : (
-          <input ref={inputRef} value={response} onChange={(e) => setResponse(e.target.value)} disabled={!!result}
+          <input ref={inputRef} value={response} onChange={(e) => setResponse(e.target.value)} disabled={playing || !!result}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
             placeholder={T(lang, 'Tippe, was du gehört hast…', 'اكتب اللي سمعته…')}
             style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 9, fontSize: 15,

@@ -51,6 +51,7 @@ export function defaultProfile(userId) {
     // PLACEMENT — the ONE outcome that defines the mission: did this student get hired into a
     // German-speaking BPO role? status: none|applying|interviewing|offer|hired|not_hired.
     // history is the audit trail; lastPromptedAt throttles the "any job news?" nudge to weekly.
+    listeningAttempts: [], // bounded server-issued evidence; never raw answers, prompts, or audio
     placement: { status: 'none', employer: '', role: '', updatedAt: null, history: [], lastPromptedAt: null },
     targetIndustry: null,  // Ziel-Stelle: INDUSTRIES key (scenarios.js) the candidate is applying for, or null
     // Vacancy Target v1: one bounded draft + one active target. Only derived,

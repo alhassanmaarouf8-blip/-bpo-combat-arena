@@ -8,10 +8,14 @@ import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, cons
 function account(plan = 'free') {
   return { id: 'acct-1', emailVerifiedAt: 1, roles: [], subscription: { plan } };
 }
+function reliableSession(value) {
+  return { ...value, evidenceQuality: { version: 1, words: 120, completeTurns: 5, truncatedTurns: 0,
+    stageCoverage: 2, prescriptionEligible: true, highConfidence: false } };
+}
 function measuredProfile(sessionCount = 1) {
   const p = defaultProfile('acct-1');
-  p.sessions = Array.from({ length: sessionCount }, (_, i) => ({ date: 1_700_000_000_000 + i, bossId: 'yasmin', verdict: 'review',
-    wpm: 95, fillers: 6, grammarRules: [{ rule: 'x', count: 4 }], subClauseRate: 0.2,
+  p.sessions = Array.from({ length: sessionCount }, (_, i) => reliableSession({ date: 1_700_000_000_000 + i, bossId: 'yasmin', verdict: 'review',
+    wpm: 95, fluency: 52, fillers: 6, grammarRules: [{ rule: 'x', count: 4 }], subClauseRate: 0.2,
     vocabDiversity: 0.5, deescalation: 0.55, giveUpRate: 0.1, intelligibility: 0.75, latencyS: 3 }));
   return p;
 }
@@ -42,6 +46,16 @@ test('prescription is evidence-hashed, idempotent and respects a five-minute bud
 test('thin evidence produces no confident prescription', () => {
   const result = deriveSalmaPrescription(defaultProfile('acct-1'), { now: 1_800_000_000_000 });
   assert.equal(result.prescription, null); assert.equal(result.directive.state, 'NEW');
+});
+
+test('a short persisted practice session cannot become Salma diagnostic evidence', () => {
+  const p = defaultProfile('acct-1');
+  p.sessions = [{ date: 1_800_000_000_000, bossId: 'yasmin', answers: 1, words: 12,
+    fluency: 99, deescalation: 1, giveUpRate: 0, intelligibility: 1 }];
+  assert.equal(measurementForSkill(p, 'fluency-interrupt'), null);
+  assert.equal(deriveSalmaPrescription(p, { now: 1_800_000_001_000 }).prescription, null);
+  assert.equal(publicSalmaCoach(p, account('basic'), { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false })
+    .interviewRisk.state, 'measure_first');
 });
 
 test('preferences are strict and Masri cannot be selected before approval', () => {
@@ -103,7 +117,7 @@ test('between-attempt cue is emitted only for a real failed drill outcome', () =
 
 test('a drill nomination closes only through a newer skill-matched live retest', () => {
   const p = defaultProfile('acct-1');
-  p.sessions = [{ date: 1_800_000_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 4 }] }];
+  p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 4 }] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'word-order-sub', drillId: 'satzbau-schmiede',
     blocks: 1, repetitions: 6, durationSeconds: 600, timesPerDay: 1, minimumSpacingMinutes: 240,
@@ -116,7 +130,7 @@ test('a drill nomination closes only through a newer skill-matched live retest',
   }
   assert.equal(state.coachState.completedBlocks[state.activePrescription.id], 1);
   assert.equal(state.coachState.lastRetestSessionId, null);
-  p.sessions.push({ date: 1_800_100_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 1 }] });
+  p.sessions.push(reliableSession({ date: 1_800_100_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 1 }] }));
   const wrongSkill = recordMeaningfulRetest(state, p, { sessionId: 'wrong-skill', skillId: 'deescalate', now: 1_800_100_000_100 });
   assert.equal(wrongSkill.coachState.lastRetestSessionId, null);
   state = recordMeaningfulRetest(state, p, { sessionId: 'session-verified', skillId: 'word-order-sub', now: 1_800_100_000_100 });
@@ -128,7 +142,7 @@ test('a drill nomination closes only through a newer skill-matched live retest',
 
 test('retest targeting requires completed practice and exposes only curated text', () => {
   const p = defaultProfile('acct-1');
-  p.sessions = [{ date: 1_800_000_000_000, bossId: 'yasmin', fluency: 52, grammarRules: [] }];
+  p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', fluency: 52, grammarRules: [] })];
   const state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
@@ -144,16 +158,17 @@ test('retest targeting requires completed practice and exposes only curated text
 
 test('public coach returns a bounded visible before/after proof without internal evidence ids', () => {
   const p = defaultProfile('acct-1');
-  p.sessions = [{ date: 1_800_000_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 3 }] }];
+  p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 3 }] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: ['0123456789ab'], skillId: 'word-order-sub', drillId: 'satzbau-schmiede',
     blocks: 1, repetitions: 6, durationSeconds: 600, timesPerDay: 1, minimumSpacingMinutes: 240,
     successGate: 'Zweimal korrekt.', assignedAt: 1_800_000_000_100, nextEligibleAt: null,
     baseline: measurementForSkill(p, 'word-order-sub') };
   for (let i = 0; i < 6; i += 1) state = recordDrillOutcome(state, { drill: 'satzbau-schmiede', correct: true }, 1_800_000_000_200 + i);
-  p.sessions.push({ date: 1_800_100_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 1 }] });
+  p.sessions.push(reliableSession({ date: 1_800_100_000_000, bossId: 'yasmin', grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count: 1 }] }));
   p.salmaCoach = recordMeaningfulRetest(state, p, { sessionId: 'live-2', skillId: 'word-order-sub', now: 1_800_100_000_100 });
   const view = publicSalmaCoach(p, account('basic'), { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false });
+  assert.equal(['observed_risk', 'no_single_risk_observed'].includes(view.interviewRisk.state), true);
   assert.equal(view.progress.verifiedRetest.status, 'improved');
   assert.deepEqual([view.progress.verifiedRetest.before, view.progress.verifiedRetest.after], [3, 1]);
   assert.equal(JSON.stringify(view).includes('live-2'), false);
@@ -163,14 +178,14 @@ test('public coach returns a bounded visible before/after proof without internal
 test('verified retests report held and regressed honestly instead of manufacturing improvement', () => {
   const build = (after) => {
     const p = defaultProfile('acct-1');
-    p.sessions = [{ date: 1_800_000_000_000, bossId: 'yasmin', fluency: 50, grammarRules: [] }];
+    p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', fluency: 50, grammarRules: [] })];
     let state = normalizeSalmaCoachState(null);
     state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
       blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
       successGate: 'Set abschließen.', assignedAt: 1_800_000_000_100, nextEligibleAt: null,
       baseline: measurementForSkill(p, 'fluency-interrupt') };
     state = recordDrillOutcome(state, { drill: 'flow-drill', completedSet: true }, 1_800_000_000_200);
-    p.sessions.push({ date: 1_800_100_000_000, bossId: 'yasmin', fluency: after, grammarRules: [] });
+    p.sessions.push(reliableSession({ date: 1_800_100_000_000, bossId: 'yasmin', fluency: after, grammarRules: [] }));
     return recordMeaningfulRetest(state, p, { sessionId: `live-${after}`, skillId: 'fluency-interrupt', now: 1_800_100_000_100 })
       .coachState.improvementHistory[0].status;
   };
@@ -181,8 +196,8 @@ test('verified retests report held and regressed honestly instead of manufacturi
 
 test('an unavailable grammar checker can never manufacture a zero-error improvement', () => {
   const p = defaultProfile('acct-1');
-  p.sessions = [{ date: 1_800_000_000_000, bossId: 'yasmin', grammarMeasured: true,
-    grammarRules: [{ ruleId: 'word-order-sub', count: 4 }] }];
+  p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', grammarMeasured: true,
+    grammarRules: [{ ruleId: 'word-order-sub', count: 4 }] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'word-order-sub', drillId: 'satzbau-schmiede',
     blocks: 1, repetitions: 6, durationSeconds: 600, timesPerDay: 1, minimumSpacingMinutes: 240,
@@ -194,6 +209,22 @@ test('an unavailable grammar checker can never manufacture a zero-error improvem
   assert.equal(result.coachState.improvementHistory.length, 0);
   assert.equal(result.coachState.lastRetestSessionId, null);
   assert.equal(measurementForSkill(p, 'constructor'), null);
+});
+
+test('listening measurement requires five unique server-issued attempts', () => {
+  const p = defaultProfile('acct-1');
+  const attempt = (index, correct = true) => ({
+    attemptId: (index + 1).toString(16).padStart(24, '0'), skillId: 'listen-clear', kind: 'verstehen', type: null,
+    correct, plays: 1, playbackRate: 1, responseLatencyMs: 1200,
+    issuedAt: 1_800_000_000_000 + index * 10_000, gradedAt: 1_800_000_005_000 + index * 10_000,
+  });
+  p.listeningAttempts = [attempt(0), attempt(1), attempt(2), attempt(3)];
+  assert.equal(measurementForSkill(p, 'listen-clear'), null);
+  p.listeningAttempts.push(attempt(4, false));
+  const measured = measurementForSkill(p, 'listen-clear');
+  assert.equal(measured.metricKey, 'listening_accuracy');
+  assert.equal(measured.value, 80);
+  assert.match(measured.evidenceId, /^[a-f0-9]{12}$/u);
 });
 
 test('preference booleans reject ambiguous values', () => {

@@ -74,6 +74,16 @@ export function looksTruncatedDE(text) {
 
 // Tunable thresholds for "too thin / too broken to give a confident hireability verdict".
 export const SUBSTANCE = { MIN_WORDS: 25, MIN_COMPLETE_TURNS: 2, MIN_TURN_WORDS: 6, MAX_TRUNCATED_SHARE: 0.6 };
+export const DIAGNOSTIC_SUBSTANCE = Object.freeze({
+  MIN_WORDS: 80,
+  MIN_COMPLETE_TURNS: 4,
+  MIN_STAGE_COVERAGE: 2,
+  MAX_TRUNCATED_SHARE: 0.4,
+  HIGH_CONFIDENCE_WORDS: 180,
+  HIGH_CONFIDENCE_TURNS: 6,
+  HIGH_CONFIDENCE_STAGES: 3,
+  HIGH_CONFIDENCE_MAX_TRUNCATED_SHARE: 0.25,
+});
 
 // Deepgram word-confidence below this = the recognizer wasn't sure it heard the word right (an
 // English tech term, a name, or plain noise) → likely a mis-transcription like "Python"→"Pariethon".
@@ -148,6 +158,44 @@ export function sessionSubstance(utterances) {
   return { realWords, completeTurns, truncatedTurns, spoken, truncatedShare, tooThinToJudge };
 }
 
+/**
+ * Separate "practice happened" from "reliable enough to prescribe". The existing low floor still
+ * lets a learner receive a useful debrief, but Salma may diagnose only from complete speech covering
+ * more than one interview stage. This object is bounded metadata; no transcript or audio is stored.
+ */
+export function speakingEvidenceQuality(utterances) {
+  const rows = Array.isArray(utterances) ? utterances : [];
+  const substance = sessionSubstance(rows);
+  const completeStages = new Set();
+  for (const row of rows) {
+    const text = String(row?.text || '').trim();
+    const words = typeof row?.words === 'number' && row.words > 0 ? row.words : wordsOf(text).length;
+    if (words < SUBSTANCE.MIN_TURN_WORDS || looksTruncatedDE(text)) continue;
+    const stage = Number(row?.stage);
+    if ([0, 1, 2].includes(stage)) completeStages.add(stage);
+  }
+  const stageCoverage = completeStages.size;
+  const prescriptionEligible = !substance.tooThinToJudge
+    && substance.realWords >= DIAGNOSTIC_SUBSTANCE.MIN_WORDS
+    && substance.completeTurns >= DIAGNOSTIC_SUBSTANCE.MIN_COMPLETE_TURNS
+    && stageCoverage >= DIAGNOSTIC_SUBSTANCE.MIN_STAGE_COVERAGE
+    && substance.truncatedShare < DIAGNOSTIC_SUBSTANCE.MAX_TRUNCATED_SHARE;
+  const highConfidence = prescriptionEligible
+    && substance.realWords >= DIAGNOSTIC_SUBSTANCE.HIGH_CONFIDENCE_WORDS
+    && substance.completeTurns >= DIAGNOSTIC_SUBSTANCE.HIGH_CONFIDENCE_TURNS
+    && stageCoverage >= DIAGNOSTIC_SUBSTANCE.HIGH_CONFIDENCE_STAGES
+    && substance.truncatedShare <= DIAGNOSTIC_SUBSTANCE.HIGH_CONFIDENCE_MAX_TRUNCATED_SHARE;
+  return Object.freeze({
+    version: 1,
+    words: substance.realWords,
+    completeTurns: substance.completeTurns,
+    truncatedTurns: substance.truncatedTurns,
+    stageCoverage,
+    prescriptionEligible,
+    highConfidence,
+  });
+}
+
 // ── Corrected-sentence trust gate (owner-reported 2026-07-02: Sag es richtig showed a "correct"
 // answer that was itself broken German — "…ab ab anfangen, normalerweise ich" trailing off with a
 // raw stutter left in) ────────────────────────────────────────────────────────────────────────
@@ -176,4 +224,5 @@ export function looksLikeTrustworthyCorrection(s) {
   return !looksTruncatedDE(t);            // reuse the existing cut-off doctrine
 }
 
-export default { looksTruncatedDE, sessionSubstance, SUBSTANCE, lowConfidenceWords, quoteHasLowConfidence, LOW_CONFIDENCE, looksLikeTrustworthyCorrection };
+export default { looksTruncatedDE, sessionSubstance, speakingEvidenceQuality, SUBSTANCE, DIAGNOSTIC_SUBSTANCE,
+  lowConfidenceWords, quoteHasLowConfidence, LOW_CONFIDENCE, looksLikeTrustworthyCorrection };

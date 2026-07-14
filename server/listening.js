@@ -19,9 +19,11 @@
  * Gated like other paid practice: requireAuth + active plan (planOf !== 'free').
  */
 import express from 'express';
+import { createHash, randomBytes } from 'crypto';
 import { requireAuth, planOf, drillsUnlocked } from './auth.js';
-import { loadUser, saveUser }  from './store.js';
+import { loadUser, mutateUser, saveUser }  from './store.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
+import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback } from './listeningEvidence.js';
 
 export const listeningRouter = express.Router();
 
@@ -36,6 +38,17 @@ function baseRateFor(level) {
 
 const PER_SESSION = 5;
 const REPLAYS     = 1;   // how many times the learner may replay before answering (1 = hear it twice total)
+
+function evidenceContentHash(row, stored) {
+  return createHash('sha256').update(JSON.stringify({
+    kind: row.kind === 'verstehen' ? 'verstehen' : 'detail',
+    type: typeof row.type === 'string' ? row.type : '',
+    audioText: String(row.audioText || ''),
+    question: String(row.question_de || ''),
+    options: Array.isArray(row.options) ? row.options : [],
+    expected: stored?.answer ?? stored?.correct ?? null,
+  })).digest('hex');
+}
 
 // ── Distinct native-German voices (owner 07-04: every caller in a session must sound like a
 // DIFFERENT German human — real inbound work is a parade of different voices, not one narrator).
@@ -501,7 +514,9 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   const uid = req.account.id;
 
   const cached = genCache.get(uid);
-  if (cached && Date.now() - cached.ts < GEN_TTL_MS) { res.json(cached.payload); return; }
+  const cacheStillUnused = cached?.active && !Object.values(cached.active).some((item) => item?.gradeResult);
+  if (cached && cacheStillUnused && Date.now() - cached.ts < GEN_TTL_MS) { res.json(cached.payload); return; }
+  if (cached && !cacheStillUnused) genCache.delete(uid);
 
   let p = null;
   try { p = await loadUser(uid); } catch { p = null; }
@@ -554,6 +569,25 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
     }
   }
 
+  // Bind every item to one server-issued attempt. This does not touch audio generation or playback;
+  // it only makes later accuracy, replay-dependence, and response-latency evidence auditable.
+  const issuedAt = Date.now();
+  for (const [index, row] of items.entries()) {
+    const stored = active[String(row.id)];
+    if (!stored) continue;
+    Object.assign(stored, {
+      attemptId: randomBytes(12).toString('hex'),
+      itemHash: evidenceContentHash(row, stored),
+      issuedAt,
+      maxPlays: Math.max(1, Math.min(2, Number(row.replays || 0) + 1)),
+      playCount: 0,
+      playStartedAt: null,
+      playCompletedAt: null,
+      playbackRate: Math.min(1.7, baseRate + index * 0.12),
+      gradeResult: null,
+    });
+  }
+
   // Persist active (both kinds) + no-repeat memory for comprehension and detail.
   const payload = { items, baseRate };
   try {
@@ -570,6 +604,37 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
 
 // POST a typed capture → deterministic correct/incorrect (no model). Records per-type accuracy so the
 // NEXT session can bias toward what this student keeps missing.
+// A playback must be acknowledged by the server before the unchanged native-audio path begins.
+// Completion is separate, so a failed audio request can never become measurement evidence.
+listeningRouter.post('/listening/play', express.json({ limit: '2kb' }), requireAuth, async (req, res) => {
+  if (!paidOnly(req, res)) return;
+  try {
+    const result = await mutateUser(req.account.id, (profile) => ({
+      value: beginListeningPlayback(profile, req.body?.id),
+    }));
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.code || 'listening_play_failed' });
+  }
+});
+
+listeningRouter.post('/listening/play/complete', express.json({ limit: '2kb' }), requireAuth, async (req, res) => {
+  if (!paidOnly(req, res)) return;
+  try {
+    const result = await mutateUser(req.account.id, (profile) => ({
+      value: finishListeningPlayback(profile, req.body?.id, {
+        playNumber: req.body?.playNumber,
+        completed: req.body?.completed === true,
+      }),
+    }));
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.code || 'listening_play_complete_failed' });
+  }
+});
+
 listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   const uid = req.account.id;
@@ -582,57 +647,54 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
   //  3) the fixed ITEMS pool by numeric index (legacy / fallback sessions).
   // DOCTRINE: `item.answer` here is the answer the model itself wrote for this exact question, so
   // grading the learner against it is self-consistent — never "wrong" against an answer we invented.
-  let item = null, p = null;
-  const cached = genCache.get(uid);
-  if (cached?.active && Object.prototype.hasOwnProperty.call(cached.active, key)) item = cached.active[key];
-  if (!item) {
-    try {
-      p = await loadUser(uid);
-      const active = p?.listeningActive || {};
-      if (Object.prototype.hasOwnProperty.call(active, key)) item = active[key];
-    } catch { /* fall through to fixed */ }
-  }
-  if (!item) {
-    const idx = parseInt(rawId, 10);
-    if (Number.isInteger(idx) && idx >= 0 && idx < ITEMS.length) item = ITEMS[idx];
-  }
-  if (!item) return res.status(400).json({ error: 'bad_item' });
+  try {
+    const result = await mutateUser(uid, (p) => {
+      const item = p?.listeningActive?.[key];
+      if (!item || typeof item !== 'object') {
+        const error = new Error('bad_item'); error.code = 'bad_item'; error.status = 400; throw error;
+      }
 
   // COMPREHENSION (MCQ): grade the CHOSEN option index against the authored correct index (self-consistent —
   // the model/curated item wrote both the options and which is right, so the learner is never marked wrong
   // against something we invented).
-  if (item.kind === 'verstehen') {
-    const chosen = parseInt(req.body?.response, 10);
-    const correct = Number.isInteger(chosen) && chosen === item.correct;
-    try {
-      if (!p) p = await loadUser(uid);
-      p.listeningStats = p.listeningStats || {};
-      const s = p.listeningStats.verstehen || { seen: 0, correct: 0 };
-      s.seen += 1; if (correct) s.correct += 1;
-      p.listeningStats.verstehen = s;
-      await saveUser(p);
-    } catch { /* best-effort */ }
-    console.log(`[listening] user=${uid} id=${key} kind=verstehen correct=${correct}`);
-    return res.json({ correct, kind: 'verstehen', correctIndex: item.correct });
-  }
+      if (item.kind === 'verstehen') {
+        const chosen = parseInt(req.body?.response, 10);
+        const proposedCorrect = Number.isInteger(chosen) && chosen === item.correct;
+        const committed = commitListeningGrade(p, key, { correct: proposedCorrect });
+        if (!committed.replayed) {
+          p.listeningStats = p.listeningStats || {};
+          const stat = p.listeningStats.verstehen || { seen: 0, correct: 0 };
+          stat.seen += 1; if (committed.correct) stat.correct += 1;
+          p.listeningStats.verstehen = stat;
+        }
+        return { value: { correct: committed.correct, kind: 'verstehen', correctIndex: item.correct, replayed: committed.replayed } };
+      }
 
   // DETAIL: deterministic normalize + compare against the authored answer.
-  if (!item.answer || !TYPES.includes(item.type)) return res.status(400).json({ error: 'bad_item' });
+      if (!item.answer || !TYPES.includes(item.type)) {
+        const error = new Error('bad_item'); error.code = 'bad_item'; error.status = 400; throw error;
+      }
 
-  const you  = normalize(req.body?.response, item.type);
-  const want = normalize(item.answer, item.type);
-  const correct = you.length > 0 && you === want;   // deterministic, against the generated answer
+      const you = normalize(req.body?.response, item.type);
+      const want = normalize(item.answer, item.type);
+      const proposedCorrect = you.length > 0 && you === want;
 
   // Record per-type accuracy (best-effort; never block the grade response).
-  try {
-    if (!p) p = await loadUser(uid);
-    p.listeningStats = p.listeningStats || {};
-    const s = p.listeningStats[item.type] || { seen: 0, correct: 0 };
-    s.seen += 1; if (correct) s.correct += 1;
-    p.listeningStats[item.type] = s;
-    await saveUser(p);
-  } catch { /* stats are best-effort */ }
-  console.log(`[listening] user=${uid} id=${key} type=${item.type} correct=${correct}`);
-  res.json({ correct, expected: item.answer, normalizedYou: you });
+      const committed = commitListeningGrade(p, key, { correct: proposedCorrect });
+      if (!committed.replayed) {
+        p.listeningStats = p.listeningStats || {};
+        const stat = p.listeningStats[item.type] || { seen: 0, correct: 0 };
+        stat.seen += 1; if (committed.correct) stat.correct += 1;
+        p.listeningStats[item.type] = stat;
+      }
+      return { value: { correct: committed.correct, expected: item.answer,
+        ...(committed.replayed ? {} : { normalizedYou: you }), replayed: committed.replayed } };
+    });
+    console.log(`[listening] user=${uid} id=${key} correct=${result.correct} replayed=${result.replayed}`);
+    res.set('Cache-Control', 'no-store');
+    res.json(result);
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.code || 'listening_grade_failed' });
+  }
 });
 

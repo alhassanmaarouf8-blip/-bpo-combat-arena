@@ -9,6 +9,14 @@ const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, curs
 function auth(token, extra = {}) { return { Authorization: `Bearer ${token}`, ...extra }; }
 
 const automaticCueCounts = new Map();
+const RISK_LABELS = Object.freeze({
+  fluency: 'Antwortfluss unter Zeitdruck',
+  grammar: 'Grammatik in vollständigen Antworten',
+  intelligibility: 'Verständlichkeit am Telefon',
+  confidence: 'Antwortkontinuität unter Druck',
+  deescalation: 'Deeskalation im Kundengespräch',
+  complexity: 'sprachliche Bandbreite',
+});
 
 export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null }) {
   const [coach, setCoach] = useState(null);
@@ -152,6 +160,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   useEffect(() => () => { if (recorderRef.current?.isRecording) recorderRef.current.stop().catch(() => {}); }, []);
   if (!coach?.feature?.enabled) return null;
   const p = coach.activePrescription;
+  const risk = coach.interviewRisk;
   const proof = coach.progress?.verifiedRetest || null;
   const proofOutcome = proof?.status === 'improved' ? 'Verbesserung im Live-Interview bestätigt.'
     : proof?.status === 'regressed' ? 'Der Live-Retest war schwächer; dein nächster Schritt wurde angepasst.'
@@ -159,6 +168,19 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   return (
     <section dir="ltr" aria-label="Salma, persönliche Interviewtrainerin" aria-busy={busy} style={{ marginTop: 12, padding: '12px 0 2px',
       borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
+      {risk?.state === 'measure_first' && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
+        <strong style={{ color: '#e2e8f0' }}>Noch keine belastbare Diagnose.</strong>{' '}
+        Beende zuerst das vollständige Diagnose-Interview. Salma nennt keinen Engpass aus einer kurzen oder unterbrochenen Aufnahme.
+      </div>}
+      {risk?.state === 'observed_risk' && RISK_LABELS[risk.limitingSkill] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
+        background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: '#dbeafe' }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>BEOBACHTETES INTERVIEW-RISIKO</div>
+        <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[risk.limitingSkill]}</div>
+        <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
+          {risk.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
+          {' '}Keine Vorhersage einer Arbeitgeberentscheidung.
+        </div>
+      </div>}
       {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
         background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: '#dbeafe' }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>VERIFIZIERTER RETEST</div>

@@ -3,7 +3,7 @@ import { randomUUID }      from 'crypto';
 import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
-import { looksTruncatedDE, lowConfidenceWords } from './scoring/turnQuality.js';
+import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
 import { topStructureWins, debriefStructureWins } from './scoring/structureWins.js';
 import { isSpeakableRule } from './grammarCheck.js';
@@ -1389,6 +1389,7 @@ export class WebSocketManager {
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
       const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
+      const _evidenceQuality = speakingEvidenceQuality(ctx.utterances);
 
       p.sessions.push({
         date: now, level: ctx.level, bossId: ctx.bossId,
@@ -1400,6 +1401,8 @@ export class WebSocketManager {
         ...(_latencyS != null ? { latencyS: _latencyS } : {}),
         c1Hits: metrics.c1Hits, konjunktivHits: metrics.konjunktivHits,
         connectorHits: metrics.connectorHits, answers: metrics.answers,
+        words: metrics.words,
+        evidenceQuality: _evidenceQuality,
         vocabTotal: p.vocabLearned.length,
         xpGained,   // per-session XP → honest "ETA to next level" from the student's real pace
         // The HIRING RESULT of this fight — so Alhassan (and any later view) can speak to exactly

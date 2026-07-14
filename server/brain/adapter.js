@@ -8,6 +8,7 @@
  */
 import { masteryFromHistory, MASTERY_GATE } from './bkt.js';
 import { hireReadinessFor, featuresFromProfile } from '../hireReadiness.js';
+import { listeningMasteryEvidence } from '../listeningEvidence.js';
 
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const GATING = ['intelligibility', 'deescalation', 'wpm'];   // the hire-readiness gating signals
@@ -44,6 +45,7 @@ export function masteredSkillsFromProfile(p) {
   // listening.js records PER-TYPE stats ({ verstehen:{seen,correct}, name:{seen,correct}, … }) — aggregate
   // them here. (The old flat {correct,total} read matched nothing the drill ever wrote, so listening
   // mastery could never be earned no matter how much Hör-Check a student did. Flat shape still honored.)
+  const verifiedListening = listeningMasteryEvidence(p);
   const ls = p?.listeningStats;
   let lsC = null, lsT = null;
   if (ls && typeof ls.correct === 'number' && typeof ls.total === 'number') { lsC = ls.correct; lsT = ls.total; }
@@ -55,8 +57,12 @@ export function masteredSkillsFromProfile(p) {
     if (any) { lsC = c; lsT = t; }
   }
   const acc = lsT != null && lsT >= 5 ? lsC / lsT : null;
-  if (acc != null && acc >= 0.8) { mastered.add('listen-clear'); mastered.add('listen-phone'); }
-  else if (functional) mastered.add('listen-clear');
+  // Migrate skill-by-skill: a partial verified packet must not suddenly demote an existing learner,
+  // but once a full server-verified packet exists it becomes the authority for that skill. This keeps
+  // legacy users stable while preventing replayed or client-forged totals from overriding new evidence.
+  const legacyMastered = acc != null && acc >= 0.8;
+  if (verifiedListening.clearMeasured ? verifiedListening.clear : (legacyMastered || functional)) mastered.add('listen-clear');
+  if (verifiedListening.phoneMeasured ? verifiedListening.phone : legacyMastered) mastered.add('listen-phone');
 
   // Measured interview signals → specific competencies (ONLY when the signal is actually measured).
   const gu = avg('giveUpRate');      if (gu != null && gu < 0.2)  mastered.add('no-freeze-expected');
