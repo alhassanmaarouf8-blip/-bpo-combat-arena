@@ -9,6 +9,8 @@ const MODES = new Set(['off', 'beta', 'on']);
 const WINDOWS = new Set(['morning', 'afternoon', 'evening']);
 const LANGUAGES = new Set(['de']);
 const DRILLS = new Set(['satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs']);
+const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
+const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 const PROTOCOLS = Object.freeze({
   'satzbau-schmiede': { repetitions: 6, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz später zweimal korrekt bilden.' },
   'sag-es-richtig': { repetitions: 8, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz in zwei getrennten Versuchen korrekt produzieren.' },
@@ -36,13 +38,34 @@ const IMPROVEMENT_METRICS = Object.freeze({
   'listen-phone': { key: 'listening_accuracy', label: 'Hörverständnis am Telefon', unit: 'Prozent', direction: 'higher', minimumDelta: 10 },
 });
 const RETEST_DOSSIERS = Object.freeze({
-  'word-order-sub': 'Verbendstellung in Nebensätzen mit weil, dass oder wenn',
-  'dativ-akkusativ': 'sichere Dativ- und Akkusativformen in vollständigen Antworten',
-  'konjunktiv-2': 'höfliche und hypothetische Antworten mit Konjunktiv II',
-  'fluency-interrupt': 'flüssiges Weiterantworten nach einer natürlichen Unterbrechung',
-  deescalate: 'ruhige Deeskalation eines verärgerten Kunden mit einer konkreten Lösung',
-  'no-freeze-expected': 'eine vollständige Antwort unter unerwartetem Nachfragen statt Abbruch',
-  'pronunciation-phone': 'klar verständliche vollständige Sätze in einer Telefonsituation',
+  'word-order-sub': {
+    matched: 'Verbendstellung in Nebensätzen mit weil, dass oder wenn',
+    transfer: 'Verbendstellung in einer neuen unerwarteten Kundensituation mit anderen weil-, dass- oder wenn-Fragen',
+  },
+  'dativ-akkusativ': {
+    matched: 'sichere Dativ- und Akkusativformen in vollständigen Antworten',
+    transfer: 'Dativ und Akkusativ in einer neuen Reklamations- oder Kontowechsel-Situation mit unbekannten Details',
+  },
+  'konjunktiv-2': {
+    matched: 'höfliche und hypothetische Antworten mit Konjunktiv II',
+    transfer: 'Konjunktiv II in einer neuen Kulanz- oder Eskalationssituation ohne wiederholte Musterfrage',
+  },
+  'fluency-interrupt': {
+    matched: 'flüssiges Weiterantworten nach einer natürlichen Unterbrechung',
+    transfer: 'flüssiges Weiterantworten nach einer unerwarteten Unterbrechung in einem neuen Kundenszenario',
+  },
+  deescalate: {
+    matched: 'ruhige Deeskalation eines verärgerten Kunden mit einer konkreten Lösung',
+    transfer: 'Deeskalation eines neuen Kundentyps mit anderem Einwand, anderer Ursache und neuer Lösungsgrenze',
+  },
+  'no-freeze-expected': {
+    matched: 'eine vollständige Antwort unter unerwartetem Nachfragen statt Abbruch',
+    transfer: 'eine vollständige Antwort auf ein neues unerwartetes Nachfragen in einer anderen Interviewphase',
+  },
+  'pronunciation-phone': {
+    matched: 'klar verständliche vollständige Sätze in einer Telefonsituation',
+    transfer: 'klar verständliche Sätze mit neuen Namen, Zahlen und Fachwörtern in einer anderen Telefonsituation',
+  },
 });
 
 function boundedString(value, max = 80) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
@@ -103,9 +126,12 @@ function normalizeImprovementProof(value) {
   if (!metric || !/^[a-f0-9]{16}$/u.test(value?.id || '') || !/^[a-f0-9]{16}$/u.test(value?.prescriptionId || '')
     || !['improved', 'held', 'regressed'].includes(value?.status) || !Number.isFinite(value?.before)
     || !Number.isFinite(value?.after) || !Number.isFinite(value?.verifiedAt)) return null;
+  const phase = value.phase === 'transfer' ? 'transfer' : 'matched';
   return { id: value.id, prescriptionId: value.prescriptionId, skillId, metricKey: metric.key,
     before: roundMetric(value.before), after: roundMetric(value.after), status: value.status,
-    verifiedAt: Number(value.verifiedAt), retestSessionId: boundedString(value.retestSessionId, 100) || null };
+    phase, verifiedAt: Number(value.verifiedAt), measuredAt: Number(value.measuredAt) || Number(value.verifiedAt),
+    measurementEvidenceId: /^[a-f0-9]{12}$/u.test(value.measurementEvidenceId || '') ? value.measurementEvidenceId : null,
+    retestSessionId: boundedString(value.retestSessionId, 100) || null };
 }
 
 function publicImprovementProof(value) {
@@ -114,7 +140,7 @@ function publicImprovementProof(value) {
   return { id: proof.id, skillId: proof.skillId, skillLabel: SKILL_LABELS[proof.skillId] || proof.skillId,
     metricLabel: metric.label, unit: metric.unit, direction: metric.direction,
     before: proof.before, after: proof.after, delta: roundMetric(proof.after - proof.before),
-    status: proof.status, verifiedAt: proof.verifiedAt };
+    phase: proof.phase, status: proof.status, verifiedAt: proof.verifiedAt };
 }
 
 export function publicListeningRetest(profile, skillId) {
@@ -137,14 +163,42 @@ export function publicListeningRetest(profile, skillId) {
   };
 }
 
-export function salmaRetestTarget(state, profile) {
+function speakingRetestState(state, now = Date.now()) {
   const normalized = normalizeSalmaCoachState(state); const prescription = normalized.activePrescription;
   if (!prescription || !prescription.baseline || !metricForSkill(prescription.skillId)
-    || !(normalized.coachState.completedBlocks[prescription.id] > 0)) return null;
+    || !Object.hasOwn(RETEST_DOSSIERS, prescription.skillId)) return null;
+  const drill = normalized.coachState.repeatedErrorCounts[prescription.id];
+  if (!(normalized.coachState.completedBlocks[prescription.id] > 0) || !Number.isFinite(drill?.completedAt)) return null;
+  const proofs = normalized.coachState.improvementHistory.filter((proof) => proof.prescriptionId === prescription.id);
+  const matched = proofs.find((proof) => proof.phase === 'matched') || null;
+  const transfer = proofs.find((proof) => proof.phase === 'transfer') || null;
+  if (transfer) return { phase: 'complete', nextEligibleAt: null, prescription, matched, transfer };
+  if (matched) {
+    if (matched.status !== 'improved') return { phase: 'complete', nextEligibleAt: null, prescription, matched, transfer: null };
+    return { phase: 'transfer', nextEligibleAt: matched.verifiedAt + SPEAKING_TRANSFER_RETEST_DELAY_MS,
+      eligible: now >= matched.verifiedAt + SPEAKING_TRANSFER_RETEST_DELAY_MS, prescription, matched, transfer: null };
+  }
+  return { phase: 'matched', nextEligibleAt: drill.completedAt + SPEAKING_MATCHED_RETEST_DELAY_MS,
+    eligible: now >= drill.completedAt + SPEAKING_MATCHED_RETEST_DELAY_MS, prescription, matched: null, transfer: null };
+}
+
+export function publicSpeakingRetest(state, now = Date.now()) {
+  const proof = speakingRetestState(state, now);
+  if (!proof) return null;
+  return { skillId: proof.prescription.skillId, phase: proof.phase, nextEligibleAt: proof.nextEligibleAt,
+    matched: publicImprovementProof(proof.matched), transfer: publicImprovementProof(proof.transfer) };
+}
+
+export function salmaRetestTarget(state, profile, now = Date.now()) {
+  const normalized = normalizeSalmaCoachState(state); const prescription = normalized.activePrescription;
+  const retest = speakingRetestState(normalized, now);
+  if (!retest || retest.phase === 'complete' || !retest.eligible) return null;
   const grammarName = profile?.weakLog?.[prescription.skillId]?.ltName;
-  const dossier = Object.hasOwn(RETEST_DOSSIERS, prescription.skillId) ? RETEST_DOSSIERS[prescription.skillId] : null;
+  const dossiers = Object.hasOwn(RETEST_DOSSIERS, prescription.skillId) ? RETEST_DOSSIERS[prescription.skillId] : null;
+  const dossier = dossiers?.[retest.phase] || null;
   if (!dossier) return null;
   return { prescriptionId: prescription.id, skillId: prescription.skillId,
+    phase: retest.phase,
     dossier,
     grammarRule: ['word-order-sub', 'dativ-akkusativ', 'konjunktiv-2'].includes(prescription.skillId)
       ? boundedString(grammarName, 180) || null : null };
@@ -187,14 +241,14 @@ export function normalizeSalmaCoachState(value) {
     ? Object.fromEntries(Object.entries(coach.repeatedErrorCounts).filter(([k, v]) => /^[a-f0-9]{16}$/u.test(k) && v && typeof v === 'object')
       .slice(-20).map(([k, v]) => [k, { attempts: Math.max(0, Math.min(100, Number(v.attempts) || 0)),
         correct: Math.max(0, Math.min(100, Number(v.correct) || 0)), failures: Math.max(0, Math.min(100, Number(v.failures) || 0)),
-        lastAt: Number(v.lastAt) || null }])) : {};
+        lastAt: Number(v.lastAt) || null, completedAt: Number(v.completedAt) || null }])) : {};
   const improvementHistory = Array.isArray(coach.improvementHistory)
     ? coach.improvementHistory.map(normalizeImprovementProof).filter(Boolean).slice(-12) : [];
   const lastHandledEventId = /^[a-f0-9]{16}$/u.test(coach.lastHandledEventId || '') ? coach.lastHandledEventId : null;
   const acknowledgedEventIds = Array.isArray(coach.acknowledgedEventIds)
     ? [...new Set(coach.acknowledgedEventIds.filter((id) => /^[a-f0-9]{16}$/u.test(id)))].slice(-24) : [];
   if (lastHandledEventId && !acknowledgedEventIds.includes(lastHandledEventId)) acknowledgedEventIds.push(lastHandledEventId);
-  return { version: 2, preferences: { dailyMinutes: [5, 10, 20].includes(Number(pref.dailyMinutes)) ? Number(pref.dailyMinutes) : 10,
+  return { version: 3, preferences: { dailyMinutes: [5, 10, 20].includes(Number(pref.dailyMinutes)) ? Number(pref.dailyMinutes) : 10,
     preferredWindows: Array.isArray(pref.preferredWindows) ? [...new Set(pref.preferredWindows.filter((v) => WINDOWS.has(v)))].slice(0, 3) : [],
     languageSupport: LANGUAGES.has(pref.languageSupport) ? pref.languageSupport : 'de', autoSpeak: pref.autoSpeak === true, muted: pref.muted === true },
     activePrescription: normalizeStoredPrescription(raw.activePrescription), coachState: {
@@ -240,6 +294,11 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
 
 export function syncSalmaCoach(profile, { now = Date.now() } = {}) {
   const state = normalizeSalmaCoachState(profile?.salmaCoach);
+  const activeRetest = speakingRetestState(state, now);
+  if (activeRetest && activeRetest.phase !== 'complete') {
+    profile.salmaCoach = state;
+    return { state, directive: decide(buildSnapshot(profile, now)) };
+  }
   const { directive, prescription } = deriveSalmaPrescription(profile, { now, dailyMinutes: state.preferences.dailyMinutes });
   if (prescription && state.activePrescription?.id === prescription.id) { prescription.assignedAt = state.activePrescription.assignedAt; prescription.nextEligibleAt = state.activePrescription.nextEligibleAt; }
   state.activePrescription = prescription; profile.salmaCoach = state; return { state, directive };
@@ -249,35 +308,44 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
   const next = normalizeSalmaCoachState(state); const p = next.activePrescription;
   const completedSet = event?.completedSet === true && p?.drillId === 'flow-drill';
   if (!p || event?.drill !== p.drillId || (event.correct !== true && event.correct !== false && event.froze !== true && !completedSet)) return next;
-  const previous = next.coachState.repeatedErrorCounts[p.id] || { attempts: 0, correct: 0, failures: 0, lastAt: null };
+  const previous = next.coachState.repeatedErrorCounts[p.id] || { attempts: 0, correct: 0, failures: 0, lastAt: null, completedAt: null };
   const failed = event.correct === false || event.froze === true;
   const credit = completedSet ? p.repetitions : 1;
   const row = { attempts: previous.attempts + credit, correct: previous.correct + (failed ? 0 : credit),
-    failures: previous.failures + (failed ? 1 : 0), lastAt: now };
+    failures: previous.failures + (failed ? 1 : 0), lastAt: now, completedAt: previous.completedAt || null };
   next.coachState.repeatedErrorCounts[p.id] = row;
   const requiredCorrect = Math.min(24, p.repetitions + row.failures * 2);
-  if (row.correct >= requiredCorrect) next.coachState.completedBlocks[p.id] = Math.max(1, next.coachState.completedBlocks[p.id] || 0);
+  if (row.correct >= requiredCorrect) {
+    next.coachState.completedBlocks[p.id] = Math.max(1, next.coachState.completedBlocks[p.id] || 0);
+    row.completedAt ||= now;
+  }
   return next;
 }
 
-export function recordMeaningfulRetest(state, profile, { sessionId, skillId, now = Date.now() } = {}) {
+export function recordMeaningfulRetest(state, profile, { sessionId, skillId, phase, now = Date.now() } = {}) {
   const next = normalizeSalmaCoachState(state); const prescription = next.activePrescription;
   const safeId = boundedString(sessionId, 100);
   if (!safeId || !prescription || prescription.skillId !== skillId || !prescription.baseline
     || !(next.coachState.completedBlocks[prescription.id] > 0)) return next;
   if (next.coachState.improvementHistory.some((proof) => proof.retestSessionId === safeId)) return next;
+  const expected = speakingRetestState(next, now);
+  if (!expected || expected.phase === 'complete' || expected.eligible !== true || phase !== expected.phase) return next;
   const followup = measurementForSkill(profile, skillId);
-  if (!followup || followup.measuredAt <= prescription.baseline.measuredAt
-    || followup.evidenceId === prescription.baseline.evidenceId) return next;
+  const previousMeasurement = expected.phase === 'transfer' && expected.matched
+    ? { measuredAt: expected.matched.measuredAt, evidenceId: expected.matched.measurementEvidenceId }
+    : prescription.baseline;
+  if (!followup || followup.measuredAt <= previousMeasurement.measuredAt
+    || (previousMeasurement.evidenceId && followup.evidenceId === previousMeasurement.evidenceId)) return next;
   const metric = metricForSkill(skillId); const rawDelta = followup.value - prescription.baseline.value;
   const signedImprovement = metric.direction === 'higher' ? rawDelta : -rawDelta;
   const status = signedImprovement >= metric.minimumDelta ? 'improved'
     : signedImprovement <= -metric.minimumDelta ? 'regressed' : 'held';
   const proof = normalizeImprovementProof({
     id: hash({ prescriptionId: prescription.id, skillId, before: prescription.baseline.value,
-      after: followup.value, retestSessionId: safeId }, 16),
+      after: followup.value, retestSessionId: safeId, phase: expected.phase }, 16),
     prescriptionId: prescription.id, skillId, before: prescription.baseline.value, after: followup.value,
-    status, verifiedAt: now, retestSessionId: safeId,
+    phase: expected.phase, status, verifiedAt: now, measuredAt: followup.measuredAt,
+    measurementEvidenceId: followup.evidenceId, retestSessionId: safeId,
   });
   next.coachState.lastRetestSessionId = safeId;
   next.coachState.improvementHistory = [...next.coachState.improvementHistory, proof].filter(Boolean).slice(-12);
@@ -292,7 +360,9 @@ export function safeIntervention(state) {
   const latestProof = publicImprovementProof(history[history.length - 1]);
   const acknowledged = new Set([...(state?.coachState?.acknowledgedEventIds || []), state?.coachState?.lastHandledEventId].filter(Boolean));
   if (latestProof && !acknowledged.has(latestProof.id)) {
-    const result = latestProof.status === 'improved' ? 'Die Verbesserung ist bestätigt.'
+    const result = latestProof.status === 'improved' && latestProof.phase === 'transfer'
+      ? 'Die Verbesserung hat auch in einer neuen Transfersituation gehalten.'
+      : latestProof.status === 'improved' ? 'Die Verbesserung ist im passenden Vergleichstest bestätigt; der spätere Transfer steht noch aus.'
       : latestProof.status === 'regressed' ? 'Der Retest war schwächer; ich passe deinen nächsten Schritt an.'
         : 'Der Retest hielt das Niveau; wir trainieren den Engpass gezielter weiter.';
     return { id: latestProof.id, kind: 'verified_retest',
@@ -314,9 +384,10 @@ export function publicSalmaCoach(profile, account, flags) {
   const progress = limited ? { successfulRepetitions: attempt?.correct || 0,
     requiredSuccessfulRepetitions: Math.min(24, limited.repetitions + (attempt?.failures || 0) * 2),
     blockNominatedComplete: (state.coachState.completedBlocks[limited.id] || 0) > 0,
-    masteryConfirmed: verifiedRetest?.status === 'improved' && history[history.length - 1]?.prescriptionId === limited.id,
+    masteryConfirmed: verifiedRetest?.phase === 'transfer' && verifiedRetest.status === 'improved',
     verifiedRetest } : (verifiedRetest ? { successfulRepetitions: 0, requiredSuccessfulRepetitions: 0,
-      blockNominatedComplete: false, masteryConfirmed: false, verifiedRetest } : null);
+      blockNominatedComplete: false, masteryConfirmed: verifiedRetest.phase === 'transfer' && verifiedRetest.status === 'improved',
+      verifiedRetest } : null);
   const publicPrescription = limited ? {
     id: limited.id, skillId: limited.skillId, drillId: limited.drillId, blocks: limited.blocks,
     repetitions: limited.repetitions, durationSeconds: limited.durationSeconds, timesPerDay: limited.timesPerDay,
@@ -325,9 +396,11 @@ export function publicSalmaCoach(profile, account, flags) {
     baseline: limited.baseline ? { metricKey: limited.baseline.metricKey, value: limited.baseline.value, measuredAt: limited.baseline.measuredAt } : null,
   } : null;
   const listeningRetest = publicListeningRetest(profile, limited?.skillId);
+  const speakingRetest = publicSpeakingRetest(state);
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
     interviewRisk,
     listeningRetest,
+    speakingRetest,
     preferences: state.preferences, activePrescription: publicPrescription, intervention: safeIntervention({ ...state, activePrescription: limited }),
     progress, brain: { state: directive?.state || 'NEW', action: directive?.prescription?.action || 'assessment' } };
 }

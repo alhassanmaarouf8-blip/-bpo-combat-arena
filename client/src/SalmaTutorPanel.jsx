@@ -162,8 +162,11 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const p = coach.activePrescription;
   const risk = coach.interviewRisk;
   const listeningRetest = coach.listeningRetest;
+  const speakingRetest = coach.speakingRetest;
   const proof = coach.progress?.verifiedRetest || null;
-  const proofOutcome = proof?.status === 'improved' ? 'Verbesserung im Live-Interview bestätigt.'
+  const proofOutcome = proof?.status === 'improved' && proof?.phase === 'transfer'
+    ? 'Die Verbesserung hielt auch in der neuen Transfersituation.'
+    : proof?.status === 'improved' ? 'Verbesserung im passenden Vergleichstest; der Transfernachweis steht noch aus.'
     : proof?.status === 'regressed' ? 'Der Live-Retest war schwächer; dein nächster Schritt wurde angepasst.'
       : proof ? 'Das Niveau hielt im Live-Retest; der Engpass bleibt im Fokus.' : '';
   return (
@@ -192,9 +195,22 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         {listeningRetest.phase === 'complete' && 'Der verzögerte Vergleichs- und Transfernachweis ist vollständig.'}
         {listeningRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Übung vorher hilft, gilt aber nicht als Retest.</span>}
       </div>}
+      {speakingRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
+        <strong style={{ color: '#e2e8f0' }}>Sprechnachweis: </strong>
+        {speakingRetest.phase === 'matched' && <>Der passende Vergleichstest zählt frühestens am{' '}
+          {new Date(speakingRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
+        {speakingRetest.phase === 'transfer' && <>Der Test in einer neuen Situation zählt frühestens am{' '}
+          {new Date(speakingRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
+        {speakingRetest.phase === 'complete' && (speakingRetest.transfer
+          ? 'Vergleichs- und Transfernachweis sind vollständig.'
+          : 'Der Vergleichstest zeigte noch keine übertragbare Verbesserung; BrainGuide passt das Training an.')}
+        {speakingRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Frühere Übung hilft, gilt aber nicht als Retest.</span>}
+      </div>}
       {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
         background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: '#dbeafe' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>VERIFIZIERTER RETEST</div>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>
+          {proof.phase === 'transfer' ? 'VERIFIZIERTER TRANSFER' : 'VERIFIZIERTER VERGLEICHSTEST'}
+        </div>
         <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{proof.skillLabel}</div>
         <div style={{ marginTop: 3, fontSize: 12.5, lineHeight: 1.55 }}>
           {proof.metricLabel}: <strong>{proof.before}</strong> → <strong>{proof.after}</strong> {proof.unit}. {proofOutcome}
@@ -208,7 +224,9 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         {coach.progress && <div style={{ color: '#94a3b8', marginTop: 4 }}>
           Saubere Wiederholungen: {coach.progress.successfulRepetitions}/{coach.progress.requiredSuccessfulRepetitions}
           {coach.progress.blockNominatedComplete
-            ? (p.baseline ? ' · Block abgeschlossen; Bestätigung folgt im gezielten Live-Interview.'
+            ? (p.baseline ? (speakingRetest?.phase === 'transfer'
+              ? ' · Vergleich bestanden; Beherrschung wird später in einer neuen Situation geprüft.'
+              : ' · Block abgeschlossen; Bestätigung folgt im gezielten Live-Interview.')
               : ' · Block abgeschlossen; BrainGuide wählt jetzt die nächste verlässliche Messung.')
             : ''}
         </div>}

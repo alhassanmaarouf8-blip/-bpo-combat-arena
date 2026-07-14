@@ -89,6 +89,41 @@ test('the same content under a new attempt id counts only once', () => {
   assert.equal(listeningEvidenceSummary(profile, 'listen-clear'), null);
 });
 
+test('reordered storage is normalized chronologically before packets are adjudicated', () => {
+  const start = 1_800_000_000_000;
+  const day = 24 * 60 * 60 * 1000;
+  const packet = (offset, baseId) => Array.from({ length: 5 }, (_, index) => ({
+    attemptId: (baseId + index).toString(16).padStart(24, '0'),
+    itemHash: (baseId + index).toString(16).padStart(64, '0'),
+    skillId: 'listen-clear', kind: 'verstehen', type: null, correct: true, plays: 1,
+    playbackRate: 1, responseLatencyMs: 900,
+    issuedAt: start + offset + index * 1000, gradedAt: start + offset + index * 1000 + 500,
+  }));
+  const chronological = [...packet(0, 500), ...packet(day + 10_000, 600), ...packet(8 * day + 20_000, 700)];
+  const shuffled = [...chronological].sort((a, b) => b.issuedAt - a.issuedAt);
+  const proof = listeningRetestEvidence({ listeningAttempts: shuffled }, 'listen-clear');
+  assert.equal(proof.phase, 'complete');
+  assert.equal(proof.baseline.measuredAt, chronological[4].gradedAt);
+  assert.equal(proof.matched.measuredAt, chronological[9].gradedAt);
+  assert.equal(proof.transfer.measuredAt, chronological[14].gradedAt);
+});
+
+test('unfingerprinted legacy rows can measure but can never prove transfer mastery', () => {
+  const start = 1_800_000_000_000;
+  const day = 24 * 60 * 60 * 1000;
+  const rows = Array.from({ length: 15 }, (_, index) => ({
+    attemptId: (800 + index).toString(16).padStart(24, '0'),
+    skillId: 'listen-clear', kind: 'verstehen', type: null, correct: true, plays: 1,
+    playbackRate: 1, responseLatencyMs: 1000,
+    issuedAt: start + (index < 5 ? index * 1000 : index < 10 ? day + index * 1000 : 8 * day + index * 1000),
+    gradedAt: start + (index < 5 ? index * 1000 : index < 10 ? day + index * 1000 : 8 * day + index * 1000) + 500,
+  }));
+  const profile = { listeningAttempts: rows };
+  assert.equal(listeningEvidenceSummary(profile, 'listen-clear').accuracy, 1);
+  assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'baseline');
+  assert.equal(listeningMasteryEvidence(profile).clear, null);
+});
+
 test('phone mastery fails closed when correct answers depend on replays', () => {
   const profile = { listeningAttempts: Array.from({ length: 5 }, (_, index) => ({
     attemptId: (index + 20).toString(16).padStart(24, '0'), skillId: 'listen-phone', kind: 'detail', type: 'nummer',

@@ -542,6 +542,7 @@ export class WebSocketManager {
       dossier = improvementRetest?.dossier || topWeakRule(prof);
       ctx.targetImprovementSkillId = improvementRetest?.skillId || null;
       ctx.targetImprovementPrescriptionId = improvementRetest?.prescriptionId || null;
+      ctx.targetImprovementPhase = improvementRetest?.phase || null;
       ctx.targetWeakRule = improvementRetest?.grammarRule || (!improvementRetest ? dossier : null);
       focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
       // Enrich dossier with recurring error labels from recent sessions
@@ -1535,6 +1536,7 @@ export class WebSocketManager {
           p.salmaCoach = recordMeaningfulRetest(p.salmaCoach, p, {
             sessionId: ctx.sessionId,
             skillId: ctx.targetImprovementSkillId,
+            phase: ctx.targetImprovementPhase,
             now,
           });
         }

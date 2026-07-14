@@ -71,7 +71,7 @@ export function defaultProfile(userId) {
     // Salma Personal Tutor: bounded structured state, keyed by immutable account ID.
     // Raw audio, free-form questions, transcripts, and email addresses never live here.
     salmaCoach: {
-      version: 2,
+      version: 3,
       preferences: { dailyMinutes: 10, preferredWindows: [], languageSupport: 'de', autoSpeak: false, muted: false },
       activePrescription: null,
       coachState: { lastHandledEventId: null, acknowledgedEventIds: [], repeatedErrorCounts: {}, completedBlocks: {}, lastRetestSessionId: null,

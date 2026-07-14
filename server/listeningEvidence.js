@@ -127,7 +127,9 @@ export function listeningEvidence(profile, skillId, { limit = 10 } = {}) {
   const seenAttempts = new Set();
   const seenContent = new Set();
   return (Array.isArray(profile?.listeningAttempts) ? profile.listeningAttempts : [])
-    .map(safeAttempt).filter(Boolean).filter((row) => {
+    .map(safeAttempt).filter(Boolean)
+    .sort((a, b) => a.issuedAt - b.issuedAt || a.gradedAt - b.gradedAt || a.attemptId.localeCompare(b.attemptId))
+    .filter((row) => {
       if (row.skillId !== skillId || seenAttempts.has(row.attemptId)) return false;
       if (row.itemHash && seenContent.has(row.itemHash)) return false;
       seenAttempts.add(row.attemptId);
@@ -163,7 +165,10 @@ function summarizeAttempts(attempts) {
 }
 
 export function listeningRetestEvidence(profile, skillId) {
-  const attempts = listeningEvidence(profile, skillId, { limit: 30 });
+  // A delayed transfer claim must be tied to server-fingerprinted content. Older
+  // evidence without an item hash may still inform a current measurement, but it
+  // cannot prove that matched and transfer packets contained novel material.
+  const attempts = listeningEvidence(profile, skillId, { limit: 30 }).filter((row) => row.itemHash);
   if (attempts.length < PACKET_SIZE) {
     return { phase: 'baseline', nextEligibleAt: null, baseline: null, matched: null, transfer: null };
   }
