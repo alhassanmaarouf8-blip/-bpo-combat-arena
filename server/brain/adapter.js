@@ -14,6 +14,24 @@ const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const GATING = ['intelligibility', 'deescalation', 'wpm'];   // the hire-readiness gating signals
 const DAY_MS = 86400000;
 
+function criterionEvidenceCount(sessions, criterionId) {
+  const measured = (session) => {
+    const words = Number(session?.evidenceQuality?.words) || Number(session?.words) || 0;
+    if (criterionId === 'sustained_pace') return Number.isFinite(session?.wpm);
+    if (criterionId === 'grammar_control') return session?.grammarMeasured === true && words >= 80;
+    if (criterionId === 'speech_recognition_proxy') return Number.isFinite(session?.intelligibility);
+    if (criterionId === 'deescalation_response') return Number.isFinite(session?.deescalation);
+    if (criterionId === 'complete_response') return Number.isFinite(session?.giveUpRate);
+    if (criterionId === 'response_latency') return Number.isFinite(session?.latencyS);
+    if (criterionId === 'filler_dependence') return Number.isFinite(session?.fillers) && words >= 80;
+    if (criterionId === 'connected_answer_structure') return Number.isFinite(session?.subClauseRate);
+    if (criterionId === 'lexical_range_proxy') return Number.isFinite(session?.vocabDiversity);
+    return false;
+  };
+  return sessions.filter((session) => session?.evidenceQuality?.version === 1
+    && session.evidenceQuality.prescriptionEligible === true && measured(session)).length;
+}
+
 export function masteredSkillsFromProfile(p) {
   const sessions = p?.sessions || [];
   const weakLog  = p?.weakLog || {};
@@ -84,6 +102,7 @@ export function buildSnapshot(p, now = Date.now()) {
   const prev = sessions[sessions.length - 2] || null;
   const hr = hireReadinessFor(p);
   const { measured } = featuresFromProfile(p);
+  const limitingCriterionId = hr.rejectionForecast?.criterion?.criterionId || null;
 
   const lastDate = last?.date || 0;
   const after = (at) => (at || 0) > lastDate;
@@ -108,6 +127,8 @@ export function buildSnapshot(p, now = Date.now()) {
     weakLog,
     lastTargetRuleId: targetRuleId,
     limitingSkill:    hr.limitingSkill && hr.limitingSkill !== 'none' ? hr.limitingSkill : null,
+    limitingCriterionId,
+    limitingEvidenceCount: criterionEvidenceCount(sessions, limitingCriterionId),
     unmeasuredGates:  GATING.filter((g) => !measured[g]),
     sessionCount:     sessions.length,
     daysSinceActive:  lastDate ? Math.floor((now - lastDate) / DAY_MS) : 0,

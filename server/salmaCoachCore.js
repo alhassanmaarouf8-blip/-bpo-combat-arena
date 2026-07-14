@@ -9,6 +9,8 @@ const MODES = new Set(['off', 'beta', 'on']);
 const WINDOWS = new Set(['morning', 'afternoon', 'evening']);
 const LANGUAGES = new Set(['de']);
 const DRILLS = new Set(['satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs']);
+const CRITERION_IDS = new Set(['sustained_pace', 'grammar_control', 'speech_recognition_proxy', 'deescalation_response',
+  'complete_response', 'response_latency', 'filler_dependence', 'connected_answer_structure', 'lexical_range_proxy']);
 const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
 const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 const PROTOCOLS = Object.freeze({
@@ -228,6 +230,8 @@ function normalizeStoredPrescription(value) {
     repetitions: Math.max(1, Math.min(8, Number(value.repetitions) || 1)), durationSeconds: Math.max(60, Math.min(1800, Number(value.durationSeconds) || 300)),
     timesPerDay: Math.max(1, Math.min(2, Number(value.timesPerDay) || 1)), minimumSpacingMinutes: Math.max(0, Math.min(720, Number(value.minimumSpacingMinutes) || 0)),
     successGate: boundedString(value.successGate, 180), assignedAt: Number(value.assignedAt) || Date.now(), nextEligibleAt: Number(value.nextEligibleAt) || null,
+    evidenceConfidence: value.evidenceConfidence === 'high' ? 'high' : 'low',
+    criterionId: CRITERION_IDS.has(value.criterionId) ? value.criterionId : null,
     baseline: normalizeMeasurement(value.baseline, boundedString(value.skillId, 60)) };
 }
 
@@ -286,10 +290,14 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
     ? listeningRows.slice(-4).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile);
   const baseline = measurementForSkill(profile, skillId);
   if (!baseline) return { directive, prescription: null };
-  const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds, minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate };
+  const evidenceConfidence = directive.confidence === 'high' ? 'high' : 'low';
+  const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId) ? directive.prescription.criterionId : null;
+  const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds,
+    minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate, evidenceConfidence, criterionId };
   return { directive, prescription: { id: hash(identity, 16), evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions,
     durationSeconds, timesPerDay: blocks, minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate,
-    assignedAt: now, nextEligibleAt: blocks > 1 ? now + protocol.minimumSpacingMinutes * 60_000 : null, baseline } };
+    assignedAt: now, nextEligibleAt: blocks > 1 ? now + protocol.minimumSpacingMinutes * 60_000 : null,
+    evidenceConfidence, criterionId, baseline } };
 }
 
 export function syncSalmaCoach(profile, { now = Date.now() } = {}) {
@@ -370,7 +378,10 @@ export function safeIntervention(state) {
       nextAction: 'BrainGuide hat aus diesem Retest bereits den nächsten höchsten Hebel gewählt.', speakable: true };
   }
   if (!p || acknowledged.has(p.id)) return null;
-  return { id: p.id, kind: 'prescription', text: `Dein Engpass ist ${SKILL_LABELS[p.skillId] || p.skillId}. Mache jetzt ${p.repetitions} Wiederholungen im ${p.drillId}.`,
+  const evidenceText = p.evidenceConfidence === 'high'
+    ? `Aus wiederholter zuverlässiger Evidenz hat BrainGuide ${SKILL_LABELS[p.skillId] || p.skillId} als nächsten Trainingsschritt gewählt.`
+    : `Aus einem ersten zuverlässigen Hinweis hat BrainGuide ${SKILL_LABELS[p.skillId] || p.skillId} als Mess- und Trainingsschritt gewählt; der Retest prüft, ob sich das Muster bestätigt.`;
+  return { id: p.id, kind: 'prescription', text: `${evidenceText} Mache jetzt ${p.repetitions} Wiederholungen im ${p.drillId}.`,
     nextAction: `Arbeite ${Math.ceil(p.durationSeconds / 60)} Minuten. Fertig ist der Block erst, wenn: ${p.successGate}`, speakable: true };
 }
 
@@ -394,6 +405,7 @@ export function publicSalmaCoach(profile, account, flags) {
     repetitions: limited.repetitions, durationSeconds: limited.durationSeconds, timesPerDay: limited.timesPerDay,
     minimumSpacingMinutes: limited.minimumSpacingMinutes, successGate: limited.successGate,
     assignedAt: limited.assignedAt, nextEligibleAt: limited.nextEligibleAt,
+    evidenceConfidence: limited.evidenceConfidence, criterionId: limited.criterionId,
     baseline: limited.baseline ? { metricKey: limited.baseline.metricKey, value: limited.baseline.value, measuredAt: limited.baseline.measuredAt } : null,
   } : null;
   const listeningRetest = publicListeningRetest(profile, limited?.skillId);

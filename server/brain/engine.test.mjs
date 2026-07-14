@@ -102,6 +102,33 @@ test('engine: a weakness with <2 sessions of evidence is LOW confidence (no over
   assert.equal(d.confidence, 'low');
 });
 
+test('engine: exact forecast criteria select the aligned skill path, never an unrelated frontier item', () => {
+  const foundation = ['self-intro', 'praesens-perfekt', 'core-vocab', 'listen-clear'];
+  const filler = decide({ sessionCount: 3, masteredSkills: [...foundation, 'no-freeze-expected'],
+    limitingSkill: 'confidence', limitingCriterionId: 'filler_dependence' });
+  assert.equal(filler.target.skillId, 'fluency-interrupt');
+  assert.equal(filler.prescription.criterionId, 'filler_dependence');
+
+  const lexical = decide({ sessionCount: 3, masteredSkills: [], limitingSkill: 'complexity',
+    limitingCriterionId: 'lexical_range_proxy' });
+  assert.equal(lexical.target.skillId, 'core-vocab');
+
+  const lockedPhone = decide({ sessionCount: 3, masteredSkills: [], limitingSkill: 'intelligibility',
+    limitingCriterionId: 'speech_recognition_proxy' });
+  assert.equal(lockedPhone.target.skillId, 'listen-clear');
+});
+
+test('engine: repeated reliable criterion evidence raises confidence without requiring a grammar weakLog', () => {
+  const foundation = ['self-intro', 'praesens-perfekt', 'core-vocab', 'listen-clear', 'no-freeze-expected'];
+  const one = decide({ sessionCount: 1, masteredSkills: foundation, limitingSkill: 'fluency',
+    limitingCriterionId: 'sustained_pace', limitingEvidenceCount: 1 });
+  const repeated = decide({ sessionCount: 2, masteredSkills: foundation, limitingSkill: 'fluency',
+    limitingCriterionId: 'sustained_pace', limitingEvidenceCount: 2 });
+  assert.equal(one.confidence, 'low');
+  assert.equal(repeated.confidence, 'high');
+  assert.equal(repeated.target.skillId, 'fluency-interrupt');
+});
+
 test('engine: a due vacancy step becomes the one next action after the honest cold-start assessment', () => {
   const vacancyDue = {
     id:'day_3_evidence', title:'Relevante STAR-Geschichte', objective:'Formuliere einen Beleg.',

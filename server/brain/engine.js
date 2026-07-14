@@ -18,25 +18,51 @@ const LIMIT_TO_SKILL = {
   intelligibility: 'pronunciation-phone',
   fluency:         'fluency-interrupt',
   deescalation:    'deescalate',
+  confidence:      'no-freeze-expected',
+  complexity:      'word-order-sub',
   // grammar handled specially (pick the worst frontier grammar skill from weakLog)
 };
+const CRITERION_TO_SKILL = Object.freeze({
+  sustained_pace: 'fluency-interrupt',
+  speech_recognition_proxy: 'pronunciation-phone',
+  deescalation_response: 'deescalate',
+  complete_response: 'no-freeze-expected',
+  response_latency: 'no-freeze-expected',
+  filler_dependence: 'fluency-interrupt',
+  connected_answer_structure: 'word-order-sub',
+  lexical_range_proxy: 'core-vocab',
+});
 const GRAMMAR_SKILLS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const MISSION_STEPS = new Set(['passport', 'measure', 'prep', 'shortlist', 'pack', 'submit', 'response', 'interview']);
 
-function pickTarget(fr, limitingSkill, weakLog) {
+function pathTarget(targetId, frIds, seen = new Set()) {
+  if (!targetId || seen.has(targetId)) return null;
+  if (frIds.has(targetId)) return SKILL_BY_ID[targetId];
+  seen.add(targetId);
+  const target = SKILL_BY_ID[targetId];
+  for (const prerequisite of target?.prereq || []) {
+    const available = pathTarget(prerequisite, frIds, seen);
+    if (available) return available;
+  }
+  return null;
+}
+
+function pickTarget(fr, limitingSkill, weakLog, criterionId = null) {
   if (!fr.length) return null;
   const frIds = new Set(fr.map((s) => s.id));
   // 1) grammar: target the worst-recent frontier grammar skill
-  if (limitingSkill === 'grammar') {
+  if (limitingSkill === 'grammar' || criterionId === 'grammar_control') {
     const worst = GRAMMAR_SKILLS
-      .filter((id) => frIds.has(id))
       .map((id) => ({ id, n: lastErr(weakLog, id) }))
       .sort((a, b) => b.n - a.n)[0];
-    if (worst) return SKILL_BY_ID[worst.id];
+    const grammarTarget = pathTarget(worst?.n > 0 ? worst.id : 'word-order-sub', frIds);
+    if (grammarTarget) return grammarTarget;
   }
-  // 2) a specific limiting skill maps to a specific competency (if it's on the frontier)
-  const mapped = LIMIT_TO_SKILL[limitingSkill];
-  if (mapped && frIds.has(mapped)) return SKILL_BY_ID[mapped];
+  // 2) the exact observed criterion wins. If its direct skill is still locked, select the nearest
+  // unmet prerequisite on that same path rather than an unrelated low-layer curriculum item.
+  const mapped = CRITERION_TO_SKILL[criterionId] || LIMIT_TO_SKILL[limitingSkill];
+  const aligned = pathTarget(mapped, frIds);
+  if (aligned) return aligned;
   // 3) fallback: the lowest-layer frontier skill (curriculum order)
   return [...fr].sort((a, b) => a.layer - b.layer)[0];
 }
@@ -63,7 +89,7 @@ function detectAha(weakLog, lastTargetRuleId, globalRegressed) {
 export function decide(snapshot = {}) {
   const {
     masteredSkills = [], weakLog = {}, lastTargetRuleId = null,
-    limitingSkill = null, unmeasuredGates = [],
+    limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
     vacancyDue = null,
@@ -143,10 +169,10 @@ export function decide(snapshot = {}) {
       prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, journey, aha, measure: unmeasuredGates };
   }
 
-  const target = pickTarget(fr, limitingSkill, weakLog);
+  const target = pickTarget(fr, limitingSkill, weakLog, limitingCriterionId);
   // Confidence: only assert "your weakness" if the targeted rule has ≥2 sessions of evidence.
-  const ev = target && weakLog?.[target.id]?.errCounts?.length || 0;
-  const confidence = ev >= 2 ? 'high' : 'low';
+  const targetEvidence = target && weakLog?.[target.id]?.errCounts?.length || 0;
+  const confidence = Math.max(targetEvidence, Math.max(0, Number(limitingEvidenceCount) || 0)) >= 2 ? 'high' : 'low';
 
   // Prep must plausibly address THE TARGET to earn the rematch (doctrine D3): a drill event
   // counts if it landed on the targeted rule OR came from the drill this target prescribes
@@ -164,8 +190,9 @@ export function decide(snapshot = {}) {
 
   return {
     state, confidence, tier, journey, aha,
-    target: target ? { skillId: target.id, layer: target.layer } : null,
-    prescription: target ? { action: 'drill', drill: target.drill, skillId: target.id } : { action: 'interview' },
+    target: target ? { skillId: target.id, layer: target.layer, ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : null,
+    prescription: target ? { action: 'drill', drill: target.drill, skillId: target.id,
+      ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : { action: 'interview' },
     measure: [],
   };
 }

@@ -137,6 +137,18 @@ test('adapter: recentDrillEvents carry drill kind + rule identity, only post-fig
   assert.ok(ev.some((e) => e.drill === 'hoer-check' && e.ruleId === null));
 });
 
+test('adapter: criterion confidence counts only reliable sessions that measured that exact signal', () => {
+  const reliable = (date, wpm) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+    grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1,
+    intelligibility: 0.9, latencyS: 2, evidenceQuality: { version: 1, words: 120, prescriptionEligible: true } });
+  const p = { sessions: [reliable(NOW - 2 * DAY, 70), reliable(NOW - DAY, 75),
+    { ...reliable(NOW, 60), evidenceQuality: { version: 1, words: 120, prescriptionEligible: false } }] };
+  const snap = buildSnapshot(p, NOW);
+  assert.equal(snap.limitingCriterionId, 'sustained_pace');
+  assert.equal(snap.limitingEvidenceCount, 2);
+  assert.equal(decide(snap).confidence, 'high');
+});
+
 // Pins on-target prep (doctrine D3) at the ENGINE: with a concrete target, a drill event earns
 // READY only if it hit the targeted rule OR came from the target's prescribed drill — an
 // unrelated rep (shadowing for a dative target) stays POST_FIGHT even when legacy prepDone=true.

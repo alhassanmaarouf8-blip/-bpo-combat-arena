@@ -83,6 +83,6 @@ export function tierStatus(masteredSet) {
   return {
     cleared:  [entryCleared && 'entry', premiumCleared && 'premium'].filter(Boolean),
     next:     !entryCleared ? 'entry' : !premiumCleared ? 'premium' : null,
-    applyNow: entryCleared,   // clearing the entry tier = employable → switch to the APPLICATION state
+    applyNow: entryCleared,   // internal entry simulation cleared → gather real application evidence
   };
 }

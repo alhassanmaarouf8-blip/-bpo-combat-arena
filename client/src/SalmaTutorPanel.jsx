@@ -241,7 +241,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         </div>
       </div>}
       {p && <div style={{ color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong style={{ color: '#e2e8f0' }}>Dein persönlicher Trainingsblock:</strong>{' '}
+        <strong style={{ color: '#e2e8f0' }}>{p.evidenceConfidence === 'high' ? 'Dein persönlicher Trainingsblock:' : 'Messblock für einen ersten zuverlässigen Hinweis:'}</strong>{' '}
         {p.repetitions} Wiederholungen · {Math.ceil(p.durationSeconds / 60)} Minuten
         {p.timesPerDay > 1 ? ` · ${p.timesPerDay} Blöcke mit mindestens ${Math.round(p.minimumSpacingMinutes / 60)} Stunden Abstand` : ''}.
         <div style={{ color: '#94a3b8', marginTop: 4 }}>Erfolg: {p.successGate}</div>

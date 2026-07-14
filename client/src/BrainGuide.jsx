@@ -27,7 +27,7 @@ const BRAIN_COPY = {
   drill:         (id) => DRILL_LABEL[id] || id,
   startCta:      'يلا بينا',
   // "أكونت ألماني … في" = the owner's own correction (2026-07-10) — his verbatim phrasing wins.
-  apply:         'برافو يا وحش! انت دلوقتي جاهز تشتغل في أكونت ألماني — قدّم وانت واثق من نفسك.',
+  apply:         'برافو يا وحش! خلّصت معايير المحاكاة الأساسية — دلوقتي قدّم عشان نختبر جاهزيتك مع فرص حقيقية.',
   measure:       'قبل ما نكمّل، محتاج أقيس حاجة واحدة عشان أظبّط طريقك صح — يلا نعملها في دقيقتين.',
   ahaTitle:      'شوف بنفسك — تدريبك جاب نتيجة:',
   ahaBody:       (label, before, after) => `${label}: كنت بتغلط فيها ${before} مرّة، دلوقتي ${after} بس — ده مجهودك انت، مش صدفة.`,
@@ -74,7 +74,7 @@ function whyLine(d) {
     case 'READY':
       return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: die Interviewerin kennt deine Akte und testet genau diese Stelle erneut. Erst wenn sie im Interview hält, gilt sie als gelöst.`;
     case 'APPLY':
-      return 'Deine Entry-Skills sind komplett. Ab hier bringt dich jede Bewerbung weiter als jede weitere Übung.';
+      return 'Du hast die internen Einstiegskriterien der Simulation erfüllt. Bewirb dich jetzt, damit echte Rückmeldungen die nächsten Lücken zeigen.';
     case 'MISSION_CONTROL':
       return 'Dein nächster Schritt folgt aus deinen bestätigten Fakten, deiner gemessenen Bereitschaft und deinem aktuellen Bewerbungsstand — ohne geratenen Fit.';
     case 'PLATEAU':
@@ -83,7 +83,7 @@ function whyLine(d) {
       if (!label) return null;
       return soft
         ? `Erste Diagnose: ${label}. Je mehr ich dich höre, desto schärfer wird sie — dieses Training bringt dich JETZT am weitesten.`
-        : `Deine größte Baustelle: ${label}. Von allem, was ich gemessen habe, blockiert DAS deine Einstellung am meisten — ein Problem, ein Training, dann der Beweis im Interview.`;
+        : `Dein stärkster wiederholt beobachteter Risikohinweis: ${label}. Ein Problem, ein Training, dann der Beweis im passenden und neuen Interview-Retest.`;
   }
 }
 

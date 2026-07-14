@@ -77,6 +77,29 @@ test('new intervention disappears after idempotent acknowledgement', () => {
   assert.equal(acknowledgeEvent(acked, state.activePrescription.id).coachState.lastHandledEventId, state.activePrescription.id);
 });
 
+test('a one-session signal is prescribed as a hypothesis, never spoken as a confirmed bottleneck', () => {
+  const p = measuredProfile(1);
+  const { directive, prescription } = deriveSalmaPrescription(p, { now: 1_800_000_000_100 });
+  assert.equal(directive.confidence, 'low');
+  assert.equal(prescription.evidenceConfidence, 'low');
+  const state = normalizeSalmaCoachState({ activePrescription: prescription });
+  const intervention = safeIntervention(state);
+  assert.match(intervention.text, /ersten zuverlässigen Hinweis/u);
+  assert.doesNotMatch(intervention.text, /Dein Engpass ist/u);
+});
+
+test('the same reliable risk across two sessions earns a spaced second block and high-evidence wording', () => {
+  const p = measuredProfile(2);
+  const { directive, prescription } = deriveSalmaPrescription(p, { now: 1_800_000_000_100, dailyMinutes: 20 });
+  assert.equal(directive.confidence, 'high');
+  assert.equal(prescription.evidenceConfidence, 'high');
+  assert.equal(prescription.blocks, 2);
+  assert.equal(prescription.timesPerDay, 2);
+  assert.equal(prescription.nextEligibleAt, 1_800_000_000_100 + prescription.minimumSpacingMinutes * 60_000);
+  assert.match(safeIntervention(normalizeSalmaCoachState({ activePrescription: prescription })).text,
+    /wiederholter zuverlässiger Evidenz/u);
+});
+
 test('proof then prescription acknowledgements cannot oscillate forever', () => {
   const state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '1111111111111111', evidenceIds: [], skillId: 'word-order-sub', drillId: 'satzbau-schmiede',

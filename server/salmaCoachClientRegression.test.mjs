@@ -92,6 +92,7 @@ test('the product measures the prescription → block → verified-retest funnel
 test('the tutor labels observed risk honestly and exposes delayed listening retest timing without another CTA', async () => {
   const panel = await read('client/src/SalmaTutorPanel.jsx');
   const app = await read('client/src/App.jsx');
+  const brain = await read('client/src/BrainGuide.jsx');
   assert.match(panel, /GRÖSSTES RISIKO IM ZIELINTERVIEW/u);
   assert.match(panel, /keine Vorhersage einer Arbeitgeberentscheidung/u);
   assert.match(panel, /interne Referenz/u);
@@ -100,4 +101,6 @@ test('the tutor labels observed risk honestly and exposes delayed listening rete
   assert.doesNotMatch(app, /JETZT GEZIELT TRAINIEREN/u);
   assert.doesNotMatch(app, /INTERVIEW-BEREITSCHAFT/u);
   assert.doesNotMatch(panel, /90%|Einstellung garantiert|wirst eingestellt/u);
+  assert.doesNotMatch(brain, /blockiert.*Einstellung|جاهز تشتغل/u);
+  assert.match(brain, /internen Einstiegskriterien der Simulation/u);
 });
