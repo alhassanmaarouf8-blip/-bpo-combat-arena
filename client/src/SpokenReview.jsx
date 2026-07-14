@@ -10,7 +10,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
-import { reportDrillEvent } from './salmaCoachClient.js';
 import { DrillIntro } from './drillIntros.jsx';
 
 const MAX_SEC = 18;
@@ -78,9 +77,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'failed');
-      const coachCue = !d.retry
-        ? await reportDrillEvent({ apiUrl, token, event: { drill: 'srs', correct: d.correct === true } })
-        : null;
+      const coachCue = !d.retry ? d.coachCue || null : null;
       setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
     } catch (e) {
       setErr(e.message === 'no_api_key' ? { de: 'Dienst gerade nicht verfügbar.', ar: 'الخدمة مش متاحة دلوقتي.' }

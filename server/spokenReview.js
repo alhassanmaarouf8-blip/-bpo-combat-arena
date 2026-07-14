@@ -22,6 +22,7 @@ import { loadUser, saveUser }  from './store.js';
 import { dueItems, grade, normalize } from './srs.js';
 import { voicedDurationMs }            from './audioGuard.js';
 import { classifyGrammar }             from './errorTags.js';
+import { coachCueForDrill, recordDrillOutcome, salmaCoachEventId, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
 
 export const spokenReviewRouter = express.Router();
 
@@ -245,10 +246,17 @@ spokenReviewRouter.post('/spoken-review/grade',
       } else {
         p.drillLog = (p.drillLog || []).concat(ev).slice(-100);
       }
+      let coachCue = null;
+      if (salmaCoachFlags(process.env, req.account).enabled) {
+        const { state } = syncSalmaCoach(p);
+        p.salmaCoach = recordDrillOutcome(state, ev, ev.at);
+        const eventId = salmaCoachEventId({ accountId: req.account.id, itemId: id, ...ev });
+        coachCue = coachCueForDrill({ drill: ev.drill, correct, eventId });
+      }
       await saveUser(p);
 
       console.log(`[spokenReview] user=${req.account.id} id=${id} type=${item.type} correct=${correct} transcriptChars=${transcript.length}`);
-      res.json({ correct, expected, heard: transcript });
+      res.json({ correct, expected, heard: transcript, ...(coachCue ? { coachCue } : {}) });
     } catch (err) {
       console.error('[spokenReview] grade error:', err.message);
       const noKey = err.message === 'no_api_key';

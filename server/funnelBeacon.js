@@ -55,6 +55,9 @@ const ALLOWED = new Set([
   'application_pack_created', 'application_pack_approved', 'application_pack_exported', 'official_apply_opened',
   'application_marked_submitted', 'response_classified', 'interview_confirmed',
   'application_outcome_recorded', 'mission_paywall_shown',
+  // Verified Improvement Loop. Event names only: no skill, score, account, session, or prescription ids.
+  'salma_prescription_shown', 'salma_block_completed',
+  'salma_retest_improved', 'salma_retest_held', 'salma_retest_regressed',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

@@ -141,7 +141,7 @@ progressRouter.post('/diag/clientlat', requireAuth, (req, res) => {
 progressRouter.post('/drill-event', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
-    const { drill, ruleId, rule, froze, correct, voicedMs } = req.body || {};
+    const { drill, ruleId, rule, froze, correct, voicedMs, completedSet } = req.body || {};
     if (!drill) return res.status(400).json({ error: 'missing_drill' });
     const p = await loadUser(req.account.id);
     p.weakLog = p.weakLog || {};
@@ -149,6 +149,7 @@ progressRouter.post('/drill-event', requireAuth, async (req, res) => {
       at: Date.now(), drill: String(drill).slice(0, 40),
       ...(typeof froze === 'boolean'    ? { froze }   : {}),
       ...(typeof correct === 'boolean'  ? { correct } : {}),
+      ...(completedSet === true         ? { completedSet: true } : {}),
       ...(Number.isFinite(+voicedMs)    ? { voicedMs: Math.round(+voicedMs) } : {}),
     };
     // Canonicalize an LT rule NAME to the interview's ruleId (same classifyGrammar the interview

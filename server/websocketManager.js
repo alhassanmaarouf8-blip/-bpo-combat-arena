@@ -28,7 +28,7 @@ import { downsamplePcm24to16 }    from './geminiAudio.js';
 import { vertexConfigured }       from './vertexToken.js';
 import { completeVacancySession, vacancyLiveContext } from './vacancyTargetCore.js';
 import { missionControlVacancyLiveContext } from './missionControlCore.js';
-import { recordMeaningfulRetest, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
+import { normalizeSalmaCoachState, recordMeaningfulRetest, salmaCoachFlags, salmaRetestTarget, syncSalmaCoach } from './salmaCoachCore.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -530,15 +530,23 @@ export class WebSocketManager {
     let focusTitle = null;
     let prof = null;
     let candidateName = null;
+    let improvementRetest = null;
     try {
       prof = await loadUser(ctx.userId);
       bossId  = bossForLevel(prof.level).id;
-      dossier = topWeakRule(prof);   // recurring weak grammar rule → boss memory dossier
-      ctx.targetWeakRule = dossier;  // the PURE weak rule we re-test this session → measure its delta at debrief
+      if (salmaCoachFlags(process.env, account).enabled) {
+        improvementRetest = salmaRetestTarget(prof.salmaCoach, prof);
+      }
+      // A completed prescribed block earns an unseen, skill-matched retest. Otherwise preserve the
+      // legacy recurring-grammar dossier exactly. The curated dossier contains no learner text.
+      dossier = improvementRetest?.dossier || topWeakRule(prof);
+      ctx.targetImprovementSkillId = improvementRetest?.skillId || null;
+      ctx.targetImprovementPrescriptionId = improvementRetest?.prescriptionId || null;
+      ctx.targetWeakRule = improvementRetest?.grammarRule || (!improvementRetest ? dossier : null);
       focusTitle = getLesson(prof.lastCompletedLesson)?.title_de || null; // Trainingslager fight focus
       // Enrich dossier with recurring error labels from recent sessions
       const recentErrs = (prof.recentErrors || []).slice(0, 2).filter(Boolean);
-      if (recentErrs.length) {
+      if (!improvementRetest && recentErrs.length) {
         const errsStr = `Wiederkehrendes Muster aus der letzten Sitzung: ${recentErrs.join(', ')}`;
         dossier = [dossier, errsStr].filter(Boolean).join('. ');
       }
@@ -1402,6 +1410,7 @@ export class WebSocketManager {
         ...(ctx.vacancySnapshot?.targetId ? { vacancyTargetId: ctx.vacancySnapshot.targetId } : {}),
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
+        grammarMeasured: debrief?.grammarUnavailable === false,
         // Per-session grammar errors with BOTH the canonical Trainingslager ruleId (the STABLE id the
         // brain matches on — fixes the free-text-drift that silently broke weak-rule matching) AND the
         // raw LanguageTool name (human-readable). Absent rule = 0 errors of it this session.
@@ -1518,8 +1527,14 @@ export class WebSocketManager {
       // persisted learner state.
       const salmaAccount = await getAccountById(ctx.userId);
       if (salmaCoachFlags(process.env, salmaAccount).enabled) {
-        const prior = p.salmaCoach?.activePrescription;
-        if (prior) p.salmaCoach = recordMeaningfulRetest(p.salmaCoach, ctx.sessionId);
+        const prior = normalizeSalmaCoachState(p.salmaCoach).activePrescription;
+        if (prior?.id && prior.id === ctx.targetImprovementPrescriptionId && ctx.targetImprovementSkillId) {
+          p.salmaCoach = recordMeaningfulRetest(p.salmaCoach, p, {
+            sessionId: ctx.sessionId,
+            skillId: ctx.targetImprovementSkillId,
+            now,
+          });
+        }
         syncSalmaCoach(p, { now });
       }
 

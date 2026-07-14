@@ -120,7 +120,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       if (isLast) {
         // Feed the brain: a completed 4-3-2 set is fluency prep (the rounds reported NOTHING
         // before, so the brain couldn't see that its flow-drill prescription was followed).
-        reportDrillEvent({ apiUrl, token, event: { drill: 'flow-drill', voicedMs: clip.durationMs } });
+        reportDrillEvent({ apiUrl, token, event: { drill: 'flow-drill', voicedMs: clip.durationMs, completedSet: true } });
       }
       setPhase(isLast ? 'done' : 'between');
     } catch (e) {
