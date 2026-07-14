@@ -10,6 +10,9 @@ test('truncated: the owner\'s real cut-off fragments are flagged', () => {
   assert.equal(looksTruncatedDE('das war Kundendienst, das war Ja, also IT, das war mit'), true); // ends on prep "mit"
   assert.equal(looksTruncatedDE('und dann habe ich'), true);
   assert.equal(looksTruncatedDE('weil'), true);
+  assert.equal(looksTruncatedDE('Ich wollte nur'), true);
+  assert.equal(looksTruncatedDE('Ich wollte nur.'), true); // STT may stamp punctuation on the fragment
+  assert.equal(looksTruncatedDE('Ich habe noch'), true);
 });
 
 test('complete: normal finished answers are NOT flagged (no false critique)', () => {
@@ -18,6 +21,8 @@ test('complete: normal finished answers are NOT flagged (no false critique)', ()
   assert.equal(looksTruncatedDE('Guten Tag.'), false);
   assert.equal(looksTruncatedDE('Ich heiße Alhassan und bin vierundzwanzig Jahre alt.'), false);
   assert.equal(looksTruncatedDE('Mein Name ist Karim Hassan'), false);
+  assert.equal(looksTruncatedDE('Ich wollte nur helfen.'), false);
+  assert.equal(looksTruncatedDE('Ich arbeite nur'), false); // lexical verb + particle can be complete
 });
 
 test('complete: bare interjections are finished replies, not scraps', () => {

@@ -40,6 +40,10 @@ const COMPLETE_SHORT = new Set(['ja', 'nein', 'doch', 'gerne', 'klar', 'natürli
 // Subject pronouns: "…habe ich" / "…hat er" left hanging after an auxiliary = mid-clause cut-off
 // (the participle/object never came), e.g. "und dann habe ich" → "…habe ich [das gemacht]".
 const PRONOUN_END = new Set(['ich', 'er', 'sie', 'es', 'wir', 'ihr', 'du', 'man', 'mir', 'mich', 'ihm', 'ihn', 'uns']);
+// A modal/auxiliary followed only by one of these particles still lacks its required complement:
+// “Ich wollte nur [fragen]”, “Ich habe noch [etwas]”. A lexical verb before the same particle can be
+// complete (“Ich arbeite nur”), so the preceding DANGLING check is essential.
+const TRAILING_PARTICLE = new Set(['nur', 'noch', 'schon', 'eigentlich', 'einfach', 'wirklich', 'gerade']);
 
 const wordsOf = (s) => (String(s || '').trim().match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu) || []);
 
@@ -57,14 +61,16 @@ export function looksTruncatedDE(text) {
   // terminal punctuation at the very end = the speaker (or STT) closed the sentence
   const hasTerminal = /[.!?…]["'”“„]?\s*$/.test(t);
   const dangles = DANGLING.has(last);
+  const modalThenParticle = n >= 2 && TRAILING_PARTICLE.has(last) && DANGLING.has(toks[n - 2].toLowerCase());
 
   if (hasTerminal) {
     // A closed sentence is normally complete — but STT sometimes stamps a period onto a short
     // fragment ("Wir haben."). Only then, on a hard-dangling short fragment, still call it cut off.
-    return dangles && n <= 5;
+    return (dangles || modalThenParticle) && n <= 5;
   }
   // No terminal punctuation: a hanging function word, or a 1–2 word scrap, reads as interrupted.
   if (dangles) return true;
+  if (modalThenParticle) return true;
   // "…habe ich" / "…hat er": auxiliary + trailing pronoun with nothing after = cut off mid-clause.
   if (n >= 2 && PRONOUN_END.has(last) && DANGLING.has(toks[n - 2].toLowerCase())) return true;
   if (n === 1 && COMPLETE_SHORT.has(last)) return false;   // bare "Ja"/"Nein"/"Gerne" is a finished reply

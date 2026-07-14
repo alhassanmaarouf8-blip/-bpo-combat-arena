@@ -10,9 +10,8 @@
  *   1. ZERO-HARM — HARD FAIL, count MUST be 0: every CUT-OFF turn in the detector's COVERED classes
  *      (dangling function word / aux+pronoun / short dangling scrap) is flagged. A regression here means
  *      a fragment gets graded as the learner's weakness — the exact law-7 harm.
- *   2. RATCHET — two climbing floors: (a) OVERALL fragment-recall INCLUDING documented lexicon gaps
- *      (adverb-trailing scraps like "…nur"/"normalerweise ich", noted in turnQuality.js:154) — the
- *      nightly loop closes these; (b) SPECIFICITY on complete answers (the detector is deliberately
+ *   2. RATCHET — two climbing floors: (a) OVERALL fragment-recall, including modal-plus-particle
+ *      scraps such as “Ich wollte nur”; (b) SPECIFICITY on complete answers (the detector is deliberately
  *      biased toward over-flagging — safer to skip a critique than invent one — but must not over-flag
  *      so much that normal complete answers stop being critiqued). Floors only rise.
  *
@@ -35,9 +34,8 @@ const CORPUS = [
   { t: 'Meine',                             cut: true },   // dangling determiner, one word
   { t: 'Wir haben.',                        cut: true },   // STT stamped a period on a short dangling scrap
   { t: 'Der Kunde hat',                     cut: true },   // aux dangling
-  // ── CUT OFF, KNOWN GAP — genuinely a fragment, but the dangling lexicon doesn't cover adverb endings
-  //    (turnQuality.js:154 documents this class). Ratchet target for the nightly loop, not a HARD fail. ──
-  { t: 'Ich wollte nur',                    cut: true, knownGap: true },   // modal + adverb, trails off
+  // ── CUT OFF, modal-plus-particle class: the required complement never arrives ──
+  { t: 'Ich wollte nur',                    cut: true },
   // ── COMPLETE — must NOT be flagged (over-flagging these silently swallows real critique) ──
   { t: 'Ja.',                                                              cut: false },
   { t: 'Gerne.',                                                           cut: false },
@@ -51,7 +49,7 @@ const CORPUS = [
   { t: 'Das ist eine gute Frage, lassen Sie mich kurz überlegen.',         cut: false },
 ];
 
-const RECALL_FLOOR = 0.85;         // overall fragment-recall incl. known gaps. Ratchets up as gaps close.
+const RECALL_FLOOR = 1.00;         // all currently verified fragment classes are covered; never lower.
 const SPECIFICITY_FLOOR = 0.80;    // complete answers correctly left unflagged. Ratchets up, never down.
 
 test('ZERO-HARM — every COVERED-class cut-off is flagged (HARD; a miss blames the learner for a system cut)', () => {

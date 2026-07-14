@@ -72,7 +72,11 @@ test('RATCHET — dominant bottleneck correctly named (recall floor must not reg
   const keyed = CORPUS.filter((c) => c.top !== null);
   const hit = keyed.filter((c) => (topL1Pattern(c.u)?.key ?? null) === c.top).length;
   const recall = keyed.length ? hit / keyed.length : 1;
-  console.log(`\n[bottleneck-accuracy] zero-harm 0/0 · recall ${(recall * 100).toFixed(0)}% (${hit}/${keyed.length}) · corpus ${CORPUS.length} cases`);
+  const harmful = CORPUS.filter((c) => {
+    const actual = topL1Pattern(c.u)?.key ?? null;
+    return (c.top === null && actual !== null) || (c.top !== null && actual !== null && actual !== c.top);
+  }).length;
+  console.log(`\n[bottleneck-accuracy] zero-harm ${harmful} harmful outputs across ${CORPUS.length} cases · recall ${(recall * 100).toFixed(0)}% (${hit}/${keyed.length})`);
   const miss = keyed.filter((c) => (topL1Pattern(c.u)?.key ?? null) !== c.top).map((c) => `want ${c.top} got ${topL1Pattern(c.u)?.key ?? 'null'}`);
   if (miss.length) console.log('  gaps: ' + miss.join(' | '));
   assert.ok(recall >= RECALL_FLOOR, `bottleneck recall ${(recall * 100).toFixed(0)}% fell below floor ${RECALL_FLOOR * 100}%`);

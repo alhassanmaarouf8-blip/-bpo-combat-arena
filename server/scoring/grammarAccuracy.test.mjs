@@ -59,9 +59,9 @@ const CORPUS = [
   { t: 'Ich glaube, dass ich viel Erfahrung mitbringe.',             expect: null },
   { t: 'Ich suche eine Stelle, die mich wirklich fordert.',          expect: null },
   { t: 'Es ist gut, dass ich mich hier wohlfühle.',                  expect: null },
-  // ── gender / article (RECALL GAP as of 2026-07-05 — detector lexicon too narrow; to be expanded) ──
-  { t: 'Ich habe die Problem gelöst.',                               expect: 'gender' },
-  { t: 'Das war eine Problem für mich.',                             expect: 'gender' },
+  // ── gender / article ──
+  { t: 'Ich habe die Problem gelöst.',                               expect: 'article-gender' },
+  { t: 'Das war eine Problem für mich.',                             expect: 'article-gender' },
   // ── guard-negatives: correct gender ──
   { t: 'Ich habe das Problem gelöst.',                               expect: null },
   { t: 'Der Kunde war zufrieden mit der Lösung.',                    expect: null },
@@ -74,7 +74,7 @@ const CORPUS = [
 const caughtKeys = (t) => new Set(detectL1Patterns([{ text: t }, { text: t }]).map((p) => p.key));
 
 // The floor ratchets UP as detectors improve. Never lower it. (verb-final class is at 100%.)
-const RECALL_FLOOR = 0.60;
+const RECALL_FLOOR = 1.00;
 
 test('ZERO HALLUCINATION — no correct German is ever flagged (HARD invariant)', () => {
   const falsePositives = [];
