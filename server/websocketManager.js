@@ -1393,7 +1393,7 @@ export class WebSocketManager {
       const _giveUpRate = _candTurns.length ? _candTurns.filter((d) => (d.words || 0) < 3).length / _candTurns.length : null;
       // Observable service-recovery structure from the customer roleplay. The broad combat score also
       // rewards pace, length and vocabulary, so it must never be mislabeled as de-escalation evidence.
-      const _serviceRecovery = serviceRecoveryEvidenceFromUtterances(ctx.utterances);
+      const _serviceRecovery = serviceRecoveryEvidenceFromUtterances(ctx.utterances, ctx.targetRoleType);
       const _deescalation = _serviceRecovery.eligible ? _serviceRecovery.score : null;
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
@@ -1410,6 +1410,7 @@ export class WebSocketManager {
           deescalationEvidence: {
             version: _serviceRecovery.version,
             criterionId: _serviceRecovery.criterionId,
+            roleType: _serviceRecovery.roleType,
             observedSteps: _serviceRecovery.observedSteps,
             totalSteps: _serviceRecovery.totalSteps,
             turnCount: _serviceRecovery.turnCount,

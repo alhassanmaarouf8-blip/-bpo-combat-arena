@@ -8,6 +8,8 @@ import { looksTruncatedDE } from './turnQuality.js';
  * It does not infer tone, employer acceptance, or a complete real-world performance verdict.
  */
 export const SERVICE_RECOVERY_CRITERION_ID = 'service_recovery_structure';
+export const SERVICE_RECOVERY_ROLE_TYPES = Object.freeze(['customer_service', 'retention']);
+const SERVICE_RECOVERY_ROLES = new Set(SERVICE_RECOVERY_ROLE_TYPES);
 const TOTAL_STEPS = 3;
 const MIN_TURNS = 2;
 const MIN_WORDS = 20;
@@ -42,7 +44,8 @@ function normalizedTurn(value) {
   return typeof value === 'string' ? value.normalize('NFKC').toLocaleLowerCase('de-DE').trim() : '';
 }
 
-export function serviceRecoveryEvidence(turns) {
+export function serviceRecoveryEvidence(turns, roleType = 'customer_service') {
+  const validatedRoleType = SERVICE_RECOVERY_ROLES.has(roleType) ? roleType : null;
   const meaningful = (Array.isArray(turns) ? turns : [])
     .map(normalizedTurn)
     .filter((text) => wordsIn(text) >= 5)
@@ -52,10 +55,11 @@ export function serviceRecoveryEvidence(turns) {
   const signals = Object.fromEntries(Object.entries(SIGNALS)
     .map(([key, patterns]) => [key, patterns.some((pattern) => pattern.test(joined))]));
   const observedSteps = Object.values(signals).filter(Boolean).length;
-  const eligible = meaningful.length >= MIN_TURNS && wordCount >= MIN_WORDS;
+  const eligible = validatedRoleType !== null && meaningful.length >= MIN_TURNS && wordCount >= MIN_WORDS;
   return Object.freeze({
     version: 1,
     criterionId: SERVICE_RECOVERY_CRITERION_ID,
+    roleType: validatedRoleType,
     eligible,
     turnCount: meaningful.length,
     wordCount,
@@ -67,7 +71,7 @@ export function serviceRecoveryEvidence(turns) {
 }
 
 /** Only completed, spoken, confidently transcribed stage-3 turns may enter the proxy. */
-export function serviceRecoveryEvidenceFromUtterances(utterances) {
+export function serviceRecoveryEvidenceFromUtterances(utterances, roleType = 'customer_service') {
   const trustworthy = (Array.isArray(utterances) ? utterances : [])
     .filter((turn) => turn?.stage === 2
       && Number(turn?.durationMs) >= 1000
@@ -75,14 +79,16 @@ export function serviceRecoveryEvidenceFromUtterances(utterances) {
       && !looksTruncatedDE(turn.text)
       && (!Array.isArray(turn.lowConf) || turn.lowConf.length === 0))
     .map((turn) => turn.text);
-  return serviceRecoveryEvidence(trustworthy);
+  return serviceRecoveryEvidence(trustworthy, roleType);
 }
 
 /** Validate persisted bounded evidence and derive the score instead of trusting a client value. */
 export function serviceRecoveryScoreFromSession(session) {
   const evidence = session?.deescalationEvidence;
+  const targetRoleType = SERVICE_RECOVERY_ROLES.has(session?.targetRoleType) ? session.targetRoleType : null;
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)
     || evidence.version !== 1 || evidence.criterionId !== SERVICE_RECOVERY_CRITERION_ID
+    || evidence.roleType !== targetRoleType || targetRoleType === null
     || !Number.isInteger(evidence.observedSteps) || evidence.observedSteps < 0 || evidence.observedSteps > TOTAL_STEPS
     || evidence.totalSteps !== TOTAL_STEPS
     || !Number.isInteger(evidence.turnCount) || evidence.turnCount < MIN_TURNS || evidence.turnCount > 20

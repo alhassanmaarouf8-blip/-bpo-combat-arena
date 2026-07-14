@@ -7,7 +7,9 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CS_SCENARIOS, INDUSTRIES, pickCsScenario, buildSessionScript } from './scenarios.js';
+import { createHash } from 'node:crypto';
+import { BEHAVIORAL_QUESTIONS, BPO_SCREENING_QUESTIONS, CS_SCENARIOS, INDUSTRIES,
+  TARGET_ROLE_SCENARIOS, pickCsScenario, pickTargetRoleScenario, buildSessionScript } from './scenarios.js';
 import { PLANS } from './plans.config.js';
 
 test('the plans that ADVERTISE Ziel-Stelle actually carry the flag (perk must never be a phantom again)', () => {
@@ -99,4 +101,59 @@ test('buildSessionScript without a target: no BEWERBUNGSZIEL line, nothing else 
   });
   assert.ok(!script.instructions.includes('BEWERBUNGSZIEL'));
   assert.ok(script.csScenario && script.picks.cs.id, 'normal pick contract intact');
+});
+
+test('vacancy role pools are bounded and role-first, including after exhaustion', () => {
+  for (const [roleType, pool] of Object.entries(TARGET_ROLE_SCENARIOS)) {
+    assert.ok(pool.length >= 1, `${roleType} needs at least one scenario`);
+    assert.ok(pool.every((scenario) => scenario.roleType === roleType));
+    for (let i = 0; i < 20; i++) {
+      assert.equal(pickTargetRoleScenario([], 'telecom', roleType).item.roleType, roleType);
+      assert.equal(pickTargetRoleScenario(pool.map((scenario) => scenario.id), 'telecom', roleType).item.roleType, roleType);
+    }
+  }
+});
+
+test('a technical-support vacancy cannot receive a telecom cancellation scenario', () => {
+  for (let i = 0; i < 20; i++) {
+    const pick = pickTargetRoleScenario([], 'telecom', 'technical_support');
+    assert.equal(pick.item.roleType, 'technical_support');
+    assert.doesNotMatch(pick.id, /kuendigung|cancellation|price-increase/u);
+  }
+});
+
+test('prototype vacancy roles fail closed to the legacy picker', () => {
+  for (const roleType of ['__proto__', 'constructor', 'toString']) {
+    const pick = pickTargetRoleScenario([], 'telecom', roleType);
+    assert.ok(pick.item && pick.id);
+    assert.equal(pick.item.roleType, undefined);
+  }
+});
+
+test('targeted sales and backoffice sessions get exact roleplay rules, not the angry-customer script', () => {
+  for (const [roleType, expected] of [['sales', /Bedarfsfrage/u], ['backoffice', /Datenkonflikt/u]]) {
+    const script = buildSessionScript({
+      persona: 'Du bist eine strenge Interviewerin.', displayName: 'Test', greeting: 'Guten Tag.',
+      levelId: 'b2', recent: {}, sessionSeed: `role-${roleType}`, targetIndustry: 'b2b',
+      jobContext: { roleType, germanLevel: 'b2', skillIds: [], questionTopicIds: [] },
+    });
+    assert.equal(script.csScenario.roleType, roleType);
+    assert.match(script.instructions, expected);
+    assert.doesNotMatch(script.instructions, /KUNDENSERVICE-ROLLENSPIEL|w\u00fctenden Kunden/u);
+    assert.notEqual(script.stages[2].label, 'Kundenservice-Rollenspiel');
+  }
+});
+
+test('generic session output remains byte-identical to the verified pre-change contract', () => {
+  const script = buildSessionScript({
+    persona: 'PERSONA', displayName: 'Test', greeting: 'Guten Tag.', levelId: 'b2',
+    recent: {
+      behavioral: BEHAVIORAL_QUESTIONS.slice(0, -1),
+      screening: BPO_SCREENING_QUESTIONS.slice(0, -1),
+      cs: CS_SCENARIOS.slice(0, -1).map((scenario) => scenario.id),
+    },
+    sessionSeed: 'legacy-identity',
+  });
+  const digest = createHash('sha256').update(JSON.stringify(script)).digest('hex');
+  assert.equal(digest, 'f20d99a85401388f5b06679ecec7ec042e9881f6036554e1591cc4ea44f5d139');
 });

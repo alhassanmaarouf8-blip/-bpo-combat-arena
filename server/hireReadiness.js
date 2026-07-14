@@ -125,15 +125,20 @@ function confidenceForEvidence(evidenceQuality) {
     : evidenceQuality?.prescriptionEligible === true ? 'medium' : 'insufficient';
 }
 
-function riskCriterion(skill, f, measured) {
+function riskCriterion(skill, f, measured, target = null) {
   if (skill === 'fluency') return { stageId: 'spoken_interview', criterionId: 'sustained_pace',
     observed: Math.round(f.wpm), reference: 90, direction: 'at_least', unit: 'wpm' };
   if (skill === 'grammar') return { stageId: 'spoken_interview', criterionId: 'grammar_control',
     observed: Math.round(f.errPer100 * 10) / 10, reference: 8, direction: 'at_most', unit: 'errors_per_100_words' };
   if (skill === 'intelligibility') return { stageId: 'phone_roleplay', criterionId: 'speech_recognition_proxy',
     observed: Math.round(f.intelligibility * 100), reference: 80, direction: 'at_least', unit: 'percent' };
-  if (skill === 'deescalation') return { stageId: 'customer_roleplay', criterionId: SERVICE_RECOVERY_CRITERION_ID,
-    observed: Math.round(f.deescalation * 3), reference: 2, direction: 'at_least', unit: 'recovery_steps_out_of_3' };
+  if (skill === 'deescalation') return {
+    stageId: target?.roleType === 'retention' ? 'retention_roleplay' : 'customer_roleplay',
+    criterionId: SERVICE_RECOVERY_CRITERION_ID,
+    targetRoleType: target?.roleType === 'retention' ? 'retention' : 'customer_service',
+    ...(target?.scenarioId ? { scenarioId: target.scenarioId } : {}),
+    observed: Math.round(f.deescalation * 3), reference: 2, direction: 'at_least', unit: 'recovery_steps_out_of_3',
+  };
   if (skill === 'confidence') {
     const candidates = [
       measured.giveUpRate && { severity: Math.max(0, (f.giveUpRate - 0.2) / 0.2), stageId: 'pressure_followup', criterionId: 'complete_response',
@@ -161,7 +166,7 @@ function rejectionForecast({ session, evidenceQuality, limitingSkill, f, measure
   const target = safeSessionTarget(session);
   const confidence = confidenceForEvidence(evidenceQuality);
   if (confidence === 'insufficient') return { state: 'measure_first', confidence, target, riskId: null, criterion: null };
-  const criterion = limitingSkill ? riskCriterion(limitingSkill, f, measured) : null;
+  const criterion = limitingSkill ? riskCriterion(limitingSkill, f, measured, target) : null;
   return criterion
     ? { state: 'observed_simulation_risk', confidence, target, riskId: limitingSkill, criterion,
       calibration: 'internal_simulation_reference_only' }

@@ -425,6 +425,59 @@ export const CS_SCENARIOS = [
   },
 ];
 
+// Vacancy-only roleplay scenarios. They are intentionally NOT part of CS_SCENARIOS, so enabling
+// this support cannot change the legacy/global rotation while vacancy flags are off.
+const SALES_ROLEPLAY_SCENARIOS = Object.freeze([
+  Object.freeze({
+    id: 'sales-price-objection', roleType: 'sales', industry: 'b2b',
+    customer: 'ein skeptischer GeschÃ¤ftskunde, der das Angebot mit einem billigeren Wettbewerber vergleicht',
+    opening: 'Ihr Angebot ist deutlich teurer als das der Konkurrenz. Warum sollte ich ausgerechnet bei Ihnen abschlieÃŸen?',
+    situation: 'Ein potenzieller GeschÃ¤ftskunde nennt einen klaren Preiseinwand; der Kandidat muss Bedarf klÃ¤ren, passenden Nutzen belegen und einen druckfreien nÃ¤chsten Schritt vereinbaren.',
+    skill: 'Einwand anerkennen + Bedarf erfragen + relevanten nÃ¤chsten Schritt vereinbaren',
+    keyPhrases: ['Was ist Ihnen neben dem Preis besonders wichtig?', 'Darf ich kurz vergleichen, welche Leistung fÃ¼r Ihren Bedarf relevant ist?',
+      'Wenn das fÃ¼r Sie passt, vereinbaren wir als nÃ¤chsten Schritt einen kurzen Testtermin.'],
+  }),
+  Object.freeze({
+    id: 'sales-no-need-objection', roleType: 'sales', industry: 'b2b',
+    customer: 'eine knappe Interessentin, die keinen aktuellen Bedarf sieht und das GesprÃ¤ch beenden will',
+    opening: 'Ganz ehrlich: Wir sind mit unserer jetzigen LÃ¶sung zufrieden und brauchen nichts Neues. Wozu soll ich weiterreden?',
+    situation: 'Eine potenzielle Kundin sieht keinen Bedarf; der Kandidat darf nicht drÃ¤ngen und muss mit einer gezielten Frage Relevanz prÃ¼fen.',
+    skill: 'Ablehnung respektieren + eine Bedarfsfrage stellen + sauber abschlieÃŸen',
+    keyPhrases: ['Verstanden, ich mÃ¶chte Sie nicht unnÃ¶tig aufhalten.', 'Darf ich nur fragen, was bei Ihrer jetzigen LÃ¶sung am wichtigsten ist?',
+      'Wenn kein Bedarf besteht, beenden wir das GesprÃ¤ch selbstverstÃ¤ndlich hier.'],
+  }),
+]);
+
+const BACKOFFICE_ROLEPLAY_SCENARIOS = Object.freeze([
+  Object.freeze({
+    id: 'backoffice-conflicting-address', roleType: 'backoffice',
+    customer: 'eine deutsche Kollegin, die einen Auftrag mit zwei widersprÃ¼chlichen Lieferadressen zur sofortigen Bearbeitung Ã¼bergibt',
+    opening: 'Der Auftrag muss heute raus. Im Formular steht KÃ¶ln, in der letzten Nachricht aber Bonn. Welche Adresse tragen Sie ein?',
+    situation: 'Zwei Quellen enthalten widersprÃ¼chliche Adressen; der Kandidat muss den Konflikt benennen, die richtige Quelle verifizieren und den dokumentierten nÃ¤chsten Schritt bestÃ¤tigen.',
+    skill: 'Datenkonflikt erkennen + verifizieren + Ã„nderung nachvollziehbar bestÃ¤tigen',
+    keyPhrases: ['Ich Ã¼bernehme keine der beiden Adressen ungeprÃ¼ft.', 'Welche Quelle ist fÃ¼r die Freigabe verbindlich?',
+      'Ich dokumentiere die bestÃ¤tigte Adresse und den PrÃ¼fvermerk im Vorgang.'],
+  }),
+  Object.freeze({
+    id: 'backoffice-missing-reference', roleType: 'backoffice',
+    customer: 'ein deutscher Kollege, der eine dringende Gutschrift ohne vollstÃ¤ndige Referenznummer freigeben lassen will',
+    opening: 'Die Gutschrift ist dringend, aber mir fehlen die letzten zwei Stellen der Referenz. KÃ¶nnen Sie sie trotzdem jetzt buchen?',
+    situation: 'Eine Buchung ist unvollstÃ¤ndig; der Kandidat muss die fehlende Information identifizieren, die Bearbeitung begrenzen und den Vorgang sauber nachverfolgen.',
+    skill: 'Pflichtfeld erkennen + keine Daten erfinden + klaren KlÃ¤rungsschritt dokumentieren',
+    keyPhrases: ['Ohne die vollstÃ¤ndige Referenz buche ich den Vorgang nicht.', 'Bitte bestÃ¤tigen Sie mir die fehlenden zwei Stellen Ã¼ber die freigegebene Quelle.',
+      'Bis dahin kennzeichne ich den Vorgang als wartend und dokumentiere den Grund.'],
+  }),
+]);
+
+const scenariosById = new Map(CS_SCENARIOS.map((scenario) => [scenario.id, scenario]));
+const roleCopies = (ids, roleType) => ids.map((id) => Object.freeze({ ...scenariosById.get(id), roleType })).filter((item) => item.id);
+export const TARGET_ROLE_SCENARIOS = Object.freeze({
+  technical_support: Object.freeze(roleCopies(['tech-support', 'service-outage', 'telecom-portierung', 'tech-router-stoerung'], 'technical_support')),
+  retention: Object.freeze(roleCopies(['cancellation-retention', 'price-increase', 'telecom-kuendigung', 'streaming-abbuchung'], 'retention')),
+  sales: SALES_ROLEPLAY_SCENARIOS,
+  backoffice: BACKOFFICE_ROLEPLAY_SCENARIOS,
+});
+
 // ── The winning behavior the roleplay rewards ───────────────────────────────────
 export const CS_RUBRIC =
   `Belohne dieses Verhalten und gib langsam nach, wenn der Kandidat es zeigt: zuerst ECHTE EMPATHIE, ` +
@@ -613,6 +666,21 @@ export function pickCsScenario(recentCs, targetIndustry = null) {
   return pickFresh(pool, recentCs, (x) => x.id);
 }
 
+/** Vacancy-only role-first selection. Unknown/customer-service roles preserve the legacy picker. */
+export function pickTargetRoleScenario(recentCs, targetIndustry = null, targetRoleType = null) {
+  if (!targetRoleType || targetRoleType === 'customer_service' || !Object.hasOwn(TARGET_ROLE_SCENARIOS, targetRoleType)) {
+    return pickCsScenario(recentCs, targetIndustry);
+  }
+  const rolePool = TARGET_ROLE_SCENARIOS[targetRoleType];
+  const industryPool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+    ? rolePool.filter((scenario) => scenario.industry === targetIndustry) : [];
+  const preferred = industryPool.length ? industryPool : rolePool;
+  const seen = new Set(recentCs || []);
+  if (preferred.some((scenario) => !seen.has(scenario.id))) return pickFresh(preferred, recentCs, (scenario) => scenario.id);
+  if (rolePool.some((scenario) => !seen.has(scenario.id))) return pickFresh(rolePool, recentCs, (scenario) => scenario.id);
+  return pickFresh(preferred, recentCs, (scenario) => scenario.id);
+}
+
 // ── Phase 1: realism delivery block (prosody, native disfluencies, seeded mood) ──────
 // Pure INSTRUCTION TEXT — it never affects the audio pipeline, VAD, scoring, or gates.
 // REALISM SCALES WITH LEVEL: beginners get patient, clearly-enunciated, encouraging delivery;
@@ -754,6 +822,38 @@ export function buildVacancyInstruction(jobContext) {
     `Behaupte nie, echte interne Fragen des Arbeitgebers zu kennen, nenne keinen Firmennamen und f\u00fcge keinen vierten Gespr\u00e4chsteil hinzu.\n`;
 }
 
+const TARGET_STAGE_LABELS = Object.freeze({
+  technical_support: 'Teil 3 · Technischer Support', sales: 'Teil 3 · Vertrieb',
+  retention: 'Teil 3 · Kundenbindung', backoffice: 'Teil 3 · Backoffice',
+});
+
+function targetRoleplayInstruction(roleType, scenario) {
+  if (!Object.hasOwn(TARGET_STAGE_LABELS, roleType) || !scenario) return '';
+  const pressure = `Baue genau EINMAL realistischen Zeitdruck oder eine neue Komplikation ein. ` +
+    `Der Druck gilt der Situation, niemals der Person; keine Beleidigung und kein Spott Ã¼ber Akzent oder Grammatik. ` +
+    `Verlange eine kurze konkrete Antwort und werde kooperativer, wenn der Kandidat strukturiert reagiert.`;
+  const roleRules = {
+    technical_support: `Der Kandidat muss das Problem zuerst knapp zusammenfassen, dann mindestens EINE gezielte ` +
+      `Diagnosefrage stellen und erst danach einen sicheren Schritt erklÃ¤ren. Belohne klare Reihenfolge, eine ` +
+      `VerstÃ¤ndnisprÃ¼fung und einen dokumentierbaren nÃ¤chsten Schritt. Gib keine technischen Fakten vor, die nicht im Szenario stehen.`,
+    sales: `Der Kandidat muss den Einwand anerkennen, mindestens EINE echte Bedarfsfrage stellen und nur danach ` +
+      `einen passenden Nutzen oder nÃ¤chsten Schritt anbieten. Belohne Respekt vor einem Nein; bestrafe Druck, erfundene ` +
+      `Vorteile, unhaltbare Versprechen und einen Abschluss ohne geklÃ¤rten Bedarf.`,
+    retention: `Der Kandidat muss den KÃ¼ndigungsgrund anerkennen, mindestens EINE klÃ¤rende Frage stellen und nur mit ` +
+      `Erlaubnis eine passende Alternative anbieten. Belohne einen respektvollen Abschluss auch dann, wenn du bei der ` +
+      `KÃ¼ndigung bleibst; bestrafe Druck, Schuldzuweisung und erfundene Konditionen.`,
+    backoffice: `Der Kandidat muss den Datenkonflikt oder das fehlende Pflichtfeld ausdrÃ¼cklich benennen, die verbindliche ` +
+      `Quelle erfragen und den dokumentierten nÃ¤chsten Schritt zusammenfassen. Belohne Genauigkeit und Nachvollziehbarkeit; ` +
+      `bestrafe geratenen Inhalt, ungeprÃ¼fte Ã„nderungen und erfundene Freigaben.`,
+  };
+  const counterpart = roleType === 'backoffice' ? 'GesprÃ¤chspartner' : roleType === 'sales' ? 'potenzielle Kunde' : 'Kunde';
+  return `${TARGET_STAGE_LABELS[roleType].toUpperCase()} (Hauptteil, der Rest der Sitzung):
+KÃœNDIGE DEN WECHSEL ZUERST KURZ UND NATÃœRLICH AN. Danach spielst du ausschlieÃŸlich ${scenario.customer}.
+Du bist NUR der ${counterpart} â€” niemals der Agent/Kandidat. ErÃ¶ffne mit: "${scenario.opening}" und WARTE auf die Reaktion.
+Bleibe in dieser Rolle und reagiere auf das, was der Kandidat tatsÃ¤chlich sagt. ${roleRules[roleType]}
+${pressure}`;
+}
+
 export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
@@ -762,7 +862,11 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   const behPool    = levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS;
   const behPick    = pickFresh(behPool,              recent.behavioral, (x) => x);
   const scrPick    = pickFresh(BPO_SCREENING_QUESTIONS, recent.screening, (x) => x);
-  const csPick     = pickCsScenario(recent.cs, targetIndustry);   // Ziel-Stelle: target-industry-first
+  const targetRoleType = jobContext && typeof jobContext === 'object'
+    && Object.hasOwn(VACANCY_ROLE_LABELS, jobContext.roleType) ? jobContext.roleType : null;
+  const csPick     = targetRoleType
+    ? pickTargetRoleScenario(recent.cs, targetIndustry, targetRoleType)
+    : pickCsScenario(recent.cs, targetIndustry);   // no vacancy context: legacy industry/global rotation
   const behavioral = behPick.item;
   const screening  = scrPick.item;
   const cs         = csPick.item;
@@ -819,10 +923,12 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
       `Stelle eine frische, natürliche Frage derselben Klasse; zitiere oder verrate die alte Antwort nicht. Danach läuft das normale Drei-Teile-Interview weiter.\n`
     : '';
 
+  const targetedRoleplay = targetRoleplayInstruction(targetRoleType, cs);
+
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
     { ...STAGE_META[1], prompt: behavioral },
-    { ...STAGE_META[2], prompt: cs.situation },
+    { ...STAGE_META[2], ...(targetedRoleplay ? { label: TARGET_STAGE_LABELS[targetRoleType] } : {}), prompt: cs.situation },
   ];
 
   const instructions =
@@ -878,7 +984,7 @@ TEIL 2 — VERHALTENSFRAGE (ca. 2 Wortwechsel):
 Bring den Kandidaten auf dieses Thema — aber formuliere es in DEINEN eigenen Worten und deinem Ton, angeknüpft an etwas, das er vorher gesagt hat (der INHALT bleibt gleich, der Wortlaut ist deiner): "${behavioral}"
 Hake einmal nach konkreten Details nach. Leite dann mit einer kurzen menschlichen Überleitung zum nächsten Teil über.
 
-TEIL 3 — KUNDENSERVICE-ROLLENSPIEL (Hauptteil, der Rest der Sitzung):
+${targetedRoleplay || `TEIL 3 — KUNDENSERVICE-ROLLENSPIEL (Hauptteil, der Rest der Sitzung):
 KÜNDIGE DEN WECHSEL ZUERST KURZ UND NATÜRLICH AN, bevor du in die Kundenrolle gehst — fall NIEMALS ohne Ankündigung in die Kundenrolle (das ist der abrupteste, robotischste Moment, wenn man ihn nicht ankündigt). Zum Beispiel: „So, jetzt machen wir etwas Praktisches — ein kurzes Rollenspiel. Ich bin ab jetzt ein verärgerter Kunde am Telefon, Sie nehmen den Anruf an. Also —". Ab dann SPIELST du AUSSCHLIESSLICH den verärgerten Kunden: ${cs.customer}.
 Du bist NUR der Kunde — niemals der Agent/Kandidat. Stelle deine Forderung oder Beschwerde und WARTE dann auf die Reaktion des Kandidaten. Beantworte dich NICHT selbst.
 Eröffne das Rollenspiel mit: "${cs.opening}"
@@ -886,7 +992,7 @@ Bleibe durchgehend in der Rolle dieses wütenden Kunden und reagiere jedes Mal a
 ${CS_RUBRIC}
 ${DATA_VERIFICATION_RUBRIC}
 ${CS_LIFECYCLE_RUBRIC}
-${DRUCKTEST_RUBRIC}
+${DRUCKTEST_RUBRIC}`}
 
 ÜBERGÄNGE ZWISCHEN DEN TEILEN — NATÜRLICH, NICHT ROBOTERHAFT (sehr wichtig):
 Sage NIEMALS mechanisch "Teil eins", "Teil zwei", "Teil drei" oder "Frage 3 von 8" an — so spricht eine Maschine, kein Mensch. Wechsle stattdessen WEICH: Würdige zuerst kurz die letzte Antwort, dann leite mit einer natürlichen Brücke über. Knüpf wenn möglich an etwas an, das der Kandidat vorher gesagt hat, damit es sich wie EIN Gespräch anfühlt, nicht wie eine Checkliste. Beispiele für solche Brücken:

@@ -43,10 +43,27 @@ test('typed, cut-off, low-confidence, and non-roleplay turns cannot become spoke
   assert.equal(evidence.turnCount, 0);
 });
 
+test('customer-service structure cannot be relabeled as evidence for unsupported vacancy roles', () => {
+  const turns = [
+    { stage: 2, durationMs: 4000, text: 'Das tut mir wirklich leid und ich kann Ihren Ärger gut nachvollziehen.', lowConf: [] },
+    { stage: 2, durationMs: 4000, text: 'Ich kümmere mich persönlich darum und werde mich morgen bei Ihnen melden.', lowConf: [] },
+  ];
+  for (const roleType of ['technical_support', 'sales', 'backoffice', '__proto__']) {
+    const evidence = serviceRecoveryEvidenceFromUtterances(turns, roleType);
+    assert.equal(evidence.eligible, false);
+    assert.equal(evidence.score, null);
+    assert.equal(evidence.roleType, null);
+  }
+  assert.equal(serviceRecoveryEvidenceFromUtterances(turns, 'retention').roleType, 'retention');
+});
+
 test('persisted score is derived only from strictly valid bounded evidence', () => {
-  const valid = { deescalation: 1, deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure',
+  const valid = { targetRoleType: 'customer_service', deescalation: 1,
+    deescalationEvidence: { version: 1, criterionId: 'service_recovery_structure', roleType: 'customer_service',
     observedSteps: 2, totalSteps: 3, turnCount: 2, wordCount: 40 } };
   assert.equal(serviceRecoveryScoreFromSession(valid), 2 / 3);
   assert.equal(serviceRecoveryScoreFromSession({ ...valid, deescalationEvidence: { ...valid.deescalationEvidence, observedSteps: 4 } }), null);
+  assert.equal(serviceRecoveryScoreFromSession({ ...valid, targetRoleType: 'technical_support' }), null);
+  assert.equal(serviceRecoveryScoreFromSession({ ...valid, deescalationEvidence: { ...valid.deescalationEvidence, roleType: 'retention' } }), null);
   assert.equal(serviceRecoveryScoreFromSession({ deescalation: 1 }), null, 'legacy broad combat score is not trusted');
 });
