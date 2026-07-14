@@ -2958,13 +2958,14 @@ function VoiceReadinessCheck() {
       </div>
       {!ready && (
         <button type="button" onClick={run} disabled={state === 'checking'}
-          style={{ width:'100%', minHeight:42, marginTop:9, borderRadius:9, cursor:state === 'checking' ? 'wait' : 'pointer',
+          style={{ width:'100%', minHeight:44, marginTop:9, borderRadius:9, cursor:state === 'checking' ? 'wait' : 'pointer',
             border:'1px solid var(--accent)', background:'rgba(59,130,246,0.14)', color:'var(--accent-2)', fontWeight:800 }}>
           {state === 'checking' ? 'PRÜFE…' : 'المايك · MIKROFON TESTEN'}
         </button>
       )}
       <details style={{ marginTop:10, textAlign:'left' }}>
-        <summary style={{ cursor:'pointer', minHeight:36, color:'var(--accent-2)', fontSize:11.5, fontWeight:700 }}>
+        <summary style={{ cursor:'pointer', minHeight:44, display:'flex', alignItems:'center',
+          color:'var(--accent-2)', fontSize:11.5, fontWeight:700 }}>
           شوف مثال للنتيجة قبل التسجيل · Feedback-Beispiel
         </summary>
         <div style={{ marginTop:7, padding:'9px 10px', borderRadius:8, background:'rgba(2,6,16,0.55)',
