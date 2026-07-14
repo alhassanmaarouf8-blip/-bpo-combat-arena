@@ -79,3 +79,12 @@ test('the product measures the prescription → block → verified-retest funnel
   }
   assert.match(panel, /JSON\.stringify\(\{ e: event \}\)/u);
 });
+
+test('the tutor labels observed risk honestly and exposes delayed listening retest timing without another CTA', async () => {
+  const panel = await read('client/src/SalmaTutorPanel.jsx');
+  assert.match(panel, /BEOBACHTETES INTERVIEW-RISIKO/u);
+  assert.match(panel, /Keine Vorhersage einer Arbeitgeberentscheidung/u);
+  assert.match(panel, /Hörnachweis/u);
+  assert.match(panel, /gilt aber nicht als Retest/u);
+  assert.doesNotMatch(panel, /90%|Einstellung garantiert|wirst eingestellt/u);
+});

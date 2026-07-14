@@ -161,6 +161,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   if (!coach?.feature?.enabled) return null;
   const p = coach.activePrescription;
   const risk = coach.interviewRisk;
+  const listeningRetest = coach.listeningRetest;
   const proof = coach.progress?.verifiedRetest || null;
   const proofOutcome = proof?.status === 'improved' ? 'Verbesserung im Live-Interview bestätigt.'
     : proof?.status === 'regressed' ? 'Der Live-Retest war schwächer; dein nächster Schritt wurde angepasst.'
@@ -180,6 +181,16 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
           {risk.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
           {' '}Keine Vorhersage einer Arbeitgeberentscheidung.
         </div>
+      </div>}
+      {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
+        <strong style={{ color: '#e2e8f0' }}>Hörnachweis: </strong>
+        {listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine Ausgangsmessung.'}
+        {listeningRetest.phase === 'matched' && <>Ausgangsmessung gespeichert. Der Vergleichstest zählt frühestens am{' '}
+          {new Date(listeningRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
+        {listeningRetest.phase === 'transfer' && <>Vergleichstest gespeichert. Der Test mit neuem Material zählt frühestens am{' '}
+          {new Date(listeningRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
+        {listeningRetest.phase === 'complete' && 'Der verzögerte Vergleichs- und Transfernachweis ist vollständig.'}
+        {listeningRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Übung vorher hilft, gilt aber nicht als Retest.</span>}
       </div>}
       {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
         background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: '#dbeafe' }}>

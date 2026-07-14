@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { defaultProfile } from './store.js';
 import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
   deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
-  recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags, salmaRetestTarget, safeIntervention, updatePreferences } from './salmaCoachCore.js';
+  publicListeningRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags, salmaRetestTarget, safeIntervention, updatePreferences } from './salmaCoachCore.js';
 
 function account(plan = 'free') {
   return { id: 'acct-1', emailVerifiedAt: 1, roles: [], subscription: { plan } };
@@ -225,6 +225,9 @@ test('listening measurement requires five unique server-issued attempts', () => 
   assert.equal(measured.metricKey, 'listening_accuracy');
   assert.equal(measured.value, 80);
   assert.match(measured.evidenceId, /^[a-f0-9]{12}$/u);
+  const retest = publicListeningRetest(p, 'listen-clear');
+  assert.equal(retest.phase, 'matched');
+  assert.equal(JSON.stringify(retest).includes('evidenceId'), false);
 });
 
 test('preference booleans reject ambiguous values', () => {

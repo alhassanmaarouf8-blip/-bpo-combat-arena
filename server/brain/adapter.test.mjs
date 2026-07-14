@@ -94,12 +94,14 @@ test('adapter: per-type listeningStats aggregate into listening mastery', () => 
 
 // The adapter surfaces recent drill events (with each event's rule identity) so the ENGINE can
 // judge whether prep addressed the target — kind and rule both travel.
-test('adapter: a complete server-issued listening packet overrides spoofable legacy totals', () => {
+test('adapter: completed delayed listening retests override spoofable legacy totals', () => {
   const sessions = [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - 1 * DAY, verdict: 'pass' }];
-  const listeningAttempts = Array.from({ length: 5 }, (_, index) => ({
+  const listeningAttempts = Array.from({ length: 15 }, (_, index) => ({
     attemptId: (index + 1).toString(16).padStart(24, '0'), skillId: 'listen-phone', kind: 'detail', type: 'nummer',
+    itemHash: (index + 1).toString(16).padStart(64, '0'),
     correct: index < 2, plays: 2, playbackRate: 1.1, responseLatencyMs: 1500,
-    issuedAt: NOW - DAY + index * 1000, gradedAt: NOW - DAY + index * 1000 + 500,
+    issuedAt: NOW + (index < 5 ? 0 : index < 10 ? DAY + 10_000 : 8 * DAY + 20_000) + index * 1000,
+    gradedAt: NOW + (index < 5 ? 0 : index < 10 ? DAY + 10_000 : 8 * DAY + 20_000) + index * 1000 + 500,
   }));
   const profile = { sessions, listeningStats: { verstehen: { seen: 100, correct: 100 } }, listeningAttempts };
   const mastered = masteredSkillsFromProfile(profile);

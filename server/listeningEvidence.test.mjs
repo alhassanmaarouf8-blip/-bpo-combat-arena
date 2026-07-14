@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
-  listeningEvidenceSummary, listeningMasteryEvidence } from './listeningEvidence.js';
+  listeningEvidenceSummary, listeningMasteryEvidence, listeningRetestEvidence } from './listeningEvidence.js';
 
 function profileWithAttempt({ id = 'a'.repeat(24), kind = 'verstehen', issuedAt = 1_800_000_000_000,
   type = 'nummer', playbackRate = 1, itemHash = null } = {}) {
@@ -71,7 +71,8 @@ test('measurement uses unique bounded attempts and exposes replay dependence sep
   assert.equal(summary.accuracy, 0.8);
   assert.equal(summary.firstPlayAccuracy, 0.6);
   assert.equal(summary.replayRate, 0.4);
-  assert.ok(listeningMasteryEvidence(profile).clear);
+  assert.equal(listeningMasteryEvidence(profile).clear, null, 'one packet measures the baseline but cannot prove transfer');
+  assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'matched');
 });
 
 test('the same content under a new attempt id counts only once', () => {
@@ -96,4 +97,31 @@ test('phone mastery fails closed when correct answers depend on replays', () => 
   })) };
   assert.equal(listeningEvidenceSummary(profile, 'listen-phone').accuracy, 1);
   assert.equal(listeningMasteryEvidence(profile).phone, null);
+});
+
+test('mastery requires a delayed matched packet and a seven-day novel transfer packet', () => {
+  const start = 1_800_000_000_000;
+  const day = 24 * 60 * 60 * 1000;
+  const rows = [];
+  const packet = (offset, baseId) => Array.from({ length: 5 }, (_, index) => ({
+    attemptId: (baseId + index).toString(16).padStart(24, '0'),
+    itemHash: (baseId + index).toString(16).padStart(64, '0'),
+    skillId: 'listen-clear', kind: 'verstehen', type: null, correct: true, plays: 1,
+    playbackRate: 1.1, responseLatencyMs: 1200,
+    issuedAt: start + offset + index * 1000, gradedAt: start + offset + index * 1000 + 500,
+  }));
+  rows.push(...packet(0, 100));
+  rows.push(...packet(day - 10_000, 200));
+  let proof = listeningRetestEvidence({ listeningAttempts: rows }, 'listen-clear');
+  assert.equal(proof.phase, 'matched', 'same-day practice cannot satisfy the delayed matched retest');
+
+  rows.push(...packet(day + 10_000, 300));
+  proof = listeningRetestEvidence({ listeningAttempts: rows }, 'listen-clear');
+  assert.equal(proof.phase, 'transfer');
+  assert.equal(listeningMasteryEvidence({ listeningAttempts: rows }).clear, null);
+
+  rows.push(...packet(8 * day + 20_000, 400));
+  proof = listeningRetestEvidence({ listeningAttempts: rows }, 'listen-clear');
+  assert.equal(proof.phase, 'complete');
+  assert.ok(listeningMasteryEvidence({ listeningAttempts: rows }).clear);
 });

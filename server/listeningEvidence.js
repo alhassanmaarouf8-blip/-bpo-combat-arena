@@ -1,6 +1,9 @@
 const ATTEMPT_LIMIT = 120;
 const ACTIVE_TTL_MS = 30 * 60 * 1000;
 const STALE_PLAYBACK_MS = 90 * 1000;
+const MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
+const TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
+const PACKET_SIZE = 5;
 const SKILLS = new Set(['listen-clear', 'listen-phone']);
 
 function fail(code, status = 409) {
@@ -136,6 +139,10 @@ export function listeningEvidence(profile, skillId, { limit = 10 } = {}) {
 export function listeningEvidenceSummary(profile, skillId, { minimumAttempts = 5, limit = 10 } = {}) {
   const attempts = listeningEvidence(profile, skillId, { limit });
   if (attempts.length < minimumAttempts) return null;
+  return summarizeAttempts(attempts);
+}
+
+function summarizeAttempts(attempts) {
   const correct = attempts.filter((row) => row.correct).length;
   const firstPlayCorrect = attempts.filter((row) => row.correct && row.plays === 1).length;
   const extraReplays = attempts.reduce((sum, row) => sum + Math.max(0, row.plays - 1), 0);
@@ -144,7 +151,7 @@ export function listeningEvidenceSummary(profile, skillId, { minimumAttempts = 5
   const medianLatencyMs = latencies.length
     ? (latencies.length % 2 ? latencies[middle] : Math.round((latencies[middle - 1] + latencies[middle]) / 2)) : null;
   return {
-    skillId,
+    skillId: attempts[0]?.skillId || null,
     sampleSize: attempts.length,
     accuracy: correct / attempts.length,
     firstPlayAccuracy: firstPlayCorrect / attempts.length,
@@ -155,14 +162,47 @@ export function listeningEvidenceSummary(profile, skillId, { minimumAttempts = 5
   };
 }
 
+export function listeningRetestEvidence(profile, skillId) {
+  const attempts = listeningEvidence(profile, skillId, { limit: 30 });
+  if (attempts.length < PACKET_SIZE) {
+    return { phase: 'baseline', nextEligibleAt: null, baseline: null, matched: null, transfer: null };
+  }
+  const baseline = summarizeAttempts(attempts.slice(0, PACKET_SIZE));
+  const matchedEligibleAt = baseline.measuredAt + MATCHED_RETEST_DELAY_MS;
+  const matchedRows = attempts.filter((row) => row.issuedAt >= matchedEligibleAt).slice(0, PACKET_SIZE);
+  if (matchedRows.length < PACKET_SIZE) {
+    return { phase: 'matched', nextEligibleAt: matchedEligibleAt, baseline, matched: null, transfer: null };
+  }
+  const matched = summarizeAttempts(matchedRows);
+  const transferEligibleAt = matched.measuredAt + TRANSFER_RETEST_DELAY_MS;
+  const transferRows = attempts.filter((row) => row.issuedAt >= transferEligibleAt).slice(0, PACKET_SIZE);
+  if (transferRows.length < PACKET_SIZE) {
+    return { phase: 'transfer', nextEligibleAt: transferEligibleAt, baseline, matched, transfer: null };
+  }
+  return { phase: 'complete', nextEligibleAt: null, baseline, matched, transfer: summarizeAttempts(transferRows) };
+}
+
+function packetPasses(summary, skillId) {
+  if (!summary || summary.accuracy < 0.8 || summary.replayRate > 0.4) return false;
+  return skillId !== 'listen-phone' || summary.firstPlayAccuracy >= 0.6;
+}
+
 export function listeningMasteryEvidence(profile) {
-  const clear = listeningEvidenceSummary(profile, 'listen-clear');
-  const phone = listeningEvidenceSummary(profile, 'listen-phone');
+  const clearProof = listeningRetestEvidence(profile, 'listen-clear');
+  const phoneProof = listeningRetestEvidence(profile, 'listen-phone');
+  const clearAdjudicated = clearProof.phase === 'complete';
+  const phoneAdjudicated = phoneProof.phase === 'complete';
+  const clear = clearAdjudicated && packetPasses(clearProof.matched, 'listen-clear') && packetPasses(clearProof.transfer, 'listen-clear')
+    ? clearProof.transfer : null;
+  const phone = phoneAdjudicated && packetPasses(phoneProof.matched, 'listen-phone') && packetPasses(phoneProof.transfer, 'listen-phone')
+    ? phoneProof.transfer : null;
   return {
-    clear: clear && clear.accuracy >= 0.8 && clear.replayRate <= 0.4 ? clear : null,
-    phone: phone && phone.accuracy >= 0.8 && phone.firstPlayAccuracy >= 0.6 && phone.replayRate <= 0.4 ? phone : null,
-    clearMeasured: !!clear,
-    phoneMeasured: !!phone,
+    clear,
+    phone,
+    clearMeasured: clearAdjudicated,
+    phoneMeasured: phoneAdjudicated,
+    clearProof,
+    phoneProof,
     hasVerifiedAttempts: (Array.isArray(profile?.listeningAttempts) ? profile.listeningAttempts : []).some((row) => safeAttempt(row)),
   };
 }

@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { planOf, trialActive } from './auth.js';
 import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
-import { listeningEvidence, listeningEvidenceSummary } from './listeningEvidence.js';
+import { listeningEvidence, listeningEvidenceSummary, listeningRetestEvidence } from './listeningEvidence.js';
 import { hireReadinessFor } from './hireReadiness.js';
 
 const MODES = new Set(['off', 'beta', 'on']);
@@ -115,6 +115,26 @@ function publicImprovementProof(value) {
     metricLabel: metric.label, unit: metric.unit, direction: metric.direction,
     before: proof.before, after: proof.after, delta: roundMetric(proof.after - proof.before),
     status: proof.status, verifiedAt: proof.verifiedAt };
+}
+
+export function publicListeningRetest(profile, skillId) {
+  if (!['listen-clear', 'listen-phone'].includes(skillId)) return null;
+  const proof = listeningRetestEvidence(profile, skillId);
+  const safeSummary = (summary) => summary ? {
+    sampleSize: summary.sampleSize,
+    accuracy: roundMetric(summary.accuracy * 100),
+    firstPlayAccuracy: roundMetric(summary.firstPlayAccuracy * 100),
+    replayRate: roundMetric(summary.replayRate * 100),
+    measuredAt: summary.measuredAt,
+  } : null;
+  return {
+    skillId,
+    phase: proof.phase,
+    nextEligibleAt: proof.nextEligibleAt,
+    baseline: safeSummary(proof.baseline),
+    matched: safeSummary(proof.matched),
+    transfer: safeSummary(proof.transfer),
+  };
 }
 
 export function salmaRetestTarget(state, profile) {
@@ -304,8 +324,10 @@ export function publicSalmaCoach(profile, account, flags) {
     assignedAt: limited.assignedAt, nextEligibleAt: limited.nextEligibleAt,
     baseline: limited.baseline ? { metricKey: limited.baseline.metricKey, value: limited.baseline.value, measuredAt: limited.baseline.measuredAt } : null,
   } : null;
+  const listeningRetest = publicListeningRetest(profile, limited?.skillId);
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
     interviewRisk,
+    listeningRetest,
     preferences: state.preferences, activePrescription: publicPrescription, intervention: safeIntervention({ ...state, activePrescription: limited }),
     progress, brain: { state: directive?.state || 'NEW', action: directive?.prescription?.action || 'assessment' } };
 }
