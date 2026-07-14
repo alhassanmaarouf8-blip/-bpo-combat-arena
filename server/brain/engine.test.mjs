@@ -63,9 +63,17 @@ test('engine: an unmeasured hire-gating signal → MEASURE it, do not guess', ()
 
 test('engine: entry tier cleared → APPLY (stop drilling, start placing)', () => {
   const entryAndBelow = SKILLS.filter((s) => s.tier !== 'premium').map((s) => s.id);
-  const d = decide({ sessionCount: 5, masteredSkills: entryAndBelow });
+  const d = decide({ sessionCount: 5, masteredSkills: entryAndBelow, verifiedMasteredSkills: entryAndBelow });
   assert.equal(d.state, 'APPLY');
   assert.equal(d.prescription.action, 'apply');
+});
+
+test('engine: provisional legacy mastery can guide navigation but never authorizes APPLY', () => {
+  const entryAndBelow = SKILLS.filter((s) => s.tier !== 'premium').map((s) => s.id);
+  const d = decide({ sessionCount: 5, masteredSkills: entryAndBelow, verifiedMasteredSkills: [] });
+  assert.notEqual(d.state, 'APPLY');
+  assert.equal(d.tier.applyNow, false);
+  assert.equal(d.journey.entryDone, 0);
 });
 
 test('engine: aha fires ONLY on a confirmed closed loop (drilled + sustained drop)', () => {
@@ -88,8 +96,8 @@ test('engine: global regression vetoes a local celebration (honesty)', () => {
 
 test('engine: every directive carries a journey the UI can reflect, and it advances with mastery', () => {
   const layer0 = SKILLS.filter((s) => s.layer === 0).map((s) => s.id);
-  const d0 = decide({ sessionCount: 2, masteredSkills: [] });
-  const dMore = decide({ sessionCount: 2, masteredSkills: layer0 });
+  const d0 = decide({ sessionCount: 2, masteredSkills: [], verifiedMasteredSkills: [] });
+  const dMore = decide({ sessionCount: 2, masteredSkills: layer0, verifiedMasteredSkills: layer0 });
   assert.ok(d0.journey && typeof d0.journey.pctToApply === 'number');
   assert.ok(d0.journey.stepsToApply > 0);
   assert.ok(dMore.journey.entryDone > d0.journey.entryDone);      // advancing skills advances the journey

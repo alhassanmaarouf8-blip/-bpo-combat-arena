@@ -88,7 +88,7 @@ function detectAha(weakLog, lastTargetRuleId, globalRegressed) {
 
 export function decide(snapshot = {}) {
   const {
-    masteredSkills = [], weakLog = {}, lastTargetRuleId = null,
+    masteredSkills = [], verifiedMasteredSkills = [], weakLog = {}, lastTargetRuleId = null,
     limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
@@ -98,12 +98,14 @@ export function decide(snapshot = {}) {
 
   // Journey toward the goal — handed to the UI so the app REFLECTS step-by-step advancement back to
   // the learner (a filling path, "N steps to apply-ready"), making the guidance felt, not just done.
-  const journey = progress(masteredSkills);
+  // Navigation may use provisional legacy observations, but visible progress and APPLY authority use
+  // transfer-verified mastery only. A generic pass or historical completion can never unlock readiness.
+  const journey = progress(verifiedMasteredSkills);
 
   // Cold-start: no history → no causal claims, just the first concrete step.
   if (sessionCount <= 0) {
     return { state: 'NEW', confidence: 'low', target: null,
-      prescription: { action: 'assessment' }, tier: tierStatus(masteredSkills), journey, aha: null, measure: [] };
+      prescription: { action: 'assessment' }, tier: tierStatus(verifiedMasteredSkills), journey, aha: null, measure: [] };
   }
 
   // A confirmed vacancy target adds one due preparation step to the same
@@ -122,7 +124,7 @@ export function decide(snapshot = {}) {
         scheduledDate: vacancyDue.scheduledDate || null,
         liveRequired: vacancyDue.liveRequired === true,
       },
-      tier: tierStatus(masteredSkills),
+      tier: tierStatus(verifiedMasteredSkills),
       journey,
       aha: null,
       measure: [],
@@ -145,7 +147,7 @@ export function decide(snapshot = {}) {
         step: missionDue.step,
         ...(opportunityId ? { opportunityId } : {}),
       },
-      tier: tierStatus(masteredSkills),
+      tier: tierStatus(verifiedMasteredSkills),
       journey,
       aha: null,
       measure: [],
@@ -154,7 +156,7 @@ export function decide(snapshot = {}) {
 
   const mastered = new Set(masteredSkills);
   const fr = frontier(mastered);
-  const tier = tierStatus(mastered);
+  const tier = tierStatus(new Set(verifiedMasteredSkills));
   const aha = detectAha(weakLog, lastTargetRuleId, globalRegressed);
 
   // Entry tier cleared → stop drilling, start applying (the loop must end in a JOB, not a treadmill).

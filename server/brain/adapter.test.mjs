@@ -1,7 +1,7 @@
 // Bridge proof — adapter (profile → snapshot). Deterministic (fixed `now`). `node --test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSnapshot, masteredSkillsFromProfile } from './adapter.js';
+import { buildSnapshot, masteredSkillsFromProfile, verifiedMasteredSkillsFromProfile } from './adapter.js';
 import { decide } from './engine.js';
 
 const NOW = 1_700_000_000_000;
@@ -147,6 +147,25 @@ test('adapter: criterion confidence counts only reliable sessions that measured 
   assert.equal(snap.limitingCriterionId, 'sustained_pace');
   assert.equal(snap.limitingEvidenceCount, 2);
   assert.equal(decide(snap).confidence, 'high');
+});
+
+test('adapter: only delayed transfer proof enters readiness-authorizing mastery', () => {
+  const p = {
+    sessions: [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - DAY, verdict: 'pass' }],
+    salmaCoach: { coachState: { improvementHistory: [
+      { skillId: 'fluency-interrupt', phase: 'matched', status: 'improved', verifiedAt: NOW - DAY },
+      { skillId: 'deescalate', phase: 'transfer', status: 'held', verifiedAt: NOW - DAY },
+      { skillId: 'word-order-sub', phase: 'transfer', status: 'improved', verifiedAt: NOW },
+      { skillId: '__proto__', phase: 'transfer', status: 'improved', verifiedAt: NOW },
+    ] } },
+  };
+  const provisional = masteredSkillsFromProfile(p);
+  const verified = verifiedMasteredSkillsFromProfile(p);
+  assert.equal(provisional.has('self-intro'), true);
+  assert.deepEqual([...verified], ['word-order-sub']);
+  const snapshot = buildSnapshot(p, NOW);
+  assert.equal(snapshot.masteredSkills.includes('self-intro'), true);
+  assert.deepEqual(snapshot.verifiedMasteredSkills, ['word-order-sub']);
 });
 
 // Pins on-target prep (doctrine D3) at the ENGINE: with a concrete target, a drill event earns

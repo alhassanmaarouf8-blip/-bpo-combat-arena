@@ -9,6 +9,7 @@
 import { masteryFromHistory, MASTERY_GATE } from './bkt.js';
 import { hireReadinessFor, featuresFromProfile } from '../hireReadiness.js';
 import { listeningMasteryEvidence } from '../listeningEvidence.js';
+import { SKILL_BY_ID } from './skillGraph.js';
 
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const GATING = ['intelligibility', 'deescalation', 'wpm'];   // the hire-readiness gating signals
@@ -95,6 +96,25 @@ export function masteredSkillsFromProfile(p) {
   return mastered;
 }
 
+// Transfer-verified mastery is deliberately separate from the legacy navigation model above.
+// The legacy model helps select a sensible next curriculum node for existing accounts, but it must
+// never authorize an application/readiness claim. Only delayed novel listening packets or an
+// improvement proof explicitly recorded in the transfer phase can enter this set.
+export function verifiedMasteredSkillsFromProfile(p) {
+  const verified = new Set();
+  const listening = listeningMasteryEvidence(p);
+  if (listening.clear) verified.add('listen-clear');
+  if (listening.phone) verified.add('listen-phone');
+  const history = Array.isArray(p?.salmaCoach?.coachState?.improvementHistory)
+    ? p.salmaCoach.coachState.improvementHistory : [];
+  for (const proof of history) {
+    if (proof?.phase !== 'transfer' || proof?.status !== 'improved' || !Object.hasOwn(SKILL_BY_ID, proof?.skillId)
+      || !Number.isFinite(Number(proof?.verifiedAt))) continue;
+    verified.add(proof.skillId);
+  }
+  return verified;
+}
+
 export function buildSnapshot(p, now = Date.now()) {
   const sessions = p?.sessions || [];
   const weakLog  = p?.weakLog || {};
@@ -124,6 +144,7 @@ export function buildSnapshot(p, now = Date.now()) {
 
   return {
     masteredSkills:   [...masteredSkillsFromProfile(p)],
+    verifiedMasteredSkills: [...verifiedMasteredSkillsFromProfile(p)],
     weakLog,
     lastTargetRuleId: targetRuleId,
     limitingSkill:    hr.limitingSkill && hr.limitingSkill !== 'none' ? hr.limitingSkill : null,
