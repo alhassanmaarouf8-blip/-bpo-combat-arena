@@ -24,6 +24,7 @@
 import express from 'express';
 import { requireAuth, drillsUnlocked } from './auth.js';
 import { loadUser, saveUser }          from './store.js';
+import { issueDrillEvidenceReceipt }   from './drillEvidence.js';
 
 export const satzbauRouter = express.Router();
 
@@ -197,5 +198,8 @@ satzbauRouter.post('/satzbau/grade', express.json({ limit: '8kb' }), requireAuth
   const target = splitTokens(item.sentence);
   const result = gradeSatzbau(target, submitted);
   console.log(`[satzbau] user=${req.account.id} id=${id} correct=${result.correct} matched=${result.matchedCount}/${result.total}`);
-  res.json({ ...result, target: item.sentence });
+  const evidenceReceipt = issueDrillEvidenceReceipt(req.account.id, {
+    drill: 'satzbau-schmiede', correct: result.correct,
+  });
+  res.json({ ...result, target: item.sentence, ...(evidenceReceipt ? { evidenceReceipt } : {}) });
 });

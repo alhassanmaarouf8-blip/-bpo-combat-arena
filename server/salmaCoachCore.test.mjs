@@ -5,7 +5,7 @@ import { CS_SCENARIOS } from './scenarios.js';
 import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
 import { validatedTransferProofs } from './scoring/transferProofs.js';
 import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
-  deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
+  canonicalCoachDirective, deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
   publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
   salmaCoachBrainGate, salmaRetestTarget, safeIntervention, updatePreferences } from './salmaCoachCore.js';
 
@@ -15,7 +15,7 @@ function account(plan = 'free') {
 function reliableSession(value) {
   return { sessionId: value?.sessionId || `session-${value?.date}`, targetRoleType: value?.targetRoleType || 'customer_service',
     scenarioId: value?.scenarioId || CS_SCENARIOS[0].id, ...value,
-    evidenceQuality: { version: 1, words: 120, completeTurns: 5, truncatedTurns: 0,
+    evidenceQuality: { version: 2, words: 120, eligibleWords: 120, completeTurns: 5, truncatedTurns: 0,
     stageCoverage: 2, prescriptionEligible: true, highConfidence: false } };
 }
 function recoveryFields(date) {
@@ -118,15 +118,109 @@ test('a one-session signal is prescribed as a hypothesis, never spoken as a conf
 
 test('the same reliable risk across two sessions earns a spaced second block and high-evidence wording', () => {
   const p = measuredProfile(2);
+  // The forecast selects sustained pace for this archetype. Both v2 packets must therefore
+  // contain the same observable deficit (<90 wpm); a generic low fluency label is not evidence.
+  for (const session of p.sessions) session.wpm = 80;
   const now = 1_700_000_010_000;
   const { directive, prescription } = deriveSalmaPrescription(p, { now, dailyMinutes: 20 });
-  assert.equal(directive.confidence, 'high');
+  assert.equal(directive.confidence, 'high', JSON.stringify(directive));
   assert.equal(prescription.evidenceConfidence, 'high');
   assert.equal(prescription.blocks, 2);
   assert.equal(prescription.timesPerDay, 2);
   assert.equal(prescription.nextEligibleAt, now + prescription.minimumSpacingMinutes * 60_000);
   assert.match(safeIntervention(normalizeSalmaCoachState({ activePrescription: prescription })).text,
     /wiederholter zuverlässiger Evidenz/u);
+});
+
+test('two-block dosing models each block separately and consumes duplicate or early events without credit', () => {
+  const start = 1_800_000_000_000;
+  const spacing = 360 * 60_000;
+  const p = defaultProfile('acct-1');
+  p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
+    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+  let state = normalizeSalmaCoachState(null);
+  state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
+    successGate: 'Set abschließen.', assignedAt: start, nextEligibleAt: start + spacing,
+    baseline: measurementForSkill(p, 'fluency-interrupt') };
+
+  const blockOneAt = start + 1_000;
+  state = recordDrillOutcome(state, { eventId: '1111111111111111', drill: 'flow-drill', completedSet: true }, blockOneAt);
+  assert.equal(state.coachState.completedBlocks[state.activePrescription.id], 1);
+  assert.equal(state.coachState.repeatedErrorCounts[state.activePrescription.id].blockProgress[0].correct, 3);
+  assert.equal(state.coachState.repeatedErrorCounts[state.activePrescription.id].blockProgress[1].correct, 0);
+  assert.equal(state.activePrescription.nextEligibleAt, blockOneAt + spacing,
+    'spacing begins when block one actually completes, not when it was assigned');
+  assert.deepEqual(salmaCoachBrainGate(state, p, blockOneAt + spacing - 1), {
+    skillId: 'fluency-interrupt', drillId: 'flow-drill', status: 'wait', action: 'wait',
+    phase: 'dose_spacing', nextEligibleAt: blockOneAt + spacing,
+  });
+
+  const duplicate = recordDrillOutcome(state,
+    { eventId: '1111111111111111', drill: 'flow-drill', completedSet: true }, blockOneAt + spacing + 1);
+  assert.equal(duplicate.coachState.repeatedErrorCounts[state.activePrescription.id].blockProgress[1].attempts, 0,
+    'the block-one event cannot be replayed into block two');
+  state = recordDrillOutcome(duplicate,
+    { eventId: '2222222222222222', drill: 'flow-drill', completedSet: true }, blockOneAt + spacing - 1);
+  assert.equal(state.coachState.repeatedErrorCounts[state.activePrescription.id].blockProgress[1].attempts, 0,
+    'an early block-two event is consumed without evidence credit');
+  state = recordDrillOutcome(state,
+    { eventId: '2222222222222222', drill: 'flow-drill', completedSet: true }, blockOneAt + spacing + 1);
+  assert.equal(state.coachState.repeatedErrorCounts[state.activePrescription.id].blockProgress[1].attempts, 0,
+    'replaying the previously early event after the boundary remains invalid');
+
+  const blockTwoAt = blockOneAt + spacing + 2;
+  state = recordDrillOutcome(state,
+    { eventId: '3333333333333333', drill: 'flow-drill', completedSet: true }, blockTwoAt);
+  assert.equal(state.coachState.completedBlocks[state.activePrescription.id], 2);
+  assert.deepEqual(state.coachState.repeatedErrorCounts[state.activePrescription.id].blockProgress.map((block) => block.correct), [3, 3]);
+  assert.equal(state.coachState.repeatedErrorCounts[state.activePrescription.id].completedAt, blockTwoAt);
+  const wait = salmaCoachBrainGate(state, p, blockTwoAt + 1);
+  assert.equal(wait.status, 'wait');
+  assert.equal(wait.phase, 'matched');
+});
+
+test('inflated legacy counters and a partial two-block dose cannot authorize a retest', () => {
+  const start = 1_800_000_000_000;
+  const p = defaultProfile('acct-1');
+  p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
+    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+  const raw = { activePrescription: { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
+    successGate: 'Set abschließen.', assignedAt: start, nextEligibleAt: null,
+    baseline: measurementForSkill(p, 'fluency-interrupt') }, coachState: {
+    completedBlocks: { '0123456789abcdef': 2 },
+    repeatedErrorCounts: { '0123456789abcdef': { attempts: 3, correct: 3, failures: 0,
+      lastAt: start + 1_000, completedAt: start + 1_000 } },
+  } };
+  const state = normalizeSalmaCoachState(raw);
+  assert.equal(state.coachState.completedBlocks['0123456789abcdef'], 1,
+    'a legacy aggregate can prove only the first modeled block');
+  assert.equal(publicSpeakingRetest(state, start + 10 * 24 * 60 * 60 * 1000), null);
+  const result = recordMeaningfulRetest(state, p, {
+    sessionId: 'too-early', skillId: 'fluency-interrupt', phase: 'matched', now: start + 10 * 24 * 60 * 60 * 1000,
+  });
+  assert.equal(result.coachState.improvementHistory.length, 0);
+});
+
+test('public Salma brain action is the canonical coach-gated BrainGuide action', () => {
+  const start = 1_800_000_000_000;
+  const p = defaultProfile('acct-1');
+  p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
+    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+  let state = normalizeSalmaCoachState(null);
+  state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
+    successGate: 'Set abschließen.', assignedAt: start, nextEligibleAt: null,
+    baseline: measurementForSkill(p, 'fluency-interrupt') };
+  state = recordDrillOutcome(state, { eventId: '1111111111111111', drill: 'flow-drill', completedSet: true }, start + 1_000);
+  p.salmaCoach = state;
+  const now = start + 2_000;
+  const flags = { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false };
+  const canonical = canonicalCoachDirective(p, account('basic'), { now, coachFlags: flags });
+  const view = publicSalmaCoach(p, account('basic'),
+    flags, { now });
+  assert.deepEqual(view.brain, { state: canonical.state, action: canonical.prescription.action });
 });
 
 test('BrainGuide gate requires the whole dose, then the delayed live-retest window', () => {
@@ -143,7 +237,7 @@ test('BrainGuide gate requires the whole dose, then the delayed live-retest wind
 
   assert.deepEqual(salmaCoachBrainGate(state, p, start + 200), {
     skillId: 'fluency-interrupt', drillId: 'flow-drill', status: 'practice', action: 'drill',
-    phase: 'practice', nextEligibleAt: null,
+    phase: 'practice_block_1', nextEligibleAt: null,
   });
   state = recordDrillOutcome(state, { drill: 'flow-drill', correct: true }, start + 250);
   assert.equal(salmaCoachBrainGate(state, p, start + 300).status, 'practice',
@@ -223,7 +317,7 @@ test('a drill nomination closes only through a newer skill-matched live retest',
   assert.equal(wrongSkill.coachState.lastRetestSessionId, null);
   state = recordMeaningfulRetest(state, p, { sessionId: 'session-verified', skillId: 'word-order-sub', phase: 'matched', now: 1_800_100_000_100 });
   assert.equal(state.coachState.lastRetestSessionId, 'session-verified');
-  assert.deepEqual(state.coachState.improvementHistory.map((proof) => [proof.before, proof.after, proof.status]), [[4, 1, 'improved']]);
+  assert.deepEqual(state.coachState.improvementHistory.map((proof) => [proof.before, proof.after, proof.status]), [[3.3, 0.8, 'improved']]);
   assert.notEqual(state.coachState.improvementHistory[0].measurementEvidenceId,
     measurementForSkill(p, 'word-order-sub', { sessionId: 'unrelated-later' }).evidenceId,
     'the requested retest cannot borrow a newer unrelated session');
@@ -355,7 +449,7 @@ test('public coach returns a bounded visible before/after proof without internal
   const view = publicSalmaCoach(p, account('basic'), { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false });
   assert.equal(['observed_risk', 'no_single_risk_observed'].includes(view.interviewRisk.state), true);
   assert.equal(view.progress.verifiedRetest.status, 'improved');
-  assert.deepEqual([view.progress.verifiedRetest.before, view.progress.verifiedRetest.after], [3, 1]);
+  assert.deepEqual([view.progress.verifiedRetest.before, view.progress.verifiedRetest.after], [2.5, 0.8]);
   assert.equal(JSON.stringify(view).includes('live-2'), false);
   assert.equal(JSON.stringify(view.activePrescription).includes('fedcba987654'), false);
 });

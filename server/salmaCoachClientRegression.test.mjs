@@ -78,6 +78,26 @@ test('verified drill evidence refreshes both guides and APPLY opens Mission Cont
   assert.match(brain, /d\.prescription\?\.action !== 'wait'/u);
 });
 
+test('coaching progress accepts one-use server evidence instead of client-claimed outcomes', async () => {
+  const [reporter, progress, satzbau, listening, fluency, pressure, shadowing] = await Promise.all([
+    read('client/src/salmaCoachClient.js'),
+    read('server/progress.js'),
+    read('server/satzbauSchmiede.js'),
+    read('server/listening.js'),
+    read('server/fluencyDrill.js'),
+    read('server/druckLeiter.js'),
+    read('server/shadowing.js'),
+  ]);
+  assert.match(reporter, /evidenceReceipt/u);
+  assert.doesNotMatch(reporter, /JSON\.stringify\(event\)/u);
+  assert.match(progress, /redeemDrillEvidenceReceipt/u);
+  assert.match(progress, /verified_drill_evidence_required/u);
+  assert.match(progress, /drill_evidence_mismatch/u);
+  for (const grader of [satzbau, listening, fluency, pressure, shadowing]) {
+    assert.match(grader, /issueDrillEvidenceReceipt/u);
+  }
+});
+
 test('the live interview snapshots the completed prescription and closes only that same cycle', async () => {
   const websocket = await read('server/websocketManager.js');
   assert.match(websocket, /salmaRetestTarget\(prof\.salmaCoach, prof\)/u);

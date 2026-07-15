@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { looksTruncatedDE, sessionSubstance, speakingEvidenceQuality, lowConfidenceWords, quoteHasLowConfidence, looksLikeTrustworthyCorrection } from './turnQuality.js';
+import { serverStreamEvidence, typedAnswerEvidence } from '../spokenEvidence.js';
+
+function trustedSpoken(row, source = 'deepgram_stream') {
+  return {
+    ...row,
+    spokenEvidence: serverStreamEvidence({ source, serverAudioMs: 2_000, scoringDurationMs: 1_800 }),
+  };
+}
 
 test('truncated: the owner\'s real cut-off fragments are flagged', () => {
   // straight from the reported broken interview
@@ -67,11 +75,11 @@ test('speaking evidence distinguishes a useful debrief from a reliable prescript
   const short = [
     { text: 'Ich heiße Karim und arbeite seit drei Jahren sehr gern mit anspruchsvollen Kunden im Service.', words: 15, stage: 0 },
     { text: 'Ich löse Beschwerden ruhig, erkläre den nächsten Schritt und dokumentiere danach die vereinbarte Lösung vollständig.', words: 15, stage: 1 },
-  ];
+  ].map((row) => trustedSpoken(row));
   assert.equal(sessionSubstance(short).tooThinToJudge, false);
   assert.equal(speakingEvidenceQuality(short).prescriptionEligible, false);
 
-  const diagnostic = Array.from({ length: 4 }, (_, index) => ({
+  const diagnostic = Array.from({ length: 4 }, (_, index) => trustedSpoken({
     text: `Ich gebe eine vollständige berufliche Antwort mit einem konkreten Beispiel aus meiner bisherigen Arbeit Nummer ${index}.`,
     words: 21,
     stage: index < 2 ? 0 : 1,
@@ -83,7 +91,7 @@ test('speaking evidence distinguishes a useful debrief from a reliable prescript
 });
 
 test('high-confidence speaking evidence requires all three stages and six complete answers', () => {
-  const full = Array.from({ length: 6 }, (_, index) => ({
+  const full = Array.from({ length: 6 }, (_, index) => trustedSpoken({
     text: `Ich beantworte diese Interviewfrage vollständig, begründe meine Entscheidung und nenne ein konkretes Ergebnis aus einer realistischen Kundensituation Nummer ${index}, damit meine Leistung unter Druck messbar bleibt.`,
     words: 31,
     stage: Math.floor(index / 2),
@@ -92,6 +100,55 @@ test('high-confidence speaking evidence requires all three stages and six comple
   assert.equal(quality.prescriptionEligible, true);
   assert.equal(quality.highConfidence, true);
   assert.equal(quality.stageCoverage, 3);
+});
+
+test('typed answers stay useful for debrief but never become prescription evidence', () => {
+  const typed = Array.from({ length: 6 }, (_, index) => ({
+    text: `Ich beantworte diese Interviewfrage vollständig und nenne ein konkretes Ergebnis aus meiner bisherigen Arbeit Nummer ${index}.`,
+    words: 24,
+    stage: Math.floor(index / 2),
+    spokenEvidence: typedAnswerEvidence(),
+  }));
+  assert.equal(sessionSubstance(typed).tooThinToJudge, false);
+  const quality = speakingEvidenceQuality(typed);
+  assert.equal(quality.version, 2);
+  assert.equal(quality.prescriptionEligible, false);
+  assert.equal(quality.trustedSpokenTurns, 0);
+  assert.equal(quality.excludedUntrustedTurns, 6);
+});
+
+test('legacy v1 and low-audio provenance fail closed', () => {
+  const rows = Array.from({ length: 6 }, (_, index) => ({
+    text: `Ich liefere eine vollständige Antwort mit einem konkreten Beispiel Nummer ${index} aus einer realistischen Kundensituation.`,
+    words: 24,
+    stage: Math.floor(index / 2),
+    spokenEvidence: index % 2 === 0
+      ? { version: 1, source: 'deepgram_stream', trustedAudio: true, receiptId: 'a'.repeat(24), serverAudioMs: 2_000 }
+      : serverStreamEvidence({ source: 'deepgram_stream', serverAudioMs: 599, scoringDurationMs: 599 }),
+  }));
+  const quality = speakingEvidenceQuality(rows);
+  assert.equal(quality.prescriptionEligible, false);
+  assert.equal(quality.trustedSpokenTurns, 0);
+  assert.equal(quality.excludedUntrustedTurns, 6);
+});
+
+test('one typed or otherwise hidden untrusted turn invalidates a mixed diagnostic packet', () => {
+  const trusted = Array.from({ length: 6 }, (_, index) => trustedSpoken({
+    text: `Ich beantworte die Frage vollständig und nenne ein konkretes Ergebnis Nummer ${index} aus einer realistischen Kundensituation.`,
+    words: 24,
+    stage: Math.floor(index / 2),
+  }));
+  const mixed = speakingEvidenceQuality([
+    ...trusted,
+    { text: 'Diese lange Antwort wurde nur getippt und darf kein Messsignal verändern.', words: 11, stage: 2,
+      spokenEvidence: typedAnswerEvidence() },
+  ]);
+  assert.equal(mixed.prescriptionEligible, false);
+  assert.equal(mixed.excludedUntrustedTurns, 1);
+
+  const hiddenOneWord = speakingEvidenceQuality(trusted, { observedUntrustedTurns: 1 });
+  assert.equal(hiddenOneWord.prescriptionEligible, false);
+  assert.equal(hiddenOneWord.excludedUntrustedTurns, 1);
 });
 
 test('lowConfidenceWords: only sub-threshold words are flagged', () => {

@@ -142,7 +142,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'grade_failed');
-      const coachCue = await reportDrillEvent({ apiUrl, token, event: { drill: 'hoer-check', correct: d.correct === true } });
+      const coachCue = await reportDrillEvent({ apiUrl, token, event: {
+        drill: 'hoer-check', evidenceReceipt: d.evidenceReceipt,
+      } });
       setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
     } catch {
       setErr({ de: 'Konnte nicht prüfen. Bitte erneut.', ar: 'مقدرناش نصحّح. حاول تاني.' });
@@ -157,7 +159,6 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     else {
       // Feed the brain: a completed Hör-Check set is listening prep (per-answer accuracy already
       // lands in listeningStats server-side; this event is what flips the brain's prep/READY).
-      reportDrillEvent({ apiUrl, token, event: { drill: 'hoer-check' } });
       setPhase('done');
     }
   };

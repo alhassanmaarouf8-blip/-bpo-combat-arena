@@ -1,3 +1,5 @@
+import { isTrustedSpokenEvidence } from '../spokenEvidence.js';
+
 /**
  * turnQuality.js — deterministic, $0 signals about whether a candidate turn was CUT OFF /
  * fragmentary, and whether the whole session is too thin to judge fairly.
@@ -169,11 +171,23 @@ export function sessionSubstance(utterances) {
  * lets a learner receive a useful debrief, but Salma may diagnose only from complete speech covering
  * more than one interview stage. This object is bounded metadata; no transcript or audio is stored.
  */
-export function speakingEvidenceQuality(utterances) {
+export function speakingEvidenceQuality(utterances, { observedUntrustedTurns = 0 } = {}) {
   const rows = Array.isArray(utterances) ? utterances : [];
-  const substance = sessionSubstance(rows);
+  // Text mode remains a useful accessibility fallback and can receive a debrief, but it is not
+  // evidence of SPOKEN German. Only utterances whose provenance was created by the server from
+  // observed audio may enter diagnosis, forecasting, or transfer proof.
+  const trustedRows = rows.filter((row) => isTrustedSpokenEvidence(row?.spokenEvidence));
+  // A mixed typed/spoken packet is not safe for diagnosis because legacy aggregate scorers may
+  // have observed every answer. Fail the whole packet closed rather than letting typed content
+  // influence a metric behind an otherwise-valid set of spoken turns. The explicit count also
+  // captures one-word answers that are deliberately absent from the debrief utterance list.
+  const excludedUntrustedTurns = Math.max(
+    Math.max(0, rows.length - trustedRows.length),
+    Math.max(0, Math.floor(Number(observedUntrustedTurns) || 0)),
+  );
+  const substance = sessionSubstance(trustedRows);
   const completeStages = new Set();
-  for (const row of rows) {
+  for (const row of trustedRows) {
     const text = String(row?.text || '').trim();
     const words = typeof row?.words === 'number' && row.words > 0 ? row.words : wordsOf(text).length;
     if (words < SUBSTANCE.MIN_TURN_WORDS || looksTruncatedDE(text)) continue;
@@ -181,7 +195,8 @@ export function speakingEvidenceQuality(utterances) {
     if ([0, 1, 2].includes(stage)) completeStages.add(stage);
   }
   const stageCoverage = completeStages.size;
-  const prescriptionEligible = !substance.tooThinToJudge
+  const prescriptionEligible = excludedUntrustedTurns === 0
+    && !substance.tooThinToJudge
     && substance.realWords >= DIAGNOSTIC_SUBSTANCE.MIN_WORDS
     && substance.completeTurns >= DIAGNOSTIC_SUBSTANCE.MIN_COMPLETE_TURNS
     && stageCoverage >= DIAGNOSTIC_SUBSTANCE.MIN_STAGE_COVERAGE
@@ -192,11 +207,13 @@ export function speakingEvidenceQuality(utterances) {
     && stageCoverage >= DIAGNOSTIC_SUBSTANCE.HIGH_CONFIDENCE_STAGES
     && substance.truncatedShare <= DIAGNOSTIC_SUBSTANCE.HIGH_CONFIDENCE_MAX_TRUNCATED_SHARE;
   return Object.freeze({
-    version: 1,
+    version: 2,
     words: substance.realWords,
     completeTurns: substance.completeTurns,
     truncatedTurns: substance.truncatedTurns,
     stageCoverage,
+    trustedSpokenTurns: trustedRows.length,
+    excludedUntrustedTurns,
     prescriptionEligible,
     highConfidence,
   });

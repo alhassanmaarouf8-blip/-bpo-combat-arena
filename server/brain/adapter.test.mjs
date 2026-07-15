@@ -151,15 +151,57 @@ test('adapter: recentDrillEvents carry drill kind + rule identity, only post-fig
 });
 
 test('adapter: criterion confidence counts only reliable sessions that measured that exact signal', () => {
-  const reliable = (date, wpm) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+  const reliable = (date, wpm, overrides = {}) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
     grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1,
-    intelligibility: 0.9, latencyS: 2, evidenceQuality: { version: 1, words: 120, prescriptionEligible: true } });
+    intelligibility: 0.9, latencyS: 2, targetRoleType: 'technical_support', targetIndustry: 'telecom',
+    scenarioId: 'billing-dispute', bossId: 'yasmin',
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true }, ...overrides });
   const p = { sessions: [reliable(NOW - 2 * DAY, 70), reliable(NOW - DAY, 75),
-    { ...reliable(NOW, 60), evidenceQuality: { version: 1, words: 120, prescriptionEligible: false } }] };
+    { ...reliable(NOW, 60), evidenceQuality: { version: 2, words: 120, prescriptionEligible: false } }] };
   const snap = buildSnapshot(p, NOW);
   assert.equal(snap.limitingCriterionId, 'sustained_pace');
   assert.equal(snap.limitingEvidenceCount, 2);
   assert.equal(decide(snap).confidence, 'high');
+});
+
+test('adapter: a passing session does not impersonate repeated evidence for a later pace deficit', () => {
+  const reliable = (date, wpm) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+    grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1,
+    intelligibility: 0.9, latencyS: 2, targetRoleType: 'technical_support', targetIndustry: 'telecom',
+    scenarioId: 'billing-dispute', bossId: 'yasmin',
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } });
+  const snapshot = buildSnapshot({ sessions: [reliable(NOW - DAY, 130), reliable(NOW, 55)] }, NOW);
+  assert.equal(snapshot.limitingCriterionId, 'sustained_pace');
+  assert.equal(snapshot.limitingEvidenceCount, 1);
+  assert.equal(decide(snapshot).confidence, 'low');
+});
+
+test('adapter: deficits from a different interview archetype cannot raise criterion confidence', () => {
+  const reliable = (date, scenarioId) => ({ date, wpm: 60, fluency: 45, fillers: 2, words: 120,
+    grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
+    deescalation: 0.8, giveUpRate: 0.1, intelligibility: 0.9, latencyS: 2,
+    targetRoleType: 'technical_support', targetIndustry: 'telecom', scenarioId, bossId: 'yasmin',
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } });
+  const snapshot = buildSnapshot({ sessions: [
+    reliable(NOW - DAY, 'technical-outage'), reliable(NOW, 'billing-dispute'),
+  ] }, NOW);
+  assert.equal(snapshot.limitingCriterionId, 'sustained_pace');
+  assert.equal(snapshot.limitingEvidenceCount, 1);
+  assert.equal(decide(snapshot).confidence, 'low');
+});
+
+test('adapter: v1 deficits cannot authorize v2 forecast confidence after migration', () => {
+  const reliable = (date, wpm, version) => ({ date, wpm, fluency: 45, fillers: 2, words: 120,
+    grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
+    deescalation: 0.8, giveUpRate: 0.1, intelligibility: 0.9, latencyS: 2,
+    targetRoleType: 'technical_support', targetIndustry: 'telecom', scenarioId: 'billing-dispute', bossId: 'yasmin',
+    evidenceQuality: { version, words: 120, eligibleWords: 120, prescriptionEligible: true } });
+  const snapshot = buildSnapshot({ sessions: [
+    reliable(NOW - 2 * DAY, 55, 1), reliable(NOW - DAY, 60, 1), reliable(NOW, 58, 2),
+  ] }, NOW);
+  assert.equal(snapshot.limitingCriterionId, 'sustained_pace');
+  assert.equal(snapshot.limitingEvidenceCount, 1);
+  assert.equal(decide(snapshot).confidence, 'low');
 });
 
 test('non-customer-service roles do not enter an impossible deescalation measurement loop', () => {
@@ -167,7 +209,7 @@ test('non-customer-service roles do not enter an impossible deescalation measure
     scenarioId: 'telecom-portierung', targetIndustry: 'telecom', wpm: 120, intelligibility: 0.8,
     words: 120, fillers: 2, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
     vocabDiversity: 0.5, giveUpRate: 0.1, latencyS: 2,
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true } }] };
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } }] };
   const snapshot = buildSnapshot(p, NOW);
   assert.equal(snapshot.roleMeasurementState, 'role_criterion_not_yet_validated');
   assert.equal(snapshot.unmeasuredGates.includes('deescalation'), false);
@@ -178,7 +220,7 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
   const reliable = (sessionId, date, count, scenarioId) => ({
     sessionId, date, verdict: 'pass', bossId: 'yasmin', targetRoleType: 'customer_service', scenarioId,
     grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count }],
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true },
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true },
   });
   const sessions = [reliable('live-baseline', NOW - 3 * DAY, 4, 'customer-general-a'),
     reliable('live-matched', NOW - 2 * DAY, 2, 'customer-general-a'),
@@ -189,10 +231,10 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
   const transfer = speakingMeasurementForSkill(shell, 'word-order-sub', { sessionId: 'live-transfer' });
   const matchedProof = {
     id: 'aaaaaaaaaaaaaaaa', prescriptionId: '2222222222222222', skillId: 'word-order-sub', metricKey: 'grammar_errors',
-    phase: 'matched', status: 'improved', before: 4, after: 2, verifiedAt: matched.measuredAt + 100,
+    phase: 'matched', status: 'improved', before: baseline.value, after: matched.value, verifiedAt: matched.measuredAt + 100,
     measuredAt: matched.measuredAt, measurementEvidenceId: matched.evidenceId, retestSessionId: matched.sourceSessionId,
     baselineSessionId: baseline.sourceSessionId, baselineMeasurementEvidenceId: baseline.evidenceId,
-    comparedValue: 4, comparedMeasurementEvidenceId: baseline.evidenceId, comparedRetestSessionId: baseline.sourceSessionId,
+    comparedValue: baseline.value, comparedMeasurementEvidenceId: baseline.evidenceId, comparedRetestSessionId: baseline.sourceSessionId,
     contextId: matched.contextId, noveltyId: matched.noveltyId,
     comparedContextId: baseline.contextId, comparedNoveltyId: baseline.noveltyId,
   };
@@ -202,9 +244,9 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
     contextId: transfer.contextId, noveltyId: transfer.noveltyId,
     comparedContextId: matched.contextId, comparedNoveltyId: matched.noveltyId,
     baselineSessionId: baseline.sourceSessionId, baselineMeasurementEvidenceId: baseline.evidenceId,
-    comparedValue: 2, comparedMeasurementEvidenceId: matched.evidenceId,
+    comparedValue: matched.value, comparedMeasurementEvidenceId: matched.evidenceId,
     comparedRetestSessionId: matched.sourceSessionId, comparedProofId: matchedProof.id,
-    phase: 'transfer', status: 'improved', before: 4, after: 1,
+    phase: 'transfer', status: 'improved', before: baseline.value, after: transfer.value,
     measuredAt: transfer.measuredAt, verifiedAt: NOW, ...overrides,
   });
   const p = { sessions, salmaCoach: { coachState: { improvementHistory: [
@@ -224,7 +266,7 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
   assert.equal(snapshot.masteredSkills.includes('self-intro'), true);
   assert.deepEqual(snapshot.verifiedMasteredSkills, ['word-order-sub']);
   assert.deepEqual(latestVerifiedImprovementFromProfile(p, NOW), {
-    skillId: 'word-order-sub', metricKey: 'grammar_errors', before: 4, after: 1,
+    skillId: 'word-order-sub', metricKey: 'grammar_errors', before: baseline.value, after: transfer.value,
     direction: 'lower', phase: 'transfer', verifiedAt: NOW,
   });
   assert.deepEqual(snapshot.verifiedImprovement, latestVerifiedImprovementFromProfile(p, NOW));

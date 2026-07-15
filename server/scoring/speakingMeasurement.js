@@ -11,16 +11,35 @@ export const SPEAKING_METRIC_BY_SKILL = Object.freeze({
   'pronunciation-phone': { metricKey: 'intelligibility_score', direction: 'higher', minimumDelta: 3 },
 });
 
+export const EVIDENCE_CONTRACT_VERSION = 2;
+const MINIMUM_GRAMMAR_WORDS = 80;
+
 function boundedString(value, max = 100) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 function hash(value, length = 12) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, length);
 }
 function roundMetric(value) { return Math.round(Number(value) * 10) / 10; }
 
+function evidenceVersion(session) {
+  return Number(session?.evidenceQuality?.version) || 0;
+}
+
+export function eligibleSpeakingWords(session) {
+  const explicit = Number(session?.evidenceQuality?.eligibleWords);
+  const compatible = Number(session?.evidenceQuality?.words) || Number(session?.words);
+  const hasExplicit = !!session?.evidenceQuality
+    && Object.hasOwn(session.evidenceQuality, 'eligibleWords');
+  const words = hasExplicit ? explicit : compatible;
+  return Number.isFinite(words) && words > 0 ? Math.floor(words) : 0;
+}
+
 export function reliableSpeakingSessions(profile) {
-  return (Array.isArray(profile?.sessions) ? [...profile.sessions] : [])
-    .filter((session) => session?.evidenceQuality?.version === 1
-      && session.evidenceQuality.prescriptionEligible === true)
+  const sessions = Array.isArray(profile?.sessions) ? [...profile.sessions] : [];
+  // Migration is intentionally fail-closed. v1 packets may remain visible as history but can no
+  // longer authorize a new measurement or transfer proof after Evidence Contract v2 ships.
+  return sessions
+    .filter((session) => evidenceVersion(session) === EVIDENCE_CONTRACT_VERSION
+      && session?.evidenceQuality?.prescriptionEligible === true)
     .sort((a, b) => Number(a?.date || 0) - Number(b?.date || 0));
 }
 
@@ -46,9 +65,14 @@ export function speakingMeasurementForSkill(profile, skillId, { sessionId = null
   for (let index = sessions.length - 1; index >= 0; index -= 1) {
     const session = sessions[index];
     let value = null;
+    let measurementBinding = null;
     if (metric.metricKey === 'grammar_errors' && session?.grammarMeasured === true && Array.isArray(session?.grammarRules)) {
-      value = session.grammarRules.filter((row) => row?.ruleId === skillId)
+      const eligibleWords = eligibleSpeakingWords(session);
+      if (eligibleWords < MINIMUM_GRAMMAR_WORDS) continue;
+      const rawErrorCount = session.grammarRules.filter((row) => row?.ruleId === skillId)
         .reduce((sum, row) => sum + Math.max(0, Number(row?.count) || 0), 0);
+      value = (rawErrorCount / eligibleWords) * 100;
+      measurementBinding = { rawErrorCount, eligibleWords, unit: 'errors_per_100_eligible_words' };
     } else if (metric.metricKey === 'fluency_score' && Number.isFinite(session?.fluency)) {
       value = Math.max(0, Math.min(100, Number(session.fluency)));
     } else if (metric.metricKey === 'deescalation_score') {
@@ -64,7 +88,10 @@ export function speakingMeasurementForSkill(profile, skillId, { sessionId = null
     if (!measuredAt) continue;
     const evidenceId = metric.metricKey === 'deescalation_score' && typeof session?.deescalationEvidence?.binding === 'string'
       ? hash({ skillId, binding: session.deescalationEvidence.binding })
-      : hash({ skillId, metricKey: metric.metricKey, measuredAt, bossId: session?.bossId || '' });
+      : metric.metricKey === 'grammar_errors'
+        ? hash({ skillId, metricKey: metric.metricKey, measuredAt, bossId: session?.bossId || '',
+          contractVersion: evidenceVersion(session), measurementBinding })
+        : hash({ skillId, metricKey: metric.metricKey, measuredAt, bossId: session?.bossId || '' });
     const sourceSessionId = boundedString(session?.sessionId, 100) || null;
     const context = speakingContextForSession(session);
     return { metricKey: metric.metricKey, value: roundMetric(value), measuredAt, evidenceId,
@@ -74,4 +101,4 @@ export function speakingMeasurementForSkill(profile, skillId, { sessionId = null
 }
 
 export default { reliableSpeakingSessions, speakingContextForSession, speakingMeasurementForSkill,
-  SPEAKING_METRIC_BY_SKILL };
+  eligibleSpeakingWords, EVIDENCE_CONTRACT_VERSION, SPEAKING_METRIC_BY_SKILL };

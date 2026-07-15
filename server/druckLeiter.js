@@ -23,6 +23,8 @@
 import express from 'express';
 import { requireAuth, rateLimit } from './auth.js';
 import { transcribeAudio }  from './planGuide.js';
+import { voicedDurationMs } from './audioGuard.js';
+import { issueDrillEvidenceReceipt } from './drillEvidence.js';
 
 export const druckLeiterRouter = express.Router();
 
@@ -100,21 +102,29 @@ druckLeiterRouter.post('/druck-leiter/score',
           tip: teachTip(false) });
       }
 
+      const serverVoicedMs = voicedDurationMs(audio);
       const transcript = (await transcribeAudio(audio, { mime: req.headers['content-type'] || 'audio/wav' })).trim();
       const cleaned = stripBarbs(transcript, barbs);
 
       // Empty transcript → STT heard nothing usable. NEVER fail on that: teach and move on.
       if (!cleaned) {
+        const evidenceReceipt = issueDrillEvidenceReceipt(req.account.id, {
+          drill: 'druck-leiter', froze: serverVoicedMs < 5_000, correct: false, voicedMs: serverVoicedMs,
+        });
         return res.json({ transcript, souveraen: false,
           moves: { acknowledged: false, offeredSolution: false, stayedSie: false, noInsult: true },
-          tip: teachTip(false) });
+          tip: teachTip(false), ...(evidenceReceipt ? { evidenceReceipt } : {}) });
       }
 
       const moves = detectMoves(cleaned);
       const souveraen = judgeSouveraen(moves);
+      const evidenceReceipt = issueDrillEvidenceReceipt(req.account.id, {
+        drill: 'druck-leiter', froze: serverVoicedMs < 5_000, correct: souveraen, voicedMs: serverVoicedMs,
+      });
 
       console.log(`[druck-leiter] user=${req.account.id} souveraen=${souveraen} ack=${moves.acknowledged} sol=${moves.offeredSolution} sie=${moves.stayedSie} noInsult=${moves.noInsult}`);
-      return res.json({ transcript, souveraen, moves, tip: teachTip(souveraen) });
+      return res.json({ transcript, souveraen, moves, tip: teachTip(souveraen),
+        ...(evidenceReceipt ? { evidenceReceipt } : {}) });
     } catch (err) {
       console.error('[druck-leiter] score error:', err.message);
       const noKey = err.message === 'no_api_key';

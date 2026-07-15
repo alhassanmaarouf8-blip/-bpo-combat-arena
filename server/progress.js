@@ -16,22 +16,17 @@ import { requireAuth, publicAccount, listAllAccounts } from './auth.js';
 import { hireReadinessFor } from './hireReadiness.js';
 import { recentTurns, summary as latencySummary, recordClient, recentClient, clientSummary } from './latencyLog.js';
 import { buildSnapshot } from './brain/adapter.js';
-import { decide } from './brain/engine.js';
 import { classifyGrammar } from './errorTags.js';
 import { INDUSTRIES } from './scenarios.js';
 import { adminRequestOk } from './adminAuth.js';
-import {
-  dueVacancyMilestone,
-  isLiveVacancyMilestone,
-  normalizeVacancyState,
-  vacancyFlagsFor,
-} from './vacancyTargetCore.js';
-import { missionNextAction } from './missionControlCore.js';
-import { governedMissionControlFlagsFor } from './missionControlGovernance.js';
-import { coachCueForDrill, recordDrillOutcome, salmaCoachBrainGate, salmaCoachEventId,
+import { canonicalCoachDirective, coachCueForDrill, recordDrillOutcome, salmaCoachEventId,
   salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
+import { redeemDrillEvidenceReceipt } from './drillEvidence.js';
 
 export const progressRouter = express.Router();
+const RECEIPT_PROTECTED_DRILLS = new Set([
+  'satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs',
+]);
 
 function buildDashboard(p) {
   const sessions = p.sessions || [];
@@ -141,7 +136,16 @@ progressRouter.post('/diag/clientlat', requireAuth, (req, res) => {
 progressRouter.post('/drill-event', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
-    const { drill, ruleId, rule, froze, correct, voicedMs, completedSet } = req.body || {};
+    const body = req.body || {};
+    const verifiedEvent = redeemDrillEvidenceReceipt(req.account.id, body.evidenceReceipt);
+    const requestedDrill = String(body.drill || '').slice(0, 40);
+    if (RECEIPT_PROTECTED_DRILLS.has(requestedDrill) && !verifiedEvent) {
+      return res.status(422).json({ error: 'verified_drill_evidence_required' });
+    }
+    if (verifiedEvent && requestedDrill && requestedDrill !== verifiedEvent.drill) {
+      return res.status(422).json({ error: 'drill_evidence_mismatch' });
+    }
+    const { drill, ruleId, rule, froze, correct, voicedMs, completedSet } = verifiedEvent || body;
     if (!drill) return res.status(400).json({ error: 'missing_drill' });
     const p = await loadUser(req.account.id);
     p.weakLog = p.weakLog || {};
@@ -190,26 +194,7 @@ progressRouter.get('/brain', requireAuth, async (req, res) => {
   try {
     const p = await loadUser(req.account.id);
     const snapshot = buildSnapshot(p);
-    const vacancyFlags = vacancyFlagsFor(req.account);
-    const vacancyState = vacancyFlags.enabled ? normalizeVacancyState(p.vacancyTarget) : null;
-    let vacancyDue = vacancyState?.active ? dueVacancyMilestone(vacancyState.active) : null;
-    if (!vacancyFlags.fullPlan && vacancyDue?.id !== vacancyState?.active?.schedule?.[0]?.id) vacancyDue = null;
-    const safeDue = vacancyDue ? {
-      id: vacancyDue.id,
-      title: vacancyDue.title,
-      objective: vacancyDue.objective,
-      scheduledDate: vacancyDue.scheduledDate,
-      liveRequired: isLiveVacancyMilestone(vacancyDue.id),
-    } : null;
-    // Mission Control contributes to the same deterministic decision spine. Active
-    // interview preparation remains higher priority, so the student still sees one
-    // next action instead of a competing dashboard recommendation.
-    const missionDue = missionNextAction(p, req.account, {
-      flags: governedMissionControlFlagsFor(req.account),
-    });
-    const coachFlags = salmaCoachFlags(process.env, req.account);
-    const coachGate = coachFlags.enabled ? salmaCoachBrainGate(p.salmaCoach, p) : null;
-    const directive = decide({ ...snapshot, vacancyDue: safeDue, missionDue, coachGate });
+    const directive = canonicalCoachDirective(p, req.account);
     res.json({ directive, level: snapshot.level, hireReady: snapshot.hireReady, hireNote: snapshot.hireNote });
   } catch (err) {
     console.error('[brain] error:', err.message);

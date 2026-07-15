@@ -1,9 +1,9 @@
 export async function reportDrillEvent({ apiUrl, token, event }) {
-  if (!apiUrl || !token || !event?.drill) return null;
+  if (!apiUrl || !token || !event?.drill || !event?.evidenceReceipt) return null;
   try {
     const response = await fetch(`${apiUrl}/api/drill-event`, { method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(event) });
+      body: JSON.stringify({ drill: event.drill, evidenceReceipt: event.evidenceReceipt }) });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) return null;
     if (typeof window !== 'undefined') {

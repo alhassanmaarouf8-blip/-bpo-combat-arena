@@ -38,6 +38,7 @@ import { voicedDurationMs }    from './audioGuard.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
 import { textFeatures }        from './hireReadiness.js';
 import { addItem, grade, srsKey, isCorrect } from './srs.js';
+import { issueDrillEvidenceReceipt } from './drillEvidence.js';
 
 export const fluencyRouter = express.Router();
 
@@ -499,7 +500,13 @@ fluencyRouter.post('/fluency/score',
       }
 
       console.log(`[fluency] user=${req.account.id} round=${round} wpm=${metrics.wpm} words=${metrics.words} fillers=${metrics.fillers}`);
-      res.json({ transcript, metrics, ...(grammar !== undefined ? { grammar } : {}) });
+      // One receipt represents one server-heard round. Three separately redeemed receipts,
+      // never a claimed round number, complete Salma's three-repetition protocol.
+      const evidenceReceipt = issueDrillEvidenceReceipt(req.account.id, {
+        drill: 'flow-drill', correct: true, voicedMs,
+      });
+      res.json({ transcript, metrics, ...(grammar !== undefined ? { grammar } : {}),
+        ...(evidenceReceipt ? { evidenceReceipt } : {}) });
     } catch (err) {
       console.error('[fluency] score error:', err.message);
       const noKey = err.message === 'no_api_key';

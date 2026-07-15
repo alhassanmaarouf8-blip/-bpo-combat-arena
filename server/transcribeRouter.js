@@ -13,8 +13,9 @@
 
 import express from 'express';
 import { getAccountById, dailyMinutesFor, drillsUnlocked, requireAuth, rateLimit } from './auth.js';
-import { activeFightUsers } from './liveFights.js';
+import { activeFightSessions, activeFightUsers } from './liveFights.js';
 import { voicedDurationMs } from './audioGuard.js';
+import { issueClassicSpeechReceipt } from './spokenEvidence.js';
 import { expandForSpeechDE } from './speechExpandDE.js';
 import { mintMediaTicket, consumeMediaTicket } from './mediaTickets.js';
 import { vertexConfigured, getVertexAccessToken } from './vertexToken.js';
@@ -293,11 +294,23 @@ router.post('/transcribe',
     // bytes, NOT the (spoofable / sometimes-octet-stream) content-type label — so a mislabeled silent
     // WAV can't bypass. The shipped client always sends WAV (clipRecorder), so this covers the real path.
     const looksWav = buffer.length > 44 && buffer.toString('latin1', 0, 4) === 'RIFF';
-    if (looksWav && voicedDurationMs(buffer) < 600) return res.json({ text: '' });
+    const serverVoicedMs = looksWav ? voicedDurationMs(buffer) : 0;
+    if (looksWav && serverVoicedMs < 600) return res.json({ text: '' });
 
     transcribeInFlight.add(account.id);
     try {
       const text = await transcribe(buffer, mimeType);
+      // Preserve the established `{ text }` response. A short-lived server-only receipt binds this
+      // exact STT result to the one active fight; the WebSocket consumes it by transcript hash.
+      // Tutor dictation and non-WAV uploads never become interview evidence.
+      if (!tutorQuestion && looksWav && text && activeFightUsers.has(account.id)) {
+        issueClassicSpeechReceipt({
+          accountId: account.id,
+          sessionId: activeFightSessions.get(account.id),
+          transcript: text,
+          serverAudioMs: serverVoicedMs,
+        });
+      }
       console.log(`[cost] stt engine=${TRANSCRIBER} bytes=${buffer.length} transcriptChars=${(text || '').length}`);
       return res.json({ text: text || '' });
     } catch (err) {

@@ -10,6 +10,7 @@ import { masteryFromHistory, MASTERY_GATE } from './bkt.js';
 import { hireReadinessFor, featuresFromProfile } from '../hireReadiness.js';
 import { listeningMasteryEvidence } from '../listeningEvidence.js';
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from '../scoring/serviceRecoveryEvidence.js';
+import { eligibleSpeakingWords, reliableSpeakingSessions } from '../scoring/speakingMeasurement.js';
 import { validatedTransferProofs } from '../scoring/transferProofs.js';
 
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
@@ -22,29 +23,61 @@ function chronologicalSessions(profile) {
     .sort((a, b) => Number(a?.date || 0) - Number(b?.date || 0));
 }
 
+function boundedArchetypeValue(value, max = 100) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+function interviewArchetype(session) {
+  return [
+    boundedArchetypeValue(session?.targetRoleType, 40) || 'customer_service',
+    boundedArchetypeValue(session?.targetIndustry, 40) || 'general',
+    boundedArchetypeValue(session?.vacancyTargetId, 100) || 'generic',
+    boundedArchetypeValue(session?.scenarioId, 80) || 'generic',
+    boundedArchetypeValue(session?.bossId, 40) || 'professional_interviewer',
+  ].join('|');
+}
+
+function criterionDeficitObserved(session, criterionId) {
+  const words = eligibleSpeakingWords(session);
+  if (criterionId === 'sustained_pace') return Number.isFinite(session?.wpm) && Number(session.wpm) < 90;
+  if (criterionId === 'grammar_control') {
+    if (session?.grammarMeasured !== true || !Array.isArray(session?.grammarRules) || words < 80) return false;
+    const errors = session.grammarRules.reduce((sum, row) => sum + Math.max(0, Number(row?.count) || 0), 0);
+    return (errors / words) * 100 > 8;
+  }
+  if (criterionId === 'speech_recognition_proxy') {
+    return Number.isFinite(session?.intelligibility) && Number(session.intelligibility) < 0.8;
+  }
+  if (criterionId === SERVICE_RECOVERY_CRITERION_ID) {
+    const score = serviceRecoveryScoreFromSession(session);
+    return score != null && score < (2 / 3);
+  }
+  if (criterionId === 'complete_response') {
+    return Number.isFinite(session?.giveUpRate) && Number(session.giveUpRate) > 0.2;
+  }
+  if (criterionId === 'response_latency') {
+    return Number.isFinite(session?.latencyS) && Number(session.latencyS) > 4;
+  }
+  if (criterionId === 'filler_dependence') {
+    return Number.isFinite(session?.fillers) && words >= 80 && (Math.max(0, Number(session.fillers)) / words) * 100 > 10;
+  }
+  if (criterionId === 'connected_answer_structure') {
+    return Number.isFinite(session?.subClauseRate) && Number(session.subClauseRate) < 0.2;
+  }
+  if (criterionId === 'lexical_range_proxy') {
+    return Number.isFinite(session?.vocabDiversity) && Number(session.vocabDiversity) < 0.45;
+  }
+  return false;
+}
+
 function criterionEvidenceCount(sessions, criterionId, referenceSession, now) {
-  const measured = (session) => {
-    const words = Number(session?.evidenceQuality?.words) || Number(session?.words) || 0;
-    if (criterionId === 'sustained_pace') return Number.isFinite(session?.wpm);
-    if (criterionId === 'grammar_control') return session?.grammarMeasured === true && words >= 80;
-    if (criterionId === 'speech_recognition_proxy') return Number.isFinite(session?.intelligibility);
-    if (criterionId === SERVICE_RECOVERY_CRITERION_ID) return serviceRecoveryScoreFromSession(session) != null;
-    if (criterionId === 'complete_response') return Number.isFinite(session?.giveUpRate);
-    if (criterionId === 'response_latency') return Number.isFinite(session?.latencyS);
-    if (criterionId === 'filler_dependence') return Number.isFinite(session?.fillers) && words >= 80;
-    if (criterionId === 'connected_answer_structure') return Number.isFinite(session?.subClauseRate);
-    if (criterionId === 'lexical_range_proxy') return Number.isFinite(session?.vocabDiversity);
-    return false;
-  };
-  const referenceTargetId = referenceSession?.vacancyTargetId ?? null;
+  if (!criterionId || !referenceSession || !criterionDeficitObserved(referenceSession, criterionId)) return 0;
+  const referenceArchetype = interviewArchetype(referenceSession);
   return sessions.filter((session) => {
     const observedAt = Number(session?.date) || 0;
     const fresh = observedAt > 0 && now - observedAt >= 0 && now - observedAt <= 14 * DAY_MS;
-    const sameRecoveryTarget = criterionId !== SERVICE_RECOVERY_CRITERION_ID
-      || (session?.targetRoleType === referenceSession?.targetRoleType
-        && (session?.vacancyTargetId ?? null) === referenceTargetId);
-    return fresh && sameRecoveryTarget && session?.evidenceQuality?.version === 1
-      && session.evidenceQuality.prescriptionEligible === true && measured(session);
+    return fresh && interviewArchetype(session) === referenceArchetype
+      && criterionDeficitObserved(session, criterionId);
   }).length;
 }
 
@@ -136,11 +169,13 @@ export function latestVerifiedImprovementFromProfile(p, now = Date.now()) {
 
 export function buildSnapshot(p, now = Date.now()) {
   const sessions = chronologicalSessions(p);
+  const authoritativeSessions = reliableSpeakingSessions(p);
+  const evidenceProfile = { ...p, sessions: authoritativeSessions };
   const weakLog  = p?.weakLog || {};
   const last = sessions[sessions.length - 1] || null;
   const prev = sessions[sessions.length - 2] || null;
-  const hr = hireReadinessFor(p, now);
-  const { measured, session: evidenceSession } = featuresFromProfile(p);
+  const hr = hireReadinessFor(evidenceProfile, now);
+  const { measured, session: evidenceSession } = featuresFromProfile(evidenceProfile);
   const limitingCriterionId = hr.rejectionForecast?.criterion?.criterionId || null;
 
   const lastDate = last?.date || 0;
@@ -169,7 +204,7 @@ export function buildSnapshot(p, now = Date.now()) {
     lastTargetRuleId: targetRuleId,
     limitingSkill:    hr.limitingSkill && hr.limitingSkill !== 'none' ? hr.limitingSkill : null,
     limitingCriterionId,
-    limitingEvidenceCount: criterionEvidenceCount(sessions, limitingCriterionId, evidenceSession, now),
+    limitingEvidenceCount: criterionEvidenceCount(authoritativeSessions, limitingCriterionId, evidenceSession, now),
     unmeasuredGates:  (evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'
       ? GENERAL_ROLE_GATING : CUSTOMER_SERVICE_GATING).filter((g) => !measured[g]),
     roleMeasurementState: evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'

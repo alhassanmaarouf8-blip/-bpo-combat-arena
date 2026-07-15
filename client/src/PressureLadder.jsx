@@ -292,8 +292,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     // DE-ESCALATION. If they didn't freeze, ask the server whether a REAL de-escalation move landed
     // (barbs stripped, credit-only, never fails on absence). Degrades gracefully: any error → keep the
     // voiced-time verdict ("Standgehalten"). The taught pro phrase is always shown regardless.
-    let wasSouveraen = false;
-    if (kept && clipBlob && token && apiUrl) {
+    let wasSouveraen = false, evidenceReceipt = null;
+    if (clipBlob && token && apiUrl) {
       try {
         const q = encodeURIComponent(JSON.stringify(L.barbs || []));
         const r = await fetch(`${apiUrl}/api/druck-leiter/score?barbs=${q}`, {
@@ -306,13 +306,15 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
           ...(typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
             ? { signal: AbortSignal.timeout(12000) } : {}),
         });
-        if (r.ok) { const d = await r.json(); wasSouveraen = !!d.souveraen; }
+        if (r.ok) { const d = await r.json(); wasSouveraen = !!d.souveraen; evidenceReceipt = d.evidenceReceipt || null; }
       } catch { /* graceful: fall back to the voiced-time verdict */ }
     }
     setSouveraen(wasSouveraen);
     // Feed the brain: held the line or froze, and — if held — was it actually souverän? (correct/voicedMs
     // are the fields /api/drill-event persists.) DRUCK-LEITER fed back nothing before — loop now closes.
-    const nextCoachCue = await reportDrillEvent({ apiUrl, token, event: { drill: 'druck-leiter', froze: !kept, voicedMs, ...(kept ? { correct: wasSouveraen } : {}) } });
+    const nextCoachCue = await reportDrillEvent({ apiUrl, token, event: {
+      drill: 'druck-leiter', evidenceReceipt,
+    } });
     setCoachCue(nextCoachCue);
     if (kept) {
       if (endless) setEndlessStreak((n) => n + 1);

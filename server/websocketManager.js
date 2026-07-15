@@ -24,7 +24,8 @@ import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations } from './trainingslager.js';
 import { getLesson }              from './lessons.config.js';
 import { dayKey }                 from './time.js';
-import { activeFightUsers }       from './liveFights.js';
+import { activeFightSessions, activeFightUsers } from './liveFights.js';
+import { clearSpeechReceipts, isTrustedSpokenEvidence, resolveClientAnswerEvidence, serverStreamEvidence } from './spokenEvidence.js';
 import geminiBudget               from './geminiBudget.js';
 import { downsamplePcm24to16 }    from './geminiAudio.js';
 import { vertexConfigured }       from './vertexToken.js';
@@ -333,6 +334,8 @@ export class WebSocketManager {
       // that 700ms endpoint was the real "cuts me off mid-thought" bug).
       _turnText:   '',
       _turnWords:  [],
+      _turnAudioBytes: 0,
+      _untrustedEvidenceTurns: 0,
       _commitTimer: null,
       _lastInterim:  '',
       _speechStartMs: null,
@@ -353,6 +356,7 @@ export class WebSocketManager {
       geminiUserParts:   [],    // accumulated user-transcript parts this Gemini turn (for scoring)
       geminiBossParts:   [],    // accumulated boss-transcript parts this Gemini turn (display + debrief)
       _geminiTurnStartMs: 0,    // wall-clock start of the current Gemini user turn (for durationMs)
+      _geminiTurnAudioBytes: 0, // server-observed PCM16 bytes for provenance only; never persisted
       answerInFlight:     false,
       startInFlight:      false,
       messageWindowAt:    Date.now(),
@@ -517,6 +521,7 @@ export class WebSocketManager {
     }
     this._activeFightUsers.add(account.id);
     ctx.accountLocked = account.id;
+    activeFightSessions.set(account.id, ctx.sessionId);
 
     ctx.userId   = account.id;
     const level  = ['b2', 'c1'].includes(msg.level) ? msg.level : 'a2-b1';
@@ -794,9 +799,11 @@ export class WebSocketManager {
                 if (chunk === '__TURN_COMPLETE__') {
                   const bossFull = ctx.geminiBossParts.join('').trim();
                   const userFull = ctx.geminiUserParts.join('').trim();
+                  const userAudioMs = Math.round((ctx._geminiTurnAudioBytes / 32_000) * 1000);
                   ctx.geminiBossParts = [];
                   ctx.geminiUserParts = [];
                   ctx._geminiTurnStartMs = 0;
+                  ctx._geminiTurnAudioBytes = 0;
                   // Echo guard needs the boss line the user was ANSWERING (the one whose speaker
                   // audio could bleed into the mic) — captured BEFORE this turn's fresh boss reply
                   // is pushed below. Comparing against the fresh reply would both miss the real
@@ -837,7 +844,10 @@ export class WebSocketManager {
                     console.log(`[wsManager] transcriptGuard dropped a hallucinated turn reason=${guard.reason} len=${userFull.length} session=${ctx.sessionId}`);
                     this._maybeRequestGeminiClosing(ctx);
                   } else if (userFull.length >= 2) {
-                    Promise.resolve(this._handleAnswer(ctx, { text: userFull, durationMs: 0 }, { skipRespond: true }))
+                    Promise.resolve(this._handleAnswer(ctx, { text: userFull }, {
+                      skipRespond: true,
+                      spokenEvidence: serverStreamEvidence({ source: 'gemini_live_stt', serverAudioMs: userAudioMs }),
+                    }))
                       .catch((e) => console.error(`[wsManager] gemini answer scoring failed session=${ctx.sessionId}: ${e.message}`))
                       .finally(() => { this._maybeRequestGeminiClosing(ctx); this._maybeAnnounceGeminiLastQuestion(ctx); });
                   } else {
@@ -975,7 +985,12 @@ export class WebSocketManager {
   _releaseFight(ctx) {
     if (ctx.maxTimer)     { clearTimeout(ctx.maxTimer); ctx.maxTimer = null; }
     if (ctx.hardCapTimer) { clearTimeout(ctx.hardCapTimer); ctx.hardCapTimer = null; }
-    if (ctx.accountLocked) { this._activeFightUsers.delete(ctx.accountLocked); ctx.accountLocked = null; }
+    if (ctx.accountLocked) {
+      this._activeFightUsers.delete(ctx.accountLocked);
+      if (activeFightSessions.get(ctx.accountLocked) === ctx.sessionId) activeFightSessions.delete(ctx.accountLocked);
+      clearSpeechReceipts({ accountId: ctx.accountLocked, sessionId: ctx.sessionId });
+      ctx.accountLocked = null;
+    }
     // Gracefully close Gemini Live proxy if active
     if (ctx.geminiProxy) { try { ctx.geminiProxy.close(); } catch {} ctx.geminiProxy = null; ctx.geminiActive = false; }
     if (ctx._geminiCloseTimer) { clearTimeout(ctx._geminiCloseTimer); ctx._geminiCloseTimer = null; }
@@ -1051,6 +1066,7 @@ export class WebSocketManager {
       if (!ctx._geminiTurnStartMs) ctx._geminiTurnStartMs = Date.now();
       const pcm16k = downsamplePcm24to16(msg._audioBuffer || Buffer.from(msg.data, 'base64'));
       ctx.audioInBytes += pcm16k.length;
+      ctx._geminiTurnAudioBytes += pcm16k.length;
       const sent = ctx.geminiProxy.sendAudioChunk(pcm16k.toString('base64'));
       if (sent) return;
       console.warn(`[wsManager] Gemini proxy reject chunk → fallback Deepgram  session=${ctx.sessionId}`);
@@ -1097,6 +1113,7 @@ export class WebSocketManager {
     }
 
     const buf = msg._audioBuffer || Buffer.from(msg.data, 'base64');
+    ctx._turnAudioBytes += buf.length;
     ctx.dgStreamer.sendChunk(buf);
   }
 
@@ -1152,8 +1169,10 @@ export class WebSocketManager {
     }
     const wallMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
     const durationMs = speakingMs > 0 ? speakingMs : wallMs;
+    const serverAudioMs = Math.round((ctx._turnAudioBytes / PCM16_BYTES_PER_SEC) * 1000);
     ctx._turnText = '';
     ctx._turnWords = [];
+    ctx._turnAudioBytes = 0;
     ctx._speechStartMs = null;
     // No usable speech → reset the mic to retry. Gate ONLY on empty text: the streaming Deepgram
     // path already returns empty on true silence, so real text = a real answer. (The old extra
@@ -1165,7 +1184,11 @@ export class WebSocketManager {
       return;
     }
     ctx._lastWords = words;   // threaded to TRANSCRIPT_DONE for the confidence heat-map
-    this._handleAnswer(ctx, { text, durationMs });
+    this._handleAnswer(ctx, { text }, {
+      spokenEvidence: serverStreamEvidence({
+        source: 'deepgram_stream', serverAudioMs, scoringDurationMs: durationMs,
+      }),
+    });
   }
 
   // Once the interview is complete on the Gemini path, ask Gemini to deliver the human HR
@@ -1422,7 +1445,9 @@ export class WebSocketManager {
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
       const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
-      const _evidenceQuality = speakingEvidenceQuality(ctx.utterances);
+      const _evidenceQuality = speakingEvidenceQuality(ctx.utterances, {
+        observedUntrustedTurns: ctx._untrustedEvidenceTurns,
+      });
 
       p.sessions.push({
         date: now, sessionId: ctx.sessionId, level: ctx.level, bossId: ctx.bossId,
@@ -1870,6 +1895,16 @@ export class WebSocketManager {
     }
     ctx._silence = { ...(ctx._silence || {}), emptyTurns: 0 };   // a real answer resets the silence counter
 
+    // Evidence provenance is owned by the server. A classic recorded answer becomes
+    // trusted only when it consumes the short-lived receipt issued by /api/transcribe
+    // for this exact account, fight session, and transcript. Direct/edited packets are
+    // still accepted as typed practice, but can never become diagnostic evidence.
+    const spokenEvidence = opts.spokenEvidence || resolveClientAnswerEvidence({
+      accountId: ctx.userId,
+      sessionId: ctx.sessionId,
+      transcript,
+    });
+
     // ── Name auto-capture: if the guide profile has no name yet, try to extract one from the
     // candidate's first self-introduction (e.g. "Ich bin Karim" / "Ich heiße …" / "Mein Name ist …").
     // Only triggers once per account, never overwrites, never invents.
@@ -1903,9 +1938,11 @@ export class WebSocketManager {
     // ReferenceError on any insult → TRANSCRIPT_DONE never sent → the client's `transcribing`
     // flag stuck → the mic froze for the rest of the session. Declared up here, the crash is gone.
     const wordCount  = transcript.split(/\s+/).filter(Boolean).length;
-    // durationMs is supplied for spoken answers (clip length) so WPM works; typed
-    // answers omit it (WPM is simply not scored for typed turns).
-    const durationMs = Number(msg.durationMs) > 0 ? Math.min(Number(msg.durationMs), 120_000) : 0;
+    // Never trust the browser's claimed duration. Only server-observed audio may
+    // contribute timing-derived evidence such as WPM or response latency.
+    const durationMs = isTrustedSpokenEvidence(spokenEvidence)
+      ? Math.max(0, Math.min(Number(spokenEvidence.scoringDurationMs) || 0, 120_000))
+      : 0;
 
     // Abuse detector: explicit AR/DE insults → professional warning, then end session on severe tier.
     if (ABUSE_T2.test(transcript)) {
@@ -1946,7 +1983,7 @@ export class WebSocketManager {
     // respond(); firing respond first meant respond consumed the prior turn's flags. _scoreAnswer is
     // synchronous and fast, and BOSS_SPEECH still arrives ~1s later (after the LLM round-trip), so the
     // client-visible order is unchanged (TRANSCRIPT_DONE/HP_UPDATE before BOSS_SPEECH).
-    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words);
+    this._scoreAnswer(ctx, transcript, durationMs, wordCount, words, spokenEvidence);
     if (ctx.closed) return;
     // Gemini Live path already VOICED the boss's reply (native audio) — score the answer but do NOT
     // generate a second, conflicting Groq boss turn.
@@ -1961,7 +1998,7 @@ export class WebSocketManager {
 
   // ── Score one candidate answer + advance the funnel ─────────────────────────
 
-  _scoreAnswer(ctx, transcript, durationMs, wordCount, words = []) {
+  _scoreAnswer(ctx, transcript, durationMs, wordCount, words = [], spokenEvidence = null) {
     console.log(`[wsManager] Utterance complete  words=${wordCount}  ms=${durationMs}  session=${ctx.sessionId}`);
 
     // Always surface the transcript text (drives the live transcript panel),
@@ -1974,6 +2011,8 @@ export class WebSocketManager {
       words,   // Deepgram word-level confidence — [{word, confidence}] — for client heat-map
     });
 
+    if (!isTrustedSpokenEvidence(spokenEvidence)) ctx._untrustedEvidenceTurns += 1;
+
     // Keep the candidate's real sentences for the end-of-session debrief.
     if (wordCount >= 2 && transcript) {
       ctx.utterances.push({
@@ -1982,6 +2021,7 @@ export class WebSocketManager {
         durationMs,
         stage:      ctx.stageIdx,
         stageLabel: ctx.stages[ctx.stageIdx]?.label,
+        spokenEvidence,
         lowConf:    lowConfidenceWords(words),   // words Deepgram was unsure about → never quote them back
       });
       // …and into the ordered dialogue, right after the boss question that prompted it,

@@ -97,7 +97,7 @@ function reliableTargetedSession(now, vacancyTargetId) {
     giveUpRate: 0.05,
     intelligibility: 0.9,
     latencyS: 2,
-    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true },
+    evidenceQuality: { version: 2, words: 160, prescriptionEligible: true },
   };
 }
 
@@ -146,7 +146,7 @@ test('hire readiness names only an observed risk from a reliable packet', () => 
     date: 1, ...recoveryFields(1, 3), wpm: 120, fillers: 2, words: 120, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
     vocabDiversity: 0.5,
     giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.equal(result.hireReady, null, 'internal simulation evidence cannot claim an employer outcome');
   assert.equal(result.simulationReady, null, 'one session can never authorize a high-confidence readiness state');
@@ -163,7 +163,7 @@ test('grammar and fillers are normalized per 100 reliable spoken words', () => {
     wpm: 125, words: 200, fillers: 24, grammarMeasured: true,
     grammarRules: [{ ruleId: 'word-order-sub', count: 20 }], subClauseRate: 0.4, vocabDiversity: 0.6,
     giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
-    evidenceQuality: { version: 1, words: 200, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 2, words: 200, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.equal(result.limitingSkill, 'grammar');
   assert.ok(result.note.includes('deescalation'), 'customer-service evidence must be ignored for technical support');
@@ -178,7 +178,7 @@ test('unavailable grammar analysis cannot manufacture a zero-error measurement',
   const result = hireReadinessFor({ sessions: [{
     date: 10, wpm: 125, words: 200, fillers: 2, grammarMeasured: false, grammarRules: [],
     subClauseRate: 0.4, vocabDiversity: 0.6, deescalation: 0.8, giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
-    evidenceQuality: { version: 1, words: 200, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 2, words: 200, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.ok(result.note.includes('errPer100'));
   assert.notEqual(result.limitingSkill, 'grammar');
@@ -189,7 +189,7 @@ test('a broad legacy combat score cannot become service-recovery evidence', () =
   const result = hireReadinessFor({ sessions: [{
     date: 10, wpm: 120, words: 160, fillers: 2, grammarMeasured: true, grammarRules: [],
     subClauseRate: 0.4, vocabDiversity: 0.6, deescalation: 1, giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
-    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 2, words: 160, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.ok(result.note.includes('deescalation'));
   assert.equal(result.measuredSignals, 8);
@@ -201,7 +201,7 @@ test('forecast reports exact observed recovery steps rather than a generic comba
     date: 10, ...recoveryFields(10, 1), wpm: 125, words: 160, fillers: 2, grammarMeasured: true, grammarRules: [],
     subClauseRate: 0.4, vocabDiversity: 0.6,
     giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
-    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 2, words: 160, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.equal(result.limitingSkill, 'deescalation');
   assert.deepEqual(result.rejectionForecast.criterion, { stageId: 'customer_roleplay',
@@ -217,7 +217,7 @@ test('retention fails closed until its own validated criterion exists', () => {
     deescalation: 1 / 3,
     deescalationEvidence: { version: 2, criterionId: 'service_recovery_structure', roleType: 'retention' },
     giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
-    evidenceQuality: { version: 1, words: 160, prescriptionEligible: true, highConfidence: true },
+    evidenceQuality: { version: 2, words: 160, prescriptionEligible: true, highConfidence: true },
   }] });
   assert.ok(result.note.includes('deescalation'));
   assert.notEqual(result.rejectionForecast.criterion?.criterionId, 'service_recovery_structure');
@@ -227,7 +227,7 @@ test('the newest reliable session wins even when storage order is scrambled', ()
   const old = { date: 1_700_000_000_000, wpm: 70, words: 120, fillers: 2,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
     giveUpRate: 0.1, intelligibility: 0.9, latencyS: 2,
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true } };
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } };
   const newest = { ...old, date: old.date + 10_000, wpm: 130, intelligibility: 0.35 };
   const result = hireReadinessFor({ sessions: [newest, old] }, newest.date + 1000);
   assert.equal(result.limitingSkill, 'intelligibility');
@@ -240,7 +240,7 @@ test('old evidence and deleted vacancy targets are historical, never current tar
     targetRoleType: 'technical_support', targetIndustry: 'telecom', scenarioId: 'telecom-portierung',
     wpm: 120, words: 120, fillers: 2, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
     vocabDiversity: 0.5, giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true } };
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } };
   const stale = hireReadinessFor({ sessions: [session], vacancyTarget: { active: { id: 'vacancy_old' } } }, now);
   assert.equal(stale.rejectionForecast.state, 'historical_only');
   assert.equal(stale.rejectionForecast.freshness, 'historical');
@@ -304,7 +304,7 @@ test('high criterion confidence requires a validated recent transfer proof', () 
     targetRoleType: 'customer_service', scenarioId, wpm: 120, words: 120, fillers: 2,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
     giveUpRate: 0.1, intelligibility, latencyS: 2,
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true } });
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true, highConfidence: true } });
   const sessions = [session('baseline-session', now - 3 * 24 * 60 * 60 * 1000, 0.4, 'customer-general-a'),
     session('matched-session', now - 2 * 24 * 60 * 60 * 1000, 0.65, 'customer-general-a'),
     session('transfer-session', now - 1000, 0.62, 'customer-general-b')];

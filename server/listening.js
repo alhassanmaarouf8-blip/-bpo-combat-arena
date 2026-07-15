@@ -24,6 +24,7 @@ import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, mutateUser, saveUser }  from './store.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
 import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback } from './listeningEvidence.js';
+import { issueDrillEvidenceReceipt } from './drillEvidence.js';
 
 export const listeningRouter = express.Router();
 
@@ -692,7 +693,10 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
     });
     console.log(`[listening] user=${uid} id=${key} correct=${result.correct} replayed=${result.replayed}`);
     res.set('Cache-Control', 'no-store');
-    res.json(result);
+    const evidenceReceipt = result.replayed ? null : issueDrillEvidenceReceipt(uid, {
+      drill: 'hoer-check', correct: result.correct === true,
+    });
+    res.json({ ...result, ...(evidenceReceipt ? { evidenceReceipt } : {}) });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.code || 'listening_grade_failed' });
   }

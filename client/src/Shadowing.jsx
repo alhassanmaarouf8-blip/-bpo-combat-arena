@@ -170,7 +170,9 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       if (!r.ok) throw new Error(d.error || 'shadowing_failed');
       setResult(d);   // may be { retry:true } when nothing was transcribed
       // Feed the brain: pronunciation drill done (closes the loop — Shadowing fed back nothing before).
-      reportDrillEvent({ apiUrl, token, event: { drill: 'shadowing', voicedMs: clip.durationMs, correct: d.match >= 80 } });
+      reportDrillEvent({ apiUrl, token, event: {
+        drill: 'shadowing', evidenceReceipt: d.evidenceReceipt,
+      } });
     } catch (e) {
       setErr(e.message === 'no_api_key'
         ? { de: 'Dienst gerade nicht verfügbar. Bitte später.', ar: 'الخدمة مش متاحة دلوقتي. جرّب بعدين.' }

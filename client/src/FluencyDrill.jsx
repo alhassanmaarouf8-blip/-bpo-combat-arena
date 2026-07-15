@@ -118,11 +118,11 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       }
       const next = [...results, d];
       setRes(next);
-      if (isLast) {
-        // Feed the brain: a completed 4-3-2 set is fluency prep (the rounds reported NOTHING
-        // before, so the brain couldn't see that its flow-drill prescription was followed).
-        reportDrillEvent({ apiUrl, token, event: { drill: 'flow-drill', voicedMs: clip.durationMs, completedSet: true } });
-      }
+      // Every credited repetition is independently server-heard and one-use. Three real rounds,
+      // not a client claim on the final screen, complete the 90/60/45 prescription.
+      reportDrillEvent({ apiUrl, token, event: {
+        drill: 'flow-drill', evidenceReceipt: d.evidenceReceipt,
+      } });
       setPhase(isLast ? 'done' : 'between');
     } catch (e) {
       setErr(e.message === 'no_api_key'

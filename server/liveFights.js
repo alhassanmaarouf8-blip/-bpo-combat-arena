@@ -4,3 +4,6 @@
 // voice even though their standalone daily-minute balance is 0. Without this, that free interview
 // silently plays in the robotic fallback voice (the exact conversion moment). $0, in-memory.
 export const activeFightUsers = new Set();
+// The matching immutable WebSocket session id. HTTP STT uses this to bind a spoken clip to the
+// exact live fight without adding any field to the established browser/WebSocket contract.
+export const activeFightSessions = new Map();

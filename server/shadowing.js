@@ -21,6 +21,7 @@ import { transcribeAudio }                     from './planGuide.js';
 import { loadUser, saveUser }                  from './store.js';
 import { voicedDurationMs }                    from './audioGuard.js';
 import { isCleanGermanText }                   from './langGuard.js';
+import { issueDrillEvidenceReceipt }           from './drillEvidence.js';
 
 export const shadowingRouter = express.Router();
 
@@ -211,9 +212,13 @@ shadowingRouter.post('/shadowing/score',
       // LLM "Aussprache" note: it judged a sound the server never heard (the transcript erases
       // accent), so any pronunciation verdict it produced was invented. Honest > impressive.
       const { match, missed } = wordAccuracy(transcript, target);
+      const serverVoicedMs = voicedDurationMs(audio);
+      const evidenceReceipt = issueDrillEvidenceReceipt(req.account.id, {
+        drill: 'shadowing', correct: match >= 80, voicedMs: serverVoicedMs,
+      });
 
       console.log(`[shadowing] user=${req.account.id} id=${id} accuracy=${match}% missed=${missed.length}`);
-      res.json({ transcript, target, match, missed });
+      res.json({ transcript, target, match, missed, ...(evidenceReceipt ? { evidenceReceipt } : {}) });
     } catch (err) {
       console.error('[shadowing] score error:', err.message);
       const noKey = err.message === 'no_api_key';

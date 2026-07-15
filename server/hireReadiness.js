@@ -87,7 +87,7 @@ export function featuresFromProfile(p) {
   const s = [...(Array.isArray(p?.sessions) ? p.sessions : [])]
     .sort((a, b) => (Number(b?.date) || 0) - (Number(a?.date) || 0))
     .find((session) => (
-    session?.evidenceQuality?.version === 1 && session.evidenceQuality.prescriptionEligible === true
+    session?.evidenceQuality?.version === 2 && session.evidenceQuality.prescriptionEligible === true
   )) || {};
   const wordCount = Math.max(0, Number(s?.evidenceQuality?.words) || Number(s.words) || 0);
   const grammarCount = s.grammarMeasured === true && Array.isArray(s.grammarRules)

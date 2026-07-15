@@ -120,7 +120,9 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'grade_failed');
-      const coachCue = await reportDrillEvent({ apiUrl, token, event: { drill: 'satzbau-schmiede', correct: !!d.correct } });
+      const coachCue = await reportDrillEvent({ apiUrl, token, event: {
+        drill: 'satzbau-schmiede', evidenceReceipt: d.evidenceReceipt,
+      } });
       setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
     } catch {
       setErr({ de: 'Konnte nicht prüfen. Bitte erneut.', ar: '' });   /* OWNER-AR slot */
