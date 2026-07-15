@@ -82,7 +82,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'failed');
       if (!d.retry && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('omni:coach-state-changed', { detail: { source: 'drill', drill: 'srs' } }));
+        window.dispatchEvent(new CustomEvent('omni:coach-state-changed', { detail: { source: 'drill', drill: 'sag-es-richtig' } }));
       }
       const coachCue = !d.retry ? d.coachCue || null : null;
       setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
@@ -95,8 +95,10 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
 
   const next = () => {
     const progress = result?.prescriptionProgress;
+    if (progress) setPrescription(progress);
     setResult(null); setErr(null); setSec(0);
-    if (idx < items.length - 1) setIdx(idx + 1);
+    if (progress?.targeted && progress.completed) setPhase('done');
+    else if (idx < items.length - 1) setIdx(idx + 1);
     else if (progress?.targeted && !progress.completed) load();
     else setPhase('done');
   };
@@ -140,6 +142,18 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       <button onClick={onClose} style={{ ...primaryBtn, marginTop: 18 }}>{'Schlie\u00dfen'}</button>
     </div></>);
 
+  if (phase === 'empty' && prescription?.targeted && prescription?.completed) return shell(<>{header}
+    <div style={{ textAlign: 'center', padding: '30px 0' }}>
+      <div style={{ fontSize: 40 }}>✓</div>
+      <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+        Deine verordnete Wiederholung ist vollständig abgeschlossen.
+      </div>
+      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+        BrainGuide zeigt dir, wann der passende Live-Retest fällig ist.
+      </div>
+      <button onClick={onClose} style={{ ...primaryBtn, marginTop: 18 }}>Schließen</button>
+    </div></>);
+
   if (phase === 'empty') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 40 }}></div>
@@ -151,8 +165,14 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   if (phase === 'done') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '26px 0' }}>
       <div style={{ fontSize: 40 }}>✅</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Laut geübt — so wird es automatisch.', 'اتمرنت بصوتك — كده بيبقى تلقائي.')}</div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Mehr Wiederholungen', 'مراجعة أكتر')} ▸</button>
+      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+        {prescription?.targeted && prescription?.completed
+          ? 'Verordnete Wiederholung abgeschlossen.'
+          : T(lang, 'Laut geübt — so wird es automatisch.', 'اتمرنت بصوتك — كده بيبقى تلقائي.')}
+      </div>
+      {!(prescription?.targeted && prescription?.completed) && (
+        <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Mehr Wiederholungen', 'مراجعة أكتر')} ▸</button>
+      )}
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </div></>);
 
@@ -164,8 +184,9 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       {item?.type === 'grammar' ? T(lang, 'DEINE FEHLER', 'أخطاؤك') : 'CALL-CENTER-SÄTZE'/* OWNER-AR slot */} · {idx + 1} / {items.length}
     </div>
     {doseProgress?.targeted && !doseProgress.missingTarget && (
-      <div style={{ margin: '-2px 0 10px', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
-        {'Damit der Satz im Interview sicher sitzt: noch '}{doseProgress.remainingRepetitions}{' korrekte Wiederholungen'}
+      <div role="status" aria-live="polite"
+        style={{ margin: '-2px 0 10px', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
+        {'Damit der Satz im Interview sicher sitzt: noch '}{doseProgress.remainingRepetitions}{doseProgress.remainingRepetitions === 1 ? ' korrekte Wiederholung' : ' korrekte Wiederholungen'}
         {doseProgress.repairsRemaining > 0 ? ` \u00b7 ${doseProgress.repairsRemaining} gezielte Korrekturen offen` : ''}
       </div>
     )}
@@ -257,5 +278,5 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
 }
 
 const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d', background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
+const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', minWidth: 44, minHeight: 44, borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
 const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

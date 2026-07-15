@@ -1,5 +1,7 @@
 import { createHash } from 'crypto';
 import { serviceRecoveryScoreFromSession } from './serviceRecoveryEvidence.js';
+import { INTERVIEW_PROMPT_CONTRACT_VERSION, interviewPromptById, scenarioSupportsRole } from '../scenarios.js';
+import { BOSS_LADDER } from '../progression.js';
 
 export const SPEAKING_METRIC_BY_SKILL = Object.freeze({
   'word-order-sub': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
@@ -12,6 +14,7 @@ export const SPEAKING_METRIC_BY_SKILL = Object.freeze({
 });
 
 export const EVIDENCE_CONTRACT_VERSION = 2;
+export const SPEAKING_TASK_CONTRACT_VERSION = 1;
 const MINIMUM_GRAMMAR_WORDS = 80;
 
 function boundedString(value, max = 100) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
@@ -19,6 +22,69 @@ function hash(value, length = 12) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, length);
 }
 function roundMetric(value) { return Math.round(Number(value) * 10) / 10; }
+const TASK_LEVELS = new Set(['a2-b1', 'b2', 'c1']);
+const TASK_MOODS = new Set(['sharp-monday', 'neutral', 'tired-friday']);
+const TASK_BOSS_IDS = new Set(BOSS_LADDER.map((boss) => boss.id));
+
+function safeReplayContext(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return {
+    dossier: boundedString(source.dossier, 800),
+    memory: boundedString(source.memory, 1600),
+    focusTitle: boundedString(source.focusTitle, 160),
+  };
+}
+
+export function createSpeakingTaskContract(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const version = Number(source.version);
+  const promptContractVersion = Number(source.promptContractVersion);
+  const levelId = boundedString(source.levelId, 20);
+  const bossId = boundedString(source.bossId, 40);
+  const roleType = boundedString(source.roleType, 40);
+  const scenarioId = boundedString(source.scenarioId, 80);
+  const behavioralPromptId = boundedString(source.behavioralPromptId, 24);
+  const screeningPromptId = boundedString(source.screeningPromptId, 24);
+  const contentSeed = boundedString(source.contentSeed, 100);
+  const mood = boundedString(source.mood, 40);
+  const assessmentMode = boundedString(source.assessmentMode, 20);
+  if (version !== SPEAKING_TASK_CONTRACT_VERSION
+    || promptContractVersion !== INTERVIEW_PROMPT_CONTRACT_VERSION
+    || assessmentMode !== 'diagnostic' || !TASK_LEVELS.has(levelId) || !TASK_BOSS_IDS.has(bossId) || !roleType
+    || !scenarioId || !scenarioSupportsRole(scenarioId, roleType) || !contentSeed || !TASK_MOODS.has(mood)
+    || !interviewPromptById('behavioral', behavioralPromptId, levelId)
+    || !interviewPromptById('screening', screeningPromptId, levelId)) return null;
+  return Object.freeze({
+    version,
+    promptContractVersion,
+    assessmentMode,
+    levelId,
+    bossId,
+    roleType,
+    scenarioId,
+    behavioralPromptId,
+    screeningPromptId,
+    industryKey: boundedString(source.industryKey, 40) || null,
+    targetId: boundedString(source.targetId, 100) || null,
+    contentSeed,
+    mood,
+    replayContext: safeReplayContext(source.replayContext),
+  });
+}
+
+export function speakingTaskContractForSession(session) {
+  const contract = createSpeakingTaskContract(session?.speakingTaskContract);
+  if (!contract) return null;
+  // The contract is server-owned, but these legacy summary fields remain useful to the rest of the
+  // product. A disagreement is corruption, not a second source of truth.
+  if (boundedString(session?.bossId, 40) !== contract.bossId
+    || boundedString(session?.level, 20) !== contract.levelId
+    || boundedString(session?.targetRoleType, 40) !== contract.roleType
+    || boundedString(session?.scenarioId, 80) !== contract.scenarioId
+    || (boundedString(session?.targetIndustry, 40) || null) !== contract.industryKey
+    || (boundedString(session?.vacancyTargetId, 100) || null) !== contract.targetId) return null;
+  return contract;
+}
 
 function evidenceVersion(session) {
   return Number(session?.evidenceQuality?.version) || 0;
@@ -44,15 +110,18 @@ export function reliableSpeakingSessions(profile) {
 }
 
 export function speakingContextForSession(session) {
-  const scenarioId = boundedString(session?.scenarioId, 80);
-  const roleType = boundedString(session?.targetRoleType, 40);
-  if (!scenarioId || !roleType) return null;
-  const bossId = boundedString(session?.bossId, 40);
-  const industryKey = boundedString(session?.targetIndustry, 40);
-  const targetId = boundedString(session?.vacancyTargetId, 100);
+  const task = speakingTaskContractForSession(session);
+  if (!task) return null;
+  const replayContextHash = hash(task.replayContext, 16);
   return {
-    contextId: hash({ bossId, roleType, scenarioId, industryKey, targetId }),
-    noveltyId: hash({ roleType, scenarioId }),
+    contextId: hash({ version: task.version, promptContractVersion: task.promptContractVersion,
+      levelId: task.levelId, bossId: task.bossId, roleType: task.roleType, scenarioId: task.scenarioId,
+      behavioralPromptId: task.behavioralPromptId, screeningPromptId: task.screeningPromptId,
+      industryKey: task.industryKey, targetId: task.targetId, contentSeed: task.contentSeed,
+      mood: task.mood, replayContextHash }),
+    noveltyId: hash({ promptContractVersion: task.promptContractVersion, roleType: task.roleType,
+      behavioralPromptId: task.behavioralPromptId, screeningPromptId: task.screeningPromptId,
+      scenarioId: task.scenarioId }),
   };
 }
 
@@ -101,4 +170,5 @@ export function speakingMeasurementForSkill(profile, skillId, { sessionId = null
 }
 
 export default { reliableSpeakingSessions, speakingContextForSession, speakingMeasurementForSkill,
-  eligibleSpeakingWords, EVIDENCE_CONTRACT_VERSION, SPEAKING_METRIC_BY_SKILL };
+  speakingTaskContractForSession, createSpeakingTaskContract, eligibleSpeakingWords,
+  EVIDENCE_CONTRACT_VERSION, SPEAKING_TASK_CONTRACT_VERSION, SPEAKING_METRIC_BY_SKILL };

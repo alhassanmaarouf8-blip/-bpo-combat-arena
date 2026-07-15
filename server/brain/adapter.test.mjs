@@ -5,6 +5,8 @@ import { buildSnapshot, latestVerifiedImprovementFromProfile, masteredSkillsFrom
   verifiedMasteredSkillsFromProfile } from './adapter.js';
 import { decide } from './engine.js';
 import { speakingMeasurementForSkill } from '../scoring/speakingMeasurement.js';
+import { BEHAVIORAL_QUESTIONS, BPO_SCREENING_QUESTIONS, CS_SCENARIOS,
+  INTERVIEW_PROMPT_CONTRACT_VERSION, interviewPromptId } from '../scenarios.js';
 
 const NOW = 1_700_000_000_000;
 const DAY = 86400000;
@@ -231,14 +233,22 @@ test('non-customer-service roles do not enter an impossible deescalation measure
 });
 
 test('adapter: only delayed transfer proof enters readiness-authorizing mastery', () => {
-  const reliable = (sessionId, date, count, scenarioId) => ({
-    sessionId, date, verdict: 'pass', bossId: 'yasmin', targetRoleType: 'customer_service', scenarioId,
+  const reliable = (sessionId, date, count, scenarioId, novel = false) => ({
+    sessionId, date, verdict: 'pass', level: 'a2-b1', bossId: 'yasmin', targetRoleType: 'customer_service', scenarioId,
     grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count }],
     evidenceQuality: { version: 2, words: 120, prescriptionEligible: true },
+    speakingTaskContract: {
+      version: 1, promptContractVersion: INTERVIEW_PROMPT_CONTRACT_VERSION, assessmentMode: 'diagnostic',
+      levelId: 'a2-b1', bossId: 'yasmin', roleType: 'customer_service', scenarioId,
+      behavioralPromptId: interviewPromptId('behavioral', BEHAVIORAL_QUESTIONS[novel ? 1 : 0], 'a2-b1'),
+      screeningPromptId: interviewPromptId('screening', BPO_SCREENING_QUESTIONS[novel ? 1 : 0], 'a2-b1'),
+      industryKey: null, targetId: null, contentSeed: 'stable-comparison-seed', mood: 'neutral',
+      replayContext: { dossier: '', memory: '', focusTitle: '' },
+    },
   });
-  const sessions = [reliable('live-baseline', NOW - 3 * DAY, 4, 'customer-general-a'),
-    reliable('live-matched', NOW - 2 * DAY, 2, 'customer-general-a'),
-    reliable('live-transfer', NOW - DAY, 1, 'customer-general-b')];
+  const sessions = [reliable('live-baseline', NOW - 3 * DAY, 4, CS_SCENARIOS[0].id),
+    reliable('live-matched', NOW - 2 * DAY, 2, CS_SCENARIOS[0].id),
+    reliable('live-transfer', NOW - DAY, 1, CS_SCENARIOS[1].id, true)];
   const shell = { sessions };
   const baseline = speakingMeasurementForSkill(shell, 'word-order-sub', { sessionId: 'live-baseline' });
   const matched = speakingMeasurementForSkill(shell, 'word-order-sub', { sessionId: 'live-matched' });

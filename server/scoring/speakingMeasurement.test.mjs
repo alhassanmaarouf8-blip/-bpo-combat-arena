@@ -1,17 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reliableSpeakingSessions, speakingMeasurementForSkill } from './speakingMeasurement.js';
+import { BEHAVIORAL_QUESTIONS, BPO_SCREENING_QUESTIONS, CS_SCENARIOS,
+  INTERVIEW_PROMPT_CONTRACT_VERSION, interviewPromptId } from '../scenarios.js';
+import { reliableSpeakingSessions, speakingContextForSession, speakingMeasurementForSkill } from './speakingMeasurement.js';
 
 const NOW = 1_700_000_000_000;
 
-function grammarSession({ sessionId, date, version = 2, eligibleWords, count, eligible = true }) {
-  return {
+function grammarSession({ sessionId, date, version = 2, eligibleWords, count, eligible = true,
+  taskOverrides = {}, omitTaskContract = false }) {
+  const session = {
     sessionId,
     date,
+    level: 'a2-b1',
     bossId: 'yasmin',
     targetRoleType: 'customer_service',
     targetIndustry: 'telecom',
-    scenarioId: 'billing-dispute',
+    scenarioId: CS_SCENARIOS[0].id,
     grammarMeasured: true,
     grammarRules: [
       { ruleId: 'word-order-sub', count },
@@ -24,6 +28,24 @@ function grammarSession({ sessionId, date, version = 2, eligibleWords, count, el
       prescriptionEligible: eligible,
     },
   };
+  if (!omitTaskContract) session.speakingTaskContract = {
+    version: 1,
+    promptContractVersion: INTERVIEW_PROMPT_CONTRACT_VERSION,
+    assessmentMode: 'diagnostic',
+    levelId: session.level,
+    bossId: session.bossId,
+    roleType: session.targetRoleType,
+    scenarioId: session.scenarioId,
+    behavioralPromptId: interviewPromptId('behavioral', BEHAVIORAL_QUESTIONS[0], session.level),
+    screeningPromptId: interviewPromptId('screening', BPO_SCREENING_QUESTIONS[0], session.level),
+    industryKey: session.targetIndustry,
+    targetId: null,
+    contentSeed: 'stable-comparison-seed',
+    mood: 'neutral',
+    replayContext: { dossier: '', memory: '', focusTitle: '' },
+    ...taskOverrides,
+  };
+  return session;
 }
 
 test('speaking measurement: exact-rule grammar is normalized per 100 eligible words', () => {
@@ -72,4 +94,42 @@ test('speaking measurement: v1-only profiles remain historical and cannot create
     grammarSession({ sessionId: 'legacy', date: NOW, version: 1, eligibleWords: 100, count: 2 }),
   ] };
   assert.equal(speakingMeasurementForSkill(profile, 'word-order-sub'), null);
+});
+
+test('speaking task identity fails closed for legacy, client-revanche and stale prompt contracts', () => {
+  const legacy = grammarSession({ sessionId: 'legacy-task', date: NOW, eligibleWords: 120, count: 2,
+    omitTaskContract: true });
+  const revanche = grammarSession({ sessionId: 'revanche-task', date: NOW, eligibleWords: 120, count: 2,
+    taskOverrides: { assessmentMode: 'revanche' } });
+  const stale = grammarSession({ sessionId: 'stale-task', date: NOW, eligibleWords: 120, count: 2,
+    taskOverrides: { promptContractVersion: INTERVIEW_PROMPT_CONTRACT_VERSION + 1 } });
+  const unknownBoss = grammarSession({ sessionId: 'unknown-boss-task', date: NOW, eligibleWords: 120, count: 2,
+    taskOverrides: { bossId: 'prototype-boss' } });
+  const mismatchedLevel = grammarSession({ sessionId: 'mismatched-level-task', date: NOW, eligibleWords: 120, count: 2,
+    taskOverrides: { levelId: 'b2' } });
+  assert.equal(speakingContextForSession(legacy), null);
+  assert.equal(speakingContextForSession(revanche), null);
+  assert.equal(speakingContextForSession(stale), null);
+  assert.equal(speakingContextForSession(unknownBoss), null);
+  assert.equal(speakingContextForSession(mismatchedLevel), null);
+});
+
+test('speaking task identity binds the whole task and ignores the transport session id', () => {
+  const baseline = grammarSession({ sessionId: 'baseline-task', date: NOW, eligibleWords: 120, count: 2 });
+  const replay = grammarSession({ sessionId: 'replay-task', date: NOW + 1, eligibleWords: 120, count: 1 });
+  assert.deepEqual(speakingContextForSession(replay), speakingContextForSession(baseline),
+    'an exact replay has stable task identity even though its session id changed');
+
+  for (const taskOverrides of [
+    { contentSeed: 'different-style-seed' },
+    { mood: 'sharp-monday' },
+    { replayContext: { dossier: 'different', memory: '', focusTitle: '' } },
+    { behavioralPromptId: interviewPromptId('behavioral', BEHAVIORAL_QUESTIONS[1], 'a2-b1') },
+    { screeningPromptId: interviewPromptId('screening', BPO_SCREENING_QUESTIONS[1], 'a2-b1') },
+  ]) {
+    const changed = grammarSession({ sessionId: `changed-${JSON.stringify(taskOverrides)}`, date: NOW + 2,
+      eligibleWords: 120, count: 1, taskOverrides });
+    assert.notEqual(speakingContextForSession(changed)?.contextId,
+      speakingContextForSession(baseline)?.contextId);
+  }
 });

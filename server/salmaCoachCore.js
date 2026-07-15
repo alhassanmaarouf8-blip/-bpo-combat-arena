@@ -6,9 +6,9 @@ import { archiveListeningCycle, listeningBaselineSnapshot, listeningEvidence, li
   listeningRetestEvidence } from './listeningEvidence.js';
 import { hireReadinessFor } from './hireReadiness.js';
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
-import { reliableSpeakingSessions, speakingMeasurementForSkill } from './scoring/speakingMeasurement.js';
+import { reliableSpeakingSessions, speakingMeasurementForSkill, speakingTaskContractForSession } from './scoring/speakingMeasurement.js';
 import { validatedTransferProofs } from './scoring/transferProofs.js';
-import { scenarioSupportsRole } from './scenarios.js';
+import { availableInterviewPromptIds, scenarioSupportsRole } from './scenarios.js';
 import { dueVacancyMilestone, isLiveVacancyMilestone, normalizeVacancyState, vacancyFlagsFor } from './vacancyTargetCore.js';
 import { missionNextAction } from './missionControlCore.js';
 import { governedMissionControlFlagsFor } from './missionControlGovernance.js';
@@ -240,9 +240,10 @@ export function salmaCoachBrainGate(state, profile, now = Date.now()) {
       status: 'practice', action: 'drill', phase: 'practice', nextEligibleAt: null };
   }
   if (retest.phase === 'complete') return null;
+  const exactTarget = retest.eligible ? salmaRetestTarget(normalized, profile, now) : null;
   return { skillId: prescription.skillId, drillId: prescription.drillId,
     status: retest.eligible ? 'retest' : 'wait', action: retest.eligible ? 'interview' : 'wait',
-    phase: retest.phase, nextEligibleAt: retest.nextEligibleAt };
+    phase: retest.eligible && !exactTarget ? 'rebaseline' : retest.phase, nextEligibleAt: retest.nextEligibleAt };
 }
 
 export function salmaRetestTarget(state, profile, now = Date.now()) {
@@ -256,27 +257,49 @@ export function salmaRetestTarget(state, profile, now = Date.now()) {
   const baselineSessionId = boundedString(prescription.baseline?.sourceSessionId, 100);
   const baselineSession = reliableSpeakingSessions(profile)
     .find((session) => boundedString(session?.sessionId, 100) === baselineSessionId);
+  const baselineTask = speakingTaskContractForSession(baselineSession);
   const baselineMeasurement = measurementForSkill(profile, prescription.skillId, { sessionId: baselineSessionId });
-  if (!baselineSession || !baselineMeasurement?.contextId || !baselineMeasurement?.noveltyId
+  if (!baselineSession || !baselineTask || !baselineMeasurement?.contextId || !baselineMeasurement?.noveltyId
     || baselineMeasurement.contextId !== prescription.baseline?.contextId
     || baselineMeasurement.noveltyId !== prescription.baseline?.noveltyId) return null;
   const matchedSessionId = boundedString(retest.matched?.retestSessionId, 100);
   const matchedSession = retest.phase === 'transfer'
     ? reliableSpeakingSessions(profile).find((session) => boundedString(session?.sessionId, 100) === matchedSessionId) : null;
-  if (retest.phase === 'transfer' && (!matchedSession || !retest.matched?.contextId || !retest.matched?.noveltyId)) return null;
-  const scenarioId = boundedString(baselineSession.scenarioId, 80);
-  const matchedScenarioId = boundedString(matchedSession?.scenarioId, 80);
-  const roleType = boundedString(baselineSession.targetRoleType, 40);
+  const matchedTask = retest.phase === 'transfer' ? speakingTaskContractForSession(matchedSession) : null;
+  const matchedMeasurement = retest.phase === 'transfer'
+    ? measurementForSkill(profile, prescription.skillId, { sessionId: matchedSessionId }) : null;
+  if (retest.phase === 'transfer' && (!matchedSession || !matchedTask
+    || !matchedMeasurement?.contextId || !matchedMeasurement?.noveltyId
+    || matchedMeasurement.contextId !== retest.matched?.contextId
+    || matchedMeasurement.noveltyId !== retest.matched?.noveltyId)) return null;
+  const scenarioId = baselineTask.scenarioId;
+  const matchedScenarioId = matchedTask?.scenarioId || '';
+  const roleType = baselineTask.roleType;
   if (!scenarioId || !roleType || !scenarioSupportsRole(scenarioId, roleType)) return null;
+  const excludedBehavioralPromptIds = retest.phase === 'transfer'
+    ? [...new Set([baselineTask.behavioralPromptId, matchedTask?.behavioralPromptId].filter(Boolean))] : [];
+  const excludedScreeningPromptIds = retest.phase === 'transfer'
+    ? [...new Set([baselineTask.screeningPromptId, matchedTask?.screeningPromptId].filter(Boolean))] : [];
+  if (retest.phase === 'transfer'
+    && (!availableInterviewPromptIds('behavioral', baselineTask.levelId, excludedBehavioralPromptIds).length
+      || !availableInterviewPromptIds('screening', baselineTask.levelId, excludedScreeningPromptIds).length)) return null;
   return { prescriptionId: prescription.id, skillId: prescription.skillId,
     phase: retest.phase,
     dossier,
     context: {
-      bossId: boundedString(baselineSession.bossId, 40) || null,
+      bossId: baselineTask.bossId,
+      levelId: baselineTask.levelId,
       roleType,
       scenarioId,
-      industryKey: boundedString(baselineSession.targetIndustry, 40) || null,
-      targetId: boundedString(baselineSession.vacancyTargetId, 100) || null,
+      industryKey: baselineTask.industryKey,
+      targetId: baselineTask.targetId,
+      contentSeed: baselineTask.contentSeed,
+      forcedMood: baselineTask.mood,
+      replayContext: baselineTask.replayContext,
+      forcedBehavioralPromptId: retest.phase === 'matched' ? baselineTask.behavioralPromptId : null,
+      excludedBehavioralPromptIds,
+      forcedScreeningPromptId: retest.phase === 'matched' ? baselineTask.screeningPromptId : null,
+      excludedScreeningPromptIds,
       forcedScenarioId: retest.phase === 'matched' ? scenarioId : null,
       excludedScenarioIds: retest.phase === 'transfer'
         ? [...new Set([scenarioId, matchedScenarioId].filter(Boolean))] : [],
@@ -467,6 +490,17 @@ function evidenceOccurrences(profile, skillId, now) {
   return Math.min(2, reliableDates.size);
 }
 
+function resolvedSupportMeasurements(profile, skillId, sessionIds, acceptsMeasurement = () => true) {
+  if (!Array.isArray(sessionIds) || sessionIds.length < 1) return null;
+  const ids = sessionIds.map((sessionId) => boundedString(sessionId, 100));
+  if (ids.some((sessionId) => !sessionId) || new Set(ids).size !== ids.length) return null;
+  const measurements = ids.map((sessionId) => measurementForSkill(profile, skillId, { sessionId }));
+  if (measurements.some((measurement, index) => !measurement
+    || measurement.sourceSessionId !== ids[index] || !acceptsMeasurement(measurement))) return null;
+  if (new Set(measurements.map((measurement) => measurement.evidenceId)).size !== measurements.length) return null;
+  return measurements;
+}
+
 export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinutes = 10 } = {}) {
   const snapshot = buildSnapshot(profile, now); const directive = decide(snapshot);
   const drillId = directive?.prescription?.action === 'drill' ? directive.prescription.drill : null;
@@ -476,23 +510,19 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   const exactGrammarForecast = snapshot.limitingCriterionId === 'grammar_control'
     && snapshot.limitingGrammarRuleId === skillId;
   const grammarMeasurements = exactGrammarForecast
-    ? (Array.isArray(snapshot.limitingGrammarEvidenceSessionIds)
-      ? snapshot.limitingGrammarEvidenceSessionIds : [])
-      .map((sessionId) => measurementForSkill(profile, skillId, { sessionId }))
-      .filter((measurement) => measurement?.value > 8)
+    ? resolvedSupportMeasurements(profile, skillId, snapshot.limitingGrammarEvidenceSessionIds,
+      (measurement) => measurement.value > 8)
     : [];
-  if (exactGrammarForecast && !grammarMeasurements.length) return { directive, prescription: null };
+  if (exactGrammarForecast && !grammarMeasurements?.length) return { directive, prescription: null };
   const exactCriterionForecast = criterionId && criterionId !== 'grammar_control'
     && skillId !== 'listen-clear' && skillId !== 'listen-phone';
   if (exactCriterionForecast && EXACT_CRITERION_SKILLS[criterionId] !== skillId) {
     return { directive, prescription: null };
   }
   const criterionMeasurements = exactCriterionForecast
-    ? (Array.isArray(snapshot.limitingEvidenceSessionIds) ? snapshot.limitingEvidenceSessionIds : [])
-      .map((sessionId) => measurementForSkill(profile, skillId, { sessionId }))
-      .filter(Boolean)
+    ? resolvedSupportMeasurements(profile, skillId, snapshot.limitingEvidenceSessionIds)
     : [];
-  if (exactCriterionForecast && !criterionMeasurements.length) return { directive, prescription: null };
+  if (exactCriterionForecast && !criterionMeasurements?.length) return { directive, prescription: null };
   const protocol = PROTOCOLS[drillId];
   const occurrences = exactGrammarForecast
     ? Math.min(2, grammarMeasurements.length)
@@ -516,6 +546,9 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   const baseline = listeningCycle?.baseline || grammarMeasurements.at(-1)
     || criterionMeasurements.at(-1) || measurementForSkill(profile, skillId);
   if (!baseline) return { directive, prescription: null };
+  if (!listeningCycle && (!baseline.contextId || !baseline.noveltyId || !baseline.sourceSessionId)) {
+    return { directive, prescription: null };
+  }
   const evidenceConfidence = directive.confidence === 'high' && occurrences >= 2 && conflictCount === 0 ? 'high' : 'low';
   const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds,
     minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate, evidenceConfidence, criterionId,
@@ -550,8 +583,15 @@ export function syncSalmaCoach(profile, { now = Date.now() } = {}) {
   }
   const activeRetest = speakingRetestState(state, now);
   if (activeRetest && activeRetest.phase !== 'complete') {
-    profile.salmaCoach = state;
-    return { state, directive: decide(buildSnapshot(profile, now)) };
+    const exactTarget = activeRetest.eligible ? salmaRetestTarget(state, profile, now) : null;
+    if (!activeRetest.eligible || exactTarget) {
+      profile.salmaCoach = state;
+      return { state, directive: decide(buildSnapshot(profile, now)) };
+    }
+    // A legacy or corrupt baseline cannot be replayed honestly. Retire it rather than trapping the
+    // learner in an endless fake "matched" loop; the latest reliable diagnostic may create a fresh,
+    // fully bound prescription below.
+    state.activePrescription = null;
   }
   const { directive, prescription } = deriveSalmaPrescription(profile, { now, dailyMinutes: state.preferences.dailyMinutes });
   if (prescription && state.activePrescription?.id === prescription.id) { prescription.assignedAt = state.activePrescription.assignedAt; prescription.nextEligibleAt = state.activePrescription.nextEligibleAt; }

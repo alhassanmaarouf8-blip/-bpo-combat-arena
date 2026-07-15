@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'crypto';
 import { defaultProfile } from './store.js';
-import { CS_SCENARIOS } from './scenarios.js';
+import { BEHAVIORAL_QUESTIONS, BPO_SCREENING_QUESTIONS, CS_SCENARIOS,
+  INTERVIEW_PROMPT_CONTRACT_VERSION, interviewPromptId } from './scenarios.js';
 import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
 import { validatedTransferProofs } from './scoring/transferProofs.js';
 import { listeningDifficultyContract } from './listeningEvidence.js';
@@ -28,11 +29,37 @@ function listeningV2Attempt(profile, index, correct = true, start = 1_800_000_00
     challengeKey: challenge.challengeKey, levelKey: 'B1', eligibleAt: start,
   };
 }
-function reliableSession(value) {
-  return { sessionId: value?.sessionId || `session-${value?.date}`, targetRoleType: value?.targetRoleType || 'customer_service',
-    scenarioId: value?.scenarioId || CS_SCENARIOS[0].id, ...value,
+function speakingTaskContract(value = {}) {
+  const levelId = value.level || 'a2-b1';
+  return {
+    version: 1,
+    promptContractVersion: INTERVIEW_PROMPT_CONTRACT_VERSION,
+    assessmentMode: 'diagnostic',
+    levelId,
+    bossId: value.bossId || 'yasmin',
+    roleType: value.targetRoleType || 'customer_service',
+    scenarioId: value.scenarioId || CS_SCENARIOS[0].id,
+    behavioralPromptId: value.behavioralPromptId
+      || interviewPromptId('behavioral', BEHAVIORAL_QUESTIONS[0], levelId),
+    screeningPromptId: value.screeningPromptId
+      || interviewPromptId('screening', BPO_SCREENING_QUESTIONS[0], levelId),
+    industryKey: value.targetIndustry || null,
+    targetId: value.vacancyTargetId || null,
+    contentSeed: value.contentSeed || 'stable-comparison-seed',
+    mood: value.mood || 'neutral',
+    replayContext: value.replayContext || { dossier: '', memory: '', focusTitle: '' },
+  };
+}
+function reliableSession(value = {}) {
+  const session = { sessionId: value.sessionId || `session-${value.date}`, level: value.level || 'a2-b1',
+    bossId: value.bossId || 'yasmin', targetRoleType: value.targetRoleType || 'customer_service',
+    scenarioId: value.scenarioId || CS_SCENARIOS[0].id, ...value,
     evidenceQuality: { version: 2, words: 120, eligibleWords: 120, completeTurns: 5, truncatedTurns: 0,
     stageCoverage: 2, prescriptionEligible: true, highConfidence: false } };
+  if (value.speakingTaskContract !== null) {
+    session.speakingTaskContract = value.speakingTaskContract || speakingTaskContract(session);
+  }
+  return session;
 }
 function recoveryFields(date) {
   const context = { sessionId: `session_${date}`, targetId: null, roleType: 'customer_service',
@@ -204,6 +231,30 @@ test('a deficit from another interview archetype cannot increase the current per
   assert.equal(result.prescription?.blocks, 1);
   assert.deepEqual(result.prescription?.evidenceIds,
     [measurementForSkill(p, 'no-freeze-expected', { sessionId: p.sessions[1].sessionId }).evidenceId]);
+});
+
+test('a support packet without an immutable session id cannot increase confidence or dose', () => {
+  const p = measuredProfile(2);
+  for (const session of p.sessions) setCompleteResponseEvidence(session, 0.5);
+  delete p.sessions[0].sessionId;
+  const result = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  const expected = measurementForSkill(p, 'no-freeze-expected', { sessionId: p.sessions[1].sessionId });
+  assert.equal(result.directive.confidence, 'low');
+  assert.equal(result.prescription?.evidenceConfidence, 'low');
+  assert.equal(result.prescription?.blocks, 1);
+  assert.deepEqual(result.prescription?.evidenceIds, [expected.evidenceId]);
+});
+
+test('two support ids that resolve to one evidence packet fail closed instead of doubling the dose', () => {
+  const p = measuredProfile(2);
+  for (const session of p.sessions) setCompleteResponseEvidence(session, 0.5);
+  p.sessions[1].date = p.sessions[0].date;
+  const first = measurementForSkill(p, 'no-freeze-expected', { sessionId: p.sessions[0].sessionId });
+  const second = measurementForSkill(p, 'no-freeze-expected', { sessionId: p.sessions[1].sessionId });
+  assert.equal(first.evidenceId, second.evidenceId, 'fixture must represent one non-independent evidence packet');
+  const result = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  assert.equal(result.directive.confidence, 'high');
+  assert.equal(result.prescription, null);
 });
 
 test('a same-archetype passing observation vetoes the second daily dose and is excluded from evidence', () => {
@@ -608,6 +659,12 @@ test('speaking mastery requires a delayed matched retest and a later novel trans
   assert.equal(target.phase, 'matched');
   assert.equal(target.context.forcedScenarioId, CS_SCENARIOS[0].id);
   assert.equal(target.context.bossId, 'yasmin');
+  assert.equal(target.context.forcedBehavioralPromptId,
+    interviewPromptId('behavioral', BEHAVIORAL_QUESTIONS[0], 'a2-b1'));
+  assert.equal(target.context.forcedScreeningPromptId,
+    interviewPromptId('screening', BPO_SCREENING_QUESTIONS[0], 'a2-b1'));
+  assert.equal(target.context.contentSeed, 'stable-comparison-seed');
+  assert.equal(target.context.forcedMood, 'neutral');
 
   p.sessions.push(reliableSession({ sessionId: 'wrong-matched-context', date: start + day + 225, bossId: 'yasmin',
     scenarioId: CS_SCENARIOS[1].id, fluency: 61, grammarRules: [] }));
@@ -628,6 +685,10 @@ test('speaking mastery requires a delayed matched retest and a later novel trans
   assert.equal(target.phase, 'transfer');
   assert.match(target.dossier, /neuen Kundenszenario/u);
   assert.deepEqual(target.context.excludedScenarioIds, [CS_SCENARIOS[0].id]);
+  assert.deepEqual(target.context.excludedBehavioralPromptIds,
+    [interviewPromptId('behavioral', BEHAVIORAL_QUESTIONS[0], 'a2-b1')]);
+  assert.deepEqual(target.context.excludedScreeningPromptIds,
+    [interviewPromptId('screening', BPO_SCREENING_QUESTIONS[0], 'a2-b1')]);
   p.sessions.push(reliableSession({ sessionId: 'same-scenario-transfer', date: start + 8 * day + 350, bossId: 'tarek',
     scenarioId: CS_SCENARIOS[0].id, fluency: 58, grammarRules: [] }));
   const repeated = recordMeaningfulRetest(state, p, { sessionId: 'same-scenario-transfer', skillId: 'fluency-interrupt',

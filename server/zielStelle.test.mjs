@@ -9,7 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { BEHAVIORAL_QUESTIONS, BPO_SCREENING_QUESTIONS, CS_SCENARIOS, INDUSTRIES,
-  TARGET_ROLE_SCENARIOS, scenarioSupportsRole, pickCsScenario, pickTargetRoleScenario, buildSessionScript } from './scenarios.js';
+  TARGET_ROLE_SCENARIOS, scenarioSupportsRole, pickCsScenario, pickTargetRoleScenario, buildSessionScript,
+  interviewPromptId } from './scenarios.js';
 import { PLANS } from './plans.config.js';
 
 test('the plans that ADVERTISE Ziel-Stelle actually carry the flag (perk must never be a phantom again)', () => {
@@ -164,15 +165,45 @@ test('missing role-industry coverage uses a generic same-role case, never anothe
   }
 });
 
-test('matched retest can lock the exact server-known scenario without changing generic rotation', () => {
+test('matched retest locks the exact server-known questions and scenario despite seen-list rotation', () => {
   const forced = CS_SCENARIOS[0];
+  const behavioral = BEHAVIORAL_QUESTIONS[0];
+  const screening = BPO_SCREENING_QUESTIONS[0];
   const script = buildSessionScript({
     persona: 'Du bist eine strenge Interviewerin.', displayName: 'Test', greeting: 'Guten Tag.',
-    levelId: 'b2', recent: { cs: [forced.id] }, sessionSeed: 'matched-lock',
+    levelId: 'b2', recent: { behavioral: [behavioral], screening: [screening], cs: [forced.id] },
+    sessionSeed: 'matched-lock',
+    forcedBehavioralPromptId: interviewPromptId('behavioral', behavioral, 'b2'),
+    forcedScreeningPromptId: interviewPromptId('screening', screening, 'b2'),
     forcedScenarioId: forced.id,
   });
+  assert.equal(script.picks.behavioral.id, behavioral);
+  assert.equal(script.picks.screening.id, screening);
   assert.equal(script.picks.cs.id, forced.id);
   assert.equal(script.csScenario.id, forced.id);
+});
+
+test('transfer retest excludes every baseline question as well as the roleplay scenario', () => {
+  const baselineBehavioral = BEHAVIORAL_QUESTIONS[0];
+  const baselineScreening = BPO_SCREENING_QUESTIONS[0];
+  const baselineScenario = CS_SCENARIOS[0];
+  const script = buildSessionScript({
+    persona: 'Du bist eine strenge Interviewerin.', displayName: 'Test', greeting: 'Guten Tag.',
+    levelId: 'b2', recent: {}, sessionSeed: 'transfer-novel-content',
+    excludedBehavioralPromptIds: [interviewPromptId('behavioral', baselineBehavioral, 'b2')],
+    excludedScreeningPromptIds: [interviewPromptId('screening', baselineScreening, 'b2')],
+    excludedScenarioIds: [baselineScenario.id],
+  });
+  assert.notEqual(script.picks.behavioral.id, baselineBehavioral);
+  assert.notEqual(script.picks.screening.id, baselineScreening);
+  assert.notEqual(script.picks.cs.id, baselineScenario.id);
+});
+
+test('unknown server prompt identities fail closed instead of silently rotating', () => {
+  assert.throws(() => buildSessionScript({
+    persona: 'PERSONA', displayName: 'Test', greeting: 'Guten Tag.', levelId: 'b2',
+    forcedBehavioralPromptId: 'beh-000000000000',
+  }), /invalid_forced_behavioral_prompt/u);
 });
 
 test('transfer retest excludes the baseline scenario inside every supported role', () => {

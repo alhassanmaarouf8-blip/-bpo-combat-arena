@@ -123,6 +123,17 @@ test('the live interview snapshots the completed prescription and closes only th
   assert.match(websocket, /recordMeaningfulRetest\(p\.salmaCoach, p/u);
   assert.match(websocket, /forcedScenarioId: retestContext\?\.forcedScenarioId/u);
   assert.match(websocket, /excludedScenarioIds: retestContext\?\.excludedScenarioIds/u);
+  assert.match(websocket, /forcedBehavioralPromptId: retestContext\?\.forcedBehavioralPromptId/u);
+  assert.match(websocket, /excludedBehavioralPromptIds: retestContext\?\.excludedBehavioralPromptIds/u);
+  assert.match(websocket, /forcedScreeningPromptId: retestContext\?\.forcedScreeningPromptId/u);
+  assert.match(websocket, /excludedScreeningPromptIds: retestContext\?\.excludedScreeningPromptIds/u);
+  assert.match(websocket, /contentSeed: retestContext\?\.contentSeed/u);
+  assert.match(websocket, /forcedMood: retestContext\?\.forcedMood/u);
+  assert.match(websocket, /retestProbe/u);
+  assert.match(websocket, /const revanche = !improvementRetest/u,
+    'a client revenge session cannot authorize a prescribed retest');
+  assert.match(websocket, /createSpeakingTaskContract/u);
+  assert.match(websocket, /speakingTaskContract: ctx\.speakingTaskContract/u);
   assert.match(websocket, /!improvementRetest && msg\.bossId/u);
 });
 

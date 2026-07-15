@@ -21,7 +21,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { buildSessionScript } from './scenarios.js';
+import { buildSessionScript, interviewPromptId, INTERVIEW_PROMPT_CONTRACT_VERSION } from './scenarios.js';
 import { seededIdiolect } from './idiolect.js';
 import { scrubForeignScript } from './langGuard.js';
 import { createLedger, noteTurn, findContradiction } from './claimLedger.js';
@@ -661,7 +661,10 @@ export class RealtimeClient {
     this._boss      = BOSS_CONFIGS[bossId] ?? BOSS_CONFIGS[DEFAULT_BOSS];
     this._cb        = opts;
 
-    this._mood = _seededPick(MOOD_POOL, _seedFrom(this._sessionId));
+    const requestedContentSeed = typeof opts.contentSeed === 'string' ? opts.contentSeed.trim().slice(0, 100) : '';
+    this._contentSeed = requestedContentSeed || this._sessionId;
+    if (opts.forcedMood != null && !MOOD_POOL.includes(opts.forcedMood)) throw new Error('invalid_forced_interview_mood');
+    this._mood = opts.forcedMood || _seededPick(MOOD_POOL, _seedFrom(this._contentSeed));
     const clarificationRate = opts.level === 'c1' ? 0.20 : opts.level === 'b2' ? 0.12 : 0;
 
     // Build the 3-part assessment funnel (intro → behavioral → CS roleplay) — same
@@ -679,12 +682,17 @@ export class RealtimeClient {
       mood:        this._mood,
       clarificationRate,
       recent:      opts.recent,   // per-user seen-ids → no-repeat behavioral/screening/scenario
-      sessionSeed: this._sessionId,   // seeds the intro-variant pick (phone-real opening variety)
+      sessionSeed: this._contentSeed,   // matched retests replay the exact opening/style seed
       targetIndustry: opts.targetIndustry || null,   // Ziel-Stelle: industry-first scenario + boss framing
       jobContext: opts.jobContext || null,   // vacancy-v1: server-owned enum snapshot; never raw ad text
       revanche: opts.revanche || null,
+      retestProbe: opts.retestProbe || null,
       forcedScenarioId: opts.forcedScenarioId || null,
       excludedScenarioIds: Array.isArray(opts.excludedScenarioIds) ? opts.excludedScenarioIds : [],
+      forcedBehavioralPromptId: opts.forcedBehavioralPromptId || null,
+      excludedBehavioralPromptIds: Array.isArray(opts.excludedBehavioralPromptIds) ? opts.excludedBehavioralPromptIds : [],
+      forcedScreeningPromptId: opts.forcedScreeningPromptId || null,
+      excludedScreeningPromptIds: Array.isArray(opts.excludedScreeningPromptIds) ? opts.excludedScreeningPromptIds : [],
     });
 
     // Persona forcefulness → an interview-style block in the system prompt + a patience value the client
@@ -694,10 +702,20 @@ export class RealtimeClient {
     // Seeded per-session verbal fingerprint: 2 spoken habits pinned for THIS conversation so the boss
     // sounds like ONE specific person (not a rule-follower) and differs run-to-run — fights the "recited
     // / robotic" feel. Register-safe; deterministic from the sessionId.
-    this._session.instructions += seededIdiolect(this._sessionId);
+    this._session.instructions += seededIdiolect(this._contentSeed);
 
     // Chosen content ids (+ reset flags) so the gateway can persist the no-repeat seen-lists.
     this.picks = this._session.picks;
+    this.taskIdentity = Object.freeze({
+      version: 1,
+      promptContractVersion: INTERVIEW_PROMPT_CONTRACT_VERSION,
+      levelId: this._session.level.id,
+      contentSeed: this._contentSeed,
+      mood: this._mood,
+      behavioralPromptId: interviewPromptId('behavioral', this.picks?.behavioral?.id, this._session.level.id),
+      screeningPromptId: interviewPromptId('screening', this.picks?.screening?.id, this._session.level.id),
+      scenarioId: this.picks?.cs?.id || null,
+    });
 
     // Public snapshot the gateway forwards to the browser (level + funnel + scenario).
     const cs = this._session.csScenario;

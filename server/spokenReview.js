@@ -35,6 +35,14 @@ function canonicalSkillForItem(item) {
   return classifyGrammar([{ rule: item.content, count: 1 }])[0] ?? null;
 }
 
+function hasUsableSpokenRepair(item) {
+  if (item?.type !== 'grammar' || typeof item.id !== 'string' || !item.id.trim()) return false;
+  const wrong = typeof item.example?.wrong === 'string' ? item.example.wrong.trim() : '';
+  const right = typeof item.example?.right === 'string' ? item.example.right.trim()
+    : (typeof item.answer === 'string' ? item.answer.trim() : '');
+  return !!wrong && !!right;
+}
+
 function publicSpokenItem(item, prescribed = false) {
   const grammar = item.type === 'grammar';
   return { id: item.id, type: item.type, prescribed,
@@ -47,13 +55,17 @@ export function targetedSpokenReviewQueue(profile, coachState, accountId) {
   const active = coachState?.activePrescription?.drillId === 'sag-es-richtig'
     ? coachState.activePrescription : null;
   if (!active) return null;
+  const progress = prescriptionDoseProgress(coachState);
+  if (progress?.completed) return { items: [], prescription: { targeted: true,
+    missingTarget: false, completed: true, remainingRepetitions: 0, repairsRemaining: 0 } };
   // Once a dose starts, its exact cards remain available until the dose is complete even when
   // the first correct production advances or masters the separate long-term SRS schedule.
-  const matching = (profile?.srs || []).filter((item) => canonicalSkillForItem(item) === active.skillId)
+  const matching = (profile?.srs || []).filter((item) => hasUsableSpokenRepair(item)
+    && canonicalSkillForItem(item) === active.skillId)
     .sort((a, b) => (a.due || 0) - (b.due || 0));
-  const progress = prescriptionDoseProgress(coachState);
   if (!matching.length) return { items: [], prescription: { targeted: true, missingTarget: true,
-    remainingRepetitions: progress?.remainingRepetitions || active.repetitions } };
+    completed: false, remainingRepetitions: progress?.remainingRepetitions || active.repetitions,
+    repairsRemaining: progress?.repairsRemaining || 0 } };
   const currentBlock = coachState.coachState.repeatedErrorCounts[active.id]?.blockProgress
     ?.[progress?.completedBlocks || 0];
   const repairQueue = [];
@@ -283,7 +295,8 @@ spokenReviewRouter.post('/spoken-review/grade',
       const { state: coachState } = coachEnabled ? syncSalmaCoach(p) : { state: null };
       const active = coachState?.activePrescription;
       const canonicalSkillId = canonicalSkillForItem(item);
-      const isPrescribedCard = active?.drillId === 'sag-es-richtig' && canonicalSkillId === active.skillId;
+      const isPrescribedCard = active?.drillId === 'sag-es-richtig' && hasUsableSpokenRepair(item)
+        && canonicalSkillId === active.skillId;
       // One coaching dose may repeat the same sentence for automaticity, but it must not fast-forward
       // the long-term spaced schedule eight times in one sitting.
       if (!isPrescribedCard || item.lastCoachPrescriptionId !== active.id) {
@@ -318,9 +331,10 @@ spokenReviewRouter.post('/spoken-review/grade',
               itemType: item.type, skillId: canonicalSkillId }) }
           : ev;
         p.salmaCoach = recordDrillOutcome(coachState, verifiedCoachEvent, ev.at);
-        const progress = isPrescribedCard ? prescriptionDoseProgress(p.salmaCoach) : null;
-        if (progress) prescriptionProgress = { targeted: true, completed: progress.completed,
-          remainingRepetitions: progress.remainingRepetitions, repairsRemaining: progress.repairsRemaining };
+        const progress = active?.drillId === 'sag-es-richtig' ? prescriptionDoseProgress(p.salmaCoach) : null;
+        if (progress) prescriptionProgress = { targeted: true, credited: isPrescribedCard,
+          completed: progress.completed, remainingRepetitions: progress.remainingRepetitions,
+          repairsRemaining: progress.repairsRemaining };
         const eventId = salmaCoachEventId({ accountId: req.account.id, itemId: id, ...ev });
         coachCue = coachCueForDrill({ drill: ev.drill, correct, eventId });
       }

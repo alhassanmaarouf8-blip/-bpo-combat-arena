@@ -9,6 +9,8 @@
  * producing a structured, level-appropriate assessment.
  */
 
+import { createHash } from 'crypto';
+
 // ── CEFR levels ────────────────────────────────────────────────────────────────
 // Scaling is delivered as German pacing/complexity instructions injected into the
 // system prompt, plus a `lenient` flag the scorer reads.
@@ -108,6 +110,33 @@ export const C1_BEHAVIORAL_QUESTIONS = [
   'Erzählen Sie von einer Situation, in der Sie zwischen Schnelligkeit und Gründlichkeit abwägen mussten. Wie haben Sie entschieden — und wie haben Sie diese Entscheidung begründet?',
   'Beschreiben Sie einen Fall, in dem Sie aus mehreren Kundenbeschwerden ein wiederkehrendes Muster erkannt und daraus eine konkrete Prozessänderung abgeleitet haben.',
 ];
+
+// Versioned, opaque identifiers for the public interview-question banks. The text stays in the
+// curated server registry; persisted speaking evidence stores only these IDs. Hashing the canonical
+// text keeps IDs stable if the arrays are reordered while a version bump makes wording changes fail
+// closed instead of silently pretending to be the same matched task.
+export const INTERVIEW_PROMPT_CONTRACT_VERSION = 1;
+const PROMPT_ID_RE = /^(beh|scr)-[a-f0-9]{12}$/u;
+function promptPool(kind, levelId = 'a2-b1') {
+  if (kind === 'behavioral') return levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS;
+  if (kind === 'screening') return BPO_SCREENING_QUESTIONS;
+  return [];
+}
+export function interviewPromptId(kind, text, levelId = 'a2-b1') {
+  const pool = promptPool(kind, levelId);
+  if (typeof text !== 'string' || !pool.includes(text)) return null;
+  const prefix = kind === 'behavioral' ? 'beh' : kind === 'screening' ? 'scr' : null;
+  if (!prefix) return null;
+  return `${prefix}-${createHash('sha256').update(`${INTERVIEW_PROMPT_CONTRACT_VERSION}:${kind}:${text}`).digest('hex').slice(0, 12)}`;
+}
+export function interviewPromptById(kind, id, levelId = 'a2-b1') {
+  if (typeof id !== 'string' || !PROMPT_ID_RE.test(id)) return null;
+  return promptPool(kind, levelId).find((text) => interviewPromptId(kind, text, levelId) === id) || null;
+}
+export function availableInterviewPromptIds(kind, levelId = 'a2-b1', excludedIds = []) {
+  const excluded = new Set(Array.isArray(excludedIds) ? excludedIds : []);
+  return promptPool(kind, levelId).map((text) => interviewPromptId(kind, text, levelId)).filter((id) => id && !excluded.has(id));
+}
 
 // ── Customer-service roleplay scenarios (Teil 3) — the boss PLAYS the customer ──
 export const CS_SCENARIOS = [
@@ -905,14 +934,31 @@ Bleibe in dieser Rolle und reagiere auf das, was der Kandidat tats\u00e4chlich s
 ${pressure}`;
 }
 
-export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null, forcedScenarioId = null, excludedScenarioIds = [] }) {
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null, retestProbe = null, forcedScenarioId = null, excludedScenarioIds = [], forcedBehavioralPromptId = null, excludedBehavioralPromptIds = [], forcedScreeningPromptId = null, excludedScreeningPromptIds = [] }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
   // pool is exhausted, then cycle. This is what makes a re-played interview feel real.
-  const behPool    = levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS;
-  const behPick    = pickFresh(behPool,              recent.behavioral, (x) => x);
-  const scrPick    = pickFresh(BPO_SCREENING_QUESTIONS, recent.screening, (x) => x);
+  const rawBehPool = levelId === 'c1' ? C1_BEHAVIORAL_QUESTIONS : BEHAVIORAL_QUESTIONS;
+  const forcedBehavioral = forcedBehavioralPromptId
+    ? interviewPromptById('behavioral', forcedBehavioralPromptId, level.id) : null;
+  const forcedScreening = forcedScreeningPromptId
+    ? interviewPromptById('screening', forcedScreeningPromptId, level.id) : null;
+  if (forcedBehavioralPromptId && !forcedBehavioral) throw new Error('invalid_forced_behavioral_prompt');
+  if (forcedScreeningPromptId && !forcedScreening) throw new Error('invalid_forced_screening_prompt');
+  const excludedBehavioral = new Set(Array.isArray(excludedBehavioralPromptIds) ? excludedBehavioralPromptIds : []);
+  const excludedScreening = new Set(Array.isArray(excludedScreeningPromptIds) ? excludedScreeningPromptIds : []);
+  const behPool = excludedBehavioral.size
+    ? rawBehPool.filter((text) => !excludedBehavioral.has(interviewPromptId('behavioral', text, level.id))) : rawBehPool;
+  const scrPool = excludedScreening.size
+    ? BPO_SCREENING_QUESTIONS.filter((text) => !excludedScreening.has(interviewPromptId('screening', text, level.id)))
+    : BPO_SCREENING_QUESTIONS;
+  if (!forcedBehavioral && !behPool.length) throw new Error('no_novel_behavioral_prompt');
+  if (!forcedScreening && !scrPool.length) throw new Error('no_novel_screening_prompt');
+  const behPick    = forcedBehavioral ? { item: forcedBehavioral, id: forcedBehavioral, reset: false }
+    : pickFresh(behPool, recent.behavioral, (x) => x);
+  const scrPick    = forcedScreening ? { item: forcedScreening, id: forcedScreening, reset: false }
+    : pickFresh(scrPool, recent.screening, (x) => x);
   const targetRoleType = jobContext && typeof jobContext === 'object'
     && Object.hasOwn(VACANCY_ROLE_LABELS, jobContext.roleType) ? jobContext.roleType : null;
   const forcedScenario = typeof forcedScenarioId === 'string'
@@ -935,6 +981,14 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
     ? `\nDOSSIER (aus früheren Gesprächen) — GEZIELTER WIEDERHOLUNGSTEST: Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
       `Erwähne das EINMAL kurz und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat."). ` +
       `WICHTIG — belass es NICHT bei der Erwähnung: Baue im Gesprächsverlauf GEZIELT EINE natürliche Situation oder Nachfrage ein, die den Kandidaten ZWINGT, genau diese Schwäche ("${dossier}") zu zeigen — etwa eine Rückfrage, ein Beispiel oder ein Rollenspiel-Moment, der genau diese Struktur bzw. Fähigkeit erfordert. So prüfst du ECHT, ob er sich verbessert hat, statt es nur zu erwähnen. Halte es natürlich im Gesprächsfluss, tue es nur EINMAL gezielt und übertreibe es nicht.\n`
+    : '';
+
+  // A post-drill retest must elicit the prescribed micro-skill without telling the learner what to
+  // demonstrate. This is an assessor-only probe: no announcement, hint, praise, or wording from the
+  // prescription may be spoken. Generic interviews receive no block and remain byte-identical.
+  const retestProbeLine = typeof retestProbe === 'string' && retestProbe.trim()
+    ? `\nVERDECKTER WIEDERHOLUNGSTEST (nur fÃ¼r die InterviewfÃ¼hrung): PrÃ¼fe einmal natÃ¼rlich "${retestProbe.trim().slice(0, 240)}". ` +
+      `Nenne dem Kandidaten weder die geprÃ¼fte FÃ¤higkeit noch den Trainingsschwerpunkt. Gib keinen Hinweis auf die erwartete Struktur und kÃ¼ndige den Test nicht an.\n`
     : '';
 
   // AKTE / growth memory → "der Chef, der dich wachsen sah" (built in bossMemory.js): a returning
@@ -1012,7 +1066,7 @@ Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz u
 Wenn der Kandidat dich beleidigt oder respektlos wird, beende das Gespräch SOFORT professionell und ruhig („Ich beende das Gespräch.“) — zeige niemals Wut.
 Achte auf natürliche Prosodie: Sag nur einen Gedanken pro Redebeitrag, mach natürlich Pausen, vermeide zusammengepresste Wörter.
 ${level.speechStyle}
-${delivery}${dossierLine}${memoryLine}${focusLine}${zielLine}${vacancyLine}${revancheLine}
+${delivery}${dossierLine}${retestProbeLine}${memoryLine}${focusLine}${zielLine}${vacancyLine}${revancheLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - GESPROCHENE SPRACHE, KEIN vorgelesener Text (wichtigster Natürlichkeits-Hebel): Sprich in lockerer, gesprochener Hochsprache — mit Kontraktionen ("ich hab", "gibt's", "so was", "ne?") — und beginne deine Reaktion oft mit einem kurzen, echten mündlichen Marker, wie ein Mensch am Telefon ("Gut.", "Okay.", "Aha.", "Na gut.", "Also,", "Mhm,"). Variiere diese Marker, wiederhole nicht denselben. So klingt deine Stimme nach einem echten Menschen, nicht nach abgelesenem Schriftdeutsch.

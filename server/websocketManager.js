@@ -5,6 +5,7 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
 import { serviceRecoveryEvidenceFromUtterances } from './scoring/serviceRecoveryEvidence.js';
+import { createSpeakingTaskContract } from './scoring/speakingMeasurement.js';
 import { roleplayTurnFactors, roleplayTurnSummary } from './scoring/roleplayTurnScoring.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
 import { topStructureWins, debriefStructureWins } from './scoring/structureWins.js';
@@ -524,7 +525,7 @@ export class WebSocketManager {
     activeFightSessions.set(account.id, ctx.sessionId);
 
     ctx.userId   = account.id;
-    const level  = ['b2', 'c1'].includes(msg.level) ? msg.level : 'a2-b1';
+    let level  = ['b2', 'c1'].includes(msg.level) ? msg.level : 'a2-b1';
     // (Boss-Tor mode Musk-cut 2026-07-10: no client ever sent mode='bosstor' — the gate it fed
     // demanded Trainingslager stations whose UI was deleted in a92c9ec. msg.mode is now ignored.)
 
@@ -536,6 +537,7 @@ export class WebSocketManager {
     let prof = null;
     let candidateName = null;
     let improvementRetest = null;
+    let retestProbe = null;
     try {
       prof = await loadUser(ctx.userId);
       bossId  = bossForLevel(prof.level).id;
@@ -546,9 +548,16 @@ export class WebSocketManager {
         && BOSS_LADDER.some((boss) => boss.id === improvementRetest.context.bossId)) {
         bossId = improvementRetest.context.bossId;
       }
-      // A completed prescribed block earns an unseen, skill-matched retest. Otherwise preserve the
-      // legacy recurring-grammar dossier exactly. The curated dossier contains no learner text.
-      dossier = improvementRetest?.dossier || topWeakRule(prof);
+      if (improvementRetest?.context?.levelId
+        && ['a2-b1', 'b2', 'c1'].includes(improvementRetest.context.levelId)) {
+        // A matched/transfer retest must preserve the baseline difficulty envelope. The browser's
+        // current picker is not evidence and therefore cannot silently change the measured task.
+        level = improvementRetest.context.levelId;
+      }
+      // Preserve the ordinary interview context. A retest skill is an assessor-only probe: telling
+      // the learner the expected structure before the answer would turn a measurement into coaching.
+      dossier = topWeakRule(prof);
+      retestProbe = improvementRetest?.dossier || null;
       ctx.targetImprovementSkillId = improvementRetest?.skillId || null;
       ctx.targetImprovementPrescriptionId = improvementRetest?.prescriptionId || null;
       ctx.targetImprovementPhase = improvementRetest?.phase || null;
@@ -564,6 +573,12 @@ export class WebSocketManager {
       // persistent mistakes, an absence — so the boss acts like a returning interviewer who
       // watched this candidate grow. Deterministic, never fabricated; see bossMemory.js.
       memory = buildBossMemory(prof);
+      if (improvementRetest?.context?.replayContext) {
+        const replay = improvementRetest.context.replayContext;
+        dossier = replay.dossier || null;
+        memory = replay.memory || null;
+        focusTitle = replay.focusTitle || null;
+      }
       // Name recall is DISABLED (2026-07-05). The name was auto-captured from STT of the candidate's
       // own speech — unreliable, especially for Arabic names — and a single mis-capture ("Firo") then
       // made the boss greet a WRONG name in turn 1 for EVERY persona, on every future interview. The
@@ -580,7 +595,7 @@ export class WebSocketManager {
       console.log(`[wsManager] boss-picker override → ${bossId}  session=${ctx.sessionId}`);
     }
     const revancheStage = Number(msg?.revanche?.stage);
-    const revanche = [0, 1, 2].includes(revancheStage)
+    const revanche = !improvementRetest && [0, 1, 2].includes(revancheStage)
       ? { stage: revancheStage, stageLabel: String(msg.revanche.stageLabel || '').slice(0, 80) }
       : null;
 
@@ -671,6 +686,7 @@ export class WebSocketManager {
         bossId,
         level,
         dossier,
+        retestProbe,
         memory,
         focusTitle,
         candidateName,
@@ -680,8 +696,14 @@ export class WebSocketManager {
           ? { roleType: retestContext.roleType, germanLevel: 'unspecified', skillIds: [], questionTopicIds: [] }
           : vacancySnapshot,
         revanche,
+        contentSeed: retestContext?.contentSeed || null,
+        forcedMood: retestContext?.forcedMood || null,
         forcedScenarioId: retestContext?.forcedScenarioId || null,
         excludedScenarioIds: retestContext?.excludedScenarioIds || [],
+        forcedBehavioralPromptId: retestContext?.forcedBehavioralPromptId || null,
+        excludedBehavioralPromptIds: retestContext?.excludedBehavioralPromptIds || [],
+        forcedScreeningPromptId: retestContext?.forcedScreeningPromptId || null,
+        excludedScreeningPromptIds: retestContext?.excludedScreeningPromptIds || [],
         allowElevenVoice: ELEVEN_VOICE_ACCOUNT_IDS.has(account.id),
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer
@@ -953,11 +975,29 @@ export class WebSocketManager {
       // Snapshot the exact scenario independently of profile persistence. A DB/profile failure may
       // allow a future repeat, but it must never erase the target used by this live evaluation.
       ctx.csScenarioId = picks?.cs?.id || null;
+      const taskIdentity = ctx.realtimeClient.taskIdentity;
+      ctx.speakingTaskContract = createSpeakingTaskContract({
+        version: taskIdentity?.version,
+        promptContractVersion: taskIdentity?.promptContractVersion,
+        assessmentMode: revanche ? 'revanche' : 'diagnostic',
+        levelId: taskIdentity?.levelId,
+        bossId,
+        roleType: ctx.targetRoleType,
+        scenarioId: taskIdentity?.scenarioId,
+        behavioralPromptId: taskIdentity?.behavioralPromptId,
+        screeningPromptId: taskIdentity?.screeningPromptId,
+        industryKey: ctx.targetIndustry || null,
+        targetId: ctx.vacancySnapshot?.targetId || null,
+        contentSeed: taskIdentity?.contentSeed,
+        mood: taskIdentity?.mood,
+        replayContext: { dossier, memory, focusTitle },
+      });
       if (picks && prof) {
         try {
-          prof.behavioralSeen = picks.behavioral.reset ? [picks.behavioral.id] : [...recent.behavioral, picks.behavioral.id];
-          prof.screeningSeen  = picks.screening.reset  ? [picks.screening.id]  : [...recent.screening, picks.screening.id];
-          prof.csSeen         = picks.cs.reset         ? [picks.cs.id]         : [...recent.cs, picks.cs.id];
+          const updateSeen = (seen, pick) => pick.reset ? [pick.id] : [...new Set([...(seen || []), pick.id])];
+          prof.behavioralSeen = updateSeen(recent.behavioral, picks.behavioral);
+          prof.screeningSeen  = updateSeen(recent.screening, picks.screening);
+          prof.csSeen         = updateSeen(recent.cs, picks.cs);
           // FIRE-AND-FORGET: do NOT await — this DB write must not delay the boss's first line.
           // (worst case on failure = one possible repeat, never a crash, never a slow start.)
           saveUser(prof).catch((e) => console.error('[wsManager] no-repeat seen-list save failed:', e.message));
@@ -1490,6 +1530,7 @@ export class WebSocketManager {
         ...(ctx.targetIndustry ? { targetIndustry: ctx.targetIndustry } : {}),
         targetRoleType: ctx.targetRoleType,
         ...(ctx.csScenarioId ? { scenarioId: ctx.csScenarioId } : {}),
+        ...(ctx.speakingTaskContract ? { speakingTaskContract: ctx.speakingTaskContract } : {}),
 
         errorTags: classifyGrammar(debrief.grammar),   // Trainingslager: per-fight error tags
         grammarMeasured: debrief?.grammarUnavailable === false,
