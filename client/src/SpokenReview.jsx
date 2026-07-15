@@ -78,6 +78,9 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'failed');
+      if (!d.retry && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('omni:coach-state-changed', { detail: { source: 'drill', drill: 'srs' } }));
+      }
       const coachCue = !d.retry ? d.coachCue || null : null;
       setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
     } catch (e) {

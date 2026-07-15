@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { buildSnapshot, latestVerifiedImprovementFromProfile, masteredSkillsFromProfile,
   verifiedMasteredSkillsFromProfile } from './adapter.js';
 import { decide } from './engine.js';
+import { speakingMeasurementForSkill } from '../scoring/speakingMeasurement.js';
 
 const NOW = 1_700_000_000_000;
 const DAY = 86400000;
@@ -110,6 +111,17 @@ test('adapter: completed delayed listening retests override spoofable legacy tot
   assert.equal(mastered.has('listen-clear'), true, 'an unmeasured sibling skill keeps its temporary legacy state');
 });
 
+test('adapter: storage order cannot redefine the latest interview or its prep boundary', () => {
+  const p = { sessions: [
+    { date: NOW - DAY, verdict: 'pass', grammarRules: [{ count: 2 }] },
+    { date: NOW - 3 * DAY, verdict: 'weak', grammarRules: [{ count: 5 }] },
+  ], drillLog: [{ at: NOW - 2 * DAY, drill: 'flow-drill', correct: true }] };
+  const snapshot = buildSnapshot(p, NOW);
+  assert.equal(snapshot.daysSinceActive, 1);
+  assert.equal(snapshot.prepDone, false, 'practice before the actual newest interview is not post-fight prep');
+  assert.equal(snapshot.globalRegressed, false, 'the real chronological change is five errors down to two');
+});
+
 test('adapter: partial verified evidence does not demote a legacy learner before the packet is reliable', () => {
   const sessions = [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - 1 * DAY, verdict: 'pass' }];
   const listeningAttempts = Array.from({ length: 2 }, (_, index) => ({
@@ -163,30 +175,47 @@ test('non-customer-service roles do not enter an impossible deescalation measure
 });
 
 test('adapter: only delayed transfer proof enters readiness-authorizing mastery', () => {
-  const proof = (overrides = {}) => ({
-    id: '1111111111111111', prescriptionId: '2222222222222222', measurementEvidenceId: '333333333333',
-    retestSessionId: 'live-transfer', skillId: 'word-order-sub', metricKey: 'grammar_errors',
-    contextId: '444444444444', noveltyId: '555555555555',
-    comparedContextId: '666666666666', comparedNoveltyId: '777777777777',
-    phase: 'transfer', status: 'improved', before: 4, after: 1, verifiedAt: NOW, ...overrides,
+  const reliable = (sessionId, date, count, scenarioId) => ({
+    sessionId, date, verdict: 'pass', bossId: 'yasmin', targetRoleType: 'customer_service', scenarioId,
+    grammarMeasured: true, grammarRules: [{ ruleId: 'word-order-sub', count }],
+    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true },
   });
-  const p = {
-    sessions: [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - DAY, verdict: 'pass' }],
-    salmaCoach: { coachState: { improvementHistory: [
-      proof({ id: '4444444444444444', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
-        phase: 'matched', before: 50, after: 60, verifiedAt: NOW - DAY }),
-      proof({ id: '5555555555555555', skillId: 'deescalate', metricKey: 'deescalation_score',
-        status: 'held', before: 50, after: 52, verifiedAt: NOW - DAY }),
-      proof(),
-      proof({ id: '6666666666666666', skillId: '__proto__' }),
-      proof({ id: '7777777777777777', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
-        before: 60, after: 50, verifiedAt: NOW + DAY }),
-      proof({ id: '8888888888888888', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
-        before: 50, after: 60, verifiedAt: NOW + DAY }),
-      proof({ id: '9999999999999999', skillId: 'fluency-interrupt', metricKey: 'fluency_score',
-        before: 50, after: 150, verifiedAt: NOW }),
-    ] } },
+  const sessions = [reliable('live-baseline', NOW - 3 * DAY, 4, 'customer-general-a'),
+    reliable('live-matched', NOW - 2 * DAY, 2, 'customer-general-a'),
+    reliable('live-transfer', NOW - DAY, 1, 'customer-general-b')];
+  const shell = { sessions };
+  const baseline = speakingMeasurementForSkill(shell, 'word-order-sub', { sessionId: 'live-baseline' });
+  const matched = speakingMeasurementForSkill(shell, 'word-order-sub', { sessionId: 'live-matched' });
+  const transfer = speakingMeasurementForSkill(shell, 'word-order-sub', { sessionId: 'live-transfer' });
+  const matchedProof = {
+    id: 'aaaaaaaaaaaaaaaa', prescriptionId: '2222222222222222', skillId: 'word-order-sub', metricKey: 'grammar_errors',
+    phase: 'matched', status: 'improved', before: 4, after: 2, verifiedAt: matched.measuredAt + 100,
+    measuredAt: matched.measuredAt, measurementEvidenceId: matched.evidenceId, retestSessionId: matched.sourceSessionId,
+    baselineSessionId: baseline.sourceSessionId, baselineMeasurementEvidenceId: baseline.evidenceId,
+    comparedValue: 4, comparedMeasurementEvidenceId: baseline.evidenceId, comparedRetestSessionId: baseline.sourceSessionId,
+    contextId: matched.contextId, noveltyId: matched.noveltyId,
+    comparedContextId: baseline.contextId, comparedNoveltyId: baseline.noveltyId,
   };
+  const proof = (overrides = {}) => ({
+    id: '1111111111111111', prescriptionId: '2222222222222222', measurementEvidenceId: transfer.evidenceId,
+    retestSessionId: transfer.sourceSessionId, skillId: 'word-order-sub', metricKey: 'grammar_errors',
+    contextId: transfer.contextId, noveltyId: transfer.noveltyId,
+    comparedContextId: matched.contextId, comparedNoveltyId: matched.noveltyId,
+    baselineSessionId: baseline.sourceSessionId, baselineMeasurementEvidenceId: baseline.evidenceId,
+    comparedValue: 2, comparedMeasurementEvidenceId: matched.evidenceId,
+    comparedRetestSessionId: matched.sourceSessionId, comparedProofId: matchedProof.id,
+    phase: 'transfer', status: 'improved', before: 4, after: 1,
+    measuredAt: transfer.measuredAt, verifiedAt: NOW, ...overrides,
+  });
+  const p = { sessions, salmaCoach: { coachState: { improvementHistory: [
+    matchedProof,
+    proof({ id: '5555555555555555', status: 'held' }),
+    proof(),
+    proof({ id: '6666666666666666', skillId: '__proto__' }),
+    proof({ id: '7777777777777777', before: 0, after: 1 }),
+    proof({ id: '8888888888888888', verifiedAt: NOW + DAY }),
+    proof({ id: '9999999999999999', after: 150 }),
+  ] } } };
   const provisional = masteredSkillsFromProfile(p);
   const verified = verifiedMasteredSkillsFromProfile(p, NOW);
   assert.equal(provisional.has('self-intro'), true);

@@ -63,12 +63,30 @@ test('drill corrections are visible between attempts and receive persisted resul
   assert.match(spokenServer, /coachCueForDrill/u);
 });
 
+test('verified drill evidence refreshes both guides and APPLY opens Mission Control', async () => {
+  const [reporter, brain, panel, app] = await Promise.all([
+    read('client/src/salmaCoachClient.js'),
+    read('client/src/BrainGuide.jsx'),
+    read('client/src/SalmaTutorPanel.jsx'),
+    read('client/src/App.jsx'),
+  ]);
+  assert.match(reporter, /omni:coach-state-changed/u);
+  assert.match(brain, /addEventListener\('omni:coach-state-changed'/u);
+  assert.match(panel, /addEventListener\('omni:coach-state-changed'/u);
+  assert.match(app, /p\.action === 'apply'\) setMissionOpenRequest/u);
+  assert.doesNotMatch(app, /p\.action === 'apply'\) beginSession/u);
+  assert.match(brain, /d\.prescription\?\.action !== 'wait'/u);
+});
+
 test('the live interview snapshots the completed prescription and closes only that same cycle', async () => {
   const websocket = await read('server/websocketManager.js');
   assert.match(websocket, /salmaRetestTarget\(prof\.salmaCoach, prof\)/u);
   assert.match(websocket, /targetImprovementSkillId/u);
   assert.match(websocket, /prior\.id === ctx\.targetImprovementPrescriptionId/u);
   assert.match(websocket, /recordMeaningfulRetest\(p\.salmaCoach, p/u);
+  assert.match(websocket, /forcedScenarioId: retestContext\?\.forcedScenarioId/u);
+  assert.match(websocket, /excludedScenarioIds: retestContext\?\.excludedScenarioIds/u);
+  assert.match(websocket, /!improvementRetest && msg\.bossId/u);
 });
 
 test('the live evaluator snapshots and forwards the exact scenario id instead of an object', async () => {

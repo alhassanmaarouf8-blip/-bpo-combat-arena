@@ -17,6 +17,11 @@ const CUSTOMER_SERVICE_GATING = ['intelligibility', 'deescalation', 'wpm'];
 const GENERAL_ROLE_GATING = ['intelligibility', 'wpm'];
 const DAY_MS = 86400000;
 
+function chronologicalSessions(profile) {
+  return (Array.isArray(profile?.sessions) ? [...profile.sessions] : [])
+    .sort((a, b) => Number(a?.date || 0) - Number(b?.date || 0));
+}
+
 function criterionEvidenceCount(sessions, criterionId, referenceSession, now) {
   const measured = (session) => {
     const words = Number(session?.evidenceQuality?.words) || Number(session?.words) || 0;
@@ -44,7 +49,7 @@ function criterionEvidenceCount(sessions, criterionId, referenceSession, now) {
 }
 
 export function masteredSkillsFromProfile(p) {
-  const sessions = p?.sessions || [];
+  const sessions = chronologicalSessions(p);
   const weakLog  = p?.weakLog || {};
   const mastered = new Set();
   if (!sessions.length) return mastered;
@@ -130,7 +135,7 @@ export function latestVerifiedImprovementFromProfile(p, now = Date.now()) {
 }
 
 export function buildSnapshot(p, now = Date.now()) {
-  const sessions = p?.sessions || [];
+  const sessions = chronologicalSessions(p);
   const weakLog  = p?.weakLog || {};
   const last = sessions[sessions.length - 1] || null;
   const prev = sessions[sessions.length - 2] || null;

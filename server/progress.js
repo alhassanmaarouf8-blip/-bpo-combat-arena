@@ -28,7 +28,8 @@ import {
 } from './vacancyTargetCore.js';
 import { missionNextAction } from './missionControlCore.js';
 import { governedMissionControlFlagsFor } from './missionControlGovernance.js';
-import { coachCueForDrill, recordDrillOutcome, salmaCoachEventId, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
+import { coachCueForDrill, recordDrillOutcome, salmaCoachBrainGate, salmaCoachEventId,
+  salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
 
 export const progressRouter = express.Router();
 
@@ -206,7 +207,9 @@ progressRouter.get('/brain', requireAuth, async (req, res) => {
     const missionDue = missionNextAction(p, req.account, {
       flags: governedMissionControlFlagsFor(req.account),
     });
-    const directive = decide({ ...snapshot, vacancyDue: safeDue, missionDue });
+    const coachFlags = salmaCoachFlags(process.env, req.account);
+    const coachGate = coachFlags.enabled ? salmaCoachBrainGate(p.salmaCoach, p) : null;
+    const directive = decide({ ...snapshot, vacancyDue: safeDue, missionDue, coachGate });
     res.json({ directive, level: snapshot.level, hireReady: snapshot.hireReady, hireNote: snapshot.hireNote });
   } catch (err) {
     console.error('[brain] error:', err.message);

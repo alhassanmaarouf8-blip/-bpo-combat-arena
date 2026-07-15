@@ -683,6 +683,8 @@ export class RealtimeClient {
       targetIndustry: opts.targetIndustry || null,   // Ziel-Stelle: industry-first scenario + boss framing
       jobContext: opts.jobContext || null,   // vacancy-v1: server-owned enum snapshot; never raw ad text
       revanche: opts.revanche || null,
+      forcedScenarioId: opts.forcedScenarioId || null,
+      excludedScenarioIds: Array.isArray(opts.excludedScenarioIds) ? opts.excludedScenarioIds : [],
     });
 
     // Persona forcefulness → an interview-style block in the system prompt + a patience value the client

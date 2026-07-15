@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { hireReadinessFor, textFeatures } from './hireReadiness.js';
 import { CS_SCENARIOS } from './scenarios.js';
 import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
+import { speakingMeasurementForSkill } from './scoring/speakingMeasurement.js';
 import {
   buildOpportunity,
   emptyMissionControlState,
@@ -299,30 +300,52 @@ test('Mission Control target checks fail closed for mismatches, stale evidence, 
 
 test('high criterion confidence requires a validated recent transfer proof', () => {
   const now = 1_800_000_000_000;
-  const session = { date: now - 1000, wpm: 120, words: 120, fillers: 2,
+  const session = (sessionId, date, intelligibility, scenarioId) => ({ sessionId, date, bossId: 'yasmin',
+    targetRoleType: 'customer_service', scenarioId, wpm: 120, words: 120, fillers: 2,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
-    giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
-    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true } };
+    giveUpRate: 0.1, intelligibility, latencyS: 2,
+    evidenceQuality: { version: 1, words: 120, prescriptionEligible: true, highConfidence: true } });
+  const sessions = [session('baseline-session', now - 3 * 24 * 60 * 60 * 1000, 0.4, 'customer-general-a'),
+    session('matched-session', now - 2 * 24 * 60 * 60 * 1000, 0.65, 'customer-general-a'),
+    session('transfer-session', now - 1000, 0.62, 'customer-general-b')];
+  const profile = { sessions };
+  const baseline = speakingMeasurementForSkill(profile, 'pronunciation-phone', { sessionId: 'baseline-session' });
+  const matched = speakingMeasurementForSkill(profile, 'pronunciation-phone', { sessionId: 'matched-session' });
+  const final = speakingMeasurementForSkill(profile, 'pronunciation-phone', { sessionId: 'transfer-session' });
+  const matchedProof = { id: 'aaaaaaaaaaaaaaaa', prescriptionId: '2222222222222222',
+    measurementEvidenceId: matched.evidenceId, retestSessionId: matched.sourceSessionId,
+    baselineSessionId: baseline.sourceSessionId, baselineMeasurementEvidenceId: baseline.evidenceId,
+    comparedValue: baseline.value, comparedMeasurementEvidenceId: baseline.evidenceId,
+    comparedRetestSessionId: baseline.sourceSessionId,
+    contextId: matched.contextId, noveltyId: matched.noveltyId,
+    comparedContextId: baseline.contextId, comparedNoveltyId: baseline.noveltyId,
+    skillId: 'pronunciation-phone', metricKey: 'intelligibility_score', phase: 'matched', status: 'improved',
+    before: baseline.value, after: matched.value, measuredAt: matched.measuredAt, verifiedAt: matched.measuredAt + 500 };
   const transfer = { id: '1111111111111111', prescriptionId: '2222222222222222',
-    measurementEvidenceId: '333333333333', retestSessionId: 'transfer-session',
-    contextId: '444444444444', noveltyId: '555555555555',
-    comparedContextId: '666666666666', comparedNoveltyId: '777777777777',
+    measurementEvidenceId: final.evidenceId, retestSessionId: final.sourceSessionId,
+    baselineSessionId: baseline.sourceSessionId, baselineMeasurementEvidenceId: baseline.evidenceId,
+    comparedValue: matched.value, comparedMeasurementEvidenceId: matched.evidenceId,
+    comparedRetestSessionId: matched.sourceSessionId, comparedProofId: matchedProof.id,
+    contextId: final.contextId, noveltyId: final.noveltyId,
+    comparedContextId: matched.contextId, comparedNoveltyId: matched.noveltyId,
     skillId: 'pronunciation-phone', metricKey: 'intelligibility_score', phase: 'transfer', status: 'improved',
-    before: 60, after: 70, verifiedAt: now - 500 };
-  const result = hireReadinessFor({ sessions: [session], salmaCoach: { coachState: { improvementHistory: [transfer] } } }, now);
+    before: baseline.value, after: final.value, measuredAt: final.measuredAt, verifiedAt: now - 500 };
+  const history = [matchedProof, transfer];
+  const result = hireReadinessFor({ sessions, salmaCoach: { coachState: { improvementHistory: history } } }, now);
   assert.equal(result.interviewRisk.confidence, 'high');
   assert.equal(result.rejectionForecast.confidence, 'high');
-  const expired = hireReadinessFor({ sessions: [session], salmaCoach: { coachState: {
-    improvementHistory: [{ ...transfer, verifiedAt: now - 91 * 24 * 60 * 60 * 1000 }] } } }, now);
+  const expired = hireReadinessFor({ sessions, salmaCoach: { coachState: {
+    improvementHistory: [matchedProof, { ...transfer, verifiedAt: now - 91 * 24 * 60 * 60 * 1000 }] } } }, now);
   assert.equal(expired.interviewRisk.confidence, 'medium');
-  const targetedSession = { ...session, vacancyTargetId: 'vacancy_now' };
-  const targeted = hireReadinessFor({ sessions: [targetedSession], vacancyTarget: { active: { id: 'vacancy_now' } },
-    salmaCoach: { coachState: { improvementHistory: [transfer] } } }, now);
+  const targetedSessions = sessions.map((row, index) => index === sessions.length - 1
+    ? { ...row, vacancyTargetId: 'vacancy_now' } : row);
+  const targeted = hireReadinessFor({ sessions: targetedSessions, vacancyTarget: { active: { id: 'vacancy_now' } },
+    salmaCoach: { coachState: { improvementHistory: history } } }, now);
   assert.equal(targeted.rejectionForecast.target.current, true);
   assert.equal(targeted.rejectionForecast.confidence, 'medium',
   'a generic transfer proof cannot elevate an exact vacancy forecast without a target binding');
-  const repeatedContext = hireReadinessFor({ sessions: [session], salmaCoach: { coachState: {
-    improvementHistory: [{ ...transfer, noveltyId: transfer.comparedNoveltyId }] } } }, now);
+  const repeatedContext = hireReadinessFor({ sessions, salmaCoach: { coachState: {
+    improvementHistory: [matchedProof, { ...transfer, noveltyId: transfer.comparedNoveltyId }] } } }, now);
   assert.equal(repeatedContext.interviewRisk.confidence, 'medium',
     'a repeated roleplay identity cannot elevate criterion confidence');
 });

@@ -5994,7 +5994,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     step:typeof p.step === 'string' ? p.step : 'today',
                     ...(typeof p.opportunityId === 'string' ? { opportunityId:p.opportunityId } : {}),
                   }));
-                  else if (p.action === 'apply') beginSession();  // job-ready → keep sharp with a real interview
+                  else if (p.action === 'apply') setMissionOpenRequest((current) => ({
+                    id:(current?.id || 0) + 1, step:'shortlist',
+                  }));
                 }} />
               )}
 

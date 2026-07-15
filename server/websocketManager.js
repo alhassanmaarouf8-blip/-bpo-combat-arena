@@ -537,6 +537,10 @@ export class WebSocketManager {
       if (salmaCoachFlags(process.env, account).enabled) {
         improvementRetest = salmaRetestTarget(prof.salmaCoach, prof);
       }
+      if (improvementRetest?.context?.bossId
+        && BOSS_LADDER.some((boss) => boss.id === improvementRetest.context.bossId)) {
+        bossId = improvementRetest.context.bossId;
+      }
       // A completed prescribed block earns an unseen, skill-matched retest. Otherwise preserve the
       // legacy recurring-grammar dossier exactly. The curated dossier contains no learner text.
       dossier = improvementRetest?.dossier || topWeakRule(prof);
@@ -566,7 +570,7 @@ export class WebSocketManager {
 
     // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
     // can be tested directly (otherwise the boss is gated by level). Validated against the ladder.
-    if (msg.bossId && BOSS_LADDER.some(b => b.id === msg.bossId)) {
+    if (!improvementRetest && msg.bossId && BOSS_LADDER.some(b => b.id === msg.bossId)) {
       bossId = msg.bossId;
       console.log(`[wsManager] boss-picker override → ${bossId}  session=${ctx.sessionId}`);
     }
@@ -620,15 +624,24 @@ export class WebSocketManager {
     // Ziel-Stelle (Elite/trial): the stored target account type steers the roleplay scenario pick
     // + the boss framing. Entitlement-gated HERE (single enforcement point) — a free user with a
     // stored preference simply gets the normal global rotation, never an error.
-    const vacancySnapshot = missionControlVacancyLiveContext(prof, account)
+    const liveVacancySnapshot = missionControlVacancyLiveContext(prof, account)
       || vacancyLiveContext(prof, account);
+    const retestContext = improvementRetest?.context || null;
+    const vacancySnapshot = retestContext?.targetId ? {
+      targetId: retestContext.targetId,
+      roleType: retestContext.roleType,
+      industryKey: retestContext.industryKey,
+      germanLevel: 'unspecified',
+      skillIds: [],
+      questionTopicIds: [],
+    } : retestContext ? null : liveVacancySnapshot;
     ctx.vacancySnapshot = vacancySnapshot;
     const legacyTargetIndustry = entitlement(account).zielStelle ? (prof?.targetIndustry || null) : null;
-    const targetIndustry = vacancySnapshot?.industryKey || legacyTargetIndustry;
+    const targetIndustry = retestContext?.industryKey || vacancySnapshot?.industryKey || legacyTargetIndustry;
     // Snapshot only bounded target IDs. The eventual forecast must describe the exact simulation
     // the evidence came from, never whichever target happens to be active days later.
     ctx.targetIndustry = targetIndustry || null;
-    ctx.targetRoleType = vacancySnapshot?.roleType || 'customer_service';
+    ctx.targetRoleType = retestContext?.roleType || vacancySnapshot?.roleType || 'customer_service';
     if (vacancySnapshot) console.log(`[vacancy-target] fight snapshot  user=${ctx.userId}  target=${vacancySnapshot.targetId}`);
     else if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
@@ -658,8 +671,12 @@ export class WebSocketManager {
         candidateName,
         recent,
         targetIndustry,
-        jobContext: vacancySnapshot,
+        jobContext: retestContext && !vacancySnapshot && retestContext.roleType !== 'customer_service'
+          ? { roleType: retestContext.roleType, germanLevel: 'unspecified', skillIds: [], questionTopicIds: [] }
+          : vacancySnapshot,
         revanche,
+        forcedScenarioId: retestContext?.forcedScenarioId || null,
+        excludedScenarioIds: retestContext?.excludedScenarioIds || [],
         allowElevenVoice: ELEVEN_VOICE_ACCOUNT_IDS.has(account.id),
         // Boss turns are plain text (no audio). Send the full line, then mark it done.
         // Also RECORD it: the debrief needs the interviewer's question paired with the answer

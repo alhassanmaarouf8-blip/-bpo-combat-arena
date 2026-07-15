@@ -511,6 +511,12 @@ export function scenarioSupportsRole(scenarioId, roleType) {
   return TARGET_ROLE_SCENARIOS[roleType].some((scenario) => scenario.id === scenarioId);
 }
 
+function scenarioForRole(scenarioId, roleType) {
+  if (!scenarioSupportsRole(scenarioId, roleType)) return null;
+  if (roleType === 'customer_service') return CS_SCENARIOS.find((scenario) => scenario.id === scenarioId) || null;
+  return TARGET_ROLE_SCENARIOS[roleType].find((scenario) => scenario.id === scenarioId) || null;
+}
+
 // ── The winning behavior the roleplay rewards ───────────────────────────────────
 export const CS_RUBRIC =
   `Belohne dieses Verhalten und gib langsam nach, wenn der Kandidat es zeigt: zuerst ECHTE EMPATHIE, ` +
@@ -687,7 +693,15 @@ export const INDUSTRIES = {
 // 2) then unseen from the global pool (variety beats repetition once the industry is exhausted),
 // 3) only when EVERYTHING is seen, cycle — inside the target industry again.
 // No target (or unknown key) ⇒ byte-identical behavior to the old global pickFresh.
-export function pickCsScenario(recentCs, targetIndustry = null) {
+export function pickCsScenario(recentCs, targetIndustry = null, excludedScenarioIds = []) {
+  const excluded = new Set(Array.isArray(excludedScenarioIds) ? excludedScenarioIds : []);
+  if (excluded.size) {
+    const available = CS_SCENARIOS.filter((scenario) => !excluded.has(scenario.id));
+    const industryPool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+      ? available.filter((scenario) => scenario.industry === targetIndustry) : [];
+    const pool = industryPool.length ? industryPool : available;
+    return pickFresh(pool, recentCs, (scenario) => scenario.id);
+  }
   // hasOwn guard (defense in depth vs. already-stored prototype keys): an inherited key would
   // filter to an empty pool anyway, but keep the contract explicit — unknown key ⇒ global pick.
   const pool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
@@ -700,18 +714,20 @@ export function pickCsScenario(recentCs, targetIndustry = null) {
 }
 
 /** Vacancy-only role-first selection. Unknown/customer-service roles preserve the legacy picker. */
-export function pickTargetRoleScenario(recentCs, targetIndustry = null, targetRoleType = null) {
+export function pickTargetRoleScenario(recentCs, targetIndustry = null, targetRoleType = null, excludedScenarioIds = []) {
   if (!targetRoleType || targetRoleType === 'customer_service' || !Object.hasOwn(TARGET_ROLE_SCENARIOS, targetRoleType)) {
-    return pickCsScenario(recentCs, targetIndustry);
+    return pickCsScenario(recentCs, targetIndustry, excludedScenarioIds);
   }
-  const rolePool = TARGET_ROLE_SCENARIOS[targetRoleType];
+  const excluded = new Set(Array.isArray(excludedScenarioIds) ? excludedScenarioIds : []);
+  const rolePool = TARGET_ROLE_SCENARIOS[targetRoleType].filter((scenario) => !excluded.has(scenario.id));
   const validIndustry = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry);
   const industryPool = validIndustry
     ? rolePool.filter((scenario) => scenario.industry === targetIndustry) : [];
   const genericPool = rolePool.filter((scenario) => scenario.industry === undefined);
   // A vacancy with no role+industry case gets a generic case for that role, never a different
   // industry's facts. Exact-industry exhaustion cycles inside that industry for the same reason.
-  const preferred = industryPool.length ? industryPool : genericPool;
+  const preferred = industryPool.length ? industryPool : genericPool.length ? genericPool
+    : excluded.size ? rolePool : genericPool;
   if (!preferred.length) return pickCsScenario(recentCs, null);
   return pickFresh(preferred, recentCs, (scenario) => scenario.id);
 }
@@ -889,7 +905,7 @@ Bleibe in dieser Rolle und reagiere auf das, was der Kandidat tats\u00e4chlich s
 ${pressure}`;
 }
 
-export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null }) {
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null, forcedScenarioId = null, excludedScenarioIds = [] }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -899,9 +915,13 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   const scrPick    = pickFresh(BPO_SCREENING_QUESTIONS, recent.screening, (x) => x);
   const targetRoleType = jobContext && typeof jobContext === 'object'
     && Object.hasOwn(VACANCY_ROLE_LABELS, jobContext.roleType) ? jobContext.roleType : null;
-  const csPick     = targetRoleType
-    ? pickTargetRoleScenario(recent.cs, targetIndustry, targetRoleType)
-    : pickCsScenario(recent.cs, targetIndustry);   // no vacancy context: legacy industry/global rotation
+  const forcedScenario = typeof forcedScenarioId === 'string'
+    ? scenarioForRole(forcedScenarioId, targetRoleType || 'customer_service') : null;
+  const csPick     = forcedScenario
+    ? { item: forcedScenario, id: forcedScenario.id, reset: false }
+    : targetRoleType
+      ? pickTargetRoleScenario(recent.cs, targetIndustry, targetRoleType, excludedScenarioIds)
+      : pickCsScenario(recent.cs, targetIndustry, excludedScenarioIds);   // no vacancy context: legacy industry/global rotation
   const behavioral = behPick.item;
   const screening  = scrPick.item;
   const cs         = csPick.item;

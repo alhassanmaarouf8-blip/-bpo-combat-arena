@@ -68,6 +68,48 @@ test('engine: entry tier cleared → APPLY (stop drilling, start placing)', () =
   assert.equal(d.prescription.action, 'apply');
 });
 
+test('engine: one tutor action stays internally consistent across practice, wait and retest', () => {
+  const base = { sessionCount: 2, masteredSkills: ['self-intro', 'praesens-perfekt', 'core-vocab', 'listen-clear', 'no-freeze-expected'],
+    verifiedMasteredSkills: [], limitingSkill: 'fluency', limitingCriterionId: 'sustained_pace',
+    limitingEvidenceCount: 2, unmeasuredGates: [],
+    recentDrillEvents: [{ drill: 'flow-drill', ruleId: null }] };
+  const practice = decide({ ...base, coachGate: { skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    status: 'practice', action: 'drill', phase: 'practice', nextEligibleAt: null } });
+  assert.equal(practice.state, 'POST_FIGHT');
+  assert.equal(practice.prescription.action, 'drill');
+
+  const nextEligibleAt = 1_800_000_000_000;
+  const wait = decide({ ...base, coachGate: { skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    status: 'wait', action: 'wait', phase: 'matched', nextEligibleAt } });
+  assert.equal(wait.state, 'RETEST_WAIT');
+  assert.deepEqual(wait.prescription, { action: 'wait', skillId: 'fluency-interrupt', phase: 'matched', nextEligibleAt });
+
+  const ready = decide({ ...base, coachGate: { skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    status: 'retest', action: 'interview', phase: 'matched', nextEligibleAt } });
+  assert.equal(ready.state, 'READY');
+  assert.equal(ready.prescription.action, 'interview');
+});
+
+test('engine: legacy matching prep produces a proof interview action, never a drill contradiction', () => {
+  const result = decide({ sessionCount: 2, masteredSkills: ['self-intro', 'praesens-perfekt', 'core-vocab', 'listen-clear', 'no-freeze-expected'],
+    verifiedMasteredSkills: [], limitingSkill: 'fluency', limitingCriterionId: 'sustained_pace',
+    unmeasuredGates: [], prepDone: true, recentDrillEvents: [{ drill: 'flow-drill', ruleId: null }] });
+  assert.equal(result.state, 'READY');
+  assert.equal(result.prescription.action, 'interview');
+});
+
+test('engine: an active verified tutor cycle remains the one target when a provisional forecast shifts', () => {
+  const result = decide({ sessionCount: 3, masteredSkills: [], verifiedMasteredSkills: [],
+    limitingSkill: 'grammar', limitingCriterionId: 'grammar_control', unmeasuredGates: [],
+    coachGate: { skillId: 'fluency-interrupt', drillId: 'flow-drill', status: 'wait', action: 'wait',
+      phase: 'matched', nextEligibleAt: 1_800_000_000_000 } });
+  assert.equal(result.state, 'RETEST_WAIT');
+  assert.equal(result.target.skillId, 'fluency-interrupt');
+  assert.equal(result.prescription.action, 'wait');
+  const hostile = decide({ sessionCount: 3, coachGate: { skillId: '__proto__', status: 'wait', action: 'wait' } });
+  assert.notEqual(hostile.state, 'RETEST_WAIT');
+});
+
 test('engine: provisional legacy mastery can guide navigation but never authorizes APPLY', () => {
   const entryAndBelow = SKILLS.filter((s) => s.tier !== 'premium').map((s) => s.id);
   const d = decide({ sessionCount: 5, masteredSkills: entryAndBelow, verifiedMasteredSkills: [] });

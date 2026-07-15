@@ -5,8 +5,12 @@ export async function reportDrillEvent({ apiUrl, token, event }) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(event) });
     const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.coachCue) return null;
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('omni:salma-coach-cue', { detail: { drill: event.drill, cue: body.coachCue } }));
+    if (!response.ok) return null;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('omni:coach-state-changed', { detail: { source: 'drill', drill: event.drill } }));
+      if (body.coachCue) window.dispatchEvent(new CustomEvent('omni:salma-coach-cue', { detail: { drill: event.drill, cue: body.coachCue } }));
+    }
+    if (!body.coachCue) return null;
     return body.coachCue;
   } catch { return null; }
 }

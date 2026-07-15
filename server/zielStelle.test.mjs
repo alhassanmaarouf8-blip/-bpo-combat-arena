@@ -164,6 +164,33 @@ test('missing role-industry coverage uses a generic same-role case, never anothe
   }
 });
 
+test('matched retest can lock the exact server-known scenario without changing generic rotation', () => {
+  const forced = CS_SCENARIOS[0];
+  const script = buildSessionScript({
+    persona: 'Du bist eine strenge Interviewerin.', displayName: 'Test', greeting: 'Guten Tag.',
+    levelId: 'b2', recent: { cs: [forced.id] }, sessionSeed: 'matched-lock',
+    forcedScenarioId: forced.id,
+  });
+  assert.equal(script.picks.cs.id, forced.id);
+  assert.equal(script.csScenario.id, forced.id);
+});
+
+test('transfer retest excludes the baseline scenario inside every supported role', () => {
+  const customerBaseline = CS_SCENARIOS[0].id;
+  for (let index = 0; index < 20; index += 1) {
+    assert.notEqual(pickCsScenario([], null, [customerBaseline]).id, customerBaseline);
+  }
+  for (const [roleType, pool] of Object.entries(TARGET_ROLE_SCENARIOS)) {
+    assert.ok(pool.length >= 2, `${roleType} requires a genuinely novel transfer scenario`);
+    const baseline = pool[0].id;
+    for (let index = 0; index < 20; index += 1) {
+      const pick = pickTargetRoleScenario([], pool[0].industry || null, roleType, [baseline]);
+      assert.equal(pick.item.roleType, roleType);
+      assert.notEqual(pick.id, baseline);
+    }
+  }
+});
+
 test('retention excludes post-cancellation billing and generic technical support has usable facts', () => {
   assert.equal(TARGET_ROLE_SCENARIOS.retention.some((scenario) => scenario.id === 'streaming-abbuchung'), false);
   const genericTechnical = TARGET_ROLE_SCENARIOS.technical_support.find((scenario) => scenario.industry === undefined);

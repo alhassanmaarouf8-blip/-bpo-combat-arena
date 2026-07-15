@@ -98,6 +98,7 @@ export function decide(snapshot = {}) {
     limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
+    coachGate = null,
     vacancyDue = null,
     missionDue = null,
   } = snapshot;
@@ -177,7 +178,9 @@ export function decide(snapshot = {}) {
       prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, journey, aha, measure: unmeasuredGates };
   }
 
-  const target = pickTarget(fr, limitingSkill, weakLog, limitingCriterionId);
+  const coachSkillId = typeof coachGate?.skillId === 'string' && Object.hasOwn(SKILL_BY_ID, coachGate.skillId)
+    && ['practice', 'wait', 'retest'].includes(coachGate.status) ? coachGate.skillId : null;
+  const target = coachSkillId ? SKILL_BY_ID[coachSkillId] : pickTarget(fr, limitingSkill, weakLog, limitingCriterionId);
   // Confidence: only assert "your weakness" if the targeted rule has ≥2 sessions of evidence.
   const targetEvidence = target && weakLog?.[target.id]?.errCounts?.length || 0;
   const confidence = Math.max(targetEvidence, Math.max(0, Number(limitingEvidenceCount) || 0)) >= 2 ? 'high' : 'low';
@@ -187,7 +190,28 @@ export function decide(snapshot = {}) {
   // (most drills report only their kind, no ruleId). An unrelated rep — shadowing for a dative
   // target — no longer flips READY. Older snapshots without recentDrillEvents keep the legacy
   // loose prepDone behavior.
-  const prepMatched = !target || recentDrillEvents == null
+  const matchingCoachGate = target && coachSkillId === target.id ? coachGate : null;
+  if (matchingCoachGate?.status === 'wait') {
+    return {
+      state: 'RETEST_WAIT', confidence, tier, journey, aha,
+      target: { skillId: target.id, layer: target.layer, ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) },
+      prescription: { action: 'wait', skillId: target.id, phase: matchingCoachGate.phase,
+        nextEligibleAt: matchingCoachGate.nextEligibleAt },
+      measure: [],
+    };
+  }
+  if (matchingCoachGate?.status === 'retest') {
+    return {
+      state: matchingCoachGate.action === 'interview' ? 'READY' : 'RETEST_READY',
+      confidence, tier, journey, aha,
+      target: { skillId: target.id, layer: target.layer, ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) },
+      prescription: matchingCoachGate.action === 'interview'
+        ? { action: 'interview', skillId: target.id, phase: matchingCoachGate.phase }
+        : { action: 'drill', drill: matchingCoachGate.drillId, skillId: target.id, phase: matchingCoachGate.phase },
+      measure: [],
+    };
+  }
+  const prepMatched = matchingCoachGate?.status === 'practice' ? false : !target || recentDrillEvents == null
     ? prepDone
     : recentDrillEvents.some((e) => (e.ruleId && e.ruleId === target.id) || (e.drill && e.drill === target.drill));
 
@@ -196,9 +220,14 @@ export function decide(snapshot = {}) {
     : prepMatched        ? 'READY'        // did the prep (on target) → earn the targeted rematch
     : 'POST_FIGHT';                        // fresh debrief → here's the prescription
 
+  const targetShape = target ? { skillId: target.id, layer: target.layer, ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : null;
+  if (state === 'READY') {
+    return { state, confidence, tier, journey, aha, target: targetShape,
+      prescription: { action: 'interview', ...(target ? { skillId: target.id } : {}) }, measure: [] };
+  }
   return {
     state, confidence, tier, journey, aha,
-    target: target ? { skillId: target.id, layer: target.layer, ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : null,
+    target: targetShape,
     prescription: target ? { action: 'drill', drill: target.drill, skillId: target.id,
       ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : { action: 'interview' },
     measure: [],

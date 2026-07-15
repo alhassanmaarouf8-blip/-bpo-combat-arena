@@ -81,6 +81,10 @@ function whyLine(d) {
     }
     case 'READY':
       return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: die Interviewerin kennt deine Akte und testet genau diese Stelle erneut. Erst wenn sie im Interview hält, gilt sie als gelöst.`;
+    case 'RETEST_READY':
+      return `Der verzögerte Hörvergleich${label ? ` für ${label}` : ''} ist jetzt fällig. Nur neue servergeprüfte Aufgaben zählen als Nachweis.`;
+    case 'RETEST_WAIT':
+      return `Dein vollständiger Trainingsblock${label ? ` für ${label}` : ''} ist erledigt. BrainGuide wartet bewusst bis zum gültigen Retest-Zeitpunkt, damit Übung und Nachweis nicht verwechselt werden.`;
     case 'APPLY':
       return 'Du hast die internen Einstiegskriterien der Simulation erfüllt. Bewirb dich jetzt, damit echte Rückmeldungen die nächsten Lücken zeigen.';
     case 'MISSION_CONTROL':
@@ -115,6 +119,7 @@ const LADDER = [
 
 export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
+  const [coachRevision, setCoachRevision] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const speechStopRef = useRef(null);
   const speechRunRef = useRef(0);
@@ -166,7 +171,12 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
       } catch { /* fail silent — the guide simply doesn't render */ }
     })();
     return () => { alive = false; stopSpeaking(); };
-  }, [token, apiUrl, refreshKey, stopSpeaking]);
+  }, [token, apiUrl, refreshKey, coachRevision, stopSpeaking]);
+  useEffect(() => {
+    const refresh = () => setCoachRevision((value) => value + 1);
+    window.addEventListener('omni:coach-state-changed', refresh);
+    return () => window.removeEventListener('omni:coach-state-changed', refresh);
+  }, []);
 
   if (!data?.directive) return null;
   const d = data.directive;
@@ -181,6 +191,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
     : d.prescription?.action === 'assessment' ? `${BRAIN_COPY.startCta} · EINSTUFUNG`
     : d.prescription?.action === 'measure'    ? BRAIN_COPY.measure
     : d.prescription?.action === 'apply'      ? BRAIN_COPY.apply
+    : d.prescription?.action === 'wait'       ? 'RETEST-ZEITFENSTER ABWARTEN'
     : d.prescription?.action === 'vacancy'    ? `ZIEL-STELLE · ${d.prescription.title || 'HEUTIGER SCHRITT'}`
     : d.prescription?.action === 'mission'    ? `BEWERBUNG · ${({
       passport:'PASS PRÜFEN', measure:'BEREITSCHAFT MESSEN', prep:'VORBEREITEN', shortlist:'PASSENDE STELLEN',
@@ -274,7 +285,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
         </div>
       )}
 
-      <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="home" />
+      <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="home" refreshKey={refreshKey + coachRevision} />
 
       {/* Her pipeline — the interviewer org ladder as her bookings. Filled = passed rungs
           (level-derived, server-decided), ring = the current appointment, dim = still locked. */}
@@ -315,7 +326,7 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
 
       {/* Hand the WHY to the destination too, so the prescribed drill opens carrying the same
           honest reason (the drill renders it as its why-you bar). */}
-      {!(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
+      {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
         <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
       )}
     </div>

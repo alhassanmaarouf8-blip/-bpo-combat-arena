@@ -9,6 +9,11 @@ const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, curs
   color: '#bfdbfe', fontSize: 12.5, fontWeight: 650 };
 
 function auth(token, extra = {}) { return { Authorization: `Bearer ${token}`, ...extra }; }
+function formatCairoRetest(value) {
+  if (!Number.isFinite(Number(value))) return 'dem angezeigten Zeitpunkt';
+  return new Intl.DateTimeFormat('de-DE', { timeZone: 'Africa/Cairo', dateStyle: 'medium', timeStyle: 'short' })
+    .format(new Date(Number(value)));
+}
 
 const RISK_LABELS = Object.freeze({
   fluency: 'Antwortfluss unter Zeitdruck',
@@ -42,7 +47,7 @@ export function useSalmaDrillSession(token, drillId) {
   return sessionRef.current;
 }
 
-export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null, drillSession = null }) {
+export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null, drillSession = null, refreshKey = 0 }) {
   const [coach, setCoach] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -73,7 +78,12 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
     } catch { /* fail closed: the legacy BrainGuide remains intact */ }
   }, [apiUrl, token]);
 
-  useEffect(() => { loadCoach(); return stopSpeech; }, [loadCoach, stopSpeech]);
+  useEffect(() => { loadCoach(); return stopSpeech; }, [loadCoach, refreshKey, stopSpeech]);
+  useEffect(() => {
+    const refresh = () => loadCoach();
+    window.addEventListener('omni:coach-state-changed', refresh);
+    return () => window.removeEventListener('omni:coach-state-changed', refresh);
+  }, [loadCoach]);
   useEffect(() => stopTutorWhenDocumentHidden(), []);
   useEffect(() => { if (initialCue?.text) setCue(initialCue); }, [initialCue]);
   useEffect(() => {
@@ -230,20 +240,21 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
       </div>}
       {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
         <strong style={{ color: '#e2e8f0' }}>Hörnachweis: </strong>
-        {listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine Ausgangsmessung.'}
-        {listeningRetest.phase === 'matched' && <>Ausgangsmessung gespeichert. Der Vergleichstest zählt frühestens am{' '}
-          {new Date(listeningRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
-        {listeningRetest.phase === 'transfer' && <>Vergleichstest gespeichert. Der Test mit neuem Material zählt frühestens am{' '}
-          {new Date(listeningRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
-        {listeningRetest.phase === 'complete' && 'Der verzögerte Vergleichs- und Transfernachweis ist vollständig.'}
-        {listeningRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Übung vorher hilft, gilt aber nicht als Retest.</span>}
+        {listeningRetest.trainingComplete === false && 'Dein persönlicher Trainingsblock läuft noch. Erst nach mindestens vier richtigen Antworten in den letzten fünf Aufgaben beginnt die Retest-Wartezeit.'}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine Ausgangsmessung.'}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'matched' && <>Ausgangsmessung und Trainingsblock sind abgeschlossen. Der Vergleichstest zählt frühestens am{' '}
+          {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'transfer' && <>Vergleichstest gespeichert. Der Test mit neuem Material zählt frühestens am{' '}
+          {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'complete' && 'Der verzögerte Vergleichs- und Transfernachweis ist vollständig.'}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Übung vorher hilft, gilt aber nicht als Retest.</span>}
       </div>}
       {speakingRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
         <strong style={{ color: '#e2e8f0' }}>Sprechnachweis: </strong>
         {speakingRetest.phase === 'matched' && <>Der passende Vergleichstest zählt frühestens am{' '}
-          {new Date(speakingRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
+          {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
         {speakingRetest.phase === 'transfer' && <>Der Test in einer neuen Situation zählt frühestens am{' '}
-          {new Date(speakingRetest.nextEligibleAt).toLocaleDateString('de-DE')}.</>}
+          {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
         {speakingRetest.phase === 'complete' && (speakingRetest.transfer
           ? 'Vergleichs- und Transfernachweis sind vollständig.'
           : 'Der Vergleichstest zeigte noch keine übertragbare Verbesserung; BrainGuide passt das Training an.')}
