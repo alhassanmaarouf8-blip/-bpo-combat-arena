@@ -12,8 +12,9 @@
  */
 import express from 'express';
 import { adminRequestOk } from './adminAuth.js';
-import { loadUser, saveUser } from './store.js';
+import { loadUser, mutateUser, saveUser } from './store.js';
 import { requireAuth, listAllAccounts } from './auth.js';
+import { captureOutcomeForecast, outcomeCalibrationSummary, recordCalibratedOutcome } from './outcomeCalibration.js';
 
 export const placementRouter = express.Router();
 
@@ -53,24 +54,32 @@ placementRouter.post('/api/placement', requireAuth, async (req, res) => {
     const { status, employer, role, note } = req.body || {};
     if (!STATUSES.includes(status)) return res.status(400).json({ error: 'bad_status' });
 
-    const p = await loadUser(req.account.id);
-    const pl = p.placement || defaultPlacement();
-    pl.status    = status;
-    pl.employer  = String(employer || pl.employer || '').slice(0, 120);
-    pl.role      = String(role     || pl.role     || '').slice(0, 120);
-    pl.updatedAt = Date.now();
-    pl.lastPromptedAt = Date.now();   // an update counts as a prompt → resets the weekly nudge
-    pl.history = [
-      ...(pl.history || []),
-      { at: Date.now(), status, employer: pl.employer, role: pl.role, note: String(note || '').slice(0, 280) },
-    ].slice(-50);   // keep the audit trail bounded
-    p.placement = pl;
-    await saveUser(p);
+    const now = Date.now();
+    const result = await mutateUser(req.account.id, (p) => {
+      const pl = p.placement || defaultPlacement();
+      // Freeze the diagnostic before the real interview happens. A later outcome can then evaluate
+      // the app's prior forecast without using hindsight or pretending rejection proves causality.
+      if (status === 'interviewing') captureOutcomeForecast(p, { now });
+      pl.status    = status;
+      pl.employer  = String(employer || pl.employer || '').slice(0, 120);
+      pl.role      = String(role     || pl.role     || '').slice(0, 120);
+      pl.updatedAt = now;
+      pl.lastPromptedAt = now;   // an update counts as a prompt → resets the weekly nudge
+      pl.history = [
+        ...(pl.history || []),
+        { at: now, status, employer: pl.employer, role: pl.role, note: String(note || '').slice(0, 280) },
+      ].slice(-50);   // keep the audit trail bounded
+      p.placement = pl;
+      if (status === 'offer' || status === 'hired' || status === 'not_hired') {
+        recordCalibratedOutcome(p, status, { now });
+      }
+      return { value: { placement: pl } };
+    });
 
     if (status === 'hired') {
-      console.log(`[placement] 🎯 HIRE reported  user=${req.account.id}  employer=${pl.employer || '?'}  role=${pl.role || '?'}`);
+      console.log(`[placement] 🎯 HIRE reported  user=${req.account.id}  employer=${result.placement.employer || '?'}  role=${result.placement.role || '?'}`);
     }
-    res.json({ ok: true, placement: pl });
+    res.json({ ok: true, placement: result.placement });
   } catch (err) {
     console.error('[placement] post error:', err.message);
     res.status(500).json({ error: 'placement_failed' });
@@ -108,6 +117,15 @@ placementRouter.get('/admin/placements', async (req, res) => {
     const accounts = await listAllAccounts();
     const funnel = { none: 0, applying: 0, interviewing: 0, offer: 0, hired: 0, not_hired: 0 };
     const hires = [];
+    const calibration = {
+      linkedOutcomes: 0,
+      riskNotBlocking: 0,
+      rejectionConsistentCauseUnknown: 0,
+      noRiskPositive: 0,
+      missedRejectionSignals: 0,
+      insufficientPreInterviewEvidence: 0,
+      unlinkedTerminalOutcomes: 0,
+    };
 
     await Promise.all(accounts.map(async (acct) => {
       try {
@@ -117,6 +135,9 @@ placementRouter.get('/admin/placements', async (req, res) => {
         if (pl.status === 'hired') {
           hires.push({ masked: maskEmail(acct.email), employer: pl.employer || '?', role: pl.role || '?', at: pl.updatedAt });
         }
+        const learnerCalibration = outcomeCalibrationSummary(p);
+        for (const key of Object.keys(learnerCalibration)) calibration[key] += learnerCalibration[key];
+        if (TERMINAL.has(pl.status) && learnerCalibration.linkedOutcomes === 0) calibration.unlinkedTerminalOutcomes += 1;
       } catch { /* skip unreadable profile */ }
     }));
 
@@ -128,6 +149,7 @@ placementRouter.get('/admin/placements', async (req, res) => {
       activeJobSeekers: active,
       hired: funnel.hired,
       hires,
+      calibration,
     });
   } catch (err) {
     console.error('[placement] admin rollup error:', err.message);

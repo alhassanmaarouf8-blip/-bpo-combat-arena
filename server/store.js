@@ -53,6 +53,9 @@ export function defaultProfile(userId) {
     // history is the audit trail; lastPromptedAt throttles the "any job news?" nudge to weekly.
     listeningAttempts: [], // bounded server-issued evidence; never raw answers, prompts, or audio
     placement: { status: 'none', employer: '', role: '', updatedAt: null, history: [], lastPromptedAt: null },
+    // Frozen pre-interview simulation forecasts linked to later real outcomes. This state stores
+    // bounded metrics and enums only—never transcripts, audio, recruiter text, or causal claims.
+    outcomeCalibration: { version: 1, activeForecast: null, records: [] },
     targetIndustry: null,  // Ziel-Stelle: INDUSTRIES key (scenarios.js) the candidate is applying for, or null
     // Vacancy Target v1: one bounded draft + one active target. Only derived,
     // allowlisted facts live here; source text and source URLs are never persisted.
