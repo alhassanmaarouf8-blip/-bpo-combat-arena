@@ -10,7 +10,7 @@ import { analyzeVacancyDeterministically, buildVacancyDraft, emptyVacancyState,
   preparePastedVacancy } from './vacancyTargetCore.js';
 import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
   canonicalCoachDirective, deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
-  publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
+  prescriptionDoseProgress, publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
   salmaCoachBrainGate, salmaRetestTarget, safeIntervention, syncSalmaCoach, updatePreferences } from './salmaCoachCore.js';
 
 function account(plan = 'free') {
@@ -46,6 +46,35 @@ function recoveryFields(date) {
     'turnCount', 'wordCount'].map((key) => [key, evidence[key]]));
   return { sessionId: context.sessionId, targetRoleType: context.roleType, scenarioId: context.scenarioId,
     deescalation: evidence.score, deescalationEvidence: stored };
+}
+function setPassingRecoveryEvidence(session) {
+  const context = { sessionId: session.sessionId, targetId: session.vacancyTargetId ?? null,
+    roleType: session.targetRoleType, scenarioId: session.scenarioId, observedAt: session.date };
+  const evidence = serviceRecoveryEvidence([
+    'Das tut mir wirklich leid, und ich kann Ihren \u00c4rger gut nachvollziehen.',
+    'Ich k\u00fcmmere mich pers\u00f6nlich um Ihren Fall und dokumentiere ihn jetzt sorgf\u00e4ltig.',
+    'Ich melde mich heute mit einer konkreten L\u00f6sung bei Ihnen.',
+  ], context);
+  const stored = Object.fromEntries(['version', 'criterionId', 'criterionVersion', 'binding', 'roleType',
+    'scenarioId', 'targetId', 'sessionId', 'observedAt', 'contradicted', 'observedSteps', 'totalSteps',
+    'turnCount', 'wordCount'].map((key) => [key, evidence[key]]));
+  session.deescalation = evidence.score;
+  session.deescalationEvidence = stored;
+  return session;
+}
+function setCompleteResponseEvidence(session, giveUpRate) {
+  setPassingRecoveryEvidence(session);
+  session.wpm = 110;
+  session.fluency = 90;
+  session.fillers = 1;
+  session.grammarMeasured = true;
+  session.grammarRules = [];
+  session.subClauseRate = 0.3;
+  session.vocabDiversity = 0.6;
+  session.intelligibility = 0.9;
+  session.latencyS = 2;
+  session.giveUpRate = giveUpRate;
+  return session;
 }
 function measuredProfile(sessionCount = 1) {
   const p = defaultProfile('acct-1');
@@ -151,18 +180,80 @@ test('a one-session signal is prescribed as a hypothesis, never spoken as a conf
 
 test('the same reliable risk across two sessions earns a spaced second block and high-evidence wording', () => {
   const p = measuredProfile(2);
-  // The forecast selects sustained pace for this archetype. Both v2 packets must therefore
-  // contain the same observable deficit (<90 wpm); a generic low fluency label is not evidence.
-  for (const session of p.sessions) session.wpm = 80;
+  for (const session of p.sessions) setCompleteResponseEvidence(session, 0.5);
   const now = 1_700_000_010_000;
   const { directive, prescription } = deriveSalmaPrescription(p, { now, dailyMinutes: 20 });
   assert.equal(directive.confidence, 'high', JSON.stringify(directive));
+  assert.equal(directive.target?.criterionId, 'complete_response');
+  assert.equal(prescription.skillId, 'no-freeze-expected');
   assert.equal(prescription.evidenceConfidence, 'high');
   assert.equal(prescription.blocks, 2);
   assert.equal(prescription.timesPerDay, 2);
   assert.equal(prescription.nextEligibleAt, now + prescription.minimumSpacingMinutes * 60_000);
   assert.match(safeIntervention(normalizeSalmaCoachState({ activePrescription: prescription })).text,
     /wiederholter zuverlässiger Evidenz/u);
+});
+
+test('a deficit from another interview archetype cannot increase the current personalized dose', () => {
+  const p = measuredProfile(2);
+  for (const session of p.sessions) setCompleteResponseEvidence(session, 0.5);
+  p.sessions[0].scenarioId = 'foreign-archetype';
+  const result = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  assert.equal(result.directive.target?.criterionId, 'complete_response');
+  assert.equal(result.directive.confidence, 'low');
+  assert.equal(result.prescription?.blocks, 1);
+  assert.deepEqual(result.prescription?.evidenceIds,
+    [measurementForSkill(p, 'no-freeze-expected', { sessionId: p.sessions[1].sessionId }).evidenceId]);
+});
+
+test('a same-archetype passing observation vetoes the second daily dose and is excluded from evidence', () => {
+  const p = measuredProfile(3);
+  setCompleteResponseEvidence(p.sessions[0], 0.5);
+  setCompleteResponseEvidence(p.sessions[1], 0);
+  setCompleteResponseEvidence(p.sessions[2], 0.5);
+  const result = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  const supportIds = [p.sessions[0], p.sessions[2]]
+    .map((session) => measurementForSkill(p, 'no-freeze-expected', { sessionId: session.sessionId }).evidenceId);
+  const passingId = measurementForSkill(p, 'no-freeze-expected', { sessionId: p.sessions[1].sessionId }).evidenceId;
+  assert.equal(result.directive.confidence, 'low');
+  assert.equal(result.prescription?.blocks, 1);
+  assert.deepEqual(result.prescription?.evidenceIds, supportIds);
+  assert.equal(result.prescription?.evidenceIds.includes(passingId), false);
+});
+
+test('a speaking-intelligibility signal cannot be prescribed as a listening improvement', () => {
+  const p = measuredProfile(2);
+  for (const session of p.sessions) {
+    setPassingRecoveryEvidence(session);
+    session.wpm = 100;
+    session.intelligibility = 0.7;
+  }
+  const result = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  assert.equal(result.directive.target?.criterionId, 'speech_recognition_proxy');
+  assert.equal(result.directive.prescription?.skillId, 'listen-phone');
+  assert.equal(result.prescription, null, 'speaking intelligibility cannot borrow a listening baseline');
+});
+
+test('a criterion cannot claim improvement through a different skill proxy', () => {
+  const p = measuredProfile(2);
+  for (const session of p.sessions) {
+    session.wpm = 100;
+    session.intelligibility = 0.9;
+    session.latencyS = 7;
+    session.giveUpRate = 0;
+  }
+  const latency = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  assert.equal(latency.directive.target?.criterionId, 'response_latency');
+  assert.equal(latency.prescription, null, 'latency cannot be measured as answer-continuity improvement');
+
+  for (const session of p.sessions) {
+    session.latencyS = 2;
+    session.fillers = 20;
+    session.fluency = 95;
+  }
+  const fillers = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
+  assert.equal(fillers.directive.target?.criterionId, 'filler_dependence');
+  assert.equal(fillers.prescription, null, 'filler dependence cannot be measured as generic fluency improvement');
 });
 
 test('a broad grammar forecast prescribes only the exact rule supported by the current reliable archetype', () => {
@@ -206,6 +297,51 @@ test('a broad grammar deficit with no exact-rule deficit fails closed instead of
   const result = deriveSalmaPrescription(p, { now: 1_800_000_001_000, dailyMinutes: 20 });
   assert.equal(result.directive.target, null);
   assert.equal(result.prescription, null);
+});
+
+test('unrelated or stale Spoken Review cards cannot complete an exact grammar prescription', () => {
+  const assignedAt = 1_800_000_000_000;
+  let state = normalizeSalmaCoachState(null);
+  state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'konjunktiv-2',
+    drillId: 'sag-es-richtig', blocks: 1, repetitions: 8, durationSeconds: 600, timesPerDay: 1,
+    minimumSpacingMinutes: 240, successGate: 'Zweimal korrekt.', assignedAt, nextEligibleAt: null };
+  const event = (skillId, verifiedAt) => ({ drill: 'sag-es-richtig', correct: true, verified: true,
+    verifiedAt, prescriptionId: state.activePrescription.id, skillId, phase: 'practice',
+    taskHash: 'abcdefabcdefabcd' });
+
+  state = recordDrillOutcome(state, { drill: 'sag-es-richtig', correct: true }, assignedAt + 1);
+  state = recordDrillOutcome(state, event('konjunktiv-2', assignedAt - 1), assignedAt + 2);
+  for (let index = 0; index < 8; index += 1) {
+    state = recordDrillOutcome(state, event('dativ-akkusativ', assignedAt + 10 + index), assignedAt + 10 + index);
+  }
+  assert.equal(state.coachState.completedBlocks[state.activePrescription.id], undefined);
+  for (let index = 0; index < 8; index += 1) {
+    state = recordDrillOutcome(state, event('konjunktiv-2', assignedAt + 100 + index), assignedAt + 100 + index);
+  }
+  assert.equal(state.coachState.completedBlocks[state.activePrescription.id], 1);
+});
+
+test('a failed Spoken Review card must itself receive two later correct productions', () => {
+  const assignedAt = 1_800_000_000_000;
+  let state = normalizeSalmaCoachState(null);
+  state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'konjunktiv-2',
+    drillId: 'sag-es-richtig', blocks: 1, repetitions: 2, durationSeconds: 600, timesPerDay: 1,
+    minimumSpacingMinutes: 240, successGate: 'Zweimal korrekt.', assignedAt, nextEligibleAt: null };
+  const event = (taskHash, correct, at) => ({ drill: 'sag-es-richtig', correct, verified: true,
+    verifiedAt: at, prescriptionId: state.activePrescription.id, skillId: 'konjunktiv-2', phase: 'practice', taskHash });
+  state = recordDrillOutcome(state, event('aaaaaaaaaaaaaaaa', false, assignedAt + 1), assignedAt + 1);
+  for (let index = 0; index < 4; index += 1) {
+    const at = assignedAt + 10 + index;
+    state = recordDrillOutcome(state, event('bbbbbbbbbbbbbbbb', true, at), at);
+  }
+  assert.equal(prescriptionDoseProgress(state).completed, false);
+  assert.equal(prescriptionDoseProgress(state).repairsRemaining, 2);
+  for (let index = 0; index < 2; index += 1) {
+    const at = assignedAt + 100 + index;
+    state = recordDrillOutcome(state, event('aaaaaaaaaaaaaaaa', true, at), at);
+  }
+  assert.equal(prescriptionDoseProgress(state).completed, true);
+  assert.equal(prescriptionDoseProgress(state).repairsRemaining, 0);
 });
 
 test('two-block dosing models each block separately and consumes duplicate or early events without credit', () => {

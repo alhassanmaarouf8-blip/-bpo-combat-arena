@@ -76,37 +76,45 @@ export function forecastCriterionObservation(session, criterionId) {
  */
 export function forecastEvidenceSummary(profile, criterionId, referenceSession, now = Date.now()) {
   const referenceBinding = referenceSession ? archetypeBinding(referenceSession) : null;
+  const referenceSessionId = boundedString(referenceSession?.sessionId, 100);
   const referenceObservation = referenceSession
     ? forecastCriterionObservation(referenceSession, criterionId) : null;
-  if (!criterionId || !referenceBinding || !referenceObservation) {
+  if (!criterionId || !referenceBinding || !referenceSessionId || !referenceObservation) {
     return Object.freeze({ confidence: 'insufficient', supportCount: 0, conflictCount: 0,
-      referenceDeficit: false, expiresAt: null });
+      referenceDeficit: false, expiresAt: null, supportSessionIds: Object.freeze([]) });
   }
 
-  let supportCount = 0;
-  let conflictCount = 0;
-  let latestSupportAt = 0;
+  const observations = new Map();
   for (const session of reliableSpeakingSessions(profile)) {
     const observedAt = Number(session?.date) || 0;
+    const sessionId = boundedString(session?.sessionId, 100);
     const age = now - observedAt;
-    if (observedAt <= 0 || age < 0 || age > FORECAST_EVIDENCE_FRESHNESS_MS
+    if (!sessionId || observedAt <= 0 || age < 0 || age > FORECAST_EVIDENCE_FRESHNESS_MS
       || archetypeBinding(session) !== referenceBinding) continue;
     const observation = forecastCriterionObservation(session, criterionId);
     if (!observation) continue;
-    if (observation.deficit) {
-      supportCount += 1;
-      latestSupportAt = Math.max(latestSupportAt, observedAt);
-    } else {
-      conflictCount += 1;
-    }
+    if (observations.has(sessionId)) observations.set(sessionId, null);
+    else observations.set(sessionId, { sessionId, observedAt, deficit: observation.deficit === true });
   }
+  if (!observations.has(referenceSessionId) || observations.get(referenceSessionId) === null) {
+    return Object.freeze({ confidence: 'insufficient', supportCount: 0, conflictCount: 0,
+      referenceDeficit: false, expiresAt: null, supportSessionIds: Object.freeze([]) });
+  }
+  const uniqueRows = [...observations.values()].filter(Boolean);
+  const supports = uniqueRows.filter((row) => row.deficit);
+  let supportCount = supports.length;
+  let conflictCount = uniqueRows.filter((row) => !row.deficit).length;
+  const latestSupportAt = supports.reduce((latest, row) => Math.max(latest, row.observedAt), 0);
   supportCount = Math.min(MAX_PUBLIC_COUNT, supportCount);
   conflictCount = Math.min(MAX_PUBLIC_COUNT, conflictCount);
   const referenceDeficit = referenceObservation.deficit === true;
   const confidence = referenceDeficit && supportCount >= 2 && conflictCount === 0
     ? 'high' : referenceDeficit && supportCount >= 1 ? 'medium' : 'insufficient';
+  const supportSessionIds = supports.sort((a, b) => a.observedAt - b.observedAt)
+    .slice(-2).map((row) => row.sessionId);
   return Object.freeze({ confidence, supportCount, conflictCount, referenceDeficit,
-    expiresAt: latestSupportAt ? latestSupportAt + FORECAST_EVIDENCE_FRESHNESS_MS : null });
+    expiresAt: latestSupportAt ? latestSupportAt + FORECAST_EVIDENCE_FRESHNESS_MS : null,
+    supportSessionIds: Object.freeze(supportSessionIds) });
 }
 
 function grammarRuleObservation(session, ruleId) {
@@ -126,9 +134,10 @@ function grammarRuleObservation(session, ruleId) {
  */
 export function forecastGrammarRuleSummary(profile, referenceSession, now = Date.now()) {
   const referenceBinding = referenceSession ? archetypeBinding(referenceSession) : null;
+  const referenceSessionId = boundedString(referenceSession?.sessionId, 100);
   const broadReference = referenceSession
     ? forecastCriterionObservation(referenceSession, 'grammar_control') : null;
-  if (!referenceBinding || broadReference?.deficit !== true) {
+  if (!referenceBinding || !referenceSessionId || broadReference?.deficit !== true) {
     return Object.freeze({ ruleId: null, supportCount: 0, conflictCount: 0, supportSessionIds: [] });
   }
 
@@ -143,18 +152,28 @@ export function forecastGrammarRuleSummary(profile, referenceSession, now = Date
     return Object.freeze({ ruleId: null, supportCount: 0, conflictCount: 0, supportSessionIds: [] });
   }
 
+  const uniqueSessions = new Map();
   for (const session of reliableSpeakingSessions(profile)) {
     const observedAt = Number(session?.date) || 0;
+    const sessionId = boundedString(session?.sessionId, 100);
     const age = now - observedAt;
-    if (observedAt <= 0 || age < 0 || age > FORECAST_EVIDENCE_FRESHNESS_MS
+    if (!sessionId || observedAt <= 0 || age < 0 || age > FORECAST_EVIDENCE_FRESHNESS_MS
       || archetypeBinding(session) !== referenceBinding) continue;
+    if (uniqueSessions.has(sessionId)) uniqueSessions.set(sessionId, null);
+    else uniqueSessions.set(sessionId, { session, sessionId, observedAt });
+  }
+  if (!uniqueSessions.has(referenceSessionId) || uniqueSessions.get(referenceSessionId) === null) {
+    return Object.freeze({ ruleId: null, supportCount: 0, conflictCount: 0, supportSessionIds: [] });
+  }
+  for (const row of uniqueSessions.values()) {
+    if (!row) continue;
+    const { session, sessionId, observedAt } = row;
     for (const candidate of candidates) {
       const observation = grammarRuleObservation(session, candidate.ruleId);
       if (!observation) continue;
       if (observation.deficit) {
         candidate.supportCount += 1;
-        const sessionId = boundedString(session?.sessionId, 100);
-        if (sessionId) candidate.supports.push({ sessionId, observedAt });
+        candidate.supports.push({ sessionId, observedAt });
       } else {
         candidate.conflictCount += 1;
       }

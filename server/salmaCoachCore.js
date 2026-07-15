@@ -19,6 +19,14 @@ const LANGUAGES = new Set(['de']);
 const DRILLS = new Set(['satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs']);
 const CRITERION_IDS = new Set(['sustained_pace', 'grammar_control', 'speech_recognition_proxy', SERVICE_RECOVERY_CRITERION_ID,
   'complete_response', 'response_latency', 'filler_dependence', 'connected_answer_structure', 'lexical_range_proxy']);
+// These criterion-to-skill pairs share one exact observable metric. Other criteria may still guide
+// a conservative BrainGuide drill, but cannot create a personalized dose or later claim improvement
+// through a different proxy metric.
+const EXACT_CRITERION_SKILLS = Object.freeze({
+  speech_recognition_proxy: 'pronunciation-phone',
+  [SERVICE_RECOVERY_CRITERION_ID]: 'deescalate',
+  complete_response: 'no-freeze-expected',
+});
 const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
 const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 const PROTOCOLS = Object.freeze({
@@ -342,6 +350,13 @@ export function canonicalCoachDirective(profile, account, { now = Date.now(), co
 
 function normalizeBlockProgress(value, index) {
   const row = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const repairDebt = row.repairDebt && typeof row.repairDebt === 'object' && !Array.isArray(row.repairDebt)
+    ? Object.fromEntries(Object.entries(row.repairDebt)
+      .filter(([taskHash, debt]) => /^[a-f0-9]{16}$/u.test(taskHash) && debt && typeof debt === 'object')
+      .slice(-16).map(([taskHash, debt]) => [taskHash, {
+        remaining: Math.max(0, Math.min(2, Number(debt.remaining) || 0)),
+        lastAt: Number(debt.lastAt) || null,
+      }]).filter(([, debt]) => debt.remaining > 0)) : {};
   return {
     index,
     attempts: Math.max(0, Math.min(100, Number(row.attempts) || 0)),
@@ -353,6 +368,7 @@ function normalizeBlockProgress(value, index) {
     completedAt: Number(row.completedAt) || null,
     eventIds: Array.isArray(row.eventIds)
       ? [...new Set(row.eventIds.filter((id) => /^[a-f0-9]{16}$/u.test(id)))].slice(-100) : [],
+    repairDebt,
   };
 }
 
@@ -456,6 +472,7 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   const drillId = directive?.prescription?.action === 'drill' ? directive.prescription.drill : null;
   const skillId = directive?.prescription?.skillId || directive?.target?.skillId || '';
   if (!DRILLS.has(drillId) || !skillId || snapshot.sessionCount < 1) return { directive, prescription: null };
+  const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId) ? directive.prescription.criterionId : null;
   const exactGrammarForecast = snapshot.limitingCriterionId === 'grammar_control'
     && snapshot.limitingGrammarRuleId === skillId;
   const grammarMeasurements = exactGrammarForecast
@@ -465,24 +482,41 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
       .filter((measurement) => measurement?.value > 8)
     : [];
   if (exactGrammarForecast && !grammarMeasurements.length) return { directive, prescription: null };
+  const exactCriterionForecast = criterionId && criterionId !== 'grammar_control'
+    && skillId !== 'listen-clear' && skillId !== 'listen-phone';
+  if (exactCriterionForecast && EXACT_CRITERION_SKILLS[criterionId] !== skillId) {
+    return { directive, prescription: null };
+  }
+  const criterionMeasurements = exactCriterionForecast
+    ? (Array.isArray(snapshot.limitingEvidenceSessionIds) ? snapshot.limitingEvidenceSessionIds : [])
+      .map((sessionId) => measurementForSkill(profile, skillId, { sessionId }))
+      .filter(Boolean)
+    : [];
+  if (exactCriterionForecast && !criterionMeasurements.length) return { directive, prescription: null };
   const protocol = PROTOCOLS[drillId];
   const occurrences = exactGrammarForecast
-    ? Math.min(2, Math.max(0, Number(snapshot.limitingGrammarEvidenceCount) || 0))
+    ? Math.min(2, grammarMeasurements.length)
+    : exactCriterionForecast
+      ? Math.min(2, criterionMeasurements.length)
     : evidenceOccurrences(profile, skillId, now);
   const listeningRows = skillId === 'listen-clear' || skillId === 'listen-phone' ? listeningEvidence(profile, skillId) : [];
   const listeningCycle = drillId === 'hoer-check' ? listeningBaselineSnapshot(profile, skillId) : null;
   if (drillId === 'hoer-check' && !listeningCycle) return { directive, prescription: null };
   const durationSeconds = Math.min(protocol.durationSeconds, Math.max(300, [5, 10, 20].includes(Number(dailyMinutes)) ? Number(dailyMinutes) * 60 : 600));
-  const blocks = occurrences >= 2 && Number(dailyMinutes) >= 20 ? 2 : 1;
+  const conflictCount = exactGrammarForecast
+    ? Number(snapshot.limitingGrammarEvidenceConflictCount) || 0
+    : exactCriterionForecast ? Number(snapshot.limitingEvidenceConflictCount) || 0 : 0;
+  const blocks = occurrences >= 2 && conflictCount === 0 && Number(dailyMinutes) >= 20 ? 2 : 1;
   const evidenceIds = listeningCycle?.baselineEvidenceIds || (listeningRows.length
     ? listeningRows.slice(-5).map((row) => hash(row.attemptId, 12))
     : grammarMeasurements.length ? grammarMeasurements.map((measurement) => measurement.evidenceId)
+    : criterionMeasurements.length ? criterionMeasurements.map((measurement) => measurement.evidenceId)
     : sessionEvidenceIds(profile, skillId, now));
   if (!evidenceIds.length) return { directive, prescription: null };
-  const baseline = listeningCycle?.baseline || grammarMeasurements.at(-1) || measurementForSkill(profile, skillId);
+  const baseline = listeningCycle?.baseline || grammarMeasurements.at(-1)
+    || criterionMeasurements.at(-1) || measurementForSkill(profile, skillId);
   if (!baseline) return { directive, prescription: null };
-  const evidenceConfidence = directive.confidence === 'high' ? 'high' : 'low';
-  const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId) ? directive.prescription.criterionId : null;
+  const evidenceConfidence = directive.confidence === 'high' && occurrences >= 2 && conflictCount === 0 ? 'high' : 'low';
   const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds,
     minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate, evidenceConfidence, criterionId,
     listeningCycle: listeningCycle ? { version: listeningCycle.version, challengeKey: listeningCycle.challengeKey,
@@ -527,6 +561,7 @@ export function syncSalmaCoach(profile, { now = Date.now() } = {}) {
 function drillEventIdentity(prescription, event, blockIndex, now) {
   if (/^[a-f0-9]{16}$/u.test(event?.eventId || '')) return event.eventId;
   return hash({ prescriptionId: prescription.id, blockIndex, drill: event?.drill,
+    taskHash: /^[a-f0-9]{16}$/u.test(event?.taskHash || '') ? event.taskHash : null,
     correct: event?.correct === true ? true : event?.correct === false ? false : null,
     froze: event?.froze === true, completedSet: event?.completedSet === true,
     at: Number(event?.at) || now }, 16);
@@ -541,6 +576,13 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
   const next = normalizeSalmaCoachState(state); const p = next.activePrescription;
   const completedSet = event?.completedSet === true && p?.drillId === 'flow-drill';
   if (!p || event?.drill !== p.drillId || (event.correct !== true && event.correct !== false && event.froze !== true && !completedSet)) return next;
+  // Spoken Review contains many unrelated vocabulary and grammar cards under one drill name. Only
+  // a server-graded card for the exact active prescription may advance its dose; drill-name equality
+  // alone would let unrelated practice manufacture completion.
+  if (p.drillId === 'sag-es-richtig' && (event?.verified !== true
+    || event?.prescriptionId !== p.id || event?.skillId !== p.skillId || event?.phase !== 'practice'
+    || !/^[a-f0-9]{16}$/u.test(event?.taskHash || '')
+    || !Number.isFinite(event?.verifiedAt) || event.verifiedAt < p.assignedAt || event.verifiedAt > now + 5_000)) return next;
   if (p.drillId === 'hoer-check' && (event?.prescriptionId !== p.id || event?.skillId !== p.skillId
     || event?.phase !== 'practice')) return next;
   const requiredBlocks = p.blocks;
@@ -569,6 +611,15 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
   current.attempts += credit;
   current.correct += failed ? 0 : credit;
   current.failures += failed ? 1 : 0;
+  if (p.drillId === 'sag-es-richtig') {
+    const taskHash = event.taskHash;
+    if (failed) current.repairDebt[taskHash] = { remaining: 2, lastAt: now };
+    else if (current.repairDebt[taskHash]?.remaining > 0) {
+      const remaining = current.repairDebt[taskHash].remaining - 1;
+      if (remaining > 0) current.repairDebt[taskHash] = { remaining, lastAt: now };
+      else delete current.repairDebt[taskHash];
+    }
+  }
   current.recentOutcomes = p.drillId === 'hoer-check'
     ? [...current.recentOutcomes, !failed].slice(-p.repetitions) : current.recentOutcomes;
   current.lastAt = now;
@@ -576,7 +627,8 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
   const requiredCorrect = Math.min(24, p.repetitions + current.failures * 2);
   const listeningBlockPassed = p.drillId === 'hoer-check' && current.recentOutcomes.length === p.repetitions
     && current.recentOutcomes.filter(Boolean).length >= 4;
-  if (listeningBlockPassed || (p.drillId !== 'hoer-check' && current.correct >= requiredCorrect)) {
+  const repairsCleared = p.drillId !== 'sag-es-richtig' || Object.keys(current.repairDebt).length === 0;
+  if (listeningBlockPassed || (p.drillId !== 'hoer-check' && current.correct >= requiredCorrect && repairsCleared)) {
     current.completedAt ||= now;
     next.coachState.completedBlocks[p.id] = blockIndex + 1;
     p.nextEligibleAt = blockIndex + 1 < requiredBlocks
@@ -588,6 +640,30 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
   }
   next.coachState.repeatedErrorCounts[p.id] = aggregateBlockProgress(row.blockProgress, requiredBlocks);
   return next;
+}
+
+export function prescriptionDoseProgress(state) {
+  const normalized = normalizeSalmaCoachState(state);
+  const prescription = normalized.activePrescription;
+  if (!prescription) return null;
+  const completedBlocks = normalized.coachState.completedBlocks[prescription.id] || 0;
+  const row = normalized.coachState.repeatedErrorCounts[prescription.id];
+  const block = row?.blockProgress?.[Math.min(completedBlocks, prescription.blocks - 1)] || null;
+  const requiredCorrect = Math.min(24, prescription.repetitions + (block?.failures || 0) * 2);
+  return {
+    prescriptionId: prescription.id,
+    skillId: prescription.skillId,
+    drillId: prescription.drillId,
+    completed: completedBlocks >= prescription.blocks,
+    completedBlocks,
+    blocks: prescription.blocks,
+    correct: block?.correct || 0,
+    requiredCorrect,
+    remainingRepetitions: completedBlocks >= prescription.blocks
+      ? 0 : Math.max(0, requiredCorrect - (block?.correct || 0)),
+    repairsRemaining: block ? Object.values(block.repairDebt || {})
+      .reduce((sum, debt) => sum + (Number(debt.remaining) || 0), 0) : 0,
+  };
 }
 
 export function recordMeaningfulRetest(state, profile, { sessionId, skillId, phase, now = Date.now() } = {}) {

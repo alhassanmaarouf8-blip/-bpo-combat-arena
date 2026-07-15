@@ -126,7 +126,9 @@ function safeAttempt(row) {
     correct: row.correct,
     plays: Math.max(1, Math.min(2, Number(row.plays) || 1)),
     playbackRate: Math.max(0.5, Math.min(2, Number(row.playbackRate) || 1)),
-    responseLatencyMs: Number.isFinite(Number(row.responseLatencyMs))
+    // Browser playback-end is not server-observable. Keep legacy history visible, but never expose
+    // or use a v2 client acknowledgement as authoritative response-latency evidence.
+    responseLatencyMs: evidenceVersion === EVIDENCE_VERSION ? null : Number.isFinite(Number(row.responseLatencyMs))
       ? Math.max(0, Math.min(10 * 60 * 1000, Number(row.responseLatencyMs))) : null,
     evidenceVersion, accountBinding, prescriptionId, packetId, packetIndex, phase, challengeKey, levelKey, baseRate,
     eligibleAt,
@@ -299,7 +301,7 @@ export function commitListeningGrade(profile, itemId, { correct, now = Date.now(
     correct,
     plays: item.playCount,
     playbackRate: item.playbackRate,
-    responseLatencyMs: now - completedAt,
+    responseLatencyMs: Number(item.evidenceVersion) === EVIDENCE_VERSION ? null : now - completedAt,
     evidenceVersion: item.evidenceVersion,
     accountBinding: item.accountBinding,
     prescriptionId: item.prescriptionId,
@@ -343,8 +345,8 @@ export function resolveListeningMedia(profile, itemId, playNumber, now = Date.no
 }
 
 /**
- * Persist only an opaque, bounded receipt that the exact active play's one-use media ticket reached
- * the audio route. No source text, URL, ticket, audio, or response body is stored.
+ * Persist only an opaque, bounded receipt after the exact active play's complete media response
+ * finishes successfully. No source text, URL, ticket, audio, or response body is stored.
  */
 export function markListeningMediaDelivered(profile, {
   itemId, playNumber, playInstanceId, now = Date.now(),
@@ -552,7 +554,7 @@ function safeArchivedSummary(value, skillId) {
   const measuredAt = finiteTime(value.measuredAt);
   if (accuracy === null || firstPlayAccuracy === null || replayRate === null || !measuredAt) return null;
   return { skillId, sampleSize: PACKET_SIZE, accuracy, firstPlayAccuracy, replayRate,
-    medianLatencyMs: Number.isFinite(Number(value.medianLatencyMs)) ? Math.max(0, Number(value.medianLatencyMs)) : null,
+    medianLatencyMs: null,
     measuredAt, evidenceIds: [] };
 }
 

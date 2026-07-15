@@ -464,6 +464,34 @@ async function persistListeningDelivery(media) {
   }));
 }
 
+/**
+ * A redeemed ticket proves only that the media request started. Listening evidence may be unlocked
+ * only after the exact HTTP response finished successfully. `finish` is deliberately used instead
+ * of `close`: an aborted or truncated stream must never mint a completed-media receipt. The caller
+ * arms the receipt only after it owns the complete source payload; an upstream failure that ends an
+ * already-started response therefore remains ineligible.
+ */
+function armListeningDeliveryReceipt(media, res) {
+  const state = { armed: false, cancelled: false };
+  if (!media?.listeningDelivery) return {
+    arm() {}, cancel() {}, get cancelled() { return false; },
+  };
+  res.once('close', () => {
+    if (!res.writableFinished) state.cancelled = true;
+  });
+  res.once('finish', () => {
+    if (!state.armed || state.cancelled) return;
+    persistListeningDelivery(media).catch((error) => {
+      console.error(`[listening-media] completion receipt failed user=${media.userId}: ${error?.message || error}`);
+    });
+  });
+  return {
+    arm() { if (!state.cancelled) state.armed = true; },
+    cancel() { state.cancelled = true; state.armed = false; },
+    get cancelled() { return state.cancelled; },
+  };
+}
+
 // ── GET /api/tts-stream — Deepgram Aura-2 STREAMING boss voice (the DEFAULT, free) ─────────────────
 // Measured: Aura emits its first audio bytes ~350ms after the request, but the whole clip takes up to
 // ~6s to fully synthesize for a long line. The buffered POST /api/tts waits for the WHOLE clip before
@@ -487,6 +515,7 @@ router.get('/tts-stream', async (req, res) => {
 
   const text = media.text;
   const voice = media.voice;
+  const listeningReceipt = armListeningDeliveryReceipt(media, res);
 
   const key = process.env.DEEPGRAM_API_KEY;
   if (!key) return res.status(503).json({ error: 'tts_unavailable' });   // client → buffered fallback
@@ -496,12 +525,9 @@ router.get('/tts-stream', async (req, res) => {
   const ck = _cacheKey('aura-stream:' + voice, text);
   const hit = ttsCacheGet(ck);
   if (hit) {
-    try { await persistListeningDelivery(media); }
-    catch (error) {
-      return res.status(error.status || 409).json({ error: error.code || 'listening_media_not_authorized' });
-    }
     console.log(`[cost] tts-stream cache=HIT voice=${voice} chars=${text.length}`);
     res.set('Content-Type', (voice === SALMA_MASRI_VOICE || voice === SALMA_DE_VOICE) ? 'audio/wav' : 'audio/mpeg');
+    listeningReceipt.arm();
     return res.send(hit);
   }
   console.log(`[cost] tts-stream cache=MISS voice=${voice} chars=${text.length}`);
@@ -514,9 +540,11 @@ router.get('/tts-stream', async (req, res) => {
     try {
       const wav = await (voice === SALMA_MASRI_VOICE ? geminiMasriTTS(text) : geminiGermanTTS(text));
       res.set('Content-Type', 'audio/wav');
+      listeningReceipt.arm();
       res.send(wav);
       ttsCachePut(ck, wav);
     } catch (err) {
+      listeningReceipt.cancel();
       console.error(`[tts-stream] gemini masri failed user=${account.id}: ${err.message}`);
       if (!res.headersSent) res.status(502).json({ error: 'tts_failed' });
     }
@@ -542,26 +570,24 @@ router.get('/tts-stream', async (req, res) => {
       console.error(`[tts-stream] Deepgram ${r.status}: ${String(body).slice(0, 200)}`);
       return res.status(502).json({ error: 'tts_failed' });
     }
-    try { await persistListeningDelivery(media); }
-    catch (error) {
-      clearTimeout(abortTimer);
-      try { await r.body.cancel(); } catch {}
-      return res.status(error.status || 409).json({ error: error.code || 'listening_media_not_authorized' });
-    }
     res.set('Content-Type', 'audio/mpeg');
     const chunks = [];
     const reader = r.body.getReader();
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (listeningReceipt.cancelled || res.destroyed) throw new Error('listening media response aborted');
       const buf = Buffer.from(value);
       chunks.push(buf);
       res.write(buf);
     }
+    if (listeningReceipt.cancelled || res.destroyed) throw new Error('listening media response aborted');
     clearTimeout(abortTimer);
+    listeningReceipt.arm();
     res.end();
     ttsCachePut(ck, Buffer.concat(chunks));
   } catch (err) {
+    listeningReceipt.cancel();
     clearTimeout(abortTimer);
     console.error(`[tts-stream] failed user=${account.id}: ${err.message}`);
     if (!res.headersSent) return res.status(502).json({ error: 'tts_failed' });

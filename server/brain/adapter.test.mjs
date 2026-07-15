@@ -151,7 +151,7 @@ test('adapter: recentDrillEvents carry drill kind + rule identity, only post-fig
 });
 
 test('adapter: criterion confidence counts only reliable sessions that measured that exact signal', () => {
-  const reliable = (date, wpm, overrides = {}) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+  const reliable = (date, wpm, overrides = {}) => ({ sessionId: `criterion-${date}`, date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
     grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1,
     intelligibility: 0.9, latencyS: 2, targetRoleType: 'technical_support', targetIndustry: 'telecom',
     scenarioId: 'billing-dispute', bossId: 'yasmin',
@@ -165,7 +165,7 @@ test('adapter: criterion confidence counts only reliable sessions that measured 
 });
 
 test('adapter: a passing session does not impersonate repeated evidence for a later pace deficit', () => {
-  const reliable = (date, wpm) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+  const reliable = (date, wpm) => ({ sessionId: `passing-${date}`, date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
     grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, deescalation: 0.8, giveUpRate: 0.1,
     intelligibility: 0.9, latencyS: 2, targetRoleType: 'technical_support', targetIndustry: 'telecom',
     scenarioId: 'billing-dispute', bossId: 'yasmin',
@@ -177,7 +177,7 @@ test('adapter: a passing session does not impersonate repeated evidence for a la
 });
 
 test('adapter: a same-window pass vetoes high confidence even when two exact deficits exist', () => {
-  const reliable = (date, wpm) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+  const reliable = (date, wpm) => ({ sessionId: `conflict-${date}`, date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
     grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, giveUpRate: 0.1,
     intelligibility: 0.9, latencyS: 2, targetRoleType: 'technical_support', targetIndustry: 'telecom',
     scenarioId: 'billing-dispute', bossId: 'yasmin',
@@ -191,7 +191,7 @@ test('adapter: a same-window pass vetoes high confidence even when two exact def
 });
 
 test('adapter: deficits from a different interview archetype cannot raise criterion confidence', () => {
-  const reliable = (date, scenarioId) => ({ date, wpm: 60, fluency: 45, fillers: 2, words: 120,
+  const reliable = (date, scenarioId) => ({ sessionId: `archetype-${date}`, date, wpm: 60, fluency: 45, fillers: 2, words: 120,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
     deescalation: 0.8, giveUpRate: 0.1, intelligibility: 0.9, latencyS: 2,
     targetRoleType: 'technical_support', targetIndustry: 'telecom', scenarioId, bossId: 'yasmin',
@@ -205,7 +205,7 @@ test('adapter: deficits from a different interview archetype cannot raise criter
 });
 
 test('adapter: v1 deficits cannot authorize v2 forecast confidence after migration', () => {
-  const reliable = (date, wpm, version) => ({ date, wpm, fluency: 45, fillers: 2, words: 120,
+  const reliable = (date, wpm, version) => ({ sessionId: `migration-${date}-${version}`, date, wpm, fluency: 45, fillers: 2, words: 120,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
     deescalation: 0.8, giveUpRate: 0.1, intelligibility: 0.9, latencyS: 2,
     targetRoleType: 'technical_support', targetIndustry: 'telecom', scenarioId: 'billing-dispute', bossId: 'yasmin',

@@ -22,12 +22,57 @@ import { loadUser, saveUser }  from './store.js';
 import { dueItems, grade, normalize } from './srs.js';
 import { voicedDurationMs }            from './audioGuard.js';
 import { classifyGrammar }             from './errorTags.js';
-import { coachCueForDrill, recordDrillOutcome, salmaCoachEventId, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
+import { coachCueForDrill, prescriptionDoseProgress, recordDrillOutcome, salmaCoachEventId,
+  salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
 
 export const spokenReviewRouter = express.Router();
 
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 const STT_MODEL = process.env.GROQ_TRANSCRIBE_MODEL || 'whisper-large-v3';
+
+function canonicalSkillForItem(item) {
+  if (item?.type !== 'grammar' || !item.content) return null;
+  return classifyGrammar([{ rule: item.content, count: 1 }])[0] ?? null;
+}
+
+function publicSpokenItem(item, prescribed = false) {
+  const grammar = item.type === 'grammar';
+  return { id: item.id, type: item.type, prescribed,
+    rule: grammar ? item.content : '',
+    prompt: grammar ? 'Sag den Satz KORREKT laut.' : (item.prompt || ''),
+    wrong: grammar ? (item.example?.wrong || '') : '' };
+}
+
+export function targetedSpokenReviewQueue(profile, coachState, accountId) {
+  const active = coachState?.activePrescription?.drillId === 'sag-es-richtig'
+    ? coachState.activePrescription : null;
+  if (!active) return null;
+  // Once a dose starts, its exact cards remain available until the dose is complete even when
+  // the first correct production advances or masters the separate long-term SRS schedule.
+  const matching = (profile?.srs || []).filter((item) => canonicalSkillForItem(item) === active.skillId)
+    .sort((a, b) => (a.due || 0) - (b.due || 0));
+  const progress = prescriptionDoseProgress(coachState);
+  if (!matching.length) return { items: [], prescription: { targeted: true, missingTarget: true,
+    remainingRepetitions: progress?.remainingRepetitions || active.repetitions } };
+  const currentBlock = coachState.coachState.repeatedErrorCounts[active.id]?.blockProgress
+    ?.[progress?.completedBlocks || 0];
+  const repairQueue = [];
+  for (const item of matching) {
+    const taskHash = salmaCoachEventId({ accountId, itemId: item.id,
+      itemType: item.type, skillId: active.skillId });
+    const repairs = currentBlock?.repairDebt?.[taskHash]?.remaining || 0;
+    for (let index = 0; index < repairs; index += 1) repairQueue.push(item);
+  }
+  const requested = Math.max(1, Math.min(8, progress?.remainingRepetitions || active.repetitions));
+  const queue = repairQueue.slice(0, requested);
+  for (let index = queue.length; index < requested; index += 1) {
+    queue.push(matching[(index - repairQueue.length) % matching.length]);
+  }
+  return { items: queue.map((item) => publicSpokenItem(item, true)),
+    prescription: { targeted: true, missingTarget: false, completed: progress?.completed === true,
+      remainingRepetitions: progress?.remainingRepetitions || requested,
+      repairsRemaining: progress?.repairsRemaining || 0 } };
+}
 
 function paidOnly(req, res) {
   if (!drillsUnlocked(req.account)) { res.status(402).json({ error: 'plan_required', reason: 'spoken_review_is_paid' }); return false; }
@@ -171,12 +216,19 @@ spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // fresh due items every open
   try {
     const p = await loadUser(req.account.id);
+    const coachEnabled = salmaCoachFlags(process.env, req.account).enabled;
+    const coachState = coachEnabled ? syncSalmaCoach(p).state : null;
     // GRAVITY-FIRST: pull the full due set, re-order so GLOBAL (skeleton) errors come before LOCAL
     // (polish) ones, then take the session's 8. Stable sort keeps dueItems' due-ascending order
     // within each gravity tier, so the existing "oldest-due first" behavior is preserved as the tiebreak.
     const due = dueItems(p, Date.now(), 50)
       .sort((a, b) => gravityRank(b) - gravityRank(a) || (a.due - b.due))
       .slice(0, 8);
+    const targeted = targetedSpokenReviewQueue(p, coachState, req.account.id);
+    if (targeted) {
+      await saveUser(p);
+      return res.json(targeted);
+    }
     const items = due.map((i) => {
       const grammar = i.type === 'grammar';
       return {
@@ -227,7 +279,17 @@ spokenReviewRouter.post('/spoken-review/grade',
       if (!transcript) return res.json({ retry: true, noSpeech: true });
 
       const { correct, expected } = gradeSpoken(item, transcript);
-      grade(p, id, correct);                  // advance/reset the spaced schedule
+      const coachEnabled = salmaCoachFlags(process.env, req.account).enabled;
+      const { state: coachState } = coachEnabled ? syncSalmaCoach(p) : { state: null };
+      const active = coachState?.activePrescription;
+      const canonicalSkillId = canonicalSkillForItem(item);
+      const isPrescribedCard = active?.drillId === 'sag-es-richtig' && canonicalSkillId === active.skillId;
+      // One coaching dose may repeat the same sentence for automaticity, but it must not fast-forward
+      // the long-term spaced schedule eight times in one sitting.
+      if (!isPrescribedCard || item.lastCoachPrescriptionId !== active.id) {
+        grade(p, id, correct);
+        if (isPrescribedCard) item.lastCoachPrescriptionId = active.id;
+      }
 
       // Feed the brain (doctrine D3): the brain's prescribed grammar drill reported NOTHING before,
       // so the drilled→re-tested→improved loop could never close for it. Grammar items land on the
@@ -236,7 +298,7 @@ spokenReviewRouter.post('/spoken-review/grade',
       // atomic with the SRS save — no extra request, nothing for the client to forget.
       const ev = { at: Date.now(), drill: 'sag-es-richtig', correct };
       if (item.type === 'grammar' && item.content) {
-        const canon = classifyGrammar([{ rule: item.content, count: 1 }])[0] ?? null;
+        const canon = canonicalSkillId;
         const key = canon || ('lt:' + item.content);
         p.weakLog = p.weakLog || {};
         const entry = p.weakLog[key] || { ruleId: canon, ltName: item.content, firstSeen: Date.now(), errCounts: [], drills: [] };
@@ -247,16 +309,26 @@ spokenReviewRouter.post('/spoken-review/grade',
         p.drillLog = (p.drillLog || []).concat(ev).slice(-100);
       }
       let coachCue = null;
-      if (salmaCoachFlags(process.env, req.account).enabled) {
-        const { state } = syncSalmaCoach(p);
-        p.salmaCoach = recordDrillOutcome(state, ev, ev.at);
+      let prescriptionProgress = null;
+      if (coachEnabled) {
+        const verifiedCoachEvent = active?.drillId === ev.drill && canonicalSkillId === active.skillId
+          ? { ...ev, verified: true, verifiedAt: ev.at, prescriptionId: active.id,
+            skillId: canonicalSkillId, phase: 'practice',
+            taskHash: salmaCoachEventId({ accountId: req.account.id, itemId: id,
+              itemType: item.type, skillId: canonicalSkillId }) }
+          : ev;
+        p.salmaCoach = recordDrillOutcome(coachState, verifiedCoachEvent, ev.at);
+        const progress = isPrescribedCard ? prescriptionDoseProgress(p.salmaCoach) : null;
+        if (progress) prescriptionProgress = { targeted: true, completed: progress.completed,
+          remainingRepetitions: progress.remainingRepetitions, repairsRemaining: progress.repairsRemaining };
         const eventId = salmaCoachEventId({ accountId: req.account.id, itemId: id, ...ev });
         coachCue = coachCueForDrill({ drill: ev.drill, correct, eventId });
       }
       await saveUser(p);
 
       console.log(`[spokenReview] user=${req.account.id} id=${id} type=${item.type} correct=${correct} transcriptChars=${transcript.length}`);
-      res.json({ correct, expected, heard: transcript, ...(coachCue ? { coachCue } : {}) });
+      res.json({ correct, expected, heard: transcript, ...(coachCue ? { coachCue } : {}),
+        ...(prescriptionProgress ? { prescriptionProgress } : {}) });
     } catch (err) {
       console.error('[spokenReview] grade error:', err.message);
       const noKey = err.message === 'no_api_key';

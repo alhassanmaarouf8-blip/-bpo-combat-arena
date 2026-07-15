@@ -242,11 +242,11 @@ test('retention fails closed until its own validated criterion exists', () => {
 });
 
 test('the newest reliable session wins even when storage order is scrambled', () => {
-  const old = { date: 1_700_000_000_000, wpm: 70, words: 120, fillers: 2,
+  const old = { sessionId: 'storage-order-old', date: 1_700_000_000_000, wpm: 70, words: 120, fillers: 2,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,
     giveUpRate: 0.1, intelligibility: 0.9, latencyS: 2,
     evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } };
-  const newest = { ...old, date: old.date + 10_000, wpm: 130, intelligibility: 0.35 };
+  const newest = { ...old, sessionId: 'storage-order-newest', date: old.date + 10_000, wpm: 130, intelligibility: 0.35 };
   const result = hireReadinessFor({ sessions: [newest, old] }, newest.date + 1000);
   assert.equal(result.limitingSkill, 'intelligibility');
   assert.equal(result.rejectionForecast.criterion.observed, 35);

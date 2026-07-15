@@ -95,11 +95,23 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     }
     const completePlayback = async (completed) => {
       try {
-        const response = await fetch(`${apiUrl}/api/listening/play/complete`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: item.id, playNumber, completed }),
-        });
-        if (!response.ok) throw new Error('play_completion_failed');
+        // The server records successful media delivery only after the exact audio response has fully
+        // finished. `onEnd` can beat a slow durable-store write by a few milliseconds, so retry only
+        // that narrow pending-receipt state. A failed/aborted audio response never creates the receipt
+        // and therefore still fails closed after the bounded retries.
+        const waits = [0, 120, 300, 700];
+        let confirmed = false;
+        for (const waitMs of waits) {
+          if (waitMs) await new Promise((resolve) => setTimeout(resolve, waitMs));
+          const response = await fetch(`${apiUrl}/api/listening/play/complete`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ id: item.id, playNumber, completed }),
+          });
+          if (response.ok) { confirmed = true; break; }
+          const body = await response.json().catch(() => ({}));
+          if (completed !== true || body.error !== 'listening_media_required') break;
+        }
+        if (!confirmed) throw new Error('play_completion_failed');
         activePlayRef.current = null;
         if (completed) setPlayed(playNumber);
         setPlaying(false);

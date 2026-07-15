@@ -279,6 +279,16 @@ test('mastery requires the exact prescription-bound matched and seven-day novel 
   assert.ok(listeningMasteryEvidence(profile).clear);
 });
 
+test('v2 listening evidence never labels client playback acknowledgement as verified response latency', () => {
+  const profile = profileWithAttempt();
+  profile.userId = 'listener';
+  profile.listeningActive.item.evidenceVersion = 2;
+  profile.listeningActive.item.accountBinding = accountBinding('listener');
+  const result = complete(profile);
+  assert.equal(result.replayed, false);
+  assert.equal(profile.listeningAttempts[0].responseLatencyMs, null);
+});
+
 test('opaque playback cannot complete from elapsed time without exact media redemption', () => {
   const start = 1_800_000_001_000;
   const profile = profileWithAttempt();

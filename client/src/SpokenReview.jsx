@@ -16,9 +16,10 @@ const MAX_SEC = 18;
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
-  const tutorSession = useSalmaDrillSession(token, 'srs');
+  const tutorSession = useSalmaDrillSession(token, 'sag-es-richtig');
   const [phase, setPhase] = useState('loading'); // loading | practice | empty | done | error
   const [items, setItems] = useState([]);
+  const [prescription, setPrescription] = useState(null);
   const [idx, setIdx]     = useState(0);
   const [recording, setRec] = useState(false);
   const [seconds, setSec] = useState(0);
@@ -30,12 +31,13 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
 
   const load = useCallback(async () => {
-    setPhase('loading'); setErr(null); setResult(null); setIdx(0);
+    setPhase('loading'); setErr(null); setResult(null); setPrescription(null); setItems([]); setIdx(0);
     try {
       const r = await fetch(`${apiUrl}/api/spoken-review?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error('load_failed');
+      setPrescription(d.prescription || null);
       if (!Array.isArray(d.items) || !d.items.length) { setPhase('empty'); return; }
       setItems(d.items); setPhase('practice');
     } catch {
@@ -48,6 +50,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   useEffect(() => () => { clearInterval(timerRef.current); clearTimeout(stopRef.current); recRef.current?.stop?.().catch(() => {}); }, []);
 
   const item = items[idx];
+  const doseProgress = result?.prescriptionProgress || prescription;
 
   const startRec = async () => {
     setErr(null); setResult(null);
@@ -90,7 +93,13 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     setBusy(false);
   };
 
-  const next = () => { setResult(null); setErr(null); setSec(0); if (idx < items.length - 1) setIdx(idx + 1); else setPhase('done'); };
+  const next = () => {
+    const progress = result?.prescriptionProgress;
+    setResult(null); setErr(null); setSec(0);
+    if (idx < items.length - 1) setIdx(idx + 1);
+    else if (progress?.targeted && !progress.completed) load();
+    else setPhase('done');
+  };
 
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
@@ -120,6 +129,17 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
   if (phase === 'error') return shell(<>{header}<div style={{ textAlign: 'center', padding: '30px 0' }}><div style={{ fontSize: 36 }}>⚠</div><div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div><button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'تاني')}</button></div></>);
 
+  if (phase === 'empty' && prescription?.missingTarget) return shell(<>{header}
+    <div style={{ textAlign: 'center', padding: '30px 0' }}>
+      <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+        {'Damit du keinen falschen Satz trainierst, wartet dieser Schwerpunkt auf ein sicher gemessenes Beispiel.'}
+      </div>
+      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+        Deine nächste Messung liefert den passenden Übungssatz.
+      </div>
+      <button onClick={onClose} style={{ ...primaryBtn, marginTop: 18 }}>{'Schlie\u00dfen'}</button>
+    </div></>);
+
   if (phase === 'empty') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 40 }}></div>
@@ -143,6 +163,12 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {item?.type === 'grammar' ? T(lang, 'DEINE FEHLER', 'أخطاؤك') : 'CALL-CENTER-SÄTZE'/* OWNER-AR slot */} · {idx + 1} / {items.length}
     </div>
+    {doseProgress?.targeted && !doseProgress.missingTarget && (
+      <div style={{ margin: '-2px 0 10px', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
+        {'Damit der Satz im Interview sicher sitzt: noch '}{doseProgress.remainingRepetitions}{' korrekte Wiederholungen'}
+        {doseProgress.repairsRemaining > 0 ? ` \u00b7 ${doseProgress.repairsRemaining} gezielte Korrekturen offen` : ''}
+      </div>
+    )}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
     </div>
@@ -207,8 +233,16 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button onClick={() => { setResult(null); startRec(); }} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>
-            <button onClick={next} style={{ ...primaryBtn, flex: 1 }}>{idx < items.length - 1 ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Fertig ▸', 'خلصت ▸')}</button>
+            <button onClick={() => { setResult(null); startRec(); }}
+              style={result.retry ? { ...ghostBtnWide, width: '100%' } : ghostBtnWide}>
+              {T(lang, 'Nochmal', 'تاني')}
+            </button>
+            {!result.retry && (
+              <button onClick={next} style={{ ...primaryBtn, flex: 1 }}>
+                {idx < items.length - 1 || (result.prescriptionProgress?.targeted && !result.prescriptionProgress.completed)
+                  ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Fertig ▸', 'خلصت ▸')}
+              </button>
+            )}
           </div>
         </>
       ) : (
@@ -218,7 +252,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
         </>
       )}
     </div>
-    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="srs" initialCue={result.coachCue} drillSession={tutorSession} />}
+    {result && !busy && !recording && <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="sag-es-richtig" initialCue={result.coachCue} drillSession={tutorSession} />}
   </>);
 }
 

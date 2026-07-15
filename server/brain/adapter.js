@@ -153,6 +153,7 @@ export function buildSnapshot(p, now = Date.now()) {
     limitingCriterionId,
     limitingEvidenceCount: criterionEvidence.supportCount,
     limitingEvidenceConflictCount: criterionEvidence.conflictCount,
+    limitingEvidenceSessionIds: criterionEvidence.supportSessionIds,
     limitingGrammarRuleId: grammarRuleEvidence.ruleId,
     limitingGrammarEvidenceCount: grammarRuleEvidence.supportCount,
     limitingGrammarEvidenceConflictCount: grammarRuleEvidence.conflictCount,

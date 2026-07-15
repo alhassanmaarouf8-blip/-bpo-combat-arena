@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FORECAST_EVIDENCE_FRESHNESS_MS, forecastEvidenceSummary } from './forecastEvidence.js';
+import { FORECAST_EVIDENCE_FRESHNESS_MS, forecastEvidenceSummary,
+  forecastGrammarRuleSummary } from './forecastEvidence.js';
 
 const NOW = 1_800_000_000_000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -25,6 +26,7 @@ test('forecast evidence: two fresh exact-archetype deficits are high and expire 
   assert.deepEqual(summary, {
     confidence: 'high', supportCount: 2, conflictCount: 0, referenceDeficit: true,
     expiresAt: NOW - 1_000 + FORECAST_EVIDENCE_FRESHNESS_MS,
+    supportSessionIds: [sessions[0].sessionId, sessions[1].sessionId],
   });
 });
 
@@ -83,4 +85,36 @@ test('forecast evidence: a passing reference cannot be labeled a current rejecti
     'sustained_pace', latest, NOW);
   assert.equal(summary.referenceDeficit, false);
   assert.equal(summary.confidence, 'insufficient');
+});
+
+test('forecast evidence: missing and duplicate packet identities fail closed', () => {
+  const missingReference = paceSession(NOW - 1_000, 70, { sessionId: '' });
+  assert.equal(forecastEvidenceSummary({ sessions: [missingReference] },
+    'sustained_pace', missingReference, NOW).confidence, 'insufficient');
+
+  const bound = paceSession(NOW - DAY, 70, { sessionId: 'bound' });
+  const missing = paceSession(NOW - 1_000, 75, { sessionId: '' });
+  const oneBound = forecastEvidenceSummary({ sessions: [bound, missing] }, 'sustained_pace', bound, NOW);
+  assert.equal(oneBound.supportCount, 1);
+  assert.equal(oneBound.confidence, 'medium');
+  assert.deepEqual(oneBound.supportSessionIds, ['bound']);
+
+  const duplicateA = paceSession(NOW - DAY, 70, { sessionId: 'duplicate' });
+  const duplicateB = paceSession(NOW - 1_000, 75, { sessionId: 'duplicate' });
+  const duplicated = forecastEvidenceSummary({ sessions: [duplicateA, duplicateB] },
+    'sustained_pace', duplicateB, NOW);
+  assert.equal(duplicated.confidence, 'insufficient');
+  assert.deepEqual(duplicated.supportSessionIds, []);
+});
+
+test('grammar forecast counts only unique immutable session identities', () => {
+  const grammar = (date, sessionId) => paceSession(date, 100, { sessionId, grammarMeasured: true,
+    grammarRules: [{ ruleId: 'konjunktiv-2', count: 12 }],
+    evidenceQuality: { version: 2, words: 120, eligibleWords: 120, prescriptionEligible: true } });
+  const first = grammar(NOW - DAY, 'grammar-duplicate');
+  const duplicate = grammar(NOW - 1_000, 'grammar-duplicate');
+  const summary = forecastGrammarRuleSummary({ sessions: [first, duplicate] }, duplicate, NOW);
+  assert.equal(summary.ruleId, null);
+  assert.equal(summary.supportCount, 0);
+  assert.deepEqual(summary.supportSessionIds, []);
 });

@@ -173,21 +173,45 @@ test('listening routes reject forged early completion and make a verified double
       const originalFetch = globalThis.fetch;
       const priorKey = process.env.DEEPGRAM_API_KEY;
       process.env.DEEPGRAM_API_KEY = 'route-test-key';
+      let releaseMedia;
+      const mediaGate = new Promise((resolve) => { releaseMedia = resolve; });
       globalThis.fetch = (input, init) => String(input).startsWith('https://api.deepgram.com/v1/speak')
-        ? Promise.resolve(new Response(Uint8Array.from([0x49, 0x44, 0x33, 0x04]), {
+        ? Promise.resolve(new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(Uint8Array.from([0x49, 0x44]));
+            mediaGate.then(() => {
+              controller.enqueue(Uint8Array.from([0x33, 0x04]));
+              controller.close();
+            });
+          },
+        }), {
           status: 200, headers: { 'Content-Type': 'audio/mpeg' },
         }))
         : originalFetch(input, init);
       try {
         const media = await originalFetch(`${base}/api/tts-stream?ticket=${encodeURIComponent(mediaTicket.body.ticket)}`);
         assert.equal(media.status, 200);
+        const beforeCompleteDelivery = await loadUser(account.id);
+        assert.equal(beforeCompleteDelivery.listeningActive[itemId].mediaDeliveredAt, null,
+          'starting a valid media response is not completed-listening evidence');
+        const forgedWhileStreaming = await api(base, '/api/listening/play/complete', token, {
+          id: itemId, playNumber: 1, completed: true,
+        });
+        assert.equal(forgedWhileStreaming.status, 409);
+        assert.equal(forgedWhileStreaming.body.error, 'listening_media_required');
+        releaseMedia();
         assert.ok((await media.arrayBuffer()).byteLength > 0);
       } finally {
+        releaseMedia?.();
         globalThis.fetch = originalFetch;
         if (priorKey === undefined) delete process.env.DEEPGRAM_API_KEY;
         else process.env.DEEPGRAM_API_KEY = priorKey;
       }
-      const afterRedemption = await loadUser(account.id);
+      let afterRedemption = await loadUser(account.id);
+      for (let attempt = 0; attempt < 20 && !afterRedemption.listeningActive[itemId].mediaDeliveredAt; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        afterRedemption = await loadUser(account.id);
+      }
       assert.equal(afterRedemption.listeningActive[itemId].mediaDeliveredPlayInstanceId,
         afterRedemption.listeningActive[itemId].playInstanceId);
       assert.ok(Number.isFinite(afterRedemption.listeningActive[itemId].mediaDeliveredAt));
@@ -212,6 +236,99 @@ test('listening routes reject forged early completion and make a verified double
       assert.equal(stored.listeningAttempts[0].attemptId, attemptId);
       assert.equal(stored.listeningStats.nummer.seen, 1);
       assert.equal(JSON.stringify(stored).includes('wrong-private-answer'), false);
+    });
+  } finally {
+    await deleteUser(account.id);
+    await auth.deleteAccount(account);
+  }
+});
+
+test('an aborted listening-media response can never mint completed-playback evidence', async () => {
+  const account = await auth.createAccount(
+    `listening-abort-${Date.now()}-${Math.floor(Math.random() * 1e9)}@example.com`,
+    'test-password-1234',
+  );
+  account.emailVerifiedAt = Date.now();
+  account.subscription = { ...(account.subscription || {}), plan: 'basic' };
+  const token = auth.signToken(account);
+  const itemId = 'aborted-detail';
+  try {
+    const profile = await loadUser(account.id);
+    profile.listeningActive = {
+      [itemId]: {
+        attemptId: 'feedfacefeedfacefeedface', issuedAt: Date.now(), maxPlays: 2, playCount: 0,
+        playStartedAt: null, playCompletedAt: null, playbackRate: 1.1, gradeResult: null,
+        type: 'nummer', answer: '8421', minimumPlaybackMs: 600, mediaProofRequired: true,
+        ttsText: 'Die Kundennummer lautet acht vier zwei eins.', voice: 'aura-2-lara-de',
+      },
+    };
+    await saveUser(profile);
+
+    await withApi(async (base) => {
+      const started = await api(base, '/api/listening/play', token, { id: itemId });
+      const ticket = await api(base, '/api/media-ticket', token, {
+        listeningRef: { id: itemId, playNumber: started.body.playNumber },
+      });
+      assert.equal(ticket.status, 200);
+
+      const originalFetch = globalThis.fetch;
+      const priorKey = process.env.DEEPGRAM_API_KEY;
+      process.env.DEEPGRAM_API_KEY = 'route-test-key';
+      let releaseProvider;
+      const providerGate = new Promise((resolve) => { releaseProvider = resolve; });
+      globalThis.fetch = (input, init) => String(input).startsWith('https://api.deepgram.com/v1/speak')
+        ? Promise.resolve(new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(Uint8Array.from([0x49, 0x44]));
+            providerGate.then(() => controller.close());
+          },
+        }), { status: 200, headers: { 'Content-Type': 'audio/mpeg' } }))
+        : originalFetch(input, init);
+      try {
+        await new Promise((resolve, reject) => {
+          const request = http.get(
+            `${base}/api/tts-stream?ticket=${encodeURIComponent(ticket.body.ticket)}`,
+            (response) => {
+              assert.equal(response.statusCode, 200);
+              response.once('data', () => {
+                response.destroy();
+                request.destroy();
+                resolve();
+              });
+              response.once('error', (error) => {
+                if (error.code === 'ECONNRESET' || error.code === 'ABORT_ERR') resolve();
+                else reject(error);
+              });
+            },
+          );
+          request.once('error', (error) => {
+            if (error.code === 'ECONNRESET' || error.code === 'ABORT_ERR') resolve();
+            else reject(error);
+          });
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        releaseProvider();
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      } finally {
+        releaseProvider?.();
+        globalThis.fetch = originalFetch;
+        if (priorKey === undefined) delete process.env.DEEPGRAM_API_KEY;
+        else process.env.DEEPGRAM_API_KEY = priorKey;
+      }
+
+      const afterAbort = await loadUser(account.id);
+      assert.equal(afterAbort.listeningActive[itemId].mediaDeliveredAt, null);
+      afterAbort.listeningActive[itemId].playStartedAt = Date.now()
+        - afterAbort.listeningActive[itemId].minimumPlaybackMs - 10;
+      await saveUser(afterAbort);
+      const forgedCompletion = await api(base, '/api/listening/play/complete', token, {
+        id: itemId, playNumber: 1, completed: true,
+      });
+      assert.equal(forgedCompletion.status, 409);
+      assert.equal(forgedCompletion.body.error, 'listening_media_required');
+      const grade = await api(base, '/api/listening/grade', token, { id: itemId, response: '8421' });
+      assert.equal(grade.status, 409);
+      assert.equal(grade.body.error, 'listening_playback_required');
     });
   } finally {
     await deleteUser(account.id);

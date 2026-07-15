@@ -64,6 +64,22 @@ test('drill corrections are visible between attempts and receive persisted resul
   assert.match(spokenServer, /coachCueForDrill/u);
 });
 
+test('targeted Spoken Review cannot finish from no-speech or unrelated-card progress', async () => {
+  const [spoken, spokenServer] = await Promise.all([
+    read('client/src/SpokenReview.jsx'),
+    read('server/spokenReview.js'),
+  ]);
+  assert.match(spoken, /result\.prescriptionProgress\?\.targeted && !result\.prescriptionProgress\.completed/u);
+  assert.match(spoken, /!result\.retry/u);
+  assert.match(spoken, /prescription\?\.missingTarget/u);
+  assert.match(spoken, /Damit der Satz im Interview sicher sitzt/u);
+  assert.match(spoken, /useSalmaDrillSession\(token, 'sag-es-richtig'\)/u);
+  assert.match(spoken, /drillId="sag-es-richtig"/u);
+  assert.match(spokenServer, /canonicalSkillId === active\.skillId/u);
+  assert.match(spokenServer, /targetedSpokenReviewQueue/u);
+  assert.match(spokenServer, /lastCoachPrescriptionId/u);
+});
+
 test('verified drill evidence refreshes both guides and APPLY opens Mission Control', async () => {
   const [reporter, brain, panel, app] = await Promise.all([
     read('client/src/salmaCoachClient.js'),
