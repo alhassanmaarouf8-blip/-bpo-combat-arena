@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { serviceRecoveryScoreFromSession } from './serviceRecoveryEvidence.js';
+import { clearRequestScoreFromSession, formalRegisterScoreFromSession } from './entryInteractionEvidence.js';
 import { INTERVIEW_PROMPT_CONTRACT_VERSION, interviewPromptById, scenarioSupportsRole } from '../scenarios.js';
 import { BOSS_LADDER } from '../progression.js';
 
@@ -14,6 +15,8 @@ export const SPEAKING_METRIC_BY_SKILL = Object.freeze({
   deescalate: { metricKey: 'deescalation_score', direction: 'higher', minimumDelta: 5 },
   'no-freeze-expected': { metricKey: 'response_continuity', direction: 'higher', minimumDelta: 5 },
   'pronunciation-phone': { metricKey: 'intelligibility_score', direction: 'higher', minimumDelta: 3 },
+  'sie-register': { metricKey: 'formal_register_score', direction: 'higher', minimumDelta: 25 },
+  'handle-clear-request': { metricKey: 'request_handling_score', direction: 'higher', minimumDelta: 25 },
 });
 
 export const EVIDENCE_CONTRACT_VERSION = 2;
@@ -154,12 +157,21 @@ export function speakingMeasurementForSkill(profile, skillId, { sessionId = null
       value = Math.max(0, Math.min(100, (1 - Number(session.giveUpRate)) * 100));
     } else if (metric.metricKey === 'intelligibility_score' && Number.isFinite(session?.intelligibility)) {
       value = Math.max(0, Math.min(100, Number(session.intelligibility) * 100));
+    } else if (metric.metricKey === 'formal_register_score') {
+      const score = formalRegisterScoreFromSession(session);
+      if (score != null) value = score * 100;
+    } else if (metric.metricKey === 'request_handling_score') {
+      const score = clearRequestScoreFromSession(session);
+      if (score != null) value = score * 100;
     }
     if (value === null) continue;
     const measuredAt = Number(session?.date) || 0;
     if (!measuredAt) continue;
-    const evidenceId = metric.metricKey === 'deescalation_score' && typeof session?.deescalationEvidence?.binding === 'string'
-      ? hash({ skillId, binding: session.deescalationEvidence.binding })
+    const evidenceId = ['formal_register_score', 'request_handling_score'].includes(metric.metricKey)
+      && typeof session?.entryInteractionEvidence?.binding === 'string'
+      ? hash({ skillId, binding: session.entryInteractionEvidence.binding })
+      : metric.metricKey === 'deescalation_score' && typeof session?.deescalationEvidence?.binding === 'string'
+        ? hash({ skillId, binding: session.deescalationEvidence.binding })
       : metric.metricKey === 'grammar_errors'
         ? hash({ skillId, metricKey: metric.metricKey, measuredAt, bossId: session?.bossId || '',
           contractVersion: evidenceVersion(session), measurementBinding })

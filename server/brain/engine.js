@@ -83,6 +83,7 @@ function lastErr(weakLog, ruleId) {
 const AHA_METRIC_DIRECTIONS = Object.freeze({
   grammar_errors: 'lower', fluency_score: 'higher', wpm: 'higher', deescalation_score: 'higher',
   response_continuity: 'higher', intelligibility_score: 'higher', listening_accuracy: 'higher',
+  formal_register_score: 'higher', request_handling_score: 'higher',
 });
 
 // A delayed novel transfer proof can support a narrow observed change. It cannot prove that the

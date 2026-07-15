@@ -28,7 +28,9 @@ export const SKILLS = [
   { id: 'word-order-sub',       layer: 1, prereq: ['praesens-perfekt'],               drill: 'satzbau-schmiede', tier: 'entry' },
   { id: 'dativ-akkusativ',      layer: 1, prereq: ['praesens-perfekt'],               drill: 'sag-es-richtig',tier: 'entry' },
   { id: 'sie-register',         layer: 1, prereq: ['self-intro'],                     drill: 'srs',           tier: 'entry' },
-  { id: 'handle-clear-request', layer: 1, prereq: ['listen-clear', 'core-vocab'],     drill: 'interview',     tier: 'entry' },
+  // The pressure ladder trains the observable request-handling sequence and reports server-graded
+  // practice. The generic interview mapping had no completable practice-to-retest path.
+  { id: 'handle-clear-request', layer: 1, prereq: ['listen-clear', 'core-vocab'],     drill: 'druck-leiter',  tier: 'entry' },
   { id: 'listen-phone',         layer: 1, prereq: ['listen-clear'],                   drill: 'hoer-check',    tier: 'entry' },
   { id: 'no-freeze-expected',   layer: 1, prereq: ['self-intro'],                     drill: 'druck-leiter',  tier: 'entry' },
 

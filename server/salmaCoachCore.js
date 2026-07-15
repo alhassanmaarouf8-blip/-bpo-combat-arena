@@ -60,6 +60,7 @@ const SKILL_LABELS = Object.freeze({
   'fluency-interrupt': 'flüssiges Sprechen unter Zeitdruck', 'listen-phone': 'Hörverstehen am Telefon',
   'listen-clear': 'Hörverstehen', deescalate: 'Deeskalation', 'no-freeze-expected': 'Antworten unter Druck',
   'pronunciation-phone': 'Verständlichkeit am Telefon', 'self-intro': 'Selbstvorstellung',
+  'sie-register': 'professionelle Sie-Form', 'handle-clear-request': 'klare Kundenanfragen',
 });
 const IMPROVEMENT_METRICS = Object.freeze({
   'word-order-sub': { key: 'grammar_errors', label: 'Satzstellungsfehler', unit: 'Fehler', direction: 'lower', minimumDelta: 1 },
@@ -69,6 +70,8 @@ const IMPROVEMENT_METRICS = Object.freeze({
   deescalate: { key: 'deescalation_score', label: 'Deeskalation', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
   'no-freeze-expected': { key: 'response_continuity', label: 'Antwortkontinuität', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
   'pronunciation-phone': { key: 'intelligibility_score', label: 'Verständlichkeit am Telefon', unit: 'Punkte', direction: 'higher', minimumDelta: 3 },
+  'sie-register': { key: 'formal_register_score', label: 'professionelle Sie-Form', unit: 'Punkte', direction: 'higher', minimumDelta: 25 },
+  'handle-clear-request': { key: 'request_handling_score', label: 'strukturierte Anfragebearbeitung', unit: 'Punkte', direction: 'higher', minimumDelta: 25 },
   'listen-clear': { key: 'listening_accuracy', label: 'Hörverständnis beim ersten Hören', unit: 'Prozent', direction: 'higher', minimumDelta: 10 },
   'listen-phone': { key: 'listening_accuracy', label: 'Hörverständnis am Telefon', unit: 'Prozent', direction: 'higher', minimumDelta: 10 },
 });
@@ -100,6 +103,14 @@ const RETEST_DOSSIERS = Object.freeze({
   'pronunciation-phone': {
     matched: 'klar verständliche vollständige Sätze in einer Telefonsituation',
     transfer: 'klar verständliche Sätze mit neuen Namen, Zahlen und Fachwörtern in einer anderen Telefonsituation',
+  },
+  'sie-register': {
+    matched: 'durchgängige professionelle Sie-Form in derselben Kundensituation',
+    transfer: 'professionelle Sie-Form bei einem neuen Kundentyp mit anderen Fragen und Details',
+  },
+  'handle-clear-request': {
+    matched: 'eine klare Kundenanfrage verstehen, übernehmen und mit einem konkreten nächsten Schritt bearbeiten',
+    transfer: 'eine neue Kundenanfrage mit anderen Details strukturiert verstehen, übernehmen und weiterführen',
   },
 });
 

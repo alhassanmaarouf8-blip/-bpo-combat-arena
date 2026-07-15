@@ -29,6 +29,10 @@ test('adapter: a functional candidate bootstraps the foundation + flags unmeasur
   const m = masteredSkillsFromProfile(p);
   assert.ok(m.has('self-intro'));          // functional → foundation bootstrapped
   assert.ok(m.has('fluency-interrupt'));   // wpm ≥ 120 measured
+  assert.equal(m.has('sie-register'), false,
+    'completing interviews cannot stand in for observed formal-register transfer');
+  assert.equal(m.has('handle-clear-request'), false,
+    'completing interviews cannot stand in for observed request-handling transfer');
   const snap = buildSnapshot(p, NOW);
   assert.ok(snap.unmeasuredGates.includes('intelligibility'));   // never measured → MEASURE, not guess
   assert.ok(snap.unmeasuredGates.includes('deescalation'));

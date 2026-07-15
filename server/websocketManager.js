@@ -5,6 +5,7 @@ import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
 import { serviceRecoveryEvidenceFromUtterances } from './scoring/serviceRecoveryEvidence.js';
+import { entryInteractionEvidenceFromUtterances } from './scoring/entryInteractionEvidence.js';
 import { createSpeakingTaskContract } from './scoring/speakingMeasurement.js';
 import { roleplayTurnFactors, roleplayTurnSummary } from './scoring/roleplayTurnScoring.js';
 import { topL1Pattern } from './scoring/l1Errors.js';
@@ -1501,6 +1502,13 @@ export class WebSocketManager {
         observedAt: now,
       });
       const _deescalation = _serviceRecovery.eligible ? _serviceRecovery.score : null;
+      const _entryInteraction = entryInteractionEvidenceFromUtterances(ctx.utterances, {
+        sessionId: ctx.sessionId,
+        targetId: ctx.vacancySnapshot?.targetId || null,
+        roleType: ctx.targetRoleType,
+        scenarioId: ctx.csScenarioId,
+        observedAt: now,
+      });
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
       const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
@@ -1530,6 +1538,23 @@ export class WebSocketManager {
             totalSteps: _serviceRecovery.totalSteps,
             turnCount: _serviceRecovery.turnCount,
             wordCount: _serviceRecovery.wordCount,
+          },
+        } : {}),
+        ...(_entryInteraction.eligible ? {
+          entryInteractionEvidence: {
+            version: _entryInteraction.version,
+            binding: _entryInteraction.binding,
+            roleType: _entryInteraction.roleType,
+            scenarioId: _entryInteraction.scenarioId,
+            targetId: _entryInteraction.targetId,
+            sessionId: _entryInteraction.sessionId,
+            observedAt: _entryInteraction.observedAt,
+            turnCount: _entryInteraction.turnCount,
+            wordCount: _entryInteraction.wordCount,
+            registerSignals: _entryInteraction.registerSignals,
+            informalAddressDetected: _entryInteraction.informalAddressDetected,
+            requestSteps: _entryInteraction.requestSteps,
+            requestContradicted: _entryInteraction.requestContradicted,
           },
         } : {}),
         ...(_intelligibility != null ? { intelligibility: _intelligibility } : {}),

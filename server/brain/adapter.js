@@ -24,7 +24,7 @@ function chronologicalSessions(profile) {
     .sort((a, b) => Number(a?.date || 0) - Number(b?.date || 0));
 }
 
-export function masteredSkillsFromProfile(p) {
+export function masteredSkillsFromProfile(p, now = Date.now()) {
   const sessions = chronologicalSessions(p);
   const weakLog  = p?.weakLog || {};
   const mastered = new Set();
@@ -49,7 +49,10 @@ export function masteredSkillsFromProfile(p) {
   }
 
   // Foundation — bootstrap once the candidate is functional (≥2 non-fail interviews).
-  if (functional) ['self-intro', 'core-vocab', 'praesens-perfekt', 'handle-clear-request', 'sie-register'].forEach((s) => mastered.add(s));
+  if (functional) ['self-intro', 'core-vocab', 'praesens-perfekt'].forEach((s) => mastered.add(s));
+  // These two skills used to be granted merely for completing two interviews. Keep them on the
+  // navigable frontier until their own delayed transfer proof exists.
+  for (const proof of validatedTransferProofs(p, now)) mastered.add(proof.skillId);
 
   // Listening → from listeningStats accuracy when present; else foundation listening for functional users.
   // listening.js records PER-TYPE stats ({ verstehen:{seen,correct}, name:{seen,correct}, … }) — aggregate
@@ -144,7 +147,7 @@ export function buildSnapshot(p, now = Date.now()) {
   const tl = tot(last), tp = tot(prev);
 
   return {
-    masteredSkills:   [...masteredSkillsFromProfile(p)],
+    masteredSkills:   [...masteredSkillsFromProfile(p, now)],
     verifiedMasteredSkills: [...verifiedMasteredSkillsFromProfile(p, now)],
     verifiedImprovement: latestVerifiedImprovementFromProfile(p, now),
     weakLog,
