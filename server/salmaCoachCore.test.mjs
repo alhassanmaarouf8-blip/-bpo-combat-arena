@@ -198,6 +198,8 @@ test('a one-session signal is prescribed as a hypothesis, never spoken as a conf
   const p = measuredProfile(1);
   const { directive, prescription } = deriveSalmaPrescription(p, { now: 1_700_000_001_000 });
   assert.equal(directive.confidence, 'low');
+  assert.ok(prescription || directive.prescription?.action === 'measure',
+    'the first reliable interview must produce a trackable contract, never a dead-end drill');
   assert.equal(prescription.evidenceConfidence, 'low');
   const state = normalizeSalmaCoachState({ activePrescription: prescription });
   const intervention = safeIntervention(state);
@@ -281,11 +283,13 @@ test('a speaking-intelligibility signal cannot be prescribed as a listening impr
   }
   const result = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
   assert.equal(result.directive.target?.criterionId, 'speech_recognition_proxy');
-  assert.equal(result.directive.prescription?.skillId, 'listen-phone');
+  assert.deepEqual(result.directive.prescription, {
+    action: 'measure', signal: 'intelligibility', criterionId: 'speech_recognition_proxy',
+  });
   assert.equal(result.prescription, null, 'speaking intelligibility cannot borrow a listening baseline');
 });
 
-test('a criterion cannot claim improvement through a different skill proxy', () => {
+test('uncalibrated criteria cannot claim improvement through a different skill proxy or trap the learner in MEASURE', () => {
   const p = measuredProfile(2);
   for (const session of p.sessions) {
     session.wpm = 100;
@@ -294,8 +298,10 @@ test('a criterion cannot claim improvement through a different skill proxy', () 
     session.giveUpRate = 0;
   }
   const latency = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
-  assert.equal(latency.directive.target?.criterionId, 'response_latency');
-  assert.equal(latency.prescription, null, 'latency cannot be measured as answer-continuity improvement');
+  assert.equal(latency.directive.target?.criterionId, undefined);
+  assert.notEqual(latency.directive.state, 'MEASURE');
+  assert.equal(latency.prescription?.criterionId ?? null, null,
+    'latency must not be relabeled as answer-continuity improvement');
 
   for (const session of p.sessions) {
     session.latencyS = 2;
@@ -303,8 +309,48 @@ test('a criterion cannot claim improvement through a different skill proxy', () 
     session.fluency = 95;
   }
   const fillers = deriveSalmaPrescription(p, { now: 1_700_000_010_000, dailyMinutes: 20 });
-  assert.equal(fillers.directive.target?.criterionId, 'filler_dependence');
-  assert.equal(fillers.prescription, null, 'filler dependence cannot be measured as generic fluency improvement');
+  assert.equal(fillers.directive.target?.criterionId, undefined);
+  assert.notEqual(fillers.directive.state, 'MEASURE');
+  assert.equal(fillers.prescription?.criterionId ?? null, null,
+    'filler dependence must not be relabeled as generic fluency improvement');
+});
+
+test('every actionable forecast yields an exact prescription and uncalibrated criteria stay non-actionable', () => {
+  const supported = deriveSalmaPrescription(measuredProfile(2), { now: 1_700_000_010_000, dailyMinutes: 10 });
+  assert.ok(supported.prescription);
+  assert.equal(supported.directive.prescription.action, 'drill');
+  assert.equal(supported.prescription.baseline.metricKey, 'wpm');
+
+  const unsupportedProfile = measuredProfile(1);
+  unsupportedProfile.sessions[0].wpm = 100;
+  unsupportedProfile.sessions[0].intelligibility = 0.9;
+  unsupportedProfile.sessions[0].latencyS = 7;
+  unsupportedProfile.sessions[0].giveUpRate = 0;
+  const unsupported = deriveSalmaPrescription(unsupportedProfile,
+    { now: 1_700_000_010_000, dailyMinutes: 10 });
+  assert.notEqual(unsupported.directive.state, 'MEASURE');
+  assert.equal(unsupported.directive.target?.criterionId, undefined);
+  assert.equal(unsupported.prescription?.criterionId ?? null, null);
+});
+
+test('uncalibrated-criterion suppression is Salma-gated and preserves legacy flag-off identity', () => {
+  const p = measuredProfile(1);
+  p.sessions[0].wpm = 100;
+  p.sessions[0].intelligibility = 0.9;
+  p.sessions[0].latencyS = 7;
+  p.sessions[0].giveUpRate = 0;
+  const now = 1_700_000_010_000;
+  const off = canonicalCoachDirective(p, account('basic'), {
+    now, coachFlags: { mode: 'off', enabled: false, aiEnabled: false, voiceEnabled: false },
+  });
+  assert.equal(off.prescription.action, 'drill');
+  assert.equal(off.prescription.criterionId, 'response_latency');
+
+  const on = canonicalCoachDirective(p, account('basic'), {
+    now, coachFlags: { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false },
+  });
+  assert.notEqual(on.state, 'MEASURE');
+  assert.equal(on.prescription.criterionId, undefined);
 });
 
 test('a broad grammar forecast prescribes only the exact rule supported by the current reliable archetype', () => {
@@ -400,7 +446,7 @@ test('two-block dosing models each block separately and consumes duplicate or ea
   const spacing = 360 * 60_000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+    scenarioId: CS_SCENARIOS[0].id, wpm: 70, fluency: 50, grammarRules: [] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
@@ -447,7 +493,7 @@ test('inflated legacy counters and a partial two-block dose cannot authorize a r
   const start = 1_800_000_000_000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+    scenarioId: CS_SCENARIOS[0].id, wpm: 70, fluency: 50, grammarRules: [] })];
   const raw = { activePrescription: { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
     successGate: 'Set abschließen.', assignedAt: start, nextEligibleAt: null,
@@ -470,7 +516,7 @@ test('public Salma brain action is the canonical coach-gated BrainGuide action',
   const start = 1_800_000_000_000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+    scenarioId: CS_SCENARIOS[0].id, wpm: 70, fluency: 50, grammarRules: [] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
@@ -490,7 +536,7 @@ test('a due vacancy action hides an unfinished Salma drill and dose-spacing inte
   const start = 1_800_000_000_000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'vacancy-priority-baseline', date: start, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+    scenarioId: CS_SCENARIOS[0].id, wpm: 70, fluency: 50, grammarRules: [] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
@@ -529,7 +575,7 @@ test('BrainGuide gate requires the whole dose, then the delayed live-retest wind
   const day = 24 * 60 * 60 * 1000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+    scenarioId: CS_SCENARIOS[0].id, wpm: 70, fluency: 50, grammarRules: [] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
@@ -628,7 +674,7 @@ test('a drill nomination closes only through a newer skill-matched live retest',
 
 test('retest targeting requires completed practice and exposes only curated text', () => {
   const p = defaultProfile('acct-1');
-  p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', fluency: 52, grammarRules: [] })];
+  p.sessions = [reliableSession({ date: 1_800_000_000_000, bossId: 'yasmin', wpm: 72, fluency: 52, grammarRules: [] })];
   const state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
@@ -647,7 +693,7 @@ test('speaking mastery requires a delayed matched retest and a later novel trans
   const day = 24 * 60 * 60 * 1000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin', scenarioId: CS_SCENARIOS[0].id,
-    fluency: 50, grammarRules: [] })];
+    wpm: 70, fluency: 50, grammarRules: [] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
@@ -667,14 +713,14 @@ test('speaking mastery requires a delayed matched retest and a later novel trans
   assert.equal(target.context.forcedMood, 'neutral');
 
   p.sessions.push(reliableSession({ sessionId: 'wrong-matched-context', date: start + day + 225, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[1].id, fluency: 61, grammarRules: [] }));
+    scenarioId: CS_SCENARIOS[1].id, wpm: 80, fluency: 61, grammarRules: [] }));
   const wrongMatched = recordMeaningfulRetest(state, p, { sessionId: 'wrong-matched-context',
     skillId: 'fluency-interrupt', phase: 'matched', now: start + day + 240 });
   assert.equal(wrongMatched.coachState.improvementHistory.length, 0,
     'a rotated scenario cannot masquerade as the matched comparison');
 
   p.sessions.push(reliableSession({ sessionId: 'matched-live', date: start + day + 250, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 60, grammarRules: [] }));
+    scenarioId: CS_SCENARIOS[0].id, wpm: 80, fluency: 60, grammarRules: [] }));
   state = recordMeaningfulRetest(state, p, { sessionId: 'matched-live', skillId: 'fluency-interrupt',
     phase: 'matched', now: start + day + 300 });
   assert.equal(state.coachState.improvementHistory[0].phase, 'matched');
@@ -690,13 +736,13 @@ test('speaking mastery requires a delayed matched retest and a later novel trans
   assert.deepEqual(target.context.excludedScreeningPromptIds,
     [interviewPromptId('screening', BPO_SCREENING_QUESTIONS[0], 'a2-b1')]);
   p.sessions.push(reliableSession({ sessionId: 'same-scenario-transfer', date: start + 8 * day + 350, bossId: 'tarek',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 58, grammarRules: [] }));
+    scenarioId: CS_SCENARIOS[0].id, wpm: 82, fluency: 58, grammarRules: [] }));
   const repeated = recordMeaningfulRetest(state, p, { sessionId: 'same-scenario-transfer', skillId: 'fluency-interrupt',
     phase: 'transfer', now: start + 8 * day + 375 });
   assert.equal(repeated.coachState.improvementHistory.length, 1,
     'a different fight and interviewer with the same roleplay problem is not transfer');
   p.sessions.push(reliableSession({ sessionId: 'transfer-live', date: start + 8 * day + 390, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[1].id, fluency: 58, grammarRules: [] }));
+    scenarioId: CS_SCENARIOS[1].id, wpm: 85, fluency: 58, grammarRules: [] }));
   state = recordMeaningfulRetest(state, p, { sessionId: 'transfer-live', skillId: 'fluency-interrupt',
     phase: 'transfer', now: start + 8 * day + 400 });
   assert.deepEqual(state.coachState.improvementHistory.map((proof) => [proof.phase, proof.status]),
@@ -723,7 +769,7 @@ test('a novel transfer that collapses from the matched result cannot become mast
   const day = 24 * 60 * 60 * 1000;
   const p = defaultProfile('acct-1');
   p.sessions = [reliableSession({ sessionId: 'baseline-live', date: start, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+    scenarioId: CS_SCENARIOS[0].id, wpm: 70, fluency: 50, grammarRules: [] })];
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
     blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
@@ -731,11 +777,11 @@ test('a novel transfer that collapses from the matched result cannot become mast
     baseline: measurementForSkill(p, 'fluency-interrupt') };
   state = recordDrillOutcome(state, { drill: 'flow-drill', completedSet: true }, start + 200);
   p.sessions.push(reliableSession({ sessionId: 'matched-live', date: start + day + 250, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[0].id, fluency: 90, grammarRules: [] }));
+    scenarioId: CS_SCENARIOS[0].id, wpm: 100, fluency: 90, grammarRules: [] }));
   state = recordMeaningfulRetest(state, p, { sessionId: 'matched-live', skillId: 'fluency-interrupt',
     phase: 'matched', now: start + day + 300 });
   p.sessions.push(reliableSession({ sessionId: 'transfer-live', date: start + 8 * day + 390, bossId: 'yasmin',
-    scenarioId: CS_SCENARIOS[1].id, fluency: 55, grammarRules: [] }));
+    scenarioId: CS_SCENARIOS[1].id, wpm: 75, fluency: 55, grammarRules: [] }));
   state = recordMeaningfulRetest(state, p, { sessionId: 'transfer-live', skillId: 'fluency-interrupt',
     phase: 'transfer', now: start + 8 * day + 400 });
   assert.deepEqual(state.coachState.improvementHistory.map((proof) => [proof.phase, proof.status]),
@@ -769,7 +815,7 @@ test('verified retests report held and regressed honestly instead of manufacturi
   const build = (after) => {
     const p = defaultProfile('acct-1');
     p.sessions = [reliableSession({ sessionId: 'baseline-live', date: 1_800_000_000_000, bossId: 'yasmin',
-      fluency: 50, grammarRules: [] })];
+      wpm: 50, fluency: 50, grammarRules: [] })];
     let state = normalizeSalmaCoachState(null);
     state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
       blocks: 1, repetitions: 3, durationSeconds: 195, timesPerDay: 1, minimumSpacingMinutes: 360,
@@ -777,7 +823,7 @@ test('verified retests report held and regressed honestly instead of manufacturi
       baseline: measurementForSkill(p, 'fluency-interrupt') };
     state = recordDrillOutcome(state, { drill: 'flow-drill', completedSet: true }, 1_800_000_000_200);
     p.sessions.push(reliableSession({ sessionId: `live-${after}`, date: 1_800_100_000_000, bossId: 'yasmin',
-      fluency: after, grammarRules: [] }));
+      wpm: after, fluency: after, grammarRules: [] }));
     return recordMeaningfulRetest(state, p, { sessionId: `live-${after}`, skillId: 'fluency-interrupt', phase: 'matched', now: 1_800_100_000_100 })
       .coachState.improvementHistory[0].status;
   };

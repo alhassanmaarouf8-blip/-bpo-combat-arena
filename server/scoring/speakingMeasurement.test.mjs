@@ -96,6 +96,20 @@ test('speaking measurement: v1-only profiles remain historical and cannot create
   assert.equal(speakingMeasurementForSkill(profile, 'word-order-sub'), null);
 });
 
+test('speaking measurement: sustained pace is bound to exact WPM, never the composite fluency score', () => {
+  const measured = grammarSession({ sessionId: 'pace', date: NOW, eligibleWords: 120, count: 0 });
+  measured.wpm = 72;
+  measured.fluency = 99;
+  const result = speakingMeasurementForSkill({ sessions: [measured] }, 'fluency-interrupt');
+  assert.equal(result.metricKey, 'wpm');
+  assert.equal(result.value, 72);
+
+  const proxyOnly = grammarSession({ sessionId: 'proxy-only', date: NOW + 1, eligibleWords: 120, count: 0 });
+  proxyOnly.fluency = 99;
+  assert.equal(speakingMeasurementForSkill({ sessions: [proxyOnly] }, 'fluency-interrupt'), null,
+    'a high composite fluency score cannot manufacture a sustained-pace baseline');
+});
+
 test('speaking task identity fails closed for legacy, client-revanche and stale prompt contracts', () => {
   const legacy = grammarSession({ sessionId: 'legacy-task', date: NOW, eligibleWords: 120, count: 2,
     omitTaskContract: true });

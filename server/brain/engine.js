@@ -81,7 +81,7 @@ function lastErr(weakLog, ruleId) {
 }
 
 const AHA_METRIC_DIRECTIONS = Object.freeze({
-  grammar_errors: 'lower', fluency_score: 'higher', deescalation_score: 'higher',
+  grammar_errors: 'lower', fluency_score: 'higher', wpm: 'higher', deescalation_score: 'higher',
   response_continuity: 'higher', intelligibility_score: 'higher', listening_accuracy: 'higher',
 });
 

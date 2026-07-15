@@ -9,9 +9,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { SpeakerIcon, SpeakerQuietIcon, CloseIcon } from './icons/AudioIcons';
 import { Spinner } from './Loading.jsx';
 import { playNative } from './nativeVoice.js';
-import { salmaLine, salmaName } from './salmaCopy.js';
-import { salmaSpeak } from './salmaVoice.js';
-import { SalmaPortrait } from './SalmaTakeover.jsx';
 
 // Minimal client-side normaliser for the re-type gate (strict — they've seen the answer).
 function normClient(s) {
@@ -144,29 +141,13 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     setBusy(false);
   };
 
-  // ── Salma hands the session in and receives it back (owner order 07-12: the recruiter leads
-  //    the drills too, not only the interviews). Voice is masri-first via salmaSpeak; routed
-  //    through stopSpeakRef so any card audio cleanly replaces her. Intro speaks once per open.
-  const spokeIntro = useRef(false);
-  useEffect(() => {
-    if (!data || done || spokeIntro.current) return;
-    spokeIntro.current = true;
-    stopSpeakRef.current?.();
-    stopSpeakRef.current = salmaSpeak({ apiUrl, token, items: [{ key: 'drill_handoff' }] });
-  }, [data, done, apiUrl, token]);
-  useEffect(() => {
-    if (!done) return;
-    stopSpeakRef.current?.();
-    stopSpeakRef.current = salmaSpeak({ apiUrl, token, items: [{ key: 'drill_done' }] });
-  }, [done, apiUrl, token]);
-
   return (
     <div style={ov}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '0.1em',
             color: 'var(--warn)', textShadow: '0 0 14px rgba(249,115,22,0.5)' }}>TÄGLICHES TRAINING</div>
-          <div style={{ fontSize: 9, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>3–5 MINUTEN · DEINE FEHLER VON GESTERN</div>
+          <div style={{ fontSize: 9, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>HEUTIGER AKTIVER ABRUF</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={onClose} aria-label="Schließen" style={ghost}><CloseIcon /></button>
@@ -190,17 +171,10 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
             /* OWNER-AR slot */
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-2)', padding: '6px 14px',
               borderRadius: 'var(--r-pill)', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.30)' }}>
-              {tally.mistakeFixed} deiner Fehler geschlossen · {tally.correct} richtig
+              {tally.correct} in dieser Runde richtig beantwortet
+              {tally.mistakeFixed > 0 ? ` · ${tally.mistakeFixed} frühere Fehler heute korrekt` : ''}
             </div>
           )}
-          {/* Salma receives the session back into your file (drill_done — masri-first voice). */}
-          <div style={{ display: 'flex', gap: 9, alignItems: 'center', padding: '8px 12px', borderRadius: 'var(--r-sm)',
-            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', maxWidth: 420 }}>
-            <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={30} />
-            <div dir="auto" style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.5, textAlign: 'left' }}>
-              {salmaLine('drill_done', lang)}
-            </div>
-          </div>
           <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute.</div>
           <button onClick={loadMore} disabled={busy} style={{ ...primary, marginTop: 8, opacity: busy ? 0.5 : 1 }}>
             {busy ? '…' : (lang === 'ar' ? 'جولة تانية ↻' : 'NOCH EINE RUNDE ↻')}
@@ -212,14 +186,6 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       {/* ── Session ── */}
       {data && !done && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Salma hands you in — the recruiter fronts the training (drill_handoff, masri-first). */}
-          <div style={{ display: 'flex', gap: 9, alignItems: 'center', padding: '8px 10px', borderRadius: 'var(--r-sm)',
-            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
-            <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={30} />
-            <div dir="auto" style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.5, textAlign: 'left' }}>
-              {salmaLine('drill_handoff', lang)}
-            </div>
-          </div>
           {/* Phrase of the day */}
           {data.phrase && (
             <div style={{ ...card, borderColor: 'rgba(59,130,246,0.3)' }}>

@@ -7,7 +7,10 @@ export const SPEAKING_METRIC_BY_SKILL = Object.freeze({
   'word-order-sub': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
   'dativ-akkusativ': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
   'konjunktiv-2': { metricKey: 'grammar_errors', direction: 'lower', minimumDelta: 1 },
-  'fluency-interrupt': { metricKey: 'fluency_score', direction: 'higher', minimumDelta: 5 },
+  // The rejection forecast for sustained pace is expressed in words per minute. Keep the
+  // prescription, matched retest and transfer retest on that exact observable instead of
+  // substituting the separate, composite `fluency` score.
+  'fluency-interrupt': { metricKey: 'wpm', direction: 'higher', minimumDelta: 5 },
   deescalate: { metricKey: 'deescalation_score', direction: 'higher', minimumDelta: 5 },
   'no-freeze-expected': { metricKey: 'response_continuity', direction: 'higher', minimumDelta: 5 },
   'pronunciation-phone': { metricKey: 'intelligibility_score', direction: 'higher', minimumDelta: 3 },
@@ -142,8 +145,8 @@ export function speakingMeasurementForSkill(profile, skillId, { sessionId = null
         .reduce((sum, row) => sum + Math.max(0, Number(row?.count) || 0), 0);
       value = (rawErrorCount / eligibleWords) * 100;
       measurementBinding = { rawErrorCount, eligibleWords, unit: 'errors_per_100_eligible_words' };
-    } else if (metric.metricKey === 'fluency_score' && Number.isFinite(session?.fluency)) {
-      value = Math.max(0, Math.min(100, Number(session.fluency)));
+    } else if (metric.metricKey === 'wpm' && Number.isFinite(session?.wpm) && Number(session.wpm) > 0) {
+      value = Math.max(1, Math.min(300, Number(session.wpm)));
     } else if (metric.metricKey === 'deescalation_score') {
       const score = serviceRecoveryScoreFromSession(session);
       if (score != null) value = score * 100;

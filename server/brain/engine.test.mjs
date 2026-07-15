@@ -119,7 +119,7 @@ test('engine: provisional legacy mastery can guide navigation but never authoriz
 });
 
 test('engine: aha exposes only a validated delayed transfer measurement', () => {
-  const verifiedImprovement = { skillId: 'fluency-interrupt', metricKey: 'fluency_score', before: 52, after: 61,
+  const verifiedImprovement = { skillId: 'fluency-interrupt', metricKey: 'wpm', before: 72, after: 84,
     direction: 'higher', phase: 'transfer' };
   const d = decide({ sessionCount: 3, masteredSkills: SKILLS.filter(s=>s.layer===0).map(s=>s.id), verifiedImprovement });
   assert.deepEqual(d.aha, verifiedImprovement);

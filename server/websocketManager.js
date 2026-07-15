@@ -598,6 +598,10 @@ export class WebSocketManager {
     const revanche = !improvementRetest && [0, 1, 2].includes(revancheStage)
       ? { stage: revancheStage, stageLabel: String(msg.revanche.stageLabel || '').slice(0, 80) }
       : null;
+    // Only an explicit, validated revanche is practice. Baselines and every improvement retest are
+    // assessments: revealing the target rule or model phrases beforehand would coach the exact
+    // behavior being measured and invalidate the evidence.
+    const briefingMode = revanche ? 'practice' : 'assessment';
 
     // ── Daily live-minute remaining (reset midnight Africa/Cairo) — hard-cap this fight ──
     const today      = dayKey();
@@ -1010,7 +1014,22 @@ export class WebSocketManager {
       ctx.stages     = info.stages;
       ctx.stageIdx   = 0;
       ctx.csScenario = info.csScenario;
-      try { this._send(ctx, { type: S.SCENARIO_INFO, ...info, scrutiny: ctx.targetWeakRule || null }); } catch (e) { console.warn('[wsManager] send SCENARIO_INFO failed:', e.message); }
+      const rawBriefing = info?.csBriefing && typeof info.csBriefing === 'object' ? info.csBriefing : null;
+      const safeBriefing = rawBriefing ? {
+        ...rawBriefing,
+        keyPhrases: briefingMode === 'practice' && Array.isArray(rawBriefing.keyPhrases)
+          ? rawBriefing.keyPhrases.slice(0, 5)
+          : [],
+      } : null;
+      try {
+        this._send(ctx, {
+          type: S.SCENARIO_INFO,
+          ...info,
+          csBriefing: safeBriefing,
+          briefingMode,
+          scrutiny: briefingMode === 'practice' ? (ctx.targetWeakRule || null) : null,
+        });
+      } catch (e) { console.warn('[wsManager] send SCENARIO_INFO failed:', e.message); }
       const firstStage = (Array.isArray(info.stages) && info.stages.length) ? info.stages[0] : { label: 'Teil 1', type: 'intro' };
       try { this._send(ctx, { type: S.STAGE_UPDATE, index: 0, ...firstStage }); } catch (e) { console.warn('[wsManager] send STAGE_UPDATE failed:', e.message); }
     } catch (err) {

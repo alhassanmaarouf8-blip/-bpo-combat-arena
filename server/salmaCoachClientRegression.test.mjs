@@ -13,13 +13,18 @@ test('Salma is a personal tutor without recruiter or booking claims', async () =
 });
 
 test('portrait has no fake mouth layer and ordinary opens do not auto-greet', async () => {
-  const [takeover, brain] = await Promise.all([
+  const [takeover, brain, daily] = await Promise.all([
     read('client/src/SalmaTakeover.jsx'),
     read('client/src/BrainGuide.jsx'),
+    read('client/src/DailyTraining.jsx'),
   ]);
   assert.doesNotMatch(takeover, /salma-talk\.jpg|face mouth|mouth-talk/u);
   assert.doesNotMatch(brain, /greetedThisSession|returning_welcome/u);
   assert.doesNotMatch(takeover, /autoNext|spokenRef|pre-synthesize her OPENING/u);
+  assert.doesNotMatch(daily, /salmaSpeak|drill_handoff|drill_done/u,
+    'opening or completing an ordinary drill must not trigger generic Salma speech');
+  assert.doesNotMatch(daily, /Fehler geschlossen|DEINE FEHLER VON GESTERN/u,
+    'daily completion and source labels must not overclaim mastery or mistake provenance');
 });
 
 test('unreviewed Masri is fail-closed and Salma copy speaks German until a frozen pack exists', async () => {
@@ -62,6 +67,19 @@ test('drill corrections are visible between attempts and receive persisted resul
   assert.match(spoken, /d\.coachCue/u);
   assert.match(spokenServer, /recordDrillOutcome/u);
   assert.match(spokenServer, /coachCueForDrill/u);
+});
+
+test('a corrected attempt clears stale tutor cues and every panel owns a unique question id', async () => {
+  const [reporter, panel] = await Promise.all([
+    read('client/src/salmaCoachClient.js'),
+    read('client/src/SalmaTutorPanel.jsx'),
+  ]);
+  assert.match(reporter, /cue: body\.coachCue \|\| null/u);
+  assert.match(panel, /Object\.hasOwn\(detail, 'cue'\)/u);
+  assert.match(panel, /setCue\(detail\.cue\?\.text \? detail\.cue : null\)/u);
+  assert.match(panel, /setCue\(initialCue\?\.text \? initialCue : null\)/u);
+  assert.match(panel, /useId\(\)/u);
+  assert.doesNotMatch(panel, /const questionId = `salma-question-\$\{String\(drillId \|\| screen\)/u);
 });
 
 test('targeted Spoken Review cannot finish from no-speech or unrelated-card progress', async () => {
@@ -173,6 +191,34 @@ test('the tutor labels observed risk honestly and exposes delayed listening rete
   assert.match(brain, /internen Einstiegskriterien der Simulation/u);
 });
 
+test('the home tutor keeps one dominant action and progressively discloses exact evidence', async () => {
+  const [brain, panel] = await Promise.all([
+    read('client/src/BrainGuide.jsx'),
+    read('client/src/SalmaTutorPanel.jsx'),
+  ]);
+
+  for (const signal of [
+    'wpm', 'grammar_errors_by_rule', 'intelligibility', 'service_recovery_steps',
+    'response_continuity', 'latencyS', 'fillerPer100', 'subClauseRate', 'vocabDiversity',
+  ]) {
+    assert.match(brain, new RegExp(`${signal}:`, 'u'), `${signal} needs an exact learner-facing measurement label`);
+  }
+  assert.match(brain, /wpm: \{ label: 'Sprechtempo', unit: 'Wörter\/Min\.' \}/u);
+  assert.doesNotMatch(brain, /Interviewerin kennt deine Akte/u);
+  assert.doesNotMatch(brain, /salmaLine\('note_trial'/u,
+    'trial marketing must not enter Salma playback or the next-action card');
+
+  const actionIndex = brain.indexOf('<button style={cta}');
+  const tutorIndex = brain.indexOf('<SalmaTutorPanel');
+  assert.ok(actionIndex >= 0 && tutorIndex > actionIndex,
+    'BrainGuide action must remain ahead of tutor details');
+  assert.match(panel, />Warum genau das\?<\/summary>/u);
+  assert.match(panel, />\s*Salma fragen\s*<\/summary>/u);
+  assert.match(panel, /Fertig, wenn:/u);
+  assert.match(panel, /Saubere Wiederholungen:/u);
+  assert.match(panel, /Tutor-Einstellungen/u);
+});
+
 test('improvement copy is metric-correct transfer evidence without causal or hiring overclaim', async () => {
   const [brain, alhassan] = await Promise.all([
     read('client/src/BrainGuide.jsx'),
@@ -219,6 +265,15 @@ test('BrainGuide is the only returning-user primary action authority', () => {
   }).showGenericInterview, false);
 });
 
+test('the debrief does not invent a fixed homework order beside BrainGuide', async () => {
+  const app = await read('client/src/App.jsx');
+  assert.doesNotMatch(app, /homework_order_top|unter 5 Grammatik-Fehler|15 Minuten heute und 15 Minuten morgen/u);
+  assert.match(app, /<SalmaTutorPanel token=\{token\} apiUrl=\{apiUrl\} screen="debrief" \/>/u);
+  assert.match(app, /onClick=\{onDone\}/u);
+  assert.match(app, /PERSÖNLICHEN SCHRITT ÖFFNEN/u);
+  assert.doesNotMatch(app, /debrief_followup_next|WOCHENFOKUS/u);
+});
+
 test('home clears stale guidance and cannot display unsupported readiness or transfer claims', async () => {
   const [app, brain, panel] = await Promise.all([
     read('client/src/App.jsx'),
@@ -231,7 +286,7 @@ test('home clears stale guidance and cannot display unsupported readiness or tra
   assert.match(app, /homePrimaryAction\.showGenericInterview/u);
   assert.doesNotMatch(app, /\{rank && <RankLadder/u);
 
-  assert.match(brain, /setData\(null\);\s*onDirectiveState\?\.\(\{ status: 'loading', directive: null \}\)/u);
+  assert.match(brain, /setData\(null\);\s*setLoadState\('loading'\);\s*onDirectiveState\?\.\(\{ status: 'loading', directive: null \}\)/u);
   assert.match(brain, /status: 'ready', directive: d\.directive/u);
   assert.match(brain, /status: 'error', directive: null/u);
 

@@ -23,6 +23,8 @@ import { PLANS, OFFER, offerActive, offerPrice } from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
 import { loadUser }                    from './store.js';
 import { dayKey }                      from './time.js';
+import { STUDY_COHORT_DAYS, STUDY_COHORT_ID, studyCohortConfig,
+  validateStudyCohortInvite } from './studyCohortInvite.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -174,11 +176,99 @@ export function normalizeWhatsapp(raw) {
   return /^\d{10,15}$/.test(n) ? n : null;
 }
 
-export async function createAccount(email, password, ref, whatsapp) {
+function studyInviteOwner(store, inviteId, now = Date.now()) {
+  if (!inviteId) return null;
+  return Object.values(store?.accounts || {}).find((candidate) => {
+    const record = candidate?.subscription?.studyCohort;
+    if (record?.inviteId !== inviteId) return false;
+    if (record.status === 'active') return true;
+    return record.status === 'pending' && Number.isFinite(record.inviteExpiresAt) && record.inviteExpiresAt > now;
+  }) || null;
+}
+
+function activatePendingStudyCohort(account, now = Date.now()) {
+  const pending = account?.subscription?.studyCohort;
+  if (!pending || pending.status !== 'pending') return false;
+  if (!Number.isFinite(pending.inviteExpiresAt) || pending.inviteExpiresAt <= now) return false;
+  if (pending.cohortId !== STUDY_COHORT_ID || pending.days !== STUDY_COHORT_DAYS
+      || !studyCohortConfig().enabled) return false;
+  account.subscription.studyCohort = {
+    status: 'active',
+    cohortId: STUDY_COHORT_ID,
+    inviteId: pending.inviteId,
+    days: STUDY_COHORT_DAYS,
+    reservedAt: pending.reservedAt,
+    startedAt: now,
+    endsAt: now + STUDY_COHORT_DAYS * DAY,
+  };
+  return true;
+}
+
+export function studyCohortAccessState(account, now = Date.now()) {
+  const record = account?.subscription?.studyCohort;
+  if (!record || record.cohortId !== STUDY_COHORT_ID || record.days !== STUDY_COHORT_DAYS
+      || !studyCohortConfig().enabled) return null;
+  if (record.status === 'pending' && Number.isFinite(record.inviteExpiresAt) && record.inviteExpiresAt > now) {
+    return Object.freeze({ pending: true, active: false, days: STUDY_COHORT_DAYS, daysLeft: 0 });
+  }
+  if (record.status === 'active' && Number.isFinite(record.startedAt) && Number.isFinite(record.endsAt)
+      && record.startedAt <= now && record.endsAt > now) {
+    const daysLeft = Math.max(1, Math.ceil((record.endsAt - now) / DAY));
+    return Object.freeze({ pending: false, active: true, days: STUDY_COHORT_DAYS, daysLeft });
+  }
+  return null;
+}
+
+export async function studyCohortInviteStatus(token, now = Date.now()) {
+  const invite = validateStudyCohortInvite(token, { now });
+  if (!invite) return null;
+  const store = await load();
+  if (studyInviteOwner(store, invite.inviteId)) return null;
+  return invite;
+}
+
+export async function activateAccountStudyCohort(account, token = null) {
+  return withStoreLock(async () => {
+    const store = await load();
+    const current = account?.id ? store.accounts[account.id] : null;
+    if (!current) return null;
+    const now = Date.now();
+    if (studyCohortAccessState(current, now)?.active) {
+      if (token === null || token === undefined || token === '') return current;
+      const retryInvite = validateStudyCohortInvite(token, { now });
+      return retryInvite?.inviteId === current.subscription.studyCohort.inviteId ? current : null;
+    }
+    if (emailOwnershipVerified(current) && activatePendingStudyCohort(current, now)) {
+      await persist();
+      return current;
+    }
+
+    const invite = validateStudyCohortInvite(token, { now });
+    if (!invite) return null;
+    const owner = studyInviteOwner(store, invite.inviteId, now);
+    if (owner && owner.id !== current.id) return null;
+    current.subscription ||= {};
+    current.subscription.studyCohort = emailOwnershipVerified(current) ? {
+      status:'active', cohortId:STUDY_COHORT_ID, inviteId:invite.inviteId, days:STUDY_COHORT_DAYS,
+      reservedAt:now, startedAt:now, endsAt:now + STUDY_COHORT_DAYS * DAY,
+    } : {
+      status:'pending', cohortId:STUDY_COHORT_ID, inviteId:invite.inviteId, days:STUDY_COHORT_DAYS,
+      inviteExpiresAt:invite.expiresAt, reservedAt:now,
+    };
+    await persist();
+    return current;
+  });
+}
+
+export async function createAccount(email, password, ref, whatsapp, studyInvite = null) {
   email = String(email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw Object.assign(new Error('invalid_email'), { code: 400 });
   if (String(password || '').length < 10 || String(password || '').length > 128)
     throw Object.assign(new Error('weak_password'), { code: 400 });
+  const suppliedStudyInvite = typeof studyInvite === 'string' && studyInvite.trim() ? studyInvite.trim() : null;
+  const validatedStudyInvite = suppliedStudyInvite ? validateStudyCohortInvite(suppliedStudyInvite) : null;
+  if (suppliedStudyInvite && !validatedStudyInvite)
+    throw Object.assign(new Error('invalid_study_invite'), { code: 400 });
 
   // WhatsApp is optional and never collected by the current signup form. If an older trusted
   // caller supplies it, normalize it for the legacy `phone` field; marketing consent is still a
@@ -192,19 +282,32 @@ export async function createAccount(email, password, ref, whatsapp) {
   return withStoreLock(async () => {
     const s = await load();
     if (s.emailIndex[email]) throw Object.assign(new Error('email_taken'), { code: 409 });
+    if (validatedStudyInvite && studyInviteOwner(s, validatedStudyInvite.inviteId))
+      throw Object.assign(new Error('study_invite_used'), { code: 409 });
     const id = 'a_' + randomBytes(8).toString('hex');
+    const now = Date.now();
     const account = {
       id, email,
       phone:        waNum || null,
       passwordHash,
       sessionVersion: 0,
-      createdAt:    Date.now(),
+      createdAt:    now,
       // New accounts must prove mailbox ownership before any authenticated product/API route can
       // consume provider capacity. Accounts created before this field existed are grandfathered by
       // emailOwnershipVerified() so this security repair does not lock out established customers.
       emailVerificationRequired: true,
       emailVerifiedAt: null,
-      subscription: { tier: 'trial', trialStartedAt: null, trialSessionsUsed: 0 },
+      subscription: {
+        tier: 'trial', trialStartedAt: null, trialSessionsUsed: 0,
+        ...(validatedStudyInvite ? { studyCohort: {
+          status: 'pending',
+          cohortId: validatedStudyInvite.cohortId,
+          inviteId: validatedStudyInvite.inviteId,
+          days: validatedStudyInvite.days,
+          inviteExpiresAt: validatedStudyInvite.expiresAt,
+          reservedAt: now,
+        } } : {}),
+      },
       // Referral attribution is analytics-only. It never grants provider-backed trial time.
       ...(refId && s.accounts[refId] && refId !== id ? { referredBy: refId } : {}),
     };
@@ -254,7 +357,9 @@ export async function authenticateAndIssueSession(email, password) {
   if (!snapshot) return null;
   return withStoreLock(async () => {
     const account = currentAccountForCredential(await load(), snapshot);
-    return account ? { account, token: signToken(account) } : null;
+    if (!account) return null;
+    if (emailOwnershipVerified(account) && activatePendingStudyCohort(account)) await persist();
+    return { account, token: signToken(account) };
   });
 }
 
@@ -283,11 +388,14 @@ const FREE_TRIAL_DAY_MS = 86400000;
 export function trialActive(account, now = Date.now()) {
   if (!account || isAdminAccount(account)) return false;   // admins are already elite
   if (planOf(account, now) !== 'free') return false;                // paid users don't need the trial
+  if (studyCohortAccessState(account, now)?.active) return true;
   const start = account.subscription?.trialStartedAt;
   const days = FREE_TRIAL_DAYS;
   return !!start && now >= start && (now - start) < days * FREE_TRIAL_DAY_MS;
 }
 export function trialDaysLeft(account, now = Date.now()) {
+  const studyAccess = studyCohortAccessState(account, now);
+  if (studyAccess?.active) return studyAccess.daysLeft;
   const start = account?.subscription?.trialStartedAt;
   if (!start) return 0;
   const days = FREE_TRIAL_DAYS;
@@ -373,13 +481,17 @@ export async function issueEmailVerificationToken(account) {
 export async function verifyEmailToken(token) {
   if (typeof token !== 'string' || token.length < 40) return null;
   const hash = createHash('sha256').update(token).digest('hex');
-  const s = await load();
-  const account = Object.values(s.accounts || {}).find((a) => a.emailVerification?.hash === hash);
-  if (!account || !account.emailVerification || Date.now() > account.emailVerification.exp) return null;
-  account.emailVerifiedAt = Date.now();
-  delete account.emailVerification;
-  await persist();
-  return account;
+  return withStoreLock(async () => {
+    const s = await load();
+    const account = Object.values(s.accounts || {}).find((a) => a.emailVerification?.hash === hash);
+    const now = Date.now();
+    if (!account || !account.emailVerification || now > account.emailVerification.exp) return null;
+    account.emailVerifiedAt = now;
+    delete account.emailVerification;
+    activatePendingStudyCohort(account, now);
+    await persist();
+    return account;
+  });
 }
 
 async function prepareVerification(account, { force = false } = {}) {
@@ -531,7 +643,12 @@ export function isAdminAccount(account) {
 export function publicAccount(a) {
   // whatsapp is exposed as a BOOLEAN only — the client just needs "already opted in?" to hide
   // the ask-card across devices; the number itself stays server/admin-side.
-  return { id: a.id, email: a.email, emailVerified: emailOwnershipVerified(a), subscription: a.subscription, entitlement: entitlement(a), isAdmin: isAdminAccount(a), whatsapp: !!a.whatsapp?.number };
+  const safeSubscription = { ...(a.subscription || {}) };
+  delete safeSubscription.studyCohort;
+  const studyAccess = studyCohortAccessState(a);
+  return { id: a.id, email: a.email, emailVerified: emailOwnershipVerified(a), subscription: safeSubscription,
+    entitlement: entitlement(a), ...(studyAccess ? { studyAccess } : {}),
+    isAdmin: isAdminAccount(a), whatsapp: !!a.whatsapp?.number };
 }
 
 // ── Express middleware + routers ─────────────────────────────────────────────
@@ -601,8 +718,8 @@ authRouter.post('/signup',
   rateLimit({ windowMs: 60 * 60 * 1000, max: 60, tag: 'signup' }),
   async (req, res) => {
   try {
-    const { email, password, ref } = req.body || {};
-    const acct = await createAccount(email, password, ref, null);
+    const { email, password, ref, studyInvite } = req.body || {};
+    const acct = await createAccount(email, password, ref, null, studyInvite);
     const prepared = await prepareVerification(acct);
     if (prepared.status === 'ready') sendPreparedVerification(acct, prepared.raw);
     res.json({ token: signToken(acct), account: publicAccount(acct), verificationEmailSent: prepared.status === 'ready' });

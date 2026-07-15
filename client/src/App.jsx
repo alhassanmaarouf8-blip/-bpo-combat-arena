@@ -11,8 +11,9 @@ import { Spinner } from './Loading.jsx';
 import { BrainGuide } from './BrainGuide.jsx';   // eager: rendered inline on the home screen (not an overlay)
 import { primaryActionPolicy } from './brainActionPolicy.js';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
+import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
-import { salmaSpeak, salmaModel } from './salmaVoice.js';
+import { salmaSpeak } from './salmaVoice.js';
 import { stopTutorPlayback } from './salmaAudioSafety.js';
 import { API_URL, WS_URL, BUILD_ID, IS_PRODUCTION } from './config.js';
 import {
@@ -23,6 +24,12 @@ import {
   wasInterviewPassClaimed,
   writePendingInterviewPassClaim,
 } from './interviewPassClaimStore.js';
+import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry,
+  verifyStudyCohortEntry } from './studyCohortEntry.js';
+
+// Bearer capability hygiene: capture once and remove it from history during module initialization,
+// before the app's pre-warm request, telemetry, or first React render can run.
+const STUDY_ENTRY_BOOT = typeof window !== 'undefined' ? captureStudyCohortEntry(window.location) : null;
 
 // Lazy-loaded overlays — each is rendered only behind a boolean flag and is heavy (FluencyDrill,
 // PressureLadder, VideoLessons together ≈ 126KB of source). Splitting them out of the main chunk
@@ -212,6 +219,9 @@ function authErrText(code) {
     invalid_number:      { de: 'Bitte gib eine gültige WhatsApp-Nummer ein.', ar: 'من فضلك دخّل رقم واتساب صحيح.' },
     weak_password:       { de: 'Passwort muss mindestens 10 Zeichen haben.', ar: 'الباسورد لازم ١٠ حروف على الأقل.' },
     email_taken:         { de: 'Diese E-Mail ist bereits registriert.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
+    invalid_study_invite:{ de: 'Dieser Studienzugang ist ungültig oder abgelaufen.', ar: '' },
+    study_invite_used:   { de: 'Dieser Studienplatz wurde bereits aktiviert.', ar: '' },
+    study_access_unavailable:{ de: 'Dieser Studienplatz ist nicht mehr verfügbar.', ar: '' },
     invalid_credentials: { de: 'E-Mail oder Passwort ist falsch.',     ar: 'الإيميل أو الباسورد غلط.' },
     too_many_attempts:   { de: 'Zu viele Versuche. Bitte warte ein paar Minuten.', ar: 'محاولات كتير. استنى كام دقيقة وجرّب تاني.' },
   })[code] || { de: 'Etwas ist schiefgelaufen.', ar: 'حصل خطأ. جرّب تاني.' };
@@ -1571,17 +1581,8 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   useEffect(() => {
     if (data?.progress?.rank?.rankUp) setRankCeremony(data.progress.rank.rankUp);
   }, [data?.progress?.rank?.rankUp]);
-  useEffect(() => {
-    if (!rankCeremony || !token) return undefined;
-    const key = ({ Anwärter: 'rank_anwaerter', Geübt: 'rank_geuebt', Profi: 'rank_profi',
-      'Interview-Bereit': 'rank_ready' })[rankCeremony.to] || 'rank_anwaerter';
-    // Masri-first in every UI language (salmaSpeak): her Egyptian voice the moment the owner
-    // fills the rank rows, German Aura until then.
-    const stop = salmaSpeak({ apiUrl, token, items: [{ key }] });
-    return () => { try { stop?.(); } catch { /* fail silent */ } };
-  }, [rankCeremony, lang, token, apiUrl]);
   // THE REVEAL (R2, WOW plan): on the FIRST debrief only, the diagnosis becomes a ceremony — named
-  // Baustellen + the journey ahead. Brain fetch mirrors BrainGuide's (fail-silent: no fake card).
+  // The journey ahead only. The canonical Salma panel below owns the measured bottleneck and dose.
   const isFirstDebrief = data?.progress?.sessionCount === 1;
   const [revealJourney, setRevealJourney] = useState(null);
   useEffect(() => {
@@ -1609,41 +1610,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
 
-  // The correction ritual (expert-teacher doctrine 07-12): ONE LanguageTool-verified fix from THIS
-  // interview, modeled by Salma, said back aloud by the candidate. Fragment-first — the minimal
-  // corrected chunk is exactly what a teacher makes you re-say. Never an invented sentence:
-  // no verified fragment → no card.
-  const ritualEx = (data?.grammar || []).flatMap((g) => g.summaryExamples || [])
-    .find((e) => (e.rightFragment || e.rightWord) && (e.wrongWord || e.wrongFragment));
-  const ritualFix = ritualEx
-    ? { wrong: ritualEx.wrongWord || ritualEx.wrongFragment, right: ritualEx.rightWord || ritualEx.rightFragment,
-        say: ritualEx.rightFragment || ritualEx.rightWord }
-    : null;
-  const [ritualDone, setRitualDone] = useState(false);
-
-  // Salma's spoken follow-up after every interview — keeps returning_handoff's promise ("ich
-  // melde mich nach jedem Interview"). Skipped when the rank ceremony speaks (one voice moment
-  // per debrief) and while the verdict is still held back; masri-first via salmaSpeak. When a
-  // verified fix exists she chains the ritual: prompt line, then she MODELS the corrected
-  // fragment in her own voice (listen-and-repeat).
-  useEffect(() => {
-    if (!token || pending || verdictHold || gradeUnavailable) return undefined;
-    if (!data?.progress || data.progress.rank?.rankUp) return undefined;
-    const nb = data.progress.nextBoss;
-    const items = nb
-      ? [{ key: 'debrief_followup_next', slots: { name: nb.name, tier: nb.tier } }]
-      : [{ key: 'debrief_followup_top' }];
-    if (ritualFix) items.push({ key: 'ritual_prompt' });
-    let stopFrag = null;
-    const stop = salmaSpeak({ apiUrl, token, items,
-      onEnd: ritualFix ? () => { stopFrag = salmaModel({ apiUrl, token, text: ritualFix.say }); } : undefined });
-    return () => {
-      try { stop?.(); } catch { /* fail silent */ }
-      try { stopFrag?.(); } catch { /* fail silent */ }
-    };
-    // ritualFix derives from `data` — data alone captures it for this effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, pending, verdictHold, gradeUnavailable, token, apiUrl]);
+  // Salma never auto-speaks from the debrief. Only the event-ID/acknowledged tutor channel may
+  // trigger a proactive intervention; rank changes, sales copy, reloads and generic follow-ups do
+  // not qualify. This also prevents debrief audio from racing the next microphone session.
 
   const shareUrl  = (typeof window !== 'undefined' && window.location?.origin) || 'https://omni-perform.vercel.app';
   const shareTier = Number(data?.progress?.rank?.tier ?? -1);
@@ -1691,7 +1660,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       x.fillStyle = '#e2e8f0'; x.font = 'bold 54px system-ui,sans-serif';
       x.fillText(shareVariant === 'simulation-record' && nm ? nm.toUpperCase() : `RANG · ${rank}`, W / 2, 700);
       x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif';
-      x.fillText(shareVariant === 'invitation' ? 'SALMA · RECRUITING DESK'
+      x.fillText(shareVariant === 'invitation' ? 'SALMA · PERSÖNLICHE INTERVIEWTRAINERIN'
         : shareVariant === 'simulation-record'
           ? `${data.progress.hireReadiness.measuredSignals}/${data.progress.hireReadiness.totalSignals} SIMULATIONSSIGNALE GEMESSEN · ${new Date().toLocaleDateString('de-DE')}`
           : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
@@ -1765,26 +1734,14 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       ) : (
         <div style={{ flex:1, overflowY:'auto', padding:'16px 16px 16px', display:'flex', flexDirection:'column', gap:14 }}>
 
-          {/* ── THE REVEAL (R2): first debrief = the diagnosis ceremony. Named Baustellen come ONLY
-              from the deterministic grammar data (never invented); the journey bar only renders when
-              the brain answered (fail-silent). This is the "it understands me and will lead me"
-              moment, staged once. ── */}
+          {/* First debrief: orient the learner, then let the canonical Salma panel own the single
+              evidence-backed risk and prescription. The journey renders only when BrainGuide answered. */}
           {isFirstDebrief && (
             <div style={{ padding:'14px 16px', borderRadius:'var(--r-lg)', background:'rgba(59,130,246,0.08)',
               border:'1px solid var(--accent)', textAlign:'left' }}>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, letterSpacing:'0.08em', color:'var(--accent)' }}>
                 DIAGNOSE ABGESCHLOSSEN{nm ? ` — ${nm.toUpperCase()}` : ''} · التشخيص خلص
               </div>
-              {(data?.grammar || []).filter((g) => g.summaryExamples?.length).slice(0, 3).length > 0 && (
-                <div style={{ marginTop:8 }}>
-                  <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Deine Baustellen — gemessen, nicht geraten: <span dir="rtl">دي نقط ضعفك — متقاسة مش تخمين:</span></div>
-                  {(data.grammar || []).filter((g) => g.summaryExamples?.length).slice(0, 3).map((g, i) => (
-                    <div key={i} style={{ fontSize:'var(--fs-label)', color:'var(--text)', marginTop:4 }}>
-                      {i + 1}. {g.rule}{g.count > 1 ? ` · ${g.count}×` : ''}
-                    </div>
-                  ))}
-                </div>
-              )}
               {revealJourney && (
                 <div style={{ marginTop:10 }}>
                   <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:4 }}>
@@ -1848,30 +1805,6 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             )}
           </div>
 
-          {!win && data?.revancheMoment?.quote && onRevanche && (
-            <div style={{ padding:'14px 16px', borderRadius:'var(--r-lg)', textAlign:'left',
-              background:'rgba(249,115,22,0.09)', border:'1px solid rgba(249,115,22,0.48)' }}>
-              <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:11,
-                letterSpacing:'0.13em', color:'var(--action)' }}>
-                DER MOMENT · {data.revancheMoment.stageLabel || 'DEINE SCHWÄCHSTE ANTWORT'}
-              </div>
-              <div style={{ marginTop:8, fontSize:13, lineHeight:1.55, color:'#e2e8f0' }}>
-                „{data.revancheMoment.quote}“
-              </div>
-              {data.revancheMoment.reason && (
-                <div style={{ marginTop:5, fontSize:10.5, color:'#94a3b8' }}>
-                  Größter Hebel: {data.revancheMoment.reason}
-                </div>
-              )}
-              <button onClick={onRevanche} style={{ width:'100%', minHeight:48, marginTop:12,
-                cursor:'pointer', borderRadius:'var(--r-md)', border:'1px solid var(--action)',
-                background:'var(--action)', color:'#020409', fontFamily:'var(--font-display)',
-                fontWeight:900, fontSize:13, letterSpacing:'0.12em' }}>
-                REVANCHE · NOCHMAL UNTER DRUCK
-              </button>
-            </div>
-          )}
-
           {/* ── Hiring decision — maps the CEFR VERDICT (not the game score) to the real
                 Cairo bar: C1-held-under-pressure = seated; B2 = screen only; freeze = out.
                 Mirrors the server jobLabel so the screen never shows two competing verdicts. ── */}
@@ -1907,103 +1840,8 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             <HireVerdict h={data.progress.hireReadiness} onTrain={onTrainSkill} />
           )}
 
-          {/* ── Salma's follow-up — the recruiter has read THIS interview and names the next
-                appointment on her ladder (progress.nextBoss, deterministic). Voiced above. ── */}
-          {!gradeUnavailable && data?.progress && (
-            <div style={{ display:'flex', gap:9, alignItems:'flex-start', padding:'10px 12px',
-              borderRadius:'var(--r-md)', background:'rgba(59,130,246,0.08)',
-              border:'1px solid rgba(59,130,246,0.25)', animation:'result-rise 0.5s var(--ease-out)' }}>
-              <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={34} />
-              <div style={{ textAlign:'left' }}>
-                <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
-                <div dir="auto" style={{ fontSize:12.5, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>
-                  {data.progress.nextBoss
-                    ? salmaLine('debrief_followup_next', lang, { name: data.progress.nextBoss.name, tier: data.progress.nextBoss.tier })
-                    : salmaLine('debrief_followup_top', lang)}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Die Korrektur-Zeremonie (expert-teacher doctrine): the ONE verified fix, modeled by Salma,
-                said back ALOUD. Honest by construction: renders only when LanguageTool verified a
-                fragment from THIS interview, and the button claims nothing it can't know (the
-                repeat is self-reported; the error is already planted in tomorrow's SRS). ── */}
-          {!gradeUnavailable && ritualFix && (
-            <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:'rgba(59,130,246,0.10)',
-              border:'1.5px solid rgba(59,130,246,0.5)', textAlign:'left', animation:'result-rise 0.5s var(--ease-out)' }}>
-              <div style={{ fontSize:10, letterSpacing:'0.14em', fontFamily:'var(--font-display)', fontWeight:800, color:'var(--accent)' }}>
-                EINMAL NOCH · RICHTIG
-              </div>
-              {!ritualDone ? (
-                <>
-                  <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', marginTop:5, lineHeight:1.6 }}>{salmaLine('ritual_prompt', lang)}</div>
-                  <div style={{ marginTop:8, fontSize:16, lineHeight:1.5 }}>
-                    <span style={{ color:'var(--bad)', textDecoration:'line-through', fontSize:12 }}>{ritualFix.wrong}</span>{' '}
-                    <b style={{ color:'#fff' }}>{ritualFix.right}</b>
-                  </div>
-                  <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap' }}>
-                    <button onClick={() => salmaModel({ apiUrl, token, text: ritualFix.say })}
-                      style={{ minHeight:44, padding:'10px 14px', borderRadius:10, cursor:'pointer', fontSize:12,
-                        border:'1px solid rgba(59,130,246,0.45)', color:'#bfdbfe', background:'rgba(59,130,246,0.10)' }}>
-                      <SpeakerIcon style={{ marginRight: 6 }} /> {salmaLine('ritual_replay', lang)}
-                    </button>
-                    <button onClick={() => { setRitualDone(true); beacon('ritual_done'); }}
-                      style={{ minHeight:44, padding:'10px 16px', borderRadius:10, cursor:'pointer', fontSize:12, fontWeight:800,
-                        border:'1px solid var(--accent)', color:'#04070d', background:'var(--accent)' }}>
-                      ✓ {salmaLine('ritual_said', lang)}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', marginTop:6, lineHeight:1.6 }}>
-                  {salmaLine('ritual_done_note', lang)}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── WOCHENFOKUS — the ONE thing to drill this week (amber anchor) ── */}
-          {data?.priorityFix && (data.priorityFix.de || data.priorityFix.ar) && (
-            <div style={{ padding:'14px 16px', borderRadius:14, animation:'result-rise 0.5s var(--ease-out)',
-              background:'linear-gradient(135deg, rgba(249,115,22,0.16) 0%, rgba(249,115,22,0.06) 100%)',
-              border:'2px solid rgba(249,115,22,0.65)',
-              boxShadow:'0 0 28px rgba(249,115,22,0.14)' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
-                <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(249,115,22,0.2)',
-                  border:'1.5px solid rgba(249,115,22,0.6)', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:14, flexShrink:0 }}></div>
-                <div>
-                  <div style={{ fontSize:8.5, letterSpacing:'0.16em', fontFamily:'var(--font-display)', color:'var(--action)' }}>
-                    WOCHENFOKUS · DEIN TÄGLICHES ZIEL
-                  </div>
-                  <div style={{ fontSize:8, color:'rgba(255,255,255,0.3)', letterSpacing:'0.08em', fontFamily:'var(--font-display)' }}>
-                    تمرين الأسبوع · هدفك اليومي
-                  </div>
-                </div>
-              </div>
-              <div style={{ fontSize:13.5, color:'var(--action-2)', lineHeight:1.65, fontWeight:600 }}>
-                {ar && data.priorityFix.ar ? data.priorityFix.ar : data.priorityFix.de}
-              </div>
-              {!ar && data.priorityFix.ar && (
-                <div dir="rtl" style={{ marginTop:7, fontSize:11.5, color:'var(--action)', lineHeight:1.55, opacity:0.8 }}>
-                  {data.priorityFix.ar}
-                </div>
-              )}
-              {/* EXPERT-TEACHER HOMEWORK (owner order 07-12): the focus becomes an ORDER — dose, exit
-                  criterion, unlock. Grammar-error counts are really measured per interview, and
-                  the re-test promise stays literally true (dossier + AKTE memory). */}
-              <div style={{ marginTop:10, paddingTop:9, borderTop:'1px solid rgba(249,115,22,0.25)',
-                fontSize:12, color:'#e2e8f0', lineHeight:1.65 }}>
-                <b dir="auto">
-                  {salmaLine(data?.progress?.nextBoss ? 'homework_order' : 'homework_order_top', lang,
-                    { boss: data?.progress?.nextBoss?.name || '' })}
-                </b>
-                <div style={{ marginTop:6, fontSize:11.5, opacity:0.85 }}>
-                  Dein Interviewer kennt deine Akte und testet genau diese Stelle erneut.
-                </div>
-              </div>
-            </div>
+          {!gradeUnavailable && (
+            <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="debrief" />
           )}
 
           {/* ── DEIN L1-MUSTER — the Arabic-L1-specific pattern (ROADMAP #3). Deterministic
@@ -2506,12 +2344,12 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       )}
 
       <div style={{ padding:'10px 16px 20px', display:'flex', gap:10 }}>
-        <button onClick={onRestart} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
+        <button onClick={onDone} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
           letterSpacing:'0.1em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
           border:'1px solid var(--accent)', color:'#04070d',
           background:'linear-gradient(135deg, var(--accent-2), var(--accent))',
           boxShadow:'0 0 22px rgba(59,130,246,0.4)' }}>
-          NOCH EIN INTERVIEW
+          PERSÖNLICHEN SCHRITT ÖFFNEN
         </button>
         {canShareArtifact && (
           <button onClick={onShare} style={{ flex:1, fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
@@ -2522,18 +2360,26 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
         )}
       </div>
 
-      {/* The way OUT that isn't another fight: before this button the debrief's only exits were
-          NOCHMAL KÄMPFEN or a full page reload — the home guide (the brain's next step) was
-          unreachable at the exact moment of highest motivation. Quiet by design (law: one accent). */}
-      {onDone && (
-        <div style={{ padding:'0 16px 24px' }}>
-          <button onClick={onDone} style={{ width:'100%', minHeight:48, fontFamily:'var(--font-display)',
-            fontWeight:700, fontSize:12, letterSpacing:'0.08em', padding:'13px', borderRadius:'var(--r-md)',
-            cursor:'pointer', border:'1px solid var(--line)', color:'var(--text-dim)',
-            background:'rgba(255,255,255,0.04)' }}>
-            ✓ FERTIG — ZUR ÜBERSICHT{/* OWNER-AR slot */}
-          </button>
-        </div>
+      {/* A repeat interview is secondary: the measured result must route into BrainGuide's exact
+          remediation block before the learner spends another session re-measuring the same gap. */}
+      {onDone && onRestart && (
+        <details style={{ margin:'0 16px 24px', color:'var(--text-dim)', fontSize:12 }}>
+          <summary style={{ minHeight:44, display:'flex', alignItems:'center', cursor:'pointer' }}>Weitere Optionen</summary>
+          <div style={{ display:'grid', gap:8, paddingTop:6 }}>
+            {onRevanche && !win && data?.revancheMoment?.quote && (
+              <button onClick={onRevanche} style={{ minHeight:48, fontFamily:'var(--font-display)', fontWeight:700,
+                fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
+                border:'1px solid var(--line)', color:'var(--text-dim)', background:'rgba(255,255,255,0.04)' }}>
+                SCHWÄCHSTE ANTWORT NOCH EINMAL ÜBEN
+              </button>
+            )}
+            <button onClick={onRestart} style={{ minHeight:48, fontFamily:'var(--font-display)', fontWeight:700,
+              fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
+              border:'1px solid var(--line)', color:'var(--text-dim)', background:'rgba(255,255,255,0.04)' }}>
+              FREIES INTERVIEW WIEDERHOLEN{/* OWNER-AR slot */}
+            </button>
+          </div>
+        </details>
       )}
     </div>
   );
@@ -2923,13 +2769,61 @@ function ProductHomePreview() {
           <Icon name="mic" size={17} /> Interview starten
         </button>
         <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
-          Etwa 7 Minuten · sofortiges, persönliches Feedback
+          Etwa 8 Minuten · sofortiges, persönliches Feedback
         </div>
       </div>
       <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, marginTop:9 }}>
         Vorschau des bestehenden OMNI-PERFORM Trainings — Sprache, Fragen und Feedback passen sich deinem Niveau an.
       </figcaption>
     </figure>
+  );
+}
+
+function StudyBrowserHandoff({ invite }) {
+  const [copied, setCopied] = useState(false);
+  const url = buildStudyBrowserHandoffUrl(window.location, invite);
+  const copy = async () => {
+    let ok = false;
+    try { await navigator.clipboard?.writeText(url); ok = true; } catch { /* fallback below */ }
+    if (!ok) {
+      try {
+        const area = document.createElement('textarea');
+        area.value = url; area.style.position = 'fixed'; area.style.opacity = '0';
+        document.body.appendChild(area); area.focus(); area.select(); ok = document.execCommand('copy'); area.remove();
+      } catch { /* the selectable URL remains available */ }
+    }
+    if (ok) { setCopied(true); window.setTimeout(() => setCopied(false), 5000); }
+  };
+  const buttonStyle = { width:'100%', minHeight:54, borderRadius:12, display:'flex', alignItems:'center',
+    justifyContent:'center', gap:9, fontFamily:'var(--font-display)', fontSize:13, fontWeight:800,
+    textDecoration:'none', cursor:'pointer', boxSizing:'border-box' };
+  return (
+    <main style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:22, background:'var(--bg)', color:'var(--text)' }}>
+      <section aria-labelledby="study-handoff-title" style={{ width:'100%', maxWidth:460, padding:24,
+        borderRadius:'var(--r-xl)', background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:9, color:'var(--accent)', fontFamily:'var(--font-display)',
+          fontSize:11, fontWeight:800, letterSpacing:'0.12em' }}><Icon name="target" size={18} /> 21-TAGE-STUDIE</div>
+        <h1 id="study-handoff-title" style={{ margin:'16px 0 10px', fontSize:25, lineHeight:1.25 }}>
+          Finde heute den einen Interviewfehler, der dich am ehesten zurückhält.
+        </h1>
+        <p style={{ margin:0, color:'var(--text-dim)', fontSize:14, lineHeight:1.65 }}>
+          Dafür braucht OMNI-PERFORM deine Stimme. Facebook und Instagram blockieren das Mikrofon häufig;
+          in Chrome oder Safari läuft die etwa achtminütige Diagnose zuverlässig.
+        </p>
+        <ol style={{ margin:'16px 0 18px', paddingLeft:20, color:'var(--text)', fontSize:13, lineHeight:1.8 }}>
+          <li>Sprich in einer realistischen deutschen Simulation.</li>
+          <li>Erhalte ein gemessenes Risiko und einen genauen Trainingsblock.</li>
+          <li>Beweise die Verbesserung im Vergleichs- und Drucktest.</li>
+        </ol>
+        <button type="button" onClick={copy} style={{ ...buttonStyle,
+          border:'1px solid var(--accent)', color:'#081019', background:'var(--grad-action)' }}>
+          {copied ? '✓ KOPIERT — JETZT IN CHROME/SAFARI EINFÜGEN' : 'LINK KOPIEREN & IN CHROME/SAFARI ÖFFNEN'}
+        </button>
+        <div style={{ marginTop:12, color:'var(--text-faint)', fontSize:11.5, lineHeight:1.55 }}>
+          Bestätigte Teilnehmer: 21 Tage kostenlos · keine Karte · Training und Produktstudie, keine Jobvermittlung.
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -2994,6 +2888,32 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   });
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
+  // Capture the bearer capability and erase it from browser history before the first render or
+  // network request. The in-memory ref survives validation and the external-browser handoff.
+  const [capturedStudyEntry] = useState(() => STUDY_ENTRY_BOOT);
+  const studyEntryRef = useRef(capturedStudyEntry);
+  const [studyEntryState, setStudyEntryState] = useState(() =>
+    studyEntryRef.current ? { phase:'checking', valid:false, days:0 } : { phase:'generic', valid:false, days:0 });
+  useEffect(() => {
+    const entry = studyEntryRef.current;
+    if (!entry) return undefined;
+    const controller = new AbortController();
+    verifyStudyCohortEntry(API_URL, entry.invite, { signal:controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setStudyEntryState(result.valid
+          ? { phase:'valid', valid:true, days:result.days }
+          : { phase:'invalid', valid:false, days:0 });
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setStudyEntryState({ phase:'invalid', valid:false, days:0 });
+      });
+    return () => controller.abort();
+  }, []);
+  const validStudyEntry = studyEntryState.valid === true && studyEntryState.days === 21;
+  const studyEntryChecking = studyEntryState.phase === 'checking';
+  const studyInviteLanding = studyEntryChecking || validStudyEntry;
   // Self-serve EMAIL password reset (owner order 2026-07-10 — the WhatsApp-manual flow is dead).
   // forgotState: null → closed · 'form' → email input · 'sent' → link on its way ·
   // 'unavailable' → SMTP not configured yet (honest, no false promise, no WhatsApp copy).
@@ -3126,7 +3046,10 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
     try {
       const r = await fetch(`${API_URL}/api/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? { ref: getRefCode() } : {}) }),
+        body: JSON.stringify({ email, password: pw, ...(mode === 'signup' ? {
+          ref: getRefCode(),
+          ...(validStudyEntry ? { studyInvite:studyEntryRef.current?.invite } : {}),
+        } : {}) }),
         signal: ctrl.signal,
       });
       const data = await r.json();
@@ -3139,6 +3062,21 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         }
         return;
       }
+      if (mode === 'login' && validStudyEntry && data.token) {
+        const claimResponse = await fetch(`${API_URL}/api/study-cohort/claim`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${data.token}` },
+          body:JSON.stringify({ invite:studyEntryRef.current?.invite }),
+          signal:ctrl.signal,
+        });
+        const claimData = await claimResponse.json().catch(() => ({}));
+        if (!claimResponse.ok || !claimData?.account?.studyAccess) {
+          setErr(authErrText(claimData?.error || 'invalid_study_invite'));
+          setBusy(false);
+          return;
+        }
+        data.account = claimData.account;
+      }
       // A successful authentication is an explicit account handoff. Bind an unscoped local
       // preview to that verified login email, but the store refuses to rebind another account.
       bindPendingInterviewPassClaimToEmail(email);
@@ -3146,8 +3084,15 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       // verification. Only ordinary signups enter the legacy level-assessment promise.
       if (mode === 'signup') {
         try {
-          if (readPendingInterviewPassClaim()) localStorage.removeItem('bpo_pending_assessment');
-          else localStorage.setItem('bpo_pending_assessment', '1');
+          if (validStudyEntry && data.account?.studyAccess?.pending) {
+            localStorage.removeItem('bpo_pending_assessment');
+            localStorage.setItem('bpo_pending_study_start', '1');
+          } else {
+            // The live interview is now the universal first diagnosis. The legacy five-question
+            // assessment remains available as a fallback, but a new learner is never forced through
+            // two serial diagnostics before producing trustworthy spoken evidence.
+            localStorage.removeItem('bpo_pending_assessment');
+          }
         } catch { /* storage is optional */ }
       }
       onAuth({ token: data.token, account: data.account });
@@ -3160,6 +3105,10 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       clearTimeout(hintTimer); clearTimeout(timeout); setBusyHint(false);
     }
   };
+
+  if (validStudyEntry && IN_APP_BROWSER) {
+    return <StudyBrowserHandoff invite={studyEntryRef.current?.invite || ''} />;
+  }
 
   // "Private Bank Arena" landing (07-02 uplift): quiet lockup, the Arabic headline AS the hero,
   // a CSS-drawn phone showing the REAL fight UI (the blue-vs-orange moat — $0 product proof),
@@ -3191,28 +3140,44 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
         {/* Craft pass #4 — ONE short line carries the page (real Arabic display face, set like a
             headline); everything below steps down. Niche = the BPO industry IN Egypt (owner 07-10). */}
-        <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', marginTop:22, lineHeight:1.3 }}>
-          تدريب إنترفيو ألماني عملي
-        </div>
-        <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
-          علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}
-        </div>
-        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:10, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
-          Deutsches Interview-Training für BPO- und Call-Center-Jobs in Ägypten — und für deutsche Remote-Jobs.
-        </div>
+        {validStudyEntry ? <>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(28px, 5vw, 42px)', fontWeight:750,
+            color:'#f8fafc', marginTop:22, lineHeight:1.22, maxWidth:520, marginInline:'auto' }}>
+            Finde heute den einen Interviewfehler, der dich am ehesten zurückhält.
+          </div>
+          <div style={{ fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:12,
+            lineHeight:1.75, maxWidth:470, marginInline:'auto' }}>
+            Sprich etwa acht Minuten Deutsch. Danach erhältst du ein gemessenes Risiko, einen genauen Trainingsblock
+            und den passenden Vergleichs- und Drucktest.
+          </div>
+        </> : <>
+          <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', marginTop:22, lineHeight:1.3 }}>
+            تدريب إنترفيو ألماني عملي
+          </div>
+          <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
+            علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}
+          </div>
+          <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:10, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
+            Deutsches Interview-Training für BPO- und Call-Center-Jobs in Ägypten — und für deutsche Remote-Jobs.
+          </div>
+        </>}
         {/* Craft pass #3 — the assessment promise, demoted from a shouting orange chip to one quiet line. */}
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:14, lineHeight:1.7 }}>
-          Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus.
-          {' '}<span dir="rtl">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span>
+          {validStudyEntry
+            ? 'Nach Anmeldung und E-Mail-Bestätigung: direkt zur etwa achtminütigen Sprachdiagnose.'
+            : <>Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus.
+              {' '}<span dir="rtl">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span></>}
         </div>
         <button onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
             border:'1px solid var(--action)', background:'linear-gradient(135deg,var(--action-2),var(--action))',
             color:'#071018', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
-          ابدأ تقييمك المجاني · KOSTENLOS STARTEN
+          {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'ابدأ تقييمك المجاني · KOSTENLOS STARTEN'}
         </button>
         <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7 }}>
-          Nach E-Mail-Bestätigung: Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig
+          {validStudyEntry
+            ? 'Bestätigter Studienzugang: 21 Tage kostenlos · keine Karte · Training, keine Jobvermittlung'
+            : 'Nach E-Mail-Bestätigung: Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig'}
         </div>
         {/* B1+ admission bar (owner law 07-12, Harvard framing): selectivity stated at the door —
             quiet and confident, never apologetic. Copy = salmaCopy rows (masri via the owner sheet). */}
@@ -3232,12 +3197,12 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
       </div>
 
-      <div style={rise(2)}>
+      {!studyInviteLanding && <div style={rise(2)}>
         <ProductHomePreview />
-      </div>
+      </div>}
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
-      <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
+      {!studyInviteLanding && <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
         {[
           { icon:'mic',     ar:'محاكاة واقعية لإنترفيو ألماني بالصوت مع HR صعب',  de:'Realistische deutsche Voice-Interview-Simulation mit anspruchsvollem HR' },
           { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
@@ -3261,7 +3226,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', lineHeight:1.6, marginTop:4, textAlign:'center' }}>
           Konkretes Feedback aus deinen eigenen Antworten — mit nachvollziehbaren Beispielen statt allgemeiner Tipps.{/* OWNER-AR slot */}
         </div>
-      </div>
+      </div>}
       </div>
 
       {/* Column 2 of the desktop landing-grid. Without this wrapper the grid treated the ratings,
@@ -3311,12 +3276,19 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           }} />
       </Suspense>}
 
-      <VoiceReadinessCheck />
+      {!studyInviteLanding && <VoiceReadinessCheck />}
 
       {/* AUTH CARD — glass, one orange fill on the whole page */}
       <div id="signup-card" style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
         background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3), var(--glass-highlight)',
         backdropFilter:'blur(14px) saturate(1.1)', ...rise(4) }}>
+        {studyEntryChecking && (
+          <div role="status" aria-live="polite" style={{ marginBottom:14, padding:'11px 13px', borderRadius:10,
+            border:'1px solid rgba(59,130,246,0.38)', background:'rgba(59,130,246,0.08)',
+            color:'#dbeafe', fontSize:12, lineHeight:1.55 }}>
+            Studienzugang wird sicher geprüft. Du kannst die Seite schon ansehen; die Anmeldung wird freigegeben, sobald der Zugang bestätigt ist.
+          </div>
+        )}
         {verificationNotice && (
           <div role="status" style={{ marginBottom:14, padding:'11px 13px', borderRadius:10,
             border:`1px solid ${verificationNotice.state === 'success' ? 'rgba(34,197,94,0.42)' : 'rgba(248,113,113,0.42)'}`,
@@ -3430,16 +3402,18 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         )}
 
         {/* Craft pass #6 — machined, not inflated: solid fill, tight radius, no glow bloom. */}
-        <button type="submit" disabled={busy}
-          style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:busy?'wait':'pointer',
+        <button type="submit" disabled={busy || studyEntryChecking}
+          style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:(busy || studyEntryChecking)?'wait':'pointer',
             fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.04em', borderRadius:11,
             border:'none', color:'#081019', background:'var(--action)',
-            opacity:busy?0.6:1, transition:'transform 100ms var(--ease)' }}>
-          {busy ? (busyHint ? 'Server wird gestartet… · السيرفر بيفتح…' : 'Wird gesendet…') : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : 'Konto erstellen'}
+            opacity:(busy || studyEntryChecking)?0.6:1, transition:'transform 100ms var(--ease)' }}>
+          {studyEntryChecking ? 'ZUGANG WIRD GEPRÜFT…' : busy ? (busyHint ? 'Server wird gestartet… · السيرفر بيفتح…' : 'Wird gesendet…') : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : validStudyEntry ? 'STUDIENPLATZ SICHERN' : 'Konto erstellen'}
         </button>
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
           {mode === 'signup'
-            ? <>Bestätigungslink per E-Mail öffnen, dann kostenlos starten · افتح لينك تأكيد الإيميل وبعدها ابدأ مجانًا</>
+            ? validStudyEntry
+              ? <>Bestätigungslink öffnen; danach geht es direkt zur Sprachdiagnose. Dein bestätigter Studienzugang umfasst 21 kostenlose Tage.</>
+              : <>Bestätigungslink per E-Mail öffnen, dann kostenlos starten · افتح لينك تأكيد الإيميل وبعدها ابدأ مجانًا</>
             : <>Kostenlos starten: Einstufung + erstes Interview · شرح عربي في الخطوات الأساسية · مجاني للبداية</>}
         </div>
         </form>
@@ -3514,6 +3488,7 @@ function EmailVerificationGate({ auth, onLogout, linkState = null }) {
     : state === 'cooldown' ? 'Ein Link wurde gerade schon vorbereitet. Bitte Posteingang und Spam prüfen.'
     : state === 'unavailable' ? 'E-Mail-Versand ist gerade nicht verfügbar. Bitte später erneut versuchen.'
     : state === 'error' ? 'Senden fehlgeschlagen. Bitte gleich erneut versuchen.' : null;
+  const studyPending = auth.account?.studyAccess?.pending === true && auth.account?.studyAccess?.days === 21;
   return (
     <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
       <div style={{ width:'100%', maxWidth:440, padding:26, textAlign:'center', borderRadius:'var(--r-xl)',
@@ -3522,7 +3497,9 @@ function EmailVerificationGate({ auth, onLogout, linkState = null }) {
         <h1 style={{ margin:'18px 0 8px', fontSize:22 }}>E-Mail bestätigen</h1>
         <div style={{ color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
           Öffne den Bestätigungslink für <b style={{ color:'var(--text)', overflowWrap:'anywhere' }}>{auth.account.email}</b>.
-          Erst danach wird dein gesamtes Training freigeschaltet.
+          {studyPending
+            ? ' Danach kehrst du direkt zur etwa achtminütigen Sprachdiagnose zurück; dein 21-Tage-Studienplatz ist reserviert.'
+            : ' Erst danach wird dein gesamtes Training freigeschaltet.'}
         </div>
         <div dir="rtl" style={{ marginTop:8, color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
           افتح لينك التأكيد اللي اتبعت على إيميلك. كل التدريب بيفتح بعد التأكيد.
@@ -3672,13 +3649,6 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [paymentAvailable, setPaymentAvailable] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
-  useEffect(() => {
-    if (!token) return undefined;
-    const key = paywallSalmaKey(info, false);
-    const stop = salmaSpeak({ apiUrl: API_URL, token,
-      items: [{ key, slots: { days: info?.trial?.daysLeft ?? 0 } }] });
-    return () => { try { stop?.(); } catch { /* native voice fails silently */ } };
-  }, [lang, token, info]);
   const [pay, setPay]       = useState(null);   // { planId, label, amountEGP, period } | chosen plan to pay
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
@@ -4367,7 +4337,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             const profile = await r.json();
             if (!profile.salmaIntroAt) {
               setSalma({
-                variant: (pending && !status.used) ? 'new' : 'returning',
+                variant: status.used ? 'returning' : 'new',
                 pending, used: !!status.used, result: status.result || null,
                 profile, trialDays: auth.account?.entitlement?.trial?.active ? (auth.account.entitlement.trial.daysLeft ?? 0) : 0,
               });
@@ -4379,8 +4349,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         } catch { /* profile unreachable → legacy */ }
       }
 
-      // LEGACY (unchanged): fresh signup → auto-open the free assessment once.
-      if (pending && status && !status.used) { setAssessmentOpen(true); beacon('assessment_shown'); }
+      // If the tutor profile is unavailable, fail open to the first-run home. Its one primary action
+      // is the live spoken diagnosis; the legacy assessment stays reachable as an explicit fallback.
     })();
   }, []);   // once, on first mount after login/signup
   const [videoLessonsOpen, setVideoLessonsOpen] = useState(false);     // $0 video-lesson engine (animated slides + native TTS)
@@ -4600,13 +4570,19 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           displayName: msg.displayName ?? 'HERR TARIQ',
           bossId:      msg.bossId ?? '',   // drives the persona-true trait chip on the stage
         });
-        // Pre-fight scenario briefing (shown while boss is loading, dismissed on first BOSS_SPEECH)
+        // Pre-fight context is fail-closed. Only a server-validated practice revanche may reveal
+        // coaching hints; diagnostic/matched/transfer packets keep the measured rule assessor-only.
         if (msg.csBriefing) {
-          setCsBriefing({ ...msg.csBriefing, scrutiny: msg.scrutiny || null,
+          const practice = msg.briefingMode === 'practice';
+          setCsBriefing({ ...msg.csBriefing,
+            keyPhrases: practice && Array.isArray(msg.csBriefing.keyPhrases)
+              ? msg.csBriefing.keyPhrases.slice(0, 5)
+              : [],
+            scrutiny: practice ? (msg.scrutiny || null) : null,
             bossName: msg.displayName || '', bossId: msg.bossId || '' });
           setShowBriefing(true);
           setTimeout(() => setShowBriefing(false), 3_200);
-        }
+        } else { setCsBriefing(null); setShowBriefing(false); }
         // Aura-2 German voice: prefer the server-sent per-character voice; fall back to a
         // gender-correct map so a female boss is NEVER voiced by the male default.
         {
@@ -4917,6 +4893,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         // First meaningful, server-scored exchange — only now has the learner actually
         // completed onboarding. A failed connection/start must not unlock the complex home.
         try { localStorage.setItem('ff_interviewed', '1'); } catch {}
+        try { localStorage.removeItem('bpo_pending_study_start'); } catch {}
         setSeenInterview(true);
         // Guard against non-finite values so a malformed update can't NaN the bars
         // (which silently blanks them) or trip a false game-over.
@@ -4997,6 +4974,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     setBossText(''); setTranscript([]);
     setEmotion('idle'); setScoreFlash(null);
     setFunnel(null); setDebrief(null); setDebriefPending(false); setNoSession(false);
+    setCsBriefing(null); setShowBriefing(false);
     setAnswerText(''); setBossThinking(false); setRecording(false); setTranscribing(false);
     pendingDurationRef.current = 0;
     partialIdRef.current = null;
@@ -5563,6 +5541,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // here — the fight-result object lives in a child component, not this scope (it crashed the home).
   // seenInterview (set at beginSession) already covers the "has interviewed" case, so `data` is redundant.
   const firstRun     = canStart && !seenInterview && !streak;
+  // Server-authoritative so a verification link opened on another browser/device still lands on
+  // the cohort's measured first action. firstRun keeps this a one-time CTA; it never auto-starts.
+  const activeStudyStart = firstRun && auth.account?.studyAccess?.active === true
+    && auth.account?.studyAccess?.days === 21;
   // A pass-funnel signup already completed a meaningful first action. Preserve that exact
   // continuation instead of hiding BrainGuide/Mission Control behind the generic first fight.
   const missionContinuation = !firstRun || hasClaimedInterviewPass || interviewPassClaimRevision > 0;
@@ -5711,7 +5693,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {salma && !assessmentOpen && !billing?.justActivated && (
         <SalmaTakeover token={auth.token} apiUrl={API_URL} lang={feedbackLang}
           ctx={salma} resumeTick={salmaResume}
-          onStartScreening={() => { setAssessmentOpen(true); beacon('assessment_shown'); }}
           onBookFight={bookSalmaFight}
           onClose={closeSalma} />
       )}
@@ -6191,7 +6172,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 <div style={{ marginTop:4, fontSize:11.5, color:'#e2e8f0' }}>{csBriefing.scrutiny}</div>
               </div>
             )}
-            {/* Key phrases */}
+            {/* Key phrases are practice-only. Missing/unknown modes produce an empty list. */}
+            {Array.isArray(csBriefing.keyPhrases) && csBriefing.keyPhrases.length > 0 && <>
             <div style={{ fontSize:9.5, letterSpacing:'0.1em', color:'var(--accent)', fontFamily:'var(--font-display)', marginBottom:8 }}>SCHLÜSSELPHRASEN</div>
             {csBriefing.keyPhrases.map((phrase, i) => (
               <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:7 }}>
@@ -6201,6 +6183,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5, fontStyle:'italic' }}>„{phrase}"</div>
               </div>
             ))}
+            </>}
             {/* Dismiss hint */}
             <div style={{ marginTop:14, textAlign:'center', fontSize:10, color:'rgba(255,255,255,0.3)' }}>
               Verschwindet automatisch · Tippe zum sofortigen Schließen
@@ -6577,7 +6560,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               transition:'transform 100ms var(--ease)',
               opacity: isConnecting ? 0.55 : 1,
             }}>
-            <Icon name="mic" size={19} /> {isConnecting ? 'Verbinde…' : 'Interview starten'}
+            <Icon name="mic" size={19} /> {isConnecting ? 'Verbinde…' : (activeStudyStart ? '8-MIN-DIAGNOSE STARTEN' : 'Interview starten')}
           </button>
         ) : null)}
 
@@ -6586,7 +6569,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             quiet "Einstufung machen · تقييم مستواك" link below is the already-approved bilingual alternative.) */}
         {firstRun && (
           <div style={{ marginTop:12, textAlign:'center', fontSize:'var(--fs-meta)', color:'var(--text-dim)', lineHeight:1.55 }}>
-            ⏱ ~7 Min · dein Niveau wird automatisch erkannt — einfach anfangen.
+            {activeStudyStart
+              ? 'Heute: 1 gemessenes Interviewrisiko → 1 genauer Trainingsblock → Vergleichs- und Drucktest.'
+              : '⏱ ~8 Min · dein Niveau wird automatisch erkannt — einfach anfangen.'}
           </div>
         )}
 
@@ -6981,6 +6966,31 @@ function AuthedApp() {
       const a = { token: cur.token, account }; persistAuth(a); return a;
     });
   }, []);
+
+  // Email verification normally activates a reserved study place atomically. This authenticated,
+  // idempotent fallback covers a verification handoff whose refreshed /me response still shows the
+  // safe pending state. No invite token crosses this boundary or returns to the browser.
+  useEffect(() => {
+    if (!auth?.token || auth.account?.emailVerified !== true || auth.account?.studyAccess?.pending !== true) return undefined;
+    const controller = new AbortController();
+    fetch(`${API_URL}/api/study-cohort/claim`, {
+      method: 'POST',
+      headers: { Authorization:`Bearer ${auth.token}` },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const payload = await response.json();
+        return payload?.account?.studyAccess?.active === true ? payload.account : null;
+      })
+      .then((account) => {
+        if (!account || controller.signal.aborted) return;
+        try { localStorage.setItem('bpo_pending_study_start', '1'); } catch {}
+        handleAccount(account);
+      })
+      .catch(() => { /* a later authenticated refresh can retry; generic access remains intact */ });
+    return () => controller.abort();
+  }, [auth?.token, auth?.account?.emailVerified, auth?.account?.studyAccess?.pending, handleAccount]);
 
   // Tiny build badge on every screen so the running version is provable (kills "nothing changed" guessing).
   const buildId = BUILD_ID || (typeof document !== 'undefined' && document.querySelector('meta[name=build]')?.content) || 'dev';

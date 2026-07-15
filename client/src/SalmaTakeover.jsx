@@ -1,8 +1,7 @@
 /**
- * SalmaTakeover.jsx — the recruiter cold-open. Fires ONCE per account (server flag salmaIntroAt,
- * localStorage mirror): Salma introduces herself, takes the candidate's name + goal, runs their
- * "screening call" (the existing free Assessment), delivers HER verdict from the REAL assessment
- * result, and hands the learner into the first measured training interview.
+ * SalmaTakeover.jsx — the one-time tutor introduction. Fires ONCE per account (server flag
+ * salmaIntroAt, localStorage mirror), explains why measurement comes first, launches the existing
+ * Assessment, reports only its persisted result, and hands the learner into a training interview.
  *
  * LAW: every word comes from salmaCopy.js owner templates — no LLM, no invented data (El-Captain
  * precedent). The Assessment itself is untouched; while it runs, App hides this overlay and bumps
@@ -14,27 +13,18 @@ import { SpeakerIcon, CloseIcon } from './icons/AudioIcons';
 import { salmaSpeak, subscribeSalmaSpeaking, subscribeSalmaLevel } from './salmaVoice.js';
 import { stopTutorWhenDocumentHidden } from './salmaAudioSafety.js';
 
-const GOALS = [
-  { value: 'bpo-job',       key: 'goal_bpo' },
-  { value: 'better-german', key: 'goal_german' },
-  { value: 'other',         key: 'goal_other' },
-];
-
 // estimatedLevel (A1–C2 from the assessment) → the app's three interview levels. Same map as the
 // legacy auto-set in App.jsx (D10): the MEASURED level drives the first booked interview.
 export const ASSESS_LEVEL_MAP = { A1: 'a2-b1', A2: 'a2-b1', B1: 'a2-b1', B2: 'b2', C1: 'c1', C2: 'c1' };
 export const ASSESS_BOSS_MAP = { A1: 'yasmin', A2: 'yasmin', B1: 'yasmin', B2: 'karim', C1: 'hana', C2: 'hana' };
 
-export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScreening, onBookFight, onClose }) {
-  // Beats: gate → welcome → name_goal → screening → (assessment runs outside) → verdict | no_verdict.
-  // Returning variant: welcome → (name_goal if no name) → handoff (existing customers skip the gate).
-  // The gate is the B1+ admission bar (owner law 07-12, Harvard framing): she ASKS the level;
-  // B1+ walks in, below gets a dignified turn-away — and the screening stays the real exam.
+export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onBookFight, onClose }) {
+  // New learner: one explanation → measured screening. Returning learner: one introduction →
+  // BrainGuide handoff. A self-reported CEFR level is never used to diagnose, exclude, or select a
+  // training interview; only the persisted Assessment result may drive the mapping below.
   // While the assessment runs, App UNMOUNTS this overlay (one takeover at a time) — so on a
   // remount with resumeTick > 0 we start in 'checking' and the effect below fetches the verdict.
-  const [beat, setBeat]   = useState(resumeTick > 0 ? 'checking' : (ctx.variant === 'returning' ? 'welcome' : 'gate'));
-  const [name, setName]   = useState(ctx.profile?.name || '');
-  const [goal, setGoal]   = useState(ctx.profile?.goal || null);
+  const [beat, setBeat]   = useState(resumeTick > 0 ? 'checking' : 'welcome');
   const [result, setResult] = useState(ctx.result || null);
   const returning = ctx.variant === 'returning';
   const seenTick  = useRef(0);
@@ -62,31 +52,8 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   };
   const finish = (beaconId) => { stopSpeech(); markSeen(); onClose(beaconId); };
 
-  // Best-effort profile save — the flow never blocks on it (fights auto-capture names anyway).
-  const saveProfile = () => {
-    const body = {};
-    if (name.trim()) body.name = name.trim();
-    if (goal) body.goal = goal;
-    if (!Object.keys(body).length) return;
-    fetch(`${apiUrl}/api/guide/profile`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
-    }).catch(() => {});
-    // PII-free funnel count (same fire-and-forget contract as App's beacon helper).
-    fetch(`${apiUrl}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ e: 'salma_name_saved' }), keepalive: true }).catch(() => {});
-  };
-
-  // ── Salma SPEAKS her bubbles AND leads the candidate onward herself ─────────────────────────
-  // (owner 07-12: "she's slow, passive, waits for me to click, doesn't guide"). Two behaviors:
-  //  • SPEAK — every beat change speaks its bubbles masri-first (salmaSpeak) through the cached
-  //    native pipeline; owner-filled masri wins in both UI languages, unfilled falls back to Aura.
-  //  • LEAD — on a pure-narration beat she does NOT park on a "Weiter" button: once she was
-  //    actually HEARD (onStart fired) and a readable dwell passed, she advances the flow herself.
-  //    The onStart gate is the whole trick — if autoplay blocked her (no user gesture yet, e.g.
-  //    auto-login on a returning visit), onStart never fires, so she never SILENTLY auto-rushes;
-  //    she waits for the one tap that unlocks audio, then leads from there. Decision/input beats
-  //    (gate, name, screening, verdict) always wait for the human, by design.
+  // Salma never auto-speaks here. The explicit speaker button is the only path to salmaSpeak, so
+  // opening this one-time flow remains silent until the learner asks to hear it.
   // The Assessment closed (App bumped resumeTick) → fetch the fresh server-persisted verdict and
   // resume on the right beat. Only reacts while we're waiting on the screening.
   useEffect(() => {
@@ -112,90 +79,35 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
   const say = (key, slots, arSlots) => { spoken.push({ key, slots, arSlots }); return line(key, slots); };
   let actions = null;
 
-  if (beat === 'gate') {
-    bubbles.push(say('gate_question'));
-    const answer = (yes) => {
-      fetch(`${apiUrl}/api/beacon`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ e: yes ? 'gate_b1_yes' : 'gate_b1_no' }), keepalive: true }).catch(() => {});
-      setBeat(yes ? 'welcome' : 'gate_denied');
-    };
-    actions = (
-      <>
-        <button style={btnBlue} onClick={() => answer(true)}>{line('gate_b1')}</button>
-        <button style={{ ...btnBlue, background: 'rgba(59,130,246,0.14)', color: '#bfdbfe' }}
-          onClick={() => answer(false)}>{line('gate_below')}</button>
-      </>
-    );
-  } else if (beat === 'gate_denied') {
-    bubbles.push(say('gate_denied'));
-    actions = (
-      <>
-        <button style={btnBlue} onClick={() => finish('salma_skipped')}>{line('returning_cta')}</button>
-        {skipLink(line('gate_denied_browse'), () => finish('salma_skipped'))}
-      </>
-    );
-  } else if (beat === 'welcome') {
+  if (beat === 'welcome') {
     if (returning) {
       bubbles.push(ctx.profile?.name
         ? say('returning_welcome_named', { name: ctx.profile.name })
         : say('returning_welcome'));
       actions = (
         <>
-          <button style={btnBlue} onClick={() => setBeat(ctx.profile?.name ? 'handoff' : 'name_goal')}>{line('continue_label')}</button>
+          <button style={btnBlue} onClick={() => setBeat('handoff')}>{line('continue_label')}</button>
           {skipLink(line('skip_label'), () => finish('salma_skipped'))}
         </>
       );
     } else {
       bubbles.push(say('intro_welcome'));
-      if (ctx.trialDays > 0) bubbles.push(say('intro_trial', { days: ctx.trialDays }));
+      bubbles.push(say('screening_invite'));
       actions = (
         <>
-          <button style={btnBlue} onClick={() => setBeat('name_goal')}>{line('continue_label')}</button>
+          <button style={btnOrange} onClick={() => { stopSpeech(); onBookFight(null); }}>{line('screening_cta')}</button>
           {skipLink(line('skip_label'), () => finish('salma_skipped'))}
         </>
       );
     }
-  } else if (beat === 'name_goal') {
-    bubbles.push(say('name_ask'));
-    actions = (
-      <>
-        <label style={{ display: 'block', textAlign: 'left' }}>
-          <span style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.05em' }}>{line('name_label')}</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="given-name"
-            style={{ width: '100%', marginTop: 4, padding: '11px 12px', borderRadius: 10, fontSize: 15,
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(59,130,246,0.35)', color: '#e2e8f0' }} />
-        </label>
-        <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.05em', marginTop: 12, textAlign: 'left' }}>{line('goal_ask')}</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-          {GOALS.map((g) => (
-            <button key={g.value} onClick={() => setGoal(g.value)}
-              style={{ ...chip, ...(goal === g.value ? chipOn : null) }}>{line(g.key)}</button>
-          ))}
-        </div>
-        <button style={{ ...btnBlue, marginTop: 14 }}
-          onClick={() => { saveProfile(); setBeat(returning ? 'handoff' : 'screening'); }}>
-          {line('continue_label')}
-        </button>
-        {skipLink(line('skip_label'), () => finish('salma_skipped'))}
-      </>
-    );
-  } else if (beat === 'screening') {
-    bubbles.push(say('screening_invite'));
-    actions = (
-      <>
-        <button style={btnOrange} onClick={() => { stopSpeech(); onStartScreening(); }}>{line('screening_cta')}</button>
-        {skipLink(line('skip_label'), () => finish('salma_skipped'))}
-      </>
-    );
   } else if (beat === 'verdict') {
     const level = result?.estimatedLevel || '—';
     const focus = pickText(result?.recommendedFocus, lang);
-    // Her spoken masri fills {focus} from recommendedFocus.ar (the backend ships both languages),
-    // so the voice never splices display-language text into an Arabic sentence.
+    // The runtime remains German-only until a complete frozen Masri pack is approved. We still
+    // retain the bounded alternate slot for future approved assets.
     const focusAr = pickText(result?.recommendedFocus, 'ar');
     bubbles.push(say('verdict_summary', { level, focus: focus || '—' }, { level, focus: focusAr || focus || '—' }));
-    // B1+ positioning (owner law 07-12): below B1 she says the honest recruiter sentence — the
-    // arena serves B1 aufwärts. No hard lock (their call), but the truth comes first.
+    // This branch is based on measured Assessment evidence, never the learner's self-report.
     if (level === 'A1' || level === 'A2') bubbles.push(say('verdict_below_b1', { level }));
     const quote = firstBlockerQuote(result);
     if (quote) bubbles.push(say('verdict_blocker', { quote }));
@@ -210,8 +122,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onStartScr
     bubbles.push(say('no_verdict'));
     actions = (
       <>
-        <button style={btnBlue} onClick={() => { stopSpeech(); onStartScreening(); }}>{line('no_verdict_resume')}</button>
-        <button style={{ ...btnBlue, background: 'rgba(59,130,246,0.14)', color: '#bfdbfe' }}
+        <button style={btnOrange}
           onClick={() => { stopSpeech(); markSeen(); onBookFight(null); }}>{line('no_verdict_direct')}</button>
         {skipLink(line('later_label'), () => finish('salma_later'))}
       </>
@@ -287,7 +198,7 @@ function bookingCopyKey(level) {
 // Motion is limited to a gentle sway, natural blink, and the real-audio presence ring.
 // Static gradient ids + shared keyframes are identical across instances, so any duplication on a
 // page resolves to the same visuals.
-// Salma's face — the app's recruiter avatar. A SYNTHETIC (AI-generated, no real person → no likeness
+// Salma's face — the app's tutor avatar. A SYNTHETIC (AI-generated, no real person → no likeness
 // risk) attractive young-woman photo, cropped to the face + downscaled to an 18KB /salma.jpg (owner
 // 07-13: "an attractive German young lady, find me one"). Motion: she gently sways/breathes on a loop
 // and her ring reacts to real audio while she speaks. prefers-reduced-motion disables it.
@@ -379,7 +290,3 @@ const btnOrange = { width: '100%', minHeight: 46, padding: '12px 14px', borderRa
   cursor: 'pointer', fontWeight: 800, fontSize: 14.5, color: '#1a0d02',
   background: 'linear-gradient(90deg, var(--action, #f97316), #fb923c)',
   boxShadow: '0 6px 22px rgba(249,115,22,0.35)' };
-const chip = { padding: '9px 12px', minHeight: 40, borderRadius: 'var(--r-pill, 999px)', fontSize: 12.5,
-  cursor: 'pointer', color: '#cbd5e1', background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.14)' };
-const chipOn = { color: '#dbeafe', background: 'rgba(59,130,246,0.18)', border: '1px solid rgba(59,130,246,0.6)' };

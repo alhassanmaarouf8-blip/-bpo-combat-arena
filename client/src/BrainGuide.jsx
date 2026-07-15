@@ -58,12 +58,24 @@ const SKILL_LABEL = {
 const AHA_METRIC = Object.freeze({
   grammar_errors: { label: 'Fehlerzahl', unit: 'Fehler' },
   fluency_score: { label: 'Sprechfluss', unit: 'Punkte' },
+  wpm: { label: 'Sprechtempo', unit: 'Wörter/Min.' },
   deescalation_score: { label: 'Deeskalation', unit: 'Punkte' },
   response_continuity: { label: 'Antwortkontinuität', unit: 'Punkte' },
   intelligibility_score: { label: 'Verständlichkeit', unit: 'Punkte' },
   listening_accuracy: { label: 'Hörgenauigkeit', unit: '%' },
 });
-const MEASURE_LABEL = { intelligibility: 'deine Verständlichkeit am Telefon', deescalation: 'deine Deeskalation', wpm: 'dein Sprechtempo' };
+const MEASURE_LABEL = Object.freeze({
+  wpm: 'dein Sprechtempo',
+  grammar_errors_by_rule: 'deine Grammatik in vollständigen Antworten',
+  intelligibility: 'deine Verständlichkeit am Telefon',
+  service_recovery_steps: 'deine Service-Recovery-Schritte',
+  response_continuity: 'deine Antwortkontinuität unter Druck',
+  latencyS: 'deine Reaktionszeit',
+  fillerPer100: 'deine Füllwortabhängigkeit',
+  subClauseRate: 'deine verbundene Antwortstruktur',
+  vocabDiversity: 'deine Wortschatzbreite',
+  deescalation: 'deine Deeskalation',
+});
 
 // THE FATHER EXPLAINS (bottleneck-doctrine D1–D4): one German sentence saying WHY this is the
 // step — the diagnosis framing (D1), honest "I must hear you more" (D4), drill-nominates/
@@ -76,11 +88,11 @@ function whyLine(d) {
     case 'NEW':
       return 'Dein Diagnose-Interview: Ich muss dich zuerst sprechen hören, um deine größte Baustelle zu finden — danach führe ich dich Schritt für Schritt.';
     case 'MEASURE': {
-      const sig = MEASURE_LABEL[d.prescription?.signal] || 'ein wichtiges Signal';
+      const sig = MEASURE_LABEL[d.prescription?.signal] || 'dieses Interviewsignal';
       return `Ich kann ${sig} noch nicht sicher messen — und ich rate nicht. Das nächste Interview misst genau das.`;
     }
     case 'READY':
-      return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: die Interviewerin kennt deine Akte und testet genau diese Stelle erneut. Erst wenn sie im Interview hält, gilt sie als gelöst.`;
+      return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: Die Trainingssimulation testet denselben Engpass mit neuem Material und Druck erneut. Erst wenn das Ergebnis im passenden Retest und in einer neuen Situation hält, gilt der Transfer als bestätigt.`;
     case 'RETEST_READY':
       return `Der verzögerte Hörvergleich${label ? ` für ${label}` : ''} ist jetzt fällig. Nur neue servergeprüfte Aufgaben zählen als Nachweis.`;
     case 'RETEST_WAIT':
@@ -117,8 +129,9 @@ const LADDER = [
   { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
 ];
 
-export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, refreshKey = 0 }) {
+export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, externalInterviewCta = false, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
+  const [loadState, setLoadState] = useState('loading');
   const [coachRevision, setCoachRevision] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const speechStopRef = useRef(null);
@@ -163,24 +176,27 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
     let alive = true;
     stopSpeaking();
     setData(null);
+    setLoadState('loading');
     onDirectiveState?.({ status: 'loading', directive: null });
     (async () => {
       try {
         const r = await fetch(`${apiUrl}/api/brain`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
         if (!r.ok) {
-          if (alive) onDirectiveState?.({ status: 'error', directive: null });
+          if (alive) { setLoadState('error'); onDirectiveState?.({ status: 'error', directive: null }); }
           return;
         }
         const d = await r.json();
         if (!alive) return;
         if (!d?.directive?.prescription?.action) {
+          setLoadState('error');
           onDirectiveState?.({ status: 'error', directive: null });
           return;
         }
         setData(d);
+        setLoadState('ready');
         onDirectiveState?.({ status: 'ready', directive: d.directive });
       } catch {
-        if (alive) onDirectiveState?.({ status: 'error', directive: null });
+        if (alive) { setLoadState('error'); onDirectiveState?.({ status: 'error', directive: null }); }
       }
     })();
     return () => { alive = false; stopSpeaking(); };
@@ -191,7 +207,27 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
     return () => window.removeEventListener('omni:coach-state-changed', refresh);
   }, []);
 
-  if (!data?.directive) return null;
+  if (!data?.directive) return (
+    <div dir="ltr" style={{ ...card, textAlign:'left' }} role={loadState === 'error' ? 'alert' : 'status'} aria-live="polite">
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={42} />
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontWeight:800, fontSize:13, color:'#e2e8f0' }}>
+            {loadState === 'error' ? 'Dein persönlicher Schritt konnte noch nicht geladen werden.' : 'Dein persönlicher Schritt wird berechnet…'}
+          </div>
+          <div style={{ marginTop:3, fontSize:11.5, color:'#94a3b8', lineHeight:1.5 }}>
+            {loadState === 'error' ? 'Deine Messdaten bleiben erhalten. Lade nur die Empfehlung erneut.' : 'BrainGuide prüft deine letzte verlässliche Messung.'}
+          </div>
+        </div>
+      </div>
+      {loadState === 'error' && (
+        <button type="button" onClick={() => setCoachRevision((value) => value + 1)}
+          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'#bfdbfe' }}>
+          ERNEUT LADEN
+        </button>
+      )}
+    </div>
+  );
   const d = data.directive;
   const j = d.journey || {};
   const pct = Math.max(0, Math.min(100, j.pctToApply || 0));
@@ -212,41 +248,30 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
     })[d.prescription.step] || 'NÄCHSTER SCHRITT'}`
     : BRAIN_COPY.startCta;
 
-  // Salma's notes — each only when its REAL datum exists (she never speaks without evidence).
-  const weaknessNote = topWeakness?.rule
-    ? salmaLine('note_weakness', lang, { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 })
-    : null;
-  const trialNote = trial?.active && Number.isFinite(trial?.daysLeft)
-    ? salmaLine('note_trial', lang, { days: trial.daysLeft })
-    : null;
   // Her pipeline — where the candidate stands on the interviewer org ladder (level-derived).
   const curLevel = pipeline?.currentBoss?.minLevel ?? null;
   const speakSalma = () => {
-    // Masri-first (owner order 07-12): once her note rows carry owner masri she speaks pure masri;
-    // until then she speaks the German composition. The German directive rides along ONLY on the
-    // German path (dePrefix) — it has no masri twin and stays visible on the card either way.
-    const items = [];
-    if (weaknessNote) items.push({ key: 'note_weakness', slots: { rule: ruleLabel(topWeakness.rule), lapses: topWeakness.lapses ?? 1 } });
-    if (trialNote) items.push({ key: 'note_trial', slots: { days: trial.daysLeft } });
-    if (!items.length && !whyLine(d)) return;
-    startSpeaking({ items, dePrefix: whyLine(d) });
+    // User-initiated playback contains only the current evidence-grounded explanation. Trial
+    // marketing and unrelated file notes never enter Salma's spoken intervention.
+    if (!whyLine(d)) return;
+    startSpeaking({ items: [], dePrefix: whyLine(d) });
   };
 
   return (
     <div dir="rtl" style={card}>
-      {/* The recruiter's face on the card — the brain's directive is HER professional advice. */}
+      {/* Salma explains BrainGuide's current evidence-grounded action; she does not create another one. */}
       <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, textAlign: 'left' }}>
         <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={46} speaking={speaking} />
         <div style={{ lineHeight: 1.25 }}>
           <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0' }}>{salmaName(lang)}</div>
           <div style={{ fontSize: 10.5, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
         </div>
-        <button onClick={speaking ? stopSpeaking : speakSalma} aria-label={speaking ? 'Salma unterbrechen' : 'Salma anhören'}
+        {whyLine(d) && <button onClick={speaking ? stopSpeaking : speakSalma} aria-label={speaking ? 'Salma unterbrechen' : 'Salma anhören'}
           style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: '8px 10px', cursor: 'pointer',
             borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
             background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>
           {speaking ? '…' : <SpeakerIcon />}
-        </button>
+        </button>}
       </div>
 
       {/* This is a narrow delayed-transfer measurement, not proof that training caused the change. */}
@@ -289,21 +314,21 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
           {whyLine(d)}
         </div>
       )}
-      {/* Salma's quiet file notes — real dashboard/entitlement/leaderboard values only. */}
-      {(weaknessNote || trialNote) && (
-        <div dir="ltr" style={{ margin: '8px 0 2px', padding: '8px 10px', borderRadius: 8, textAlign: 'left',
-          background: 'rgba(59,130,246,0.07)', borderLeft: '2px solid rgba(59,130,246,0.45)' }}>
-          {weaknessNote && <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55 }}>{weaknessNote}</div>}
-          {trialNote && <div style={{ fontSize: 11.5, color: '#94a3b8', lineHeight: 1.55, marginTop: weaknessNote ? 4 : 0 }}>{trialNote}</div>}
-        </div>
+      {/* BrainGuide's single next action stays visually ahead of tutor explanations and history. */}
+      {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
+        <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
       )}
 
       <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="home" refreshKey={refreshKey + coachRevision} />
 
-      {/* Her pipeline — the interviewer org ladder as her bookings. Filled = passed rungs
-          (level-derived, server-decided), ring = the current appointment, dim = still locked. */}
+      {/* Secondary simulation history. Filled = passed rungs (level-derived, server-decided),
+          ring = the current training simulation, dim = still locked. */}
       {curLevel != null && (
-        <div dir="ltr" style={{ margin: '10px 0 2px', textAlign: 'left' }}>
+        <details dir="ltr" style={{ margin: '10px 0 2px', textAlign: 'left', color: '#94a3b8' }}>
+          <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 12 }}>
+            Deine Interview-Simulationen
+          </summary>
+          <div style={{ paddingTop: 4 }}>
           <div style={{ fontSize: 10, color: '#94a3b8', letterSpacing: '0.06em', marginBottom: 6 }}>
             {salmaLine('pipeline_label', lang)}
           </div>
@@ -334,13 +359,8 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
               {salmaLine('pipeline_next', lang, { name: pipeline.nextBoss.name, tier: pipeline.nextBoss.tier || '' })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* Hand the WHY to the destination too, so the prescribed drill opens carrying the same
-          honest reason (the drill renders it as its why-you bar). */}
-      {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
-        <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
+          </div>
+        </details>
       )}
     </div>
   );

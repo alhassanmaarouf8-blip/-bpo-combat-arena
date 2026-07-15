@@ -11,6 +11,7 @@
     "test:server": "node scripts/run-server-tests.mjs",
     "build:client": "npm --prefix client run build",
     "check:artifact": "node scripts/verify-production-artifact.mjs",
+    "study:invite": "node scripts/create-study-cohort-invite.mjs",
     "verify": "npm run check:secrets && npm run lint && npm run design-lint && npm run check:syntax && npm run test:server && npm run build:client && npm run check:artifact"
   },
   "devDependencies": {

@@ -1,12 +1,10 @@
 /**
- * PressureLadder.jsx — "DRUCK-LEITER" 2.0: train HARDER than any real interview (zero cost).
+ * PressureLadder.jsx — "DRUCK-LEITER" 2.0: controlled internal pressure practice (zero cost).
  *
- * Elite-sport / special-forces principle: rehearse under MORE pressure than the real event, so
- * the real one feels slow. The #1 reason a fluent candidate is rejected is FREEZING when a German
- * native goes fast, hostile, and interrupts. We overload deliberately: escalating speech speed
- * (1.0→1.6×), rising hostility, shrinking windows, the boss talking OVER you — now with VARIED
- * scenarios each run (never repetitive), an ENDLESS survival mode past the top rung, and a
- * resilience debrief. 100% client-side: free browser voice + ClipRecorder. No server, no API.
+ * Controlled-practice principle: increase one pressure variable at a time and verify whether the
+ * learner can keep answering. Completion proves performance only inside this drill; later matched
+ * and novel live retests determine whether it transfers. 100% client-side: free browser voice plus
+ * ClipRecorder. No server and no provider call.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { SpeakerIcon } from './icons/AudioIcons';
@@ -43,8 +41,8 @@ function freezeMsg(L, lang) {
       'الوقت القصير لخبطك. حضّر جملة بداية واحدة جاهزة تبدأ بيها فورًا («سؤال كويس — يعني...») عشان متفكرش من الصفر.');
   if (L.rate >= 1.15)                           // Tempo: he went fast
     return T(lang,
-      'Das Tempo hat dich erwischt. Trainier dein Ohr auf dieses Tempo im HÖR-CHECK — dann klingt das echte Gespräch langsam.',
-      'السرعة هي اللي عرقلتك. درّب أذنك على السرعة دي في الـ HÖR-CHECK، وساعتها المقابلة الحقيقية تبقى بطيئة قدامك.');
+      'Das Tempo hat dich erwischt. Trainiere dein Ohr im HÖR-CHECK und prüfe danach in einem neuen Druck-Retest, ob du stabiler reagierst.',
+      'السرعة هي اللي عرقلتك. درّب أذنك على السرعة دي في الـ HÖR-CHECK وبعدها اختبر نفسك في موقف ضغط جديد.');
   return T(lang,                                // Aufwärmen: slow, no interrupts, lots of time → it was words
     'Das war nicht der Druck — dir fehlten die Worte. Leg dir feste Antworten auf Standardfragen zu (FLOW-DRILL), dann hast du immer einen Satz parat.',
     'مش الضغط اللي جمّدك — اتلخبطت تقول إيه. حضّر إجابات جاهزة للأسئلة المتكررة (FLOW-DRILL)، وساعتها يبقى عندك جملة دايمًا.');
@@ -368,11 +366,11 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   if (phase === 'intro') return shell(<>
     {header}
     <div style={{ padding: '16px', borderRadius: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>{T(lang, 'Härter als jedes echte Interview.', 'أصعب من أي مقابلة حقيقية.')}</div>
+      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>{T(lang, 'Interne Hochdruck-Simulation.', 'محاكاة ضغط داخلية متدرجة.')}</div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.7 }}>
         {T(lang,
-          '5 Stufen. Jede Stufe: schneller, unhöflicher, weniger Zeit — und der Boss redet dir rein. Dein Job: WEITERREDEN, nicht einfrieren. Wer hier besteht, für den fühlt sich das echte Gespräch wie Zeitlupe an.',
-          '5 مستويات. كل مستوى: أسرع، أقل أدبًا، وقت أقل — والـ boss بيقاطعك. مهمتك: تفضل تتكلم، متجمدش. اللي بينجح هنا، المقابلة الحقيقية بتبقى بطيئة قدامه.')}
+          '5 Stufen. Jede Stufe: schneller, direkter und mit weniger Antwortzeit. Dein Ziel: weiterreden, strukturiert bleiben und nicht einfrieren. Erst ein späterer Retest zeigt, ob das auch mit neuem Material hält.',
+          '٥ مستويات: السرعة والضغط بيزيدوا مع وقت أقل للرد. هدفك تكمل كلامك بشكل مرتب. التحسن لازم يتأكد في اختبار جديد.')}
       </div>
     </div>
     <button onClick={() => setPhase('ready')} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Leiter besteigen ▸', 'اطلع السلّم ▸')}</button>
@@ -435,8 +433,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
         {froze
           ? freezeMsg(L, lang)
           : endless
-            ? T(lang, 'Schneller und härter als jedes echte Gespräch — und du redest weiter. Noch eine?', 'أسرع وأقسى من أي مقابلة — وانت لسه بتتكلم. كمان وحدة؟')
-            : T(lang, `Stufe ${L.n} überstanden — schneller und unhöflicher als ein echtes Interview. Weiter nach oben.`, `عديت مستوى ${L.n} — أسرع وأقسى من مقابلة حقيقية. كمّل لفوق.`)}
+            ? T(lang, 'Die interne Belastung steigt — und du redest weiter. Noch eine kontrollierte Runde?', 'الضغط الداخلي بيزيد وإنت لسه مكمل. جولة تانية؟')
+            : T(lang, `Stufe ${L.n} unter diesen Trainingsbedingungen überstanden. Weiter nach oben.`, `عديت مستوى ${L.n} تحت ظروف التدريب دي. كمّل لفوق.`)}
       </div>
     </div>
     <div style={{ fontSize: 12, color: '#cbd5e1', margin: '2px 0 14px', padding: '12px', background: 'rgba(59,130,246,0.07)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.25)' }}>
@@ -462,8 +460,8 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       <div style={{ fontSize: 18, color: '#f8fafc', fontWeight: 800, marginTop: 8 }}>{T(lang, 'Leiter bestiegen.', 'طلعت السلّم.')}</div>
       <div style={{ fontSize: 13, color: '#cbd5e1', marginTop: 10, lineHeight: 1.7, padding: '0 6px' }}>
         {T(lang,
-          'Du hast Schnelleres, Unhöflicheres und Härteres überstanden als jedes echte Bewerbungsgespräch. Das echte Interview wird sich jetzt wie Zeitlupe anfühlen — ruhig, höflich, viel Zeit.',
-          'عدّيت حاجة أسرع وأقسى وأصعب من أي مقابلة حقيقية. المقابلة الحقيقية هتبقى بطيئة دلوقتي — هادية، مؤدبة، وقت كتير.')}
+          'Du hast fünf zunehmend anspruchsvolle interne Druckstufen bearbeitet. Das belegt deine Kontinuität in dieser Übung; ein neuer Druck-Retest muss den Transfer noch bestätigen.',
+          'خلصت ٥ مستويات ضغط داخلية بصعوبة متدرجة. ده بيثبت أداءك في التمرين ده بس؛ لازم اختبار جديد يأكد التحسن.')}
       </div>
       <div style={{ fontSize: 12, color: 'var(--accent-2)', marginTop: 12, fontWeight: 700 }}>{T(lang, `Stufen standgehalten: ${survived}/5`, `مستويات صمدت فيها: ${survived}/5`)}</div>
     </div>

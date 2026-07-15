@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ClipRecorder } from './clipRecorder.js';
 import { salmaModel } from './salmaVoice.js';
 import { consumeAutomaticTutorCue, createTutorDrillSession, stopTutorWhenDocumentHidden,
@@ -38,6 +38,14 @@ const UNIT_LABELS = Object.freeze({ wpm: 'Wörter/Min.', errors_per_100_words: '
   percent_incomplete_turns: '% unvollständige Antworten', seconds: 'Sek.', fillers_per_100_words: 'Füllwörter/100 Wörter',
   subordinate_clauses_per_100_sentences: 'Nebensätze/100 Sätze', type_token_percent: '% verschiedene Wörter',
   recovery_steps_out_of_3: 'von 3 Schritten (Empathie, Verantwortung, nächster Schritt)' });
+const DRILL_LABELS = Object.freeze({
+  'satzbau-schmiede': 'Satzbau-Training',
+  'sag-es-richtig': 'Korrektur-Training',
+  'flow-drill': 'Sprechfluss-Training',
+  'hoer-check': 'Hör-Training',
+  shadowing: 'Aussprache-Training',
+  'druck-leiter': 'Druck-Training',
+});
 
 export function useSalmaDrillSession(token, drillId) {
   const sessionRef = useRef(null);
@@ -48,6 +56,7 @@ export function useSalmaDrillSession(token, drillId) {
 }
 
 export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', initialCue = null, drillSession = null, refreshKey = 0 }) {
+  const generatedQuestionId = useId();
   const [coach, setCoach] = useState(null);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
@@ -95,7 +104,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
     return () => window.removeEventListener('omni:coach-state-changed', refresh);
   }, [loadCoach]);
   useEffect(() => stopTutorWhenDocumentHidden(), []);
-  useEffect(() => { if (initialCue?.text) setCue(initialCue); }, [initialCue]);
+  useEffect(() => { setCue(initialCue?.text ? initialCue : null); }, [initialCue]);
   useEffect(() => {
     const events = [];
     if (coach?.activePrescription?.id) events.push(['salma_prescription_shown', coach.activePrescription.id]);
@@ -116,8 +125,8 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   useEffect(() => {
     const handler = (event) => {
       const detail = event?.detail;
-      if (!detail?.cue || (drillId && detail.drill !== drillId)) return;
-      setCue(detail.cue);
+      if (!detail || !Object.hasOwn(detail, 'cue') || (drillId && detail.drill !== drillId)) return;
+      setCue(detail.cue?.text ? detail.cue : null);
     };
     window.addEventListener('omni:salma-coach-cue', handler);
     return () => window.removeEventListener('omni:salma-coach-cue', handler);
@@ -223,83 +232,42 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
     : proof?.status === 'improved' ? 'Verbesserung im passenden Vergleichstest; der Transfernachweis steht noch aus.'
     : proof?.status === 'regressed' ? 'Der Live-Retest war schwächer; dein nächster Schritt wurde angepasst.'
       : proof ? 'Das Niveau hielt im Live-Retest; der Engpass bleibt im Fokus.' : '';
+  const bottleneck = forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId]
+    ? RISK_LABELS[forecast.riskId]
+    : risk?.state === 'measure_first'
+      ? 'Noch keine belastbare Diagnose'
+      : forecast?.state === 'historical_only'
+        ? 'Aktuelle Messung nötig'
+        : null;
+  const hasEvidenceDetails = forecast?.state === 'observed_simulation_risk'
+    || !!listeningRetest || !!speakingRetest || !!proof || !!coach.progress;
+  const questionId = `salma-question-${generatedQuestionId.replace(/:/g, '')}`;
   return (
     <section dir="ltr" aria-label="Salma, persönliche Interviewtrainerin" aria-busy={busy} style={{ marginTop: 12, padding: '12px 0 2px',
       borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
-      {risk?.state === 'measure_first' && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong style={{ color: '#e2e8f0' }}>Noch keine belastbare Diagnose.</strong>{' '}
-        Beende zuerst das vollständige Diagnose-Interview. Salma nennt keinen Engpass aus einer kurzen oder unterbrochenen Aufnahme.
-      </div>}
-      {forecast?.state === 'historical_only' && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong style={{ color: '#e2e8f0' }}>Die letzte Messung ist nicht mehr aktuell.</strong>{' '}
-        Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht auf dein heutiges Risiko.
-      </div>}
-      {forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-        background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: '#dbeafe' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>{forecastHeading}</div>
-        <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[forecast.riskId]}</div>
-        <div style={{ marginTop: 3, color: '#cbd5e1', fontSize: 11.5, lineHeight: 1.5 }}>
-          {ROLE_LABELS[forecast.target?.roleType] || 'Kundenservice'} · {INDUSTRY_LABELS[forecast.target?.industryKey] || 'allgemeines deutsches BPO'} ·{' '}
-          {STAGE_LABELS[forecast.criterion?.stageId] || 'Interview'}
+      {bottleneck && <div role="status" style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', color: '#93c5fd' }}>
+          {risk?.state === 'measure_first' || forecast?.state === 'historical_only'
+            ? 'ZUERST SAUBER MESSEN'
+            : forecast?.confidence === 'high'
+              ? 'MEHRFACH BEOBACHTETER ENGPASS'
+              : 'BEOBACHTETES RISIKO · NOCH ZU BESTÄTIGEN'}
         </div>
-        {forecast.criterion && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
-          {CRITERION_LABELS[forecast.criterion.criterionId] || forecast.criterion.criterionId}: gemessen {forecast.criterion.observed}{' '}
-          {UNIT_LABELS[forecast.criterion.unit] || forecast.criterion.unit}; interne Referenz{' '}
-          {forecast.criterion.direction === 'at_least' ? 'mindestens' : 'höchstens'} {forecast.criterion.reference}.
+        <div style={{ marginTop: 4, color: '#e2e8f0', fontSize: 13.5, fontWeight: 750 }}>{bottleneck}</div>
+        {risk?.state === 'measure_first' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
+          Beende zuerst das vollständige Diagnose-Interview. Salma nennt keinen Engpass aus einer kurzen oder unterbrochenen Aufnahme.
         </div>}
-        <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
-          {forecast.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
-          {' '}Interne Trainingsreferenz, keine Vorhersage einer Arbeitgeberentscheidung.
-        </div>
-      </div>}
-      {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong style={{ color: '#e2e8f0' }}>Hörnachweis: </strong>
-        {listeningRetest.trainingComplete === false && 'Dein persönlicher Trainingsblock läuft noch. Erst nach mindestens vier richtigen Antworten in den letzten fünf Aufgaben beginnt die Retest-Wartezeit.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine servergeprüfte Ausgangsmessung.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'dose' && 'Der Trainingsblock ist noch nicht als vollständige Dosis bestätigt.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'matched' && <>{listeningRetest.completed || 0}/5 Vergleichsaufgaben bestätigt.{' '}
-          {Date.now() < Number(listeningRetest.nextEligibleAt) && <>Der Retest öffnet frühestens am {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}</>}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'transfer' && <>{listeningRetest.completed || 0}/5 Transferaufgaben mit neuem Material bestätigt.{' '}
-          {Date.now() < Number(listeningRetest.nextEligibleAt) && <>Der Transfer-Retest öffnet frühestens am {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}</>}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'complete' && 'Vergleich und Transfer sind unter neuer Belastung bestätigt.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'failed' && 'Der Retest ist vollständig, aber die Erfolgsschwelle wurde nicht erreicht. BrainGuide passt den nächsten Trainingsschritt an.'}
-        {listeningRetest.trainingComplete !== false && !['complete', 'failed'].includes(listeningRetest.phase) && <span style={{ color: '#94a3b8' }}> Übung vor der Freigabe hilft, gilt aber nicht als Retest.</span>}
-      </div>}
-      {speakingRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong style={{ color: '#e2e8f0' }}>Sprechnachweis: </strong>
-        {speakingRetest.phase === 'matched' && <>Der passende Vergleichstest zählt frühestens am{' '}
-          {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
-        {speakingRetest.phase === 'transfer' && <>Der Test in einer neuen Situation zählt frühestens am{' '}
-          {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
-        {speakingRetest.phase === 'complete' && (speakingRetest.transfer
-          ? 'Vergleichs- und Transfernachweis sind vollständig.'
-          : 'Der Vergleichstest zeigte noch keine übertragbare Verbesserung; BrainGuide passt das Training an.')}
-        {speakingRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Frühere Übung hilft, gilt aber nicht als Retest.</span>}
-      </div>}
-      {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-        background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: '#dbeafe' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>
-          {proof.phase === 'transfer' ? 'VERIFIZIERTER TRANSFER' : 'VERIFIZIERTER VERGLEICHSTEST'}
-        </div>
-        <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{proof.skillLabel}</div>
-        <div style={{ marginTop: 3, fontSize: 12.5, lineHeight: 1.55 }}>
-          {proof.metricLabel}: <strong>{proof.before}</strong> → <strong>{proof.after}</strong> {proof.unit}. {proofOutcome}
-        </div>
-      </div>}
-      {p && <div style={{ color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong style={{ color: '#e2e8f0' }}>{p.evidenceConfidence === 'high' ? 'Dein persönlicher Trainingsblock:' : 'Messblock für einen ersten zuverlässigen Hinweis:'}</strong>{' '}
-        {p.repetitions} Wiederholungen · {Math.ceil(p.durationSeconds / 60)} Minuten
-        {p.timesPerDay > 1 ? ` · ${p.timesPerDay} Blöcke mit mindestens ${Math.round(p.minimumSpacingMinutes / 60)} Stunden Abstand` : ''}.
-        <div style={{ color: '#94a3b8', marginTop: 4 }}>Erfolg: {p.successGate}</div>
-        {coach.progress && <div style={{ color: '#94a3b8', marginTop: 4 }}>
-          Saubere Wiederholungen: {coach.progress.successfulRepetitions}/{coach.progress.requiredSuccessfulRepetitions}
-          {coach.progress.blockNominatedComplete
-            ? (p.baseline ? (speakingRetest?.phase === 'transfer'
-              ? ' · Vergleich bestanden; Beherrschung wird später in einer neuen Situation geprüft.'
-              : ' · Block abgeschlossen; Bestätigung folgt im gezielten Live-Interview.')
-              : ' · Block abgeschlossen; BrainGuide wählt jetzt die nächste verlässliche Messung.')
-            : ''}
+        {forecast?.state === 'historical_only' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
+          Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht auf dein heutiges Risiko.
         </div>}
+      </div>}
+      {p && <div style={{ padding: '10px 11px', borderRadius: 10, background: 'rgba(59,130,246,0.07)',
+        border: '1px solid rgba(96,165,250,0.20)', color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
+        <div style={{ color: '#e2e8f0', fontWeight: 750 }}>
+          {DRILL_LABELS[p.drillId] || 'Dein Trainingsblock'} · {p.repetitions} Wiederholungen · {Math.ceil(p.durationSeconds / 60)} Minuten
+          {p.timesPerDay > 1 ? ` · ${p.timesPerDay} Blöcke mit mindestens ${Math.round(p.minimumSpacingMinutes / 60)} Stunden Abstand` : ''}
+        </div>
+        <div style={{ color: '#94a3b8', marginTop: 4 }}><strong style={{ color: '#cbd5e1' }}>Fertig, wenn:</strong> {p.successGate}</div>
       </div>}
       {coach.intervention && coach.feature.voiceEnabled && !coach.preferences.muted && (
         <button type="button" onClick={() => speaking ? stopSpeech() : speak(`${coach.intervention.text} ${coach.intervention.nextAction}`, coach.intervention.id)}
@@ -307,28 +275,101 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
           {speaking ? 'Unterbrechen' : 'Anhören'}
         </button>
       )}
-      {answer && <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 10, color: '#dbeafe',
-        background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.2)', fontSize: 13, lineHeight: 1.55 }}>
-        {answer}
-      </div>}
       {cue?.text && <div role="status" style={{ marginTop: 10, color: '#dbeafe', fontSize: 12.5, lineHeight: 1.55 }}>
         <strong>Korrektur für den nächsten Versuch:</strong> {cue.text}
       </div>}
-      <form onSubmit={(event) => { event.preventDefault(); ask(question); }} style={{ marginTop: 10 }}>
-        <label htmlFor="salma-question" style={{ display: 'block', color: '#94a3b8', fontSize: 11.5, marginBottom: 5 }}>Salma fragen</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <input id="salma-question" value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={400}
-            placeholder="Was bedeutet die Aufgabe?" disabled={busy || recording}
-            style={{ flex: '1 1 190px', minHeight: 44, borderRadius: 10, border: '1px solid rgba(148,163,184,0.28)',
-              background: 'rgba(2,6,16,0.72)', color: '#e2e8f0', padding: '10px 12px', fontSize: 13 }} />
-          <button type="button" onClick={toggleRecording} disabled={busy} aria-pressed={recording} style={quietButton}>
-            {recording ? 'Aufnahme beenden' : 'Sprechen'}
-          </button>
-          <button type="submit" disabled={busy || recording || !question.trim()} style={{ ...quietButton, opacity: !question.trim() ? 0.5 : 1 }}>
-            {busy ? 'Einen Moment …' : 'Fragen'}
-          </button>
+      {hasEvidenceDetails && <details style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
+        <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>Warum genau das?</summary>
+        <div style={{ paddingTop: 4 }}>
+          {forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
+            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: '#dbeafe' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>{forecastHeading}</div>
+            <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[forecast.riskId]}</div>
+            <div style={{ marginTop: 3, color: '#cbd5e1', fontSize: 11.5, lineHeight: 1.5 }}>
+              {ROLE_LABELS[forecast.target?.roleType] || 'Kundenservice'} · {INDUSTRY_LABELS[forecast.target?.industryKey] || 'allgemeines deutsches BPO'} ·{' '}
+              {STAGE_LABELS[forecast.criterion?.stageId] || 'Interview'}
+            </div>
+            {forecast.criterion && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
+              {CRITERION_LABELS[forecast.criterion.criterionId] || forecast.criterion.criterionId}: gemessen {forecast.criterion.observed}{' '}
+              {UNIT_LABELS[forecast.criterion.unit] || forecast.criterion.unit}; interne Referenz{' '}
+              {forecast.criterion.direction === 'at_least' ? 'mindestens' : 'höchstens'} {forecast.criterion.reference}.
+            </div>}
+            <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
+              {forecast.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
+              {' '}Interne Trainingsreferenz, keine Vorhersage einer Arbeitgeberentscheidung.
+            </div>
+          </div>}
+          {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', lineHeight: 1.55 }}>
+            <strong style={{ color: '#e2e8f0' }}>Hörnachweis: </strong>
+            {listeningRetest.trainingComplete === false && 'Dein persönlicher Trainingsblock läuft noch. Erst nach mindestens vier richtigen Antworten in den letzten fünf Aufgaben beginnt die Retest-Wartezeit.'}
+            {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine servergeprüfte Ausgangsmessung.'}
+            {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'dose' && 'Der Trainingsblock ist noch nicht als vollständige Dosis bestätigt.'}
+            {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'matched' && <>{listeningRetest.completed || 0}/5 Vergleichsaufgaben bestätigt.{' '}
+              {Date.now() < Number(listeningRetest.nextEligibleAt) && <>Der Retest öffnet frühestens am {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}</>}
+            {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'transfer' && <>{listeningRetest.completed || 0}/5 Transferaufgaben mit neuem Material bestätigt.{' '}
+              {Date.now() < Number(listeningRetest.nextEligibleAt) && <>Der Transfer-Retest öffnet frühestens am {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}</>}
+            {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'complete' && 'Vergleich und Transfer sind unter neuer Belastung bestätigt.'}
+            {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'failed' && 'Der Retest ist vollständig, aber die Erfolgsschwelle wurde nicht erreicht. BrainGuide passt den nächsten Trainingsschritt an.'}
+            {listeningRetest.trainingComplete !== false && !['complete', 'failed'].includes(listeningRetest.phase) && <span> Übung vor der Freigabe hilft, gilt aber nicht als Retest.</span>}
+          </div>}
+          {speakingRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', lineHeight: 1.55 }}>
+            <strong style={{ color: '#e2e8f0' }}>Sprechnachweis: </strong>
+            {speakingRetest.phase === 'matched' && <>Der passende Vergleichstest zählt frühestens am {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
+            {speakingRetest.phase === 'transfer' && <>Der Test in einer neuen Situation zählt frühestens am {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
+            {speakingRetest.phase === 'complete' && (speakingRetest.transfer
+              ? 'Vergleichs- und Transfernachweis sind vollständig.'
+              : 'Der Vergleichstest zeigte noch keine übertragbare Verbesserung; BrainGuide passt das Training an.')}
+            {speakingRetest.phase !== 'complete' && <span> Frühere Übung hilft, gilt aber nicht als Retest.</span>}
+          </div>}
+          {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
+            background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: '#dbeafe' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>
+              {proof.phase === 'transfer' ? 'VERIFIZIERTER TRANSFER' : 'VERIFIZIERTER VERGLEICHSTEST'}
+            </div>
+            <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{proof.skillLabel}</div>
+            <div style={{ marginTop: 3, fontSize: 12.5, lineHeight: 1.55 }}>
+              {proof.metricLabel}: <strong>{proof.before}</strong> → <strong>{proof.after}</strong> {proof.unit}. {proofOutcome}
+            </div>
+          </div>}
+          {p && coach.progress && <div style={{ color: '#94a3b8', lineHeight: 1.55 }}>
+            Saubere Wiederholungen: {coach.progress.successfulRepetitions}/{coach.progress.requiredSuccessfulRepetitions}
+            {coach.progress.blockNominatedComplete
+              ? (p.baseline ? (speakingRetest?.phase === 'transfer'
+                ? ' · Vergleich bestanden; Beherrschung wird später in einer neuen Situation geprüft.'
+                : ' · Block abgeschlossen; Bestätigung folgt im gezielten Trainingsinterview.')
+                : ' · Block abgeschlossen; BrainGuide wählt jetzt die nächste verlässliche Messung.')
+              : ''}
+          </div>}
         </div>
-      </form>
+      </details>}
+      <details style={{ marginTop: 6, color: '#94a3b8', fontSize: 12 }}>
+        <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#bfdbfe', fontWeight: 700 }}>
+          Salma fragen
+        </summary>
+        <div style={{ paddingTop: 4 }}>
+          {answer && <div role="status" style={{ marginBottom: 10, padding: 10, borderRadius: 10, color: '#dbeafe',
+            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.2)', fontSize: 13, lineHeight: 1.55 }}>
+            {answer}
+          </div>}
+          <form onSubmit={(event) => { event.preventDefault(); ask(question); }}>
+            <label htmlFor={questionId} style={{ display: 'block', color: '#94a3b8', fontSize: 11.5, marginBottom: 5 }}>
+              Frage zu deinem aktuellen Schritt
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input id={questionId} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={400}
+                placeholder="Was bedeutet die Aufgabe?" disabled={busy || recording}
+                style={{ flex: '1 1 190px', minHeight: 44, borderRadius: 10, border: '1px solid rgba(148,163,184,0.28)',
+                  background: 'rgba(2,6,16,0.72)', color: '#e2e8f0', padding: '10px 12px', fontSize: 13 }} />
+              <button type="button" onClick={toggleRecording} disabled={busy} aria-pressed={recording} style={quietButton}>
+                {recording ? 'Aufnahme beenden' : 'Sprechen'}
+              </button>
+              <button type="submit" disabled={busy || recording || !question.trim()} style={{ ...quietButton, opacity: !question.trim() ? 0.5 : 1 }}>
+                {busy ? 'Einen Moment …' : 'Fragen'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </details>
       <details style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
         <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>Tutor-Einstellungen</summary>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', paddingTop: 6 }}>

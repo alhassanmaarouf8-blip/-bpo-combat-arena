@@ -19,13 +19,30 @@ const LANGUAGES = new Set(['de']);
 const DRILLS = new Set(['satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs']);
 const CRITERION_IDS = new Set(['sustained_pace', 'grammar_control', 'speech_recognition_proxy', SERVICE_RECOVERY_CRITERION_ID,
   'complete_response', 'response_latency', 'filler_dependence', 'connected_answer_structure', 'lexical_range_proxy']);
+// Only criteria with an end-to-end, same-metric baseline + matched + transfer retest may control
+// BrainGuide or be presented as Salma's actionable rejection forecast. Other readiness signals stay
+// available to internal research, but cannot trap a learner in a MEASURE state that has no closure.
+const ACTIONABLE_FORECAST_CRITERIA = new Set(['sustained_pace', 'grammar_control', 'speech_recognition_proxy',
+  SERVICE_RECOVERY_CRITERION_ID, 'complete_response']);
 // These criterion-to-skill pairs share one exact observable metric. Other criteria may still guide
 // a conservative BrainGuide drill, but cannot create a personalized dose or later claim improvement
 // through a different proxy metric.
 const EXACT_CRITERION_SKILLS = Object.freeze({
+  sustained_pace: 'fluency-interrupt',
   speech_recognition_proxy: 'pronunciation-phone',
   [SERVICE_RECOVERY_CRITERION_ID]: 'deescalate',
   complete_response: 'no-freeze-expected',
+});
+const CRITERION_MEASUREMENT_SIGNALS = Object.freeze({
+  sustained_pace: 'wpm',
+  grammar_control: 'grammar_errors_by_rule',
+  speech_recognition_proxy: 'intelligibility',
+  [SERVICE_RECOVERY_CRITERION_ID]: 'service_recovery_steps',
+  complete_response: 'response_continuity',
+  response_latency: 'latencyS',
+  filler_dependence: 'fillerPer100',
+  connected_answer_structure: 'subClauseRate',
+  lexical_range_proxy: 'vocabDiversity',
 });
 const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
 const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -48,7 +65,7 @@ const IMPROVEMENT_METRICS = Object.freeze({
   'word-order-sub': { key: 'grammar_errors', label: 'Satzstellungsfehler', unit: 'Fehler', direction: 'lower', minimumDelta: 1 },
   'dativ-akkusativ': { key: 'grammar_errors', label: 'Dativ-/Akkusativfehler', unit: 'Fehler', direction: 'lower', minimumDelta: 1 },
   'konjunktiv-2': { key: 'grammar_errors', label: 'Konjunktiv-II-Fehler', unit: 'Fehler', direction: 'lower', minimumDelta: 1 },
-  'fluency-interrupt': { key: 'fluency_score', label: 'Sprechfluss unter Druck', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
+  'fluency-interrupt': { key: 'wpm', label: 'Sprechtempo unter Druck', unit: 'WpM', direction: 'higher', minimumDelta: 5 },
   deescalate: { key: 'deescalation_score', label: 'Deeskalation', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
   'no-freeze-expected': { key: 'response_continuity', label: 'Antwortkontinuität', unit: 'Punkte', direction: 'higher', minimumDelta: 5 },
   'pronunciation-phone': { key: 'intelligibility_score', label: 'Verständlichkeit am Telefon', unit: 'Punkte', direction: 'higher', minimumDelta: 3 },
@@ -89,8 +106,24 @@ const RETEST_DOSSIERS = Object.freeze({
 function boundedString(value, max = 80) { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 function hash(value, length) { return createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, length); }
 
+function actionableCoachSnapshot(snapshot) {
+  if (!snapshot?.limitingCriterionId || ACTIONABLE_FORECAST_CRITERIA.has(snapshot.limitingCriterionId)) return snapshot;
+  return { ...snapshot, limitingCriterionId: null, limitingEvidenceCount: 0,
+    limitingEvidenceConflictCount: 0, limitingEvidenceSessionIds: [] };
+}
+
 function roundMetric(value) { return Math.round(Number(value) * 10) / 10; }
 function metricForSkill(skillId) { return Object.hasOwn(IMPROVEMENT_METRICS, skillId) ? IMPROVEMENT_METRICS[skillId] : null; }
+function targetedMeasurementDirective(directive, criterionId) {
+  const signal = CRITERION_MEASUREMENT_SIGNALS[criterionId] || criterionId;
+  return {
+    ...directive,
+    state: 'MEASURE',
+    target: directive?.target ? { ...directive.target, criterionId } : null,
+    prescription: { action: 'measure', signal, criterionId },
+    measure: [signal],
+  };
+}
 export function measurementForSkill(profile, skillId, { sessionId = null } = {}) {
   const metric = metricForSkill(skillId);
   if (!metric) return null;
@@ -353,7 +386,9 @@ function normalizeStoredPrescription(value) {
 
 /** One authoritative decision assembler shared by BrainGuide and Salma's public view. */
 export function canonicalCoachDirective(profile, account, { now = Date.now(), coachFlags = null } = {}) {
-  const snapshot = buildSnapshot(profile, now);
+  const effectiveCoachFlags = coachFlags || salmaCoachFlags(process.env, account);
+  const rawSnapshot = buildSnapshot(profile, now);
+  const snapshot = effectiveCoachFlags.enabled ? actionableCoachSnapshot(rawSnapshot) : rawSnapshot;
   const vacancyFlags = vacancyFlagsFor(account);
   const vacancyState = vacancyFlags.enabled ? normalizeVacancyState(profile?.vacancyTarget) : null;
   let vacancyDue = vacancyState?.active ? dueVacancyMilestone(vacancyState.active, now) : null;
@@ -366,9 +401,21 @@ export function canonicalCoachDirective(profile, account, { now = Date.now(), co
     liveRequired: isLiveVacancyMilestone(vacancyDue.id),
   } : null;
   const missionDue = missionNextAction(profile, account, { flags: governedMissionControlFlagsFor(account) });
-  const effectiveCoachFlags = coachFlags || salmaCoachFlags(process.env, account);
   const coachGate = effectiveCoachFlags.enabled ? salmaCoachBrainGate(profile?.salmaCoach, profile, now) : null;
-  return decide({ ...snapshot, vacancyDue: safeDue, missionDue, coachGate });
+  const directive = decide({ ...snapshot, vacancyDue: safeDue, missionDue, coachGate });
+  // When Salma is enabled, a forecast-bound drill must have an evidence-bound prescription behind
+  // it. Otherwise BrainGuide explicitly asks for the missing criterion measurement instead of
+  // sending the learner into a generic drill that can never close the mastery loop. With the coach
+  // flag off, the legacy directive is returned byte-for-byte unchanged.
+  const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId)
+    ? directive.prescription.criterionId : null;
+  if (effectiveCoachFlags.enabled === true && directive?.prescription?.action === 'drill' && criterionId) {
+    const active = normalizeSalmaCoachState(profile?.salmaCoach).activePrescription;
+    const ownsForecast = active?.skillId === directive.prescription.skillId
+      && active?.drillId === directive.prescription.drill && active?.criterionId === criterionId;
+    if (!ownsForecast) return targetedMeasurementDirective(directive, criterionId);
+  }
+  return directive;
 }
 
 function normalizeBlockProgress(value, index) {
@@ -502,27 +549,31 @@ function resolvedSupportMeasurements(profile, skillId, sessionIds, acceptsMeasur
 }
 
 export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinutes = 10 } = {}) {
-  const snapshot = buildSnapshot(profile, now); const directive = decide(snapshot);
+  const snapshot = actionableCoachSnapshot(buildSnapshot(profile, now)); const directive = decide(snapshot);
   const drillId = directive?.prescription?.action === 'drill' ? directive.prescription.drill : null;
   const skillId = directive?.prescription?.skillId || directive?.target?.skillId || '';
   if (!DRILLS.has(drillId) || !skillId || snapshot.sessionCount < 1) return { directive, prescription: null };
   const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId) ? directive.prescription.criterionId : null;
+  const requireTargetedMeasurement = () => ({
+    directive: targetedMeasurementDirective(directive, criterionId), prescription: null,
+  });
   const exactGrammarForecast = snapshot.limitingCriterionId === 'grammar_control'
     && snapshot.limitingGrammarRuleId === skillId;
   const grammarMeasurements = exactGrammarForecast
     ? resolvedSupportMeasurements(profile, skillId, snapshot.limitingGrammarEvidenceSessionIds,
       (measurement) => measurement.value > 8)
     : [];
-  if (exactGrammarForecast && !grammarMeasurements?.length) return { directive, prescription: null };
+  if (criterionId === 'grammar_control' && !exactGrammarForecast) return requireTargetedMeasurement();
+  if (exactGrammarForecast && !grammarMeasurements?.length) return requireTargetedMeasurement();
   const exactCriterionForecast = criterionId && criterionId !== 'grammar_control'
-    && skillId !== 'listen-clear' && skillId !== 'listen-phone';
+    && skillId !== '';
   if (exactCriterionForecast && EXACT_CRITERION_SKILLS[criterionId] !== skillId) {
-    return { directive, prescription: null };
+    return requireTargetedMeasurement();
   }
   const criterionMeasurements = exactCriterionForecast
     ? resolvedSupportMeasurements(profile, skillId, snapshot.limitingEvidenceSessionIds)
     : [];
-  if (exactCriterionForecast && !criterionMeasurements?.length) return { directive, prescription: null };
+  if (exactCriterionForecast && !criterionMeasurements?.length) return requireTargetedMeasurement();
   const protocol = PROTOCOLS[drillId];
   const occurrences = exactGrammarForecast
     ? Math.min(2, grammarMeasurements.length)
@@ -542,12 +593,12 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
     : grammarMeasurements.length ? grammarMeasurements.map((measurement) => measurement.evidenceId)
     : criterionMeasurements.length ? criterionMeasurements.map((measurement) => measurement.evidenceId)
     : sessionEvidenceIds(profile, skillId, now));
-  if (!evidenceIds.length) return { directive, prescription: null };
+  if (!evidenceIds.length) return criterionId ? requireTargetedMeasurement() : { directive, prescription: null };
   const baseline = listeningCycle?.baseline || grammarMeasurements.at(-1)
     || criterionMeasurements.at(-1) || measurementForSkill(profile, skillId);
-  if (!baseline) return { directive, prescription: null };
+  if (!baseline) return criterionId ? requireTargetedMeasurement() : { directive, prescription: null };
   if (!listeningCycle && (!baseline.contextId || !baseline.noveltyId || !baseline.sourceSessionId)) {
-    return { directive, prescription: null };
+    return criterionId ? requireTargetedMeasurement() : { directive, prescription: null };
   }
   const evidenceConfidence = directive.confidence === 'high' && occurrences >= 2 && conflictCount === 0 ? 'high' : 'low';
   const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds,
@@ -902,9 +953,12 @@ export function publicSalmaCoach(profile, account, flags, { now = Date.now() } =
   const listeningRetest = publicListeningRetest(profile, limited?.skillId, state);
   const publicState = { ...state, activePrescription: limited };
   const speakingRetest = publicSpeakingRetest(publicState, now);
+  const forecastCriterionId = readiness.rejectionForecast?.criterion?.criterionId || null;
+  const publicForecast = !flags.enabled || ACTIONABLE_FORECAST_CRITERIA.has(forecastCriterionId)
+    ? readiness.rejectionForecast : null;
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
     interviewRisk,
-    rejectionForecast: readiness.rejectionForecast,
+    rejectionForecast: publicForecast,
     listeningRetest,
     speakingRetest,
     preferences: state.preferences, activePrescription: publicPrescription,
