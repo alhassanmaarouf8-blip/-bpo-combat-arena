@@ -23,7 +23,8 @@ import { createHash, randomBytes } from 'crypto';
 import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, mutateUser, saveUser }  from './store.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
-import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback } from './listeningEvidence.js';
+import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
+  minimumListeningPlaybackMs } from './listeningEvidence.js';
 import { issueDrillEvidenceReceipt } from './drillEvidence.js';
 
 export const listeningRouter = express.Router();
@@ -576,6 +577,7 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   for (const [index, row] of items.entries()) {
     const stored = active[String(row.id)];
     if (!stored) continue;
+    const playbackRate = Math.min(1.7, baseRate + index * 0.12);
     Object.assign(stored, {
       attemptId: randomBytes(12).toString('hex'),
       itemHash: evidenceContentHash(row, stored),
@@ -584,7 +586,8 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
       playCount: 0,
       playStartedAt: null,
       playCompletedAt: null,
-      playbackRate: Math.min(1.7, baseRate + index * 0.12),
+      playbackRate,
+      minimumPlaybackMs: minimumListeningPlaybackMs(row.audioText, playbackRate),
       gradeResult: null,
     });
   }

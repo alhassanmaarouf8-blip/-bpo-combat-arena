@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
-  listeningEvidenceSummary, listeningMasteryEvidence, listeningRetestEvidence } from './listeningEvidence.js';
+  listeningEvidenceSummary, listeningMasteryEvidence, listeningRetestEvidence,
+  minimumListeningPlaybackMs } from './listeningEvidence.js';
 
 function profileWithAttempt({ id = 'a'.repeat(24), kind = 'verstehen', issuedAt = 1_800_000_000_000,
   type = 'nummer', playbackRate = 1, itemHash = null } = {}) {
@@ -28,6 +29,104 @@ test('listening evidence requires a completed server-issued playback', () => {
   assert.deepEqual(profile.listeningAttempts.map((row) => [row.correct, row.plays, row.responseLatencyMs]), [[true, 1, 1500]]);
 });
 
+test('minimum playback duration is server-derived, rate-aware, and bounded', () => {
+  const text = 'Die Kundin nennt heute eine neue Bestellnummer und bittet um eine schnelle Bestätigung.';
+  const normal = minimumListeningPlaybackMs(text, 1);
+  const faster = minimumListeningPlaybackMs(text, 1.7);
+  assert.ok(normal > faster);
+  assert.ok(faster >= 600);
+  assert.equal(minimumListeningPlaybackMs('', 99), 600);
+  assert.equal(minimumListeningPlaybackMs(Array(1_000).fill('Wort').join(' '), 0.5), 12_000);
+});
+
+test('same-tick, too-early, and forged client timing cannot complete playback', () => {
+  const start = 1_800_000_001_000;
+  const profile = profileWithAttempt();
+  profile.listeningActive.item.minimumPlaybackMs = 2_000;
+  const play = beginListeningPlayback(profile, 'item', start);
+  for (const now of [start, start + 1_999]) {
+    assert.throws(() => finishListeningPlayback(profile, 'item', {
+      playNumber: play.playNumber,
+      completed: true,
+      now,
+      durationMs: 999_999,
+      playedMs: 999_999,
+    }), (error) => error.code === 'listening_playback_too_short');
+    assert.equal(profile.listeningActive.item.playCompletedAt, null);
+    assert.equal(profile.listeningAttempts.length, 0);
+  }
+  assert.throws(() => commitListeningGrade(profile, 'item', { correct: true, now: start + 1_999 }),
+    (error) => error.code === 'listening_playback_required');
+  assert.deepEqual(finishListeningPlayback(profile, 'item', {
+    playNumber: play.playNumber, completed: true, now: start + 2_000,
+  }), { completed: true, playNumber: 1 });
+});
+
+test('failed audio dual-callback order never leaves a verified playback', () => {
+  const start = 1_800_000_001_000;
+  const trueThenFalse = profileWithAttempt();
+  trueThenFalse.listeningActive.item.minimumPlaybackMs = 1_500;
+  let play = beginListeningPlayback(trueThenFalse, 'item', start);
+  assert.throws(() => finishListeningPlayback(trueThenFalse, 'item', {
+    playNumber: play.playNumber, completed: true, now: start,
+  }), (error) => error.code === 'listening_playback_too_short');
+  finishListeningPlayback(trueThenFalse, 'item', {
+    playNumber: play.playNumber, completed: false, now: start + 1,
+  });
+  assert.equal(trueThenFalse.listeningActive.item.playCompletedAt, null);
+  assert.throws(() => commitListeningGrade(trueThenFalse, 'item', { correct: true, now: start + 2 }),
+    (error) => error.code === 'listening_playback_required');
+
+  const falseThenTrue = profileWithAttempt({ id: 'b'.repeat(24) });
+  falseThenTrue.listeningActive.item.minimumPlaybackMs = 1_500;
+  play = beginListeningPlayback(falseThenTrue, 'item', start);
+  finishListeningPlayback(falseThenTrue, 'item', {
+    playNumber: play.playNumber, completed: false, now: start + 1,
+  });
+  assert.throws(() => finishListeningPlayback(falseThenTrue, 'item', {
+    playNumber: play.playNumber, completed: true, now: start + 2_000,
+  }), (error) => error.code === 'listening_playback_mismatch');
+  assert.equal(falseThenTrue.listeningActive.item.playCompletedAt, null);
+  assert.equal(falseThenTrue.listeningAttempts.length, 0);
+});
+
+test('repeated early completion claims cannot create a grade or listening mastery', () => {
+  const start = 1_800_000_001_000;
+  const profile = { listeningActive: {}, listeningAttempts: [] };
+  for (let index = 0; index < 15; index += 1) {
+    const key = `item-${index}`;
+    profile.listeningActive[key] = {
+      attemptId: (index + 100).toString(16).padStart(24, '0'),
+      itemHash: (index + 100).toString(16).padStart(64, '0'),
+      kind: 'verstehen', type: null, issuedAt: start, maxPlays: 2, playCount: 0,
+      playStartedAt: null, playCompletedAt: null, playbackRate: 1,
+      minimumPlaybackMs: 1_000, gradeResult: null,
+    };
+    const play = beginListeningPlayback(profile, key, start + index);
+    assert.throws(() => finishListeningPlayback(profile, key, {
+      playNumber: play.playNumber, completed: true, now: start + index,
+    }), (error) => error.code === 'listening_playback_too_short');
+    assert.throws(() => commitListeningGrade(profile, key, { correct: true, now: start + index + 1 }),
+      (error) => error.code === 'listening_playback_required');
+  }
+  assert.equal(profile.listeningAttempts.length, 0);
+  assert.equal(listeningMasteryEvidence(profile).clear, null);
+});
+
+test('legacy active items remain usable after the compatibility floor', () => {
+  const start = 1_800_000_001_000;
+  const profile = profileWithAttempt();
+  assert.equal(Object.hasOwn(profile.listeningActive.item, 'minimumPlaybackMs'), false);
+  const play = beginListeningPlayback(profile, 'item', start);
+  assert.throws(() => finishListeningPlayback(profile, 'item', {
+    playNumber: play.playNumber, completed: true, now: start + 599,
+  }), (error) => error.code === 'listening_playback_too_short');
+  assert.deepEqual(finishListeningPlayback(profile, 'item', {
+    playNumber: play.playNumber, completed: true, now: start + 600,
+  }), { completed: true, playNumber: 1 });
+  assert.equal(commitListeningGrade(profile, 'item', { correct: true, now: start + 601 }).replayed, false);
+});
+
 test('double submit is idempotent and cannot inflate accuracy', () => {
   const profile = profileWithAttempt();
   const first = complete(profile, { correct: false });
@@ -44,9 +143,9 @@ test('failed audio is not counted and the two-play limit is server enforced', ()
   finishListeningPlayback(profile, 'item', { playNumber: play.playNumber, completed: false, now: 1_800_000_001_500 });
   assert.equal(profile.listeningActive.item.playCount, 0);
   play = beginListeningPlayback(profile, 'item', 1_800_000_002_000);
-  finishListeningPlayback(profile, 'item', { playNumber: play.playNumber, completed: true, now: 1_800_000_002_500 });
+  finishListeningPlayback(profile, 'item', { playNumber: play.playNumber, completed: true, now: 1_800_000_002_600 });
   play = beginListeningPlayback(profile, 'item', 1_800_000_003_000);
-  finishListeningPlayback(profile, 'item', { playNumber: play.playNumber, completed: true, now: 1_800_000_003_500 });
+  finishListeningPlayback(profile, 'item', { playNumber: play.playNumber, completed: true, now: 1_800_000_003_600 });
   assert.throws(() => beginListeningPlayback(profile, 'item', 1_800_000_004_000),
     (error) => error.code === 'listening_replay_limit');
 });

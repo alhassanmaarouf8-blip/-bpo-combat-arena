@@ -9,6 +9,7 @@ import { PushReminder } from './PushReminder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { Spinner } from './Loading.jsx';
 import { BrainGuide } from './BrainGuide.jsx';   // eager: rendered inline on the home screen (not an overlay)
+import { primaryActionPolicy } from './brainActionPolicy.js';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { SALMA_COPY, salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { salmaSpeak, salmaModel } from './salmaVoice.js';
@@ -4307,6 +4308,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [vacancyOpenRequest, setVacancyOpenRequest] = useState(0);
   const [missionOpenRequest, setMissionOpenRequest] = useState(null);
   const [brainGuideRefresh, setBrainGuideRefresh] = useState(0);
+  const [brainDecision, setBrainDecision] = useState({ status: 'idle', directive: null });
   const [assessmentOpen, setAssessmentOpen] = useState(false); // free level-assessment flow
   const [shadowingOpen, setShadowingOpen] = useState(false);   // paid shadowing practice route
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
@@ -5564,6 +5566,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // A pass-funnel signup already completed a meaningful first action. Preserve that exact
   // continuation instead of hiding BrainGuide/Mission Control behind the generic first fight.
   const missionContinuation = !firstRun || hasClaimedInterviewPass || interviewPassClaimRevision > 0;
+  const homePrimaryAction = primaryActionPolicy({
+    brainGuideEnabled: BRAIN_GUIDE_LIVE,
+    missionContinuation,
+    status: brainDecision.status,
+    directive: brainDecision.directive,
+  });
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
 
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
@@ -5951,7 +5959,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     <Icon name="clock" size={12} /> Dein Interviewer wartet
                   </div>
                 </div>
-                {rank && <RankLadder rank={rank} />}
               </div>
 
               {/* Honest velocity (R3): measured pace only — the server returns etaSessions null
@@ -5970,6 +5977,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   first-run (its prescription would duplicate the diagnosis-interview CTA). */}
               {BRAIN_GUIDE_LIVE && canStart && missionContinuation && (
                 <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta refreshKey={brainGuideRefresh + interviewPassClaimRevision}
+                  onDirectiveState={setBrainDecision}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
                   pipeline={pipeline}
                   onAction={(d, why) => {
@@ -6539,7 +6547,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         )}
 
         {/* Start / Stop toggle — replaced by an honest "come back tomorrow" note at the daily cap */}
-        {canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
+        {homePrimaryAction.showGenericInterview && (canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
           <div style={{ padding:'13px', borderRadius:8, border:'1px solid rgba(249,115,22,0.4)', background:'rgba(249,115,22,0.08)',
             textAlign:'center', fontSize:11, color:'var(--action)', lineHeight:1.6 }}>
             {feedbackLang === 'ar'
@@ -6571,7 +6579,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             }}>
             <Icon name="mic" size={19} /> {isConnecting ? 'Verbinde…' : 'Interview starten'}
           </button>
-        ) : null}
+        ) : null)}
 
         {/* First-run reassurance: a novel user's whole home is just the hero + this one button. A short,
             low-stakes note lowers the "live German interview" fear. (Arabic left as an OWNER-AR slot; the

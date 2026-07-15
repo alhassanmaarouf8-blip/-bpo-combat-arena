@@ -95,7 +95,8 @@ function detectAha(verifiedImprovement, globalRegressed) {
 export function decide(snapshot = {}) {
   const {
     masteredSkills = [], verifiedMasteredSkills = [], verifiedImprovement = null, weakLog = {},
-    limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0, unmeasuredGates = [],
+    limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0,
+    limitingEvidenceConflictCount = 0, unmeasuredGates = [],
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
     coachGate = null,
@@ -183,7 +184,10 @@ export function decide(snapshot = {}) {
   const target = coachSkillId ? SKILL_BY_ID[coachSkillId] : pickTarget(fr, limitingSkill, weakLog, limitingCriterionId);
   // Confidence: only assert "your weakness" if the targeted rule has ≥2 sessions of evidence.
   const targetEvidence = target && weakLog?.[target.id]?.errCounts?.length || 0;
-  const confidence = Math.max(targetEvidence, Math.max(0, Number(limitingEvidenceCount) || 0)) >= 2 ? 'high' : 'low';
+  const confidence = limitingCriterionId
+    ? (Math.max(0, Number(limitingEvidenceCount) || 0) >= 2
+      && Math.max(0, Number(limitingEvidenceConflictCount) || 0) === 0 ? 'high' : 'low')
+    : targetEvidence >= 2 ? 'high' : 'low';
 
   // Prep must plausibly address THE TARGET to earn the rematch (doctrine D3): a drill event
   // counts if it landed on the targeted rule OR came from the drill this target prescribes

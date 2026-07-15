@@ -192,6 +192,14 @@ test('engine: repeated reliable criterion evidence raises confidence without req
   assert.equal(repeated.target.skillId, 'fluency-interrupt');
 });
 
+test('engine: contradictory criterion evidence vetoes high confidence even with two deficits', () => {
+  const foundation = ['self-intro', 'praesens-perfekt', 'core-vocab', 'listen-clear', 'no-freeze-expected'];
+  const result = decide({ sessionCount: 3, masteredSkills: foundation, limitingSkill: 'fluency',
+    limitingCriterionId: 'sustained_pace', limitingEvidenceCount: 2,
+    limitingEvidenceConflictCount: 1 });
+  assert.equal(result.confidence, 'low');
+});
+
 test('engine: a due vacancy step becomes the one next action after the honest cold-start assessment', () => {
   const vacancyDue = {
     id:'day_3_evidence', title:'Relevante STAR-Geschichte', objective:'Formuliere einen Beleg.',

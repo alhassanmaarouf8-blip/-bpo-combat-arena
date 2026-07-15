@@ -9,21 +9,13 @@
  * Real consented outcomes must be evaluated separately before any employment-probability claim.
  */
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
-import { validatedTransferProofs } from './scoring/transferProofs.js';
+import { FORECAST_EVIDENCE_FRESHNESS_MS, forecastEvidenceSummary } from './scoring/forecastEvidence.js';
 import { missionControlActiveVacancyTargetId } from './missionControlCore.js';
 
 const ORD = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5 };
 const INDUSTRIES = new Set(['telecom', 'ecommerce', 'fintech', 'airline', 'delivery', 'logistik',
   'energie', 'versicherung', 'streaming', 'b2b']);
 const ROLE_TYPES = new Set(['customer_service', 'technical_support', 'sales', 'retention', 'backoffice']);
-const FORECAST_FRESHNESS_MS = 14 * 24 * 60 * 60 * 1000;
-const TRANSFER_SKILLS = Object.freeze({
-  fluency: new Set(['fluency-interrupt']),
-  grammar: new Set(['word-order-sub', 'dativ-akkusativ', 'konjunktiv-2']),
-  intelligibility: new Set(['pronunciation-phone']),
-  confidence: new Set(['no-freeze-expected']),
-  deescalation: new Set(['deescalate']),
-});
 const BOSS_ARCHETYPES = Object.freeze({
   yasmin: 'coach', karim: 'facts_first', hana: 'skeptical_qa', tarek: 'kpi_pressure',
   'frau-mona-adel': 'formal_gatekeeper', lukas: 'self_sufficiency',
@@ -143,28 +135,13 @@ function safeSessionTarget(session, profile, options = {}) {
   };
 }
 
-function transferVerified(profile, limitingSkill, now, session) {
-  const allowed = TRANSFER_SKILLS[limitingSkill];
-  // Historical proofs do not yet carry a vacancy-target binding. They may support a transferable
-  // generic skill, but can never elevate an exact vacancy forecast to "high" confidence.
-  if (!allowed || session?.vacancyTargetId) return false;
-  return validatedTransferProofs(profile, now).some((proof) => allowed.has(proof.skillId));
-}
-
-function confidenceForEvidence(evidenceQuality, profile, limitingSkill, now = Date.now(), session = null) {
-  if (evidenceQuality?.prescriptionEligible !== true) return 'insufficient';
-  // Session completeness is not criterion confidence. One valid session is at most medium;
-  // "high" requires the tutor's delayed, unseen transfer proof for the same skill family.
-  return transferVerified(profile, limitingSkill, now, session) ? 'high' : 'medium';
-}
-
 function freshnessFor(session, now) {
   const observedAt = Number(session?.date);
   // Production session timestamps are epoch milliseconds. Small legacy/test sequence numbers have
   // no usable wall-clock meaning and are labelled unknown rather than silently called fresh.
   if (!Number.isFinite(observedAt) || observedAt < 1_000_000_000_000) return 'unknown';
   const age = now - observedAt;
-  return age >= 0 && age <= FORECAST_FRESHNESS_MS ? 'fresh' : 'historical';
+  return age >= 0 && age <= FORECAST_EVIDENCE_FRESHNESS_MS ? 'fresh' : 'historical';
 }
 
 function riskCriterion(skill, f, measured, target = null) {
@@ -207,17 +184,21 @@ function riskCriterion(skill, f, measured, target = null) {
 function rejectionForecast({ profile, session, evidenceQuality, limitingSkill, f, measured, now, options }) {
   const target = safeSessionTarget(session, profile, options);
   const freshness = freshnessFor(session, now);
-  const confidence = confidenceForEvidence(evidenceQuality, profile, limitingSkill, now, session);
-  if (confidence === 'insufficient') return { state: 'measure_first', confidence, target, riskId: null, criterion: null };
-  if (freshness === 'historical' || target.current === false && target.source === 'vacancy_snapshot') {
+  if (evidenceQuality?.prescriptionEligible !== true) {
+    return { state: 'measure_first', confidence: 'insufficient', target, riskId: null, criterion: null };
+  }
+  if (freshness !== 'fresh' || target.current === false && target.source === 'vacancy_snapshot') {
     return { state: 'historical_only', confidence: 'insufficient', freshness, target, riskId: limitingSkill || null,
       criterion: null, calibration: 'internal_simulation_reference_only' };
   }
   const criterion = limitingSkill ? riskCriterion(limitingSkill, f, measured, target) : null;
-  return criterion
-    ? { state: 'observed_simulation_risk', confidence, freshness, target, riskId: limitingSkill, criterion,
+  const evidence = criterion ? forecastEvidenceSummary(profile, criterion.criterionId, session, now) : null;
+  return criterion && evidence?.referenceDeficit === true
+    ? { state: 'observed_simulation_risk', confidence: evidence.confidence, freshness, target,
+      riskId: limitingSkill, criterion, supportCount: evidence.supportCount,
+      conflictCount: evidence.conflictCount, evidenceExpiresAt: evidence.expiresAt,
       calibration: 'internal_simulation_reference_only' }
-    : { state: 'no_single_risk_observed', confidence, freshness, target, riskId: null, criterion: null,
+    : { state: 'no_single_risk_observed', confidence: 'medium', freshness, target, riskId: null, criterion: null,
       calibration: 'internal_simulation_reference_only' };
 }
 
@@ -230,19 +211,17 @@ export function hireReadinessFor(p, now = Date.now(), options = {}) {
   const missing = Object.entries(measured).filter(([, v]) => !v).map(([k]) => k);
   // These gates can describe performance inside this simulation. They cannot establish that a real
   // employer would hire the learner until outcome-linked validation exists.
-  const gatingFull = measured.intelligibility && measured.deescalation && measured.wpm;
   const limitingSkill = evidenceQuality ? limitingSkillOf(f, measured) : null;
-  const criterionConfidence = confidenceForEvidence(evidenceQuality, p, limitingSkill, now, session);
-  const simulationReady = criterionConfidence === 'high' && gatingFull && measuredCount === 9 ? raw.hireReady : null;
+  const simulationReady = null;
   const hireReady = null;
-  const interviewRisk = !evidenceQuality
-    ? { state: 'measure_first', confidence: 'insufficient', limitingSkill: null }
-    : limitingSkill
-      ? { state: 'observed_risk', confidence: confidenceForEvidence(evidenceQuality, p, limitingSkill, now, session), limitingSkill }
-      : { state: 'no_single_risk_observed', confidence: 'medium', limitingSkill: null };
   const forecast = rejectionForecast({
     profile: p, session, evidenceQuality, limitingSkill, f, measured, now, options,
   });
+  const interviewRisk = forecast.state === 'measure_first'
+    ? { state: 'measure_first', confidence: 'insufficient', limitingSkill: null }
+    : forecast.state === 'observed_simulation_risk'
+      ? { state: 'observed_risk', confidence: forecast.confidence, limitingSkill }
+      : { state: 'no_single_risk_observed', confidence: 'medium', limitingSkill: null };
   const out = {
     level: p?.assessmentResult?.estimatedLevel || raw.level,   // prefer the real CEFR estimate
     hireReady,

@@ -5,6 +5,9 @@ const MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
 const TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 const PACKET_SIZE = 5;
 const SKILLS = new Set(['listen-clear', 'listen-phone']);
+const MIN_PLAYBACK_FLOOR_MS = 600;
+const MIN_PLAYBACK_CEILING_MS = 12_000;
+const FASTEST_PLAUSIBLE_WORDS_PER_SECOND = 6;
 
 function fail(code, status = 409) {
   const error = new Error(code);
@@ -15,6 +18,32 @@ function fail(code, status = 409) {
 
 function finiteTime(value) {
   return Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : null;
+}
+
+/**
+ * Conservative server-owned lower bound for a real playback. It is intentionally much shorter
+ * than natural German speech so normal browser/audio timing jitter cannot reject an honest play,
+ * while a same-tick `completed:true` claim can never become listening evidence. The browser never
+ * supplies this duration; task issuance derives it from the server-known source text and rate.
+ */
+export function minimumListeningPlaybackMs(audioText, playbackRate = 1) {
+  const words = String(audioText || '').trim().split(/\s+/u).filter(Boolean).length;
+  const rate = Number.isFinite(Number(playbackRate))
+    ? Math.max(0.5, Math.min(2, Number(playbackRate))) : 1;
+  const estimate = words > 0
+    ? Math.floor((words / (FASTEST_PLAUSIBLE_WORDS_PER_SECOND * rate)) * 1000)
+    : MIN_PLAYBACK_FLOOR_MS;
+  return Math.max(MIN_PLAYBACK_FLOOR_MS, Math.min(MIN_PLAYBACK_CEILING_MS, estimate));
+}
+
+function minimumPlaybackForItem(item) {
+  const stored = Number(item?.minimumPlaybackMs);
+  if (Number.isFinite(stored)) {
+    return Math.max(MIN_PLAYBACK_FLOOR_MS, Math.min(MIN_PLAYBACK_CEILING_MS, Math.round(stored)));
+  }
+  // Compatibility for an already-issued task from before the duration contract. It remains usable
+  // after one small server-time floor, but can no longer be completed in the same tick.
+  return MIN_PLAYBACK_FLOOR_MS;
 }
 
 function activeItem(profile, itemId) {
@@ -86,6 +115,9 @@ export function finishListeningPlayback(profile, itemId, { playNumber, completed
     return { completed: false, playNumber };
   }
   if (now < item.playStartedAt) fail('listening_playback_mismatch');
+  if (now - item.playStartedAt < minimumPlaybackForItem(item)) {
+    fail('listening_playback_too_short');
+  }
   item.playCompletedAt = now;
   return { completed: true, playNumber };
 }

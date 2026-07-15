@@ -60,6 +60,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const speechStopRef = useRef(null);
   const spokenEventRef = useRef(null);
   const beaconedRef = useRef(new Set());
+  const coachRequestRef = useRef(0);
   const localDrillSession = useSalmaDrillSession(token, drillId || screen);
   const automaticSpeechSession = drillSession || localDrillSession;
 
@@ -70,15 +71,24 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   }, []);
 
   const loadCoach = useCallback(async () => {
+    const requestId = ++coachRequestRef.current;
+    setCoach(null);
     try {
       const response = await fetch(`${apiUrl}/api/salma/coach`, { cache: 'no-store', headers: auth(token) });
-      if (response.status === 404) return;
+      if (requestId !== coachRequestRef.current) return;
+      if (response.status === 404) { setCoach(null); return; }
       if (!response.ok) throw new Error('coach_unavailable');
-      setCoach(await response.json());
-    } catch { /* fail closed: the legacy BrainGuide remains intact */ }
+      const next = await response.json();
+      if (requestId === coachRequestRef.current) setCoach(next);
+    } catch {
+      if (requestId === coachRequestRef.current) setCoach(null);
+    }
   }, [apiUrl, token]);
 
-  useEffect(() => { loadCoach(); return stopSpeech; }, [loadCoach, refreshKey, stopSpeech]);
+  useEffect(() => {
+    loadCoach();
+    return () => { coachRequestRef.current += 1; stopSpeech(); };
+  }, [loadCoach, refreshKey, stopSpeech]);
   useEffect(() => {
     const refresh = () => loadCoach();
     window.addEventListener('omni:coach-state-changed', refresh);
@@ -198,7 +208,11 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const forecast = coach.rejectionForecast;
   const listeningRetest = coach.listeningRetest;
   const speakingRetest = coach.speakingRetest;
-  const proof = coach.progress?.verifiedRetest || null;
+  const masteryConfirmed = coach.progress?.masteryConfirmed === true;
+  const rawProof = coach.progress?.verifiedRetest || null;
+  // A transfer row is not a mastery claim until the canonical server state agrees.
+  // Hiding an unreconciled row is safer than showing a stale or partial success signal.
+  const proof = rawProof?.phase === 'transfer' && !masteryConfirmed ? null : rawProof;
   const forecastHeading = forecast?.target?.source === 'vacancy_snapshot' && forecast.target.current === true
     ? 'GRÖSSTES RISIKO IM AKTUELLEN ZIELINTERVIEW'
     : forecast?.target?.source === 'industry_snapshot'

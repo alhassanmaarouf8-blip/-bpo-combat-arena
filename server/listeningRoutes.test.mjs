@@ -27,7 +27,7 @@ async function api(base, path, token, body) {
   return { status: response.status, body: text ? JSON.parse(text) : null };
 }
 
-test('listening routes require completed audio and make a double grade single-use', async () => {
+test('listening routes reject forged early completion and make a verified double grade single-use', async () => {
   const account = await auth.createAccount(
     `listening-route-${Date.now()}-${Math.floor(Math.random() * 1e9)}@example.com`,
     'test-password-1234',
@@ -57,6 +57,20 @@ test('listening routes require completed audio and make a double grade single-us
       assert.equal(premature.status, 409);
       assert.equal(premature.body.error, 'listening_playback_required');
 
+      const forgedEarly = await api(base, '/api/listening/play/complete', token, {
+        id: itemId, playNumber: 1, completed: true, durationMs: 999_999, playedMs: 999_999,
+      });
+      assert.equal(forgedEarly.status, 409);
+      assert.equal(forgedEarly.body.error, 'listening_playback_too_short');
+      const gradeAfterForgery = await api(base, '/api/listening/grade', token, { id: itemId, response: '4317' });
+      assert.equal(gradeAfterForgery.status, 409);
+      assert.equal(gradeAfterForgery.body.error, 'listening_playback_required');
+      assert.equal(Object.hasOwn(gradeAfterForgery.body, 'evidenceReceipt'), false);
+      const afterForgery = await loadUser(account.id);
+      assert.equal(afterForgery.listeningActive[itemId].playCompletedAt, null);
+      assert.equal((afterForgery.listeningAttempts || []).length, 0);
+
+      await new Promise((resolve) => setTimeout(resolve, 625));
       const completed = await api(base, '/api/listening/play/complete', token, {
         id: itemId, playNumber: 1, completed: true,
       });

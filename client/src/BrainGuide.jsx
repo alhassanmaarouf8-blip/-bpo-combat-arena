@@ -117,7 +117,7 @@ const LADDER = [
   { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
 ];
 
-export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, refreshKey = 0 }) {
+export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, externalInterviewCta = false, topWeakness = null, trial = null, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [coachRevision, setCoachRevision] = useState(0);
   const [speaking, setSpeaking] = useState(false);
@@ -162,16 +162,29 @@ export function BrainGuide({ token, apiUrl, onAction, externalInterviewCta = fal
   useEffect(() => {
     let alive = true;
     stopSpeaking();
+    setData(null);
+    onDirectiveState?.({ status: 'loading', directive: null });
     (async () => {
       try {
         const r = await fetch(`${apiUrl}/api/brain`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
-        if (!r.ok) return;
+        if (!r.ok) {
+          if (alive) onDirectiveState?.({ status: 'error', directive: null });
+          return;
+        }
         const d = await r.json();
-        if (alive) setData(d);
-      } catch { /* fail silent — the guide simply doesn't render */ }
+        if (!alive) return;
+        if (!d?.directive?.prescription?.action) {
+          onDirectiveState?.({ status: 'error', directive: null });
+          return;
+        }
+        setData(d);
+        onDirectiveState?.({ status: 'ready', directive: d.directive });
+      } catch {
+        if (alive) onDirectiveState?.({ status: 'error', directive: null });
+      }
     })();
     return () => { alive = false; stopSpeaking(); };
-  }, [token, apiUrl, refreshKey, coachRevision, stopSpeaking]);
+  }, [token, apiUrl, refreshKey, coachRevision, onDirectiveState, stopSpeaking]);
   useEffect(() => {
     const refresh = () => setCoachRevision((value) => value + 1);
     window.addEventListener('omni:coach-state-changed', refresh);

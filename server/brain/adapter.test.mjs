@@ -176,6 +176,20 @@ test('adapter: a passing session does not impersonate repeated evidence for a la
   assert.equal(decide(snapshot).confidence, 'low');
 });
 
+test('adapter: a same-window pass vetoes high confidence even when two exact deficits exist', () => {
+  const reliable = (date, wpm) => ({ date, wpm, fluency: 45, fillers: 2, words: 120, grammarMeasured: true,
+    grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5, giveUpRate: 0.1,
+    intelligibility: 0.9, latencyS: 2, targetRoleType: 'technical_support', targetIndustry: 'telecom',
+    scenarioId: 'billing-dispute', bossId: 'yasmin',
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true } });
+  const snapshot = buildSnapshot({ sessions: [
+    reliable(NOW - 3 * DAY, 70), reliable(NOW - 2 * DAY, 130), reliable(NOW - DAY, 75),
+  ] }, NOW);
+  assert.equal(snapshot.limitingEvidenceCount, 2);
+  assert.equal(snapshot.limitingEvidenceConflictCount, 1);
+  assert.equal(decide(snapshot).confidence, 'low');
+});
+
 test('adapter: deficits from a different interview archetype cannot raise criterion confidence', () => {
   const reliable = (date, scenarioId) => ({ date, wpm: 60, fluency: 45, fillers: 2, words: 120,
     grammarMeasured: true, grammarRules: [], subClauseRate: 0.3, vocabDiversity: 0.5,

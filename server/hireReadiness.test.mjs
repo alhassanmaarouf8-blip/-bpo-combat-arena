@@ -141,13 +141,14 @@ test('hire readiness refuses perfect-looking metrics from a thin session', () =>
   assert.deepEqual(result.interviewRisk, { state: 'measure_first', confidence: 'insufficient', limitingSkill: null });
 });
 
-test('hire readiness names only an observed risk from a reliable packet', () => {
+test('hire readiness names only an observed risk from a fresh reliable packet', () => {
+  const now = 1_800_000_000_000;
   const result = hireReadinessFor({ sessions: [{
-    date: 1, ...recoveryFields(1, 3), wpm: 120, fillers: 2, words: 120, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
+    date: now, ...recoveryFields(now, 3), wpm: 120, fillers: 2, words: 120, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
     vocabDiversity: 0.5,
     giveUpRate: 0.1, intelligibility: 0.4, latencyS: 2,
     evidenceQuality: { version: 2, words: 120, prescriptionEligible: true, highConfidence: true },
-  }] });
+  }] }, now);
   assert.equal(result.hireReady, null, 'internal simulation evidence cannot claim an employer outcome');
   assert.equal(result.simulationReady, null, 'one session can never authorize a high-confidence readiness state');
   assert.equal(result.limitingSkill, 'intelligibility');
@@ -157,14 +158,30 @@ test('hire readiness names only an observed risk from a reliable packet', () => 
   assert.equal(result.rejectionForecast.calibration, 'internal_simulation_reference_only');
 });
 
+test('hire readiness high confidence requires two fresh exact-archetype deficits without a pass', () => {
+  const now = 1_800_000_000_000;
+  const session = (date, intelligibility) => ({
+    date, ...recoveryFields(date, 3), bossId: 'yasmin', targetIndustry: 'telecom',
+    wpm: 120, words: 120, fillers: 2, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
+    vocabDiversity: 0.5, giveUpRate: 0.1, intelligibility, latencyS: 2,
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true, highConfidence: true },
+  });
+  const result = hireReadinessFor({ sessions: [session(now - 1000, 0.45), session(now, 0.5)] }, now);
+  assert.equal(result.rejectionForecast.confidence, 'high');
+  assert.equal(result.rejectionForecast.supportCount, 2);
+  assert.equal(result.rejectionForecast.conflictCount, 0);
+  assert.equal(result.interviewRisk.confidence, 'high');
+});
+
 test('grammar and fillers are normalized per 100 reliable spoken words', () => {
+  const now = 1_800_000_000_000;
   const result = hireReadinessFor({ sessions: [{
-    date: 10, ...recoveryFields(10, 3), bossId: 'tarek', targetIndustry: 'telecom', targetRoleType: 'technical_support', scenarioId: 'telecom-portierung',
+    date: now, ...recoveryFields(now, 3), bossId: 'tarek', targetIndustry: 'telecom', targetRoleType: 'technical_support', scenarioId: 'telecom-portierung',
     wpm: 125, words: 200, fillers: 24, grammarMeasured: true,
     grammarRules: [{ ruleId: 'word-order-sub', count: 20 }], subClauseRate: 0.4, vocabDiversity: 0.6,
     giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
     evidenceQuality: { version: 2, words: 200, prescriptionEligible: true, highConfidence: true },
-  }] });
+  }] }, now);
   assert.equal(result.limitingSkill, 'grammar');
   assert.ok(result.note.includes('deescalation'), 'customer-service evidence must be ignored for technical support');
   assert.equal(result.rejectionForecast.criterion.observed, 10);
@@ -197,12 +214,13 @@ test('a broad legacy combat score cannot become service-recovery evidence', () =
 });
 
 test('forecast reports exact observed recovery steps rather than a generic combat percentage', () => {
+  const now = 1_800_000_000_000;
   const result = hireReadinessFor({ sessions: [{
-    date: 10, ...recoveryFields(10, 1), wpm: 125, words: 160, fillers: 2, grammarMeasured: true, grammarRules: [],
+    date: now, ...recoveryFields(now, 1), wpm: 125, words: 160, fillers: 2, grammarMeasured: true, grammarRules: [],
     subClauseRate: 0.4, vocabDiversity: 0.6,
     giveUpRate: 0.05, intelligibility: 0.9, latencyS: 2,
     evidenceQuality: { version: 2, words: 160, prescriptionEligible: true, highConfidence: true },
-  }] });
+  }] }, now);
   assert.equal(result.limitingSkill, 'deescalation');
   assert.deepEqual(result.rejectionForecast.criterion, { stageId: 'customer_roleplay',
     criterionId: 'service_recovery_structure', targetRoleType: 'customer_service', scenarioId: CS_SCENARIOS[0].id,
@@ -298,7 +316,7 @@ test('Mission Control target checks fail closed for mismatches, stale evidence, 
     'AES-GCM state must not be readable under a different account AAD');
 });
 
-test('high criterion confidence requires a validated recent transfer proof', () => {
+test('transfer-improvement proof cannot substitute for repeated current-risk evidence', () => {
   const now = 1_800_000_000_000;
   const session = (sessionId, date, intelligibility, scenarioId) => ({ sessionId, date, bossId: 'yasmin',
     targetRoleType: 'customer_service', scenarioId, wpm: 120, words: 120, fillers: 2,
@@ -332,8 +350,10 @@ test('high criterion confidence requires a validated recent transfer proof', () 
     before: baseline.value, after: final.value, measuredAt: final.measuredAt, verifiedAt: now - 500 };
   const history = [matchedProof, transfer];
   const result = hireReadinessFor({ sessions, salmaCoach: { coachState: { improvementHistory: history } } }, now);
-  assert.equal(result.interviewRisk.confidence, 'high');
-  assert.equal(result.rejectionForecast.confidence, 'high');
+  assert.equal(result.interviewRisk.confidence, 'medium');
+  assert.equal(result.rejectionForecast.confidence, 'medium');
+  assert.equal(result.rejectionForecast.supportCount, 1,
+    'the novel transfer session is a different exact archetype from the matched evidence');
   const expired = hireReadinessFor({ sessions, salmaCoach: { coachState: {
     improvementHistory: [matchedProof, { ...transfer, verifiedAt: now - 91 * 24 * 60 * 60 * 1000 }] } } }, now);
   assert.equal(expired.interviewRisk.confidence, 'medium');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { primaryActionPolicy } from '../client/src/brainActionPolicy.js';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
@@ -157,4 +158,58 @@ test('improvement copy is metric-correct transfer evidence without causal or hir
   assert.doesNotMatch(alhassan, /CONFIRMED, REAL WIN|living proof their work pays off/u);
   assert.match(alhassan, /do not claim the drill alone caused it/u);
   assert.match(alhassan, /do not call them hired or hireable/u);
+});
+
+test('BrainGuide is the only returning-user primary action authority', () => {
+  const ready = (action) => primaryActionPolicy({
+    brainGuideEnabled: true,
+    missionContinuation: true,
+    status: 'ready',
+    directive: { prescription: { action } },
+  });
+
+  assert.equal(primaryActionPolicy().showGenericInterview, true);
+  assert.equal(primaryActionPolicy({ brainGuideEnabled: true, missionContinuation: false }).showGenericInterview, true);
+  assert.equal(ready('interview').showGenericInterview, true);
+  assert.equal(ready('measure').showGenericInterview, true);
+  for (const action of ['assessment', 'drill', 'wait', 'vacancy', 'mission', 'apply', 'unknown']) {
+    assert.equal(ready(action).showGenericInterview, false, `${action} must not compete with a generic interview CTA`);
+  }
+  for (const status of ['idle', 'loading', 'error']) {
+    const result = primaryActionPolicy({
+      brainGuideEnabled: true,
+      missionContinuation: true,
+      status,
+      directive: { prescription: { action: 'interview' } },
+    });
+    assert.equal(result.showGenericInterview, false, `${status} must fail closed`);
+  }
+  assert.equal(primaryActionPolicy({
+    brainGuideEnabled: true,
+    missionContinuation: true,
+    status: 'ready',
+    directive: null,
+  }).showGenericInterview, false);
+});
+
+test('home clears stale guidance and cannot display unsupported readiness or transfer claims', async () => {
+  const [app, brain, panel] = await Promise.all([
+    read('client/src/App.jsx'),
+    read('client/src/BrainGuide.jsx'),
+    read('client/src/SalmaTutorPanel.jsx'),
+  ]);
+
+  assert.match(app, /primaryActionPolicy/u);
+  assert.match(app, /onDirectiveState=\{setBrainDecision\}/u);
+  assert.match(app, /homePrimaryAction\.showGenericInterview/u);
+  assert.doesNotMatch(app, /\{rank && <RankLadder/u);
+
+  assert.match(brain, /setData\(null\);\s*onDirectiveState\?\.\(\{ status: 'loading', directive: null \}\)/u);
+  assert.match(brain, /status: 'ready', directive: d\.directive/u);
+  assert.match(brain, /status: 'error', directive: null/u);
+
+  assert.match(panel, /coachRequestRef/u);
+  assert.match(panel, /setCoach\(null\)/u);
+  assert.match(panel, /requestId !== coachRequestRef\.current/u);
+  assert.match(panel, /rawProof\?\.phase === 'transfer' && !masteryConfirmed \? null : rawProof/u);
 });
