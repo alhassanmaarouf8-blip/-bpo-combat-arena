@@ -28,8 +28,10 @@ export const SALMA_COPY = {
   goal_bpo: { de: 'Ein deutscher BPO-Job', ar: 'وظيفة BPO ألماني' }, // OWNER-AR · EN: "A German BPO job" (chip, value bpo-job)
   goal_german: { de: 'Besseres Deutsch', ar: 'أحسن ألماني' }, // OWNER-AR · EN: "Better German" (chip, value better-german)
   goal_other: { de: 'Etwas anderes', ar: 'حاجة تانية' }, // OWNER-AR · EN: "Something else" (chip, value other)
-  screening_invite: { de: 'Selbsteinschätzung reicht nicht. Sprich jetzt im Trainingsinterview; danach bekommst du eine gemessene Schwachstelle und genau einen nächsten Trainingsblock.', ar: '' }, // OWNER-AR · native review required
+  screening_invite: { de: 'Selbsteinschätzung reicht nicht. Beantworte fünf kurze Fragen auf Deutsch; danach bekommst du eine gemessene Einschätzung und BrainGuide wählt genau einen nächsten Schritt.', ar: '' }, // OWNER-AR · native review required
   screening_cta: { de: 'Sprachdiagnose starten', ar: '' }, // OWNER-AR · native review required
+  screening_loading: { de: 'BrainGuide prüft zuerst deinen persönlichen Startpunkt. Die Sprachdiagnose wird freigeschaltet, sobald dieser Schritt bestätigt ist.', ar: '' }, // OWNER-AR · native review required
+  screening_loading_cta: { de: 'Sprachdiagnose wird vorbereitet…', ar: '' }, // OWNER-AR · native review required
 
   // ── cold-open · verdict + booking ─────────────────────────────────────────────────────────
   // {level} ← GET /api/assessment/status → result.estimatedLevel · {focus} ← result.recommendedFocus (verbatim)

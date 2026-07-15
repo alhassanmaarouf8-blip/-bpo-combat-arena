@@ -18,7 +18,7 @@ import { stopTutorWhenDocumentHidden } from './salmaAudioSafety.js';
 export const ASSESS_LEVEL_MAP = { A1: 'a2-b1', A2: 'a2-b1', B1: 'a2-b1', B2: 'b2', C1: 'c1', C2: 'c1' };
 export const ASSESS_BOSS_MAP = { A1: 'yasmin', A2: 'yasmin', B1: 'yasmin', B2: 'karim', C1: 'hana', C2: 'hana' };
 
-export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onBookFight, onClose }) {
+export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirective, onBrainAction, onBookFight, onClose }) {
   // New learner: one explanation → measured screening. Returning learner: one introduction →
   // BrainGuide handoff. A self-reported CEFR level is never used to diagnose, exclude, or select a
   // training interview; only the persisted Assessment result may drive the mapping below.
@@ -92,13 +92,36 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, onBookFigh
       );
     } else {
       bubbles.push(say('intro_welcome'));
-      bubbles.push(say('screening_invite'));
-      actions = (
-        <>
-          <button style={btnOrange} onClick={() => { stopSpeech(); onBookFight(null); }}>{line('screening_cta')}</button>
-          {skipLink(line('skip_label'), () => finish('salma_skipped'))}
-        </>
-      );
+      const assessmentReady = brainDirective?.prescription?.action === 'assessment';
+      if (assessmentReady) {
+        bubbles.push(say('screening_invite'));
+        actions = (
+          <>
+            <button style={btnOrange} onClick={() => {
+              stopSpeech();
+              markSeen();
+              onClose('salma_done');
+              onBrainAction(brainDirective);
+            }}>{line('screening_cta')}</button>
+            {skipLink(line('skip_label'), () => finish('salma_skipped'))}
+          </>
+        );
+      } else if (brainDirective?.prescription?.action) {
+        // A changed server directive always wins. Salma closes and exposes BrainGuide instead of
+        // inventing a diagnosis or dispatching a stale legacy action.
+        bubbles.push(say('returning_handoff'));
+        actions = <button style={btnBlue} onClick={() => finish('salma_done')}>{line('continue_label')}</button>;
+      } else {
+        bubbles.push(say('screening_loading'));
+        actions = (
+          <>
+            <button style={{ ...btnOrange, opacity: 0.55, cursor: 'wait' }} disabled>
+              {line('screening_loading_cta')}
+            </button>
+            {skipLink(line('skip_label'), () => finish('salma_skipped'))}
+          </>
+        );
+      }
     }
   } else if (beat === 'verdict') {
     const level = result?.estimatedLevel || '—';

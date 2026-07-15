@@ -26,20 +26,25 @@ test('App keeps Salma speech user-initiated and never autoplays generic result c
   assert.doesNotMatch(app, /rankCeremony[^\n]*salmaSpeak|debrief[^\n]*auto[^\n]*salma/iu);
 });
 
-test('first diagnosis is the universal live interview, not the legacy assessment fallback', async () => {
+test('first diagnosis is selected by BrainGuide and cannot bypass it through Salma or the legacy CTA', async () => {
   const [app, takeover] = await Promise.all([
     read('client/src/App.jsx'),
     read('client/src/SalmaTakeover.jsx'),
   ]);
   const firstMount = section(app, '// THE one first-mount decision point:', '}, []);');
+  const welcome = section(takeover, "if (beat === 'welcome')", "} else if (beat === 'verdict')");
 
   assert.doesNotMatch(app, /localStorage\.setItem\(['"]bpo_pending_assessment['"]/u,
     'signup must not schedule the legacy text assessment');
   assert.doesNotMatch(firstMount, /setAssessmentOpen\(true\)/u,
     'first mount must not auto-open a second diagnostic');
   assert.match(firstMount, /live spoken diagnosis/u);
-  assert.match(takeover, /onBookFight\(null\)/u,
-    'the first-run tutor must start the same live diagnostic used by the product');
+  assert.doesNotMatch(welcome, /onBookFight\(null\)/u,
+    'the first-run tutor must not start a generic interview outside BrainGuide');
+  assert.match(welcome, /onBrainAction\(brainDirective\)/u);
+  assert.match(app, /const brainGuideAuthority = BRAIN_GUIDE_LIVE && canStart/u);
+  assert.match(app, /missionContinuation: brainGuideAuthority/u);
+  assert.match(app, /onAction=\{executeBrainDirective\}/u);
   assert.doesNotMatch(takeover, /onStartScreening/u);
 });
 

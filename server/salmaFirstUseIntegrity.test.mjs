@@ -6,12 +6,25 @@ import { SALMA_COPY, salmaLine, salmaRole } from '../client/src/salmaCopy.js';
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
-test('first-use Salma launches the live spoken diagnosis without a self-report admission gate', async () => {
-  const takeover = await read('client/src/SalmaTakeover.jsx');
+test('first-use Salma executes the BrainGuide assessment and persists the one-time handoff first', async () => {
+  const [app, takeover] = await Promise.all([
+    read('client/src/App.jsx'),
+    read('client/src/SalmaTakeover.jsx'),
+  ]);
+  const welcome = takeover.slice(takeover.indexOf("if (beat === 'welcome')"), takeover.indexOf("} else if (beat === 'verdict')"));
 
   assert.match(takeover, /useState\(resumeTick > 0 \? 'checking' : 'welcome'\)/u);
-  assert.match(takeover, /bubbles\.push\(say\('screening_invite'\)\)/u);
-  assert.match(takeover, /onClick=\{\(\) => \{ stopSpeech\(\); onBookFight\(null\); \}\}/u);
+  assert.match(welcome, /bubbles\.push\(say\('screening_invite'\)\)/u);
+  assert.match(welcome, /const assessmentReady = brainDirective\?\.prescription\?\.action === 'assessment'/u);
+  assert.match(welcome, /markSeen\(\);\s*onClose\('salma_done'\);\s*onBrainAction\(brainDirective\)/u);
+  assert.doesNotMatch(welcome, /onBookFight\(null\)/u);
+  assert.match(app, /const brainGuideAuthority = BRAIN_GUIDE_LIVE && canStart/u);
+  assert.match(app, /missionContinuation: brainGuideAuthority/u);
+  assert.match(app, /brainDirective=\{brainDecision\.status === 'ready' \? brainDecision\.directive : null\}/u);
+  assert.match(app, /onBrainAction=\{executeBrainDirective\}/u);
+  assert.match(app, /onAction=\{executeBrainDirective\}/u,
+    'Salma and the visible BrainGuide must share one dispatcher');
+  assert.match(app, /p\.action === 'assessment'\) setAssessmentOpen\(true\)/u);
   assert.doesNotMatch(takeover, /onStartScreening/u);
   assert.doesNotMatch(takeover, /setBeat\('gate'\)|beat === 'gate'|gate_b1_yes|gate_b1_no/u);
   assert.doesNotMatch(takeover, /name_goal|intro_trial|saveProfile|salma_name_saved/u);

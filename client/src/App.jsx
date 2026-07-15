@@ -5454,8 +5454,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     start();
   }, [start, auth.account]);
 
-  // Start the measured training interview. Yasmin remains an interviewer persona; Salma is the
-  // tutor who explains the progression. result=null (screening skipped) uses the current level.
   const closeSalma = useCallback((why) => { setSalma(null); if (why) beacon(String(why)); }, []);
   const bookSalmaFight = useCallback((result) => {
     const mapped = ASSESS_LEVEL_MAP[result?.estimatedLevel];
@@ -5467,6 +5465,34 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     setSalma(null);
     beacon('salma_booked');
     beginSession();
+  }, [beginSession]);
+
+  // One dispatcher for every BrainGuide-selected action. First-use Salma may explain the cold-start
+  // assessment, but it must call this exact path instead of opening a legacy generic interview.
+  const executeBrainDirective = useCallback((d, why) => {
+    const p = d?.prescription || {};
+    const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
+      'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
+      'satzbau-schmiede': setSatzbauOpen,
+      'srs': setDailyOpen };
+    if (p.action === 'drill') {
+      const fn = OPEN[p.drill];
+      // Hand the WHY only to overlays that actually render it ('srs'/Daily doesn't, and the
+      // beginSession fallback isn't a drill) — otherwise the line would become stale.
+      setDrillWhy(fn && p.drill !== 'srs' ? (why || null) : null);
+      fn ? fn(true) : beginSession();
+    }
+    else if (p.action === 'interview' || p.action === 'measure') beginSession();
+    else if (p.action === 'assessment') setAssessmentOpen(true);
+    else if (p.action === 'vacancy') setVacancyOpenRequest((value) => value + 1);
+    else if (p.action === 'mission') setMissionOpenRequest((current) => ({
+      id:(current?.id || 0) + 1,
+      step:typeof p.step === 'string' ? p.step : 'today',
+      ...(typeof p.opportunityId === 'string' ? { opportunityId:p.opportunityId } : {}),
+    }));
+    else if (p.action === 'apply') setMissionOpenRequest((current) => ({
+      id:(current?.id || 0) + 1, step:'shortlist',
+    }));
   }, [beginSession]);
 
   const openDashboard = useCallback(async () => {
@@ -5545,12 +5571,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // the cohort's measured first action. firstRun keeps this a one-time CTA; it never auto-starts.
   const activeStudyStart = firstRun && auth.account?.studyAccess?.active === true
     && auth.account?.studyAccess?.days === 21;
-  // A pass-funnel signup already completed a meaningful first action. Preserve that exact
-  // continuation instead of hiding BrainGuide/Mission Control behind the generic first fight.
+  // Mission Control still waits for a meaningful first action. BrainGuide does not: it owns the
+  // cold start too, so the server's assessment directive cannot be bypassed by the legacy arena CTA.
   const missionContinuation = !firstRun || hasClaimedInterviewPass || interviewPassClaimRevision > 0;
+  const brainGuideAuthority = BRAIN_GUIDE_LIVE && canStart;
   const homePrimaryAction = primaryActionPolicy({
     brainGuideEnabled: BRAIN_GUIDE_LIVE,
-    missionContinuation,
+    missionContinuation: brainGuideAuthority,
     status: brainDecision.status,
     directive: brainDecision.directive,
   });
@@ -5693,6 +5720,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {salma && !assessmentOpen && !billing?.justActivated && (
         <SalmaTakeover token={auth.token} apiUrl={API_URL} lang={feedbackLang}
           ctx={salma} resumeTick={salmaResume}
+          brainDirective={brainDecision.status === 'ready' ? brainDecision.directive : null}
+          onBrainAction={executeBrainDirective}
           onBookFight={bookSalmaFight}
           onClose={closeSalma} />
       )}
@@ -5953,40 +5982,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               )}
 
               {/* THE FATHER LEADS (R1, WOW plan 2026-07-10): the live brain's ONE next step is the
-                  FIRST actionable thing a returning user sees — above level/interviewer choices.
+                  FIRST actionable thing every user sees — above level/interviewer choices.
                   Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
-                  first-run (its prescription would duplicate the diagnosis-interview CTA). */}
-              {BRAIN_GUIDE_LIVE && canStart && missionContinuation && (
+                  no home state; missing/loading directives fail closed in primaryActionPolicy. */}
+              {brainGuideAuthority && (
                 <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta refreshKey={brainGuideRefresh + interviewPassClaimRevision}
                   onDirectiveState={setBrainDecision}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
                   pipeline={pipeline}
-                  onAction={(d, why) => {
-                  const p = d?.prescription || {};
-                  const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
-                    'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
-                    'satzbau-schmiede': setSatzbauOpen,
-                    'srs': setDailyOpen };
-                  if (p.action === 'drill') {
-                    const fn = OPEN[p.drill];
-                    // Hand the WHY only to overlays that actually render it ('srs'/Daily doesn't, and the
-                    // beginSession fallback isn't a drill) — otherwise the line goes stale and would
-                    // reappear on whatever drill opens next (feedback-accuracy doctrine: never mislabel).
-                    setDrillWhy(fn && p.drill !== 'srs' ? (why || null) : null);
-                    fn ? fn(true) : beginSession();
-                  }
-                  else if (p.action === 'interview' || p.action === 'measure') beginSession();
-                  else if (p.action === 'assessment') setAssessmentOpen(true);
-                  else if (p.action === 'vacancy') setVacancyOpenRequest((value) => value + 1);
-                  else if (p.action === 'mission') setMissionOpenRequest((current) => ({
-                    id:(current?.id || 0) + 1,
-                    step:typeof p.step === 'string' ? p.step : 'today',
-                    ...(typeof p.opportunityId === 'string' ? { opportunityId:p.opportunityId } : {}),
-                  }));
-                  else if (p.action === 'apply') setMissionOpenRequest((current) => ({
-                    id:(current?.id || 0) + 1, step:'shortlist',
-                  }));
-                }} />
+                  onAction={executeBrainDirective} />
               )}
 
               {canStart && (
