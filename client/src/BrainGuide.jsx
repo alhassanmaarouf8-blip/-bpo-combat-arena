@@ -129,7 +129,8 @@ const LADDER = [
   { id: 'frau-mona-adel', name: 'Frau Mona Adel', tier: 'Geschäftsführerin', minLevel: 8 },
 ];
 
-export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, externalInterviewCta = false, lang = 'de', pipeline = null, refreshKey = 0 }) {
+export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessionExpired,
+  externalInterviewCta = false, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [loadState, setLoadState] = useState('loading');
   const [coachRevision, setCoachRevision] = useState(0);
@@ -181,6 +182,10 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
     (async () => {
       try {
         const r = await fetch(`${apiUrl}/api/brain`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
+        if (r.status === 401) {
+          if (alive) { setLoadState('auth'); onDirectiveState?.({ status: 'error', directive: null }); }
+          return;
+        }
         if (!r.ok) {
           if (alive) { setLoadState('error'); onDirectiveState?.({ status: 'error', directive: null }); }
           return;
@@ -208,18 +213,28 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, external
   }, []);
 
   if (!data?.directive) return (
-    <div dir="ltr" style={{ ...card, textAlign:'left' }} role={loadState === 'error' ? 'alert' : 'status'} aria-live="polite">
+    <div dir="ltr" style={{ ...card, textAlign:'left' }} role={loadState === 'loading' ? 'status' : 'alert'} aria-live="polite">
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
         <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={42} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontWeight:800, fontSize:13, color:'#e2e8f0' }}>
-            {loadState === 'error' ? 'Dein persönlicher Schritt konnte noch nicht geladen werden.' : 'Dein persönlicher Schritt wird berechnet…'}
+            {loadState === 'auth' ? 'Deine Sitzung ist abgelaufen.'
+              : loadState === 'error' ? 'Dein persönlicher Schritt konnte noch nicht geladen werden.'
+              : 'Dein persönlicher Schritt wird berechnet…'}
           </div>
           <div style={{ marginTop:3, fontSize:11.5, color:'#94a3b8', lineHeight:1.5 }}>
-            {loadState === 'error' ? 'Deine Messdaten bleiben erhalten. Lade nur die Empfehlung erneut.' : 'BrainGuide prüft deine letzte verlässliche Messung.'}
+            {loadState === 'auth' ? 'Deine Messdaten bleiben erhalten. Melde dich erneut an, um genau hier weiterzumachen.'
+              : loadState === 'error' ? 'Deine Messdaten bleiben erhalten. Lade nur die Empfehlung erneut.'
+              : 'BrainGuide prüft deine letzte verlässliche Messung.'}
           </div>
         </div>
       </div>
+      {loadState === 'auth' && (
+        <button type="button" onClick={onSessionExpired}
+          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'#bfdbfe' }}>
+          ERNEUT ANMELDEN
+        </button>
+      )}
       {loadState === 'error' && (
         <button type="button" onClick={() => setCoachRevision((value) => value + 1)}
           style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'#bfdbfe' }}>

@@ -60,17 +60,66 @@ test('study invite verification preserves the landing page and gates submit with
   assert.doesNotMatch(auth, /studyEntryChecking\s*&&\s*<LazyFallback|studyEntryChecking\s*&&\s*<Loading/u);
 });
 
+test('every landing start action moves both viewport and focus to the authentication form', async () => {
+  const app = await read('client/src/App.jsx');
+  const preview = section(app, 'function ProductHomePreview(', 'function StudyBrowserHandoff(');
+  const auth = section(app, 'function AuthScreen(', 'function PaywallScreen(');
+
+  assert.match(preview, /function ProductHomePreview\(\{ onStart \}\)/u);
+  assert.match(preview, /onClick=\{onStart\}/u,
+    'the product preview must use the same accessible auth transition as the hero');
+  assert.match(auth, /const focusAuth = useCallback/u);
+  assert.match(auth, /field\?\.focus\(\{ preventScroll:true \}\)/u,
+    'the destination field must receive programmatic focus');
+  assert.match(auth, /prefers-reduced-motion: reduce/u,
+    'the transition must respect reduced-motion preferences');
+  assert.match(auth, /<button onClick=\{\(\) => focusAuth\('signup'\)\}/u);
+  assert.match(auth, /<ProductHomePreview onStart=\{\(\) => focusAuth\('signup'\)\}/u);
+  assert.match(auth, /onLogin=\{\(\) => focusAuth\('login'\)\}/u);
+  assert.doesNotMatch(preview, /onClick=\{\(\) => document\.getElementById\('signup-card'\)/u);
+});
+
+test('authentication mode switch exposes its selected state to assistive technology', async () => {
+  const app = await read('client/src/App.jsx');
+  const auth = section(app, 'function AuthScreen(', 'function PaywallScreen(');
+
+  assert.match(auth, /aria-label="Anmeldung oder Registrierung"/u);
+  assert.match(auth, /aria-pressed=\{mode === m\}/u);
+});
+
 test('BrainGuide renders useful loading and recoverable error states instead of disappearing', async () => {
   const brain = await read('client/src/BrainGuide.jsx');
   const fallback = section(brain, 'if (!data?.directive) return (', 'const d = data.directive;');
 
-  assert.match(fallback, /role=\{loadState === 'error' \? 'alert' : 'status'\}/u);
+  assert.match(fallback, /role=\{loadState === 'loading' \? 'status' : 'alert'\}/u);
   assert.match(fallback, /Dein persönlicher Schritt wird berechnet/u);
   assert.match(fallback, /Dein persönlicher Schritt konnte noch nicht geladen werden/u);
   assert.match(fallback, /Deine Messdaten bleiben erhalten/u);
   assert.match(fallback, /setCoachRevision\(\(value\) => value \+ 1\)/u);
   assert.match(fallback, /ERNEUT LADEN/u);
   assert.doesNotMatch(fallback, /return null/u);
+});
+
+test('expired BrainGuide sessions recover through a real sign-in path instead of an endless retry loop', async () => {
+  const [app, brain] = await Promise.all([
+    read('client/src/App.jsx'),
+    read('client/src/BrainGuide.jsx'),
+  ]);
+
+  assert.match(brain, /if \(r\.status === 401\)/u);
+  assert.match(brain, /setLoadState\('auth'\)/u);
+  assert.match(brain, /Deine Sitzung ist abgelaufen/u);
+  assert.match(brain, /onClick=\{onSessionExpired\}/u);
+  assert.match(brain, /ERNEUT ANMELDEN/u);
+  assert.match(app, /onSessionExpired=\{onLogout\}/u,
+    'the recovery action must clear stale authentication through the canonical logout path');
+});
+
+test('BrainGuide suppresses the legacy how-to card that can describe a different next action', async () => {
+  const app = await read('client/src/App.jsx');
+
+  assert.match(app, /\{canStart && showHowto && !brainGuideAuthority && \(/u);
+  assert.match(app, /<BrainGuide[\s\S]*?onAction=\{executeBrainDirective\}/u);
 });
 
 test('debrief uses the canonical tutor and one personal next-step action; interview retries stay secondary', async () => {

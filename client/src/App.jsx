@@ -2686,7 +2686,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 // screenshot became soft when cropped and scaled, and went stale whenever the
 // real home changed. This stays readable at every viewport and is explicitly a
 // preview rather than pretending to be a live session.
-function ProductHomePreview() {
+function ProductHomePreview({ onStart }) {
   return (
     <figure aria-label="Vorschau des OMNI-PERFORM Interview-Trainings"
       style={{ maxWidth:420, margin:'24px auto 4px', padding:0 }}>
@@ -2760,7 +2760,7 @@ function ProductHomePreview() {
           ))}
         </div>
 
-        <button type="button" onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
+        <button type="button" onClick={onStart}
           aria-label="Kostenlos registrieren und Interview starten"
           style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14, border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', justifyContent:'center', gap:9,
@@ -3024,16 +3024,31 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
     setInterviewPassFeatureState('off');
   }, []);
 
+  // Every public start action must move both the viewport and keyboard/screen-reader focus.
+  // Scroll-only CTAs looked correct with a mouse but left focus in the hero, so the next Tab
+  // walked through preview controls instead of the form the learner had just asked to open.
+  const focusAuth = useCallback((nextMode = 'signup') => {
+    setMode(nextMode);
+    setErr('');
+    window.requestAnimationFrame(() => {
+      const field = document.getElementById(resetToken ? 'auth-password' : 'auth-email');
+      field?.focus({ preventScroll:true });
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+      document.getElementById('signup-card')?.scrollIntoView({
+        behavior:reducedMotion ? 'auto' : 'smooth',
+        block:'center',
+      });
+    });
+  }, [resetToken]);
+
   const saveInterviewPassForSignup = useCallback(({ previewToken, expiresAt }) => {
     if (typeof previewToken !== 'string' || !previewToken.trim()) return;
     writePendingInterviewPassClaim({
       previewToken: previewToken.trim(),
       expiresAt: typeof expiresAt === 'string' ? expiresAt : '',
     });
-    setMode('signup');
-    setErr('');
-    window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
-  }, []);
+    focusAuth('signup');
+  }, [focusAuth]);
 
   const submit = async () => {
     if (busy) return;
@@ -3168,7 +3183,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             : <>Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus.
               {' '}<span dir="rtl">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span></>}
         </div>
-        <button onClick={() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' })}
+        <button onClick={() => focusAuth('signup')}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
             border:'1px solid var(--action)', background:'linear-gradient(135deg,var(--action-2),var(--action))',
             color:'#071018', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
@@ -3198,7 +3213,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       </div>
 
       {!studyInviteLanding && <div style={rise(2)}>
-        <ProductHomePreview />
+        <ProductHomePreview onStart={() => focusAuth('signup')} />
       </div>}
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
@@ -3270,10 +3285,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         <InterviewPassPreview apiUrl={API_URL} enabled featureState={interviewPassFeatureState}
           serverVerified onUnavailable={hideUnavailableInterviewPass} onBeacon={beacon}
           onSave={saveInterviewPassForSignup}
-          onLogin={() => {
-            setMode('login'); setErr('');
-            window.requestAnimationFrame(() => document.getElementById('signup-card')?.scrollIntoView({ behavior:'smooth', block:'center' }));
-          }} />
+          onLogin={() => focusAuth('login')} />
       </Suspense>}
 
       {!studyInviteLanding && <VoiceReadinessCheck />}
@@ -3307,9 +3319,9 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             </div>
           </div>
         ) : (
-        <div style={{ display:'flex', gap:0, marginBottom:18, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3 }}>
+        <div aria-label="Anmeldung oder Registrierung" style={{ display:'flex', gap:0, marginBottom:18, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3 }}>
           {['login','signup'].map((m) => (
-            <button key={m} type="button" onClick={() => { setMode(m); setErr(''); }}
+            <button key={m} type="button" aria-pressed={mode === m} onClick={() => { setMode(m); setErr(''); }}
               style={{ flex:1, padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)',
                 fontWeight:600, letterSpacing:'0.04em', borderRadius:'var(--r-pill)', border:'none', transition:'all 200ms var(--ease)',
                 background: mode===m?'rgba(59,130,246,0.18)':'transparent', color: mode===m?'var(--accent-2)':'var(--text-faint)' }}>
@@ -5988,6 +6000,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               {brainGuideAuthority && (
                 <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta refreshKey={brainGuideRefresh + interviewPassClaimRevision}
                   onDirectiveState={setBrainDecision}
+                  onSessionExpired={onLogout}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
                   pipeline={pipeline}
                   onAction={executeBrainDirective} />
@@ -6389,7 +6402,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           </div>
         )}
 
-        {canStart && showHowto && (
+        {canStart && showHowto && !brainGuideAuthority && (
           <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:10, textAlign:'left',
             background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.28)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
