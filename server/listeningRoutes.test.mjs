@@ -6,16 +6,67 @@ import express from 'express';
 process.env.AUTH_SECRET ||= 'listening-route-test-secret';
 const auth = await import('./auth.js');
 const { listeningRouter } = await import('./listening.js');
+const { transcribeRouter } = await import('./transcribeRouter.js');
 const { deleteUser, loadUser, saveUser } = await import('./store.js');
 
 async function withApi(run) {
   const app = express();
+  app.use(express.json({ limit: '16kb' }));
   app.use('/api', listeningRouter);
+  app.use('/api', transcribeRouter);
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   try { await run(`http://127.0.0.1:${server.address().port}`); }
   finally { await new Promise((resolve) => server.close(resolve)); }
 }
+
+test('listening GET exposes no transcript and opaque media tickets resolve only an active play', async () => {
+  const account = await auth.createAccount(
+    `listening-opaque-${Date.now()}-${Math.floor(Math.random() * 1e9)}@example.com`,
+    'test-password-1234',
+  );
+  account.emailVerifiedAt = Date.now();
+  account.subscription = { ...(account.subscription || {}), plan: 'basic' };
+  const token = auth.signToken(account);
+  try {
+    await withApi(async (base) => {
+      const response = await fetch(`${base}/api/listening`, {
+        headers: { Authorization: `Bearer ${token}`, 'X-Listening-Media-Version': '2' },
+      });
+      assert.equal(response.status, 200);
+      const payload = await response.json();
+      assert.equal(payload.items.length, 5);
+      assert.equal(payload.mediaMode, 'opaque_v2');
+      assert.equal(payload.items.some((item) => Object.hasOwn(item, 'audioText') || Object.hasOwn(item, 'voice')), false);
+      const legacyResponse = await fetch(`${base}/api/listening`, { headers: { Authorization: `Bearer ${token}` } });
+      assert.equal(legacyResponse.status, 200);
+      const legacyPayload = await legacyResponse.json();
+      assert.equal(legacyPayload.items.length, 5);
+      assert.equal(legacyPayload.items.every((item) => typeof item.audioText === 'string' && typeof item.voice === 'string'), true,
+        'stale clients keep their exact existing audio payload during a rolling deployment');
+      const stored = await loadUser(account.id);
+      const first = payload.items[0];
+      assert.ok(stored.listeningActive[String(first.id)].ttsText.length > 12);
+      assert.match(stored.listeningActive[String(first.id)].accountBinding, /^[a-f0-9]{64}$/u);
+
+      const started = await api(base, '/api/listening/play', token, { id: first.id });
+      assert.equal(started.status, 200);
+      const ticket = await api(base, '/api/media-ticket', token, {
+        listeningRef: { id: first.id, playNumber: started.body.playNumber },
+      });
+      assert.equal(ticket.status, 200);
+      assert.equal(typeof ticket.body.ticket, 'string');
+      const mixed = await api(base, '/api/media-ticket', token, {
+        listeningRef: { id: first.id, playNumber: started.body.playNumber }, text: 'forged transcript',
+      });
+      assert.equal(mixed.status, 400);
+      assert.equal(mixed.body.error, 'invalid_listening_media_request');
+    });
+  } finally {
+    await deleteUser(account.id);
+    await auth.deleteAccount(account);
+  }
+});
 
 async function api(base, path, token, body) {
   const response = await fetch(`${base}${path}`, {

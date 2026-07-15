@@ -1,16 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'crypto';
 import { defaultProfile } from './store.js';
 import { CS_SCENARIOS } from './scenarios.js';
 import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
 import { validatedTransferProofs } from './scoring/transferProofs.js';
+import { listeningDifficultyContract } from './listeningEvidence.js';
 import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
   canonicalCoachDirective, deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
   publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
-  salmaCoachBrainGate, salmaRetestTarget, safeIntervention, updatePreferences } from './salmaCoachCore.js';
+  salmaCoachBrainGate, salmaRetestTarget, safeIntervention, syncSalmaCoach, updatePreferences } from './salmaCoachCore.js';
 
 function account(plan = 'free') {
   return { id: 'acct-1', emailVerifiedAt: 1, roles: [], subscription: { plan } };
+}
+const digest = (value, length = 64) => createHash('sha256').update(String(value)).digest('hex').slice(0, length);
+function listeningV2Attempt(profile, index, correct = true, start = 1_800_000_000_000) {
+  const challenge = listeningDifficultyContract('listen-clear', 'B1', 1);
+  return {
+    attemptId: (index + 1).toString(16).padStart(24, '0'), skillId: 'listen-clear', kind: 'verstehen', type: null,
+    itemHash: (index + 1).toString(16).padStart(64, '0'), correct, plays: 1, playbackRate: 1, baseRate: 1,
+    responseLatencyMs: 1200, issuedAt: start + index * 10_000, gradedAt: start + index * 10_000 + 5_000,
+    evidenceVersion: 2, accountBinding: digest(`listening-account-v2:${profile.userId}`),
+    prescriptionId: null, packetId: 'a'.repeat(16), packetIndex: index, phase: 'baseline_candidate',
+    challengeKey: challenge.challengeKey, levelKey: 'B1', eligibleAt: start,
+  };
 }
 function reliableSession(value) {
   return { sessionId: value?.sessionId || `session-${value?.date}`, targetRoleType: value?.targetRoleType || 'customer_service',
@@ -509,25 +523,27 @@ test('listening measurement requires five unique server-issued attempts', () => 
   assert.equal(measured.value, 80);
   assert.match(measured.evidenceId, /^[a-f0-9]{12}$/u);
   const retest = publicListeningRetest(p, 'listen-clear');
-  assert.equal(retest.phase, 'matched');
+  assert.equal(retest.phase, 'baseline', 'measurement alone cannot impersonate an active retest cycle');
   assert.equal(JSON.stringify(retest).includes('evidenceId'), false);
 });
 
 test('failed listening dose keeps practice active; 4/5 unlocks one consistent delayed retest', () => {
   const start = 1_800_000_000_000;
-  const attempt = (index, correct) => ({
-    attemptId: (index + 1).toString(16).padStart(24, '0'), skillId: 'listen-clear', kind: 'verstehen', type: null,
-    itemHash: (index + 1).toString(16).padStart(64, '0'), correct, plays: 1, playbackRate: 1,
-    responseLatencyMs: 1200, issuedAt: start + index * 10_000, gradedAt: start + index * 10_000 + 5_000,
-  });
   const p = defaultProfile('acct-1');
-  p.listeningAttempts = Array.from({ length: 5 }, (_, index) => attempt(index, false));
+  p.listeningAttempts = Array.from({ length: 5 }, (_, index) => listeningV2Attempt(p, index, false, start));
+  const challenge = listeningDifficultyContract('listen-clear', 'B1', 1);
+  const owner = digest(`listening-account-v2:${p.userId}`);
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'listen-clear', drillId: 'hoer-check',
     blocks: 1, repetitions: 5, durationSeconds: 600, timesPerDay: 1, minimumSpacingMinutes: 240,
-    successGate: 'Mindestens vier von fünf.', assignedAt: start, nextEligibleAt: null };
+    successGate: 'Mindestens vier von fünf.', assignedAt: start, nextEligibleAt: null,
+    listeningCycle: { version: 2, accountBinding: owner, challengeKey: challenge.challengeKey,
+      levelKey: 'B1', baseRate: 1, baselineEvidenceIds: p.listeningAttempts.map((row) => digest(row.attemptId, 12)),
+      baselineMeasuredAt: p.listeningAttempts.at(-1).gradedAt, doseCompletedAt: null, matchedEligibleAt: null } };
+  const event = (correct) => ({ drill: 'hoer-check', correct, prescriptionId: state.activePrescription.id,
+    skillId: 'listen-clear', phase: 'practice' });
   for (let index = 0; index < 5; index += 1) {
-    state = recordDrillOutcome(state, { drill: 'hoer-check', correct: false }, start + index + 1);
+    state = recordDrillOutcome(state, event(false), start + index + 1);
   }
   assert.equal(salmaCoachBrainGate(state, p, start + 60_000).status, 'practice');
   assert.match(safeIntervention(state, start + 60_000, p).nextAction, /vier von fünf/u);
@@ -535,14 +551,37 @@ test('failed listening dose keeps practice active; 4/5 unlocks one consistent de
 
   const passing = [true, true, true, true, false];
   for (let index = 0; index < passing.length; index += 1) {
-    p.listeningAttempts.push(attempt(index + 5, passing[index]));
-    state = recordDrillOutcome(state, { drill: 'hoer-check', correct: passing[index] }, start + 60_000 + index);
+    state = recordDrillOutcome(state, event(passing[index]), start + 60_000 + index);
   }
   const gate = salmaCoachBrainGate(state, p, start + 120_000);
   assert.equal(gate.status, 'wait');
   assert.equal(gate.action, 'wait');
   assert.match(safeIntervention(state, start + 120_000, p).nextAction, /frühestens/u);
   assert.equal(publicListeningRetest(p, 'listen-clear', state).trainingComplete, true);
+});
+
+test('reload and unrelated listening grades cannot replace or credit an active v2 prescription', () => {
+  const start = 1_800_000_000_000;
+  const p = defaultProfile('acct-1');
+  p.listeningAttempts = Array.from({ length: 5 }, (_, index) => listeningV2Attempt(p, index, true, start));
+  const challenge = listeningDifficultyContract('listen-clear', 'B1', 1);
+  const id = '0123456789abcdef';
+  p.salmaCoach = normalizeSalmaCoachState({ activePrescription: {
+    id, evidenceIds: p.listeningAttempts.map((row) => digest(row.attemptId, 12)), skillId: 'listen-clear', drillId: 'hoer-check',
+    blocks: 1, repetitions: 5, durationSeconds: 600, timesPerDay: 1, minimumSpacingMinutes: 240,
+    successGate: 'Mindestens vier von fünf.', assignedAt: start, nextEligibleAt: null,
+    listeningCycle: { version: 2, accountBinding: digest(`listening-account-v2:${p.userId}`),
+      challengeKey: challenge.challengeKey, levelKey: 'B1', baseRate: 1,
+      baselineEvidenceIds: p.listeningAttempts.map((row) => digest(row.attemptId, 12)),
+      baselineMeasuredAt: p.listeningAttempts.at(-1).gradedAt, doseCompletedAt: null, matchedEligibleAt: null },
+  } });
+  const afterReload = syncSalmaCoach(p, { now: start + 100_000 }).state;
+  assert.equal(afterReload.activePrescription.id, id);
+  const wrongSkill = recordDrillOutcome(afterReload, { drill: 'hoer-check', correct: true,
+    prescriptionId: id, skillId: 'listen-phone', phase: 'practice' }, start + 100_001);
+  assert.equal(wrongSkill.coachState.repeatedErrorCounts[id], undefined);
+  const unbound = recordDrillOutcome(afterReload, { drill: 'hoer-check', correct: true }, start + 100_002);
+  assert.equal(unbound.coachState.repeatedErrorCounts[id], undefined);
 });
 
 test('preference booleans reject ambiguous values', () => {

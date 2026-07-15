@@ -96,7 +96,7 @@ test('adapter: per-type listeningStats aggregate into listening mastery', () => 
 
 // The adapter surfaces recent drill events (with each event's rule identity) so the ENGINE can
 // judge whether prep addressed the target — kind and rule both travel.
-test('adapter: completed delayed listening retests override spoofable legacy totals', () => {
+test('adapter: unbound v1 listening history never impersonates an adjudicated v2 cycle', () => {
   const sessions = [{ date: NOW - 2 * DAY, verdict: 'pass' }, { date: NOW - 1 * DAY, verdict: 'pass' }];
   const listeningAttempts = Array.from({ length: 15 }, (_, index) => ({
     attemptId: (index + 1).toString(16).padStart(24, '0'), skillId: 'listen-phone', kind: 'detail', type: 'nummer',
@@ -107,7 +107,7 @@ test('adapter: completed delayed listening retests override spoofable legacy tot
   }));
   const profile = { sessions, listeningStats: { verstehen: { seen: 100, correct: 100 } }, listeningAttempts };
   const mastered = masteredSkillsFromProfile(profile);
-  assert.equal(mastered.has('listen-phone'), false);
+  assert.equal(mastered.has('listen-phone'), true, 'v1 rows remain historical and cannot become the new authority');
   assert.equal(mastered.has('listen-clear'), true, 'an unmeasured sibling skill keeps its temporary legacy state');
 });
 

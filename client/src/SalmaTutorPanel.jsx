@@ -255,13 +255,15 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
       {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
         <strong style={{ color: '#e2e8f0' }}>Hörnachweis: </strong>
         {listeningRetest.trainingComplete === false && 'Dein persönlicher Trainingsblock läuft noch. Erst nach mindestens vier richtigen Antworten in den letzten fünf Aufgaben beginnt die Retest-Wartezeit.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine Ausgangsmessung.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'matched' && <>Ausgangsmessung und Trainingsblock sind abgeschlossen. Der Vergleichstest zählt frühestens am{' '}
-          {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'transfer' && <>Vergleichstest gespeichert. Der Test mit neuem Material zählt frühestens am{' '}
-          {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'complete' && 'Der verzögerte Vergleichs- und Transfernachweis ist vollständig.'}
-        {listeningRetest.trainingComplete !== false && listeningRetest.phase !== 'complete' && <span style={{ color: '#94a3b8' }}> Übung vorher hilft, gilt aber nicht als Retest.</span>}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine servergeprüfte Ausgangsmessung.'}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'dose' && 'Der Trainingsblock ist noch nicht als vollständige Dosis bestätigt.'}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'matched' && <>{listeningRetest.completed || 0}/5 Vergleichsaufgaben bestätigt.{' '}
+          {Date.now() < Number(listeningRetest.nextEligibleAt) && <>Der Retest öffnet frühestens am {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}</>}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'transfer' && <>{listeningRetest.completed || 0}/5 Transferaufgaben mit neuem Material bestätigt.{' '}
+          {Date.now() < Number(listeningRetest.nextEligibleAt) && <>Der Transfer-Retest öffnet frühestens am {formatCairoRetest(listeningRetest.nextEligibleAt)} Uhr (Kairo).</>}</>}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'complete' && 'Vergleich und Transfer sind unter neuer Belastung bestätigt.'}
+        {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'failed' && 'Der Retest ist vollständig, aber die Erfolgsschwelle wurde nicht erreicht. BrainGuide passt den nächsten Trainingsschritt an.'}
+        {listeningRetest.trainingComplete !== false && !['complete', 'failed'].includes(listeningRetest.phase) && <span style={{ color: '#94a3b8' }}> Übung vor der Freigabe hilft, gilt aber nicht als Retest.</span>}
       </div>}
       {speakingRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
         <strong style={{ color: '#e2e8f0' }}>Sprechnachweis: </strong>

@@ -21,6 +21,12 @@ function normalizeVerifiedEvent(value) {
   const voicedMs = boundedInteger(value.voicedMs, 0, 120_000);
   if (voicedMs !== null) event.voicedMs = voicedMs;
   if (value.completedSet === true && value.drill === 'flow-drill') event.completedSet = true;
+  if (/^[a-f0-9]{16}$/u.test(value.eventId || '')) event.eventId = value.eventId;
+  if (value.drill === 'hoer-check' && /^[a-f0-9]{16}$/u.test(value.prescriptionId || '')) {
+    event.prescriptionId = value.prescriptionId;
+    if (value.skillId === 'listen-clear' || value.skillId === 'listen-phone') event.skillId = value.skillId;
+    if (value.phase === 'practice') event.phase = 'practice';
+  }
   if (event.correct === undefined && event.froze === undefined && event.completedSet !== true) return null;
   return Object.freeze(event);
 }

@@ -23,9 +23,10 @@ import { createHash, randomBytes } from 'crypto';
 import { requireAuth, planOf, drillsUnlocked } from './auth.js';
 import { loadUser, mutateUser, saveUser }  from './store.js';
 import { isCleanGermanText, isCleanArabicOrGermanText } from './langGuard.js';
-import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
-  minimumListeningPlaybackMs } from './listeningEvidence.js';
+import { archiveListeningCycle, beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
+  listeningIssuanceBinding, minimumListeningPlaybackMs } from './listeningEvidence.js';
 import { issueDrillEvidenceReceipt } from './drillEvidence.js';
+import { recordDrillOutcome, salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
 
 export const listeningRouter = express.Router();
 
@@ -108,6 +109,15 @@ const AVOID_KEEP = 12;            // how many recent topics we ask the model to 
 // Short TTL so a quick double-load (StrictMode / retry / ?t= cache-bust) doesn't double-bill,
 // while a genuine reopen later still produces NOVEL content.
 const genCache = new Map();
+
+function publicListeningPayload(items, baseRate, opaqueMedia) {
+  if (!opaqueMedia) return { items, baseRate };
+  return {
+    items: items.map(({ audioText: _audioText, voice: _voice, ...safe }) => safe),
+    baseRate,
+    mediaMode: 'opaque_v2',
+  };
+}
 
 // Authored items. `answer` is the canonical capture; it stays SERVER-SIDE (never sent in GET).
 // audioText is natural, native-speed German with the detail embedded mid-sentence.
@@ -514,16 +524,24 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   res.set('Cache-Control', 'no-store');
   const uid = req.account.id;
+  const opaqueMedia = req.get('X-Listening-Media-Version') === '2';
 
   const cached = genCache.get(uid);
   const cacheStillUnused = cached?.active && !Object.values(cached.active).some((item) => item?.gradeResult);
-  if (cached && cacheStillUnused && Date.now() - cached.ts < GEN_TTL_MS) { res.json(cached.payload); return; }
+  if (cached && cacheStillUnused && Date.now() - cached.ts < GEN_TTL_MS) {
+    res.json(publicListeningPayload(cached.items, cached.baseRate, opaqueMedia));
+    return;
+  }
   if (cached && !cacheStillUnused) genCache.delete(uid);
 
   let p = null;
   try { p = await loadUser(uid); } catch { p = null; }
-  const level    = p?.assessmentResult?.estimatedLevel;
-  const baseRate = baseRateFor(level);
+  if (p && salmaCoachFlags(process.env, req.account).enabled) syncSalmaCoach(p, { now: Date.now() });
+  const activeCycle = p?.salmaCoach?.activePrescription?.listeningCycle;
+  const level = Number(activeCycle?.version) === 2 && ['A1', 'A2', 'B1', 'B2', 'C1'].includes(activeCycle.levelKey)
+    ? activeCycle.levelKey : p?.assessmentResult?.estimatedLevel;
+  const baseRate = Number(activeCycle?.version) === 2 && Number.isFinite(Number(activeCycle.baseRate))
+    ? Math.max(0.5, Math.min(1.5, Number(activeCycle.baseRate))) : baseRateFor(level);
   const stats    = p?.listeningStats || null;
   const base     = Date.now().toString(36);
   const active   = {};
@@ -574,10 +592,16 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   // Bind every item to one server-issued attempt. This does not touch audio generation or playback;
   // it only makes later accuracy, replay-dependence, and response-latency evidence auditable.
   const issuedAt = Date.now();
+  const skillSlots = { 'listen-clear': 0, 'listen-phone': 0 };
   for (const [index, row] of items.entries()) {
     const stored = active[String(row.id)];
     if (!stored) continue;
     const playbackRate = Math.min(1.7, baseRate + index * 0.12);
+    const skillId = row.kind === 'verstehen' ? 'listen-clear' : 'listen-phone';
+    const binding = listeningIssuanceBinding(p, skillId, {
+      accountId: uid, levelKey: level, baseRate, slot: skillSlots[skillId], now: issuedAt,
+    });
+    skillSlots[skillId] += 1;
     Object.assign(stored, {
       attemptId: randomBytes(12).toString('hex'),
       itemHash: evidenceContentHash(row, stored),
@@ -587,13 +611,15 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
       playStartedAt: null,
       playCompletedAt: null,
       playbackRate,
+      ttsText: String(row.audioText || '').slice(0, 600),
+      voice: String(row.voice || '').slice(0, 40),
       minimumPlaybackMs: minimumListeningPlaybackMs(row.audioText, playbackRate),
       gradeResult: null,
-    });
+    }, binding || {});
   }
 
   // Persist active (both kinds) + no-repeat memory for comprehension and detail.
-  const payload = { items, baseRate };
+  const payload = publicListeningPayload(items, baseRate, opaqueMedia);
   try {
     p = p || await loadUser(uid);
     p.listeningActive     = active;
@@ -601,8 +627,10 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
     p.listeningCompTopics = [...comp.slice(0, N_COMP).map((it) => it.audioText.slice(0, 80)), ...(Array.isArray(p.listeningCompTopics) ? p.listeningCompTopics : [])].slice(0, AVOID_KEEP);
     if (compSeenUpdate) p.listeningCompSeen = compReset ? compSeenUpdate.slice() : [...(Array.isArray(p.listeningCompSeen) ? p.listeningCompSeen : []), ...compSeenUpdate];
     await saveUser(p);
-  } catch { /* best-effort; genCache still resolves grade this session */ }
-  genCache.set(uid, { ts: Date.now(), payload, active });
+  } catch {
+    return res.status(503).json({ error: 'listening_session_not_persisted' });
+  }
+  genCache.set(uid, { ts: Date.now(), items, baseRate, active });
   res.json(payload);
 });
 
@@ -639,6 +667,22 @@ listeningRouter.post('/listening/play/complete', express.json({ limit: '2kb' }),
   }
 });
 
+function listeningCoachEvent(profile, item, correct, account, now) {
+  if (!item || Number(item.evidenceVersion) !== 2 || item.phase !== 'practice'
+    || !/^[a-f0-9]{16}$/u.test(item.prescriptionId || '')
+    || (item.skillId !== 'listen-clear' && item.skillId !== 'listen-phone')) return null;
+  const event = {
+    drill: 'hoer-check', correct: correct === true,
+    eventId: createHash('sha256').update(`listening-grade-v2:${item.attemptId}`).digest('hex').slice(0, 16),
+    prescriptionId: item.prescriptionId, skillId: item.skillId, phase: 'practice',
+  };
+  if (salmaCoachFlags(process.env, account).enabled) {
+    const { state } = syncSalmaCoach(profile, { now });
+    profile.salmaCoach = recordDrillOutcome(state, event, now);
+  }
+  return event;
+}
+
 listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
   const uid = req.account.id;
@@ -664,14 +708,18 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
       if (item.kind === 'verstehen') {
         const chosen = parseInt(req.body?.response, 10);
         const proposedCorrect = Number.isInteger(chosen) && chosen === item.correct;
-        const committed = commitListeningGrade(p, key, { correct: proposedCorrect });
+        const now = Date.now();
+        const committed = commitListeningGrade(p, key, { correct: proposedCorrect, now });
         if (!committed.replayed) {
           p.listeningStats = p.listeningStats || {};
           const stat = p.listeningStats.verstehen || { seen: 0, correct: 0 };
           stat.seen += 1; if (committed.correct) stat.correct += 1;
           p.listeningStats.verstehen = stat;
         }
-        return { value: { correct: committed.correct, kind: 'verstehen', correctIndex: item.correct, replayed: committed.replayed } };
+        if (!committed.replayed) archiveListeningCycle(p, now);
+        const coachEvent = committed.replayed ? null : listeningCoachEvent(p, item, committed.correct, req.account, now);
+        return { value: { correct: committed.correct, kind: 'verstehen', correctIndex: item.correct,
+          replayed: committed.replayed, coachEvent } };
       }
 
   // DETAIL: deterministic normalize + compare against the authored answer.
@@ -684,22 +732,25 @@ listeningRouter.post('/listening/grade', express.json({ limit: '8kb' }), require
       const proposedCorrect = you.length > 0 && you === want;
 
   // Record per-type accuracy (best-effort; never block the grade response).
-      const committed = commitListeningGrade(p, key, { correct: proposedCorrect });
+      const now = Date.now();
+      const committed = commitListeningGrade(p, key, { correct: proposedCorrect, now });
       if (!committed.replayed) {
         p.listeningStats = p.listeningStats || {};
         const stat = p.listeningStats[item.type] || { seen: 0, correct: 0 };
         stat.seen += 1; if (committed.correct) stat.correct += 1;
         p.listeningStats[item.type] = stat;
       }
+      if (!committed.replayed) archiveListeningCycle(p, now);
+      const coachEvent = committed.replayed ? null : listeningCoachEvent(p, item, committed.correct, req.account, now);
       return { value: { correct: committed.correct, expected: item.answer,
-        ...(committed.replayed ? {} : { normalizedYou: you }), replayed: committed.replayed } };
+        ...(committed.replayed ? {} : { normalizedYou: you }), replayed: committed.replayed, coachEvent } };
     });
     console.log(`[listening] user=${uid} id=${key} correct=${result.correct} replayed=${result.replayed}`);
     res.set('Cache-Control', 'no-store');
-    const evidenceReceipt = result.replayed ? null : issueDrillEvidenceReceipt(uid, {
-      drill: 'hoer-check', correct: result.correct === true,
-    });
-    res.json({ ...result, ...(evidenceReceipt ? { evidenceReceipt } : {}) });
+    const evidenceReceipt = result.replayed ? null : issueDrillEvidenceReceipt(uid,
+      result.coachEvent || { drill: 'hoer-check', correct: result.correct === true });
+    const { coachEvent: _coachEvent, ...publicResult } = result;
+    res.json({ ...publicResult, ...(evidenceReceipt ? { evidenceReceipt } : {}) });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.code || 'listening_grade_failed' });
   }

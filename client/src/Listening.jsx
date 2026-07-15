@@ -21,6 +21,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const [phase, setPhase] = useState('loading'); // loading | practice | done | error
   const [items, setItems] = useState([]);
   const [baseRate, setBaseRate] = useState(1.0);  // level-scaled base speed from the server
+  const [opaqueMedia, setOpaqueMedia] = useState(false);
   const [idx, setIdx]     = useState(0);
   const [played, setPlayed] = useState(0);        // how many times current item was played
   const [playing, setPlaying] = useState(false);  // ticket/audio startup in progress
@@ -34,14 +35,18 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
 
   const load = useCallback(async () => {
-    setPhase('loading'); setErr(null); setResult(null); setIdx(0); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true);
+    setPhase('loading'); setErr(null); setResult(null); setIdx(0); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true); setOpaqueMedia(false);
     try {
       // Unique URL + no-store so the browser can NEVER serve a cached set → fresh items every open/round.
-      const r = await fetch(`${apiUrl}/api/listening?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${apiUrl}/api/listening?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${token}`, 'X-Listening-Media-Version': '2' },
+      });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok || !Array.isArray(d.items) || !d.items.length) throw new Error('load_failed');
       if (typeof d.baseRate === 'number') setBaseRate(d.baseRate);
+      setOpaqueMedia(d.mediaMode === 'opaque_v2');
       setItems(d.items); setPhase('practice');
     } catch {
       setErr({ de: 'Konnte die Übung nicht laden. Bitte erneut.', ar: 'مقدرناش نحمّل التمرين. حاول تاني.' });
@@ -117,8 +122,9 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     stopVoiceRef.current = playNative({
       apiUrl,
       token,
-      text: item.audioText,
-      voice: item.voice || undefined,
+      ...(opaqueMedia
+        ? { ticketRequest: { listeningRef: { id: item.id, playNumber } } }
+        : { text: item.audioText, voice: item.voice || undefined }),
       rate: Math.min(1.7, baseRate + idx * 0.12),
       phone: true,
       onStart: () => setTtsOk(true),

@@ -137,9 +137,9 @@ function browserSpeak(text, rate, onEnd, onStart, onError) {
  * `salma:true` marks the request as one of Salma's own fixed lines — the server exempts those
  * from the drill plan gate (her voice must work from second zero of a fresh account, BEFORE the
  * trial clock starts at the first interview) while keeping every rate/char cap.
- * @param {{ apiUrl?:string, token?:string, text:string, voice?:string, rate?:number, phone?:boolean, salma?:boolean, noBrowserFallback?:boolean, onStart?:()=>void, onError?:()=>void, onEnd?:()=>void }} o
+ * @param {{ apiUrl?:string, token?:string, text?:string, ticketRequest?:object, voice?:string, rate?:number, phone?:boolean, salma?:boolean, noBrowserFallback?:boolean, onStart?:()=>void, onError?:()=>void, onEnd?:()=>void }} o
  */
-export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, salma = false, noBrowserFallback = true, onStart, onError, onEnd, onLevel } = {}) {
+export function playNative({ apiUrl, token, text, ticketRequest = null, voice = DEFAULT_DRILL_VOICE, rate = 1, phone = false, salma = false, noBrowserFallback = true, onStart, onError, onEnd, onLevel } = {}) {
   let startNotified = false;
   let errorNotified = false;
   let doneNotified = false;
@@ -159,12 +159,15 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     try { onEnd?.(); } catch { /* ignore */ }
   };
   const t = String(text || '').trim();
-  if (!t) { done(); return () => {}; }
+  const opaqueRequest = ticketRequest && typeof ticketRequest === 'object' && !Array.isArray(ticketRequest)
+    ? ticketRequest : null;
+  if (!t && !opaqueRequest) { done(); return () => {}; }
   // The robotic-voice guard: either speak in the browser voice, or (rule on) stay silent but still
   // signal completion so nothing hangs waiting on audio that will never come.
   const fallbackOrSilence = () => (noBrowserFallback
     ? (failedToPlay(), done(), () => {})
-    : browserSpeak(t, rate, done, startedPlaying, failedToPlay));
+    : (t ? browserSpeak(t, rate, done, startedPlaying, failedToPlay)
+      : (failedToPlay(), done(), () => {})));
 
   // No server creds → browser voice (or silence, if the caller forbids the robotic fallback).
   if (!apiUrl || !token) return fallbackOrSilence();
@@ -198,7 +201,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
         releasePlayback(); closeGraphs(); phoneCtx = null; levelWire = null;
         // A crossOrigin load can fail if CORS is momentarily off → retry PLAIN (no filter, no analyser):
         // the native voice is preserved; the talking-head simply falls back to its idle flap.
-        fellBack = playNative({ apiUrl, token, text: t, voice, rate, phone: false, salma, noBrowserFallback,
+        fellBack = playNative({ apiUrl, token, text: t, ticketRequest: opaqueRequest, voice, rate, phone: false, salma, noBrowserFallback,
           onStart: startedPlaying, onError: failedToPlay, onEnd });
       } else {
         fellBack = fallbackOrSilence();   // server failed before any audio → browser voice, or silence if forbidden
@@ -216,7 +219,7 @@ export function playNative({ apiUrl, token, text, voice = DEFAULT_DRILL_VOICE, r
     fetch(`${apiUrl}/api/media-ticket`, {
       method: 'POST', signal: ctrl.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ kind: 'aura', voice, text: t, drill: true, ...(salma ? { salma: true } : {}) }),
+       body: JSON.stringify(opaqueRequest || { kind: 'aura', voice, text: t, drill: true, ...(salma ? { salma: true } : {}) }),
     }).then(async (r) => {
       if (!r.ok) throw new Error(`media ticket ${r.status}`);
       const d = await r.json();

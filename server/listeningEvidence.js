@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+
 const ATTEMPT_LIMIT = 120;
 const ACTIVE_TTL_MS = 30 * 60 * 1000;
 const STALE_PLAYBACK_MS = 90 * 1000;
@@ -8,6 +10,38 @@ const SKILLS = new Set(['listen-clear', 'listen-phone']);
 const MIN_PLAYBACK_FLOOR_MS = 600;
 const MIN_PLAYBACK_CEILING_MS = 12_000;
 const FASTEST_PLAUSIBLE_WORDS_PER_SECOND = 6;
+const EVIDENCE_VERSION = 2;
+const PHASES = new Set(['baseline_candidate', 'practice', 'matched', 'transfer']);
+const RETEST_PHASES = new Set(['matched', 'transfer']);
+
+function sha256(value) {
+  return createHash('sha256').update(String(value || '')).digest('hex');
+}
+
+function evidenceRef(attemptId) {
+  return sha256(attemptId).slice(0, 12);
+}
+
+function safeAccountBinding(accountId) {
+  const id = String(accountId || '').trim().slice(0, 120);
+  return id ? sha256(`listening-account-v2:${id}`) : null;
+}
+
+function safeLevelKey(value) {
+  return ['A1', 'A2', 'B1', 'B2', 'C1'].includes(value) ? value : 'B1';
+}
+
+export function listeningDifficultyContract(skillId, levelKey, baseRate) {
+  if (!SKILLS.has(skillId)) return null;
+  const level = safeLevelKey(levelKey);
+  const rate = Number.isFinite(Number(baseRate)) ? Math.max(0.5, Math.min(1.5, Number(baseRate))) : 1;
+  return Object.freeze({
+    version: EVIDENCE_VERSION,
+    levelKey: level,
+    baseRate: Number(rate.toFixed(2)),
+    challengeKey: sha256(JSON.stringify({ version: EVIDENCE_VERSION, skillId, level, rate: Number(rate.toFixed(2)) })).slice(0, 16),
+  });
+}
 
 function fail(code, status = 409) {
   const error = new Error(code);
@@ -66,6 +100,22 @@ function safeAttempt(row) {
   const gradedAt = finiteTime(row.gradedAt);
   const issuedAt = finiteTime(row.issuedAt);
   if (!gradedAt || !issuedAt || gradedAt < issuedAt) return null;
+  const evidenceVersion = Number(row.evidenceVersion) === EVIDENCE_VERSION ? EVIDENCE_VERSION : 1;
+  const phase = evidenceVersion === EVIDENCE_VERSION && PHASES.has(row.phase) ? row.phase : null;
+  const accountBinding = evidenceVersion === EVIDENCE_VERSION && /^[a-f0-9]{64}$/u.test(row.accountBinding || '')
+    ? row.accountBinding : null;
+  const prescriptionId = evidenceVersion === EVIDENCE_VERSION && /^[a-f0-9]{16}$/u.test(row.prescriptionId || '')
+    ? row.prescriptionId : null;
+  const packetId = evidenceVersion === EVIDENCE_VERSION && /^[a-f0-9]{16}$/u.test(row.packetId || '')
+    ? row.packetId : null;
+  const packetIndex = evidenceVersion === EVIDENCE_VERSION && Number.isInteger(row.packetIndex)
+    && row.packetIndex >= 0 && row.packetIndex < PACKET_SIZE ? row.packetIndex : null;
+  const challengeKey = evidenceVersion === EVIDENCE_VERSION && /^[a-f0-9]{16}$/u.test(row.challengeKey || '')
+    ? row.challengeKey : null;
+  const levelKey = evidenceVersion === EVIDENCE_VERSION ? safeLevelKey(row.levelKey) : null;
+  const baseRate = evidenceVersion === EVIDENCE_VERSION && Number.isFinite(Number(row.baseRate))
+    ? Math.max(0.5, Math.min(1.5, Number(row.baseRate))) : null;
+  const eligibleAt = evidenceVersion === EVIDENCE_VERSION ? finiteTime(row.eligibleAt) : null;
   return {
     attemptId: row.attemptId,
     itemHash: /^[a-f0-9]{64}$/u.test(row.itemHash || '') ? row.itemHash : null,
@@ -77,13 +127,64 @@ function safeAttempt(row) {
     playbackRate: Math.max(0.5, Math.min(2, Number(row.playbackRate) || 1)),
     responseLatencyMs: Number.isFinite(Number(row.responseLatencyMs))
       ? Math.max(0, Math.min(10 * 60 * 1000, Number(row.responseLatencyMs))) : null,
+    evidenceVersion, accountBinding, prescriptionId, packetId, packetIndex, phase, challengeKey, levelKey, baseRate,
+    eligibleAt,
     issuedAt,
     gradedAt,
   };
 }
 
+function activePrescription(profile) {
+  const value = profile?.salmaCoach?.activePrescription;
+  if (!value || typeof value !== 'object' || !/^[a-f0-9]{16}$/u.test(value.id || '')
+    || !SKILLS.has(value.skillId) || value.drillId !== 'hoer-check') return null;
+  const cycle = value.listeningCycle;
+  if (!cycle || Number(cycle.version) !== EVIDENCE_VERSION
+    || !/^[a-f0-9]{64}$/u.test(cycle.accountBinding || '')
+    || !/^[a-f0-9]{16}$/u.test(cycle.challengeKey || '')
+    || !Array.isArray(cycle.baselineEvidenceIds) || cycle.baselineEvidenceIds.length !== PACKET_SIZE
+    || cycle.baselineEvidenceIds.some((id) => !/^[a-f0-9]{12}$/u.test(id))) return null;
+  return value;
+}
+
+function completedDoseBlocks(profile, prescription) {
+  const value = profile?.salmaCoach?.coachState?.completedBlocks?.[prescription?.id];
+  return Number.isInteger(value) ? Math.max(0, Math.min(2, value)) : 0;
+}
+
+function exactPhasePacket(attempts, prescription, phase, eligibleAt) {
+  const cycle = prescription.listeningCycle;
+  const packetId = sha256(`listening-packet-v2:${prescription.id}:${phase}:${cycle.challengeKey}`).slice(0, 16);
+  const rows = attempts.filter((row) => row.evidenceVersion === EVIDENCE_VERSION
+    && row.accountBinding === cycle.accountBinding
+    && row.prescriptionId === prescription.id
+    && row.skillId === prescription.skillId
+    && row.phase === phase
+    && row.packetId === packetId
+    && row.challengeKey === cycle.challengeKey
+    && row.eligibleAt === eligibleAt
+    && row.issuedAt >= eligibleAt);
+  const byIndex = new Map();
+  for (const row of rows) {
+    if (row.packetIndex === null || byIndex.has(row.packetIndex)) return { packetId, rows: [], invalid: true };
+    byIndex.set(row.packetIndex, row);
+  }
+  const ordered = Array.from({ length: PACKET_SIZE }, (_, index) => byIndex.get(index)).filter(Boolean);
+  if (ordered.length < PACKET_SIZE) return { packetId, rows: ordered, invalid: false };
+  if (new Set(ordered.map((row) => row.attemptId)).size !== PACKET_SIZE
+    || new Set(ordered.map((row) => row.itemHash)).size !== PACKET_SIZE) return { packetId, rows: [], invalid: true };
+  return { packetId, rows: ordered, invalid: false };
+}
+
+function ensureAttemptOwner(profile, item) {
+  if (Number(item?.evidenceVersion) !== EVIDENCE_VERSION) return;
+  const expected = safeAccountBinding(profile?.userId);
+  if (!expected || item.accountBinding !== expected) fail('listening_attempt_owner_mismatch', 403);
+}
+
 export function beginListeningPlayback(profile, itemId, now = Date.now()) {
   const { item } = activeItem(profile, itemId);
+  ensureAttemptOwner(profile, item);
   ensureFresh(item, now);
   if (item.gradeResult) fail('listening_attempt_already_graded');
   const startedAt = finiteTime(item.playStartedAt);
@@ -103,6 +204,7 @@ export function beginListeningPlayback(profile, itemId, now = Date.now()) {
 
 export function finishListeningPlayback(profile, itemId, { playNumber, completed = true, now = Date.now() } = {}) {
   const { item } = activeItem(profile, itemId);
+  ensureAttemptOwner(profile, item);
   ensureFresh(item, now);
   if (item.gradeResult) return { completed: false, alreadyGraded: true };
   if (!Number.isInteger(playNumber) || playNumber !== item.playCount || !finiteTime(item.playStartedAt)) {
@@ -124,6 +226,7 @@ export function finishListeningPlayback(profile, itemId, { playNumber, completed
 
 export function commitListeningGrade(profile, itemId, { correct, now = Date.now() } = {}) {
   const { item } = activeItem(profile, itemId);
+  ensureAttemptOwner(profile, item);
   ensureFresh(item, now);
   if (item.gradeResult && typeof item.gradeResult.correct === 'boolean') {
     return { ...item.gradeResult, replayed: true };
@@ -143,6 +246,16 @@ export function commitListeningGrade(profile, itemId, { correct, now = Date.now(
     plays: item.playCount,
     playbackRate: item.playbackRate,
     responseLatencyMs: now - completedAt,
+    evidenceVersion: item.evidenceVersion,
+    accountBinding: item.accountBinding,
+    prescriptionId: item.prescriptionId,
+    packetId: item.packetId,
+    packetIndex: item.packetIndex,
+    phase: item.phase,
+    challengeKey: item.challengeKey,
+    levelKey: item.levelKey,
+    baseRate: item.baseRate,
+    eligibleAt: item.eligibleAt,
     issuedAt: item.issuedAt,
     gradedAt: now,
   });
@@ -152,6 +265,18 @@ export function commitListeningGrade(profile, itemId, { correct, now = Date.now(
   profile.listeningAttempts = existing.slice(-ATTEMPT_LIMIT);
   item.gradeResult = { correct, gradedAt: now, attemptId: item.attemptId };
   return { ...item.gradeResult, replayed: false };
+}
+
+export function resolveListeningMedia(profile, itemId, playNumber, now = Date.now()) {
+  const { item } = activeItem(profile, itemId);
+  ensureAttemptOwner(profile, item);
+  ensureFresh(item, now);
+  if (item.gradeResult || !Number.isInteger(playNumber) || playNumber !== item.playCount
+    || !finiteTime(item.playStartedAt) || finiteTime(item.playCompletedAt)) fail('listening_media_not_authorized', 409);
+  const text = String(item.ttsText || '').trim().slice(0, 600);
+  const voice = typeof item.voice === 'string' ? item.voice.slice(0, 40) : '';
+  if (!text || !voice) fail('listening_media_not_found', 404);
+  return { text, voice };
 }
 
 export function listeningEvidence(profile, skillId, { limit = 10 } = {}) {
@@ -167,7 +292,7 @@ export function listeningEvidence(profile, skillId, { limit = 10 } = {}) {
       seenAttempts.add(row.attemptId);
       if (row.itemHash) seenContent.add(row.itemHash);
       return true;
-    }).slice(-Math.max(1, Math.min(30, Number(limit) || 10)));
+    }).slice(-Math.max(1, Math.min(ATTEMPT_LIMIT, Number(limit) || 10)));
 }
 
 export function listeningEvidenceSummary(profile, skillId, { minimumAttempts = 5, limit = 10 } = {}) {
@@ -196,27 +321,130 @@ function summarizeAttempts(attempts) {
   };
 }
 
-export function listeningRetestEvidence(profile, skillId) {
-  // A delayed transfer claim must be tied to server-fingerprinted content. Older
-  // evidence without an item hash may still inform a current measurement, but it
-  // cannot prove that matched and transfer packets contained novel material.
-  const attempts = listeningEvidence(profile, skillId, { limit: 30 }).filter((row) => row.itemHash);
-  if (attempts.length < PACKET_SIZE) {
-    return { phase: 'baseline', nextEligibleAt: null, baseline: null, matched: null, transfer: null };
+export function listeningBaselineSnapshot(profile, skillId) {
+  if (!SKILLS.has(skillId)) return null;
+  const accountBinding = safeAccountBinding(profile?.userId);
+  if (!accountBinding) return null;
+  const candidates = listeningEvidence(profile, skillId, { limit: ATTEMPT_LIMIT })
+    .filter((row) => row.evidenceVersion === EVIDENCE_VERSION
+      && (row.phase === 'baseline_candidate' || RETEST_PHASES.has(row.phase))
+      && row.accountBinding === accountBinding && row.itemHash && row.challengeKey);
+  const groups = new Map();
+  for (const row of candidates) {
+    const group = groups.get(row.challengeKey) || [];
+    group.push(row); groups.set(row.challengeKey, group);
   }
-  const baseline = summarizeAttempts(attempts.slice(0, PACKET_SIZE));
-  const matchedEligibleAt = baseline.measuredAt + MATCHED_RETEST_DELAY_MS;
-  const matchedRows = attempts.filter((row) => row.issuedAt >= matchedEligibleAt).slice(0, PACKET_SIZE);
-  if (matchedRows.length < PACKET_SIZE) {
-    return { phase: 'matched', nextEligibleAt: matchedEligibleAt, baseline, matched: null, transfer: null };
-  }
-  const matched = summarizeAttempts(matchedRows);
+  const complete = [...groups.values()].filter((rows) => rows.length >= PACKET_SIZE)
+    .map((rows) => rows.slice(-PACKET_SIZE))
+    .sort((a, b) => b.at(-1).gradedAt - a.at(-1).gradedAt)[0];
+  if (!complete) return null;
+  const levelKey = complete[0].levelKey;
+  if (!levelKey || complete.some((row) => row.levelKey !== levelKey)) return null;
+  const baseRate = Number(complete[0].baseRate);
+  if (!Number.isFinite(baseRate) || complete.some((row) => row.baseRate !== baseRate)) return null;
+  const summary = summarizeAttempts(complete);
+  const baselineEvidenceIds = complete.map((row) => evidenceRef(row.attemptId));
+  return {
+    version: EVIDENCE_VERSION,
+    accountBinding,
+    challengeKey: complete[0].challengeKey,
+    levelKey,
+    baseRate,
+    baselineEvidenceIds,
+    baselineMeasuredAt: complete.at(-1).gradedAt,
+    baseline: { metricKey: 'listening_accuracy', value: Math.round(summary.accuracy * 1000) / 10,
+      evidenceId: sha256(JSON.stringify({ skillId, baselineEvidenceIds })).slice(0, 12),
+      measuredAt: summary.measuredAt },
+    doseCompletedAt: null,
+    matchedEligibleAt: null,
+  };
+}
+
+function normalizedCyclePrescription(profile, supplied) {
+  const prescription = supplied || activePrescription(profile);
+  if (!prescription || !SKILLS.has(prescription.skillId)) return null;
+  const cycle = prescription.listeningCycle;
+  const expectedOwner = safeAccountBinding(profile?.userId);
+  if (!cycle || Number(cycle.version) !== EVIDENCE_VERSION || cycle.accountBinding !== expectedOwner
+    || !/^[a-f0-9]{16}$/u.test(cycle.challengeKey || '')
+    || !Array.isArray(cycle.baselineEvidenceIds) || cycle.baselineEvidenceIds.length !== PACKET_SIZE) return null;
+  return prescription;
+}
+
+export function listeningRetestEvidence(profile, skillId, { prescription: supplied = null } = {}) {
+  const prescription = normalizedCyclePrescription(profile, supplied);
+  const empty = { phase: 'baseline', outcome: 'pending', nextEligibleAt: null,
+    completed: 0, required: PACKET_SIZE, baseline: null, matched: null, transfer: null };
+  if (!prescription || prescription.skillId !== skillId) return empty;
+  const cycle = prescription.listeningCycle;
+  const attempts = listeningEvidence(profile, skillId, { limit: ATTEMPT_LIMIT }).filter((row) => row.itemHash);
+  const baselineRows = attempts.filter((row) => cycle.baselineEvidenceIds.includes(evidenceRef(row.attemptId)));
+  if (baselineRows.length !== PACKET_SIZE || new Set(baselineRows.map((row) => row.itemHash)).size !== PACKET_SIZE
+    || baselineRows.some((row) => row.accountBinding !== cycle.accountBinding
+      || row.challengeKey !== cycle.challengeKey
+      || (row.phase !== 'baseline_candidate' && !RETEST_PHASES.has(row.phase)))) return empty;
+  const baseline = summarizeAttempts(baselineRows);
+  const doseCompletedAt = finiteTime(cycle.doseCompletedAt);
+  const matchedEligibleAt = finiteTime(cycle.matchedEligibleAt)
+    || (doseCompletedAt ? doseCompletedAt + MATCHED_RETEST_DELAY_MS : null);
+  if (!matchedEligibleAt) return { ...empty, phase: 'dose', baseline };
+  const matchedPacket = exactPhasePacket(attempts, prescription, 'matched', matchedEligibleAt);
+  if (matchedPacket.invalid) return { ...empty, phase: 'failed', outcome: 'invalid_packet', baseline };
+  if (matchedPacket.rows.length < PACKET_SIZE) return { ...empty, phase: 'matched', baseline,
+    nextEligibleAt: matchedEligibleAt, completed: matchedPacket.rows.length };
+  const matched = summarizeAttempts(matchedPacket.rows);
+  if (!packetPasses(matched, skillId)) return { ...empty, phase: 'failed', outcome: 'threshold_missed', baseline, matched,
+    completed: PACKET_SIZE };
   const transferEligibleAt = matched.measuredAt + TRANSFER_RETEST_DELAY_MS;
-  const transferRows = attempts.filter((row) => row.issuedAt >= transferEligibleAt).slice(0, PACKET_SIZE);
-  if (transferRows.length < PACKET_SIZE) {
-    return { phase: 'transfer', nextEligibleAt: transferEligibleAt, baseline, matched, transfer: null };
+  const transferPacket = exactPhasePacket(attempts, prescription, 'transfer', transferEligibleAt);
+  if (transferPacket.invalid) return { ...empty, phase: 'failed', outcome: 'invalid_packet', baseline, matched };
+  const priorContent = new Set([...baselineRows, ...matchedPacket.rows].map((row) => row.itemHash));
+  if (transferPacket.rows.some((row) => priorContent.has(row.itemHash))) {
+    return { ...empty, phase: 'failed', outcome: 'non_novel_transfer', baseline, matched };
   }
-  return { phase: 'complete', nextEligibleAt: null, baseline, matched, transfer: summarizeAttempts(transferRows) };
+  if (transferPacket.rows.length < PACKET_SIZE) return { ...empty, phase: 'transfer', baseline, matched,
+    nextEligibleAt: transferEligibleAt, completed: transferPacket.rows.length };
+  const transfer = summarizeAttempts(transferPacket.rows);
+  if (!packetPasses(transfer, skillId)) return { ...empty, phase: 'failed', outcome: 'threshold_missed', baseline, matched, transfer,
+    completed: PACKET_SIZE };
+  return { ...empty, phase: 'complete', outcome: 'passed', baseline, matched, transfer,
+    completed: PACKET_SIZE, nextEligibleAt: null };
+}
+
+export function listeningIssuanceBinding(profile, skillId, { accountId, levelKey, baseRate, slot = 0, now = Date.now() } = {}) {
+  const accountBinding = safeAccountBinding(accountId);
+  const challenge = listeningDifficultyContract(skillId, levelKey, baseRate);
+  if (!accountBinding || !challenge) return null;
+  const prescription = activePrescription(profile);
+  const base = { evidenceVersion: EVIDENCE_VERSION, accountBinding, skillId,
+    levelKey: challenge.levelKey, baseRate: challenge.baseRate, challengeKey: challenge.challengeKey, eligibleAt: now };
+  if (!prescription || prescription.skillId !== skillId || prescription.listeningCycle?.accountBinding !== accountBinding
+    || prescription.listeningCycle?.challengeKey !== challenge.challengeKey) {
+    return { ...base, phase: 'baseline_candidate', prescriptionId: null,
+      packetId: sha256(`baseline:${accountBinding}:${skillId}:${now}`).slice(0, 16), packetIndex: Math.max(0, Math.min(4, slot)) };
+  }
+  const completed = completedDoseBlocks(profile, prescription);
+  const proof = listeningRetestEvidence(profile, skillId, { prescription });
+  let phase = 'practice';
+  let eligibleAt = now;
+  if (completed >= Number(prescription.blocks || 1) && proof.phase === 'matched'
+    && Number.isFinite(proof.nextEligibleAt) && now >= proof.nextEligibleAt) {
+    phase = 'matched'; eligibleAt = proof.nextEligibleAt;
+  } else if (completed >= Number(prescription.blocks || 1) && proof.phase === 'transfer'
+    && Number.isFinite(proof.nextEligibleAt) && now >= proof.nextEligibleAt) {
+    phase = 'transfer'; eligibleAt = proof.nextEligibleAt;
+  }
+  if (!RETEST_PHASES.has(phase)) return { ...base, phase, prescriptionId: prescription.id,
+    packetId: sha256(`practice:${prescription.id}:${now}`).slice(0, 16), packetIndex: Math.max(0, Math.min(4, slot)) };
+  const packetId = sha256(`listening-packet-v2:${prescription.id}:${phase}:${challenge.challengeKey}`).slice(0, 16);
+  const used = new Set(listeningEvidence(profile, skillId, { limit: ATTEMPT_LIMIT })
+    .filter((row) => row.prescriptionId === prescription.id && row.phase === phase && row.packetId === packetId)
+    .map((row) => row.packetIndex).filter((index) => Number.isInteger(index)));
+  const available = Array.from({ length: PACKET_SIZE }, (_, index) => index).filter((index) => !used.has(index));
+  const packetIndex = available[Math.max(0, Number(slot) || 0)];
+  if (!Number.isInteger(packetIndex)) return { ...base, phase: 'practice', prescriptionId: prescription.id,
+    packetId: sha256(`overflow:${prescription.id}:${phase}:${now}`).slice(0, 16), packetIndex: Math.min(4, slot) };
+  return { ...base, phase, prescriptionId: prescription.id, packetId, packetIndex, eligibleAt };
 }
 
 function packetPasses(summary, skillId) {
@@ -224,15 +452,75 @@ function packetPasses(summary, skillId) {
   return skillId !== 'listen-phone' || summary.firstPlayAccuracy >= 0.6;
 }
 
+function safeArchivedSummary(value, skillId) {
+  if (!value || typeof value !== 'object' || value.skillId !== skillId
+    || !Number.isInteger(value.sampleSize) || value.sampleSize !== PACKET_SIZE) return null;
+  const bounded = (input) => Number.isFinite(Number(input)) ? Math.max(0, Math.min(1, Number(input))) : null;
+  const accuracy = bounded(value.accuracy);
+  const firstPlayAccuracy = bounded(value.firstPlayAccuracy);
+  const replayRate = bounded(value.replayRate);
+  const measuredAt = finiteTime(value.measuredAt);
+  if (accuracy === null || firstPlayAccuracy === null || replayRate === null || !measuredAt) return null;
+  return { skillId, sampleSize: PACKET_SIZE, accuracy, firstPlayAccuracy, replayRate,
+    medianLatencyMs: Number.isFinite(Number(value.medianLatencyMs)) ? Math.max(0, Number(value.medianLatencyMs)) : null,
+    measuredAt, evidenceIds: [] };
+}
+
+function archivedCycles(profile, skillId) {
+  const owner = safeAccountBinding(profile?.userId);
+  return (Array.isArray(profile?.listeningCycleHistory) ? profile.listeningCycleHistory : [])
+    .filter((row) => row && typeof row === 'object' && row.version === EVIDENCE_VERSION
+      && row.accountBinding === owner && row.skillId === skillId
+      && /^[a-f0-9]{16}$/u.test(row.id || '') && /^[a-f0-9]{16}$/u.test(row.prescriptionId || '')
+      && (row.status === 'passed' || row.status === 'failed') && finiteTime(row.verifiedAt))
+    .map((row) => ({ ...row, matched: safeArchivedSummary(row.matched, skillId),
+      transfer: safeArchivedSummary(row.transfer, skillId) }))
+    .filter((row) => row.matched && (row.status !== 'passed' || row.transfer))
+    .sort((a, b) => a.verifiedAt - b.verifiedAt).slice(-12);
+}
+
+export function archiveListeningCycle(profile, now = Date.now()) {
+  const prescription = activePrescription(profile);
+  if (!prescription) return null;
+  const proof = listeningRetestEvidence(profile, prescription.skillId, { prescription });
+  if (proof.phase !== 'complete' && proof.phase !== 'failed') return null;
+  const status = proof.phase === 'complete' ? 'passed' : 'failed';
+  const verifiedAt = proof.transfer?.measuredAt || proof.matched?.measuredAt || now;
+  const id = sha256(JSON.stringify({ prescriptionId: prescription.id, status, verifiedAt,
+    outcome: proof.outcome })).slice(0, 16);
+  const row = { version: EVIDENCE_VERSION, id, prescriptionId: prescription.id,
+    accountBinding: prescription.listeningCycle.accountBinding, skillId: prescription.skillId,
+    challengeKey: prescription.listeningCycle.challengeKey, status, outcome: proof.outcome,
+    verifiedAt, matched: safeArchivedSummary(proof.matched, prescription.skillId),
+    transfer: safeArchivedSummary(proof.transfer, prescription.skillId) };
+  const history = Array.isArray(profile.listeningCycleHistory) ? profile.listeningCycleHistory : [];
+  profile.listeningCycleHistory = [...history.filter((item) => item?.id !== id), row].slice(-12);
+  return row;
+}
+
+function latestAdjudicatedProof(profile, skillId) {
+  const archived = archivedCycles(profile, skillId);
+  const prescription = activePrescription(profile);
+  if (prescription?.skillId === skillId) {
+    const active = listeningRetestEvidence(profile, skillId, { prescription });
+    if (active.phase === 'complete' || active.phase === 'failed') {
+      archived.push({ status: active.phase === 'complete' ? 'passed' : 'failed', outcome: active.outcome,
+        verifiedAt: active.transfer?.measuredAt || active.matched?.measuredAt || 0,
+        matched: active.matched, transfer: active.transfer });
+    }
+  }
+  return archived.sort((a, b) => a.verifiedAt - b.verifiedAt).at(-1) || null;
+}
+
 export function listeningMasteryEvidence(profile) {
-  const clearProof = listeningRetestEvidence(profile, 'listen-clear');
-  const phoneProof = listeningRetestEvidence(profile, 'listen-phone');
-  const clearAdjudicated = clearProof.phase === 'complete';
-  const phoneAdjudicated = phoneProof.phase === 'complete';
-  const clear = clearAdjudicated && packetPasses(clearProof.matched, 'listen-clear') && packetPasses(clearProof.transfer, 'listen-clear')
-    ? clearProof.transfer : null;
-  const phone = phoneAdjudicated && packetPasses(phoneProof.matched, 'listen-phone') && packetPasses(phoneProof.transfer, 'listen-phone')
-    ? phoneProof.transfer : null;
+  const clearProof = latestAdjudicatedProof(profile, 'listen-clear');
+  const phoneProof = latestAdjudicatedProof(profile, 'listen-phone');
+  const clearAdjudicated = !!clearProof;
+  const phoneAdjudicated = !!phoneProof;
+  const clear = clearProof?.status === 'passed' && packetPasses(clearProof.matched, 'listen-clear')
+    && packetPasses(clearProof.transfer, 'listen-clear') ? clearProof.transfer : null;
+  const phone = phoneProof?.status === 'passed' && packetPasses(phoneProof.matched, 'listen-phone')
+    && packetPasses(phoneProof.transfer, 'listen-phone') ? phoneProof.transfer : null;
   return {
     clear,
     phone,

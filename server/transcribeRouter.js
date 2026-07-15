@@ -20,6 +20,8 @@ import { expandForSpeechDE } from './speechExpandDE.js';
 import { mintMediaTicket, consumeMediaTicket } from './mediaTickets.js';
 import { vertexConfigured, getVertexAccessToken } from './vertexToken.js';
 import { salmaCoachFlags } from './salmaCoachCore.js';
+import { loadUser } from './store.js';
+import { resolveListeningMedia } from './listeningEvidence.js';
 
 const router = express.Router();
 
@@ -194,22 +196,41 @@ function reserveTts(userId, chars) {
 router.post('/media-ticket', requireAuth,
   rateLimit({ windowMs: 60 * 60 * 1000, max: 600, tag: 'media-ticket-ip' }),
   rateLimit({ windowMs: 60 * 60 * 1000, max: 180, tag: 'media-ticket-account',
-              keyExtra: (req) => req.account.id, accountOnly: true }), (req, res) => {
-  const kind = req.body?.kind === 'eleven' ? 'eleven' : 'aura';
-  const wantsMasri = kind === 'aura' && req.body?.voice === SALMA_MASRI_VOICE;
+              keyExtra: (req) => req.account.id, accountOnly: true }), async (req, res) => {
+  const listeningRef = req.body?.listeningRef;
+  const listeningRequest = listeningRef && typeof listeningRef === 'object' && !Array.isArray(listeningRef);
+  if (listeningRequest) {
+    const allowed = new Set(['listeningRef']);
+    if (Object.keys(req.body || {}).some((key) => !allowed.has(key))
+      || Object.keys(listeningRef).some((key) => key !== 'id' && key !== 'playNumber')) {
+      return res.status(400).json({ error: 'invalid_listening_media_request' });
+    }
+  }
+  let resolvedListening = null;
+  if (listeningRequest) {
+    try {
+      const profile = await loadUser(req.account.id);
+      resolvedListening = resolveListeningMedia(profile, listeningRef.id, listeningRef.playNumber);
+    } catch (error) {
+      return res.status(error.status || 409).json({ error: error.code || 'listening_media_not_authorized' });
+    }
+  }
+  const kind = resolvedListening ? 'aura' : (req.body?.kind === 'eleven' ? 'eleven' : 'aura');
+  const requestedVoice = resolvedListening?.voice || req.body?.voice;
+  const wantsMasri = kind === 'aura' && requestedVoice === SALMA_MASRI_VOICE;
   if (wantsMasri) return res.status(409).json({ error: 'masri_pack_unavailable' });
-  const wantsSalmaDe = kind === 'aura' && req.body?.voice === SALMA_DE_VOICE;   // her German on Gemini
-  const raw = String(req.body?.text || '').slice(0, 600);
+  const wantsSalmaDe = kind === 'aura' && requestedVoice === SALMA_DE_VOICE;   // her German on Gemini
+  const raw = String(resolvedListening?.text || req.body?.text || '').slice(0, 600);
   const text = wantsMasri ? cleanForTTSAr(raw) : cleanForTTS(raw);
   if (!text) return res.status(400).json({ error: 'missing_text' });
-  const drill = req.body?.drill === true;
+  const drill = resolvedListening ? true : req.body?.drill === true;
   // Salma is the AGENCY's own voice, not gated learner content — and the trial clock only starts
   // at the FIRST interview (consumeFreeFight), so a plan gate here silenced her cold-open for
   // every fresh account and her paywall pitch after trial expiry (probe-proven 402, 07-12).
   // Exempt exactly her two voices: short fixed lines, server-cached, still inside reserveTts and
   // the per-account ticket rate limits.
   const salmaTicket = req.body?.salma === true && kind === 'aura' && text.length <= 320
-    && (wantsMasri || wantsSalmaDe || req.body?.voice === 'aura-2-kara-de');
+    && (wantsMasri || wantsSalmaDe || requestedVoice === 'aura-2-kara-de');
   if (drill && !salmaTicket && !drillsUnlocked(req.account)) return res.status(402).json({ error: 'plan_required' });
   if (kind === 'eleven' && !elevenVoiceAllowed(req.account)) return res.status(403).json({ error: 'voice_not_enabled' });
   if (!drill && dailyMinutesFor(req.account) <= 0 && !activeFightUsers.has(req.account.id)) {
@@ -217,10 +238,10 @@ router.post('/media-ticket', requireAuth,
   }
   if (!reserveTts(req.account.id, text.length)) return res.status(429).json({ error: 'voice_daily_limit' });
   const voice = kind === 'eleven'
-    ? (ELEVEN_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_ELEVEN_VOICE)
+    ? (ELEVEN_VOICES.has(requestedVoice) ? requestedVoice : DEFAULT_ELEVEN_VOICE)
     : wantsMasri ? SALMA_MASRI_VOICE
       : wantsSalmaDe ? SALMA_DE_VOICE
-      : (AURA_DE_VOICES.has(req.body?.voice) ? req.body.voice : DEFAULT_VOICE);
+      : (AURA_DE_VOICES.has(requestedVoice) ? requestedVoice : DEFAULT_VOICE);
   const emotion = String(req.body?.emotion || '').slice(0, 24);
   const ticket = mintMediaTicket({ kind, userId: req.account.id, text, voice, emotion, drill });
   res.set('Cache-Control', 'no-store');

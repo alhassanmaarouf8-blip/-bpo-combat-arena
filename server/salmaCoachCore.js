@@ -2,7 +2,8 @@ import { createHash } from 'crypto';
 import { planOf, trialActive } from './auth.js';
 import { buildSnapshot } from './brain/adapter.js';
 import { decide } from './brain/engine.js';
-import { listeningEvidence, listeningEvidenceSummary, listeningRetestEvidence } from './listeningEvidence.js';
+import { archiveListeningCycle, listeningBaselineSnapshot, listeningEvidence, listeningEvidenceSummary,
+  listeningRetestEvidence } from './listeningEvidence.js';
 import { hireReadinessFor } from './hireReadiness.js';
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
 import { reliableSpeakingSessions, speakingMeasurementForSkill } from './scoring/speakingMeasurement.js';
@@ -143,9 +144,9 @@ function publicImprovementProof(value) {
 
 export function publicListeningRetest(profile, skillId, state = null) {
   if (!['listen-clear', 'listen-phone'].includes(skillId)) return null;
-  const proof = listeningRetestEvidence(profile, skillId);
   const normalized = normalizeSalmaCoachState(state);
   const prescription = normalized.activePrescription;
+  const proof = listeningRetestEvidence(profile, skillId, { prescription });
   const trainingComplete = prescription?.skillId === skillId
     && (normalized.coachState.completedBlocks[prescription.id] || 0) === prescription.blocks;
   const safeSummary = (summary) => summary ? {
@@ -159,6 +160,9 @@ export function publicListeningRetest(profile, skillId, state = null) {
     skillId,
     trainingComplete,
     phase: proof.phase,
+    outcome: proof.outcome,
+    completed: proof.completed,
+    required: proof.required,
     nextEligibleAt: proof.nextEligibleAt,
     baseline: safeSummary(proof.baseline),
     matched: safeSummary(proof.matched),
@@ -211,9 +215,9 @@ export function salmaCoachBrainGate(state, profile, now = Date.now()) {
       nextEligibleAt: spacingActive ? nextEligibleAt : null };
   }
   if (prescription.skillId === 'listen-clear' || prescription.skillId === 'listen-phone') {
-    const proof = listeningRetestEvidence(profile, prescription.skillId);
-    if (proof.phase === 'complete') return null;
-    if (proof.phase === 'baseline') {
+    const proof = listeningRetestEvidence(profile, prescription.skillId, { prescription });
+    if (proof.phase === 'complete' || proof.phase === 'failed') return null;
+    if (proof.phase === 'baseline' || proof.phase === 'dose') {
       return { skillId: prescription.skillId, drillId: prescription.drillId,
         status: 'practice', action: 'drill', phase: proof.phase, nextEligibleAt: null };
     }
@@ -292,14 +296,28 @@ export function salmaCoachCapabilities(account) {
 
 function normalizeStoredPrescription(value) {
   if (!value || typeof value !== 'object' || !/^[a-f0-9]{16}$/u.test(value.id || '') || !DRILLS.has(value.drillId)) return null;
-  return { id: value.id, evidenceIds: Array.isArray(value.evidenceIds) ? value.evidenceIds.filter((v) => /^[a-f0-9]{12}$/u.test(v)).slice(0, 4) : [],
+  const rawCycle = value.listeningCycle;
+  const listeningCycle = rawCycle && Number(rawCycle.version) === 2
+    && /^[a-f0-9]{64}$/u.test(rawCycle.accountBinding || '')
+    && /^[a-f0-9]{16}$/u.test(rawCycle.challengeKey || '')
+    && Array.isArray(rawCycle.baselineEvidenceIds)
+    && rawCycle.baselineEvidenceIds.length === 5
+    && rawCycle.baselineEvidenceIds.every((id) => /^[a-f0-9]{12}$/u.test(id))
+    ? { version: 2, accountBinding: rawCycle.accountBinding, challengeKey: rawCycle.challengeKey,
+      levelKey: ['A1', 'A2', 'B1', 'B2', 'C1'].includes(rawCycle.levelKey) ? rawCycle.levelKey : 'B1',
+      baseRate: Math.max(0.5, Math.min(1.5, Number(rawCycle.baseRate) || 1)),
+      baselineEvidenceIds: [...rawCycle.baselineEvidenceIds],
+      baselineMeasuredAt: Number(rawCycle.baselineMeasuredAt) || null,
+      doseCompletedAt: Number(rawCycle.doseCompletedAt) || null,
+      matchedEligibleAt: Number(rawCycle.matchedEligibleAt) || null } : null;
+  return { id: value.id, evidenceIds: Array.isArray(value.evidenceIds) ? value.evidenceIds.filter((v) => /^[a-f0-9]{12}$/u.test(v)).slice(0, 5) : [],
     skillId: boundedString(value.skillId, 60), drillId: value.drillId, blocks: Math.max(1, Math.min(2, Number(value.blocks) || 1)),
     repetitions: Math.max(1, Math.min(8, Number(value.repetitions) || 1)), durationSeconds: Math.max(60, Math.min(1800, Number(value.durationSeconds) || 300)),
     timesPerDay: Math.max(1, Math.min(2, Number(value.timesPerDay) || 1)), minimumSpacingMinutes: Math.max(0, Math.min(720, Number(value.minimumSpacingMinutes) || 0)),
     successGate: boundedString(value.successGate, 180), assignedAt: Number(value.assignedAt) || Date.now(), nextEligibleAt: Number(value.nextEligibleAt) || null,
     evidenceConfidence: value.evidenceConfidence === 'high' ? 'high' : 'low',
     criterionId: CRITERION_IDS.has(value.criterionId) ? value.criterionId : null,
-    baseline: normalizeMeasurement(value.baseline, boundedString(value.skillId, 60)) };
+    baseline: normalizeMeasurement(value.baseline, boundedString(value.skillId, 60)), listeningCycle };
 }
 
 /** One authoritative decision assembler shared by BrainGuide and Salma's public view. */
@@ -440,25 +458,29 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   if (!DRILLS.has(drillId) || !skillId || snapshot.sessionCount < 1) return { directive, prescription: null };
   const protocol = PROTOCOLS[drillId]; const occurrences = evidenceOccurrences(profile, skillId, now);
   const listeningRows = skillId === 'listen-clear' || skillId === 'listen-phone' ? listeningEvidence(profile, skillId) : [];
-  if (drillId === 'hoer-check' && listeningRows.length < 5) return { directive, prescription: null };
+  const listeningCycle = drillId === 'hoer-check' ? listeningBaselineSnapshot(profile, skillId) : null;
+  if (drillId === 'hoer-check' && !listeningCycle) return { directive, prescription: null };
   const durationSeconds = Math.min(protocol.durationSeconds, Math.max(300, [5, 10, 20].includes(Number(dailyMinutes)) ? Number(dailyMinutes) * 60 : 600));
   const blocks = occurrences >= 2 && Number(dailyMinutes) >= 20 ? 2 : 1;
-  const evidenceIds = listeningRows.length
-    ? listeningRows.slice(-4).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile, skillId, now);
+  const evidenceIds = listeningCycle?.baselineEvidenceIds || (listeningRows.length
+    ? listeningRows.slice(-5).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile, skillId, now));
   if (!evidenceIds.length) return { directive, prescription: null };
-  const baseline = measurementForSkill(profile, skillId);
+  const baseline = listeningCycle?.baseline || measurementForSkill(profile, skillId);
   if (!baseline) return { directive, prescription: null };
   const evidenceConfidence = directive.confidence === 'high' ? 'high' : 'low';
   const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId) ? directive.prescription.criterionId : null;
   const identity = { evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions, durationSeconds,
-    minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate, evidenceConfidence, criterionId };
+    minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate, evidenceConfidence, criterionId,
+    listeningCycle: listeningCycle ? { version: listeningCycle.version, challengeKey: listeningCycle.challengeKey,
+      baselineEvidenceIds: listeningCycle.baselineEvidenceIds } : null };
   return { directive, prescription: { id: hash(identity, 16), evidenceIds, skillId, drillId, blocks, repetitions: protocol.repetitions,
     durationSeconds, timesPerDay: blocks, minimumSpacingMinutes: protocol.minimumSpacingMinutes, successGate: protocol.successGate,
     assignedAt: now, nextEligibleAt: blocks > 1 ? now + protocol.minimumSpacingMinutes * 60_000 : null,
-    evidenceConfidence, criterionId, baseline } };
+    evidenceConfidence, criterionId, baseline, listeningCycle } };
 }
 
 export function syncSalmaCoach(profile, { now = Date.now() } = {}) {
+  archiveListeningCycle(profile, now);
   const state = normalizeSalmaCoachState(profile?.salmaCoach);
   const completedDoseBlocks = state.activePrescription
     ? state.coachState.completedBlocks[state.activePrescription.id] || 0 : 0;
@@ -468,6 +490,15 @@ export function syncSalmaCoach(profile, { now = Date.now() } = {}) {
   if (state.activePrescription && completedDoseBlocks > 0 && completedDoseBlocks < state.activePrescription.blocks) {
     profile.salmaCoach = state;
     return { state, directive: decide(buildSnapshot(profile, now)) };
+  }
+  if (state.activePrescription?.listeningCycle
+    && (state.activePrescription.skillId === 'listen-clear' || state.activePrescription.skillId === 'listen-phone')) {
+    const proof = listeningRetestEvidence(profile, state.activePrescription.skillId,
+      { prescription: state.activePrescription });
+    if (proof.phase !== 'complete' && proof.phase !== 'failed') {
+      profile.salmaCoach = state;
+      return { state, directive: decide(buildSnapshot(profile, now)) };
+    }
   }
   const activeRetest = speakingRetestState(state, now);
   if (activeRetest && activeRetest.phase !== 'complete') {
@@ -496,6 +527,8 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
   const next = normalizeSalmaCoachState(state); const p = next.activePrescription;
   const completedSet = event?.completedSet === true && p?.drillId === 'flow-drill';
   if (!p || event?.drill !== p.drillId || (event.correct !== true && event.correct !== false && event.froze !== true && !completedSet)) return next;
+  if (p.drillId === 'hoer-check' && (event?.prescriptionId !== p.id || event?.skillId !== p.skillId
+    || event?.phase !== 'practice')) return next;
   const requiredBlocks = p.blocks;
   const completedBlocks = next.coachState.completedBlocks[p.id] || 0;
   if (completedBlocks >= requiredBlocks) return next;
@@ -534,6 +567,10 @@ export function recordDrillOutcome(state, event, now = Date.now()) {
     next.coachState.completedBlocks[p.id] = blockIndex + 1;
     p.nextEligibleAt = blockIndex + 1 < requiredBlocks
       ? current.completedAt + p.minimumSpacingMinutes * 60_000 : null;
+    if (p.drillId === 'hoer-check' && p.listeningCycle && blockIndex + 1 === requiredBlocks) {
+      p.listeningCycle.doseCompletedAt ||= current.completedAt;
+      p.listeningCycle.matchedEligibleAt ||= current.completedAt + 24 * 60 * 60 * 1000;
+    }
   }
   next.coachState.repeatedErrorCounts[p.id] = aggregateBlockProgress(row.blockProgress, requiredBlocks);
   return next;

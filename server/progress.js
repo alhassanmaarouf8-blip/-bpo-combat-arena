@@ -145,7 +145,8 @@ progressRouter.post('/drill-event', requireAuth, async (req, res) => {
     if (verifiedEvent && requestedDrill && requestedDrill !== verifiedEvent.drill) {
       return res.status(422).json({ error: 'drill_evidence_mismatch' });
     }
-    const { drill, ruleId, rule, froze, correct, voicedMs, completedSet } = verifiedEvent || body;
+    const { drill, ruleId, rule, froze, correct, voicedMs, completedSet, eventId,
+      prescriptionId, skillId, phase } = verifiedEvent || body;
     if (!drill) return res.status(400).json({ error: 'missing_drill' });
     const p = await loadUser(req.account.id);
     p.weakLog = p.weakLog || {};
@@ -155,6 +156,10 @@ progressRouter.post('/drill-event', requireAuth, async (req, res) => {
       ...(typeof correct === 'boolean'  ? { correct } : {}),
       ...(completedSet === true         ? { completedSet: true } : {}),
       ...(Number.isFinite(+voicedMs)    ? { voicedMs: Math.round(+voicedMs) } : {}),
+      ...(/^[a-f0-9]{16}$/u.test(eventId || '') ? { eventId } : {}),
+      ...(/^[a-f0-9]{16}$/u.test(prescriptionId || '') ? { prescriptionId } : {}),
+      ...((skillId === 'listen-clear' || skillId === 'listen-phone') ? { skillId } : {}),
+      ...(phase === 'practice' ? { phase } : {}),
     };
     // Canonicalize an LT rule NAME to the interview's ruleId (same classifyGrammar the interview
     // uses at session-persist) so drill events land on the SAME weakLog entry the interview writes —

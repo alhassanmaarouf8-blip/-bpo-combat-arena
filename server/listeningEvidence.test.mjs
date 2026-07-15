@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
-  listeningEvidenceSummary, listeningMasteryEvidence, listeningRetestEvidence,
-  minimumListeningPlaybackMs } from './listeningEvidence.js';
+import { createHash } from 'crypto';
+import { archiveListeningCycle, beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
+  listeningBaselineSnapshot, listeningDifficultyContract, listeningEvidenceSummary,
+  listeningIssuanceBinding, listeningMasteryEvidence, listeningRetestEvidence,
+  minimumListeningPlaybackMs, resolveListeningMedia } from './listeningEvidence.js';
 
 function profileWithAttempt({ id = 'a'.repeat(24), kind = 'verstehen', issuedAt = 1_800_000_000_000,
   type = 'nummer', playbackRate = 1, itemHash = null } = {}) {
@@ -14,6 +16,42 @@ function complete(profile, { correct = true, now = 1_800_000_001_000 } = {}) {
   const play = beginListeningPlayback(profile, 'item', now);
   finishListeningPlayback(profile, 'item', { playNumber: play.playNumber, completed: true, now: now + 1_000 });
   return commitListeningGrade(profile, 'item', { correct, now: now + 2_500 });
+}
+
+const digest = (value, length = 64) => createHash('sha256').update(String(value)).digest('hex').slice(0, length);
+const accountBinding = (id) => digest(`listening-account-v2:${id}`);
+const packetId = (prescriptionId, phase, challengeKey) => digest(`listening-packet-v2:${prescriptionId}:${phase}:${challengeKey}`, 16);
+const evidenceRef = (attemptId) => digest(attemptId, 12);
+
+function v2CycleProfile({ skillId = 'listen-clear', start = 1_800_000_000_000, matchedCorrect = true,
+  transferCorrect = true, includeMatched = false, includeTransfer = false } = {}) {
+  const userId = 'acct-listening-v2';
+  const owner = accountBinding(userId);
+  const challenge = listeningDifficultyContract(skillId, 'B1', 1);
+  const prescriptionId = '0123456789abcdef';
+  const makeRows = (phase, offset, baseId, correct) => Array.from({ length: 5 }, (_, index) => ({
+    attemptId: (baseId + index).toString(16).padStart(24, '0'),
+    itemHash: (baseId + index).toString(16).padStart(64, '0'),
+    skillId, kind: skillId === 'listen-clear' ? 'verstehen' : 'detail', type: skillId === 'listen-clear' ? null : 'nummer',
+    correct, plays: 1, playbackRate: 1, baseRate: 1, responseLatencyMs: 900,
+    evidenceVersion: 2, accountBinding: owner, prescriptionId: phase === 'baseline_candidate' ? null : prescriptionId,
+    packetId: phase === 'baseline_candidate' ? digest(`baseline:${baseId}`, 16) : packetId(prescriptionId, phase, challenge.challengeKey),
+    packetIndex: index, phase, challengeKey: challenge.challengeKey, levelKey: 'B1',
+    eligibleAt: start + offset, issuedAt: start + offset + index * 1_000, gradedAt: start + offset + index * 1_000 + 500,
+  }));
+  const baseline = makeRows('baseline_candidate', 0, 100, true);
+  const doseCompletedAt = start + 60_000;
+  const matchedAt = doseCompletedAt + 24 * 60 * 60 * 1000;
+  const matched = makeRows('matched', matchedAt - start, 200, matchedCorrect);
+  const transferAt = matched.at(-1).gradedAt + 7 * 24 * 60 * 60 * 1000;
+  const transfer = makeRows('transfer', transferAt - start, 300, transferCorrect);
+  const listeningAttempts = [...baseline, ...(includeMatched ? matched : []), ...(includeTransfer ? transfer : [])];
+  return { userId, listeningAttempts, salmaCoach: { activePrescription: {
+    id: prescriptionId, skillId, drillId: 'hoer-check', blocks: 1,
+    listeningCycle: { version: 2, accountBinding: owner, challengeKey: challenge.challengeKey,
+      levelKey: 'B1', baseRate: 1, baselineEvidenceIds: baseline.map((row) => evidenceRef(row.attemptId)),
+      baselineMeasuredAt: baseline.at(-1).gradedAt, doseCompletedAt, matchedEligibleAt: matchedAt },
+  }, coachState: { completedBlocks: { [prescriptionId]: 1 } } } };
 }
 
 test('listening evidence requires a completed server-issued playback', () => {
@@ -171,7 +209,8 @@ test('measurement uses unique bounded attempts and exposes replay dependence sep
   assert.equal(summary.firstPlayAccuracy, 0.6);
   assert.equal(summary.replayRate, 0.4);
   assert.equal(listeningMasteryEvidence(profile).clear, null, 'one packet measures the baseline but cannot prove transfer');
-  assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'matched');
+  assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'baseline',
+    'unbound measurement can diagnose but never open a mastery cycle');
 });
 
 test('the same content under a new attempt id counts only once', () => {
@@ -188,19 +227,11 @@ test('the same content under a new attempt id counts only once', () => {
   assert.equal(listeningEvidenceSummary(profile, 'listen-clear'), null);
 });
 
-test('reordered storage is normalized chronologically before packets are adjudicated', () => {
-  const start = 1_800_000_000_000;
-  const day = 24 * 60 * 60 * 1000;
-  const packet = (offset, baseId) => Array.from({ length: 5 }, (_, index) => ({
-    attemptId: (baseId + index).toString(16).padStart(24, '0'),
-    itemHash: (baseId + index).toString(16).padStart(64, '0'),
-    skillId: 'listen-clear', kind: 'verstehen', type: null, correct: true, plays: 1,
-    playbackRate: 1, responseLatencyMs: 900,
-    issuedAt: start + offset + index * 1000, gradedAt: start + offset + index * 1000 + 500,
-  }));
-  const chronological = [...packet(0, 500), ...packet(day + 10_000, 600), ...packet(8 * day + 20_000, 700)];
-  const shuffled = [...chronological].sort((a, b) => b.issuedAt - a.issuedAt);
-  const proof = listeningRetestEvidence({ listeningAttempts: shuffled }, 'listen-clear');
+test('reordered storage cannot change an immutable v2 cycle packet', () => {
+  const profile = v2CycleProfile({ includeMatched: true, includeTransfer: true });
+  const chronological = [...profile.listeningAttempts];
+  profile.listeningAttempts.reverse();
+  const proof = listeningRetestEvidence(profile, 'listen-clear');
   assert.equal(proof.phase, 'complete');
   assert.equal(proof.baseline.measuredAt, chronological[4].gradedAt);
   assert.equal(proof.matched.measuredAt, chronological[9].gradedAt);
@@ -233,29 +264,134 @@ test('phone mastery fails closed when correct answers depend on replays', () => 
   assert.equal(listeningMasteryEvidence(profile).phone, null);
 });
 
-test('mastery requires a delayed matched packet and a seven-day novel transfer packet', () => {
-  const start = 1_800_000_000_000;
-  const day = 24 * 60 * 60 * 1000;
-  const rows = [];
-  const packet = (offset, baseId) => Array.from({ length: 5 }, (_, index) => ({
-    attemptId: (baseId + index).toString(16).padStart(24, '0'),
-    itemHash: (baseId + index).toString(16).padStart(64, '0'),
-    skillId: 'listen-clear', kind: 'verstehen', type: null, correct: true, plays: 1,
-    playbackRate: 1.1, responseLatencyMs: 1200,
-    issuedAt: start + offset + index * 1000, gradedAt: start + offset + index * 1000 + 500,
-  }));
-  rows.push(...packet(0, 100));
-  rows.push(...packet(day - 10_000, 200));
-  let proof = listeningRetestEvidence({ listeningAttempts: rows }, 'listen-clear');
-  assert.equal(proof.phase, 'matched', 'same-day practice cannot satisfy the delayed matched retest');
-
-  rows.push(...packet(day + 10_000, 300));
-  proof = listeningRetestEvidence({ listeningAttempts: rows }, 'listen-clear');
+test('mastery requires the exact prescription-bound matched and seven-day novel transfer packets', () => {
+  const profile = v2CycleProfile();
+  let proof = listeningRetestEvidence(profile, 'listen-clear');
+  assert.equal(proof.phase, 'matched');
+  assert.equal(proof.completed, 0);
+  profile.listeningAttempts.push(...v2CycleProfile({ includeMatched: true }).listeningAttempts.slice(5));
+  proof = listeningRetestEvidence(profile, 'listen-clear');
   assert.equal(proof.phase, 'transfer');
-  assert.equal(listeningMasteryEvidence({ listeningAttempts: rows }).clear, null);
-
-  rows.push(...packet(8 * day + 20_000, 400));
-  proof = listeningRetestEvidence({ listeningAttempts: rows }, 'listen-clear');
+  assert.equal(listeningMasteryEvidence(profile).clear, null);
+  profile.listeningAttempts.push(...v2CycleProfile({ includeMatched: true, includeTransfer: true }).listeningAttempts.slice(10));
+  proof = listeningRetestEvidence(profile, 'listen-clear');
   assert.equal(proof.phase, 'complete');
-  assert.ok(listeningMasteryEvidence({ listeningAttempts: rows }).clear);
+  assert.ok(listeningMasteryEvidence(profile).clear);
+});
+
+test('cross-account, wrong-prescription, practice, and mixed packets never satisfy a retest', () => {
+  const profile = v2CycleProfile({ includeMatched: true });
+  const matched = profile.listeningAttempts.slice(5);
+  matched[0].accountBinding = accountBinding('another-account');
+  matched[1].prescriptionId = 'fedcba9876543210';
+  matched[2].phase = 'practice';
+  matched[3].packetId = 'a'.repeat(16);
+  assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'matched');
+  assert.equal(listeningRetestEvidence(profile, 'listen-clear').completed, 1);
+  assert.equal(listeningMasteryEvidence(profile).clear, null);
+});
+
+test('a failed matched packet closes the cycle and can never unlock transfer', () => {
+  const profile = v2CycleProfile({ includeMatched: true, includeTransfer: true, matchedCorrect: false });
+  const proof = listeningRetestEvidence(profile, 'listen-clear');
+  assert.equal(proof.phase, 'failed');
+  assert.equal(proof.outcome, 'threshold_missed');
+  assert.equal(proof.transfer, null);
+  assert.equal(listeningMasteryEvidence(profile).clear, null);
+  assert.equal(listeningMasteryEvidence(profile).clearMeasured, true);
+});
+
+test('v2 baseline snapshot and issuance are owner-, difficulty-, phase-, and index-bound', () => {
+  const profile = v2CycleProfile();
+  profile.salmaCoach = null;
+  const baseline = listeningBaselineSnapshot(profile, 'listen-clear');
+  assert.equal(baseline.baselineEvidenceIds.length, 5);
+  assert.equal(baseline.levelKey, 'B1');
+  const unbound = listeningIssuanceBinding(profile, 'listen-clear', {
+    accountId: profile.userId, levelKey: 'B1', baseRate: 1, slot: 0, now: 1_900_000_000_000,
+  });
+  assert.equal(unbound.phase, 'baseline_candidate');
+  assert.equal(unbound.accountBinding, accountBinding(profile.userId));
+
+  const active = v2CycleProfile();
+  const issued = listeningIssuanceBinding(active, 'listen-clear', {
+    accountId: active.userId, levelKey: 'B1', baseRate: 1, slot: 2,
+    now: active.salmaCoach.activePrescription.listeningCycle.matchedEligibleAt,
+  });
+  assert.equal(issued.phase, 'matched');
+  assert.equal(issued.packetIndex, 2);
+  assert.equal(issued.prescriptionId, active.salmaCoach.activePrescription.id);
+});
+
+test('opaque listening media resolves only for the fresh owner-bound active play', () => {
+  const start = 1_800_000_001_000;
+  const profile = profileWithAttempt();
+  profile.userId = 'acct-media';
+  Object.assign(profile.listeningActive.item, {
+    evidenceVersion: 2, accountBinding: accountBinding(profile.userId), skillId: 'listen-clear',
+    phase: 'baseline_candidate', packetId: 'a'.repeat(16), packetIndex: 0,
+    challengeKey: 'b'.repeat(16), levelKey: 'B1', baseRate: 1, eligibleAt: start,
+    ttsText: 'Die Kundin nennt eine Bestellnummer.', voice: 'aura-2-lara-de', minimumPlaybackMs: 600,
+  });
+  const play = beginListeningPlayback(profile, 'item', start);
+  assert.deepEqual(resolveListeningMedia(profile, 'item', play.playNumber, start + 1), {
+    text: 'Die Kundin nennt eine Bestellnummer.', voice: 'aura-2-lara-de',
+  });
+  assert.throws(() => resolveListeningMedia(profile, 'item', play.playNumber + 1, start + 1),
+    (error) => error.code === 'listening_media_not_authorized');
+  profile.listeningActive.item.accountBinding = accountBinding('attacker');
+  assert.throws(() => resolveListeningMedia(profile, 'item', play.playNumber, start + 1),
+    (error) => error.code === 'listening_attempt_owner_mismatch');
+});
+
+test('completed transfer mastery survives prescription replacement and a later failed cycle demotes it', () => {
+  const passed = v2CycleProfile({ includeMatched: true, includeTransfer: true });
+  const archivedPass = archiveListeningCycle(passed);
+  assert.equal(archivedPass.status, 'passed');
+  passed.salmaCoach.activePrescription = null;
+  assert.ok(listeningMasteryEvidence(passed).clear, 'archived transfer proof remains authoritative after coach sync');
+
+  const failed = v2CycleProfile({ start: 1_900_000_000_000, includeMatched: true, matchedCorrect: false });
+  failed.listeningCycleHistory = passed.listeningCycleHistory;
+  const archivedFail = archiveListeningCycle(failed);
+  assert.equal(archivedFail.status, 'failed');
+  failed.salmaCoach.activePrescription = null;
+  assert.equal(listeningMasteryEvidence(failed).clear, null, 'the latest adjudicated cycle can demote earlier mastery');
+  assert.equal(listeningMasteryEvidence(failed).clearMeasured, true);
+});
+
+test('busy practice history cannot evict the exact baseline or transfer packets', () => {
+  const profile = v2CycleProfile({ includeMatched: true, includeTransfer: true });
+  const template = profile.listeningAttempts[0];
+  const latest = profile.listeningAttempts.at(-1).gradedAt;
+  const noise = Array.from({ length: 60 }, (_, index) => ({
+    ...template,
+    attemptId: (10_000 + index).toString(16).padStart(24, '0'),
+    itemHash: (10_000 + index).toString(16).padStart(64, '0'),
+    prescriptionId: profile.salmaCoach.activePrescription.id,
+    phase: 'practice',
+    packetId: digest(`practice-noise-${index}`, 16),
+    packetIndex: index % 5,
+    eligibleAt: latest + index * 1_000,
+    issuedAt: latest + index * 1_000,
+    gradedAt: latest + index * 1_000 + 500,
+  }));
+  profile.listeningAttempts.push(...noise);
+  assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'complete');
+  assert.ok(listeningMasteryEvidence(profile).clear);
+});
+
+test('partial retest issuance fills the lowest unused packet indexes after reload', () => {
+  const profile = v2CycleProfile({ includeMatched: true });
+  profile.listeningAttempts = [...profile.listeningAttempts.slice(0, 5), profile.listeningAttempts[5], profile.listeningAttempts[7]];
+  const now = profile.salmaCoach.activePrescription.listeningCycle.matchedEligibleAt;
+  const first = listeningIssuanceBinding(profile, 'listen-clear', {
+    accountId: profile.userId, levelKey: 'B1', baseRate: 1, slot: 0, now,
+  });
+  const second = listeningIssuanceBinding(profile, 'listen-clear', {
+    accountId: profile.userId, levelKey: 'B1', baseRate: 1, slot: 1, now,
+  });
+  assert.equal(first.phase, 'matched');
+  assert.equal(first.packetIndex, 1);
+  assert.equal(second.packetIndex, 3);
 });
