@@ -20,8 +20,8 @@ import { expandForSpeechDE } from './speechExpandDE.js';
 import { mintMediaTicket, consumeMediaTicket } from './mediaTickets.js';
 import { vertexConfigured, getVertexAccessToken } from './vertexToken.js';
 import { salmaCoachFlags } from './salmaCoachCore.js';
-import { loadUser } from './store.js';
-import { resolveListeningMedia } from './listeningEvidence.js';
+import { loadUser, mutateUser } from './store.js';
+import { markListeningMediaDelivered, resolveListeningMedia } from './listeningEvidence.js';
 
 const router = express.Router();
 
@@ -243,7 +243,8 @@ router.post('/media-ticket', requireAuth,
       : wantsSalmaDe ? SALMA_DE_VOICE
       : (AURA_DE_VOICES.has(requestedVoice) ? requestedVoice : DEFAULT_VOICE);
   const emotion = String(req.body?.emotion || '').slice(0, 24);
-  const ticket = mintMediaTicket({ kind, userId: req.account.id, text, voice, emotion, drill });
+  const ticket = mintMediaTicket({ kind, userId: req.account.id, text, voice, emotion, drill,
+    ...(resolvedListening?.deliveryRef ? { listeningDelivery: resolvedListening.deliveryRef } : {}) });
   res.set('Cache-Control', 'no-store');
   res.json({ ticket, expiresIn: 60 });
 });
@@ -456,6 +457,13 @@ async function geminiTTS(text, style) {
 const geminiMasriTTS = (text) => geminiTTS(text, MASRI_STYLE);
 const geminiGermanTTS = (text) => geminiTTS(text, DE_WARM_STYLE);
 
+async function persistListeningDelivery(media) {
+  if (!media?.listeningDelivery) return;
+  await mutateUser(media.userId, (profile) => ({
+    value: markListeningMediaDelivered(profile, { ...media.listeningDelivery, now: Date.now() }),
+  }));
+}
+
 // ── GET /api/tts-stream — Deepgram Aura-2 STREAMING boss voice (the DEFAULT, free) ─────────────────
 // Measured: Aura emits its first audio bytes ~350ms after the request, but the whole clip takes up to
 // ~6s to fully synthesize for a long line. The buffered POST /api/tts waits for the WHOLE clip before
@@ -488,6 +496,10 @@ router.get('/tts-stream', async (req, res) => {
   const ck = _cacheKey('aura-stream:' + voice, text);
   const hit = ttsCacheGet(ck);
   if (hit) {
+    try { await persistListeningDelivery(media); }
+    catch (error) {
+      return res.status(error.status || 409).json({ error: error.code || 'listening_media_not_authorized' });
+    }
     console.log(`[cost] tts-stream cache=HIT voice=${voice} chars=${text.length}`);
     res.set('Content-Type', (voice === SALMA_MASRI_VOICE || voice === SALMA_DE_VOICE) ? 'audio/wav' : 'audio/mpeg');
     return res.send(hit);
@@ -529,6 +541,12 @@ router.get('/tts-stream', async (req, res) => {
       const body = await (r.text?.().catch(() => '') ?? Promise.resolve(''));
       console.error(`[tts-stream] Deepgram ${r.status}: ${String(body).slice(0, 200)}`);
       return res.status(502).json({ error: 'tts_failed' });
+    }
+    try { await persistListeningDelivery(media); }
+    catch (error) {
+      clearTimeout(abortTimer);
+      try { await r.body.cancel(); } catch {}
+      return res.status(error.status || 409).json({ error: error.code || 'listening_media_not_authorized' });
     }
     res.set('Content-Type', 'audio/mpeg');
     const chunks = [];

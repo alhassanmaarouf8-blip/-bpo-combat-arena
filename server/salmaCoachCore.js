@@ -456,16 +456,30 @@ export function deriveSalmaPrescription(profile, { now = Date.now(), dailyMinute
   const drillId = directive?.prescription?.action === 'drill' ? directive.prescription.drill : null;
   const skillId = directive?.prescription?.skillId || directive?.target?.skillId || '';
   if (!DRILLS.has(drillId) || !skillId || snapshot.sessionCount < 1) return { directive, prescription: null };
-  const protocol = PROTOCOLS[drillId]; const occurrences = evidenceOccurrences(profile, skillId, now);
+  const exactGrammarForecast = snapshot.limitingCriterionId === 'grammar_control'
+    && snapshot.limitingGrammarRuleId === skillId;
+  const grammarMeasurements = exactGrammarForecast
+    ? (Array.isArray(snapshot.limitingGrammarEvidenceSessionIds)
+      ? snapshot.limitingGrammarEvidenceSessionIds : [])
+      .map((sessionId) => measurementForSkill(profile, skillId, { sessionId }))
+      .filter((measurement) => measurement?.value > 8)
+    : [];
+  if (exactGrammarForecast && !grammarMeasurements.length) return { directive, prescription: null };
+  const protocol = PROTOCOLS[drillId];
+  const occurrences = exactGrammarForecast
+    ? Math.min(2, Math.max(0, Number(snapshot.limitingGrammarEvidenceCount) || 0))
+    : evidenceOccurrences(profile, skillId, now);
   const listeningRows = skillId === 'listen-clear' || skillId === 'listen-phone' ? listeningEvidence(profile, skillId) : [];
   const listeningCycle = drillId === 'hoer-check' ? listeningBaselineSnapshot(profile, skillId) : null;
   if (drillId === 'hoer-check' && !listeningCycle) return { directive, prescription: null };
   const durationSeconds = Math.min(protocol.durationSeconds, Math.max(300, [5, 10, 20].includes(Number(dailyMinutes)) ? Number(dailyMinutes) * 60 : 600));
   const blocks = occurrences >= 2 && Number(dailyMinutes) >= 20 ? 2 : 1;
   const evidenceIds = listeningCycle?.baselineEvidenceIds || (listeningRows.length
-    ? listeningRows.slice(-5).map((row) => hash(row.attemptId, 12)) : sessionEvidenceIds(profile, skillId, now));
+    ? listeningRows.slice(-5).map((row) => hash(row.attemptId, 12))
+    : grammarMeasurements.length ? grammarMeasurements.map((measurement) => measurement.evidenceId)
+    : sessionEvidenceIds(profile, skillId, now));
   if (!evidenceIds.length) return { directive, prescription: null };
-  const baseline = listeningCycle?.baseline || measurementForSkill(profile, skillId);
+  const baseline = listeningCycle?.baseline || grammarMeasurements.at(-1) || measurementForSkill(profile, skillId);
   if (!baseline) return { directive, prescription: null };
   const evidenceConfidence = directive.confidence === 'high' ? 'high' : 'low';
   const criterionId = CRITERION_IDS.has(directive?.prescription?.criterionId) ? directive.prescription.criterionId : null;
@@ -720,6 +734,14 @@ export function safeIntervention(state, now = Date.now(), profile = null) {
     nextAction: `Arbeite ${Math.ceil(p.durationSeconds / 60)} Minuten. Fertig ist der Block erst, wenn: ${p.successGate}`, speakable: true };
 }
 
+function directiveOwnsPrescription(directive, prescription, flags) {
+  if (flags?.enabled !== true || !prescription) return false;
+  const action = directive?.prescription?.action;
+  const skillMatches = directive?.prescription?.skillId === prescription.skillId;
+  if (!skillMatches || !['drill', 'wait', 'interview'].includes(action)) return false;
+  return action !== 'drill' || directive.prescription.drill === prescription.drillId;
+}
+
 export function publicSalmaCoach(profile, account, flags, { now = Date.now() } = {}) {
   const { state } = syncSalmaCoach(profile, { now }); const capabilities = salmaCoachCapabilities(account);
   // This exact assembler also backs GET /api/brain. Salma may explain its action, but she must
@@ -727,7 +749,13 @@ export function publicSalmaCoach(profile, account, flags, { now = Date.now() } =
   const directive = canonicalCoachDirective(profile, account, { now, coachFlags: flags });
   const readiness = hireReadinessFor(profile);
   const interviewRisk = readiness.interviewRisk;
-  const limited = capabilities.fullTutor ? state.activePrescription : state.activePrescription && { ...state.activePrescription, blocks: 1, timesPerDay: 1, nextEligibleAt: null };
+  const entitledPrescription = capabilities.fullTutor ? state.activePrescription
+    : state.activePrescription && { ...state.activePrescription, blocks: 1, timesPerDay: 1, nextEligibleAt: null };
+  // Keep the durable tutor cycle for later, but expose it only while BrainGuide's canonical action
+  // is that exact cycle. Vacancy, Mission Control, measurement, and other priorities must never be
+  // accompanied by a competing drill, spacing notice, or retest card.
+  const limited = directiveOwnsPrescription(directive, entitledPrescription, flags)
+    ? entitledPrescription : null;
   const attempt = limited ? state.coachState.repeatedErrorCounts[limited.id] : null;
   const history = state.coachState.improvementHistory || [];
   const verifiedRetest = publicImprovementProof(history[history.length - 1]);
@@ -756,14 +784,15 @@ export function publicSalmaCoach(profile, account, flags, { now = Date.now() } =
     baseline: limited.baseline ? { metricKey: limited.baseline.metricKey, value: limited.baseline.value, measuredAt: limited.baseline.measuredAt } : null,
   } : null;
   const listeningRetest = publicListeningRetest(profile, limited?.skillId, state);
-  const speakingRetest = publicSpeakingRetest(state, now);
+  const publicState = { ...state, activePrescription: limited };
+  const speakingRetest = publicSpeakingRetest(publicState, now);
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
     interviewRisk,
     rejectionForecast: readiness.rejectionForecast,
     listeningRetest,
     speakingRetest,
     preferences: state.preferences, activePrescription: publicPrescription,
-    intervention: safeIntervention({ ...state, activePrescription: limited }, now, profile),
+    intervention: safeIntervention(publicState, now, profile),
     progress, brain: { state: directive?.state || 'NEW', action: directive?.prescription?.action || 'assessment' } };
 }
 

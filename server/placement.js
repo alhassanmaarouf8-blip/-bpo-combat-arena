@@ -14,7 +14,7 @@ import express from 'express';
 import { adminRequestOk } from './adminAuth.js';
 import { loadUser, mutateUser, saveUser } from './store.js';
 import { requireAuth, listAllAccounts } from './auth.js';
-import { captureOutcomeForecast, outcomeCalibrationSummary, recordCalibratedOutcome } from './outcomeCalibration.js';
+import { captureOutcomeForecast, outcomeCalibrationSummary } from './outcomeCalibration.js';
 
 export const placementRouter = express.Router();
 
@@ -25,7 +25,8 @@ const WEEK_MS  = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS   = 24 * 60 * 60 * 1000;
 
 function defaultPlacement() {
-  return { status: 'none', employer: '', role: '', updatedAt: null, history: [], lastPromptedAt: null };
+  return { status: 'none', employer: '', role: '', verification: 'self_reported_unverified',
+    updatedAt: null, history: [], lastPromptedAt: null };
 }
 
 // Ask returning students for a job-search update — but never nag: not in the first 3 days
@@ -63,16 +64,17 @@ placementRouter.post('/api/placement', requireAuth, async (req, res) => {
       pl.status    = status;
       pl.employer  = String(employer || pl.employer || '').slice(0, 120);
       pl.role      = String(role     || pl.role     || '').slice(0, 120);
+      // This endpoint is learner-controlled. Preserve the report for product support, but never
+      // promote it into outcome-calibration evidence without a separate server-owned verification.
+      pl.verification = 'self_reported_unverified';
       pl.updatedAt = now;
       pl.lastPromptedAt = now;   // an update counts as a prompt → resets the weekly nudge
       pl.history = [
         ...(pl.history || []),
-        { at: now, status, employer: pl.employer, role: pl.role, note: String(note || '').slice(0, 280) },
+        { at: now, status, employer: pl.employer, role: pl.role,
+          verification: 'self_reported_unverified', note: String(note || '').slice(0, 280) },
       ].slice(-50);   // keep the audit trail bounded
       p.placement = pl;
-      if (status === 'offer' || status === 'hired' || status === 'not_hired') {
-        recordCalibratedOutcome(p, status, { now });
-      }
       return { value: { placement: pl } };
     });
 
@@ -133,7 +135,9 @@ placementRouter.get('/admin/placements', async (req, res) => {
         const pl = p.placement || defaultPlacement();
         funnel[pl.status] = (funnel[pl.status] || 0) + 1;
         if (pl.status === 'hired') {
-          hires.push({ masked: maskEmail(acct.email), employer: pl.employer || '?', role: pl.role || '?', at: pl.updatedAt });
+          hires.push({ masked: maskEmail(acct.email), employer: pl.employer || '?', role: pl.role || '?',
+            at: pl.updatedAt, verification: pl.verification === 'verified'
+              ? 'verified' : 'self_reported_unverified' });
         }
         const learnerCalibration = outcomeCalibrationSummary(p);
         for (const key of Object.keys(learnerCalibration)) calibration[key] += learnerCalibration[key];
@@ -148,6 +152,7 @@ placementRouter.get('/admin/placements', async (req, res) => {
       funnel,
       activeJobSeekers: active,
       hired: funnel.hired,
+      verifiedHired: hires.filter((item) => item.verification === 'verified').length,
       hires,
       calibration,
     });

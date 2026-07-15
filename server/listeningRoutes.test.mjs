@@ -7,6 +7,7 @@ process.env.AUTH_SECRET ||= 'listening-route-test-secret';
 const auth = await import('./auth.js');
 const { listeningRouter } = await import('./listening.js');
 const { transcribeRouter } = await import('./transcribeRouter.js');
+const { listeningBaselineSnapshot, listeningMasteryEvidence } = await import('./listeningEvidence.js');
 const { deleteUser, loadUser, saveUser } = await import('./store.js');
 
 async function withApi(run) {
@@ -38,16 +39,12 @@ test('listening GET exposes no transcript and opaque media tickets resolve only 
       assert.equal(payload.items.length, 5);
       assert.equal(payload.mediaMode, 'opaque_v2');
       assert.equal(payload.items.some((item) => Object.hasOwn(item, 'audioText') || Object.hasOwn(item, 'voice')), false);
-      const legacyResponse = await fetch(`${base}/api/listening`, { headers: { Authorization: `Bearer ${token}` } });
-      assert.equal(legacyResponse.status, 200);
-      const legacyPayload = await legacyResponse.json();
-      assert.equal(legacyPayload.items.length, 5);
-      assert.equal(legacyPayload.items.every((item) => typeof item.audioText === 'string' && typeof item.voice === 'string'), true,
-        'stale clients keep their exact existing audio payload during a rolling deployment');
       const stored = await loadUser(account.id);
       const first = payload.items[0];
       assert.ok(stored.listeningActive[String(first.id)].ttsText.length > 12);
       assert.match(stored.listeningActive[String(first.id)].accountBinding, /^[a-f0-9]{64}$/u);
+      assert.equal(stored.listeningActive[String(first.id)].mediaProofRequired, true);
+      const opaqueAttemptId = stored.listeningActive[String(first.id)].attemptId;
 
       const started = await api(base, '/api/listening/play', token, { id: first.id });
       assert.equal(started.status, 200);
@@ -61,6 +58,43 @@ test('listening GET exposes no transcript and opaque media tickets resolve only 
       });
       assert.equal(mixed.status, 400);
       assert.equal(mixed.body.error, 'invalid_listening_media_request');
+
+      const legacyResponse = await fetch(`${base}/api/listening`, { headers: { Authorization: `Bearer ${token}` } });
+      assert.equal(legacyResponse.status, 200);
+      const legacyPayload = await legacyResponse.json();
+      assert.equal(legacyPayload.items.length, 5);
+      assert.equal(legacyPayload.items.every((item) => typeof item.audioText === 'string' && typeof item.voice === 'string'), true,
+        'stale clients keep their exact existing audio payload during a rolling deployment');
+      const legacyStored = await loadUser(account.id);
+      assert.equal(Object.values(legacyStored.listeningActive).every((item) => item.mediaProofRequired === false), true,
+        'legacy clients are never forced through an opaque-media receipt they cannot produce');
+      assert.equal(Object.values(legacyStored.listeningActive).every((item) => item.evidenceVersion == null
+        && item.accountBinding == null && item.phase == null), true,
+      'legacy compatibility attempts remain v1 and can never become v2 baseline/retest evidence');
+      assert.equal(Object.values(legacyStored.listeningActive).some((item) => item.attemptId === opaqueAttemptId), false,
+        'opaque and legacy cache entries cannot cross modes');
+
+      const legacyFirst = legacyPayload.items[0];
+      const legacyStarted = await api(base, '/api/listening/play', token, { id: legacyFirst.id });
+      assert.equal(legacyStarted.status, 200);
+      const legacyAfterStart = await loadUser(account.id);
+      const legacyActive = legacyAfterStart.listeningActive[String(legacyFirst.id)];
+      legacyActive.playStartedAt = Date.now() - legacyActive.minimumPlaybackMs - 10;
+      await saveUser(legacyAfterStart);
+      const legacyCompleted = await api(base, '/api/listening/play/complete', token, {
+        id: legacyFirst.id, playNumber: legacyStarted.body.playNumber, completed: true,
+      });
+      assert.equal(legacyCompleted.status, 200, 'stale clients remain able to complete direct-audio attempts');
+      const correctResponse = legacyActive.kind === 'verstehen' ? String(legacyActive.correct) : legacyActive.answer;
+      const legacyGrade = await api(base, '/api/listening/grade', token, { id: legacyFirst.id, response: correctResponse });
+      assert.equal(legacyGrade.status, 200);
+      const legacyGraded = await loadUser(account.id);
+      const legacyAttempt = legacyGraded.listeningAttempts.find((row) => row.attemptId === legacyActive.attemptId);
+      assert.equal(legacyAttempt.evidenceVersion, 1);
+      assert.equal(legacyAttempt.accountBinding, null);
+      const legacySkill = legacyActive.kind === 'verstehen' ? 'listen-clear' : 'listen-phone';
+      assert.equal(listeningBaselineSnapshot(legacyGraded, legacySkill), null);
+      assert.equal(listeningMasteryEvidence(legacyGraded)[legacySkill === 'listen-clear' ? 'clear' : 'phone'], null);
     });
   } finally {
     await deleteUser(account.id);
@@ -94,7 +128,8 @@ test('listening routes reject forged early completion and make a verified double
       [itemId]: {
         attemptId, issuedAt: Date.now(), maxPlays: 2, playCount: 0,
         playStartedAt: null, playCompletedAt: null, playbackRate: 1.1, gradeResult: null,
-        type: 'nummer', answer: '4317',
+        type: 'nummer', answer: '4317', minimumPlaybackMs: 600, mediaProofRequired: true,
+        ttsText: 'Die Kundennummer lautet vier drei eins sieben.', voice: 'aura-2-lara-de',
       },
     };
     await saveUser(profile);
@@ -122,6 +157,42 @@ test('listening routes reject forged early completion and make a verified double
       assert.equal((afterForgery.listeningAttempts || []).length, 0);
 
       await new Promise((resolve) => setTimeout(resolve, 625));
+      const elapsedWithoutMedia = await api(base, '/api/listening/play/complete', token, {
+        id: itemId, playNumber: 1, completed: true,
+      });
+      assert.equal(elapsedWithoutMedia.status, 409);
+      assert.equal(elapsedWithoutMedia.body.error, 'listening_media_required');
+      const gradeWithoutMedia = await api(base, '/api/listening/grade', token, { id: itemId, response: '4317' });
+      assert.equal(gradeWithoutMedia.status, 409);
+      assert.equal(gradeWithoutMedia.body.error, 'listening_playback_required');
+
+      const mediaTicket = await api(base, '/api/media-ticket', token, {
+        listeningRef: { id: itemId, playNumber: 1 },
+      });
+      assert.equal(mediaTicket.status, 200);
+      const originalFetch = globalThis.fetch;
+      const priorKey = process.env.DEEPGRAM_API_KEY;
+      process.env.DEEPGRAM_API_KEY = 'route-test-key';
+      globalThis.fetch = (input, init) => String(input).startsWith('https://api.deepgram.com/v1/speak')
+        ? Promise.resolve(new Response(Uint8Array.from([0x49, 0x44, 0x33, 0x04]), {
+          status: 200, headers: { 'Content-Type': 'audio/mpeg' },
+        }))
+        : originalFetch(input, init);
+      try {
+        const media = await originalFetch(`${base}/api/tts-stream?ticket=${encodeURIComponent(mediaTicket.body.ticket)}`);
+        assert.equal(media.status, 200);
+        assert.ok((await media.arrayBuffer()).byteLength > 0);
+      } finally {
+        globalThis.fetch = originalFetch;
+        if (priorKey === undefined) delete process.env.DEEPGRAM_API_KEY;
+        else process.env.DEEPGRAM_API_KEY = priorKey;
+      }
+      const afterRedemption = await loadUser(account.id);
+      assert.equal(afterRedemption.listeningActive[itemId].mediaDeliveredPlayInstanceId,
+        afterRedemption.listeningActive[itemId].playInstanceId);
+      assert.ok(Number.isFinite(afterRedemption.listeningActive[itemId].mediaDeliveredAt));
+      assert.equal(JSON.stringify(afterRedemption.listeningActive[itemId]).includes(mediaTicket.body.ticket), false);
+
       const completed = await api(base, '/api/listening/play/complete', token, {
         id: itemId, playNumber: 1, completed: true,
       });

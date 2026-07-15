@@ -6,6 +6,8 @@ import { CS_SCENARIOS } from './scenarios.js';
 import { serviceRecoveryEvidence } from './scoring/serviceRecoveryEvidence.js';
 import { validatedTransferProofs } from './scoring/transferProofs.js';
 import { listeningDifficultyContract } from './listeningEvidence.js';
+import { analyzeVacancyDeterministically, buildVacancyDraft, emptyVacancyState,
+  preparePastedVacancy } from './vacancyTargetCore.js';
 import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
   canonicalCoachDirective, deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
   publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
@@ -55,6 +57,23 @@ function measuredProfile(sessionCount = 1) {
     giveUpRate: 0.1, intelligibility: 0.75, latencyS: 3 });
   });
   return p;
+}
+
+function reliableGrammarSession(date, sessionId, grammarRules) {
+  const context = { sessionId, targetId: null, roleType: 'customer_service',
+    scenarioId: CS_SCENARIOS[0].id, observedAt: date };
+  const recovery = serviceRecoveryEvidence([
+    'Das tut mir wirklich leid, und ich kann die schwierige Situation sehr gut verstehen.',
+    'Ich k\u00fcmmere mich jetzt um Ihren Fall und dokumentiere alle wichtigen Angaben. Ich melde mich morgen bei Ihnen.',
+  ], context);
+  const storedRecovery = Object.fromEntries(['version', 'criterionId', 'criterionVersion', 'binding',
+    'roleType', 'scenarioId', 'targetId', 'sessionId', 'observedAt', 'contradicted', 'observedSteps',
+    'totalSteps', 'turnCount', 'wordCount'].map((key) => [key, recovery[key]]));
+  return reliableSession({ date, sessionId, targetRoleType: 'customer_service', targetIndustry: 'telecom',
+    scenarioId: CS_SCENARIOS[0].id, bossId: 'yasmin', verdict: 'review', wpm: 120, fluency: 75,
+    fillers: 2, grammarMeasured: true, grammarRules, subClauseRate: 0.3, vocabDiversity: 0.6,
+    giveUpRate: 0.1, intelligibility: 0.9, latencyS: 3, deescalation: recovery.score,
+    deescalationEvidence: storedRecovery });
 }
 
 test('feature flags fail closed and beta is account allowlisted', () => {
@@ -146,6 +165,49 @@ test('the same reliable risk across two sessions earns a spaced second block and
     /wiederholter zuverlässiger Evidenz/u);
 });
 
+test('a broad grammar forecast prescribes only the exact rule supported by the current reliable archetype', () => {
+  const p = defaultProfile('acct-1');
+  const now = 1_800_000_000_000;
+  p.sessions = [
+    reliableGrammarSession(now - 1_000, 'grammar-current-1', [{ ruleId: 'dativ-akkusativ', count: 12 }]),
+    reliableGrammarSession(now, 'grammar-current-2', [{ ruleId: 'dativ-akkusativ', count: 12 }]),
+  ];
+  p.weakLog = {
+    'word-order-sub': { ruleId: 'word-order-sub', errCounts: [
+      { date: now - 100_000, count: 99 }, { date: now - 90_000, count: 98 },
+    ], drills: [] },
+    'dativ-akkusativ': { ruleId: 'dativ-akkusativ', errCounts: [
+      { date: now - 1_000, count: 12 }, { date: now, count: 12 },
+    ], drills: [] },
+  };
+
+  const result = deriveSalmaPrescription(p, { now: now + 1_000, dailyMinutes: 20 });
+  assert.equal(result.directive.target?.criterionId, 'grammar_control');
+  assert.equal(result.directive.confidence, 'high');
+  assert.equal(result.prescription?.skillId, 'dativ-akkusativ');
+  assert.equal(result.prescription?.baseline?.metricKey, 'grammar_errors');
+  assert.equal(result.prescription?.baseline?.value, 10);
+});
+
+test('a broad grammar deficit with no exact-rule deficit fails closed instead of prescribing a zero-error rule', () => {
+  const p = defaultProfile('acct-1');
+  p.sessions = [0, 1].map((index) => reliableGrammarSession(
+    1_800_000_000_000 + index,
+    `split-grammar-${index}`,
+    [
+      { ruleId: 'word-order-sub', count: 6 },
+      { ruleId: 'dativ-akkusativ', count: 6 },
+    ],
+  ));
+  p.weakLog = {
+    'konjunktiv-2': { ruleId: 'konjunktiv-2', errCounts: [{ count: 99 }, { count: 98 }], drills: [] },
+  };
+
+  const result = deriveSalmaPrescription(p, { now: 1_800_000_001_000, dailyMinutes: 20 });
+  assert.equal(result.directive.target, null);
+  assert.equal(result.prescription, null);
+});
+
 test('two-block dosing models each block separately and consumes duplicate or early events without credit', () => {
   const start = 1_800_000_000_000;
   const spacing = 360 * 60_000;
@@ -235,6 +297,44 @@ test('public Salma brain action is the canonical coach-gated BrainGuide action',
   const view = publicSalmaCoach(p, account('basic'),
     flags, { now });
   assert.deepEqual(view.brain, { state: canonical.state, action: canonical.prescription.action });
+});
+
+test('a due vacancy action hides an unfinished Salma drill and dose-spacing intervention from the public coach', () => {
+  const start = 1_800_000_000_000;
+  const p = defaultProfile('acct-1');
+  p.sessions = [reliableSession({ sessionId: 'vacancy-priority-baseline', date: start, bossId: 'yasmin',
+    scenarioId: CS_SCENARIOS[0].id, fluency: 50, grammarRules: [] })];
+  let state = normalizeSalmaCoachState(null);
+  state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'fluency-interrupt', drillId: 'flow-drill',
+    blocks: 2, repetitions: 3, durationSeconds: 195, timesPerDay: 2, minimumSpacingMinutes: 360,
+    successGate: 'Set abschlie\u00dfen.', assignedAt: start, nextEligibleAt: null,
+    baseline: measurementForSkill(p, 'fluency-interrupt') };
+  state = recordDrillOutcome(state,
+    { eventId: 'vacancy-priority-block-one', drill: 'flow-drill', completedSet: true }, start + 1_000);
+  p.salmaCoach = state;
+
+  const source = preparePastedVacancy(`German Customer Service Agent vacancy. Full-time customer support
+    for an e-commerce account. Requirements include German B1, complaint handling, documentation,
+    flexible shift availability, and customer-service experience.`);
+  const draft = buildVacancyDraft({ source, analysis: analyzeVacancyDeterministically(source), now: start });
+  p.vacancyTarget = { ...emptyVacancyState(), active: { ...draft, status: 'active' } };
+
+  const previousMode = process.env.VACANCY_MODE;
+  process.env.VACANCY_MODE = 'on';
+  try {
+    const flags = { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false };
+    const view = publicSalmaCoach(p, account('basic'), flags, { now: start + 2_000 });
+    assert.deepEqual(view.brain, { state: 'VACANCY_PREP', action: 'vacancy' });
+    assert.equal(view.activePrescription, null);
+    assert.equal(view.intervention, null);
+    assert.equal(view.progress, null);
+    assert.equal(view.speakingRetest, null);
+    assert.equal(p.salmaCoach.activePrescription.id, '0123456789abcdef',
+      'canonical priority hides but does not destroy the durable tutor cycle');
+  } finally {
+    if (previousMode === undefined) delete process.env.VACANCY_MODE;
+    else process.env.VACANCY_MODE = previousMode;
+  }
 });
 
 test('BrainGuide gate requires the whole dose, then the delayed live-retest window', () => {

@@ -47,11 +47,18 @@ function pathTarget(targetId, frIds, seen = new Set()) {
   return null;
 }
 
-function pickTarget(fr, limitingSkill, weakLog, criterionId = null) {
+function pickTarget(fr, limitingSkill, weakLog, criterionId = null, grammarRuleId = null) {
   if (!fr.length) return null;
   const frIds = new Set(fr.map((s) => s.id));
-  // 1) grammar: target the worst-recent frontier grammar skill
-  if (limitingSkill === 'grammar' || criterionId === 'grammar_control') {
+  // A v2 grammar-control forecast may target only the exact rule attributed by the same fresh,
+  // reliable archetype evidence. A locked or unattributed rule fails closed instead of falling
+  // through to stale weakLog history or an unrelated curriculum item.
+  if (criterionId === 'grammar_control') {
+    return GRAMMAR_SKILLS.includes(grammarRuleId) && frIds.has(grammarRuleId)
+      ? SKILL_BY_ID[grammarRuleId] : null;
+  }
+  // Legacy grammar guidance without a criterion keeps its historical weakLog behavior.
+  if (limitingSkill === 'grammar') {
     const worst = GRAMMAR_SKILLS
       .map((id) => ({ id, n: lastErr(weakLog, id) }))
       .sort((a, b) => b.n - a.n)[0];
@@ -97,6 +104,8 @@ export function decide(snapshot = {}) {
     masteredSkills = [], verifiedMasteredSkills = [], verifiedImprovement = null, weakLog = {},
     limitingSkill = null, limitingCriterionId = null, limitingEvidenceCount = 0,
     limitingEvidenceConflictCount = 0, unmeasuredGates = [],
+    limitingGrammarRuleId = null, limitingGrammarEvidenceCount = 0,
+    limitingGrammarEvidenceConflictCount = 0,
     sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
     coachGate = null,
@@ -181,12 +190,17 @@ export function decide(snapshot = {}) {
 
   const coachSkillId = typeof coachGate?.skillId === 'string' && Object.hasOwn(SKILL_BY_ID, coachGate.skillId)
     && ['practice', 'wait', 'retest'].includes(coachGate.status) ? coachGate.skillId : null;
-  const target = coachSkillId ? SKILL_BY_ID[coachSkillId] : pickTarget(fr, limitingSkill, weakLog, limitingCriterionId);
+  const target = coachSkillId ? SKILL_BY_ID[coachSkillId]
+    : pickTarget(fr, limitingSkill, weakLog, limitingCriterionId, limitingGrammarRuleId);
   // Confidence: only assert "your weakness" if the targeted rule has ≥2 sessions of evidence.
   const targetEvidence = target && weakLog?.[target.id]?.errCounts?.length || 0;
+  const criterionEvidenceCount = limitingCriterionId === 'grammar_control'
+    ? limitingGrammarEvidenceCount : limitingEvidenceCount;
+  const criterionConflictCount = limitingCriterionId === 'grammar_control'
+    ? limitingGrammarEvidenceConflictCount : limitingEvidenceConflictCount;
   const confidence = limitingCriterionId
-    ? (Math.max(0, Number(limitingEvidenceCount) || 0) >= 2
-      && Math.max(0, Number(limitingEvidenceConflictCount) || 0) === 0 ? 'high' : 'low')
+    ? (target && Math.max(0, Number(criterionEvidenceCount) || 0) >= 2
+      && Math.max(0, Number(criterionConflictCount) || 0) === 0 ? 'high' : 'low')
     : targetEvidence >= 2 ? 'high' : 'low';
 
   // Prep must plausibly address THE TARGET to earn the rematch (doctrine D3): a drill event

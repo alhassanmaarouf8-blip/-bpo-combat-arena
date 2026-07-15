@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 import { archiveListeningCycle, beginListeningPlayback, commitListeningGrade, finishListeningPlayback,
   listeningBaselineSnapshot, listeningDifficultyContract, listeningEvidenceSummary,
   listeningIssuanceBinding, listeningMasteryEvidence, listeningRetestEvidence,
-  minimumListeningPlaybackMs, resolveListeningMedia } from './listeningEvidence.js';
+  markListeningMediaDelivered, minimumListeningPlaybackMs, resolveListeningMedia } from './listeningEvidence.js';
 
 function profileWithAttempt({ id = 'a'.repeat(24), kind = 'verstehen', issuedAt = 1_800_000_000_000,
   type = 'nummer', playbackRate = 1, itemHash = null } = {}) {
@@ -279,6 +279,39 @@ test('mastery requires the exact prescription-bound matched and seven-day novel 
   assert.ok(listeningMasteryEvidence(profile).clear);
 });
 
+test('opaque playback cannot complete from elapsed time without exact media redemption', () => {
+  const start = 1_800_000_001_000;
+  const profile = profileWithAttempt();
+  profile.listeningActive.item.mediaProofRequired = true;
+  profile.listeningActive.item.minimumPlaybackMs = 600;
+  const play = beginListeningPlayback(profile, 'item', start);
+
+  assert.throws(() => finishListeningPlayback(profile, 'item', {
+    playNumber: play.playNumber, completed: true, now: start + 600,
+  }), (error) => error.code === 'listening_media_required');
+  assert.throws(() => commitListeningGrade(profile, 'item', {
+    correct: true, now: start + 601,
+  }), (error) => error.code === 'listening_playback_required');
+  assert.equal(profile.listeningAttempts.length, 0);
+
+  const playInstanceId = profile.listeningActive.item.playInstanceId;
+  assert.throws(() => markListeningMediaDelivered(profile, {
+    itemId: 'item', playNumber: play.playNumber, playInstanceId: 'f'.repeat(24), now: start + 1,
+  }), (error) => error.code === 'listening_media_not_authorized');
+  assert.deepEqual(markListeningMediaDelivered(profile, {
+    itemId: 'item', playNumber: play.playNumber, playInstanceId, now: start + 2,
+  }), { delivered: true, replayed: false });
+  assert.deepEqual(markListeningMediaDelivered(profile, {
+    itemId: 'item', playNumber: play.playNumber, playInstanceId, now: start + 3,
+  }), { delivered: true, replayed: true });
+  assert.deepEqual(finishListeningPlayback(profile, 'item', {
+    playNumber: play.playNumber, completed: true, now: start + 600,
+  }), { completed: true, playNumber: 1 });
+  assert.equal(commitListeningGrade(profile, 'item', {
+    correct: true, now: start + 601,
+  }).replayed, false);
+});
+
 test('cross-account, wrong-prescription, practice, and mixed packets never satisfy a retest', () => {
   const profile = v2CycleProfile({ includeMatched: true });
   const matched = profile.listeningAttempts.slice(5);
@@ -379,6 +412,66 @@ test('busy practice history cannot evict the exact baseline or transfer packets'
   profile.listeningAttempts.push(...noise);
   assert.equal(listeningRetestEvidence(profile, 'listen-clear').phase, 'complete');
   assert.ok(listeningMasteryEvidence(profile).clear);
+});
+
+test('the bounded attempt store preserves an active baseline and matched packet through the seven-day wait', () => {
+  const profile = v2CycleProfile({ includeMatched: true });
+  const prescription = profile.salmaCoach.activePrescription;
+  const template = profile.listeningAttempts[0];
+  const afterMatched = profile.listeningAttempts.at(-1).gradedAt + 10_000;
+  for (let index = 0; index < 121; index += 1) {
+    const issuedAt = afterMatched + index * 5_000;
+    profile.listeningActive = { item: {
+      ...template,
+      attemptId: (20_000 + index).toString(16).padStart(24, '0'),
+      itemHash: (20_000 + index).toString(16).padStart(64, '0'),
+      prescriptionId: prescription.id,
+      phase: 'practice',
+      packetId: digest(`bounded-practice-${index}`, 16),
+      packetIndex: index % 5,
+      eligibleAt: issuedAt,
+      issuedAt,
+      maxPlays: 2,
+      playCount: 0,
+      playStartedAt: null,
+      playCompletedAt: null,
+      minimumPlaybackMs: 600,
+      gradeResult: null,
+    } };
+    const play = beginListeningPlayback(profile, 'item', issuedAt + 1_000);
+    finishListeningPlayback(profile, 'item', {
+      playNumber: play.playNumber, completed: true, now: issuedAt + 1_600,
+    });
+    commitListeningGrade(profile, 'item', { correct: true, now: issuedAt + 2_000 });
+  }
+  assert.equal(profile.listeningAttempts.length, 120);
+  const proof = listeningRetestEvidence(profile, 'listen-clear');
+  assert.equal(proof.phase, 'transfer');
+  assert.deepEqual(proof.baseline.evidenceIds.length, 5);
+  assert.deepEqual(proof.matched.evidenceIds.length, 5);
+});
+
+test('bounded archive activity in one listening skill cannot erase mastery in the other skill', () => {
+  const phone = v2CycleProfile({ skillId: 'listen-phone', includeMatched: true, includeTransfer: true });
+  archiveListeningCycle(phone);
+  let history = phone.listeningCycleHistory;
+  let latest = phone;
+  for (let index = 0; index < 12; index += 1) {
+    latest = v2CycleProfile({
+      skillId: 'listen-clear',
+      start: 1_900_000_000_000 + index * 20 * 24 * 60 * 60 * 1000,
+      includeMatched: true,
+      matchedCorrect: false,
+    });
+    latest.listeningCycleHistory = history;
+    archiveListeningCycle(latest);
+    history = latest.listeningCycleHistory;
+  }
+  latest.salmaCoach.activePrescription = null;
+  assert.equal(latest.listeningCycleHistory.length, 13);
+  assert.equal(latest.listeningCycleHistory.filter((row) => row.skillId === 'listen-clear').length, 12);
+  assert.equal(latest.listeningCycleHistory.filter((row) => row.skillId === 'listen-phone').length, 1);
+  assert.ok(listeningMasteryEvidence(latest).phone);
 });
 
 test('partial retest issuance fills the lowest unused packet indexes after reload', () => {

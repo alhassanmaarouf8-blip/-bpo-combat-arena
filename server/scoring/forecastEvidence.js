@@ -4,6 +4,7 @@ import { eligibleSpeakingWords, reliableSpeakingSessions } from './speakingMeasu
 
 export const FORECAST_EVIDENCE_FRESHNESS_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_PUBLIC_COUNT = 20;
+const GRAMMAR_RULE_IDS = Object.freeze(['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub']);
 
 function boundedString(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -108,4 +109,72 @@ export function forecastEvidenceSummary(profile, criterionId, referenceSession, 
     expiresAt: latestSupportAt ? latestSupportAt + FORECAST_EVIDENCE_FRESHNESS_MS : null });
 }
 
-export default { FORECAST_EVIDENCE_FRESHNESS_MS, forecastCriterionObservation, forecastEvidenceSummary };
+function grammarRuleObservation(session, ruleId) {
+  const words = eligibleSpeakingWords(session);
+  if (!GRAMMAR_RULE_IDS.includes(ruleId) || session?.grammarMeasured !== true
+    || !Array.isArray(session?.grammarRules) || words < 80) return null;
+  const errors = session.grammarRules.filter((row) => row?.ruleId === ruleId)
+    .reduce((sum, row) => sum + Math.max(0, Number(row?.count) || 0), 0);
+  const rate = (errors / words) * 100;
+  return { deficit: rate > 8, errors, rate };
+}
+
+/**
+ * Attribute a broad grammar-control deficit to one exact, currently observed rule. Historical
+ * weakLog counters are deliberately excluded: only fresh reliable v2 sessions from the exact
+ * interview archetype that anchored the forecast can nominate or support the rule.
+ */
+export function forecastGrammarRuleSummary(profile, referenceSession, now = Date.now()) {
+  const referenceBinding = referenceSession ? archetypeBinding(referenceSession) : null;
+  const broadReference = referenceSession
+    ? forecastCriterionObservation(referenceSession, 'grammar_control') : null;
+  if (!referenceBinding || broadReference?.deficit !== true) {
+    return Object.freeze({ ruleId: null, supportCount: 0, conflictCount: 0, supportSessionIds: [] });
+  }
+
+  const candidates = GRAMMAR_RULE_IDS.map((ruleId) => ({
+    ruleId,
+    reference: grammarRuleObservation(referenceSession, ruleId),
+    supportCount: 0,
+    conflictCount: 0,
+    supports: [],
+  })).filter((candidate) => candidate.reference?.deficit === true);
+  if (!candidates.length) {
+    return Object.freeze({ ruleId: null, supportCount: 0, conflictCount: 0, supportSessionIds: [] });
+  }
+
+  for (const session of reliableSpeakingSessions(profile)) {
+    const observedAt = Number(session?.date) || 0;
+    const age = now - observedAt;
+    if (observedAt <= 0 || age < 0 || age > FORECAST_EVIDENCE_FRESHNESS_MS
+      || archetypeBinding(session) !== referenceBinding) continue;
+    for (const candidate of candidates) {
+      const observation = grammarRuleObservation(session, candidate.ruleId);
+      if (!observation) continue;
+      if (observation.deficit) {
+        candidate.supportCount += 1;
+        const sessionId = boundedString(session?.sessionId, 100);
+        if (sessionId) candidate.supports.push({ sessionId, observedAt });
+      } else {
+        candidate.conflictCount += 1;
+      }
+    }
+  }
+
+  candidates.sort((a, b) => b.supportCount - a.supportCount
+    || a.conflictCount - b.conflictCount
+    || b.reference.rate - a.reference.rate
+    || a.ruleId.localeCompare(b.ruleId));
+  const selected = candidates[0];
+  const supportSessionIds = selected.supports.sort((a, b) => a.observedAt - b.observedAt)
+    .slice(-2).map((row) => row.sessionId);
+  return Object.freeze({
+    ruleId: selected.ruleId,
+    supportCount: Math.min(MAX_PUBLIC_COUNT, selected.supportCount),
+    conflictCount: Math.min(MAX_PUBLIC_COUNT, selected.conflictCount),
+    supportSessionIds: Object.freeze(supportSessionIds),
+  });
+}
+
+export default { FORECAST_EVIDENCE_FRESHNESS_MS, forecastCriterionObservation, forecastEvidenceSummary,
+  forecastGrammarRuleSummary };

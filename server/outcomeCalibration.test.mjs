@@ -143,7 +143,7 @@ async function post(base, token, body) {
   return { status: response.status, body: await response.json() };
 }
 
-test('the placement route freezes a forecast before interview and links a later terminal outcome', async () => {
+test('the placement route freezes a forecast but never calibrates from an unverified self-reported outcome', async () => {
   const account = await auth.createAccount(
     `calibration-${Date.now()}-${Math.floor(Math.random() * 1e9)}@example.com`,
     'test-password-1234',
@@ -163,9 +163,12 @@ test('the placement route freezes a forecast before interview and links a later 
       const rejected = await post(base, token, { status: 'not_hired' });
       assert.equal(rejected.status, 200);
       const afterOutcome = await loadUser(account.id);
-      assert.equal(afterOutcome.outcomeCalibration.records.length, 1);
-      assert.equal(afterOutcome.outcomeCalibration.records[0].outcome, 'not_hired');
-      assert.equal(afterOutcome.outcomeCalibration.activeForecast, null);
+      assert.equal(afterOutcome.placement.verification, 'self_reported_unverified');
+      assert.equal(afterOutcome.placement.history.at(-1).verification, 'self_reported_unverified');
+      assert.equal(afterOutcome.outcomeCalibration.records.length, 0,
+        'learner-controlled status changes cannot become outcome-validation evidence');
+      assert.ok(afterOutcome.outcomeCalibration.activeForecast,
+        'the frozen pre-interview forecast remains available for a future verified outcome');
     });
   } finally {
     await deleteUser(account.id);

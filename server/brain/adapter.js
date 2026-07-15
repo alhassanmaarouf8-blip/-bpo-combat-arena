@@ -10,7 +10,7 @@ import { masteryFromHistory, MASTERY_GATE } from './bkt.js';
 import { hireReadinessFor, featuresFromProfile } from '../hireReadiness.js';
 import { listeningMasteryEvidence } from '../listeningEvidence.js';
 import { serviceRecoveryScoreFromSession } from '../scoring/serviceRecoveryEvidence.js';
-import { forecastEvidenceSummary } from '../scoring/forecastEvidence.js';
+import { forecastEvidenceSummary, forecastGrammarRuleSummary } from '../scoring/forecastEvidence.js';
 import { reliableSpeakingSessions } from '../scoring/speakingMeasurement.js';
 import { validatedTransferProofs } from '../scoring/transferProofs.js';
 
@@ -121,6 +121,9 @@ export function buildSnapshot(p, now = Date.now()) {
   const { measured, session: evidenceSession } = featuresFromProfile(evidenceProfile);
   const limitingCriterionId = hr.rejectionForecast?.criterion?.criterionId || null;
   const criterionEvidence = forecastEvidenceSummary(evidenceProfile, limitingCriterionId, evidenceSession, now);
+  const grammarRuleEvidence = limitingCriterionId === 'grammar_control'
+    ? forecastGrammarRuleSummary(evidenceProfile, evidenceSession, now)
+    : { ruleId: null, supportCount: 0, conflictCount: 0, supportSessionIds: [] };
 
   const lastDate = last?.date || 0;
   const after = (at) => (at || 0) > lastDate;
@@ -150,6 +153,10 @@ export function buildSnapshot(p, now = Date.now()) {
     limitingCriterionId,
     limitingEvidenceCount: criterionEvidence.supportCount,
     limitingEvidenceConflictCount: criterionEvidence.conflictCount,
+    limitingGrammarRuleId: grammarRuleEvidence.ruleId,
+    limitingGrammarEvidenceCount: grammarRuleEvidence.supportCount,
+    limitingGrammarEvidenceConflictCount: grammarRuleEvidence.conflictCount,
+    limitingGrammarEvidenceSessionIds: grammarRuleEvidence.supportSessionIds,
     unmeasuredGates:  (evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'
       ? GENERAL_ROLE_GATING : CUSTOMER_SERVICE_GATING).filter((g) => !measured[g]),
     roleMeasurementState: evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'

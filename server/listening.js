@@ -527,7 +527,8 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   const opaqueMedia = req.get('X-Listening-Media-Version') === '2';
 
   const cached = genCache.get(uid);
-  const cacheStillUnused = cached?.active && !Object.values(cached.active).some((item) => item?.gradeResult);
+  const cacheStillUnused = cached?.active && cached.opaqueMedia === opaqueMedia
+    && !Object.values(cached.active).some((item) => item?.gradeResult);
   if (cached && cacheStillUnused && Date.now() - cached.ts < GEN_TTL_MS) {
     res.json(publicListeningPayload(cached.items, cached.baseRate, opaqueMedia));
     return;
@@ -598,10 +599,13 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
     if (!stored) continue;
     const playbackRate = Math.min(1.7, baseRate + index * 0.12);
     const skillId = row.kind === 'verstehen' ? 'listen-clear' : 'listen-phone';
-    const binding = listeningIssuanceBinding(p, skillId, {
+    // Legacy clients receive the historical direct-text audio payload and cannot redeem an opaque
+    // media ticket. Keep that path usable for rolling deployments, but never let it mint v2 mastery
+    // evidence: only an opaque-media session receives the owner/difficulty/retest binding.
+    const binding = opaqueMedia ? listeningIssuanceBinding(p, skillId, {
       accountId: uid, levelKey: level, baseRate, slot: skillSlots[skillId], now: issuedAt,
-    });
-    skillSlots[skillId] += 1;
+    }) : null;
+    if (opaqueMedia) skillSlots[skillId] += 1;
     Object.assign(stored, {
       attemptId: randomBytes(12).toString('hex'),
       itemHash: evidenceContentHash(row, stored),
@@ -614,6 +618,7 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
       ttsText: String(row.audioText || '').slice(0, 600),
       voice: String(row.voice || '').slice(0, 40),
       minimumPlaybackMs: minimumListeningPlaybackMs(row.audioText, playbackRate),
+      mediaProofRequired: opaqueMedia,
       gradeResult: null,
     }, binding || {});
   }
@@ -630,7 +635,7 @@ listeningRouter.get('/listening', requireAuth, async (req, res) => {
   } catch {
     return res.status(503).json({ error: 'listening_session_not_persisted' });
   }
-  genCache.set(uid, { ts: Date.now(), items, baseRate, active });
+  genCache.set(uid, { ts: Date.now(), items, baseRate, active, opaqueMedia });
   res.json(payload);
 });
 

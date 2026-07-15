@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 const ATTEMPT_LIMIT = 120;
 const ACTIVE_TTL_MS = 30 * 60 * 1000;
@@ -11,6 +11,7 @@ const MIN_PLAYBACK_FLOOR_MS = 600;
 const MIN_PLAYBACK_CEILING_MS = 12_000;
 const FASTEST_PLAUSIBLE_WORDS_PER_SECOND = 6;
 const EVIDENCE_VERSION = 2;
+const CYCLE_HISTORY_PER_SKILL = 12;
 const PHASES = new Set(['baseline_candidate', 'practice', 'matched', 'transfer']);
 const RETEST_PHASES = new Set(['matched', 'transfer']);
 
@@ -182,6 +183,42 @@ function ensureAttemptOwner(profile, item) {
   if (!expected || item.accountBinding !== expected) fail('listening_attempt_owner_mismatch', 403);
 }
 
+function boundedAttemptsWithActiveCycle(profile, attempts) {
+  const prescription = activePrescription(profile);
+  if (!prescription) return attempts.slice(-ATTEMPT_LIMIT);
+  const cycle = prescription.listeningCycle;
+  const baselineRefs = new Set(cycle.baselineEvidenceIds);
+  const protectedRows = [];
+  const protectedIds = new Set();
+  const protect = (row) => {
+    if (!row || protectedIds.has(row.attemptId)) return;
+    protectedIds.add(row.attemptId);
+    protectedRows.push(row);
+  };
+  for (const row of attempts) {
+    if (row.evidenceVersion === EVIDENCE_VERSION
+      && row.accountBinding === cycle.accountBinding
+      && row.skillId === prescription.skillId
+      && row.challengeKey === cycle.challengeKey
+      && baselineRefs.has(evidenceRef(row.attemptId))) protect(row);
+  }
+  for (const phase of RETEST_PHASES) {
+    const packetId = sha256(`listening-packet-v2:${prescription.id}:${phase}:${cycle.challengeKey}`).slice(0, 16);
+    const phaseRows = attempts.filter((row) => row.evidenceVersion === EVIDENCE_VERSION
+      && row.accountBinding === cycle.accountBinding
+      && row.prescriptionId === prescription.id
+      && row.skillId === prescription.skillId
+      && row.challengeKey === cycle.challengeKey
+      && row.phase === phase
+      && row.packetId === packetId).slice(-PACKET_SIZE);
+    phaseRows.forEach(protect);
+  }
+  const recentCapacity = Math.max(0, ATTEMPT_LIMIT - protectedRows.length);
+  const recent = attempts.filter((row) => !protectedIds.has(row.attemptId)).slice(-recentCapacity);
+  return [...protectedRows, ...recent]
+    .sort((a, b) => a.issuedAt - b.issuedAt || a.gradedAt - b.gradedAt || a.attemptId.localeCompare(b.attemptId));
+}
+
 export function beginListeningPlayback(profile, itemId, now = Date.now()) {
   const { item } = activeItem(profile, itemId);
   ensureAttemptOwner(profile, item);
@@ -192,13 +229,19 @@ export function beginListeningPlayback(profile, itemId, now = Date.now()) {
     if (now - startedAt < STALE_PLAYBACK_MS) fail('listening_playback_in_progress');
     item.playCount = Math.max(0, (Number(item.playCount) || 0) - 1);
     item.playStartedAt = null;
+    item.playInstanceId = null;
+    item.mediaDeliveredAt = null;
+    item.mediaDeliveredPlayInstanceId = null;
   }
   const maxPlays = Math.max(1, Math.min(2, Number(item.maxPlays) || 2));
   const playCount = Math.max(0, Number(item.playCount) || 0);
   if (playCount >= maxPlays) fail('listening_replay_limit');
   item.playCount = playCount + 1;
   item.playStartedAt = now;
+  item.playInstanceId = randomBytes(12).toString('hex');
   item.playCompletedAt = null;
+  item.mediaDeliveredAt = null;
+  item.mediaDeliveredPlayInstanceId = null;
   return { playNumber: item.playCount, maxPlays };
 }
 
@@ -213,12 +256,23 @@ export function finishListeningPlayback(profile, itemId, { playNumber, completed
   if (completed !== true) {
     item.playCount = Math.max(0, item.playCount - 1);
     item.playStartedAt = null;
+    item.playInstanceId = null;
     item.playCompletedAt = null;
+    item.mediaDeliveredAt = null;
+    item.mediaDeliveredPlayInstanceId = null;
     return { completed: false, playNumber };
   }
   if (now < item.playStartedAt) fail('listening_playback_mismatch');
   if (now - item.playStartedAt < minimumPlaybackForItem(item)) {
     fail('listening_playback_too_short');
+  }
+  if (item.mediaProofRequired === true) {
+    const deliveredAt = finiteTime(item.mediaDeliveredAt);
+    if (!/^[a-f0-9]{24}$/u.test(item.playInstanceId || '')
+      || item.mediaDeliveredPlayInstanceId !== item.playInstanceId
+      || !deliveredAt || deliveredAt < item.playStartedAt || deliveredAt > now) {
+      fail('listening_media_required');
+    }
   }
   item.playCompletedAt = now;
   return { completed: true, playNumber };
@@ -262,13 +316,13 @@ export function commitListeningGrade(profile, itemId, { correct, now = Date.now(
   if (!evidence) fail('listening_evidence_invalid', 500);
   const existing = Array.isArray(profile.listeningAttempts) ? profile.listeningAttempts.map(safeAttempt).filter(Boolean) : [];
   if (!existing.some((row) => row.attemptId === evidence.attemptId)) existing.push(evidence);
-  profile.listeningAttempts = existing.slice(-ATTEMPT_LIMIT);
+  profile.listeningAttempts = boundedAttemptsWithActiveCycle(profile, existing);
   item.gradeResult = { correct, gradedAt: now, attemptId: item.attemptId };
   return { ...item.gradeResult, replayed: false };
 }
 
 export function resolveListeningMedia(profile, itemId, playNumber, now = Date.now()) {
-  const { item } = activeItem(profile, itemId);
+  const { key, item } = activeItem(profile, itemId);
   ensureAttemptOwner(profile, item);
   ensureFresh(item, now);
   if (item.gradeResult || !Number.isInteger(playNumber) || playNumber !== item.playCount
@@ -276,7 +330,43 @@ export function resolveListeningMedia(profile, itemId, playNumber, now = Date.no
   const text = String(item.ttsText || '').trim().slice(0, 600);
   const voice = typeof item.voice === 'string' ? item.voice.slice(0, 40) : '';
   if (!text || !voice) fail('listening_media_not_found', 404);
-  return { text, voice };
+  if (item.mediaProofRequired === true && !/^[a-f0-9]{24}$/u.test(item.playInstanceId || '')) {
+    fail('listening_media_not_authorized', 409);
+  }
+  return {
+    text,
+    voice,
+    ...(item.mediaProofRequired === true ? { deliveryRef: {
+      itemId: key.slice(0, 120), playNumber, playInstanceId: item.playInstanceId,
+    } } : {}),
+  };
+}
+
+/**
+ * Persist only an opaque, bounded receipt that the exact active play's one-use media ticket reached
+ * the audio route. No source text, URL, ticket, audio, or response body is stored.
+ */
+export function markListeningMediaDelivered(profile, {
+  itemId, playNumber, playInstanceId, now = Date.now(),
+} = {}) {
+  const { item } = activeItem(profile, itemId);
+  ensureAttemptOwner(profile, item);
+  ensureFresh(item, now);
+  if (item.mediaProofRequired !== true || item.gradeResult
+    || !Number.isInteger(playNumber) || playNumber !== item.playCount
+    || !/^[a-f0-9]{24}$/u.test(playInstanceId || '')
+    || playInstanceId !== item.playInstanceId
+    || !finiteTime(item.playStartedAt) || finiteTime(item.playCompletedAt)) {
+    fail('listening_media_not_authorized', 409);
+  }
+  const existingAt = finiteTime(item.mediaDeliveredAt);
+  if (existingAt && item.mediaDeliveredPlayInstanceId === playInstanceId) {
+    return { delivered: true, replayed: true };
+  }
+  if (now < item.playStartedAt) fail('listening_media_not_authorized', 409);
+  item.mediaDeliveredAt = now;
+  item.mediaDeliveredPlayInstanceId = playInstanceId;
+  return { delivered: true, replayed: false };
 }
 
 export function listeningEvidence(profile, skillId, { limit = 10 } = {}) {
@@ -494,7 +584,10 @@ export function archiveListeningCycle(profile, now = Date.now()) {
     verifiedAt, matched: safeArchivedSummary(proof.matched, prescription.skillId),
     transfer: safeArchivedSummary(proof.transfer, prescription.skillId) };
   const history = Array.isArray(profile.listeningCycleHistory) ? profile.listeningCycleHistory : [];
-  profile.listeningCycleHistory = [...history.filter((item) => item?.id !== id), row].slice(-12);
+  const nextHistory = [...history.filter((item) => item?.id !== id), row];
+  profile.listeningCycleHistory = [...SKILLS]
+    .flatMap((skillId) => nextHistory.filter((item) => item?.skillId === skillId).slice(-CYCLE_HISTORY_PER_SKILL))
+    .sort((a, b) => Number(a?.verifiedAt || 0) - Number(b?.verifiedAt || 0));
   return row;
 }
 
