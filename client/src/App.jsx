@@ -4289,6 +4289,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // Turn-based answer input (typed or spoken→transcribed).
   const [answerText, setAnswerText]   = useState('');
   const [typeOpen, setTypeOpen]       = useState(IN_APP_BROWSER);  // social browsers begin on the reliable typed path
+  const typeOpenRef = useRef(IN_APP_BROWSER);
+  useEffect(() => { typeOpenRef.current = typeOpen; }, [typeOpen]);
   const [bossThinking, setBossThinking] = useState(false); // waiting for the boss's next turn
   const [recording, setRecording]     = useState(false);   // mic clip in progress
   const [transcribing, setTranscribing] = useState(false); // clip → text in flight
@@ -4461,6 +4463,19 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                                            // opening bleeds into a live mic → VAD self-triggers → the
                                            // boss replies over its own greeting ("spoke over himself").
   const clipRecRef      = useRef(null);    // ClipRecorder for spoken answers
+  // Text and microphone are mutually exclusive owners of a turn. Switching to text must stop any
+  // recorder that was already open; merely hiding its UI left ambient speech flowing to the server.
+  useEffect(() => {
+    if (!typeOpen) return;
+    setHandsFree(false);
+    setLiveTranscript('');
+    livePartialRef.current = '';
+    try { clipRecRef.current?.stop?.(); } catch { /* already stopped */ }
+    clipRecRef.current = null;
+    try { geminiMicRef.current?.stop?.(); } catch { /* already stopped */ }
+    geminiMicRef.current = null;
+    setRecording(false);
+  }, [typeOpen]);
   const micStartedBeaconRef = useRef(false); // funnel: report 'mic_started' once per page load
   const bargeRef        = useRef(null);    // barge-in monitor (lets the user interrupt the boss; gated on BARGE_IN_LIVE)
   const livePartialRef  = useRef('');      // latest Deepgram partial — read by the adaptive VAD
@@ -4707,6 +4722,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
         beacon('debrief_shown');   // funnel: a full interview reached its results screen
         firstSessionTraceRef.current('debrief_visible');
+        // The server persists before emitting DEBRIEF. Refresh both authorities immediately so the
+        // new evidence and Salma's explanation cannot contradict the result until a page reload.
+        setBrainGuideRefresh((value) => value + 1);
+        setSalmaResume((value) => value + 1);
         if (msg.progress?.vacancyMilestoneCompleted) beacon('vacancy_targeted_interview_completed');
         if (verdictTimerRef.current) clearTimeout(verdictTimerRef.current);
         setVerdictHold(true);
@@ -4829,6 +4848,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         break;
 
       case S.TRANSCRIPT_PARTIAL:
+        // Typed mode owns the turn exclusively. Ignore a late streaming packet after a mode switch;
+        // otherwise ambient speech can be rendered and committed beside the typed answer.
+        if (typeOpenRef.current) break;
         // Deepgram streaming interim result — show as live text while the user speaks.
         // Also feed the adaptive VAD so it can tell "mid-thought" from "finished sentence".
         livePartialRef.current = msg.text || '';
@@ -4843,7 +4865,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         setLiveTranscript('');
         setTranscribing(false);
         try { console.log(`[DIAG] STT complete words=${msg.transcript ? msg.transcript.trim().split(/\s+/).filter(Boolean).length : 0}`); } catch {}
-        if (msg.transcript) {
+        if (msg.transcript && !typeOpenRef.current) {
           // Boss is now generating its reply — block hands-free from re-triggering the mic
           // before BOSS_SPEECH arrives (gap of 1-2s while Groq generates the response).
           // Without this, the mic restarts immediately and can get stuck in transcribing=true.
@@ -6143,7 +6165,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap',
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
-              <select value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
+              <select aria-label="Interviewer auswählen" value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
@@ -6174,7 +6196,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>
                 Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · mit Elite</span>}
               </span>
-              <select value={billing?.targetIndustry || ''} disabled={!canStart}
+              <select aria-label="Zielbranche auswählen" value={billing?.targetIndustry || ''} disabled={!canStart}
                 onChange={(e) => {
                   const v = e.target.value || null;
                   setBilling((b) => (b ? { ...b, targetIndustry: v } : b));

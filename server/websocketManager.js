@@ -1904,10 +1904,19 @@ export class WebSocketManager {
     const fullTranscript = (ctx.utterances || [])
       .map((u) => { const t = String(u.text || '').trim(); return t ? (looksTruncatedDE(t) ? `${t}  ⟨ABGEBROCHEN⟩` : t) : ''; })
       .filter(Boolean).join('\n');
+    // A transcript grader can assess written German, but this headline is a SPOKEN interview result.
+    // Enforce Evidence Contract v2 before creating a CEFR claim so typed, mixed, ambient-audio, or
+    // otherwise untrusted sessions can never become "C1 under pressure".
+    const spokenEvidence = speakingEvidenceQuality(ctx.utterances, {
+      observedUntrustedTurns: ctx._untrustedEvidenceTurns,
+    });
     let rank = null;
     let gradeUnavailable = false;
     let verdict = null;
-    if (debrief?.tooThin) {
+    if (!spokenEvidence.prescriptionEligible) {
+      gradeUnavailable = true;
+      console.log(`[wsManager] spoken grade skipped — evidence contract failed trusted=${spokenEvidence.trustedSpokenTurns} excluded=${spokenEvidence.excludedUntrustedTurns} stages=${spokenEvidence.stageCoverage} session=${ctx.sessionId}`);
+    } else if (debrief?.tooThin) {
       // HONESTY: too little clean speech (short or mostly cut off) to hand out a hireability verdict —
       // mark it unavailable rather than blame the learner for the system interrupting them.
       gradeUnavailable = true;
@@ -1943,7 +1952,7 @@ export class WebSocketManager {
 
     return {
       outcome, bossHp, playerHp, score, bossId: ctx.bossId,
-      rank, gradeUnavailable, verdict, gradeSource: 'panelscorer',
+      rank, gradeUnavailable, verdict, gradeSource: 'panelscorer', spokenEvidence,
       jobLabel, comboBest: ctx.comboBest, categories,
     };
   }

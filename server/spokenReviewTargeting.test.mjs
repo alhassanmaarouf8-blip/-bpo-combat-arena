@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import http from 'node:http';
 import express from 'express';
 import { normalizeSalmaCoachState, salmaCoachEventId } from './salmaCoachCore.js';
-import { spokenReviewRouter, targetedSpokenReviewQueue } from './spokenReview.js';
+import { spokenReviewRouter, targetedSpokenReviewQueue, usableSpokenReviewItem } from './spokenReview.js';
 
 process.env.AUTH_SECRET ||= 'spoken-review-targeting-test-secret';
 const auth = await import('./auth.js');
@@ -38,6 +38,12 @@ function grammarItem(id, content, due = 0, mastered = false) {
       wrongWord: 'werde', rightWord: 'würde' },
     due, mastered, reps: 0, lapses: 0, stage: 0 };
 }
+
+test('grammar labels without an exact error and correction never become impossible spoken cards', () => {
+  assert.equal(usableSpokenReviewItem({ id:'broken', type:'grammar', content:'Wortstellung',
+    prompt:'Sag den Satz KORREKT laut.', answer:'Wortstellung' }), false);
+  assert.equal(usableSpokenReviewItem(grammarItem('complete', 'Wortstellung')), true);
+});
 
 function voicedWav(milliseconds = 800) {
   const samples = Math.ceil(24_000 * milliseconds / 1000);

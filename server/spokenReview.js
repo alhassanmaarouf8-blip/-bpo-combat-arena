@@ -51,6 +51,14 @@ function publicSpokenItem(item, prescribed = false) {
     wrong: grammar ? (item.example?.wrong || '') : '' };
 }
 
+// A rule label is not a speakable exercise. Without both the exact error and a trustworthy
+// correction, "Wortstellung — say it correctly" is impossible to execute. Fail closed.
+export function usableSpokenReviewItem(item) {
+  if (item?.type === 'grammar') return hasUsableSpokenRepair(item);
+  return typeof item?.answer === 'string' && item.answer.trim().length > 0
+    && typeof item?.prompt === 'string' && item.prompt.trim().length > 0;
+}
+
 export function targetedSpokenReviewQueue(profile, coachState, accountId) {
   const active = coachState?.activePrescription?.drillId === 'sag-es-richtig'
     ? coachState.activePrescription : null;
@@ -234,6 +242,7 @@ spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
     // (polish) ones, then take the session's 8. Stable sort keeps dueItems' due-ascending order
     // within each gravity tier, so the existing "oldest-due first" behavior is preserved as the tiebreak.
     const due = dueItems(p, Date.now(), 50)
+      .filter(usableSpokenReviewItem)
       .sort((a, b) => gravityRank(b) - gravityRank(a) || (a.due - b.due))
       .slice(0, 8);
     const targeted = targetedSpokenReviewQueue(p, coachState, req.account.id);
