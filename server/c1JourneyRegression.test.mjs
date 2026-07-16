@@ -32,8 +32,12 @@ test('typed UI owns the turn and refreshes BrainGuide and Salma after debrief', 
 
 test('typed practice cannot award spoken progression or XP', async () => {
   const wsSource = await readFile(new URL('./websocketManager.js', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
   assert.match(wsSource, /const meaningful\s*=\s*\(metrics\.answers[\s\S]*evidenceQuality\.eligible\s*===\s*true/u);
   assert.match(wsSource, /session NOT counted \(insufficient trusted speech\)/u);
+  assert.match(wsSource, /score >= 68 && isTrustedSpokenEvidence\(spokenEvidence\)/u);
+  assert.match(appSource, /TIPPÜBUNG ABGESCHLOSSEN/u);
+  assert.match(appSource, /Sprechen wurde nicht gemessen/u);
 });
 
 test('spoken headline calculation enforces Evidence Contract v2 before grading', async () => {

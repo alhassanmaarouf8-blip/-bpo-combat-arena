@@ -2248,7 +2248,10 @@ export class WebSocketManager {
     //   weak answer → SKEPTISCH; otherwise composed GEFASST.
     let emotion = 'gefasst';
     if      (ctx.bossHp <= 25) emotion = 'wuetend';
-    else if (score >= 68)      emotion = 'beeindruckt';
+    // A typed practice answer can exercise content, but it cannot prove spoken interview
+    // performance. Never present the interviewer as impressed by evidence we explicitly exclude
+    // from the spoken diagnosis.
+    else if (score >= 68 && isTrustedSpokenEvidence(spokenEvidence)) emotion = 'beeindruckt';
     else if (score <= 40)      emotion = 'skeptisch';
     ctx.emotion = emotion;
     // Feelings reach the boss's WORDS next turn (delivery/tone only — the scorer above stays mood-blind,

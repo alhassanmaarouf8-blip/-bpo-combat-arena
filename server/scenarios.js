@@ -978,7 +978,10 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   // area from past sessions isn't just mentioned for atmosphere — the boss must actively ENGINEER
   // one moment that forces the candidate to demonstrate exactly that weakness, so the interview
   // really re-tests whether they improved instead of asking random questions.
-  const dossierLine = dossier
+  const beginnerDossierLine = dossier && level.id === 'a2-b1'
+    ? `\nDOSSIER (nur intern): Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". Prüfe das früh mit einer kurzen, natürlichen A2-Frage oder Situation. Nenne weder „Akte“, „Dossier“, „Muster“ noch das grammatische Fachwort. Verrate die erwartete Form nicht und behaupte keine Verbesserung.\n`
+    : '';
+  const dossierLine = dossier && level.id !== 'a2-b1'
     ? `\nDOSSIER (aus früheren Gesprächen) — GEZIELTER WIEDERHOLUNGSTEST: Der Kandidat hatte wiederholt Schwierigkeiten mit "${dossier}". ` +
       `Erwähne das EINMAL kurz und kühl früh im Gespräch (z.B. "Ihre Akte zeigt Schwächen bei ${dossier} — zeigen Sie mir, dass sich das gebessert hat."). ` +
       `WICHTIG — belass es NICHT bei der Erwähnung: Baue im Gesprächsverlauf GEZIELT EINE natürliche Situation oder Nachfrage ein, die den Kandidaten ZWINGT, genau diese Schwäche ("${dossier}") zu zeigen — etwa eine Rückfrage, ein Beispiel oder ein Rollenspiel-Moment, der genau diese Struktur bzw. Fähigkeit erfordert. So prüfst du ECHT, ob er sich verbessert hat, statt es nur zu erwähnen. Halte es natürlich im Gesprächsfluss, tue es nur EINMAL gezielt und übertreibe es nicht.\n`
@@ -996,7 +999,10 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   // interviewer who remembers this candidate's TRAJECTORY — real progress, a mistake that keeps
   // recurring, an absence. This LAYERS on the weak-rule re-test above; it must merge with the file
   // mention, not be a second cold opening. Every clause is backed by stored data — invent nothing.
-  const memoryLine = memory
+  const beginnerMemoryLine = memory && level.id === 'a2-b1'
+    ? `\nERINNERUNG (nur intern): ${memory}. Nutze höchstens ein einfaches, konkretes Detail in natürlichem A2-Deutsch. Sage nie „Akte“, „Muster“, „Schwäche“ oder einen technischen Messbegriff.\n`
+    : '';
+  const memoryLine = memory && level.id !== 'a2-b1'
     ? `\nAKTE / ERINNERUNG an diesen Kandidaten aus früheren Gesprächen: ${memory}.\n` +
       `Du bist ein wiederkehrender Interviewer, der diese Akte kennt — verarbeite sie wie ein Mensch, der sich erinnert, GENAU EINMAL, früh, kühl und beiläufig (am besten im selben Atemzug wie die Akten-Erwähnung oben, nicht als zweite, separate Ansage):\n` +
       `- Echten Fortschritt würdigst du kurz und glaubwürdig (z.B. "Ihre Akte zeigt: flüssiger als beim letzten Mal. Gut — heute hebe ich die Latte.").\n` +
@@ -1069,7 +1075,7 @@ Achte auf natürliche Prosodie: Sag nur einen Gedanken pro Redebeitrag, mach nat
 ${level.speechStyle}${level.id === 'a2-b1' ? `
 A2/B1-VERSTÄNDNISHILFE (verbindlich): Wenn der Kandidat „Was bedeutet …?“, „Ich verstehe … nicht“, „bitte einfacher“, „ich weiß nicht“ oder „bitte helfen“ sagt, gehst du NICHT zur nächsten Frage weiter. Erkläre genau EIN schwieriges Wort mit sehr häufigen A2-Wörtern und höchstens einem kurzen Beispiel. Stelle danach dieselbe Aufgabe in EINEM einfachen Satz erneut. Wenn er Hilfe verlangt, gib genau EINEN Satzanfang (zum Beispiel „Ich habe … gemacht, weil …“) und warte. Benutze in dieser Hilfe keine schwierigeren Ersatzwörter wie „eigeninitiativ“, „Verfahren“ oder „eingebracht“. Behandle die Antwort als begleitet; lobe sie nicht als selbstständigen Beweis.
 ` : ''}
-${delivery}${dossierLine}${retestProbeLine}${memoryLine}${focusLine}${zielLine}${vacancyLine}${revancheLine}
+${delivery}${beginnerDossierLine}${dossierLine}${retestProbeLine}${beginnerMemoryLine}${memoryLine}${focusLine}${zielLine}${vacancyLine}${revancheLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - GESPROCHENE SPRACHE, KEIN vorgelesener Text (wichtigster Natürlichkeits-Hebel): Sprich in lockerer, gesprochener Hochsprache — mit Kontraktionen ("ich hab", "gibt's", "so was", "ne?") — und beginne deine Reaktion oft mit einem kurzen, echten mündlichen Marker, wie ein Mensch am Telefon ("Gut.", "Okay.", "Aha.", "Na gut.", "Also,", "Mhm,"). Variiere diese Marker, wiederhole nicht denselben. So klingt deine Stimme nach einem echten Menschen, nicht nach abgelesenem Schriftdeutsch.
