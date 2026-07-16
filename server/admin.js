@@ -23,6 +23,7 @@ import { deleteGuide }                   from './guideStore.js';
 import { deleteFeedbackFor }             from './feedback.js';
 import { deleteWeaknessData }             from './db.js';
 import { buildSpokenGoldProfileSnapshot } from './spokenGoldSnapshot.js';
+import { createAdminStudyInviteLink } from './studyCohortAdmin.js';
 
 export const adminRouter = express.Router();
 
@@ -383,6 +384,28 @@ adminRouter.post('/admin/spoken-gold-snapshot', async (req, res) => {
   } catch (e) {
     console.error('[admin] spoken gold snapshot error:', e.message);
     return res.status(500).json({ error: 'snapshot_failed' });
+  }
+});
+
+// Owner-only creation of an already allowlisted, one-use 21-day study link. The signing secret
+// never leaves the server, and the bearer remains in the URL fragment so it cannot enter request
+// logs or referrers. Account reservation/claim remains atomic in the existing cohort flow.
+adminRouter.post('/admin/study-cohort-invite', (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const invite = createAdminStudyInviteLink({
+      inviteId: req.body?.inviteId,
+      participantSlot: req.body?.participantSlot,
+      validHours: req.body?.validHours,
+    });
+    res.set('Cache-Control', 'no-store, max-age=0');
+    res.set('Pragma', 'no-cache');
+    return res.json(invite);
+  } catch (error) {
+    const known = new Set(['study_cohort_not_configured', 'invite_id_not_allowlisted', 'invalid_participant_slot',
+      'invalid_validity_hours', 'invalid_study_app_url']);
+    const message = String(error?.message || 'invite_generation_failed');
+    return res.status(known.has(message) ? 400 : 500).json({ error: known.has(message) ? message : 'invite_generation_failed' });
   }
 });
 

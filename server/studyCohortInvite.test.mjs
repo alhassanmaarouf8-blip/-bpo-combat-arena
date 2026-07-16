@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { createStudyCohortInvite, STUDY_COHORT_DAYS, STUDY_COHORT_ID,
-  validateStudyCohortInvite } from './studyCohortInvite.js';
+  studyInviteIdAllowed, validateStudyCohortInvite } from './studyCohortInvite.js';
 
 const SECRET = 'cohort-test-key-' + 'x'.repeat(32);
 const ID = 'candidate_0001';
@@ -27,6 +27,17 @@ test('study invite validates only the exact allowlisted 21-day cohort payload', 
   assert.equal(validateStudyCohortInvite(token, { env:env({ STUDY_COHORT_MODE:'off' }), now:NOW }), null);
   assert.equal(validateStudyCohortInvite(token, { env:env({ STUDY_COHORT_INVITE_SECRET:'' }), now:NOW }), null);
   assert.equal(validateStudyCohortInvite(token, { env:env({ STUDY_COHORT_INVITE_IDS:'someone_else' }), now:NOW }), null);
+});
+
+test('one configured seed supports distinct signed one-use participant slots only', () => {
+  const slottedId = `${ID}__01`;
+  const token = createStudyCohortInvite({ inviteId: slottedId, expiresAt: NOW + 86_400_000, secret: SECRET });
+  assert.equal(studyInviteIdAllowed(slottedId, env()), true);
+  assert.equal(validateStudyCohortInvite(token, { env: env(), now: NOW })?.inviteId, slottedId);
+  for (const rejected of [`${ID}__00`, `${ID}__100`, `${ID}__aa`, 'unknown__01']) {
+    const candidate = createStudyCohortInvite({ inviteId: rejected, expiresAt: NOW + 86_400_000, secret: SECRET });
+    assert.equal(validateStudyCohortInvite(candidate, { env: env(), now: NOW }), null);
+  }
 });
 
 test('study invite fails closed for tampering, expiry, oversized tokens, and extra keys', () => {

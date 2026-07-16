@@ -7,6 +7,7 @@ const TOKEN_VERSION = 1;
 const MAX_TOKEN_LENGTH = 2048;
 const MAX_FUTURE_MS = 45 * 24 * 60 * 60 * 1000;
 const INVITE_ID_RE = /^[a-z0-9][a-z0-9_-]{7,63}$/;
+const PARTICIPANT_SLOT_RE = /^(.*)__([0-9]{2})$/;
 const PAYLOAD_KEYS = new Set(['v', 'cohort', 'inviteId', 'days', 'exp']);
 
 function base64url(value) {
@@ -35,6 +36,15 @@ function allowlistedInviteIds(raw) {
   return new Set(values);
 }
 
+function inviteIdAllowed(inviteId, configuredIds) {
+  const id = String(inviteId || '');
+  if (configuredIds.has(id)) return true;
+  const match = id.match(PARTICIPANT_SLOT_RE);
+  if (!match || !configuredIds.has(match[1])) return false;
+  const slot = Number(match[2]);
+  return Number.isInteger(slot) && slot >= 1 && slot <= 99;
+}
+
 export function studyCohortConfig(env = process.env) {
   const mode = String(env.STUDY_COHORT_MODE || '').trim().toLowerCase();
   const secret = String(env.STUDY_COHORT_INVITE_SECRET || '');
@@ -45,7 +55,7 @@ export function studyCohortConfig(env = process.env) {
 
 export function studyInviteIdAllowed(inviteId, env = process.env) {
   const config = studyCohortConfig(env);
-  return config.enabled && config.inviteIds.has(String(inviteId || ''));
+  return config.enabled && inviteIdAllowed(inviteId, config.inviteIds);
 }
 
 export function createStudyCohortInvite({ inviteId, expiresAt, secret }) {
@@ -83,7 +93,7 @@ export function validateStudyCohortInvite(token, { env = process.env, now = Date
   const keys = Object.keys(payload);
   if (keys.length !== PAYLOAD_KEYS.size || keys.some((key) => !PAYLOAD_KEYS.has(key))) return null;
   if (payload.v !== TOKEN_VERSION || payload.cohort !== STUDY_COHORT_ID || payload.days !== STUDY_COHORT_DAYS) return null;
-  if (!INVITE_ID_RE.test(payload.inviteId) || !config.inviteIds.has(payload.inviteId)) return null;
+  if (!INVITE_ID_RE.test(payload.inviteId) || !inviteIdAllowed(payload.inviteId, config.inviteIds)) return null;
   if (!Number.isSafeInteger(payload.exp) || payload.exp <= now || payload.exp - now > MAX_FUTURE_MS) return null;
   return Object.freeze({
     cohortId: STUDY_COHORT_ID,
