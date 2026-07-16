@@ -6,7 +6,7 @@
 
 ## Outcome
 
-The software loop is closed and executable. The product can now capture server-owned spoken
+The software loop is closed, deployed, and executable. The product can now capture server-owned spoken
 evidence, derive one bounded diagnosis, prescribe the production `druck-leiter` protocol, require
 matched plus novel transfer, export a privacy-minimized owner snapshot, blind the review package,
 compare two independent qualified raters, adjudicate only disagreements, and calculate aggregate
@@ -25,7 +25,7 @@ time-to-hire accuracy percentage is claimed.
 | 2. Requirement-to-evidence mapping | Frozen target, two-opportunity Evidence Contract v2 measurement, abstention, one bottleneck, exact dose, BrainGuide authority, Salma explanation, matched retest, novel retest, blinding, privacy, inter-rater-first reporting, and adversarial rejection are implemented and tested. |
 | 3. Owner-smoke path inspection | A blocking operational gap was found: production could persist the evidence but could not export the exact bounded profile snapshot required by the study tooling. |
 | 4. Earliest-layer repair | Added an admin-only POST export and panel download. It returns only immutable account ID, allowlisted server session evidence, and bounded Salma transfer-proof state. It is `no-store`, excludes contact/payment/push/vacancy/free-form/transcript data, and is detached from mutable runtime state. |
-| 5. Verification and release | Focused snapshot and spoken-study provenance tests pass. The complete verification and production checks must pass before the repair is released. |
+| 5. Verification and release | The private export reproduces the full-profile diagnosis, prescription, and mastery decision exactly. Focused tests and the complete verification suite pass (660/660 server tests, lint, design lint, security scan, production build, and artifact verification). The repair is live in production build `a867d0a`. |
 
 ## What is proven
 

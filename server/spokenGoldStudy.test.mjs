@@ -15,6 +15,7 @@ import {
 } from './scenarios.js';
 import { entryInteractionEvidence } from './scoring/entryInteractionEvidence.js';
 import { speakingMeasurementForSkill } from './scoring/speakingMeasurement.js';
+import { buildSpokenGoldProfileSnapshot } from './spokenGoldSnapshot.js';
 import {
   buildSpokenGoldStudy,
   createSpokenDisagreementTemplate,
@@ -264,7 +265,9 @@ function completedReview(pack, reviewerId, change = null) {
 }
 
 test('app decisions are derived from bound server profiles and fail closed on bad evidence', () => {
-  const selected = deriveSpokenGoldAppDecision(baselineProfile(20), finalProfile(20));
+  const completeBaseline = baselineProfile(20);
+  const completeFinal = finalProfile(20);
+  const selected = deriveSpokenGoldAppDecision(completeBaseline, completeFinal);
   assert.equal(selected.decision, 'selected');
   assert.equal(selected.observedScore, 66.7);
   assert.equal(selected.prescription.drillId, 'druck-leiter');
@@ -273,6 +276,13 @@ test('app decisions are derived from bound server profiles and fail closed on ba
   assert.equal(selected.prescription.novelRetestAfterMinutes, 10_080);
   assert.equal(selected.masteryClaimed, true);
   assert.match(selected.decisionBinding, /^[a-f0-9]{64}$/u);
+
+  const exported = deriveSpokenGoldAppDecision(
+    buildSpokenGoldProfileSnapshot(completeBaseline),
+    buildSpokenGoldProfileSnapshot(completeFinal),
+  );
+  assert.deepEqual(exported, selected,
+    'privacy-safe owner exports must reproduce the full server-profile study decision exactly');
 
   assert.equal(deriveSpokenGoldAppDecision(baselineProfile(21, 'not_selected')).decision, 'not_selected');
   assert.equal(deriveSpokenGoldAppDecision(baselineProfile(22, 'conflicting')).decision, 'abstain');
