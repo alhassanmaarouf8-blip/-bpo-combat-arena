@@ -30,6 +30,24 @@ test('first-use Salma executes the BrainGuide assessment and persists the one-ti
   assert.doesNotMatch(takeover, /name_goal|intro_trial|saveProfile|salma_name_saved/u);
 });
 
+test('assessment completion synchronously enters the first spoken interview', async () => {
+  const app = await read('client/src/App.jsx');
+  const handoffStart = app.indexOf('const completeAssessmentAndStartInterview = useCallback');
+  const handoffEnd = app.indexOf('\n  }, [beginSession]);', handoffStart);
+  const handoff = app.slice(handoffStart, handoffEnd);
+
+  assert.ok(handoffStart >= 0 && handoffEnd > handoffStart,
+    'the assessment must have one explicit interview handoff');
+  assert.match(handoff, /setAssessmentOpen\(false\);\s*beginSession\(\);/u,
+    'closing the assessment and starting the interview must share the same trusted click');
+  assert.doesNotMatch(handoff, /setTimeout|queueMicrotask|Promise|requestAnimationFrame/u,
+    'audio unlock and microphone permission must not be deferred beyond user activation');
+  assert.match(app, /onStartInterview=\{salma[\s\S]{0,220}: completeAssessmentAndStartInterview\}/u,
+    'the ordinary completed-assessment CTA must use the synchronous handoff');
+  assert.doesNotMatch(app, /setTimeout\(\(\) => beginSession\(\),\s*60\)/u,
+    'the production deadlock regression must not return');
+});
+
 test('A2 is routed through measured foundation work rather than rejected from training', async () => {
   const takeover = await read('client/src/SalmaTakeover.jsx');
   assert.match(takeover, /ASSESS_LEVEL_MAP = \{[^\n]*A2: 'a2-b1'/u);

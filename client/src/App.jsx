@@ -5561,6 +5561,16 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     beginSession();
   }, [beginSession]);
 
+  // Keep the assessment-result tap in the browser's trusted user-activation chain. Audio unlock,
+  // microphone permission and the interview start must all happen synchronously from this click;
+  // deferring beginSession (even briefly) can close the assessment while mobile/PWA browsers discard
+  // the gesture, leaving a learner back on an assessment-only BrainGuide directive with no reachable
+  // interview. Closing the overlay schedules a React render, but does not prevent this direct start.
+  const completeAssessmentAndStartInterview = useCallback(() => {
+    setAssessmentOpen(false);
+    beginSession();
+  }, [beginSession]);
+
   // One dispatcher for every BrainGuide-selected action. First-use Salma may explain the cold-start
   // assessment, but it must call this exact path instead of opening a legacy generic interview.
   const executeBrainDirective = useCallback((d, why) => {
@@ -5805,7 +5815,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               : () => setAssessmentOpen(false)}
             onStartInterview={salma
               ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
-              : () => { setAssessmentOpen(false); setTimeout(() => beginSession(), 60); }} />
+              : completeAssessmentAndStartInterview} />
         </Suspense>
       )}
 
