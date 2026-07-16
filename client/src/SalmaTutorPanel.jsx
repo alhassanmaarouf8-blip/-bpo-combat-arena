@@ -9,6 +9,11 @@ const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, curs
   color: '#bfdbfe', fontSize: 12.5, fontWeight: 650 };
 
 function auth(token, extra = {}) { return { Authorization: `Bearer ${token}`, ...extra }; }
+function microphoneErrorMessage(code) {
+  if (code === 'MIC_DENIED') return 'Der Mikrofonzugriff ist blockiert. Erlaube ihn in den Website-Einstellungen und versuche es erneut.';
+  if (code === 'MIC_NOT_FOUND' || code === 'MIC_ENDED') return 'Kein aktives Mikrofon gefunden. Prüfe dein Mikrofon und versuche es erneut.';
+  return 'Das Mikrofon konnte nicht gestartet werden. Deine getippte Frage bleibt verfügbar.';
+}
 function formatCairoRetest(value) {
   if (!Number.isFinite(Number(value))) return 'dem angezeigten Zeitpunkt';
   return new Intl.DateTimeFormat('de-DE', { timeZone: 'Africa/Cairo', dateStyle: 'medium', timeStyle: 'short' })
@@ -98,9 +103,11 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const [cue, setCue] = useState(null);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [microphoneHeard, setMicrophoneHeard] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState('');
   const recorderRef = useRef(null);
+  const microphoneHeardRef = useRef(false);
   const speechStopRef = useRef(null);
   const spokenEventRef = useRef(null);
   const beaconedRef = useRef(new Set());
@@ -220,8 +227,10 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
       if (!response.ok) throw new Error(body.error || 'question_failed');
       setAnswer(body.answer || ''); setQuestion('');
       if (speakReply && coach?.feature?.voiceEnabled) speak(body.answer || '');
+      return true;
     } catch (cause) {
-      setError(cause.message === 'question_limit_reached' ? 'Dein heutiges Fragenlimit ist erreicht.' : 'Salma konnte gerade nicht antworten. Dein Trainingsschritt bleibt verfügbar.');
+      setError('Salma konnte gerade nicht antworten. Deine Frage bleibt stehen; versuche es erneut.');
+      return false;
     } finally { setBusy(false); }
   }, [apiUrl, coach?.feature?.voiceEnabled, drillId, screen, speak, token]);
 
@@ -229,19 +238,42 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
     if (busy) return;
     if (!recording) {
       stopSpeech(); setError('');
-      try { const recorder = new ClipRecorder(); recorderRef.current = recorder; await recorder.start(); setRecording(true); }
-      catch { recorderRef.current = null; setError('Das Mikrofon ist nicht verfügbar. Du kannst deine Frage direkt eintippen.'); }
+      setMicrophoneHeard(false); microphoneHeardRef.current = false;
+      try {
+        const recorder = new ClipRecorder({
+          onVolume: (level) => {
+            if (level > 0.015 && !microphoneHeardRef.current) {
+              microphoneHeardRef.current = true; setMicrophoneHeard(true);
+            }
+          },
+          onError: (cause) => {
+            recorder.stop().catch(() => {}); recorderRef.current = null;
+            setRecording(false); setMicrophoneHeard(false);
+            setError(microphoneErrorMessage(cause?.code));
+          },
+        });
+        recorderRef.current = recorder; await recorder.start(); setRecording(true);
+      } catch (cause) {
+        recorderRef.current = null; setMicrophoneHeard(false);
+        setError(microphoneErrorMessage(cause?.code));
+      }
       return;
     }
-    setRecording(false); setBusy(true);
+    setRecording(false); setMicrophoneHeard(false); setBusy(true);
     try {
       const result = await recorderRef.current?.stop(); recorderRef.current = null;
       if (!result?.blob || result.durationMs < 600) throw new Error('too_short');
       const response = await fetch(`${apiUrl}/api/transcribe`, { method: 'POST', headers: auth(token, { 'Content-Type': 'audio/wav', 'X-Salma-Coach': '1' }), body: result.blob });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.text) throw new Error('transcribe_failed');
+      if (!response.ok) throw new Error(body.error || 'transcribe_failed');
+      if (!body.text) throw new Error('no_speech');
+      setQuestion(body.text);
       await ask(body.text, true);
-    } catch { setError('Die Sprachfrage konnte nicht verarbeitet werden. Tippe sie bitte ein.'); }
+    } catch (cause) {
+      if (cause.message === 'too_short') setError('Die Aufnahme war zu kurz. Sprich eine vollständige Frage und beende dann die Aufnahme.');
+      else if (cause.message === 'no_speech') setError('Ich habe keine Stimme erkannt. Sprich näher am Mikrofon und versuche es erneut.');
+      else setError('Die Sprachfrage konnte nicht verarbeitet werden. Deine getippte Frage bleibt verfügbar.');
+    }
     finally { setBusy(false); }
   }, [apiUrl, ask, busy, recording, stopSpeech, token]);
 
@@ -428,6 +460,9 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
                 {busy ? 'Einen Moment …' : 'Fragen'}
               </button>
             </div>
+            {recording && <div role="status" aria-live="polite" style={{ marginTop: 8, color: microphoneHeard ? '#86efac' : '#bfdbfe', fontSize: 12.5 }}>
+              {microphoneHeard ? 'Stimme erkannt. Sprich zu Ende und wähle dann „Aufnahme beenden“.' : 'Mikrofon aktiv. Sprich jetzt; danach „Aufnahme beenden“ wählen.'}
+            </div>}
           </form>
         </div>
       </details>

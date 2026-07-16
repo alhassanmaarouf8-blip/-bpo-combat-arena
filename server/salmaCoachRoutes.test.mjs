@@ -28,7 +28,7 @@ async function api(base, path, token, options = {}) {
   return { response, body: await response.json() };
 }
 
-test('coach routes fail closed, isolate accounts, enforce limits, and never persist questions', async () => {
+test('coach routes fail closed, isolate accounts, allow tutor questions, and never persist questions', async () => {
   const previous = process.env.SALMA_COACH_MODE; const first = await create('first'); const second = await create('second', 'basic');
   try {
     await withApi(async (base) => {
@@ -36,7 +36,8 @@ test('coach routes fail closed, isolate accounts, enforce limits, and never pers
       assert.equal((await api(base, '/api/salma/coach', first.token)).response.status, 404);
       process.env.SALMA_COACH_MODE = 'on';
       const view = await api(base, '/api/salma/coach', first.token);
-      assert.equal(view.response.status, 200); assert.equal(view.body.capabilities.dailyQuestions, 3);
+      assert.equal(view.response.status, 200); assert.equal(view.body.capabilities.questionsUnlimited, true);
+      assert.equal(Object.hasOwn(view.body.capabilities, 'dailyQuestions'), false);
       assert.equal(view.body.feature.aiEnabled, false); assert.equal(view.body.feature.voiceEnabled, false);
 
       const preferences = await api(base, '/api/salma/preferences', first.token, {
@@ -48,18 +49,17 @@ test('coach routes fail closed, isolate accounts, enforce limits, and never pers
       });
       assert.equal(badContext.response.status, 400);
 
-      for (let count = 0; count < 3; count += 1) {
+      for (let count = 0; count < 12; count += 1) {
         const answer = await api(base, '/api/salma/question', first.token, {
           method: 'POST', body: JSON.stringify({ question: 'Was mache ich jetzt?', context: { screen: 'home' } }),
         });
         assert.equal(answer.response.status, 200); assert.equal(answer.body.source, 'deterministic');
+        assert.equal(Object.hasOwn(answer.body, 'remaining'), false);
       }
-      assert.equal((await api(base, '/api/salma/question', first.token, {
-        method: 'POST', body: JSON.stringify({ question: 'Noch eine Frage?', context: { screen: 'home' } }),
-      })).response.status, 429);
 
       const firstStored = await loadUser(first.account.id); const secondStored = await loadUser(second.account.id);
       assert.equal(JSON.stringify(firstStored.salmaCoach).includes('Was mache ich'), false);
+      assert.equal(Object.hasOwn(firstStored.salmaCoach.coachState, 'questionUsage'), false);
       assert.equal(secondStored.salmaCoach.preferences.dailyMinutes, 10);
     });
   } finally {

@@ -42,10 +42,17 @@ test('unreviewed Masri is fail-closed and Salma copy speaks German until a froze
 
 test('tutor reuses the existing recorder, transcription and Salma voice', async () => {
   const panel = await read('client/src/SalmaTutorPanel.jsx');
+  const recorder = await read('client/src/clipRecorder.js');
   assert.match(panel, /ClipRecorder/u);
   assert.match(panel, /\/api\/transcribe/u);
   assert.match(panel, /X-Salma-Coach/u);
   assert.match(panel, /salmaModel/u);
+  assert.match(panel, /setQuestion\(body\.text\)/u,
+    'a recognized spoken question must remain visible until Salma answers it');
+  assert.match(panel, /Stimme erkannt/u);
+  assert.doesNotMatch(panel, /question_limit_reached|Fragenlimit/u);
+  assert.match(recorder, /onError:\s+onError \|\|/u,
+    'mid-recording microphone failures must reach the tutor UI');
   assert.doesNotMatch(panel, /getUserMedia|WebSocket/u);
 });
 

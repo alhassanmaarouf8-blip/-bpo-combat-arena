@@ -1,8 +1,8 @@
 import express from 'express';
 import { requireAuth } from './auth.js';
 import { mutateUser } from './store.js';
-import { acknowledgeEvent, answerSalmaQuestion, consumeQuestion, normalizeSalmaCoachState,
-  publicSalmaCoach, salmaCoachCapabilities, salmaCoachFlags, syncSalmaCoach, updatePreferences } from './salmaCoachCore.js';
+import { acknowledgeEvent, answerSalmaQuestion, normalizeSalmaCoachState,
+  publicSalmaCoach, salmaCoachFlags, syncSalmaCoach, updatePreferences } from './salmaCoachCore.js';
 
 export const salmaCoachRouter = express.Router();
 function requireCoach(req, res, next) {
@@ -44,11 +44,10 @@ salmaCoachRouter.post('/salma/question', requireAuth, requireCoach, async (req, 
     const drillId = typeof context.drillId === 'string' ? context.drillId : '';
     if (screen && !['home', 'drill', 'debrief', 'vacancy'].includes(screen)) return res.status(400).json({ error: 'invalid_context' });
     if (drillId && !['satzbau-schmiede', 'sag-es-richtig', 'flow-drill', 'hoer-check', 'shadowing', 'druck-leiter', 'srs'].includes(drillId)) return res.status(400).json({ error: 'invalid_context' });
-    const capabilities = salmaCoachCapabilities(req.account);
     const result = await mutateUser(req.account.id, (profile) => {
-      const synced = syncSalmaCoach(profile); profile.salmaCoach = consumeQuestion(synced.state, capabilities.dailyQuestions);
+      const synced = syncSalmaCoach(profile); profile.salmaCoach = synced.state;
       const answer = answerSalmaQuestion(body.question, { screen, drillId }, profile.salmaCoach);
-      return { value: { ...answer, remaining: Math.max(0, capabilities.dailyQuestions - profile.salmaCoach.coachState.questionUsage.count) } };
+      return { value: answer };
     });
     res.json(result);
   } catch (error) { res.status(error.code || 500).json({ error: error.code ? error.message : 'question_failed' }); }

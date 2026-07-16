@@ -9,7 +9,7 @@ import { validatedTransferProofs } from './scoring/transferProofs.js';
 import { listeningDifficultyContract } from './listeningEvidence.js';
 import { analyzeVacancyDeterministically, buildVacancyDraft, emptyVacancyState,
   preparePastedVacancy } from './vacancyTargetCore.js';
-import { acknowledgeEvent, answerSalmaQuestion, cairoDay, coachCueForDrill, consumeQuestion,
+import { acknowledgeEvent, answerSalmaQuestion, coachCueForDrill,
   canonicalCoachDirective, deriveSalmaPrescription, measurementForSkill, normalizeSalmaCoachState, publicSalmaCoach, recordDrillOutcome,
   prescriptionDoseProgress, publicListeningRetest, publicSpeakingRetest, recordMeaningfulRetest, salmaCoachCapabilities, salmaCoachFlags,
   salmaCoachBrainGate, salmaRetestTarget, safeIntervention, syncSalmaCoach, updatePreferences } from './salmaCoachCore.js';
@@ -141,10 +141,12 @@ test('feature flags fail closed and beta is account allowlisted', () => {
   assert.equal(flags.aiEnabled, true); assert.equal(flags.voiceEnabled, true);
 });
 
-test('entitlements expose 3/30/60 questions without changing plan truth', () => {
-  assert.equal(salmaCoachCapabilities(account('free')).dailyQuestions, 3);
-  assert.equal(salmaCoachCapabilities(account('basic')).dailyQuestions, 30);
-  assert.equal(salmaCoachCapabilities(account('elite')).dailyQuestions, 60);
+test('every plan can ask the personal tutor without an artificial daily quota', () => {
+  for (const plan of ['free', 'basic', 'elite']) {
+    const capabilities = salmaCoachCapabilities(account(plan));
+    assert.equal(capabilities.questionsUnlimited, true);
+    assert.equal(Object.hasOwn(capabilities, 'dailyQuestions'), false);
+  }
 });
 
 test('prescription is evidence-hashed, idempotent and respects a five-minute budget', () => {
@@ -625,15 +627,13 @@ test('proof then prescription acknowledgements cannot oscillate forever', () => 
     ['2222222222222222', '1111111111111111', '4444444444444444']);
 });
 
-test('questions are transient, bounded by Cairo day and grounded in prescription', () => {
+test('questions are transient and grounded in the active prescription', () => {
   let state = normalizeSalmaCoachState(null);
   state.activePrescription = { id: '0123456789abcdef', evidenceIds: [], skillId: 'word-order-sub', drillId: 'satzbau-schmiede', blocks: 1,
     repetitions: 6, durationSeconds: 600, timesPerDay: 1, minimumSpacingMinutes: 240, successGate: 'Zweimal korrekt.', assignedAt: 1, nextEligibleAt: null };
-  const now = Date.parse('2026-07-14T08:00:00Z');
-  state = consumeQuestion(state, 1, now); assert.equal(state.coachState.questionUsage.day, cairoDay(now));
-  assert.throws(() => consumeQuestion(state, 1, now), /question_limit_reached/u);
   const reply = answerSalmaQuestion('Warum soll ich das machen?', { screen: 'home' }, state);
   assert.match(reply.answer, /Satzstellung/u); assert.equal(Object.hasOwn(state, 'question'), false);
+  assert.equal(Object.hasOwn(state.coachState, 'questionUsage'), false);
 });
 
 test('between-attempt cue is emitted only for a real failed drill outcome', () => {

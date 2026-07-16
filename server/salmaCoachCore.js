@@ -371,7 +371,7 @@ export function salmaCoachFlags(env = process.env, account = null) {
 
 export function salmaCoachCapabilities(account) {
   const trial = trialActive(account); const plan = planOf(account); const depth = trial ? 'elite' : plan;
-  return Object.freeze({ plan, trial, dailyQuestions: depth === 'elite' ? 60 : depth === 'basic' ? 30 : 3,
+  return Object.freeze({ plan, trial, questionsUnlimited: true,
     fullTutor: depth === 'basic' || depth === 'elite', vacancyCoaching: depth === 'elite', urgentMode: depth === 'elite' });
 }
 
@@ -506,15 +506,13 @@ export function normalizeSalmaCoachState(value) {
   const acknowledgedEventIds = Array.isArray(coach.acknowledgedEventIds)
     ? [...new Set(coach.acknowledgedEventIds.filter((id) => /^[a-f0-9]{16}$/u.test(id)))].slice(-24) : [];
   if (lastHandledEventId && !acknowledgedEventIds.includes(lastHandledEventId)) acknowledgedEventIds.push(lastHandledEventId);
-  return { version: 3, preferences: { dailyMinutes: [5, 10, 20].includes(Number(pref.dailyMinutes)) ? Number(pref.dailyMinutes) : 10,
+  return { version: 4, preferences: { dailyMinutes: [5, 10, 20].includes(Number(pref.dailyMinutes)) ? Number(pref.dailyMinutes) : 10,
     preferredWindows: Array.isArray(pref.preferredWindows) ? [...new Set(pref.preferredWindows.filter((v) => WINDOWS.has(v)))].slice(0, 3) : [],
     languageSupport: LANGUAGES.has(pref.languageSupport) ? pref.languageSupport : 'de', autoSpeak: pref.autoSpeak === true, muted: pref.muted === true },
     activePrescription: normalizeStoredPrescription(raw.activePrescription), coachState: {
       lastHandledEventId, acknowledgedEventIds: acknowledgedEventIds.slice(-24),
       repeatedErrorCounts, completedBlocks, lastRetestSessionId: boundedString(coach.lastRetestSessionId, 100) || null,
-      improvementHistory,
-      questionUsage: { day: /^\d{4}-\d{2}-\d{2}$/u.test(coach.questionUsage?.day || '') ? coach.questionUsage.day : '',
-        count: Number.isInteger(coach.questionUsage?.count) ? Math.max(0, Math.min(100, coach.questionUsage.count)) : 0 } } };
+      improvementHistory } };
 }
 
 function recentReliableSessions(profile, now) {
@@ -995,14 +993,6 @@ export function updatePreferences(state, input) {
   if (Object.hasOwn(input, 'autoSpeak')) { if (typeof input.autoSpeak !== 'boolean') throw Object.assign(new Error('invalid_auto_speak'), { code: 400 }); next.preferences.autoSpeak = input.autoSpeak; }
   if (Object.hasOwn(input, 'muted')) { if (typeof input.muted !== 'boolean') throw Object.assign(new Error('invalid_muted'), { code: 400 }); next.preferences.muted = input.muted; }
   return next;
-}
-
-export function cairoDay(now = Date.now()) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now)); }
-export function consumeQuestion(state, limit, now = Date.now()) {
-  const next = normalizeSalmaCoachState(state); const day = cairoDay(now);
-  const usage = next.coachState.questionUsage.day === day ? next.coachState.questionUsage : { day, count: 0 };
-  if (usage.count >= limit) throw Object.assign(new Error('question_limit_reached'), { code: 429 });
-  next.coachState.questionUsage = { day, count: usage.count + 1 }; return next;
 }
 
 export function answerSalmaQuestion(question, context, state) {

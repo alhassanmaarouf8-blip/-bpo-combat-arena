@@ -11,7 +11,7 @@ import { stopTutorPlayback } from './salmaAudioSafety.js';
 const SAMPLE_RATE = 24_000;
 
 export class ClipRecorder {
-  constructor({ onVolume, onChunk, sharedContext = null } = {}) {
+  constructor({ onVolume, onChunk, onError, sharedContext = null } = {}) {
     this._chunks = [];
     this._rec = new AudioRecorder({
       onChunk:  (b64) => {
@@ -19,7 +19,7 @@ export class ClipRecorder {
         onChunk?.(b64);   // forward raw b64 PCM for streaming path
       },
       onVolume: onVolume || (() => {}),
-      onError:  () => {},
+      onError:  onError || (() => {}),
       sharedContext,   // a gesture-unlocked 24kHz context reused across turns → mobile auto-listen
     });
     this._startedAt = 0;
