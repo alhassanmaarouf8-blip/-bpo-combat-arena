@@ -1,5 +1,15 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## SPOKEN GOLD SOFTWARE LOOP CLOSED (2026-07-16)
+- The first frozen spoken criterion is fully executable from production: the owner admin can now
+  download a minimal `no-store` spoken-gold profile snapshot after baseline and final retest.
+- The snapshot allowlists only immutable account ID, required server-recorded session fields, and
+  bounded Salma transfer-proof state. Contact, payment, push, vacancy, free-form feedback,
+  transcript, and unrelated profile fields are excluded and regression-tested.
+- Closure evidence is recorded in `docs/SPOKEN_GOLD_LOOP_CLOSURE_2026-07-16.md`.
+- This closes the software/operational gap; it does not fabricate external accuracy. Owner smoke,
+  five consenting Egyptian A2-B2 candidates, and two blind qualified German raters remain required.
+
 ## SPOKEN GOLD-STUDY PROVENANCE REPAIR (2026-07-16, branch `codex/listening-transfer-v2`)
 - Replaced operator-supplied study verdicts with decisions re-derived from the exact persisted server
   profile snapshots through the production speaking-measurement and transfer-proof validators. The

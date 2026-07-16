@@ -91,6 +91,13 @@ profile is captured after the matched and novel retests. Use opaque participant 
 add a transcript, name, email, phone, employer, session ID, URL, app verdict, or raw media field to
 the manifest.
 
+The production admin panel now exposes an owner-only **spoken gold snapshot** download for the
+account selected in User detail. The request is a protected POST, is marked `no-store`, and returns
+only the immutable account ID, allowlisted server-recorded session evidence, and bounded Salma
+transfer-proof state. It excludes contact, payment, push, vacancy, free-form feedback, and raw
+transcript fields. Download once after the second baseline opportunity and again after the novel
+retest; rename the two files to the opaque filenames referenced by the manifest.
+
 ```json
 {
   "schemaVersion": 1,

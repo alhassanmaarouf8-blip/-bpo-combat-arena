@@ -22,6 +22,7 @@ import { PLANS }                         from './plans.config.js';
 import { deleteGuide }                   from './guideStore.js';
 import { deleteFeedbackFor }             from './feedback.js';
 import { deleteWeaknessData }             from './db.js';
+import { buildSpokenGoldProfileSnapshot } from './spokenGoldSnapshot.js';
 
 export const adminRouter = express.Router();
 
@@ -366,6 +367,25 @@ adminRouter.get('/admin/user-detail', async (req, res) => {
   } catch (e) { console.error('[admin] user-detail error:', e.message); res.status(500).json({ error: 'user_detail_failed' }); }
 });
 
+// Private, owner-only evidence export for the frozen spoken gold study. It returns a minimal
+// allowlisted profile projection instead of the account record or full production profile.
+// POST keeps the lookup email out of access logs; no-store prevents browser/proxy persistence.
+adminRouter.post('/admin/spoken-gold-snapshot', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const acc = await getAccountByEmail(String(req.body?.email || '').trim());
+    if (!acc) return res.status(404).json({ error: 'account_not_found' });
+    const snapshot = buildSpokenGoldProfileSnapshot(await loadUser(acc.id));
+    res.set('Cache-Control', 'no-store, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Content-Disposition', 'attachment; filename="spoken-gold-profile.json"');
+    return res.json(snapshot);
+  } catch (e) {
+    console.error('[admin] spoken gold snapshot error:', e.message);
+    return res.status(500).json({ error: 'snapshot_failed' });
+  }
+});
+
 // Self-contained panel. Reads the key from its own URL; values rendered via textContent (no XSS).
 const ADMIN_LOGIN_HTML = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>OMNI Admin</title></head><body style="font-family:system-ui;background:#0a0f1a;color:#e2e8f0;min-height:100vh;display:grid;place-items:center;margin:0"><form method="post" action="/admin/session" style="width:min(360px,calc(100vw - 40px));padding:24px;border:1px solid #334155;border-radius:14px;background:#111827"><h1 style="font-size:20px">OMNI Admin</h1><label style="display:block;margin:18px 0 6px">Admin key</label><input name="key" type="password" required autocomplete="current-password" style="box-sizing:border-box;width:100%;padding:12px;border-radius:8px;border:1px solid #475569;background:#020617;color:#fff"><button type="submit" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:8px;background:#3b82f6;color:#fff;font-weight:700">Sign in</button></form></body></html>`;
 
@@ -608,6 +628,10 @@ function loadUserDetail(){
       pl.textContent='📌 Mission: '+d.placement.status.toUpperCase()+(d.placement.role?' · '+d.placement.role:'')+(d.placement.employer?' bei '+d.placement.employer:'');
       card.appendChild(pl);
     }
+    var snapshotButton=document.createElement('button');snapshotButton.className='act';snapshotButton.style.marginTop='10px';
+    snapshotButton.textContent='Spoken-Gold-Snapshot herunterladen';
+    snapshotButton.onclick=function(){downloadSpokenGoldSnapshot(email,snapshotButton);};
+    card.appendChild(snapshotButton);
     box.appendChild(card);
     if(d.weakTop&&d.weakTop.length){
       var h=document.createElement('h2');h.textContent='SCHWÄCHEN (häufigste)';box.appendChild(h);
@@ -628,6 +652,19 @@ function loadUserDetail(){
       box.appendChild(pt);
     }
   }).catch(function(){box.innerHTML='<div class="empty">Netzwerkfehler.</div>';});
+}
+
+function downloadSpokenGoldSnapshot(email,button){
+  var label=button.textContent;button.disabled=true;button.textContent='Export...';
+  fetch('/admin/spoken-gold-snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+    .then(function(r){if(!r.ok)throw new Error(String(r.status));return r.blob();})
+    .then(function(blob){
+      var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;
+      a.download='spoken-gold-profile.json';document.body.appendChild(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    })
+    .catch(function(){showErr('Studien-Snapshot konnte nicht exportiert werden.');})
+    .finally(function(){button.disabled=false;button.textContent=label;});
 }
 // ── Mission & feedback ───────────────────────────────────────────────────────
 function loadMission(){
