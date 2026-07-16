@@ -23,6 +23,8 @@ test('typed UI owns the turn and refreshes BrainGuide and Salma after debrief', 
   assert.match(source, /if \(msg\.transcript && !typeOpenRef\.current\)/u);
   assert.match(source, /setBrainGuideRefresh\(\(value\) => value \+ 1\);/u);
   assert.match(source, /setSalmaResume\(\(value\) => value \+ 1\);/u);
+  assert.match(source, /if \(!handsFreeRef\.current\) \{[\s\S]*typeOpenRef\.current = true;[\s\S]*start\(\);[\s\S]*return;/u);
+  assert.match(source, /if \(!typeOpenRef\.current && handsFreeRef\.current\) await startGeminiMic\(\);/u);
 });
 
 test('spoken headline calculation enforces Evidence Contract v2 before grading', async () => {

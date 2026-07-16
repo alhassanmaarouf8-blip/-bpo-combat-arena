@@ -4340,6 +4340,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [level, setLevel]         = useState(() => { try { return ['a2-b1','b2','c1'].includes(localStorage.getItem('omni_level')) ? localStorage.getItem('omni_level') : 'a2-b1'; } catch { return 'a2-b1'; } });
   const [bossPick, setBossPick]   = useState('');          // boss-picker (test): '' = auto by level
   const [handsFree, setHandsFree] = useState(!IN_APP_BROWSER); // social in-app browsers cannot reliably own the microphone
+  const handsFreeRef = useRef(!IN_APP_BROWSER);
+  useEffect(() => { handsFreeRef.current = handsFree; }, [handsFree]);
   const [showOpts, setShowOpts]   = useState(false);       // idle home: advanced options (interviewer/freisprech/lang) collapsed by default — declutter
   const [liveTranscript, setLiveTranscript] = useState(''); // Deepgram streaming partial (cleared on transcript_done)
   const [funnel, setFunnel]       = useState(null);        // {stages, idx, levelLabel, displayName}
@@ -4600,7 +4602,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       });
       geminiPlayerRef.current.resume();
     } catch { /* Web Audio unavailable → boss transcript still shows; owner would report no voice */ }
-    await startGeminiMic();
+    // Gemini still owns the interviewer voice in typed mode, but it must not silently take the
+    // learner's microphone after Freisprech was switched off.
+    if (!typeOpenRef.current && handsFreeRef.current) await startGeminiMic();
   }, [startGeminiMic]);
 
   const stopGeminiMode = useCallback(() => {
@@ -5539,6 +5543,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
       setPaywall(auth.account.entitlement); return;
     }
+    // Freisprech off is an explicit typed-first choice. Keep the interviewer voice, skip permission
+    // prompts and continuous capture, and leave the manual SPRECHEN button available in the turn UI.
+    if (!handsFreeRef.current) {
+      typeOpenRef.current = true;
+      setTypeOpen(true);
+      start();
+      return;
+    }
     // Voice is the product's primary experience. Verify the microphone BEFORE opening a socket or
     // starting a paid Gemini/persona session. This same browser permission applies to the installed
     // PWA, so the website, PWA and mobile browser now fail safely at the same gate instead of
@@ -6220,7 +6232,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,
               cursor: canStart ? 'pointer' : 'default', userSelect:'none' }}>
               <input type="checkbox" checked={handsFree} disabled={!canStart}
-                onChange={(e) => setHandsFree(e.target.checked)} />
+                onChange={(e) => { handsFreeRef.current = e.target.checked; setHandsFree(e.target.checked); }} />
               <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : '#94a3b8', letterSpacing:'0.04em' }}>
                 🎙 Freisprech-Modus · بدون أزرار — تكلم وهو يتفهم
               </span>
