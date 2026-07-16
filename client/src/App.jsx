@@ -9,6 +9,7 @@ import { PushReminder } from './PushReminder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
 import { Spinner } from './Loading.jsx';
 import { BrainGuide } from './BrainGuide.jsx';   // eager: rendered inline on the home screen (not an overlay)
+import { ConnectionNotice } from './ConnectionNotice.jsx';
 import { primaryActionPolicy } from './brainActionPolicy.js';
 import { SalmaPortrait, SalmaTakeover, ASSESS_BOSS_MAP, ASSESS_LEVEL_MAP } from './SalmaTakeover.jsx';
 import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
@@ -7290,6 +7291,7 @@ export default function App() {
   const blockingInAppGate = false;
   return <>
     {blockingInAppGate && IN_APP_BROWSER && !bypassGate && <InAppBrowserGate onContinue={() => setBypassGate(true)} />}
+    <ConnectionNotice />
     <BackendGate><AuthedApp /></BackendGate>
   </>;
 }
