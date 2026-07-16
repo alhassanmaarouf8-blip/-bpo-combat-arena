@@ -51,3 +51,17 @@ test('the daily card set stays stable across reloads and exposes only aggregate 
   assert.deepEqual(reloaded.progress, first.progress);
   assert.equal(Object.hasOwn(reloaded, 'grades'), false);
 });
+
+test('legacy grammar labels are never served or graded as production answers', () => {
+  const p = defaultProfile('daily-corrupt-label');
+  p.srs.push({
+    id: 'grammar:case-label', type: 'grammar', content: 'Kasus (Fall) nach Präposition',
+    prompt: 'Wende korrekt an: Kasus (Fall) nach Präposition',
+    answer: 'Kasus (Fall) nach Präposition', example: null,
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  p.dailyPractice = { date: dayKey(), questionIds: ['grammar:case-label'], grades: {} };
+  const daily = buildDaily(p);
+  assert.equal(daily.questions.some((question) => question.id === 'grammar:case-label'), false);
+  assert.equal(gradeDailyItem(p, 'grammar:case-label', 'Kasus (Fall) nach Präposition').error, 'daily_session_required');
+});

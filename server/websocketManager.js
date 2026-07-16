@@ -1474,6 +1474,7 @@ export class WebSocketManager {
       // Spaced repetition: schedule what they got wrong as PRODUCTION tasks.
       for (const g of (debrief.grammar || [])) {
         const ex = (g.summaryExamples || [])[0] || (g.allExamples || [])[0] || null;
+        if (!ex?.wrong || !ex?.right) continue; // a category label is not a producible answer
         addItem(p, {
           type:    'grammar',
           content: g.rule,

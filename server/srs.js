@@ -13,7 +13,16 @@ const DAY = 24 * 60 * 60 * 1000;
 // spelling rules are NOT drillable in a spoken trainer. Scrub them from due items + the due count so
 // they never become "your weakness" or a spoken drill (also retro-fixes already-stored comma items).
 const PUNCT_RULE = /komma|zeichensetzung|interpunktion|anführung|bindestrich|apostroph|schreibung|getrennt.{0,8}zusammen|leerzeichen|typograf/i;
-const drillable = (i) => i.type !== 'grammar' || !PUNCT_RULE.test(String(i.content || ''));
+export const drillable = (i) => {
+  if (i?.type !== 'grammar') return true;
+  if (PUNCT_RULE.test(String(i.content || ''))) return false;
+  // A production card needs an actual corrected production target. Old generic cards stored the
+  // category label as both content and answer ("Kasus ..."), causing the daily trainer to reject
+  // a correct sentence and demand that the learner copy the label. Hide those legacy cards.
+  const answer = String(i?.answer || '').trim().toLocaleLowerCase('de-DE');
+  const content = String(i?.content || '').trim().toLocaleLowerCase('de-DE');
+  return Boolean(i?.example?.wrong && i?.example?.right && answer && answer !== content);
+};
 
 export function srsKey(type, content) {
   return `${type}:${String(content).toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60)}`;

@@ -13,7 +13,7 @@
 import express from 'express';
 import { loadUser, saveUser, mutateUser } from './store.js';
 import { requireAuth, planOf, trialActive } from './auth.js';
-import { dueItems, grade, checkAnswer } from './srs.js';
+import { dueItems, grade, checkAnswer, drillable } from './srs.js';
 import { BPO_PHRASES }        from './scenarios.js';
 import { dayKey }             from './time.js';
 import { generateDrillSet }   from './planGuide.js';
@@ -95,7 +95,7 @@ function dailyQuestionFromId(profile, rawId) {
     return item ? { id: item.id, kind: 'fix', prompt: item.prompt, hint: item.hint || null, source: 'generated' } : null;
   }
   const item = (profile.srs || []).find((row) => row?.id === id);
-  return item ? {
+  return item && drillable(item) ? {
     id: item.id, kind: item.type === 'vocab' ? 'vocab' : 'fix', prompt: item.prompt,
     hint: item.example?.wrong ? `Dein Satz: ${item.example.wrong}` : (item.type === 'vocab' ? 'Produziere das deutsche Wort.' : null),
     source: 'mistake',
@@ -242,7 +242,7 @@ export function gradeDailyItem(profile, id, answer, { repair = false } = {}) {
     result = { correct, note, note_ar, expected: item.answer };
   } else {
     const item = (profile.srs || []).find((row) => row.id === id);
-    if (!item) return { error: 'unknown_item' };
+    if (!item || !drillable(item)) return { error: 'unknown_item' };
     const { correct, note, note_ar } = checkAnswer(answer, item.answer);
     grade(profile, id, correct, Date.now());
     result = { correct, note, note_ar, expected: item.answer };
