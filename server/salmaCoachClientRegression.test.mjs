@@ -49,6 +49,20 @@ test('tutor reuses the existing recorder, transcription and Salma voice', async 
   assert.doesNotMatch(panel, /getUserMedia|WebSocket/u);
 });
 
+test('tutor separates observed patterns from unproven causes without adding another action', async () => {
+  const [panel, core] = await Promise.all([
+    read('client/src/SalmaTutorPanel.jsx'),
+    read('server/salmaCoachCore.js'),
+  ]);
+  assert.match(core, /diagnosticTruth: flags\.enabled \? readiness\.diagnosticTruth : null/u);
+  assert.match(panel, /WAS DIE MESSUNG WEISS — UND WAS NICHT/u);
+  assert.match(panel, /Die Ursache ist damit nicht bewiesen/u);
+  assert.match(panel, /Keine psychologische Diagnose/u);
+  assert.match(panel, /TRUTH_DISCRIMINATOR_LABELS/u);
+  assert.doesNotMatch(panel, /onClick=.*nextDiscriminatorId/u,
+    'the discriminator is an explanation inside BrainGuide, never a competing CTA');
+});
+
 test('drill corrections are visible between attempts and receive persisted result cues', async () => {
   const eventReportingDrills = await Promise.all([
     read('client/src/PressureLadder.jsx'),

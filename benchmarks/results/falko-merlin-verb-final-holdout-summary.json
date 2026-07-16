@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "single-open-frozen-document-disjoint-holdout",
+  "dataset": "Falko-MERLIN German GEC Corpus - WNUT 2018 release",
+  "manifestSha256": "3b54e8805913ce4a434d2f056dea6dd56eb735925be8982c08c06ce8a26880e8",
+  "fullReportSha256": "e67cee0511d79030f55c0f10ef692df262df68611b8a40471ad381c927a7c57b",
+  "containsLearnerText": false,
+  "system": "deterministic-arabic-l1-verb-final-rewrite",
+  "holdout": {
+    "documents": 225,
+    "sentences": 3685,
+    "goldWordOrderEdits": 274
+  },
+  "evidence": {
+    "detectedSignals": 13,
+    "rewriteCandidates": 4,
+    "referenceSupported": 3,
+    "referenceNeutral": 1,
+    "referenceContradicted": 0
+  },
+  "development": {
+    "sentences": 2503,
+    "rewriteCandidates": 8,
+    "referenceSupported": 8,
+    "referenceNeutral": 0,
+    "referenceContradicted": 0
+  },
+  "change": [
+    "Do not rewrite a subordinate clause when only one trailing token remains.",
+    "Do not rewrite across bitte when missing punctuation may conceal a new main clause."
+  ],
+  "limitations": [
+    "Only four holdout rewrites were generated, so this is a safety signal rather than a stable population accuracy percentage.",
+    "The detector addresses one narrow verb-final pattern and does not cover general word order.",
+    "A reference-neutral rewrite is not automatically wrong because target hypotheses are not exhaustive.",
+    "The corpus is written learner German, not Egyptian Arabic-L1 spoken BPO interview German."
+  ]
+}

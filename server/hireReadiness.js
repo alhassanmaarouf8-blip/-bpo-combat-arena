@@ -9,7 +9,9 @@
  * Real consented outcomes must be evaluated separately before any employment-probability claim.
  */
 import { SERVICE_RECOVERY_CRITERION_ID, serviceRecoveryScoreFromSession } from './scoring/serviceRecoveryEvidence.js';
-import { FORECAST_EVIDENCE_FRESHNESS_MS, forecastEvidenceSummary } from './scoring/forecastEvidence.js';
+import { FORECAST_EVIDENCE_FRESHNESS_MS, forecastEvidenceSummary,
+  forecastGrammarRuleSummary } from './scoring/forecastEvidence.js';
+import { buildDiagnosticTruth } from './scoring/diagnosticTruth.js';
 import { missionControlActiveVacancyTargetId } from './missionControlCore.js';
 
 const ORD = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5 };
@@ -217,6 +219,9 @@ export function hireReadinessFor(p, now = Date.now(), options = {}) {
   const forecast = rejectionForecast({
     profile: p, session, evidenceQuality, limitingSkill, f, measured, now, options,
   });
+  const grammarRule = forecast?.criterion?.criterionId === 'grammar_control'
+    ? forecastGrammarRuleSummary(p, session, now) : null;
+  const diagnosticTruth = buildDiagnosticTruth({ forecast, measured, grammarRule });
   const interviewRisk = forecast.state === 'measure_first'
     ? { state: 'measure_first', confidence: 'insufficient', limitingSkill: null }
     : forecast.state === 'observed_simulation_risk'
@@ -230,6 +235,7 @@ export function hireReadinessFor(p, now = Date.now(), options = {}) {
     limitingSkill,
     interviewRisk,
     rejectionForecast: forecast,
+    diagnosticTruth,
     partial: measuredCount < 9,
     measuredSignals: measuredCount,
     totalSignals: 9,

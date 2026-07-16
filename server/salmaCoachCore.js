@@ -44,8 +44,8 @@ const CRITERION_MEASUREMENT_SIGNALS = Object.freeze({
   connected_answer_structure: 'subClauseRate',
   lexical_range_proxy: 'vocabDiversity',
 });
-const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
-const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
+export const SPEAKING_MATCHED_RETEST_DELAY_MS = 24 * 60 * 60 * 1000;
+export const SPEAKING_TRANSFER_RETEST_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 const PROTOCOLS = Object.freeze({
   'satzbau-schmiede': { repetitions: 6, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz später zweimal korrekt bilden.' },
   'sag-es-richtig': { repetitions: 8, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz in zwei getrennten Versuchen korrekt produzieren.' },
@@ -55,6 +55,12 @@ const PROTOCOLS = Object.freeze({
   'druck-leiter': { repetitions: 5, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Die verfehlte Antwort üben, bevor dieselbe Stufe erneut versucht wird.' },
   srs: { repetitions: 8, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz in zwei getrennten Versuchen korrekt produzieren.' },
 });
+
+/** Read-only access for offline, non-deployed evidence audits; production behavior is unchanged. */
+export function salmaDrillProtocol(drillId) {
+  const protocol = Object.hasOwn(PROTOCOLS, drillId) ? PROTOCOLS[drillId] : null;
+  return protocol ? Object.freeze({ ...protocol }) : null;
+}
 const SKILL_LABELS = Object.freeze({
   'word-order-sub': 'Satzstellung', 'dativ-akkusativ': 'Dativ und Akkusativ', 'konjunktiv-2': 'Konjunktiv II',
   'fluency-interrupt': 'flüssiges Sprechen unter Zeitdruck', 'listen-phone': 'Hörverstehen am Telefon',
@@ -970,6 +976,7 @@ export function publicSalmaCoach(profile, account, flags, { now = Date.now() } =
   return { feature: { mode: flags.mode, enabled: flags.enabled, aiEnabled: flags.aiEnabled, voiceEnabled: flags.voiceEnabled, masriAvailable: false }, capabilities,
     interviewRisk,
     rejectionForecast: publicForecast,
+    diagnosticTruth: flags.enabled ? readiness.diagnosticTruth : null,
     listeningRetest,
     speakingRetest,
     preferences: state.preferences, activePrescription: publicPrescription,

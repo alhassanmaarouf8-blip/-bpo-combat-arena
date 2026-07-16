@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "status": "frozen-written-german-external-test",
+  "dataset": "Falko-MERLIN German GEC Corpus - WNUT 2018 release",
+  "manifestSha256": "fc99e2d1b7fe12203e62033b27532c4726f622842d6d86636cb5b27673c627ed",
+  "predictionFileSha256": "166b66eb1bd91b8844f15f1655c7f0a1defc1ca77ebb0acc15af87a4b313fb7d",
+  "fullReportSha256": "b53e95753e3d9e0ebe45c06acf66b0488ea82ae4656bb6c6417e9134b0eb279f",
+  "containsLearnerText": false,
+  "system": "production-spoken-grammar-filter",
+  "construct": "exact token-span and replacement agreement with human target hypotheses",
+  "all": {
+    "sentences": 2337,
+    "goldEdits": 3748,
+    "predictedEdits": 378,
+    "exactMatches": 208,
+    "exactReferencePrecision": 0.5502645502645502,
+    "exactReferencePrecisionWilson95": [0.49985971747847247, 0.5996580250876749],
+    "exactReferenceRecall": 0.05549626467449306,
+    "exactReferenceRecallWilson95": [0.04861138622160078, 0.06329138563823726],
+    "exactReferenceF05": 0.19771863117870722
+  },
+  "bySource": {
+    "falko": {
+      "sentences": 1237,
+      "goldEdits": 2304,
+      "predictedEdits": 218,
+      "exactMatches": 122,
+      "exactReferencePrecision": 0.5596330275229358,
+      "exactReferenceRecall": 0.05295138888888889,
+      "exactReferenceF05": 0.19206549118387908
+    },
+    "merlin": {
+      "sentences": 1100,
+      "goldEdits": 1444,
+      "predictedEdits": 160,
+      "exactMatches": 86,
+      "exactReferencePrecision": 0.5375,
+      "exactReferenceRecall": 0.05955678670360111,
+      "exactReferenceF05": 0.20633397312859883
+    }
+  },
+  "largestGoldTypes": {
+    "R:DET:FORM": { "goldEdits": 580, "exactMatches": 119, "exactReferenceRecall": 0.20517241379310344 },
+    "R:OTHER": { "goldEdits": 485, "exactMatches": 4, "exactReferenceRecall": 0.008247422680412371 },
+    "R:ADJ:FORM": { "goldEdits": 239, "exactMatches": 40, "exactReferenceRecall": 0.16736401673640167 },
+    "R:NOUN:FORM": { "goldEdits": 219, "exactMatches": 31, "exactReferenceRecall": 0.1415525114155251 },
+    "M:DET": { "goldEdits": 217, "exactMatches": 1, "exactReferenceRecall": 0.004608294930875576 },
+    "R:WO": { "goldEdits": 135, "exactMatches": 0, "exactReferenceRecall": 0 },
+    "R:VERB:FORM": { "goldEdits": 121, "exactMatches": 0, "exactReferenceRecall": 0 }
+  },
+  "largestPredictionRules": {
+    "DE_AGREEMENT": { "predictedEdits": 258, "exactMatches": 143, "exactReferencePrecision": 0.5542635658914729 },
+    "PRAEP_DAT": { "predictedEdits": 42, "exactMatches": 28, "exactReferencePrecision": 0.6666666666666666 },
+    "DE_WORD_COHERENCY": { "predictedEdits": 9, "exactMatches": 0, "exactReferencePrecision": 0 },
+    "VIELZAHL_PLUS_SINGULAR": { "predictedEdits": 7, "exactMatches": 5, "exactReferencePrecision": 0.7142857142857143 }
+  },
+  "repeatability": {
+    "earlierRunPredictedEdits": 373,
+    "earlierRunExactMatches": 210,
+    "stableEditsAcrossRuns": 369,
+    "sentencesWithDrift": 13,
+    "firstRunOnlyEdits": 4,
+    "attributedRunOnlyEdits": 9
+  },
+  "limitations": [
+    "This is written learner German, not spoken German.",
+    "Unmatched predictions may be valid alternatives and require blinded human adjudication before being called harmful.",
+    "The remote checker exhibited small run-to-run drift and is not a pinned deterministic engine.",
+    "This result does not validate listening, fluency, diagnosis, prescription, transfer, BPO readiness, or hiring outcomes.",
+    "The test split is consumed and must not be used for tuning."
+  ]
+}

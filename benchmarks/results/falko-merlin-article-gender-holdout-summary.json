@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "status": "single-open-frozen-document-disjoint-holdout",
+  "dataset": "Falko-MERLIN German GEC Corpus - WNUT 2018 release",
+  "manifestSha256": "5940d2efd4a94b1abb9956624127fe2c011a0d4059e8c910cdb5831b51121f69",
+  "fullReportSha256": "962639209d7157869b3dc882cd598fb75f26ad705007bbb481c9de3be9b204a5",
+  "containsLearnerText": false,
+  "system": "deterministic-article-gender-rewrite",
+  "holdout": {
+    "documents": 256,
+    "sentences": 4397,
+    "goldDeterminerFormEdits": 1274
+  },
+  "evidence": {
+    "detectedSignals": 11,
+    "rewriteCandidates": 10,
+    "referenceSupported": 9,
+    "referenceNeutral": 1,
+    "referenceContradicted": 0
+  },
+  "developmentBeforeRepair": {
+    "sentences": 2503,
+    "rewriteCandidates": 6,
+    "referenceSupported": 0,
+    "referenceNeutral": 5,
+    "referenceContradicted": 1
+  },
+  "developmentAfterRepair": {
+    "sentences": 2503,
+    "detectedSignals": 5,
+    "rewriteCandidates": 4,
+    "referenceSupported": 3,
+    "referenceNeutral": 1,
+    "referenceContradicted": 0
+  },
+  "change": [
+    "Preserve case and definiteness when the observed article supports one unambiguous replacement.",
+    "Abstain from rewrites when case cannot be recovered safely.",
+    "Ignore spaced nominal compounds where the apparent noun may modify a following head."
+  ],
+  "limitations": [
+    "Ten holdout rewrites are a safety signal rather than a stable population accuracy percentage.",
+    "The detector covers a bounded interview noun lexicon and does not measure general article or case accuracy.",
+    "The detector emitted only 11 signals against 1274 general holdout determiner-form annotations.",
+    "The corpus is written learner German, not Egyptian Arabic-L1 spoken BPO interview German."
+  ]
+}

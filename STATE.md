@@ -1,5 +1,175 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## SPOKEN GOLD-STUDY PROVENANCE REPAIR (2026-07-16, branch `codex/listening-transfer-v2`)
+- Replaced operator-supplied study verdicts with decisions re-derived from the exact persisted server
+  profile snapshots through the production speaking-measurement and transfer-proof validators. The
+  operator can no longer type the app score, bottleneck, prescription, or mastery result.
+- The frozen `handle-clear-request` candidate rule requires exactly two distinct, reliable,
+  server-recorded customer-service opportunities. Thin, duplicated, tampered, typed, or mixed
+  evidence abstains; matched-only improvement cannot become transferable mastery.
+- The hidden decision is bound to immutable-account and evidence hashes. Finalization reloads the
+  original private snapshots, re-derives every decision, re-verifies media, and rejects edited packs
+  or hidden keys before aggregate scoring.
+- Added fail-closed checks for profile path/symlink/size/JSON/prototype-key safety, account reuse,
+  participant reuse, baseline mutation, private-data leakage, source-file collisions, and end-to-end
+  finalizer operation. Raw audio remains private and the audio-to-profile link is explicitly a
+  procedural capture attestation, not a fabricated cryptographic guarantee.
+- Complete verification is green: secret scan, lint, design lint, syntax, 658/658 server tests,
+  production client build, and 40-file artifact verification. No microphone, Gemini Live, Deepgram,
+  TTS, voice, persona, timing, fallback, WebSocket, pricing, authentication, payment, or UI path was
+  changed.
+- External truth remains honestly pending: owner smoke, five consenting Egyptian A2-B2 candidates,
+  and two blind qualified German raters must supply real spoken evidence before any accuracy claim.
+
+## SPOKEN GOLD-STUDY REVIEW PACKAGE (2026-07-16, branch `codex/listening-transfer-v2`)
+- Froze the first target-population criterion before inspecting participant results:
+  `handle-clear-request` in the customer-roleplay archetype, below 75/100, requiring exactly two
+  reliable server-recorded spoken opportunities and explicit abstention on thin, conflicting,
+  typed, interrupted, duplicated, or unreliable evidence.
+- Added a complete local, non-deployed, privacy-safe spoken review package. It creates a blinded
+  media pack, hidden app-decision key, two independent qualified-rater templates, inter-rater report
+  before app comparison, disagreement-only adjudication, and aggregate final beta-gate report.
+- Owner smoke is mechanically excluded from accuracy. Target participants are participant-disjoint
+  across three calibration, one development, and one locked holdout slot. The final report includes
+  modality, exact construct, sample sizes, Cohen's kappa, Wilson intervals, correct abstention,
+  expert bottleneck agreement, prescription agreement, harmful-misdirection count, matched transfer,
+  novel transfer, and invalid mastery claims without participant hashes or raw evidence.
+- Adversarial gates reject private fields, absolute/traversal paths, reused media, missing or
+  extension-mismatched clips, retention beyond 90 days, thin app selection, same-rater substitution,
+  incomplete/unattested reviews, agreement rewriting, and completion presented as mastery.
+- Complete verification is green: secret scan, lint, design lint, syntax, 656/656 server tests,
+  production client build, and 40-file artifact verification. Voice, microphone, personas, audio,
+  WebSocket behavior, pricing, authentication, payment, learner UI, and production were untouched.
+- Honest blocker: no owner spoken smoke case, five consenting Egyptian target candidates, or two
+  qualified independent German ratings have been supplied. The package is operational, but spoken
+  diagnosis, prescription, and transfer accuracy remain externally unproven until those inputs exist.
+
+## HUMAN-REFERENCE ARTICLE REWRITE REPAIR (2026-07-16, branch `codex/listening-transfer-v2`)
+- Found and removed a demonstrated harmful behavior in the existing article-gender detector: it
+  always suggested a nominative definite article, even when the learner used another case or an
+  indefinite article. It could therefore turn `dem Arbeit` into the wrong `die Arbeit` and change
+  intended definiteness.
+- The detector now preserves case and definiteness only when one replacement is deterministic,
+  abstains when case cannot be recovered, and ignores spaced nominal compounds such as
+  `das Sprache Sprechen`, where the apparent noun may not be the article's head.
+- Development before repair: six rewrites, zero reference-supported, five neutral, one contradicted.
+  After repair: five signals, four rewrites, three supported, one grammatical reference-neutral,
+  zero contradicted.
+- Single-open independent document-disjoint holdout: 256 documents / 4,397 sentences, 1,274 human
+  `R:DET:FORM` annotations, 11 detector signals, ten rewrites, nine reference-supported, one neutral,
+  zero contradicted. This supports safety for a narrow bounded lexicon only; it is not general
+  article/case accuracy and deliberately leaves almost all determiner errors uncovered.
+- Complete verification is green: secret scan, lint, design lint, syntax, 650/650 server tests,
+  production client build, and 40-file artifact verification. Voice, microphone, personas, audio,
+  WebSocket behavior, pricing, and workflows were untouched. No deployment or push was performed.
+
+## HUMAN-REFERENCE SUBJECT–VERB REPAIR (2026-07-16, branch `codex/listening-transfer-v2`)
+- Added a precision-first subject–verb agreement detector for explicit adjacent `ich/du/er/es/man/wir`
+  with closed paradigms for nine high-frequency auxiliaries and modals. Ambiguous `sie/Sie/ihr`,
+  governed infinitives, truncated turns, and low-confidence ASR evidence fail closed.
+- Development evidence: six rewrites across 2,503 sentences; four moved closer to the human target,
+  two were reference-neutral but grammatically compatible with the human rewrite, and zero were
+  contradicted.
+- Single-open independent document-disjoint holdout: 233 documents / 3,803 sentences, 199 human
+  `R:VERB:FORM` annotations, three detector rewrites, all three reference-supported, zero neutral,
+  zero contradicted. The tiny rewrite count supports safety only; it is not a population accuracy
+  percentage and the detector deliberately leaves 196 annotations outside its narrow coverage.
+- The learner-visible correction is available only after two occurrences, retains the existing
+  quote/ASR honesty gates, and makes no hiring or interviewer claim. Voice, microphone, personas,
+  audio, WebSocket behavior, pricing, and workflows were untouched.
+- Complete verification is green: secret scan, lint, design lint, syntax, 647/647 server tests,
+  production client build, and 40-file artifact verification. No deployment or push was performed.
+
+## HUMAN-REFERENCE CORRECTION BENCHMARK (2026-07-16, branch `codex/listening-transfer-v2`)
+- Completed the first evidence-driven product repair: the separate Arabic-L1 verb-final detector
+  now abstains from automatic rewrites on incomplete one-token clause tails and across `bitte` when
+  missing punctuation may hide a new main clause. Detection still counts the signal.
+- Frozen development result: 8/8 rewrites moved closer to the human target, zero neutral or
+  contradicted. Single-open document-disjoint holdout: 225 documents / 3,685 sentences, 13 signals,
+  four rewrites, three reference-supported, one neutral, zero contradicted. The small rewrite count
+  is a safety signal, not a population accuracy percentage; 274 general word-order annotations remain
+  largely outside this narrow detector.
+- Audited primary expert sources. MERLIN/Falko-MERLIN is legally usable now for written German;
+  DISKO may add professional TestDaF/longitudinal evidence after access review; MuSSeL is the best
+  located German L2 spoken-proficiency candidate but requires registration and commercial-use
+  permission; HAMATAC is restricted to research/teaching and was not ingested.
+- Acquired the official WNUT 2018 Falko-MERLIN GEC archive outside the repository and pinned its
+  archive plus six input SHA-256 hashes. The frozen test contains 2,337 sentences and 3,748 human
+  grammar edits after excluding punctuation, spelling, orthography, and no-op annotations.
+- Ran the exact production spoken-grammar filter without its learner-facing six-rule display cap.
+  Attributed baseline: 378 predictions, 208 exact span+replacement matches, 55.03% exact-reference
+  precision, 5.55% recall, and 19.77% F0.5. This written benchmark exposes severe under-detection; it is not
+  overall app, spoken, listening, coaching, transfer, BPO-readiness, or hiring accuracy.
+- The remote checker is not fully reproducible: an earlier complete run produced 373 predictions
+  and 210 exact matches. Across runs, 369 edits were stable and 13 sentences drifted. Pin every
+  prediction hash and do not claim deterministic results until the provider/version is frozen.
+- Added frozen-corpus verification, resumable privacy-safe prediction generation, exact scoring,
+  Wilson intervals, error-type/rule attribution, malformed/duplicate/incomplete fail-closed tests,
+  and package commands. Raw learner text and full predictions remain outside the repository.
+- The WNUT test split is consumed and must not be used for tuning. Develop any rule changes on
+  train/development data and evaluate once on a new untouched holdout. No learner-visible grammar
+  rule was changed from this result alone.
+
+## EXTERNAL ACCURACY SYNTHESIS COMPLETE (2026-07-15, branch `codex/listening-transfer-v2`)
+- Recovered the completed Fable 5 deep-research workflow from its preserved Claude workflow records;
+  Fable's quota expired after research completion but before its final presentation.
+- Independently acquired and audited MERLIN v1.2 outside the app repository: CC BY-SA 4.0, 1,033
+  unique German learner texts, including 64 Arabic-L1 texts, with fair CEFR labels and target
+  hypotheses. This supports written-grammar/CEFR-proxy benchmarking only, not spoken accuracy.
+- Common Voice German is suitable for a separate transcription WER/CER benchmark with explicit
+  scripted/spontaneous limitations. Public datasets still cannot validate spoken bottleneck
+  diagnosis, prescription quality, novel transfer, BPO readiness, or hiring outcomes.
+- Found a provenance defect: `server/coach.js` merges guarded LLM grammar corrections ahead of
+  LanguageTool corrections but labels the merged output `grammarSource: 'languagetool'`. No learner
+  claim should rely on that field until the sources are separated and independently benchmarked.
+- Added the authoritative evidence synthesis and zero-spend benchmark design at
+  `docs/EXTERNAL_ACCURACY_BENCHMARK.md`. Current product truth: internally verified (623/623 tests),
+  externally unproven.
+- Grammar provenance is now corrected without changing learner-visible ordering: each correction is
+  tagged `llm` or `languagetool`, responses distinguish `merged`, and provider availability is
+  explicit. Four focused provenance regressions pass.
+- Added a frozen MERLIN v1.2 manifest plus a local, non-deployed preparation/scoring harness. The
+  real bundle passes its SHA-256/count gates and produces a deterministic 614 calibration / 199
+  development / 220 locked-holdout split with no raw learner data or author IDs written.
+- The harness fails closed on wrong hashes/counts, malformed or duplicate predictions, repository
+  output paths, and accidental holdout access. Four focused benchmark regressions pass.
+- Complete verification is green: secret scan, lint, design lint, syntax, 631/631 server tests,
+  production client build, and 40-file artifact verification.
+- Next highest-value action: generate source-separated predictions on calibration data, score the
+  document-level external baseline, then add correction-span adjudication before opening holdout.
+- Completed the LanguageTool calibration arm on all 614/614 calibration documents through the exact
+  production checker. Aggregate result: accuracy 56.84% (Wilson 95% CI 52.89–60.70), precision
+  68.28%, recall 71.93%, specificity 21.31%, F0.5 68.98%. This is document-level `count_G`
+  agreement, not spoken or correction-span accuracy.
+- The result proves LanguageTool cannot be described as unquestioned authority. It does not prove
+  every unmatched positive is harmful; 144 unmatched-positive documents require rule/span-level
+  adjudication against the target hypotheses.
+- Added a resumable, throttled source-separated prediction generator with bounded exponential retry,
+  exact manifest/hash gates, no holdout access, no repository output, and no raw learner data output.
+- LLM-only and merged arms remain unrun because no authorized zero-spend `GROQ_API_KEY` exists in the
+  local environment; the generator fails closed rather than inventing results.
+- Next highest-value action: create a blinded adjudication sample from the 144 unmatched positives,
+  classify true correction vs annotation mismatch vs harmful false correction, then calibrate rules
+  on calibration data only. Do not open development or holdout yet.
+- Generated a deterministic blind pack from 40 unmatched-positive documents: 138 short corrections,
+  with provider/rule/label/CEFR/L1/hash hidden and contact/URL/number data redacted. Full documents
+  never enter the pack.
+- Internal single-AI triage of the first frozen 50 (explicitly not gold truth): 33 valid, one
+  acceptable alternative, 15 potentially harmful, one unclear. Many suspected harms were wrong-case
+  changes or partial fixes that left the promoted sentence ungrammatical.
+- Do not disable whole rules from this signal: `DE_AGREEMENT` had 27 usable and nine suspected
+  harmful corrections. The required next gate is two independent qualified German raters on the
+  same frozen blind pack, inter-rater agreement, then adjudication. Development/holdout remain closed.
+- Completed the privacy-safe two-rater gate machinery: qualification/independence attestations,
+  complete-review and tamper validation, nominal Cohen's kappa, blinded disagreement generation,
+  and final adjudication that cannot rewrite agreements. Human artifacts fail closed outside the
+  repository; only aggregate text-free evidence can be committed.
+- Generated two ID-only 138-correction review templates outside the repository. They are deliberately
+  incomplete and confer no evidence until two distinct qualified German reviewers independently fill
+  and attest them. No reviewer, rule calibration, development split, or holdout result was invented.
+- Next highest-value action: obtain the two independent completed reviews, report agreement before
+  adjudication, resolve disagreements, then calibrate only confirmed harmful patterns on calibration.
+
 ## SALMA PERSONAL INTERVIEW TUTOR COMPLETE (2026-07-14, branch `codex/salma-coach-v1`)
 - Implemented on a clean worktree from `origin/main`; production folder, live deployment, payment
   infrastructure, microphone acquisition, Gemini Live, Deepgram, interview WebSocket format, personas,

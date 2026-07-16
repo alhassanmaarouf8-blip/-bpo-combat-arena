@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "status": "single-open-frozen-document-disjoint-holdout",
+  "dataset": "Falko-MERLIN German GEC Corpus - WNUT 2018 release",
+  "manifestSha256": "10e762bf9d2f21e9b3980fc6fd3f38896b465fdeffbe01591584f8463e869137",
+  "fullReportSha256": "44081c88fe111fe693aa68b790df324e6cc1a2ea2bd7f4804c1525c34ced6801",
+  "containsLearnerText": false,
+  "system": "deterministic-subject-verb-agreement-rewrite",
+  "holdout": {
+    "documents": 233,
+    "sentences": 3803,
+    "goldVerbFormEdits": 199
+  },
+  "evidence": {
+    "detectedSignals": 3,
+    "rewriteCandidates": 3,
+    "referenceSupported": 3,
+    "referenceNeutral": 0,
+    "referenceContradicted": 0
+  },
+  "development": {
+    "sentences": 2503,
+    "rewriteCandidates": 6,
+    "referenceSupported": 4,
+    "referenceNeutral": 2,
+    "referenceContradicted": 0
+  },
+  "change": [
+    "Detect adjacent explicit pronouns with mismatched high-frequency auxiliary or modal forms.",
+    "Abstain on ambiguous sie/Sie/ihr subjects and infinitives governed by a later modal."
+  ],
+  "limitations": [
+    "Only three holdout rewrites were generated, so this is a safety signal rather than a stable population accuracy percentage.",
+    "The detector deliberately leaves 196 of 199 holdout verb-form annotations outside its narrow coverage.",
+    "The corpus is written learner German, not Egyptian Arabic-L1 spoken BPO interview German.",
+    "A reference-neutral rewrite is not automatically wrong because target hypotheses are not exhaustive."
+  ]
+}

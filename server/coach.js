@@ -5,15 +5,14 @@
  * Objective metrics (WPM, fillers, vocab/politeness hits) are computed deterministically
  * by the caller and passed in as ground truth.
  *
- * GRAMMAR CORRECTIONS are the SOURCE OF TRUTH from LanguageTool (grammarCheck.js) — a
- * deterministic rule engine, NOT the language model. The model is used only for the
- * subjective parts (strengths / study-next / vocab + their Arabic), and as a conservative
- * backstop for grammar ONLY if LanguageTool is unreachable. Either path is filtered so a
- * "correction" can never equal the original.
+ * GRAMMAR CORRECTIONS come from two separately identified sources: LanguageTool and a guarded
+ * L2-aware model checker. The existing learner-visible behavior is an LLM-first, deduplicated
+ * merge, but every rule/example and every response now exposes truthful provenance.
  */
 
 import { buildGrammar, isSpeakableRule } from './grammarCheck.js';
 import { buildGrammarLLM } from './grammarLLM.js';
+import { mergeGrammarSources, attachGrammarProvenance } from './grammarProvenance.js';
 import { evaluateNaturalness } from './naturalness.js';
 import { looksTruncatedDE, sessionSubstance, quoteHasLowConfidence } from './scoring/turnQuality.js';
 import { scrubStringsDeep, formalArabicMarkers } from './langGuard.js';
@@ -108,11 +107,11 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     return fb;
   }
 
-  // ── AUTHORITATIVE grammar from LanguageTool (deterministic). null if unreachable. ──
-  let ltGrammar = null;
+  // ── LanguageTool source. null if unreachable; [] means checked with no correction. ──
+  let languageToolGrammar = null;
   try {
-    ltGrammar = await buildGrammar(utterances);
-    console.log(`[coach] LanguageTool grammar: ${ltGrammar.length} rule(s) flagged  session-utterances=${utterances.length}`);
+    languageToolGrammar = await buildGrammar(utterances);
+    console.log(`[coach] LanguageTool grammar: ${languageToolGrammar.length} rule(s) flagged  session-utterances=${utterances.length}`);
   } catch (e) {
     console.error('[coach] LanguageTool unavailable, will backstop with model:', e.message);
   }
@@ -124,15 +123,9 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
   // Merge as the PRIMARY source, LanguageTool as supplement; fail-safe → null LLM keeps LanguageTool. ──
   let llmGrammar = null;
   try { llmGrammar = await buildGrammarLLM(utterances); } catch (e) { console.error('[coach] grammarLLM failed:', e.message); }
-  if (Array.isArray(llmGrammar) && llmGrammar.length) {
-    const keyOf = (x) => `${x.wrong}→${x.right}`.toLowerCase().replace(/\s+/g, ' ').trim();
-    const seen  = new Set((ltGrammar || []).flatMap((g) => (g.examples || []).map(keyOf)));
-    const fresh = llmGrammar
-      .map((g) => ({ ...g, examples: (g.examples || []).filter((x) => !seen.has(keyOf(x))) }))
-      .filter((g) => g.examples.length);
-    ltGrammar = [...fresh, ...(ltGrammar || [])];   // LLM first (primary), LanguageTool appended
-    console.log(`[coach] grammar merged: ${fresh.length} L2 rule(s) from LLM + ${(ltGrammar.length - fresh.length)} from LT`);
-  }
+  const grammarResult = mergeGrammarSources({ languageTool: languageToolGrammar, llm: llmGrammar });
+  const mergedGrammar = grammarResult.grammar;
+  console.log(`[coach] grammar provenance: source=${grammarResult.grammarSource} LLM=${grammarResult.grammarProvenance.providers.llm.correctionRules} LT=${grammarResult.grammarProvenance.providers.languagetool.correctionRules}`);
 
   // ── HONESTY GATE (doctrine: never manufacture confident critique on data too thin to support it) ──
   // The half-duplex, silence-timer interview can CUT OFF a candidate mid-sentence. If they barely spoke,
@@ -142,19 +135,17 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
   const substance = sessionSubstance(utterances);
   if (substance.tooThinToJudge) {
     console.log(`[coach] session too thin/interrupted to judge (words=${substance.realWords} completeTurns=${substance.completeTurns} truncatedShare=${substance.truncatedShare.toFixed(2)}) — honest metrics-only debrief`);
-    const fb = fallbackDebrief(metrics, utterances, ltGrammar || [], !ltGrammar, 'thin');
-    fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
-    fb.grammarUnavailable = !ltGrammar;
+    const fb = fallbackDebrief(metrics, utterances, mergedGrammar, grammarResult.grammarUnavailable, 'thin');
+    attachGrammarProvenance(fb, grammarResult);
     fb.progressNarrative = progressNarrative;
     fb.tooThin = true;
     return fb;
   }
 
-  // No model key → metrics-only debrief, but still attach the authoritative grammar + progress.
+  // No debrief-model key → metrics-only debrief, while retaining checked grammar + progress.
   if (!apiKey) {
-    const fb = fallbackDebrief(metrics, utterances, ltGrammar || [], !ltGrammar);
-    fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
-    fb.grammarUnavailable = !ltGrammar;
+    const fb = fallbackDebrief(metrics, utterances, mergedGrammar, grammarResult.grammarUnavailable);
+    attachGrammarProvenance(fb, grammarResult);
     fb.progressNarrative = progressNarrative;
     return fb;
   }
@@ -260,16 +251,15 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
       norm.interviewReview = norm.interviewReview.filter((r) => !quoteHasLowConfidence(r.deinSatz, lowConfSet));
       norm.upgrades        = norm.upgrades.filter((u) => !quoteHasLowConfidence(u.original, lowConfSet));
     }
-    // GRAMMAR: ONLY from LanguageTool — NEVER the model.
-    const grammar = ltGrammar || [];
-    const lesson  = buildLesson(utterances, metrics, grammar, !ltGrammar);
+    // GRAMMAR: existing LLM-first merge, now with per-rule and response-level provenance.
+    const grammar = mergedGrammar;
+    const lesson  = buildLesson(utterances, metrics, grammar, grammarResult.grammarUnavailable);
     const drills  = buildDrills(grammar);
-    return { ...norm, grammar, lesson, drills, metrics, progressNarrative, generated: true, naturalness, grammarSource: ltGrammar ? 'languagetool' : 'none', grammarUnavailable: !ltGrammar };
+    return attachGrammarProvenance({ ...norm, grammar, lesson, drills, metrics, progressNarrative, generated: true, naturalness }, grammarResult);
   } catch (err) {
     console.error('[coach] debrief failed:', err.message);
-    const fb = fallbackDebrief(metrics, utterances, ltGrammar || [], !ltGrammar);
-    fb.grammarSource = ltGrammar ? 'languagetool' : 'none';
-    fb.grammarUnavailable = !ltGrammar;
+    const fb = fallbackDebrief(metrics, utterances, mergedGrammar, grammarResult.grammarUnavailable);
+    attachGrammarProvenance(fb, grammarResult);
     fb.naturalness = naturalness;
     fb.drills = buildDrills(fb.grammar);
     fb.progressNarrative = progressNarrative;

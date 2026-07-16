@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "name": "Falko-MERLIN German GEC Corpus — WNUT 2018 release",
+  "sourceUrl": "https://github.com/adrianeboyd/boyd-wnut2018/releases/tag/wnut2018",
+  "archiveUrl": "https://github.com/adrianeboyd/boyd-wnut2018/releases/download/wnut2018/data.tar.gz",
+  "acquiredAt": "2026-07-16",
+  "archiveSha256": "55210ac71a939d61bea61713bc256c84b4574be7ecce4e64ac3da105968a61bc",
+  "licenses": {
+    "release": "CC BY-SA 4.0",
+    "falko": "CC BY 3.0",
+    "merlin": "CC BY-SA 4.0"
+  },
+  "test": {
+    "sentences": 2337,
+    "falkoSentences": 1237,
+    "merlinSentences": 1100,
+    "files": {
+      "fm-test.src": "61084ce4fc391a71a8dc4dce2ebf1775674b165f8a2e58427f697bfee1bce65f",
+      "fm-test.trg": "2048cb3968651c621c705a61d8460da4b4a18fc80871ab4a0924ea01a67ef3bf",
+      "fm-test.m2": "7aba238d8e27e34e2c6c49bff6bb6a822d2535ecbd16c52cfa43b33b25a2ceda",
+      "source/falko-id-ctok-zh1.txt.test": "fd667fa79b7adec2d04189236b6584d4f8d397fee3112f30fe54648d85f7ce98",
+      "source/merlin-id-ctok-zh1.txt.test": "07027e225daa86eb10e67cc89bff82d2375485da22787cd5582da6a7d6ea728d",
+      "LICENSE": "6d4e2239c9605f95e1031309e8bd156dec62c55817427655003c57baceafb1e2"
+    }
+  },
+  "development": {
+    "sentences": 2503,
+    "files": {
+      "fm-dev.src": "9f756c9fcec730a5f0134fd7fab2fb0761bedd2084e56e864dc468947eb07cde",
+      "fm-dev.trg": "c47bb900da015dffe9ad93ff8686d866b5c7ab12d20bc72f163e5399e6a63d76",
+      "fm-dev.m2": "24541dd8b6172083456f7e8cf4543a6225d8a285ebc9245030d73bbb4bd921d4"
+    }
+  },
+  "training": {
+    "sentences": 19237,
+    "sourceMapRows": 19243,
+    "expectedUnalignedSourceMapRows": 6,
+    "holdoutSeed": "omni-gec-holdout-20260716",
+    "holdoutModulo": 5,
+    "holdoutDocuments": 225,
+    "holdoutSentences": 3685,
+    "subjectVerbHoldout": {
+      "seed": "omni-subject-verb-holdout-20260716",
+      "modulo": 5,
+      "documents": 233,
+      "sentences": 3803
+    },
+    "articleGenderHoldout": {
+      "seed": "omni-article-gender-holdout-20260716",
+      "modulo": 5,
+      "documents": 256,
+      "sentences": 4397
+    },
+    "files": {
+      "fm-train.src": "ab15e63ea9e24a5af7c5cc9f48049e0ee8ec722bbc838347036c6035d42097c5",
+      "fm-train.trg": "7bd43ae875172b903f8ca3c1beef55b28aef34a3a12c070dae4fc5f5fad23b04",
+      "fm-train.m2": "c555ddf98af689e7613b596c18f2461f1b03fab286599866ba5a0907ea555ed7",
+      "source/falko-id-ctok-zh1.txt.train": "48cd20dd031652a516b8533efaad29a49f7b8149558ca355c2bef0586c1752f9",
+      "source/merlin-id-ctok-zh1.txt.train": "5e5b19cbfcbb30253217c87539db193f6f90d3ffee72cd339ee5d7cceefe0d3a"
+    }
+  },
+  "evaluation": {
+    "system": "production-spoken-grammar-filter",
+    "matching": "exact-token-span-and-replacement",
+    "excludedGoldTypes": ["noop", "PUNCT", "SPELL", "ORTH"],
+    "warning": "Written learner German only. Unmatched predictions are not automatically harmful because references are not exhaustive."
+  }
+}

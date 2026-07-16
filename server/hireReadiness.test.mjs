@@ -171,6 +171,32 @@ test('hire readiness high confidence requires two fresh exact-archetype deficits
   assert.equal(result.rejectionForecast.supportCount, 2);
   assert.equal(result.rejectionForecast.conflictCount, 0);
   assert.equal(result.interviewRisk.confidence, 'high');
+  assert.equal(result.diagnosticTruth.state, 'repeated_pattern');
+  assert.equal(result.diagnosticTruth.patternConfidence, 'high');
+  assert.equal(result.diagnosticTruth.causeStatus, 'not_established');
+  assert.deepEqual(result.diagnosticTruth.possibleExplanations, [
+    'microphone_or_background_noise',
+    'speech_recognizer_accent_mismatch',
+    'pronunciation_or_articulation',
+  ]);
+  assert.equal(result.diagnosticTruth.nextDiscriminatorId, 'repeat_same_answer_with_clean_audio');
+});
+
+test('hire readiness exposes observable truth without psychological or employer inference', () => {
+  const now = 1_800_000_000_000;
+  const slow = (date) => ({
+    date, ...recoveryFields(date, 3), bossId: 'yasmin', targetIndustry: 'telecom',
+    wpm: 120, words: 120, fillers: 2, grammarMeasured: true, grammarRules: [], subClauseRate: 0.3,
+    vocabDiversity: 0.5, giveUpRate: 0.1, intelligibility: 0.9, latencyS: 6,
+    evidenceQuality: { version: 2, words: 120, prescriptionEligible: true, highConfidence: true },
+  });
+  const result = hireReadinessFor({ sessions: [slow(now - 1000), slow(now)] }, now);
+  assert.equal(result.rejectionForecast.criterion.criterionId, 'response_latency');
+  assert.equal(result.diagnosticTruth.state, 'repeated_pattern');
+  const serialized = JSON.stringify(result.diagnosticTruth);
+  assert.doesNotMatch(serialized, /anxiety|therapy|motivation|employer_will_reject/iu);
+  assert.match(serialized, /question_comprehension_load/u);
+  assert.match(serialized, /not_a_causal_or_psychological_diagnosis/u);
 });
 
 test('grammar and fillers are normalized per 100 reliable spoken words', () => {

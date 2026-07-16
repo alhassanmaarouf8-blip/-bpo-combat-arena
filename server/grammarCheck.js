@@ -120,7 +120,7 @@ async function callLanguageTool(text) {
  * the sentence it belongs to. Returns [] if nothing is flagged; THROWS if LT is
  * unreachable (so the caller can decide on a backstop).
  */
-export async function buildGrammar(utterances) {
+async function buildGrammarInternal(utterances, maxRules) {
   // Join real utterances into one document, remembering each one's character span so we
   // can map a match's offset back to the exact sentence (and correct only that sentence).
   const segments = [];
@@ -195,7 +195,7 @@ export async function buildGrammar(utterances) {
   }
 
   // Shape into the debrief grammar contract; cap to keep the screen scannable.
-  return [...byRule.values()].slice(0, 6).map((g) => {
+  return [...byRule.values()].slice(0, maxRules).map((g) => {
     // de-dupe identical wrong/right pairs within a rule
     const seen = new Set();
     const examples = g.examples.filter((e) => {
@@ -222,4 +222,15 @@ export async function buildGrammar(utterances) {
   // category/issue-type/letter-diff filters above, its RULE NAME is screened here — so the debrief
   // grammar card and the "Sag es richtig" drill can never show "Komma vor 'sondern'" to a speaker.
   .filter((g) => g.summaryExamples.length > 0 && isSpeakableRule(g.rule));
+}
+
+export async function buildGrammar(utterances) {
+  return buildGrammarInternal(utterances, 6);
+}
+
+// Offline benchmark-only surface. It deliberately reuses every production filter but avoids the
+// learner-facing six-rule presentation cap so batched corpus sentences cannot hide later matches.
+// No API route imports this function.
+export async function buildGrammarForBenchmark(utterances) {
+  return buildGrammarInternal(utterances, Number.POSITIVE_INFINITY);
 }

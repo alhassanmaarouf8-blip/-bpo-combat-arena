@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "dataset": "MERLIN Corpus",
+  "version": "1.2",
+  "source": "https://clarin.eurac.edu/repository/xmlui/handle/20.500.12124/59",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "textCommit": "a3165a6cb7e18ee89d8c5b5a19f612405bb61e77",
+  "metadataSha256": "7918cb0b718c7272cd9b762082d2e1903df20be16482c61c6e094a2c311d6fc1",
+  "licenseSha256": "9312b09a6848f26c6046652238ddd6b32ea2124847faed48854c375c5194238d",
+  "expected": {
+    "germanRows": 1033,
+    "uniqueGermanAuthors": 1033,
+    "arabicL1GermanRows": 64,
+    "germanTextFiles": 1033
+  },
+  "split": {
+    "seed": "20260715",
+    "calibration": 0.6,
+    "development": 0.2,
+    "holdout": 0.2,
+    "stratifyBy": ["fairCefr", "arabicL1"]
+  },
+  "limitations": [
+    "Written certification texts only; no audio or spontaneous speech.",
+    "Document-level count_G supports grammar-error presence, not correction-span correctness.",
+    "Arabic-L1 is not equivalent to Egyptian Arabic-L1 or the German BPO target population."
+  ]
+}

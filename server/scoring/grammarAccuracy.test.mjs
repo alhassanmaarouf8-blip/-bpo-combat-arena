@@ -59,14 +59,25 @@ const CORPUS = [
   { t: 'Ich glaube, dass ich viel Erfahrung mitbringe.',             expect: null },
   { t: 'Ich suche eine Stelle, die mich wirklich fordert.',          expect: null },
   { t: 'Es ist gut, dass ich mich hier wohlfühle.',                  expect: null },
+  // ── subject–verb agreement (closed high-confidence paradigms) ──
+  { t: 'Ich sind für das Gespräch bereit.',                          expect: 'subject-verb' },
+  { t: 'Du haben morgen einen Termin.',                              expect: 'subject-verb' },
+  { t: 'Wir ist ein gutes Team.',                                    expect: 'subject-verb' },
+  // guarded: correct forms, ambiguous subjects, and governed infinitives
+  { t: 'Ich bin für das Gespräch bereit.',                           expect: null },
+  { t: 'Wir haben morgen einen Termin.',                             expect: null },
+  { t: 'Sie sind für das Gespräch bereit.',                          expect: null },
+  { t: 'Ich weiß, dass ich arbeiten können muss.',                   expect: null },
   // ── gender / article ──
   { t: 'Ich habe die Problem gelöst.',                               expect: 'article-gender' },
   { t: 'Das war eine Problem für mich.',                             expect: 'article-gender' },
+  { t: 'Ich komme nach dem Arbeit nach Hause.',                      expect: 'article-gender' },
   // ── guard-negatives: correct gender ──
   { t: 'Ich habe das Problem gelöst.',                               expect: null },
   { t: 'Der Kunde war zufrieden mit der Lösung.',                    expect: null },
   { t: 'Ich arbeite gern im Team und lerne schnell.',                expect: null },
   { t: 'Vielen Dank für das Gespräch, ich freue mich auf Ihre Rückmeldung.', expect: null },
+  { t: 'Man muss beachten, welche Vorteile das Sprache Sprechen bringt.', expect: null },
 ];
 
 // Detection uses the same duplicate-to-clear-the-surfacing-gate trick the harness proved with,

@@ -172,8 +172,12 @@ test('a short persisted practice session cannot become Salma diagnostic evidence
     fluency: 99, deescalation: 1, giveUpRate: 0, intelligibility: 1 }];
   assert.equal(measurementForSkill(p, 'fluency-interrupt'), null);
   assert.equal(deriveSalmaPrescription(p, { now: 1_800_000_001_000 }).prescription, null);
-  assert.equal(publicSalmaCoach(p, account('basic'), { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false })
-    .interviewRisk.state, 'measure_first');
+  const enabled = publicSalmaCoach(p, account('basic'), { mode: 'on', enabled: true, aiEnabled: false, voiceEnabled: false });
+  assert.equal(enabled.interviewRisk.state, 'measure_first');
+  assert.equal(enabled.diagnosticTruth.state, 'measure_first');
+  assert.equal(enabled.diagnosticTruth.causeStatus, 'not_established');
+  const disabled = publicSalmaCoach(p, account('basic'), { mode: 'off', enabled: false, aiEnabled: false, voiceEnabled: false });
+  assert.equal(disabled.diagnosticTruth, null, 'feature-off accounts must not receive a new public contract');
 });
 
 test('preferences are strict and Masri cannot be selected before approval', () => {

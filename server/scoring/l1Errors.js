@@ -51,13 +51,54 @@ const MODAL_AUX_FINAL = new Set([
   'wird','werde','werden','wirst','wurde','wurden','würde','würden','würdest',
 ]);
 
+// ── Detector 2: explicit subject–verb agreement on closed paradigms ───────────────
+// Precision-first: only an adjacent, unambiguous personal pronoun plus a known form of
+// nine high-frequency auxiliaries/modals is considered. "sie/Sie" and "ihr" are excluded
+// because their person/number or grammatical role cannot be recovered safely from ASR text.
+const SUBJECT_VERB_PARADIGMS = {
+  sein:    { ich: 'bin',    du: 'bist',     er: 'ist',    es: 'ist',    man: 'ist',    wir: 'sind' },
+  haben:   { ich: 'habe',   du: 'hast',     er: 'hat',    es: 'hat',    man: 'hat',    wir: 'haben' },
+  werden:  { ich: 'werde',  du: 'wirst',    er: 'wird',   es: 'wird',   man: 'wird',   wir: 'werden' },
+  koennen: { ich: 'kann',   du: 'kannst',   er: 'kann',   es: 'kann',   man: 'kann',   wir: 'können' },
+  muessen: { ich: 'muss',   du: 'musst',    er: 'muss',   es: 'muss',   man: 'muss',   wir: 'müssen' },
+  wollen:  { ich: 'will',   du: 'willst',   er: 'will',   es: 'will',   man: 'will',   wir: 'wollen' },
+  sollen:  { ich: 'soll',   du: 'sollst',   er: 'soll',   es: 'soll',   man: 'soll',   wir: 'sollen' },
+  duerfen: { ich: 'darf',   du: 'darfst',   er: 'darf',   es: 'darf',   man: 'darf',   wir: 'dürfen' },
+  moechten:{ ich: 'möchte', du: 'möchtest', er: 'möchte', es: 'möchte', man: 'möchte', wir: 'möchten' },
+};
+const SUBJECT_VERB_FORM_INDEX = new Map();
+for (const [lemma, paradigm] of Object.entries(SUBJECT_VERB_PARADIGMS)) {
+  for (const form of Object.values(paradigm)) {
+    if (!SUBJECT_VERB_FORM_INDEX.has(form)) SUBJECT_VERB_FORM_INDEX.set(form, lemma);
+  }
+}
+const SUBJECT_VERB_FORMS = [...SUBJECT_VERB_FORM_INDEX.keys()].sort((a, b) => b.length - a.length).join('|');
+const SUBJECT_VERB_RE = new RegExp(`\\b(ich|du|er|es|man|wir)\\s+(${SUBJECT_VERB_FORMS})\\b`, 'giu');
+const INFINITIVE_FORMS = new Set(['haben', 'werden', 'können', 'müssen', 'wollen', 'sollen', 'dürfen']);
+
+function governedInfinitive(text, matchEnd, observed) {
+  if (!INFINITIVE_FORMS.has(observed)) return false;
+  const clauseTail = text.slice(matchEnd).split(/[,.!?;:]/u)[0];
+  const laterWords = (clauseTail.match(/[\p{L}]+/gu) || []).map((word) => word.toLocaleLowerCase('de-DE'));
+  // "weil ich arbeiten können muss" and "weil ich haben möchte" contain an infinitive
+  // after the subject which is governed by the later finite modal. Rewriting it would be wrong.
+  return laterWords.some((word) => SUBJECT_VERB_FORM_INDEX.has(word));
+}
+
 // Deterministic correction for SIMPLE clauses only: conj + subj + verb + rest → conj + subj +
 // rest + verb. Attempted only when the rest is short and contains no further clause boundary —
 // otherwise we name the rule but do not fabricate a rewrite.
 function suggestVerbFinal(conj, subj, verb, rest) {
   const restTrim = rest.replace(/[.,!?].*$/, '').trim();
   const restWords = restTrim.split(/\s+/).filter(Boolean);
-  if (!restWords.length || restWords.length > 6) return null;
+  // Human-corpus guard (Falko-MERLIN dev): a one-token tail such as "weil wir machen in"
+  // is not enough evidence to reconstruct a complete clause. Count the signal, but do not
+  // promote a fabricated "better" sentence.
+  if (restWords.length < 2 || restWords.length > 6) return null;
+  // "bitte" commonly marks the following main-clause request when ASR omits the comma
+  // ("Wenn du suchst bitte ruf ..."). Moving that whole request behind the subordinate verb
+  // teaches broken German. Without a reliable clause boundary we abstain from the rewrite.
+  if (/\bbitte\b/iu.test(restTrim)) return null;
   if (/\b(und|aber|oder|weil|dass|wenn|denn|sondern)\b/i.test(restTrim)) return null;
   return `${conj} ${subj} ${restTrim} ${verb}`;
 }
@@ -71,7 +112,21 @@ const GENDER_ARTICLES = {
   f: new Set(['die', 'der', 'eine', 'einer']),
   n: new Set(['das', 'dem', 'des', 'ein', 'einem', 'eines']),
 };
-const NOM = { m: 'der', f: 'die', n: 'das' };
+// Preserve the learner's definiteness and case whenever the observed article form makes the
+// replacement unambiguous. A missing entry means: count the signal, but do not invent a rewrite.
+// Examples: "dem Arbeit" → "der Arbeit" (dative); "eine System" → "ein System".
+const SAFE_ARTICLE_REPLACEMENT = {
+  das:   { f: 'die' },
+  die:   { n: 'das' },
+  den:   { f: 'die', n: 'das' },
+  dem:   { f: 'der' },
+  des:   { f: 'der' },
+  eine:  { n: 'ein' },
+  ein:   { f: 'eine' },
+  einen: { f: 'eine', n: 'ein' },
+  einem: { f: 'einer' },
+  eines: { f: 'einer' },
+};
 // singular surface form → gender (exact-match only; plurals have different forms).
 const NOUN_GENDER = {
   problem: 'n', kunde: 'm', frage: 'f', antwort: 'f', lösung: 'f', rechnung: 'f',
@@ -116,6 +171,7 @@ function hasLowConfOverlap(u, fragment) {
 export function detectL1Patterns(utterances) {
   const hits = {
     'verb-final':     { key: 'verb-final',     count: 0, examples: [] },
+    'subject-verb':   { key: 'subject-verb',   count: 0, examples: [] },
     'article-gender': { key: 'article-gender', count: 0, examples: [] },
     'p-b':            { key: 'p-b',            count: 0, examples: [] },
   };
@@ -144,22 +200,43 @@ export function detectL1Patterns(utterances) {
       }
     }
 
-    // 2) article–gender (impossible-article-only, exact singular forms)
+    // 2) subject–verb agreement (closed paradigms, explicit adjacent subject only)
+    SUBJECT_VERB_RE.lastIndex = 0;
+    while ((m = SUBJECT_VERB_RE.exec(text)) !== null) {
+      const subject = m[1].toLocaleLowerCase('de-DE');
+      const observed = m[2].toLocaleLowerCase('de-DE');
+      const lemma = SUBJECT_VERB_FORM_INDEX.get(observed);
+      const expected = SUBJECT_VERB_PARADIGMS[lemma]?.[subject];
+      if (!expected || observed === expected || governedInfinitive(text, SUBJECT_VERB_RE.lastIndex, observed)) continue;
+      hits['subject-verb'].count++;
+      const quote = m[0];
+      const better = `${m[1]} ${expected}`;
+      if (mayQuote && !hasLowConfOverlap(u, quote)) {
+        hits['subject-verb'].examples.push({ quote, better });
+      }
+    }
+
+    // 3) article–gender (impossible-article-only, exact singular forms)
     ARTICLE_RE.lastIndex = 0;
     while ((m = ARTICLE_RE.exec(text)) !== null) {
       const article = m[1].toLowerCase();
       const noun = m[2];
       const gender = NOUN_GENDER[noun.toLowerCase()];
       if (!gender || GENDER_ARTICLES[gender].has(article)) continue;
+      // Human-corpus guard: in "das Sprache Sprechen", the apparent noun is a modifier and
+      // the article governs the following nominalized head. ASR spacing cannot resolve whether
+      // the learner intended a compound, so this context is not evidence of an article error.
+      if (/^\s+[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]*/u.test(text.slice(ARTICLE_RE.lastIndex))) continue;
       hits['article-gender'].count++;
       const cap = noun.charAt(0).toUpperCase() + noun.slice(1).toLowerCase();
       const quote = `${m[1]} ${noun}`;
       if (mayQuote && !hasLowConfOverlap(u, quote)) {
-        hits['article-gender'].examples.push({ quote, better: `${NOM[gender]} ${cap}` });
+        const replacement = SAFE_ARTICLE_REPLACEMENT[article]?.[gender] || null;
+        hits['article-gender'].examples.push({ quote, better: replacement ? `${replacement} ${cap}` : null });
       }
     }
 
-    // 3) P→B transcript artifacts
+    // 4) P→B transcript artifacts
     for (const tok of text.toLowerCase().split(/[^a-zäöüß]+/)) {
       if (!tok || !Object.prototype.hasOwnProperty.call(P_B_MAP, tok)) continue;
       hits['p-b'].count++;
@@ -178,6 +255,11 @@ const COPY = {
     title: 'Dein Muster: das Verb muss ans Ende',
     explain: 'Nach weil, dass, wenn … wandert das Verb ans Satzende. Das ist DIE typische Hürde ' +
              'für Arabisch-Muttersprachler — und einer der Fehler, die deutsche Interviewer sofort hören.',
+  },
+  'subject-verb': {
+    title: 'Dein Muster: Subjekt und Verb müssen zusammenpassen',
+    explain: 'Die Verbform muss zur Person passen: „ich bin“, „du bist“, „wir sind“. ' +
+             'Übe Pronomen und Verbform immer zusammen, bis die Verbindung automatisch kommt.',
   },
   'article-gender': {
     title: 'Dein Muster: der / die / das',

@@ -51,7 +51,71 @@ test('no fabricated rewrite when the clause is complex', () => {
   assert.equal(vf.examples[0].better, null);
 });
 
-// ── Detector 2: article–gender ─────────────────────────────────────────────────
+test('human-corpus guard: an incomplete one-token tail is detected but never rewritten', () => {
+  const found = detectL1Patterns([utt('weil wir machen in')]);
+  const vf = found.find((f) => f.key === 'verb-final');
+  assert.ok(vf);
+  assert.equal(vf.count, 1);
+  assert.equal(vf.examples.length, 0);
+});
+
+test('human-corpus guard: missing punctuation before a bitte request never moves the main clause', () => {
+  const found = detectL1Patterns([utt('Wenn du suchst bitte ruf mich an schnell')]);
+  const vf = found.find((f) => f.key === 'verb-final');
+  assert.ok(vf);
+  assert.equal(vf.examples[0].better, null);
+});
+
+// ── Detector 2: subject–verb agreement ────────────────────────────────────────
+
+test('flags explicit pronoun–verb disagreement and suggests the closed-paradigm form', () => {
+  const cases = [
+    ['ich sind bereit', 'ich bin'],
+    ['du haben Zeit', 'du hast'],
+    ['wir ist ein Team', 'wir sind'],
+  ];
+  for (const [text, better] of cases) {
+    const pattern = detectL1Patterns([utt(text)]).find((item) => item.key === 'subject-verb');
+    assert.ok(pattern, `agreement pattern not detected: ${text}`);
+    assert.equal(pattern.examples[0].better, better);
+  }
+});
+
+test('does NOT flag correct closed-paradigm agreement', () => {
+  const found = detectL1Patterns([
+    utt('ich bin bereit'),
+    utt('du hast Zeit'),
+    utt('wir können morgen sprechen'),
+  ]);
+  assert.ok(!found.find((item) => item.key === 'subject-verb'));
+});
+
+test('does NOT guess ambiguous sie/Sie or ihr agreement', () => {
+  const found = detectL1Patterns([
+    utt('sie sind bereit'),
+    utt('Sie ist bereit'),
+    utt('ihr haben Zeit'),
+  ]);
+  assert.ok(!found.find((item) => item.key === 'subject-verb'));
+});
+
+test('does NOT rewrite an infinitive governed by a later modal', () => {
+  const found = detectL1Patterns([
+    utt('weil ich haben möchte'),
+    utt('weil ich arbeiten können muss'),
+  ]);
+  assert.ok(!found.find((item) => item.key === 'subject-verb'));
+});
+
+test('subject–verb evidence overlapping a low-confidence word is counted but not quoted', () => {
+  const pattern = detectL1Patterns([
+    utt('ich sind bereit', { lowConf: new Set(['sind']) }),
+  ]).find((item) => item.key === 'subject-verb');
+  assert.equal(pattern.count, 1);
+  assert.equal(pattern.examples.length, 0);
+});
+
+// ── Detector 3: article–gender ─────────────────────────────────────────────────
 
 test('flags "die Problem" and suggests "das Problem"', () => {
   const found = detectL1Patterns([utt('Ich habe die Problem gelöst.')]);
@@ -62,7 +126,35 @@ test('flags "die Problem" and suggests "das Problem"', () => {
 
 test('flags "eine Problem" (eine impossible for neuter)', () => {
   const found = detectL1Patterns([utt('Das war eine Problem für mich.')]);
-  assert.ok(found.find((f) => f.key === 'article-gender'));
+  const pattern = found.find((f) => f.key === 'article-gender');
+  assert.ok(pattern);
+  assert.equal(pattern.examples[0].better, 'ein Problem');
+});
+
+test('preserves case and definiteness when the article replacement is unambiguous', () => {
+  const cases = [
+    ['nach dem Arbeit', 'der Arbeit'],
+    ['mit einem Lösung', 'einer Lösung'],
+    ['für einen Problem', 'ein Problem'],
+  ];
+  for (const [text, better] of cases) {
+    const pattern = detectL1Patterns([utt(text)]).find((item) => item.key === 'article-gender');
+    assert.ok(pattern, `article pattern not detected: ${text}`);
+    assert.equal(pattern.examples[0].better, better);
+  }
+});
+
+test('counts but does not rewrite when case cannot be recovered safely', () => {
+  const pattern = detectL1Patterns([utt('Ich habe eine Beruf')])
+    .find((item) => item.key === 'article-gender');
+  assert.ok(pattern);
+  assert.equal(pattern.count, 1);
+  assert.equal(pattern.examples[0].better, null);
+});
+
+test('does NOT treat the modifier of a spaced nominal compound as the article head', () => {
+  const found = detectL1Patterns([utt('welche Vorteile das Sprache Sprechen bringt')]);
+  assert.ok(!found.find((item) => item.key === 'article-gender'));
 });
 
 test('does NOT flag correct case morphology ("mit der Frage" = dative)', () => {
@@ -78,7 +170,7 @@ test('does NOT flag unknown nouns (no lexicon entry = no opinion)', () => {
   assert.ok(!found.find((f) => f.key === 'article-gender'));
 });
 
-// ── Detector 3: P→B transcript artifacts ───────────────────────────────────────
+// ── Detector 4: P→B transcript artifacts ───────────────────────────────────────
 
 test('detects "Broblem" as a P/B artifact with the intended word', () => {
   const found = detectL1Patterns([utt('Das Broblem war die Lieferung.')]);

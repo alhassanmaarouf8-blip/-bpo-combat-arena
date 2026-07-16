@@ -18,7 +18,7 @@ function formatCairoRetest(value) {
 const RISK_LABELS = Object.freeze({
   fluency: 'Antwortfluss unter Zeitdruck',
   grammar: 'Grammatik in vollständigen Antworten',
-  intelligibility: 'Verständlichkeit am Telefon',
+  intelligibility: 'Erkennbarkeit des Sprachsignals am Telefon',
   confidence: 'Antwortkontinuität unter Druck',
   deescalation: 'Service-Recovery-Struktur im Kundengespräch',
   complexity: 'sprachliche Bandbreite',
@@ -45,6 +45,41 @@ const DRILL_LABELS = Object.freeze({
   'hoer-check': 'Hör-Training',
   shadowing: 'Aussprache-Training',
   'druck-leiter': 'Druck-Training',
+});
+const TRUTH_EXPLANATION_LABELS = Object.freeze({
+  lexical_retrieval_load: 'Wortabruf unter Zeitdruck',
+  sentence_planning_load: 'Satzplanung während des Sprechens',
+  question_comprehension_load: 'Verarbeitung der gehörten Frage',
+  deliberate_speaking_style: 'bewusst langsamer Sprechstil',
+  rule_not_automatic_under_pressure: 'die Regel ist unter Druck noch nicht automatisiert',
+  sentence_complexity_load: 'Belastung durch komplexere Sätze',
+  self_correction_during_speech: 'Selbstkorrektur während des Sprechens',
+  microphone_or_background_noise: 'Mikrofon oder Hintergrundgeräusche',
+  speech_recognizer_accent_mismatch: 'Abweichung zwischen Stimme und Spracherkennung',
+  pronunciation_or_articulation: 'Aussprache oder Artikulation',
+  response_structure_not_automatic: 'die Antwortstruktur ist noch nicht automatisiert',
+  scenario_knowledge_gap: 'fehlende Sicherheit im Kundenszenario',
+  language_load_during_roleplay: 'sprachliche Belastung im Rollenspiel',
+  turn_capture_or_interruption: 'Aufnahmeende oder Unterbrechung',
+  response_planning_load: 'Planung der Antwort',
+  deliberate_thinking_time: 'bewusst genommene Denkzeit',
+  habitual_filler_use: 'angewöhnte Füllwörter',
+  grammar_automaticity_gap: 'Grammatik noch nicht automatisch abrufbar',
+  task_answer_style: 'zu kurzer oder ungeeigneter Antwortstil',
+  topic_vocabulary_gap: 'fehlender Wortschatz für dieses Thema',
+  retrieval_under_pressure: 'erschwerter Wortabruf unter Druck',
+  short_answer_style: 'knapper Antwortstil mit wenig Sprachmaterial',
+});
+const TRUTH_DISCRIMINATOR_LABELS = Object.freeze({
+  compare_prepared_and_novel_pace: 'Dasselbe Tempo erst mit bekanntem, dann mit neuem Inhalt vergleichen.',
+  compare_controlled_rule_and_novel_speech: 'Die Regel erst kontrolliert und später in neuer freier Sprache prüfen.',
+  repeat_same_answer_with_clean_audio: 'Dieselbe Antwort einmal mit sauberem Audiosignal wiederholen; bleibt der Befund, folgt ein neuer Aussprachetest.',
+  compare_prompted_and_unprompted_roleplay: 'Die Struktur einmal mit Hinweis und später ohne Hinweis in einem neuen Rollenspiel prüfen.',
+  restate_question_then_answer_novel_followup: 'Die Frage zuerst mit eigenen Worten wiedergeben und danach eine neue Rückfrage beantworten.',
+  compare_understood_and_novel_question_latency: 'Reaktionszeit bei einer sicher verstandenen und einer neuen Frage getrennt messen.',
+  compare_prepared_and_novel_filler_rate: 'Füllwörter in einer vorbereiteten und einer neuen Antwort getrennt messen.',
+  compare_guided_and_unguided_answer_structure: 'Dieselbe Antwort einmal mit Strukturhilfe und später ohne Hilfe prüfen.',
+  compare_familiar_and_novel_topic_range: 'Wortschatzbreite bei einem vertrauten und einem neuen Thema vergleichen.',
 });
 
 export function useSalmaDrillSession(token, drillId) {
@@ -215,6 +250,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const p = coach.activePrescription;
   const risk = coach.interviewRisk;
   const forecast = coach.rejectionForecast;
+  const truth = coach.diagnosticTruth;
   const listeningRetest = coach.listeningRetest;
   const speakingRetest = coach.speakingRetest;
   const masteryConfirmed = coach.progress?.masteryConfirmed === true;
@@ -240,6 +276,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         ? 'Aktuelle Messung nötig'
         : null;
   const hasEvidenceDetails = forecast?.state === 'observed_simulation_risk'
+    || ['repeated_pattern', 'provisional_pattern', 'conflicted_pattern'].includes(truth?.state)
     || !!listeningRetest || !!speakingRetest || !!proof || !!coach.progress;
   const questionId = `salma-question-${generatedQuestionId.replace(/:/g, '')}`;
   return (
@@ -297,6 +334,29 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
             <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
               {forecast.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
               {' '}Interne Trainingsreferenz, keine Vorhersage einer Arbeitgeberentscheidung.
+            </div>
+          </div>}
+          {['repeated_pattern', 'provisional_pattern', 'conflicted_pattern'].includes(truth?.state) && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
+            background: 'rgba(15,23,42,0.55)', border: '1px solid rgba(148,163,184,0.24)', color: '#cbd5e1' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#e2e8f0' }}>WAS DIE MESSUNG WEISS — UND WAS NICHT</div>
+            <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.55 }}>
+              {truth.state === 'repeated_pattern'
+                ? `Das Muster wurde in ${truth.supportCount} passenden Simulationen beobachtet.`
+                : truth.state === 'conflicted_pattern'
+                  ? `Das Muster trat auf, aber ${truth.conflictCount} passende Messung(en) widersprechen einer stabilen Diagnose.`
+                  : 'Das Muster wurde einmal zuverlässig beobachtet und bleibt eine Arbeitshypothese.'}
+              {' '}Die Ursache ist damit nicht bewiesen.
+            </div>
+            {truth.possibleExplanations?.length > 0 && <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.55, color: '#94a3b8' }}>
+              <strong style={{ color: '#cbd5e1' }}>Mögliche Erklärungen:</strong>{' '}
+              {truth.possibleExplanations.map((id) => TRUTH_EXPLANATION_LABELS[id]).filter(Boolean).join(' · ')}
+            </div>}
+            {TRUTH_DISCRIMINATOR_LABELS[truth.nextDiscriminatorId] && <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.55, color: '#94a3b8' }}>
+              <strong style={{ color: '#cbd5e1' }}>So unterscheiden wir sie:</strong>{' '}
+              {TRUTH_DISCRIMINATOR_LABELS[truth.nextDiscriminatorId]}
+            </div>}
+            <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5, color: '#64748b' }}>
+              Keine psychologische Diagnose und keine Vorhersage einer Arbeitgeberentscheidung.
             </div>
           </div>}
           {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', lineHeight: 1.55 }}>

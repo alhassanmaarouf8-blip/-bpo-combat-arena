@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "status": "internal-triage-not-gold-truth",
+  "reviewerType": "single-ai-internal-triage",
+  "packSha256": "403ed378552f516998bcbd63a90e376ea2882dc9faa8b6eb9e6f7179accce212",
+  "keySha256": "ab6004f2d34d260de44fb10c5090e2e8cd86322cc3a3cb2b270a4e8857f55990",
+  "verdictsSha256": "89c4221a38ba41ef54b29f875b68f30d17c70b06d085d2ccd6f9b1950dff3df1",
+  "containsLearnerText": false,
+  "reviewed": 50,
+  "availableCorrections": 138,
+  "coverage": 0.3623,
+  "counts": {
+    "valid": 33,
+    "acceptable_alternative": 1,
+    "harmful": 15,
+    "unclear": 1
+  },
+  "usableRate": 0.68,
+  "harmfulRate": 0.3,
+  "unclearRate": 0.02,
+  "byRule": {
+    "ANS_ARTIKEL": { "reviewed": 3, "valid": 1, "acceptable_alternative": 0, "harmful": 2, "unclear": 0 },
+    "DE_AGREEMENT": { "reviewed": 36, "valid": 26, "acceptable_alternative": 1, "harmful": 9, "unclear": 0 },
+    "DE_PHRASE_REPETITION": { "reviewed": 1, "valid": 0, "acceptable_alternative": 0, "harmful": 0, "unclear": 1 },
+    "DE_SUBJECT_VERB_AGREEMENT": { "reviewed": 1, "valid": 1, "acceptable_alternative": 0, "harmful": 0, "unclear": 0 },
+    "DE_VERBAGREEMENT": { "reviewed": 1, "valid": 0, "acceptable_alternative": 0, "harmful": 1, "unclear": 0 },
+    "MIT_FREUNDLICHEN_GRUESSE": { "reviewed": 1, "valid": 1, "acceptable_alternative": 0, "harmful": 0, "unclear": 0 },
+    "PRAEP_DAT": { "reviewed": 5, "valid": 2, "acceptable_alternative": 0, "harmful": 3, "unclear": 0 },
+    "SIMPLE_AGREEMENT_MAS": { "reviewed": 1, "valid": 1, "acceptable_alternative": 0, "harmful": 0, "unclear": 0 },
+    "UEBER_EIN_MANGEL": { "reviewed": 1, "valid": 1, "acceptable_alternative": 0, "harmful": 0, "unclear": 0 }
+  },
+  "warning": "A single AI review cannot validate accuracy or replace two independent qualified German raters. Do not change production rules from this result alone."
+}
