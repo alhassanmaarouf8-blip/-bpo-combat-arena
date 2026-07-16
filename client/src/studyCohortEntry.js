@@ -1,5 +1,23 @@
 const STUDY_KEY = '21d';
 const MAX_INVITE_LENGTH = 2048;
+// A cohort invite is a short-lived bearer capability. Keep it in sessionStorage only long
+// enough to survive a reload in the same browser tab; it is never written to localStorage,
+// URLs, analytics, or the authenticated account response.
+const SESSION_ENTRY_KEY = 'bpo_study_cohort_entry_v1';
+
+function safeSessionStorage(storage = globalThis.sessionStorage) {
+  try {
+    return storage && typeof storage.getItem === 'function' ? storage : null;
+  } catch {
+    return null;
+  }
+}
+
+function validEntry(value) {
+  if (!value || typeof value !== 'object' || value.study !== STUDY_KEY) return null;
+  const invite = typeof value.invite === 'string' ? value.invite : '';
+  return invite && invite.length <= MAX_INVITE_LENGTH ? Object.freeze({ study:STUDY_KEY, invite }) : null;
+}
 
 export function readStudyCohortEntry(locationLike = globalThis.location) {
   try {
@@ -13,6 +31,26 @@ export function readStudyCohortEntry(locationLike = globalThis.location) {
   } catch {
     return null;
   }
+}
+
+export function readStoredStudyCohortEntry(storage = globalThis.sessionStorage) {
+  try {
+    const raw = safeSessionStorage(storage)?.getItem(SESSION_ENTRY_KEY);
+    return raw ? validEntry(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberStudyCohortEntry(entry, storage = globalThis.sessionStorage) {
+  const safe = validEntry(entry);
+  if (!safe) return null;
+  try { safeSessionStorage(storage)?.setItem(SESSION_ENTRY_KEY, JSON.stringify(safe)); } catch { /* optional */ }
+  return safe;
+}
+
+export function forgetStudyCohortEntry(storage = globalThis.sessionStorage) {
+  try { safeSessionStorage(storage)?.removeItem(SESSION_ENTRY_KEY); } catch { /* optional */ }
 }
 
 export function buildStudyBrowserHandoffUrl(locationLike, invite) {
@@ -46,27 +84,36 @@ export function stripStudyCohortParams(locationLike = globalThis.location) {
 }
 
 export function captureStudyCohortEntry(locationLike = globalThis.location, replace = null) {
-  const entry = readStudyCohortEntry(locationLike);
-  if (!entry) return null;
-  const cleanPath = stripStudyCohortParams(locationLike);
-  try {
-    if (typeof replace === 'function') replace(cleanPath);
-    else globalThis.history?.replaceState?.(null, '', cleanPath);
-  } catch { /* privacy cleanup is best-effort; validation still fails closed */ }
-  return entry;
+  const fromFragment = readStudyCohortEntry(locationLike);
+  if (fromFragment) {
+    const entry = rememberStudyCohortEntry(fromFragment);
+    const cleanPath = stripStudyCohortParams(locationLike);
+    try {
+      if (typeof replace === 'function') replace(cleanPath);
+      else globalThis.history?.replaceState?.(null, '', cleanPath);
+    } catch { /* privacy cleanup is best-effort; validation still fails closed */ }
+    return entry;
+  }
+  return readStoredStudyCohortEntry();
 }
 
 export async function verifyStudyCohortEntry(apiUrl, invite, { signal } = {}) {
-  const response = await fetch(`${apiUrl}/api/study-cohort/status`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ invite }),
-    signal,
-  });
-  if (!response.ok) return Object.freeze({ valid: false });
+  let response;
+  try {
+    response = await fetch(`${apiUrl}/api/study-cohort/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite }),
+      signal,
+    });
+  } catch {
+    return Object.freeze({ valid:false, state:'offline' });
+  }
+  if (!response.ok) return Object.freeze({ valid: false, state:'offline' });
   const body = await response.json().catch(() => ({}));
   if (body?.valid !== true || body?.cohort !== '21-day-study' || body?.days !== 21) {
-    return Object.freeze({ valid: false });
+    const state = ['invalid', 'expired', 'used', 'unavailable'].includes(body?.state) ? body.state : 'invalid';
+    return Object.freeze({ valid: false, state });
   }
-  return Object.freeze({ valid: true, days: 21 });
+  return Object.freeze({ valid: true, days: 21, state:'ready' });
 }

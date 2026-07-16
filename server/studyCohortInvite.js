@@ -77,28 +77,40 @@ export function createStudyCohortInvite({ inviteId, expiresAt, secret }) {
 
 export function validateStudyCohortInvite(token, { env = process.env, now = Date.now() } = {}) {
   const raw = typeof token === 'string' ? token.trim() : '';
-  if (!raw || raw.length > MAX_TOKEN_LENGTH) return null;
   const config = studyCohortConfig(env);
+  if (!raw || raw.length > MAX_TOKEN_LENGTH) return null;
   if (!config.enabled) return null;
+  return inspectStudyCohortInvite(raw, { env, now }).invite || null;
+}
+
+// Status is intentionally coarse and returns no invite metadata. It gives the holder an honest
+// recovery message (expired / used / unavailable) without putting a bearer token, invite ID, or
+// expiry back into a response.
+export function inspectStudyCohortInvite(token, { env = process.env, now = Date.now() } = {}) {
+  const raw = typeof token === 'string' ? token.trim() : '';
+  const config = studyCohortConfig(env);
+  if (!config.enabled) return Object.freeze({ state:'unavailable', invite:null });
+  if (!raw || raw.length > MAX_TOKEN_LENGTH) return Object.freeze({ state:'invalid', invite:null });
   const parts = raw.split('.');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return Object.freeze({ state:'invalid', invite:null });
   const [encodedPayload, suppliedSignature] = parts;
   const expectedSignature = signatureFor(encodedPayload, config.secret);
-  if (!safeEqual(suppliedSignature, expectedSignature)) return null;
+  if (!safeEqual(suppliedSignature, expectedSignature)) return Object.freeze({ state:'invalid', invite:null });
 
   let payload;
   try { payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')); }
-  catch { return null; }
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  catch { return Object.freeze({ state:'invalid', invite:null }); }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return Object.freeze({ state:'invalid', invite:null });
   const keys = Object.keys(payload);
-  if (keys.length !== PAYLOAD_KEYS.size || keys.some((key) => !PAYLOAD_KEYS.has(key))) return null;
-  if (payload.v !== TOKEN_VERSION || payload.cohort !== STUDY_COHORT_ID || payload.days !== STUDY_COHORT_DAYS) return null;
-  if (!INVITE_ID_RE.test(payload.inviteId) || !inviteIdAllowed(payload.inviteId, config.inviteIds)) return null;
-  if (!Number.isSafeInteger(payload.exp) || payload.exp <= now || payload.exp - now > MAX_FUTURE_MS) return null;
-  return Object.freeze({
+  if (keys.length !== PAYLOAD_KEYS.size || keys.some((key) => !PAYLOAD_KEYS.has(key))) return Object.freeze({ state:'invalid', invite:null });
+  if (payload.v !== TOKEN_VERSION || payload.cohort !== STUDY_COHORT_ID || payload.days !== STUDY_COHORT_DAYS) return Object.freeze({ state:'invalid', invite:null });
+  if (!INVITE_ID_RE.test(payload.inviteId) || !inviteIdAllowed(payload.inviteId, config.inviteIds)) return Object.freeze({ state:'invalid', invite:null });
+  if (!Number.isSafeInteger(payload.exp) || payload.exp - now > MAX_FUTURE_MS) return Object.freeze({ state:'invalid', invite:null });
+  if (payload.exp <= now) return Object.freeze({ state:'expired', invite:null });
+  return Object.freeze({ state:'ready', invite:Object.freeze({
     cohortId: STUDY_COHORT_ID,
     inviteId: payload.inviteId,
     days: STUDY_COHORT_DAYS,
     expiresAt: payload.exp,
-  });
+  }) });
 }

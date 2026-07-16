@@ -24,7 +24,7 @@ import { paymentStatusFor }            from './paymentsStore.js';
 import { loadUser }                    from './store.js';
 import { dayKey }                      from './time.js';
 import { STUDY_COHORT_DAYS, STUDY_COHORT_ID, studyCohortConfig,
-  validateStudyCohortInvite } from './studyCohortInvite.js';
+  validateStudyCohortInvite, inspectStudyCohortInvite } from './studyCohortInvite.js';
 
 const DATA_DIR   = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 const ACCT_FILE  = path.join(DATA_DIR, 'accounts.json');
@@ -220,11 +220,11 @@ export function studyCohortAccessState(account, now = Date.now()) {
 }
 
 export async function studyCohortInviteStatus(token, now = Date.now()) {
-  const invite = validateStudyCohortInvite(token, { now });
-  if (!invite) return null;
+  const inspected = inspectStudyCohortInvite(token, { now });
+  if (!inspected.invite) return Object.freeze({ valid:false, state:inspected.state });
   const store = await load();
-  if (studyInviteOwner(store, invite.inviteId)) return null;
-  return invite;
+  if (studyInviteOwner(store, inspected.invite.inviteId)) return Object.freeze({ valid:false, state:'used' });
+  return Object.freeze({ valid:true, state:'ready', invite:inspected.invite });
 }
 
 export async function activateAccountStudyCohort(account, token = null) {

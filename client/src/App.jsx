@@ -25,7 +25,7 @@ import {
   wasInterviewPassClaimed,
   writePendingInterviewPassClaim,
 } from './interviewPassClaimStore.js';
-import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry,
+import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry, forgetStudyCohortEntry,
   verifyStudyCohortEntry } from './studyCohortEntry.js';
 
 // Bearer capability hygiene: capture once and remove it from history during module initialization,
@@ -221,6 +221,7 @@ function authErrText(code) {
     weak_password:       { de: 'Passwort muss mindestens 10 Zeichen haben.', ar: 'الباسورد لازم ١٠ حروف على الأقل.' },
     email_taken:         { de: 'Diese E-Mail ist bereits registriert.', ar: 'الإيميل ده متسجّل قبل كده — سجّل دخول.' },
     invalid_study_invite:{ de: 'Dieser Studienzugang ist ungültig oder abgelaufen.', ar: '' },
+    study_invite_expired:{ de: 'Dieser Studienlink ist abgelaufen. Bitte verwende einen neuen Link.', ar: '' },
     study_invite_used:   { de: 'Dieser Studienplatz wurde bereits aktiviert.', ar: '' },
     study_access_unavailable:{ de: 'Dieser Studienplatz ist nicht mehr verfügbar.', ar: '' },
     invalid_credentials: { de: 'E-Mail oder Passwort ist falsch.',     ar: 'الإيميل أو الباسورد غلط.' },
@@ -2767,7 +2768,7 @@ function ProductHomePreview({ onStart }) {
           display:'flex', alignItems:'center', justifyContent:'center', gap:9,
           fontFamily:'var(--font-display)', fontSize:13, fontWeight:750, color:'#111827',
           background:'linear-gradient(180deg,#fb923c,#f97316)', boxShadow:'0 12px 28px rgba(249,115,22,0.2)' }}>
-          <Icon name="mic" size={17} /> Interview starten
+          <Icon name="mic" size={17} /> Kostenlos registrieren
         </button>
         <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
           Etwa 8 Minuten · sofortiges, persönliches Feedback
@@ -2838,10 +2839,13 @@ function VoiceReadinessCheck() {
       stream.getTracks().forEach((track) => track.stop());
       try { localStorage.setItem('bpo_mic_ready', '1'); } catch { /* private mode */ }
       setState('ready');
-    } catch { setState('blocked'); }
+    } catch (error) {
+      const name = String(error?.name || '');
+      setState(name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'blocked');
+    }
   };
   const ready = state === 'ready';
-  const failed = state === 'blocked' || state === 'unsupported';
+  const failed = state === 'blocked' || state === 'denied' || state === 'unsupported';
   return (
     <div style={{ maxWidth:420, margin:'0 auto 18px', padding:'12px 14px', borderRadius:'var(--r-lg)',
       background: ready ? 'rgba(34,197,94,0.07)' : failed ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.06)',
@@ -2904,17 +2908,27 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         if (controller.signal.aborted) return;
         setStudyEntryState(result.valid
           ? { phase:'valid', valid:true, days:result.days }
-          : { phase:'invalid', valid:false, days:0 });
+          : { phase:result.state || 'invalid', valid:false, days:0 });
       })
       .catch(() => {
         if (controller.signal.aborted) return;
-        setStudyEntryState({ phase:'invalid', valid:false, days:0 });
+        setStudyEntryState({ phase:'offline', valid:false, days:0 });
       });
     return () => controller.abort();
   }, []);
   const validStudyEntry = studyEntryState.valid === true && studyEntryState.days === 21;
   const studyEntryChecking = studyEntryState.phase === 'checking';
   const studyInviteLanding = studyEntryChecking || validStudyEntry;
+  const retryStudyEntry = useCallback(() => {
+    const entry = studyEntryRef.current;
+    if (!entry) return;
+    setStudyEntryState({ phase:'checking', valid:false, days:0 });
+    verifyStudyCohortEntry(API_URL, entry.invite)
+      .then((result) => setStudyEntryState(result.valid
+        ? { phase:'valid', valid:true, days:result.days }
+        : { phase:result.state || 'invalid', valid:false, days:0 }))
+      .catch(() => setStudyEntryState({ phase:'offline', valid:false, days:0 }));
+  }, []);
   // Self-serve EMAIL password reset (owner order 2026-07-10 — the WhatsApp-manual flow is dead).
   // forgotState: null → closed · 'form' → email input · 'sent' → link on its way ·
   // 'unavailable' → SMTP not configured yet (honest, no false promise, no WhatsApp copy).
@@ -3111,6 +3125,9 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           }
         } catch { /* storage is optional */ }
       }
+      // The server has now reserved (signup) or activated (login) the cohort place. The
+      // browser no longer needs the bearer capability, so remove it before entering the app.
+      if (validStudyEntry && data.account?.studyAccess) forgetStudyCohortEntry();
       onAuth({ token: data.token, account: data.account });
     } catch (error) {
       setErr(error?.name === 'AbortError'
@@ -3289,7 +3306,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           onLogin={() => focusAuth('login')} />
       </Suspense>}
 
-      {!studyInviteLanding && <VoiceReadinessCheck />}
+      {!studyEntryChecking && <VoiceReadinessCheck />}
 
       {/* AUTH CARD — glass, one orange fill on the whole page */}
       <div id="signup-card" style={{ borderRadius:'var(--r-xl)', padding:24, maxWidth:420, margin:'0 auto', width:'100%',
@@ -3300,6 +3317,24 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             border:'1px solid rgba(59,130,246,0.38)', background:'rgba(59,130,246,0.08)',
             color:'#dbeafe', fontSize:12, lineHeight:1.55 }}>
             Studienzugang wird sicher geprüft. Du kannst die Seite schon ansehen; die Anmeldung wird freigegeben, sobald der Zugang bestätigt ist.
+          </div>
+        )}
+        {!studyEntryChecking && capturedStudyEntry && !validStudyEntry && (
+          <div role="status" aria-live="polite" style={{ marginBottom:14, padding:'11px 13px', borderRadius:10,
+            border:'1px solid rgba(248,113,113,0.42)', background:'rgba(248,113,113,0.08)',
+            color:'#fecaca', fontSize:12, lineHeight:1.55 }}>
+            {studyEntryState.phase === 'expired' ? 'Dieser 21-Tage-Studienlink ist abgelaufen. Bitte fordere einen neuen Studienlink an.'
+              : studyEntryState.phase === 'used' ? 'Dieser Studienplatz wurde bereits aktiviert. Melde dich mit dem bestehenden Konto an.'
+                : studyEntryState.phase === 'offline' ? 'Der Studienzugang konnte gerade nicht geprueft werden. Dein Link bleibt in diesem Browser erhalten.'
+                  : studyEntryState.phase === 'unavailable' ? 'Der Studienzugang ist gerade nicht verfuegbar. Bitte versuche es spaeter erneut.'
+                    : 'Dieser Studienlink ist ungueltig. Bitte verwende den aktuellen Link.'}
+            {studyEntryState.phase === 'offline' && (
+              <button type="button" onClick={retryStudyEntry} style={{ display:'block', marginTop:9, minHeight:44,
+                padding:'8px 10px', width:'100%', borderRadius:8, cursor:'pointer', border:'1px solid var(--accent)',
+                color:'var(--accent-2)', background:'rgba(59,130,246,0.12)', fontWeight:700 }}>
+                ERNEUT PRUEFEN
+              </button>
+            )}
           </div>
         )}
         {verificationNotice && (
@@ -3483,7 +3518,7 @@ function VerificationLinkScreen({ state = 'working', onRetry }) {
   );
 }
 
-function EmailVerificationGate({ auth, onLogout, linkState = null }) {
+function EmailVerificationGate({ auth, onLogout, onVerifiedElsewhere, linkState = null }) {
   const [state, setState] = useState('idle');
   const resend = async () => {
     if (state === 'sending') return;
@@ -3502,6 +3537,12 @@ function EmailVerificationGate({ auth, onLogout, linkState = null }) {
     : state === 'unavailable' ? 'E-Mail-Versand ist gerade nicht verfügbar. Bitte später erneut versuchen.'
     : state === 'error' ? 'Senden fehlgeschlagen. Bitte gleich erneut versuchen.' : null;
   const studyPending = auth.account?.studyAccess?.pending === true && auth.account?.studyAccess?.days === 21;
+  const continueAfterVerification = async () => {
+    if (state === 'checking') return;
+    setState('checking');
+    const refreshed = await onVerifiedElsewhere?.();
+    setState(refreshed ? 'verified' : 'not_verified');
+  };
   return (
     <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
       <div style={{ width:'100%', maxWidth:440, padding:26, textAlign:'center', borderRadius:'var(--r-xl)',
@@ -3524,6 +3565,14 @@ function EmailVerificationGate({ auth, onLogout, linkState = null }) {
           fontFamily:'var(--font-display)', fontWeight:700, opacity:state === 'sending'?0.65:1 }}>
           {state === 'sending' ? 'Wird gesendet…' : 'NEUEN LINK SENDEN'}
         </button>
+        <button type="button" onClick={continueAfterVerification} disabled={state === 'checking'} style={{ width:'100%', minHeight:48, marginTop:10,
+          borderRadius:11, cursor:state === 'checking'?'wait':'pointer', border:'1px solid var(--accent)',
+          background:'rgba(59,130,246,0.10)', color:'var(--accent-2)', fontFamily:'var(--font-display)', fontWeight:700 }}>
+          {state === 'checking' ? 'PRUEFE...' : 'ICH HABE BESTAETIGT - WEITER'}
+        </button>
+        {state === 'not_verified' && <div role="status" style={{ marginTop:10, color:'#fecaca', fontSize:12, lineHeight:1.5 }}>
+          Noch nicht bestaetigt oder gerade offline. Oeffne den Link und versuche es danach erneut.
+        </div>}
         <button type="button" onClick={onLogout} style={{ marginTop:12, padding:8, border:0, background:'transparent',
           color:'var(--text-dim)', textDecoration:'underline', cursor:'pointer' }}>Andere E-Mail verwenden / Abmelden</button>
       </div>
@@ -6957,6 +7006,47 @@ function AuthedApp() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Verification can finish in another tab or an external mail app. Refresh on focus/visibility
+  // so the reserved cohort place continues without making the learner sign in again.
+  const refreshCurrentAccount = useCallback(async () => {
+    const token = auth?.token;
+    if (!token) return false;
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, { headers:{ Authorization:`Bearer ${token}` } });
+      if (response.ok) {
+        const payload = await response.json();
+        setAuth((current) => {
+          if (!current || current.token !== token) return current;
+          const updated = { token, account:payload.account };
+          persistAuth(updated);
+          return updated;
+        });
+        return true;
+      }
+      if (response.status === 401 || response.status === 403) {
+        setAuth((current) => {
+          if (!current || current.token !== token) return current;
+          persistAuth(null);
+          return null;
+        });
+      }
+    } catch { /* keep cached session while offline */ }
+    return false;
+  }, [auth?.token]);
+  useEffect(() => {
+    if (!auth?.token) return undefined;
+    const refreshWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') refreshCurrentAccount();
+    };
+    refreshWhenVisible();
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [auth?.token, refreshCurrentAccount]);
+
   // Claim a pre-signup Interview Pass only after the account is authenticated and verified. The
   // stored value is an opaque, one-use token; no CV or preview copy crosses this boundary.
   useEffect(() => {
@@ -7046,7 +7136,7 @@ function AuthedApp() {
     initialMode={verificationState === 'success' ? 'login' : null}
     verificationNotice={verificationState === 'success' || verificationState === 'invalid' ? { state:verificationState } : null} /></>;
   if (auth.account?.emailVerified === false) return <>{buildBadge}<EmailVerificationGate auth={auth}
-    onLogout={handleLogout} linkState={verificationState} /></>;
+    onLogout={handleLogout} onVerifiedElsewhere={refreshCurrentAccount} linkState={verificationState} /></>;
   return <>{buildBadge}<Arena auth={auth} onLogout={handleLogout} onAccountUpdate={handleAccount}
     interviewPassClaimRevision={interviewPassClaimRevision}
     hasClaimedInterviewPass={wasInterviewPassClaimed(auth.account?.id)} /></>;

@@ -40,7 +40,7 @@ test('status attests only safe fixed cohort capabilities and claim activates ser
   await withApi(async (base) => {
     const invalid = await post(base, '/api/study-cohort/status', { invite:`${rawInvite}x` });
     assert.equal(invalid.response.status, 200);
-    assert.deepEqual(invalid.body, { valid:false });
+    assert.deepEqual(invalid.body, { valid:false, state:'invalid' });
 
     const status = await post(base, '/api/study-cohort/status', { invite:rawInvite });
     assert.equal(status.response.status, 200);
@@ -64,6 +64,20 @@ test('status attests only safe fixed cohort capabilities and claim activates ser
     const retried = await post(base, '/api/study-cohort/claim', { invite:rawInvite }, auth.signToken(account));
     assert.equal(retried.response.status, 200);
     assert.deepEqual(retried.body.account.studyAccess, claimed.body.account.studyAccess);
+  });
+});
+
+test('status distinguishes a signed expired or consumed study place without disclosing invite data', async (t) => {
+  const expiredInvite = createStudyCohortInvite({ inviteId:INVITE_IDS[2], expiresAt:Date.now() - 1, secret:SECRET });
+  const usedInvite = createStudyCohortInvite({ inviteId:INVITE_IDS[3], expiresAt:Date.now() + 60_000, secret:SECRET });
+  const owner = await auth.createAccount(`route-used-${Date.now()}-${Math.random()}@example.com`, 'password1234', null, null, usedInvite);
+  t.after(() => auth.deleteAccount(owner));
+  await withApi(async (base) => {
+    const expired = await post(base, '/api/study-cohort/status', { invite:expiredInvite });
+    assert.deepEqual(expired.body, { valid:false, state:'expired' });
+    const used = await post(base, '/api/study-cohort/status', { invite:usedInvite });
+    assert.deepEqual(used.body, { valid:false, state:'used' });
+    assert.equal(JSON.stringify(used.body).includes(usedInvite), false);
   });
 });
 

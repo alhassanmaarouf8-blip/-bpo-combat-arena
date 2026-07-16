@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry, readStudyCohortEntry, stripStudyCohortParams,
-  verifyStudyCohortEntry } from '../client/src/studyCohortEntry.js';
+  forgetStudyCohortEntry, readStoredStudyCohortEntry, verifyStudyCohortEntry } from '../client/src/studyCohortEntry.js';
 
 test('study entry parsing is exact and missing or malformed state stays generic', () => {
   assert.equal(readStudyCohortEntry('https://omni.test/?study=21d&invite=signed.token'), null,
@@ -31,6 +31,24 @@ test('browser handoff preserves only the cohort capability while history cleanup
   assert.equal(replaced, '/start?release=known');
 });
 
+test('a captured cohort invite survives refresh only inside the same browser session and can be cleared after reservation', () => {
+  const values = new Map();
+  const storage = { getItem:(key) => values.get(key) || null, setItem:(key, value) => values.set(key, value), removeItem:(key) => values.delete(key) };
+  const originalStorage = globalThis.sessionStorage;
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable:true, value:storage });
+  try {
+    assert.deepEqual(captureStudyCohortEntry('https://omni.test/#study=21d&invite=signed.token', () => {}), {
+      study:'21d', invite:'signed.token',
+    });
+    assert.deepEqual(readStoredStudyCohortEntry(storage), { study:'21d', invite:'signed.token' });
+    assert.deepEqual(captureStudyCohortEntry('https://omni.test/start', () => {}), { study:'21d', invite:'signed.token' });
+    forgetStudyCohortEntry(storage);
+    assert.equal(readStoredStudyCohortEntry(storage), null);
+  } finally {
+    Object.defineProperty(globalThis, 'sessionStorage', { configurable:true, value:originalStorage });
+  }
+});
+
 test('client accepts only the server-attested fixed 21-day study shape', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
@@ -44,9 +62,11 @@ test('client accepts only the server-attested fixed 21-day study shape', async (
     assert.equal(body.invite, 'private-token');
     return responses.shift();
   };
-  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:true, days:21 });
-  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:false });
-  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:false });
+  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:true, days:21, state:'ready' });
+  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:false, state:'invalid' });
+  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:false, state:'invalid' });
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:false, state:'offline' });
 });
 
 test('generic landing remains three days while valid study state alone selects a user-gesture diagnostic CTA', async () => {
