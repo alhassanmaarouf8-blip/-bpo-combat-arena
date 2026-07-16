@@ -726,9 +726,13 @@ export function pickCsScenario(recentCs, targetIndustry = null, excludedScenario
   const excluded = new Set(Array.isArray(excludedScenarioIds) ? excludedScenarioIds : []);
   if (excluded.size) {
     const available = CS_SCENARIOS.filter((scenario) => !excluded.has(scenario.id));
-    const industryPool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
+    const validIndustry = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry);
+    const industryPool = validIndustry
       ? available.filter((scenario) => scenario.industry === targetIndustry) : [];
-    const pool = industryPool.length ? industryPool : available;
+    const originalIndustryPool = validIndustry
+      ? CS_SCENARIOS.filter((scenario) => scenario.industry === targetIndustry) : [];
+    const pool = industryPool.length ? industryPool
+      : originalIndustryPool.length ? originalIndustryPool : available;
     return pickFresh(pool, recentCs, (scenario) => scenario.id);
   }
   // hasOwn guard (defense in depth vs. already-stored prototype keys): an inherited key would
@@ -736,9 +740,6 @@ export function pickCsScenario(recentCs, targetIndustry = null, excludedScenario
   const pool = targetIndustry && Object.hasOwn(INDUSTRIES, targetIndustry)
     ? CS_SCENARIOS.filter((s) => s.industry === targetIndustry) : [];
   if (!pool.length) return pickFresh(CS_SCENARIOS, recentCs, (x) => x.id);
-  const seen = new Set(recentCs || []);
-  if (pool.some((s) => !seen.has(s.id)))         return pickFresh(pool,         recentCs, (x) => x.id);
-  if (CS_SCENARIOS.some((s) => !seen.has(s.id))) return pickFresh(CS_SCENARIOS, recentCs, (x) => x.id);
   return pickFresh(pool, recentCs, (x) => x.id);
 }
 
@@ -1065,7 +1066,9 @@ Korrigiere den Kandidaten NICHT, solange du ihn verstehst — bleib im Gespräch
 Nur wenn ein Fehler die Bedeutung wirklich zerstört, korrigiere ihn ganz kurz und natürlich im Gesprächsfluss.
 Wenn der Kandidat dich beleidigt oder respektlos wird, beende das Gespräch SOFORT professionell und ruhig („Ich beende das Gespräch.“) — zeige niemals Wut.
 Achte auf natürliche Prosodie: Sag nur einen Gedanken pro Redebeitrag, mach natürlich Pausen, vermeide zusammengepresste Wörter.
-${level.speechStyle}
+${level.speechStyle}${level.id === 'a2-b1' ? `
+A2/B1-VERSTÄNDNISHILFE (verbindlich): Wenn der Kandidat „Was bedeutet …?“, „Ich verstehe … nicht“, „bitte einfacher“, „ich weiß nicht“ oder „bitte helfen“ sagt, gehst du NICHT zur nächsten Frage weiter. Erkläre genau EIN schwieriges Wort mit sehr häufigen A2-Wörtern und höchstens einem kurzen Beispiel. Stelle danach dieselbe Aufgabe in EINEM einfachen Satz erneut. Wenn er Hilfe verlangt, gib genau EINEN Satzanfang (zum Beispiel „Ich habe … gemacht, weil …“) und warte. Benutze in dieser Hilfe keine schwierigeren Ersatzwörter wie „eigeninitiativ“, „Verfahren“ oder „eingebracht“. Behandle die Antwort als begleitet; lobe sie nicht als selbstständigen Beweis.
+` : ''}
 ${delivery}${dossierLine}${retestProbeLine}${memoryLine}${focusLine}${zielLine}${vacancyLine}${revancheLine}
 
 MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):

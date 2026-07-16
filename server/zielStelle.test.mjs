@@ -46,8 +46,9 @@ test('industry pool exhausted → falls back to global unseen (variety over repe
   const fintechIds = byIndustry('fintech').map((s) => s.id);
   for (let i = 0; i < 20; i++) {
     const pick = pickCsScenario(fintechIds, 'fintech');
-    assert.ok(!fintechIds.includes(pick.id), `should not repeat a seen fintech scenario, got ${pick.id}`);
-    assert.equal(pick.reset, false);
+    assert.ok(fintechIds.includes(pick.id), `must not switch industry, got ${pick.id}`);
+    assert.equal(pick.item.industry, 'fintech');
+    assert.equal(pick.reset, true);
   }
 });
 

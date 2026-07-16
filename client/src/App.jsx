@@ -1609,6 +1609,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const shownScore = useAnimatedNumber(score, 900);
   const rank  = r.rank ?? '–';
   const gradeUnavailable = !!r.gradeUnavailable;
+  const typedPractice = gradeUnavailable
+    && Number(r?.spokenEvidence?.trustedSpokenTurns || 0) === 0
+    && Number(r?.spokenEvidence?.excludedUntrustedTurns || 0) > 0;
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
 
@@ -1738,7 +1741,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 
           {/* First debrief: orient the learner, then let the canonical Salma panel own the single
               evidence-backed risk and prescription. The journey renders only when BrainGuide answered. */}
-          {isFirstDebrief && (
+          {isFirstDebrief && !typedPractice && (
             <div style={{ padding:'14px 16px', borderRadius:'var(--r-lg)', background:'rgba(59,130,246,0.08)',
               border:'1px solid var(--accent)', textAlign:'left' }}>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13, letterSpacing:'0.08em', color:'var(--accent)' }}>
@@ -1766,12 +1769,12 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           <div style={{ textAlign:'center', padding:'8px 0 4px' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, letterSpacing:'0.22em',
               color:accent, textShadow:`0 0 16px ${accent}88`, animation:'result-rise 0.4s var(--ease-out)' }}>
-              {win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN'}
+              {typedPractice ? 'TIPPÜBUNG ABGESCHLOSSEN' : (win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN')}
             </div>
             {gradeUnavailable ? (
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:20, lineHeight:1.25, color:'var(--action)',
                 margin:'12px 0 2px', textShadow:'0 0 18px rgba(249,115,22,0.4)' }}>
-                Bewertung nicht verfügbar
+                {typedPractice ? 'Sprechen wurde nicht gemessen' : 'Bewertung nicht verfügbar'}
               </div>
             ) : (
               <>
@@ -1793,7 +1796,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             {/* Motivating loss / win line */}
             <div style={{ marginTop:8, fontSize:12, color: win ? 'var(--accent-2)' : 'var(--action)', lineHeight:1.5,
               animation:'result-rise 0.6s var(--ease-out)' }}>
-              {win
+              {typedPractice
+                ? 'Deine geschriebenen Antworten wurden geprüft. Tempo, Aussprache und Hörverstehen brauchen eine gesprochene Sitzung.'
+                : win
                 ? 'Du hast das Trainingsziel dieser Simulation erreicht.'
                 : 'Dein wichtigster nächster Schritt steht unten.'}
             </div>
@@ -1911,7 +1916,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 
           {showDetails && (<>
           {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
-          {data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
+          {!typedPractice && data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
             <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.3)' }}>
               <div style={{ fontSize:9, fontFamily:'var(--font-display)', letterSpacing:'0.12em', color:'var(--accent-2)', marginBottom:5 }}>{ar ? 'تقدّمك' : 'DEIN FORTSCHRITT'}</div>
               <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.6, ...rtl }}>{ar && data.progressNarrative.ar ? data.progressNarrative.ar : data.progressNarrative.de}</div>
@@ -1961,7 +1966,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           )}
 
           {/* ── Natürlichkeit (language naturalness score) ─────────────────── */}
-          {data?.naturalness && (
+          {!typedPractice && data?.naturalness && (
             <Section title={ar ? 'صياغة وكلمات · NATÜRLICHKEIT' : 'NATÜRLICHKEIT · WORTWAHL'} color="var(--accent-2)"
               right={
                 <span style={{ fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 8px',

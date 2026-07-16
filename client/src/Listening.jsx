@@ -31,8 +31,17 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const [ttsOk, setTtsOk] = useState(true);
   const [err, setErr]     = useState(null);
   const inputRef = useRef(null);
+  const closeRef = useRef(onClose);
+  const pricingRef = useRef(onGoPricing);
 
-  const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
+  // Parent renders must never restart an active listening set. Keep the latest navigation
+  // callbacks behind stable refs so `load` remains tied only to the account/API identity.
+  useEffect(() => {
+    closeRef.current = onClose;
+    pricingRef.current = onGoPricing;
+  }, [onClose, onGoPricing]);
+
+  const blocked = useCallback(() => { pricingRef.current?.(); closeRef.current?.(); }, []);
 
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true); setOpaqueMedia(false);

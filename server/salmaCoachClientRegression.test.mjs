@@ -90,6 +90,14 @@ test('drill corrections are visible between attempts and receive persisted resul
   assert.match(spokenServer, /coachCueForDrill/u);
 });
 
+test('listening does not reload when parent navigation callbacks change', async () => {
+  const listening = await read('client/src/Listening.jsx');
+  assert.match(listening, /const closeRef = useRef\(onClose\)/u);
+  assert.match(listening, /const pricingRef = useRef\(onGoPricing\)/u);
+  assert.match(listening, /const blocked = useCallback\(\(\) => \{ pricingRef\.current\?\.\(\); closeRef\.current\?\.\(\); \}, \[\]\)/u);
+  assert.doesNotMatch(listening, /\[onGoPricing, onClose\]/u);
+});
+
 test('a corrected attempt clears stale tutor cues and every panel owns a unique question id', async () => {
   const [reporter, panel] = await Promise.all([
     read('client/src/salmaCoachClient.js'),
