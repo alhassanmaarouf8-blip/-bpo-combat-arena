@@ -35,4 +35,32 @@ export function createAdminStudyInviteLink({ inviteId, participantSlot, validHou
   return Object.freeze({ url: url.toString(), inviteId: id, expiresAt, days: 21 });
 }
 
-export default { createAdminStudyInviteLink };
+/**
+ * Return the smallest owner-only view needed to issue a new slot safely.
+ * Invite ids are not secrets; the HMAC bearer is never included here. A slot stays used forever
+ * once it has been handed to an account, so an old link can never be silently reassigned.
+ */
+export function adminStudyCohortInventory(accounts, { env = process.env } = {}) {
+  const config = studyCohortConfig(env);
+  const rows = Array.isArray(accounts) ? accounts : [];
+  const inviteIds = [...config.inviteIds].sort().map((baseId) => {
+    const prefix = `${baseId}__`;
+    const usedSlots = rows.flatMap((account) => {
+      const id = account?.subscription?.studyCohort?.inviteId;
+      if (typeof id !== 'string' || !id.startsWith(prefix)) return [];
+      const slot = Number(id.slice(prefix.length));
+      return Number.isInteger(slot) && slot >= 1 && slot <= 99 ? [slot] : [];
+    }).sort((left, right) => left - right);
+    return Object.freeze({ id: baseId, usedSlots: Object.freeze([...new Set(usedSlots)]) });
+  });
+  return Object.freeze({ configured: config.enabled, mode: config.mode, inviteIds: Object.freeze(inviteIds) });
+}
+
+export function studyCohortSlotAvailable(accounts, inviteId) {
+  const id = String(inviteId || '').trim();
+  if (!id) return false;
+  return !(Array.isArray(accounts) ? accounts : []).some((account) =>
+    account?.subscription?.studyCohort?.inviteId === id);
+}
+
+export default { createAdminStudyInviteLink, adminStudyCohortInventory, studyCohortSlotAvailable };

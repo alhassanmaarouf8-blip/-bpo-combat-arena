@@ -23,7 +23,7 @@ import { deleteGuide }                   from './guideStore.js';
 import { deleteFeedbackFor }             from './feedback.js';
 import { deleteWeaknessData }             from './db.js';
 import { buildSpokenGoldProfileSnapshot } from './spokenGoldSnapshot.js';
-import { createAdminStudyInviteLink } from './studyCohortAdmin.js';
+import { adminStudyCohortInventory, createAdminStudyInviteLink, studyCohortSlotAvailable } from './studyCohortAdmin.js';
 
 export const adminRouter = express.Router();
 
@@ -390,7 +390,19 @@ adminRouter.post('/admin/spoken-gold-snapshot', async (req, res) => {
 // Owner-only creation of an already allowlisted, one-use 21-day study link. The signing secret
 // never leaves the server, and the bearer remains in the URL fragment so it cannot enter request
 // logs or referrers. Account reservation/claim remains atomic in the existing cohort flow.
-adminRouter.post('/admin/study-cohort-invite', (req, res) => {
+adminRouter.get('/admin/study-cohort', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const accounts = await listAllAccounts();
+    res.set('Cache-Control', 'no-store, max-age=0');
+    return res.json(adminStudyCohortInventory(accounts));
+  } catch (error) {
+    console.error('[admin] study cohort inventory error:', error.message);
+    return res.status(500).json({ error: 'study_cohort_inventory_failed' });
+  }
+});
+
+adminRouter.post('/admin/study-cohort-invite', async (req, res) => {
   if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
   try {
     const invite = createAdminStudyInviteLink({
@@ -398,6 +410,10 @@ adminRouter.post('/admin/study-cohort-invite', (req, res) => {
       participantSlot: req.body?.participantSlot,
       validHours: req.body?.validHours,
     });
+    const accounts = await listAllAccounts();
+    if (!studyCohortSlotAvailable(accounts, invite.inviteId)) {
+      return res.status(409).json({ error: 'invite_slot_already_used' });
+    }
     res.set('Cache-Control', 'no-store, max-age=0');
     res.set('Pragma', 'no-cache');
     return res.json(invite);
@@ -438,6 +454,7 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
 <div id="ok" style="color:#34d399;font-size:12.5px;margin-top:8px;font-weight:700"></div>
 
 <div class="tabs">
+  <button class="tabbtn" data-tab="study" onclick="showTab('study')">21-Tage-Studie</button>
   <button class="tabbtn active" data-tab="pay" onclick="showTab('pay')">💳 Zahlungen</button>
   <button class="tabbtn" data-tab="comp" onclick="showTab('comp')">🎁 Comp-Zugang</button>
   <button class="tabbtn" data-tab="health" onclick="showTab('health')">📊 App-Gesundheit</button>
@@ -502,6 +519,22 @@ input,select{padding:7px 9px;border-radius:6px;border:1px solid #334155;backgrou
   <div id="engageList"><div class="empty">Lädt…</div></div>
 </div>
 
+<div id="tab-study" class="tabpane">
+  <div class="card" style="border-color:#3b82f6;background:rgba(59,130,246,0.06)">
+    <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-bottom:6px">One-use 21-day study link</div>
+    <div style="font-size:11px;color:#93c5fd;line-height:1.55;margin-bottom:10px">Create a link only for a person who has already agreed to participate. The bearer token stays in the URL fragment: send it directly, never post it publicly. After email verification, the participant receives exactly 21 days: no card and no automatic renewal.</div>
+    <div id="studyCohortState" class="empty">Loading configuration…</div>
+    <div id="studyCohortControls" style="display:none;margin-top:10px">
+      <select id="studyInviteBase" aria-label="Study group"></select>
+      <input id="studyParticipantSlot" type="number" min="1" max="99" value="1" aria-label="Participant slot" style="width:78px">
+      <input id="studyValidHours" type="number" min="1" max="1080" value="72" aria-label="Validity in hours" style="width:90px">
+      <button id="studyInviteButton" class="act" onclick="createStudyInvite()">Create link</button>
+      <div style="font-size:10px;color:#64748b;margin-top:6px">Slot 1–99 · valid for 1–1080 hours. Used slots are rejected.</div>
+      <textarea id="studyInviteResult" readonly aria-label="Generated study link" style="display:none;box-sizing:border-box;width:100%;min-height:78px;margin-top:10px;padding:9px;background:#020617;color:#e2e8f0;border:1px solid #3b82f6;border-radius:8px;font:11px ui-monospace,monospace"></textarea>
+    </div>
+  </div>
+</div>
+
 <script>
 var loadedTabs={};
 function fmtMoney(n){return Number(n||0).toLocaleString('de-DE')+' EGP';}
@@ -519,7 +552,39 @@ function showTab(name){
     else if(name==='health') loadHealth();
     else if(name==='mission') loadMission();
     else if(name==='engage') loadEngagement();
+    else if(name==='study') loadStudyCohort();
   }
+}
+function nextStudySlot(used){
+  for(var slot=1;slot<=99;slot+=1){if(used.indexOf(slot)===-1)return slot;}
+  return null;
+}
+function loadStudyCohort(){
+  var state=document.getElementById('studyCohortState');
+  var controls=document.getElementById('studyCohortControls');
+  fetch('/admin/study-cohort').then(function(r){return r.json().then(function(d){return {ok:r.ok,data:d};});}).then(function(result){
+    if(!result.ok||!result.data.configured){state.textContent='The 21-day study is not configured.';controls.style.display='none';return;}
+    var groups=result.data.inviteIds||[];
+    if(!groups.length){state.textContent='No allowed study group is configured.';controls.style.display='none';return;}
+    var select=document.getElementById('studyInviteBase');select.innerHTML='';
+    groups.forEach(function(group){var option=document.createElement('option');option.value=group.id;option.textContent=group.id;option.setAttribute('data-used',JSON.stringify(group.usedSlots||[]));select.appendChild(option);});
+    function syncSlot(){var option=select.options[select.selectedIndex];var used=option?JSON.parse(option.getAttribute('data-used')||'[]'):[];var next=nextStudySlot(used);document.getElementById('studyParticipantSlot').value=next||'';document.getElementById('studyInviteButton').disabled=!next;}
+    select.onchange=syncSlot;syncSlot();
+    state.textContent='Ready — create a link only after the participant explicitly agrees.';controls.style.display='block';
+  }).catch(function(){state.textContent='Could not load study configuration.';controls.style.display='none';});
+}
+function createStudyInvite(){
+  var base=document.getElementById('studyInviteBase').value;
+  var slot=Number(document.getElementById('studyParticipantSlot').value);
+  var hours=Number(document.getElementById('studyValidHours').value);
+  var button=document.getElementById('studyInviteButton');var result=document.getElementById('studyInviteResult');
+  if(!base||!Number.isInteger(slot)||slot<1||slot>99||!Number.isInteger(hours)||hours<1||hours>1080){showErr('Check study group, slot, and validity.');return;}
+  button.disabled=true;result.style.display='none';
+  fetch('/admin/study-cohort-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({inviteId:base,participantSlot:slot,validHours:hours})})
+    .then(function(r){return r.json().then(function(d){return {ok:r.ok,data:d};});}).then(function(response){
+      if(!response.ok){showErr('Link creation failed: '+((response.data&&response.data.error)||'unknown error'));loadStudyCohort();return;}
+      result.value=response.data.url;result.style.display='block';showOk('21-day link created for slot '+slot+'. Send it only to the consenting participant.');
+    }).catch(function(){showErr('Network error while creating the study link.');}).finally(function(){button.disabled=false;});
 }
 function load(){
   fetch('/admin/payments').then(function(r){if(!r.ok)throw new Error(r.status);return r.json();}).then(function(d){

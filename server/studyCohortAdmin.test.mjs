@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAdminStudyInviteLink } from './studyCohortAdmin.js';
+import { adminStudyCohortInventory, createAdminStudyInviteLink, studyCohortSlotAvailable } from './studyCohortAdmin.js';
 import { validateStudyCohortInvite } from './studyCohortInvite.js';
 
 const SECRET = 's'.repeat(48);
@@ -41,4 +41,15 @@ test('admin invite generation fails closed for disabled config, unknown ids, bad
   assert.throws(() => createAdminStudyInviteLink({ inviteId: ID, participantSlot: 1,
     env: env({ APP_URL: 'http://localhost/' }) }),
     /invalid_study_app_url/u);
+});
+
+test('owner inventory reveals only safe base ids and permanently reserves used slots', () => {
+  const accounts = [{ subscription: { studyCohort: { inviteId: `${ID}__02` } } }, {
+    subscription: { studyCohort: { inviteId: `${ID}__07` } },
+  }, { email: 'must-not-leak@example.com', subscription: {} }];
+  const inventory = adminStudyCohortInventory(accounts, { env: env() });
+  assert.deepEqual(inventory, { configured: true, mode: 'beta', inviteIds: [{ id: ID, usedSlots: [2, 7] }] });
+  assert.doesNotMatch(JSON.stringify(inventory), /must-not-leak|ssss/u);
+  assert.equal(studyCohortSlotAvailable(accounts, `${ID}__02`), false);
+  assert.equal(studyCohortSlotAvailable(accounts, `${ID}__03`), true);
 });
