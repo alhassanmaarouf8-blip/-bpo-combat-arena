@@ -5704,9 +5704,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   }, [authHeaders]);
 
   // ── Derived display state ─────────────────────────────────────────────────
+  const [targetIndustrySaving, setTargetIndustrySaving] = useState(false);
   const isActive     = phase === 'active';
   const isConnecting = phase === 'connecting';
-  const canStart     = phase === 'idle' || phase === 'error';
+  const canStart     = (phase === 'idle' || phase === 'error') && !targetIndustrySaving;
   // A novel user = ready, never interviewed (no local flag), no training streak. Collapses the home to
   // just the hero + Interview-starten button (progressive disclosure). NOTE: do NOT reference `data`
   // here — the fight-result object lives in a child component, not this scope (it crashed the home).
@@ -6218,12 +6219,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <select aria-label="Zielbranche auswählen" value={billing?.targetIndustry || ''} disabled={!canStart}
                 onChange={(e) => {
                   const v = e.target.value || null;
+                  setTargetIndustrySaving(true);
                   setBilling((b) => (b ? { ...b, targetIndustry: v } : b));
                   fetch(`${API_URL}/api/progress/target-industry`, { method:'POST',
                     headers:{ 'Content-Type':'application/json', ...authHeaders() },
                     body: JSON.stringify({ industry: v }) })
                     .then((r) => { if (!r.ok) loadBilling(); })      // 401/400 → resync, never show a lie
-                    .catch(() => loadBilling());
+                    .catch(() => loadBilling())
+                    .finally(() => setTargetIndustrySaving(false));
                 }}
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
@@ -6233,6 +6236,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   ['energie','Energie'],['versicherung','Versicherungen'],['streaming','Streaming & Abo-Dienste'],
                   ['b2b','B2B & Werbekonten']].map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
               </select>
+              {targetIndustrySaving && <span role="status" style={{ width:'100%', textAlign:'right', fontSize:10, color:'var(--text-dim)' }}>Ziel wird gespeichert ...</span>}
             </div>}
 
             {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}

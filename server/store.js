@@ -9,12 +9,32 @@ import { existsSync }                 from 'fs';
 import path                           from 'path';
 import { fileURLToPath }              from 'url';
 import { dbEnabled, kvGet, kvSet, kvDel } from './db.js';
+import { levelFor } from './progression.js';
 
 const DATA_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'users');
 const cache    = new Map();
 const NS       = 'profile';   // durable-store namespace for per-user profiles
 const saveTails = new Map();
 const mutationTails = new Map();
+const UNTRUSTED_SESSION_XP_MIGRATION = 1;
+
+export function repairExplicitlyUntrustedSessionXp(profile) {
+  const migrations = profile?.integrityMigrations && typeof profile.integrityMigrations === 'object'
+    ? profile.integrityMigrations : {};
+  if (Number(migrations.untrustedSessionXp) >= UNTRUSTED_SESSION_XP_MIGRATION) return false;
+  const sessions = Array.isArray(profile?.sessions) ? profile.sessions : [];
+  const wronglyAwarded = sessions.reduce((sum, session) => session?.evidenceQuality?.eligible === false
+    ? sum + Math.max(0, Number(session?.xpGained) || 0) : sum, 0);
+  if (wronglyAwarded > 0) {
+    profile.xp = Math.max(0, (Number(profile.xp) || 0) - wronglyAwarded);
+    profile.level = levelFor(profile.xp);
+    profile.sessions = sessions.map((session) => session?.evidenceQuality?.eligible === false
+      ? { ...session, xpGained: 0, progressExcludedReason: 'untrusted_speech_evidence' }
+      : session);
+  }
+  profile.integrityMigrations = { ...migrations, untrustedSessionXp: UNTRUSTED_SESSION_XP_MIGRATION };
+  return true;
+}
 
 function safeId(id) {
   return String(id || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || 'anon';
@@ -100,6 +120,7 @@ export async function loadUser(userId) {
 
   const profile = { ...defaultProfile(id), ...saved, userId: id };
   cache.set(id, profile);
+  if (repairExplicitlyUntrustedSessionXp(profile)) await saveUser(profile);
   return profile;
 }
 
