@@ -86,7 +86,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
         method: 'POST', headers: headers(), body: JSON.stringify({ id: q.id, answer }),
       });
       const res = await r.json();
+      if (!r.ok) throw new Error(res.error || 'grade_failed');
       setResult(res);
+      if (res.progress) setData((current) => current ? { ...current, progress: res.progress } : current);
       if (res.correct) {
         // submit() is guarded (`|| result`) so each question grades exactly ONCE — no double counts.
         setTally((t) => ({ correct: t.correct + 1, mistakeFixed: t.mistakeFixed + (q?.source === 'mistake' ? 1 : 0) }));
@@ -112,7 +114,26 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 
   const canAdvance = result ? (result.correct || retypeOk) : false;
 
+  const verifyRepair = async () => {
+    const r = await fetch(`${apiUrl}/api/daily/repair`, {
+      method: 'POST', headers: headers(), body: JSON.stringify({ id: q.id, answer: retypeValue }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok || !body.correct) throw new Error(body.error || 'repair_failed');
+    if (body.progress) setData((current) => current ? { ...current, progress: body.progress } : current);
+    setTally((current) => ({ ...current, correct: current.correct + 1,
+      mistakeFixed: current.mistakeFixed + (q?.source === 'mistake' ? 1 : 0) }));
+  };
+
   const next = async () => {
+    if (!result) return;
+    if (!result.correct) {
+      if (!retypeOk || busy) return;
+      setBusy(true); setErr('');
+      try { await verifyRepair(); }
+      catch { setErr('Die Korrektur wurde noch nicht gespeichert. Bitte noch einmal senden.'); setBusy(false); return; }
+      setBusy(false);
+    }
     if (idx + 1 < questions.length) {
       setIdx(idx + 1); resetItemState();
       return;
@@ -120,10 +141,17 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
     setBusy(true);
     try {
       const r = await fetch(`${apiUrl}/api/daily/complete`, { method: 'POST', headers: headers(), body: '{}' });
-      const s = await r.json();
+      const s = await r.json().catch(() => ({}));
+      if (!r.ok || s.error) {
+        const left = Number(s?.progress?.remaining);
+        setErr(Number.isFinite(left) && left > 0
+          ? `Noch ${left} Aufgabe${left === 1 ? '' : 'n'} server-bestätigt abschließen.`
+          : 'Der Abschluss konnte nicht gespeichert werden. Bitte erneut versuchen.');
+        setBusy(false); return;
+      }
       setFinalStreak(s.streak ?? data?.streak ?? 0);
       onComplete?.(s);
-    } catch { setFinalStreak(data?.streak ?? 0); }
+    } catch { setErr('Der Abschluss konnte nicht gespeichert werden. Bitte erneut versuchen.'); setBusy(false); return; }
     setBusy(false);
     setDone(true);
   };
@@ -175,7 +203,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               {tally.mistakeFixed > 0 ? ` · ${tally.mistakeFixed} frühere Fehler heute korrekt` : ''}
             </div>
           )}
-          <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Erledigt für heute.</div>
+          <div style={{ fontSize: 13, color: 'var(--accent-2)' }}>Server-bestätigt abgeschlossen.</div>
           <button onClick={loadMore} disabled={busy} style={{ ...primary, marginTop: 8, opacity: busy ? 0.5 : 1 }}>
             {busy ? '…' : (lang === 'ar' ? 'جولة تانية ↻' : 'NOCH EINE RUNDE ↻')}
           </button>
@@ -208,7 +236,9 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                 <span style={{ ...secTitle, color: 'var(--warn)', margin: 0 }}>
                   {q.source === 'mistake' ? 'DEIN FEHLER · ÜBEN' : 'BPO-DRILL'}
                 </span>
-                <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>Frage {idx + 1}/{questions.length}</span>
+                <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+                  {data?.progress ? `Bestätigt ${data.progress.completed}/${data.progress.total} · ` : ''}Frage {idx + 1}/{questions.length}
+                </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1, fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>{q.prompt}</div>

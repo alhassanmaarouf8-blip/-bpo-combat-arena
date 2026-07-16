@@ -11,7 +11,7 @@
  *   POST /api/daily/complete   → mark today done, advance the streak → { streak, completedToday }
  */
 import express from 'express';
-import { loadUser, saveUser } from './store.js';
+import { loadUser, saveUser, mutateUser } from './store.js';
 import { requireAuth, planOf, trialActive } from './auth.js';
 import { dueItems, grade, checkAnswer } from './srs.js';
 import { BPO_PHRASES }        from './scenarios.js';
@@ -83,7 +83,60 @@ export function dailyStatus(profile) {
 
 // Build today's session: the user's due mistakes (topped up with fallback drills to ≥3),
 // plus the phrase of the day. Answers are NOT included.
-function buildDaily(profile) {
+function dailyQuestionFromId(profile, rawId) {
+  const id = String(rawId || '');
+  if (!id) return null;
+  if (id.startsWith('fb:')) {
+    const item = FALLBACK_DRILLS.find((row) => row.id === id);
+    return item ? { id: item.id, kind: item.kind, prompt: item.prompt, hint: item.hint, source: 'drill' } : null;
+  }
+  if (id.startsWith('gen:')) {
+    const item = (profile.dailyGen || []).find((row) => row?.id === id);
+    return item ? { id: item.id, kind: 'fix', prompt: item.prompt, hint: item.hint || null, source: 'generated' } : null;
+  }
+  const item = (profile.srs || []).find((row) => row?.id === id);
+  return item ? {
+    id: item.id, kind: item.type === 'vocab' ? 'vocab' : 'fix', prompt: item.prompt,
+    hint: item.example?.wrong ? `Dein Satz: ${item.example.wrong}` : (item.type === 'vocab' ? 'Produziere das deutsche Wort.' : null),
+    source: 'mistake',
+  } : null;
+}
+
+function publicDailyQuestion(profile, question) {
+  const srsItem = (profile.srs || []).find((item) => item.id === question.id);
+  const generated = (profile.dailyGen || []).find((item) => item?.id === question.id);
+  const answer = srsItem?.answer ?? generated?.answer ?? FALLBACK_DRILLS.find((item) => item.id === question.id)?.answer;
+  return { ...question, cue: answer ? firstLetterCue(answer) : null };
+}
+
+function dailyProgress(profile) {
+  const practice = profile?.dailyPractice;
+  const ids = Array.isArray(practice?.questionIds) ? practice.questionIds : [];
+  const grades = practice?.grades && typeof practice.grades === 'object' ? practice.grades : {};
+  const completed = ids.filter((id) => grades[id]?.state === 'correct' || grades[id]?.state === 'repaired').length;
+  return { completed, total: ids.length, remaining: Math.max(0, ids.length - completed) };
+}
+
+function validPractice(profile) {
+  const practice = profile?.dailyPractice;
+  if (!practice || practice.date !== dayKey() || !Array.isArray(practice.questionIds)) return null;
+  const ids = [...new Set(practice.questionIds.filter((id) => typeof id === 'string' && id.length > 0 && id.length <= 160))].slice(0, 8);
+  if (!ids.length) return null;
+  const questions = ids.map((id) => dailyQuestionFromId(profile, id)).filter(Boolean);
+  if (questions.length !== ids.length) return null;
+  practice.questionIds = ids;
+  practice.grades = practice.grades && typeof practice.grades === 'object' && !Array.isArray(practice.grades) ? practice.grades : {};
+  return { practice, questions };
+}
+
+export function buildDaily(profile) {
+  const existing = validPractice(profile);
+  if (existing) {
+    const phrase = pickByDay(BPO_PHRASES) ?? BPO_PHRASES[0];
+    return { date: dayKey(), ...dailyStatus(profile), source: 'stored', phrase,
+      questions: existing.questions.map((question) => publicDailyQuestion(profile, question)),
+      progress: dailyProgress(profile) };
+  }
   const due = dueItems(profile, Date.now(), 8);
   const fromMistakes = due.map((i) => ({
     id:     i.id,
@@ -111,14 +164,11 @@ function buildDaily(profile) {
 
   // Generation effect: attach first-letter cue so students can request it when stuck.
   // Requesting a cue forces generation rather than recognition — 30-40% better retention.
-  const withCues = questions.map((q) => {
-    const srsItem = (profile.srs || []).find((i) => i.id === q.id);
-    const ans     = srsItem?.answer ?? (FALLBACK_DRILLS.find(f => f.id === q.id)?.answer);
-    return { ...q, cue: ans ? firstLetterCue(ans) : null };
-  });
+  profile.dailyPractice = { date: dayKey(), questionIds: questions.map((question) => question.id), grades: {} };
 
   const phrase = pickByDay(BPO_PHRASES) ?? BPO_PHRASES[0];
-  return { date: dayKey(), ...dailyStatus(profile), source, phrase, questions: withCues };
+  return { date: dayKey(), ...dailyStatus(profile), source, phrase,
+    questions: questions.map((question) => publicDailyQuestion(profile, question)), progress: dailyProgress(profile) };
 }
 
 // How many generated-drill answers we retain on the profile so /daily/grade can resolve
@@ -169,31 +219,48 @@ async function buildFreshSet(profile) {
 }
 
 // Grade ONE answer. SRS items advance the schedule; fallback + generated drills just grade.
-function gradeDailyItem(profile, id, answer) {
+export function gradeDailyItem(profile, id, answer, { repair = false } = {}) {
+  const practice = validPractice(profile)?.practice;
+  if (!practice || !practice.questionIds.includes(String(id))) return { error: 'daily_session_required' };
+  const gradeEntry = practice.grades[String(id)];
+  if (repair && gradeEntry?.state !== 'repair_required') return { error: 'repair_not_required' };
+  // A retry/double-click after durable success is idempotent: it must never re-grade an SRS card
+  // as a new miss and silently undo already-confirmed learning evidence.
+  if (!repair && (gradeEntry?.state === 'correct' || gradeEntry?.state === 'repaired')) {
+    return { correct: true, alreadyVerified: true, progress: dailyProgress(profile) };
+  }
+  let result;
   if (String(id).startsWith('fb:')) {
-    const fb = FALLBACK_DRILLS.find((d) => d.id === id);
-    if (!fb) return { error: 'unknown_item' };
-    const { correct, note, note_ar } = checkAnswer(answer, fb.answer);
-    return { correct, note, note_ar, expected: fb.answer };
+    const item = FALLBACK_DRILLS.find((row) => row.id === id);
+    if (!item) return { error: 'unknown_item' };
+    const { correct, note, note_ar } = checkAnswer(answer, item.answer);
+    result = { correct, note, note_ar, expected: item.answer };
+  } else if (String(id).startsWith('gen:')) {
+    const item = (profile.dailyGen || []).find((row) => row.id === id);
+    if (!item) return { error: 'unknown_item' };
+    const { correct, note, note_ar } = checkAnswer(answer, item.answer);
+    result = { correct, note, note_ar, expected: item.answer };
+  } else {
+    const item = (profile.srs || []).find((row) => row.id === id);
+    if (!item) return { error: 'unknown_item' };
+    const { correct, note, note_ar } = checkAnswer(answer, item.answer);
+    grade(profile, id, correct, Date.now());
+    result = { correct, note, note_ar, expected: item.answer };
   }
-  if (String(id).startsWith('gen:')) {
-    const g = (profile.dailyGen || []).find((d) => d.id === id);
-    if (!g) return { error: 'unknown_item' };
-    const { correct, note, note_ar } = checkAnswer(answer, g.answer);
-    return { correct, note, note_ar, expected: g.answer };
+  if (result.correct) practice.grades[String(id)] = { state: repair ? 'repaired' : 'correct' };
+  else if (!gradeEntry || (gradeEntry.state !== 'correct' && gradeEntry.state !== 'repaired')) {
+    practice.grades[String(id)] = { state: 'repair_required' };
   }
-  const item = (profile.srs || []).find((i) => i.id === id);
-  if (!item) return { error: 'unknown_item' };
-  const { correct, note, note_ar } = checkAnswer(answer, item.answer);
-  grade(profile, id, correct, Date.now());   // advance/reset the spaced-repetition schedule
-  return { correct, note, note_ar, expected: item.answer };
+  return { ...result, progress: dailyProgress(profile) };
 }
 
 // Mark today complete and advance the streak (idempotent within a day).
 // Streak shield (Kahneman & Tversky prospect theory): earned at 7 consecutive days,
 // absorbs one missed day — losses feel 2× worse than gains, so protecting the streak
 // is more motivating than gaining a new one.
-function completeDaily(profile) {
+export function completeDaily(profile) {
+  const progress = dailyProgress(profile);
+  if (!progress.total || progress.remaining > 0) return { error: 'daily_evidence_incomplete', progress };
   const today = dayKey();
   let shieldUsed = false;
   let shieldEarned = false;
@@ -225,14 +292,14 @@ function completeDaily(profile) {
     if (!profile.dailyDays.includes(today)) profile.dailyDays.push(today);
     if (profile.dailyDays.length > 120) profile.dailyDays = profile.dailyDays.slice(-120);
   }
-  return { ...dailyStatus(profile), shieldUsed, shieldEarned };
+  return { ...dailyStatus(profile), shieldUsed, shieldEarned, progress };
 }
 
 dailyRouter.get('/daily', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // never serve a stale (yesterday's) daily set
   try {
-    const p = await loadUser(req.account.id);
-    res.json(buildDaily(p));
+    const value = await mutateUser(req.account.id, (profile) => ({ value: buildDaily(profile) }));
+    res.json(value);
   } catch (err) { console.error('[daily] get error:', err.message); res.status(500).json({ error: 'daily_failed' }); }
 });
 
@@ -255,21 +322,28 @@ dailyRouter.post('/daily/next', requireAuth, async (req, res) => {
 
 dailyRouter.post('/daily/grade', requireAuth, async (req, res) => {
   try {
-    const p = await loadUser(req.account.id);
     const { id, answer } = req.body || {};
     if (!id || typeof answer !== 'string') return res.status(400).json({ error: 'bad_request' });
-    const result = gradeDailyItem(p, id, answer);
-    if (result.error) return res.status(404).json(result);
-    await saveUser(p);   // persist SRS advancement
+    const result = await mutateUser(req.account.id, (profile) => ({ value: gradeDailyItem(profile, id, answer) }));
+    if (result.error) return res.status(result.error === 'daily_session_required' ? 409 : 404).json(result);
     res.json(result);
   } catch (err) { console.error('[daily] grade error:', err.message); res.status(500).json({ error: 'daily_failed' }); }
 });
 
+dailyRouter.post('/daily/repair', requireAuth, async (req, res) => {
+  try {
+    const { id, answer } = req.body || {};
+    if (!id || typeof answer !== 'string') return res.status(400).json({ error: 'bad_request' });
+    const result = await mutateUser(req.account.id, (profile) => ({ value: gradeDailyItem(profile, id, answer, { repair: true }) }));
+    if (result.error) return res.status(result.error === 'repair_not_required' ? 409 : 404).json(result);
+    res.json(result);
+  } catch (err) { console.error('[daily] repair error:', err.message); res.status(500).json({ error: 'daily_failed' }); }
+});
+
 dailyRouter.post('/daily/complete', requireAuth, async (req, res) => {
   try {
-    const p = await loadUser(req.account.id);
-    const status = completeDaily(p);
-    await saveUser(p);
+    const status = await mutateUser(req.account.id, (profile) => ({ value: completeDaily(profile) }));
+    if (status.error) return res.status(409).json(status);
     res.json(status);
   } catch (err) { console.error('[daily] complete error:', err.message); res.status(500).json({ error: 'daily_failed' }); }
 });
