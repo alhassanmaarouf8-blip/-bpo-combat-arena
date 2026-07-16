@@ -1440,9 +1440,14 @@ export class WebSocketManager {
       // this, a user could start a fight, stay silent (or say one word), end it, and still
       // bank XP and a streak day — farming progress with no learning (and burning API cost).
       // Below the floor we persist NOTHING progression-wise; the debrief is still shown.
-      const meaningful = (metrics.answers || 0) >= MIN_REAL_ANSWERS && (metrics.words || 0) >= MIN_REAL_WORDS;
+      const evidenceQuality = speakingEvidenceQuality(ctx.utterances, {
+        observedUntrustedTurns: ctx._untrustedEvidenceTurns,
+      });
+      const meaningful = (metrics.answers || 0) >= MIN_REAL_ANSWERS
+        && (metrics.words || 0) >= MIN_REAL_WORDS
+        && evidenceQuality.eligible === true;
       if (!meaningful) {
-        console.log(`[wsManager] session NOT counted (insufficient speech) answers=${metrics.answers} words=${metrics.words} session=${ctx.sessionId}`);
+        console.log(`[wsManager] session NOT counted (insufficient trusted speech) answers=${metrics.answers} words=${metrics.words} evidence=${evidenceQuality.reason || 'ineligible'} session=${ctx.sessionId}`);
         const flAll = p.sessions.map((s) => s.fluency ?? 0);
         const fiAll = p.sessions.map((s) => s.fillers ?? 0);
         return {
@@ -1525,9 +1530,7 @@ export class WebSocketManager {
       // intelligibility proxy: average STT word confidence, 0..1. reaction latency: avg seconds.
       const _intelligibility = ctx.confCount ? Math.max(0, Math.min(1, ctx.confSum / ctx.confCount)) : null;
       const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
-      const _evidenceQuality = speakingEvidenceQuality(ctx.utterances, {
-        observedUntrustedTurns: ctx._untrustedEvidenceTurns,
-      });
+      const _evidenceQuality = evidenceQuality;
 
       p.sessions.push({
         date: now, sessionId: ctx.sessionId, level: ctx.level, bossId: ctx.bossId,

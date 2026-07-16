@@ -178,7 +178,15 @@ async function buildGrammarInternal(utterances, maxRules) {
     // being PROMOTED as a model answer. Skip the whole match rather than teach broken German as right.
     if (!looksLikeTrustworthyCorrection(right)) continue;
 
-    const ruleName = (mt.shortMessage || mt.rule?.description || mt.rule?.category?.name || 'Grammatik').trim();
+    let ruleName = (mt.shortMessage || mt.rule?.description || mt.rule?.category?.name || 'Grammatik').trim();
+    // LanguageTool's stable id NACH_7_TAGE also fires for "seit drei Jahre". Its internal rule
+    // name is an example, not a diagnosis; showing "nach 7 Tage" beside a sentence containing
+    // neither "nach" nor "7" looked fabricated. Name the actual governed time-case instead.
+    if (mt.rule?.id === 'NACH_7_TAGE') {
+      ruleName = /\bseit\b/iu.test(seg.text)
+        ? 'Zeitangabe mit „seit“: Dativ (z. B. „seit drei Jahren“)' 
+        : 'Zeitangabe: Dativ (z. B. „nach sieben Tagen“)';
+    }
     const key = mt.rule?.id || ruleName;
     if (!byRule.has(key)) {
       byRule.set(key, {

@@ -15,6 +15,7 @@
  *   - All learner-visible copy is German; Arabic is an OWNER-AR slot (never authored here).
  */
 import { looksTruncatedDE } from './turnQuality.js';
+import { detectL1Patterns } from './l1Errors.js';
 
 // ── Detector 1: Konjunktiv II (the classic "hireable German" marker) ────────────────────
 // Unambiguously subjunctive finite forms only. "sollte/wollte" are Präteritum-ambiguous and
@@ -110,6 +111,12 @@ export function detectStructureWins(utterances) {
       if (mayQuote && !hasLowConfOverlap(u, quote)) hits.perfekt.examples.push(quote);
     }
   }
+
+  // A session that contains even one verified error in the same structure cannot receive a broad
+  // mastery card for that structure. It may have correct examples too, but praising the whole skill
+  // beside a contradictory correction destroys trust. Underclaim until a clean retest.
+  const l1 = new Map(detectL1Patterns(utterances).map((pattern) => [pattern.key, pattern.count]));
+  if ((l1.get('verb-final') || 0) > 0) hits['verb-final-ok'].count = 0;
 
   return Object.values(hits).filter((h) => h.count > 0);
 }

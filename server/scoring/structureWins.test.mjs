@@ -52,6 +52,15 @@ test('verb-SECOND error clause ("weil ich habe keine Zeit") does NOT count as a 
   assert.equal(wins.find((w) => w.key === 'verb-final-ok'), undefined);
 });
 
+test('a mixed session never praises verb-final mastery beside a verified verb-order error', () => {
+  const wins = detectStructureWins([
+    u('Ich bleibe ruhig, weil ich den Kunden verstehen kann.'),
+    u('Ich frage nach, damit ich eine klare Lösung finden kann.'),
+    u('Das ist wichtig, weil ich habe keine andere Möglichkeit.'),
+  ]);
+  assert.equal(wins.find((w) => w.key === 'verb-final-ok'), undefined);
+});
+
 test('Perfekt narration is detected; ge-lookalikes are not', () => {
   const wins = detectStructureWins([
     u('Ich habe drei Jahre im Callcenter gearbeitet.'),
