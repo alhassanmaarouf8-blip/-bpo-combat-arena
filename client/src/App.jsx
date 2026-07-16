@@ -4435,7 +4435,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
   const phaseRef       = useRef('idle');
   const startingRef    = useRef(false);     // synchronous single-flight guard for start()
-  const levelRef       = useRef('a2-b1');   // read inside the WS handler when starting
+  // The visible persisted level and the value sent over WebSocket must start identical. A hard-coded
+  // A2–B1 ref made a page that visibly said B2/C1 silently launch an A2–B1 interview until the user
+  // clicked the already-selected level again.
+  const levelRef       = useRef(level);   // read inside the WS handler when starting
   const bossPickRef    = useRef('');         // boss-picker selection, read when sending START_FIGHT
   const revancheRef    = useRef(null);       // one-shot lowest-answer rematch hint for the next fight
   const fightModeRef   = useRef('daily');   // always 'daily' — Boss-Tor mode was Musk-cut (no caller ever passed it)

@@ -25,6 +25,8 @@ test('typed UI owns the turn and refreshes BrainGuide and Salma after debrief', 
   assert.match(source, /setSalmaResume\(\(value\) => value \+ 1\);/u);
   assert.match(source, /if \(!handsFreeRef\.current\) \{[\s\S]*typeOpenRef\.current = true;[\s\S]*start\(\);[\s\S]*return;/u);
   assert.match(source, /if \(!typeOpenRef\.current && handsFreeRef\.current\) await startGeminiMic\(\);/u);
+  assert.match(source, /const levelRef\s*= useRef\(level\);/u);
+  assert.doesNotMatch(source, /const levelRef\s*= useRef\('a2-b1'\)/u);
 });
 
 test('spoken headline calculation enforces Evidence Contract v2 before grading', async () => {
