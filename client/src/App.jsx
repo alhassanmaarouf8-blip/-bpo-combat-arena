@@ -4649,7 +4649,11 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           mode: fightModeRef.current,
           bossId: bossPickRef.current || undefined,
           revanche: revancheRef.current || undefined,
-          audioCapable: !IN_APP_BROWSER && checkAudioSupport().supported,
+          // Native Gemini is a speech-to-speech owner: it cannot consume a typed learner turn.
+          // Advertising audio capability while the learner explicitly chose typed-first made the
+          // server suppress its normal text/TTS interviewer, so control returned with no question.
+          audioCapable: !typeOpenRef.current && handsFreeRef.current
+            && !IN_APP_BROWSER && checkAudioSupport().supported,
         }));
         revancheRef.current = null;
         break;
