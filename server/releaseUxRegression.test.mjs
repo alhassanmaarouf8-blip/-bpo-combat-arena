@@ -60,21 +60,23 @@ test('study invite verification preserves the landing page and gates submit with
   assert.doesNotMatch(auth, /studyEntryChecking\s*&&\s*<LazyFallback|studyEntryChecking\s*&&\s*<Loading/u);
 });
 
-test('every landing start action moves both viewport and focus to the authentication form', async () => {
+test('the landing has one truthful registration action and keeps the preview non-interactive', async () => {
   const app = await read('client/src/App.jsx');
   const preview = section(app, 'function ProductHomePreview(', 'function StudyBrowserHandoff(');
   const auth = section(app, 'function AuthScreen(', 'function PaywallScreen(');
 
-  assert.match(preview, /function ProductHomePreview\(\{ onStart \}\)/u);
-  assert.match(preview, /onClick=\{onStart\}/u,
-    'the product preview must use the same accessible auth transition as the hero');
+  assert.match(preview, /function ProductHomePreview\(\)/u);
+  assert.match(preview, /Beispiel: Antwort → Korrektur → Trainingsblock/u);
+  assert.doesNotMatch(preview, /<button/u,
+    'the preview must not masquerade as a second interview-start action');
   assert.match(auth, /const focusAuth = useCallback/u);
   assert.match(auth, /field\?\.focus\(\{ preventScroll:true \}\)/u,
     'the destination field must receive programmatic focus');
   assert.match(auth, /prefers-reduced-motion: reduce/u,
     'the transition must respect reduced-motion preferences');
   assert.match(auth, /<button onClick=\{\(\) => focusAuth\('signup'\)\}/u);
-  assert.match(auth, /<ProductHomePreview onStart=\{\(\) => focusAuth\('signup'\)\}/u);
+  assert.match(auth, /KOSTENLOSE DIAGNOSE FREISCHALTEN/u);
+  assert.match(auth, /<ProductHomePreview \/>/u);
   assert.match(auth, /onLogin=\{\(\) => focusAuth\('login'\)\}/u);
   assert.doesNotMatch(preview, /onClick=\{\(\) => document\.getElementById\('signup-card'\)/u);
 });

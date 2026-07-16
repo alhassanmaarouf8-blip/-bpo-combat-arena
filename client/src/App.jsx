@@ -2688,7 +2688,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
 // screenshot became soft when cropped and scaled, and went stale whenever the
 // real home changed. This stays readable at every viewport and is explicitly a
 // preview rather than pretending to be a live session.
-function ProductHomePreview({ onStart }) {
+function ProductHomePreview() {
   return (
     <figure aria-label="Vorschau des OMNI-PERFORM Interview-Trainings"
       style={{ maxWidth:420, margin:'24px auto 4px', padding:0 }}>
@@ -2762,14 +2762,13 @@ function ProductHomePreview({ onStart }) {
           ))}
         </div>
 
-        <button type="button" onClick={onStart}
-          aria-label="Kostenlos registrieren und Interview starten"
-          style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14, border:'none', cursor:'pointer',
+        <div aria-label="Beispielhafter Trainingsablauf"
+          style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14,
           display:'flex', alignItems:'center', justifyContent:'center', gap:9,
-          fontFamily:'var(--font-display)', fontSize:13, fontWeight:750, color:'#111827',
-          background:'linear-gradient(180deg,#fb923c,#f97316)', boxShadow:'0 12px 28px rgba(249,115,22,0.2)' }}>
-          <Icon name="mic" size={17} /> Kostenlos registrieren
-        </button>
+          fontFamily:'var(--font-display)', fontSize:12, fontWeight:750, color:'#cbd5e1',
+          border:'1px solid rgba(148,163,184,0.18)', background:'rgba(15,23,42,0.55)' }}>
+          <Icon name="check" size={16} /> Beispiel: Antwort → Korrektur → Trainingsblock
+        </div>
         <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
           Etwa 8 Minuten · sofortiges, persönliches Feedback
         </div>
@@ -3205,13 +3204,26 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
             border:'1px solid var(--action)', background:'linear-gradient(135deg,var(--action-2),var(--action))',
             color:'#071018', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
-          {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'ابدأ تقييمك المجاني · KOSTENLOS STARTEN'}
+          {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'KOSTENLOSE DIAGNOSE FREISCHALTEN'}
         </button>
         <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7 }}>
           {validStudyEntry
             ? 'Bestätigter Studienzugang: 21 Tage kostenlos · keine Karte · Training, keine Jobvermittlung'
             : 'Nach E-Mail-Bestätigung: Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig'}
         </div>
+        {!validStudyEntry && <section aria-label="Beispiel für konkretes Feedback"
+          style={{ maxWidth:420, margin:'14px auto 0', padding:'12px 14px', borderRadius:12, textAlign:'left',
+            border:'1px solid rgba(96,165,250,0.28)', background:'rgba(59,130,246,0.055)' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:9, letterSpacing:'0.14em', color:'var(--accent)' }}>
+            BEISPIEL — SO KONKRET IST DEIN FEEDBACK
+          </div>
+          <div style={{ marginTop:6, color:'var(--text-dim)', fontSize:12, lineHeight:1.55 }}>
+            „Ich habe den Kunde geholfen.“ → „Ich habe <strong style={{ color:'var(--text)' }}>dem Kunden</strong> geholfen.“
+          </div>
+          <div style={{ marginTop:5, color:'var(--text-faint)', fontSize:11, lineHeight:1.55 }}>
+            Danach: den korrigierten Satz zweimal laut sagen. Der nächste Test kommt erst nach dem vorgeschriebenen Abstand.
+          </div>
+        </section>}
         {/* B1+ admission bar (owner law 07-12, Harvard framing): selectivity stated at the door —
             quiet and confident, never apologetic. Copy = salmaCopy rows (masri via the owner sheet). */}
         <div style={{ marginTop:14, maxWidth:420, marginInline:'auto', padding:'10px 14px', borderRadius:10,
@@ -3231,7 +3243,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       </div>
 
       {!studyInviteLanding && <div style={rise(2)}>
-        <ProductHomePreview onStart={() => focusAuth('signup')} />
+        <ProductHomePreview />
       </div>}
 
       {/* Feature checklist — boxless, real icons (copy verbatim) */}
