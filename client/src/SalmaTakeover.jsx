@@ -29,6 +29,9 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
   const returning = ctx.variant === 'returning';
   const seenTick  = useRef(0);
   const speechStopRef = useRef(null);
+  const dialogRef = useRef(null);
+  const restoreFocusRef = useRef(null);
+  const finishRef = useRef(() => {});
 
   const stopSpeech = useCallback(() => {
     try { speechStopRef.current?.(); } catch { /* audio cleanup is best-effort */ }
@@ -51,6 +54,33 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
     }).catch(() => {});
   };
   const finish = (beaconId) => { stopSpeech(); markSeen(); onClose(beaconId); };
+  finishRef.current = () => finish('salma_skipped');
+
+  // This is a genuine modal takeover: it keeps keyboard focus inside while it is open,
+  // returns focus to the control that launched it, and never leaves a keyboard user behind
+  // the dimmed page. The voice/interview system is deliberately not involved here.
+  useEffect(() => {
+    restoreFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const timer = window.setTimeout(() => {
+      dialogRef.current?.querySelector('[data-salma-primary],button:not([disabled])')?.focus();
+    }, 0);
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); finishRef.current(); return; }
+      if (event.key !== 'Tab') return;
+      const focusable = [...(dialogRef.current?.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])') || [])]
+        .filter((node) => node instanceof HTMLElement && !node.hasAttribute('hidden'));
+      if (!focusable.length) { event.preventDefault(); dialogRef.current?.focus(); return; }
+      const first = focusable[0]; const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('keydown', onKeyDown);
+      restoreFocusRef.current?.focus?.();
+    };
+  }, []);
 
   // Salma never auto-speaks here. The explicit speaker button is the only path to salmaSpeak, so
   // opening this one-time flow remains silent until the learner asks to hear it.
@@ -86,7 +116,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
         : say('returning_welcome'));
       actions = (
         <>
-          <button style={btnBlue} onClick={() => setBeat('handoff')}>{line('continue_label')}</button>
+          <button data-salma-primary style={btnBlue} onClick={() => setBeat('handoff')}>{line('continue_label')}</button>
           {skipLink(line('skip_label'), () => finish('salma_skipped'))}
         </>
       );
@@ -97,7 +127,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
         bubbles.push(say('screening_invite'));
         actions = (
           <>
-            <button style={btnOrange} onClick={() => {
+            <button data-salma-primary style={btnOrange} onClick={() => {
               stopSpeech();
               markSeen();
               onClose('salma_done');
@@ -110,12 +140,12 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
         // A changed server directive always wins. Salma closes and exposes BrainGuide instead of
         // inventing a diagnosis or dispatching a stale legacy action.
         bubbles.push(say('returning_handoff'));
-        actions = <button style={btnBlue} onClick={() => finish('salma_done')}>{line('continue_label')}</button>;
+        actions = <button data-salma-primary style={btnBlue} onClick={() => finish('salma_done')}>{line('continue_label')}</button>;
       } else {
         bubbles.push(say('screening_loading'));
         actions = (
           <>
-            <button style={{ ...btnOrange, opacity: 0.55, cursor: 'wait' }} disabled>
+            <button data-salma-primary style={{ ...btnOrange, opacity: 0.55, cursor: 'wait' }} disabled>
               {line('screening_loading_cta')}
             </button>
             {skipLink(line('skip_label'), () => finish('salma_skipped'))}
@@ -137,7 +167,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
     bubbles.push(say(bookingCopyKey(result?.estimatedLevel)));
     actions = (
       <>
-        <button style={btnOrange} onClick={() => { stopSpeech(); markSeen(); onBookFight(result); }}>{line('booking_cta')}</button>
+        <button data-salma-primary style={btnOrange} onClick={() => { stopSpeech(); markSeen(); onBookFight(result); }}>{line('booking_cta')}</button>
         {skipLink(line('later_label'), () => finish('salma_later'))}
       </>
     );
@@ -145,26 +175,28 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
     bubbles.push(say('no_verdict'));
     actions = (
       <>
-        <button style={btnOrange}
+        <button data-salma-primary style={btnOrange}
           onClick={() => { stopSpeech(); markSeen(); onBookFight(null); }}>{line('no_verdict_direct')}</button>
         {skipLink(line('later_label'), () => finish('salma_later'))}
       </>
     );
   } else if (beat === 'handoff') {
     bubbles.push(say('returning_handoff'));
-    actions = <button style={btnBlue} onClick={() => finish('salma_done')}>{line('returning_cta')}</button>;
+    actions = <button data-salma-primary style={btnBlue} onClick={() => finish('salma_done')}>{line('returning_cta')}</button>;
   } else if (beat === 'checking') {
     bubbles.push('…');   // verdict fetch in flight (sub-second on a warm server); resolves to verdict | no_verdict
   }
 
   return (
-    <div style={backdrop}>
-      <div style={card}>
+    <div className="salma-takeover-focus" style={backdrop}>
+      <style>{TAKEOVER_A11Y_CSS}</style>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="salma-takeover-title"
+        aria-describedby="salma-takeover-message" tabIndex={-1} lang={lang === 'ar' ? 'ar-EG' : 'de'} style={card}>
         {/* header — her face on the door */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={52} />
           <div style={{ lineHeight: 1.25, textAlign: 'left' }}>
-            <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</div>
+            <h2 id="salma-takeover-title" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</h2>
             <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
           </div>
           <button aria-label="Salma anhören" onClick={() => {
@@ -184,7 +216,7 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
         {/* her chat bubbles — dir=auto so owner-filled masri renders RTL natively */}
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {bubbles.map((b, i) => (
-            <div key={i} dir="auto" style={{ ...bubble, animationDelay: `${i * 0.12}s` }}>{b}</div>
+            <div id={i === 0 ? 'salma-takeover-message' : undefined} key={i} dir="auto" style={bubble}>{b}</div>
           ))}
         </div>
 
@@ -225,36 +257,30 @@ function bookingCopyKey(level) {
 // risk) attractive young-woman photo, cropped to the face + downscaled to an 18KB /salma.jpg (owner
 // 07-13: "an attractive German young lady, find me one"). Motion: she gently sways/breathes on a loop
 // and her ring reacts to real audio while she speaks. prefers-reduced-motion disables it.
-// Generated once via gemini-3-pro-image-preview on the free no-billing worker key ($0); regen script
-// Pure CSS drives the natural blink only; the portrait never claims lip synchronization.
+// Pure CSS drives only a rare natural blink; the portrait never claims lip synchronization.
+// There is intentionally no idle sway, idle glow, or synthetic talking animation. The ring below
+// responds only to actual Salma playback levels supplied by salmaVoice.js.
 const SALMA_FACE_CSS = `
-.salma-photo .stack{position:absolute;inset:0;transform-origin:50% 82%;animation:salmaSwy 4.6s ease-in-out infinite}
+.salma-photo .stack{position:absolute;inset:0}
 .salma-photo .face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%;display:block}
 .salma-photo .lids{opacity:0;animation:salmaBlink 5.4s ease-in-out infinite}
-/* Honest aliveness = blink + a glow that reacts to her real voice level. */
-.salma-photo.talk{animation:salmaGlow 1.3s ease-in-out infinite}
-.salma-photo.lvl.talk{animation:none}   /* level-active → the ref drives box-shadow, not the keyframe */
-/* World-class voice presence (ChatGPT-voice / Siri): a reactive ring, NOT fake lips. Its brightness +
-   scale track her REAL audio level (set via ref), and a slow sonar pulse reads as "speaking". */
+/* The ring is an audio meter, not a generic "she is talking" animation. */
 .salma-photo .vring{position:absolute;inset:-3px;border-radius:inherit;border:2.5px solid var(--accent, #3b82f6);opacity:0;pointer-events:none;transition:opacity 70ms linear,transform 70ms linear}
-.salma-photo.talk .vring{animation:salmaSonar 1.5s ease-out infinite}
-@keyframes salmaSonar{0%{box-shadow:0 0 0 0 rgba(59,130,246,0.35)}70%,100%{box-shadow:0 0 0 10px rgba(59,130,246,0)}}
-@media (prefers-reduced-motion:reduce){.salma-photo.talk .vring{animation:none}}
-@keyframes salmaSwy{0%,100%{transform:rotate(-1deg) translateY(0) scale(1.03)}50%{transform:rotate(1deg) translateY(-1.5px) scale(1.05)}}
-@keyframes salmaGlow{0%,100%{box-shadow:0 0 14px rgba(59,130,246,0.4)}50%{box-shadow:0 0 24px rgba(59,130,246,0.9),0 0 8px rgba(59,130,246,0.6)}}
 @keyframes salmaBlink{0%,92%{opacity:0}95%{opacity:1}98%,100%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.salma-photo .stack{animation:none}.salma-photo .lids{animation:none;opacity:0}.salma-photo.talk{animation:none}}`;
+@media (prefers-reduced-motion:reduce){.salma-photo .lids{animation:none;opacity:0}.salma-photo .vring{transition:none}}`;
+
+const TAKEOVER_A11Y_CSS = `
+.salma-takeover-focus :focus-visible{outline:3px solid #bfdbfe;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.salma-takeover-focus *{animation:none!important;transition:none!important}}
+`;
 export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   const hideOnErr = (e) => { e.currentTarget.style.display = 'none'; };
   // Real Salma playback activates the presence ring; callers may also set `speaking` explicitly.
   const [liveSpeaking, setLiveSpeaking] = useState(false);
   useEffect(() => subscribeSalmaSpeaking(setLiveSpeaking), []);
   const talk = speaking || liveSpeaking;
-  // Honest aliveness: her ring GLOW reacts to her REAL voice loudness (brighter on syllables, calm on
-  // pauses) — a truthful "she's speaking" cue. Driven via a REF straight to the
-  // container's box-shadow (no per-frame re-render → smooth on low-end). `lvlActive` flips true once so
-  // the CSS glow keyframe yields to the level; until then / if the analyser can't attach, the keyframe
-  // glow is the graceful fallback. (2-frame photos can't lip-sync — see the CSS note.)
+  // The visible ring is driven from real playback amplitude. It never substitutes a generic talking
+  // animation or claims that the portrait's lips synchronize with the audio.
   const rootRef = useRef(null);
   const ringRef = useRef(null);
   const talkRef = useRef(talk); talkRef.current = talk;
@@ -263,8 +289,6 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
   useEffect(() => subscribeSalmaLevel((v) => {
     if (!lvlActiveRef.current) { lvlActiveRef.current = true; setLvlActive(true); }
     const on = talkRef.current;
-    const el = rootRef.current;
-    if (el) el.style.boxShadow = on ? `0 0 ${14 + v * 26}px rgba(59,130,246,${(0.4 + v * 0.5).toFixed(2)})` : '';
     const ring = ringRef.current;   // the voice-ring tracks her real loudness (world-class reactive presence)
     if (ring) { ring.style.opacity = on ? Math.min(0.95, v * 1.7).toFixed(2) : '0'; ring.style.transform = `scale(${(1 + v * 0.09).toFixed(3)})`; }
   }), []);

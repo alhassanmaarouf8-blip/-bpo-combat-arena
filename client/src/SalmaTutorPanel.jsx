@@ -280,8 +280,9 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
     || !!listeningRetest || !!speakingRetest || !!proof || !!coach.progress;
   const questionId = `salma-question-${generatedQuestionId.replace(/:/g, '')}`;
   return (
-    <section dir="ltr" aria-label="Salma, persönliche Interviewtrainerin" aria-busy={busy} style={{ marginTop: 12, padding: '12px 0 2px',
+    <section className="salma-tutor" dir="ltr" lang={screen === 'home' ? 'de' : undefined} aria-label="Salma, persönliche Interviewtrainerin" aria-busy={busy} style={{ marginTop: 12, padding: '12px 0 2px',
       borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
+      <style>{`.salma-tutor button:focus-visible,.salma-tutor input:focus-visible,.salma-tutor select:focus-visible,.salma-tutor summary:focus-visible{outline:3px solid rgba(147,197,253,.95);outline-offset:3px}.salma-tutor summary{border-radius:6px}@media(prefers-reduced-motion:reduce){.salma-tutor *{animation:none!important;transition:none!important}}`}</style>
       {bottleneck && <div role="status" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', color: '#93c5fd' }}>
           {risk?.state === 'measure_first' || forecast?.state === 'historical_only'
@@ -292,10 +293,10 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         </div>
         <div style={{ marginTop: 4, color: '#e2e8f0', fontSize: 13.5, fontWeight: 750 }}>{bottleneck}</div>
         {risk?.state === 'measure_first' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
-          Beende zuerst das vollständige Diagnose-Interview. Salma nennt keinen Engpass aus einer kurzen oder unterbrochenen Aufnahme.
+          Beende zuerst das Diagnose-Interview. Aus einer kurzen Aufnahme gibt Salma keine Diagnose.
         </div>}
         {forecast?.state === 'historical_only' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
-          Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht auf dein heutiges Risiko.
+          Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht automatisch auf heute.
         </div>}
       </div>}
       {p && <div style={{ padding: '10px 11px', borderRadius: 10, background: 'rgba(59,130,246,0.07)',
@@ -313,7 +314,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         </button>
       )}
       {cue?.text && <div role="status" style={{ marginTop: 10, color: '#dbeafe', fontSize: 12.5, lineHeight: 1.55 }}>
-        <strong>Korrektur für den nächsten Versuch:</strong> {cue.text}
+        <strong>Nächster Versuch:</strong> {cue.text}
       </div>}
       {hasEvidenceDetails && <details style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
         <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>Warum genau das?</summary>

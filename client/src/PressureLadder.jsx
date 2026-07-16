@@ -215,7 +215,8 @@ async function voicedMsFromBlob(blob) {
 
 export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null }) {
   const tutorSession = useSalmaDrillSession(token, 'druck-leiter');
-  const [idx, setIdx]       = useState(0);          // rung index (LEVELS.length = endless)
+  const [intensity, setIntensity] = useState(null); // explicit consent: standard | hard
+  const [idx, setIdx]       = useState(0);
   const [phase, setPhase]   = useState('intro');    // intro | ready | answering | scoring | round | done
   const [left, setLeft]     = useState(0);
   const [survived, setSurvived] = useState(0);      // rungs 1..5 survived
@@ -228,10 +229,13 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   const recRef = useRef(null); const tickRef = useRef(null); const barbRefs = useRef([]);
   const endingRef = useRef(false);          // re-entrancy guard: timer + Fertig can both fire endRound
   const seenLinesRef = useRef(new Set());   // lines already shown this session → no repeats
-  const endless = idx >= LEVELS.length;
+  // Standard is deliberately bounded at the first three rungs. Hard is opt-in and is the only
+  // setting that exposes the two harshest rungs or endless practice.
+  const activeLevels = intensity === 'hard' ? LEVELS : LEVELS.slice(0, 3);
+  const endless = intensity === 'hard' && idx >= activeLevels.length;
   const L = endless
     ? { n: '∞', de: 'Überleben', ar: 'بقاء', rate: ENDLESS.rate, sec: Math.max(10, ENDLESS.baseSec - endlessStreak), interrupts: ENDLESS.interrupts, lines: ENDLESS.lines, barbs: ENDLESS.barbs }
-    : LEVELS[idx];
+    : activeLevels[idx];
 
   // ALL audio is the native Aura-2 voice now — customer lines, barbs, AND the model phrase (the
   // robotic browser voice is banned app-wide). One voice at a time: a new line/barb STOPS the
@@ -325,25 +329,25 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   const advance = () => {
     if (froze) { setPhase('ready'); return; }                  // retry same rung
     if (endless) { setPhase('ready'); return; }                // endless: keep going
-    if (idx < LEVELS.length - 1) { setIdx(idx + 1); setPhase('ready'); }
+    if (idx < activeLevels.length - 1) { setIdx(idx + 1); setPhase('ready'); }
     else setPhase('done');                                     // cleared rung 5
   };
-  const goEndless = () => { setIdx(LEVELS.length); setEndlessStreak(0); setPhase('ready'); };
 
   const shell = (children) => (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
+    <div role="dialog" aria-modal="true" aria-labelledby="pressure-ladder-title" lang={lang === 'ar' ? 'ar-EG' : 'de'} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, #1a0a0a 0%, #0a0506 55%, #020101 100%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
-      <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
+      <style>{`.pressure-ladder button:focus-visible{outline:3px solid #fecaca;outline-offset:3px}@media(prefers-reduced-motion:reduce){.pressure-ladder *{animation:none!important;transition:none!important}}`}</style>
+      <div className="pressure-ladder" style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
   const header = (
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
+      <h1 id="pressure-ladder-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
         DRUCK-LEITER · سُلّم الضغط
-      </span>
-      <button onClick={() => { cleanup(); onClose?.(); }} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
+      </h1>
+      <button onClick={() => { cleanup(); onClose?.(); }} aria-label={T(lang, 'Training pausieren und schließen', 'إيقاف التدريب وإغلاق')} style={ghostBtn}>{T(lang, 'PAUSE', 'إيقاف')}</button>
     </div>
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
@@ -356,12 +360,38 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   );
   const ladder = (
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
-      {LEVELS.map((lv, i) => (
+      {activeLevels.map((lv, i) => (
         <div key={i} style={{ flex: 1, height: 5, borderRadius: 99,
           background: i < survived ? 'var(--accent)' : (i === idx) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
   );
+
+  // Consent comes before any stressful prompt or microphone request. Standard is intentionally
+  // bounded; Hard remains available, but only after the learner knowingly opts into it.
+  if (phase === 'intro' && !intensity) return shell(<>
+    {header}
+    <section aria-labelledby="pressure-consent-title" style={{ padding:'16px', borderRadius:12, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)' }}>
+      <h2 id="pressure-consent-title" style={{ margin:0, fontSize:16, color:'#f8fafc' }}>Interne Druck-Simulation</h2>
+      <p style={{ margin:'8px 0 0', color:'#cbd5e1', fontSize:12.5, lineHeight:1.65 }}>
+        Du wählst die Intensität. Das ist Training, keine Bewertung deiner Eignung. Du kannst jederzeit pausieren und schließen.
+      </p>
+    </section>
+    <fieldset aria-describedby="pressure-aftercare" style={{ margin:'14px 0 0', padding:0, border:0 }}>
+      <legend style={{ color:'#e2e8f0', fontSize:13, fontWeight:750 }}>Wie intensiv soll die Übung sein?</legend>
+      <div role="radiogroup" aria-label="Trainingsintensität" style={{ display:'grid', gap:8, marginTop:9 }}>
+        <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('standard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'#60a5fa' }}>
+          <strong>STANDARD</strong><span>3 Stufen · ruhig bis direkt</span>
+        </button>
+        <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('hard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'#f87171' }}>
+          <strong>HART</strong><span>5 Stufen · kurze Zeit und harte Unterbrechungen</span>
+        </button>
+      </div>
+    </fieldset>
+    <p id="pressure-aftercare" style={{ margin:'11px 0 0', color:'#94a3b8', fontSize:11.5, lineHeight:1.55 }}>
+      Wenn es zu viel wird: PAUSE drücken. Ein schwieriger Durchgang ist ein Trainingssignal, kein Urteil über dich.
+    </p>
+  </>);
 
   if (phase === 'intro') return shell(<>
     {header}
@@ -374,6 +404,20 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       </div>
     </div>
     <button onClick={() => setPhase('ready')} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Leiter besteigen ▸', 'اطلع السلّم ▸')}</button>
+  </>);
+
+  if (phase === 'ready' && intensity === 'standard') return shell(<>
+    {header}{ladder}
+    <section aria-labelledby="pressure-ready-title" style={{ textAlign:'center', padding:'14px 0' }}>
+      <div style={{ fontSize:11, color:'#94a3b8', fontFamily:'var(--font-display)', letterSpacing:'0.12em' }}>STUFE {L.n} / 3 · STANDARD</div>
+      <h2 id="pressure-ready-title" style={{ margin:'4px 0 0', fontSize:22, color:'#ef4444' }}>{L.de}</h2>
+      <p style={{ fontSize:12, color:'#94a3b8', margin:'8px 0 0', lineHeight:1.6 }}>Tempo {Math.round(L.rate * 100)}% · {L.sec}s · {L.interrupts} Unterbrechungen</p>
+      <p style={{ fontSize:12.5, color:'#cbd5e1', margin:'14px 0 0', lineHeight:1.6 }}>Du kannst jederzeit PAUSE drücken. Sprich ruhig und bleib bei einem klaren Satz.</p>
+    </section>
+    <div style={{ fontSize:12, color:'var(--action)', margin:'4px 0 12px', lineHeight:1.55, padding:'10px 12px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)' }}>
+      <b>Dein Ziel: </b>{konterFor(L).goal_de}
+    </div>
+    <button onClick={beginRound} style={primaryBtn}>● START</button>
   </>);
 
   if (phase === 'ready') return shell(<>
@@ -453,6 +497,18 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="drill" drillId="druck-leiter" initialCue={coachCue} drillSession={tutorSession} />
   </>);
 
+  if (phase === 'done' && intensity === 'standard') return shell(<>
+    {header}
+    <section aria-labelledby="pressure-complete-title" style={{ textAlign:'center', padding:'22px 0' }}>
+      <h2 id="pressure-complete-title" style={{ margin:0, fontSize:18, color:'#f8fafc' }}>Trainingsblock abgeschlossen.</h2>
+      <p style={{ fontSize:13, color:'#cbd5e1', margin:'10px 0 0', lineHeight:1.7 }}>Du hast 3 interne Druckstufen bearbeitet. Ein späterer Retest prüft, was davon in einer neuen Situation hält.</p>
+      <p style={{ fontSize:12, color:'var(--accent-2)', margin:'12px 0 0', fontWeight:700 }}>Stufen standgehalten: {survived}/3</p>
+      <p style={{ margin:'12px 0 0', color:'#94a3b8', fontSize:11.5, lineHeight:1.55 }}>Nimm jetzt eine Pause. BrainGuide zeigt dir den nächsten sicheren Schritt.</p>
+    </section>
+    <button onClick={() => { setIntensity(null); setIdx(0); setSurvived(0); setPhase('intro'); }} style={{ ...ghostBtnWide, width:'100%' }}>Neue Intensität wählen</button>
+    <button onClick={() => { cleanup(); onClose?.(); }} style={{ ...ghostBtnWide, width:'100%', marginTop:8 }}>Fertig</button>
+  </>);
+
   // done (cleared rung 5)
   return shell(<>
     {header}
@@ -471,5 +527,6 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
 }
 
 const primaryBtn = { width: '100%', padding: '14px', minHeight: 50, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 800, border: '1px solid #ef4444', color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)' };
+const intensityButton = { minHeight: 64, cursor:'pointer', display:'flex', alignItems:'flex-start', justifyContent:'center', flexDirection:'column', gap:4, padding:'12px 14px', borderRadius:10, border:'1px solid', color:'#e2e8f0', textAlign:'left', fontSize:12.5 };
 const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
 const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

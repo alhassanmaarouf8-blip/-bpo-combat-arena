@@ -86,28 +86,28 @@ function whyLine(d) {
   const soft = d.confidence === 'low';
   switch (d.state) {
     case 'NEW':
-      return 'Dein Diagnose-Interview: Ich muss dich zuerst sprechen hören, um deine größte Baustelle zu finden — danach führe ich dich Schritt für Schritt.';
+      return 'Zuerst höre ich dich sprechen. Dann bekommst du genau einen passenden Trainingsschritt.';
     case 'MEASURE': {
       const sig = MEASURE_LABEL[d.prescription?.signal] || 'dieses Interviewsignal';
-      return `Ich kann ${sig} noch nicht sicher messen — und ich rate nicht. Das nächste Interview misst genau das.`;
+      return `Ich kann ${sig} noch nicht sicher messen. Das nächste Interview prüft genau das.`;
     }
     case 'READY':
-      return `Du hast trainiert${label ? ` (${label})` : ''} — jetzt der Beweis: Die Trainingssimulation testet denselben Engpass mit neuem Material und Druck erneut. Erst wenn das Ergebnis im passenden Retest und in einer neuen Situation hält, gilt der Transfer als bestätigt.`;
+      return `Du hast trainiert${label ? `: ${label}` : ''}. Jetzt folgt ein Retest mit neuem Material.`;
     case 'RETEST_READY':
-      return `Der verzögerte Hörvergleich${label ? ` für ${label}` : ''} ist jetzt fällig. Nur neue servergeprüfte Aufgaben zählen als Nachweis.`;
+      return `Der Hör-Retest${label ? ` für ${label}` : ''} ist jetzt fällig. Neue Aufgaben zählen.`;
     case 'RETEST_WAIT':
-      return `Dein vollständiger Trainingsblock${label ? ` für ${label}` : ''} ist erledigt. BrainGuide wartet bewusst bis zum gültigen Retest-Zeitpunkt, damit Übung und Nachweis nicht verwechselt werden.`;
+      return `Dein Trainingsblock${label ? ` für ${label}` : ''} ist erledigt. Der Retest öffnet zum angezeigten Zeitpunkt.`;
     case 'APPLY':
-      return 'Du hast die internen Einstiegskriterien der Simulation erfüllt. Bewirb dich jetzt, damit echte Rückmeldungen die nächsten Lücken zeigen.';
+      return 'Du erfüllst die internen Einstiegskriterien der Simulation. Prüfe jetzt passende Stellen.';
     case 'MISSION_CONTROL':
-      return 'Dein nächster Schritt folgt aus deinen bestätigten Fakten, deiner gemessenen Bereitschaft und deinem aktuellen Bewerbungsstand — ohne geratenen Fit.';
+      return 'Dein nächster Schritt nutzt bestätigte Fakten und aktuelle Messungen.';
     case 'PLATEAU':
-      return `Du warst ein paar Tage weg — ${label ? `mit ${label} ` : ''}machst du am schnellsten wieder Boden gut.`;
+      return `Starte wieder klein${label ? `: ${label}` : ''}. Ein sauberer Block reicht heute.`;
     default:   // POST_FIGHT — the fresh prescription
       if (!label) return null;
       return soft
-        ? `Erste Diagnose: ${label}. Je mehr ich dich höre, desto schärfer wird sie — dieses Training bringt dich JETZT am weitesten.`
-        : `Dein stärkster wiederholt beobachteter Risikohinweis: ${label}. Ein Problem, ein Training, dann der Beweis im passenden und neuen Interview-Retest.`;
+        ? `Erste Messung: ${label}. Trainiere jetzt diesen einen Punkt.`
+        : `Wiederholt beobachtet: ${label}. Trainiere ihn, dann folgt ein Retest.`;
   }
 }
 
@@ -385,4 +385,4 @@ const card   = { marginTop: 12, padding: 14, borderRadius: 12, background: 'rgba
 const track  = { height: 8, borderRadius: 6, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' };
 const fill   = { height: '100%', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))', transition: 'width .4s' };
 const ahaBox = { marginBottom: 12, padding: 10, borderRadius: 10, background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.3)' };
-const cta    = { width: '100%', marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };
+const cta    = { width: '100%', minHeight: 44, marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };
