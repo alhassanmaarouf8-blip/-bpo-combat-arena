@@ -4542,6 +4542,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── WS message dispatch ────────────────────────────────────────────────────
+  // Filled after authentication hooks initialize below. The ref keeps WebSocket
+  // message handling stable and does not affect the interview transport.
+  const firstSessionTraceRef = useRef(() => {});
   const handleMsg = useCallback((msg) => {
     switch (msg.type) {
       case S.SESSION_READY:
@@ -4641,6 +4644,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       case S.DEBRIEF:
         stopGeminiMode();   // interview over → stop the continuous mic + boss-voice player
         beacon('debrief_shown');   // funnel: a full interview reached its results screen
+        firstSessionTraceRef.current('debrief_visible');
         if (msg.progress?.vacancyMilestoneCompleted) beacon('vacancy_targeted_interview_completed');
         if (verdictTimerRef.current) clearTimeout(verdictTimerRef.current);
         setVerdictHold(true);
@@ -5392,6 +5396,17 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   }, [phase, debrief, debriefPending, bossSpeak]);
 
   const authHeaders = useCallback(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token]);
+  const recordFirstSessionTrace = useCallback((event, reason) => {
+    const payload = { event };
+    if (reason) payload.reason = reason;
+    fetch(`${API_URL}/api/first-session/event`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => {});
+  }, [authHeaders]);
+  firstSessionTraceRef.current = recordFirstSessionTrace;
 
   // Home billing state: daily minutes left, pending payment, one-time activation notice.
   const loadBilling = useCallback(() => {
@@ -5434,6 +5449,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
     beacon('start_clicked');
+    recordFirstSessionTrace('start_clicked');
     // Typing is a complete interview path. Unsupported microphone shells may still start and
     // answer by text; only the microphone button itself needs browser-escape guidance.
     if (auth.account?.entitlement && !auth.account.entitlement.allowed) {
@@ -5445,6 +5461,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     // discovering a saved denial after Yasmin has already started speaking.
     if (IN_APP_BROWSER || !checkAudioSupport().supported) {
       beacon('mic_failed');
+      recordFirstSessionTrace('mic_blocked', 'unsupported');
       setError('audio_unsupported');
       setHandsFree(false);
       setTypeOpen(false);
@@ -5453,10 +5470,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     try {
       const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
       probe.getTracks().forEach((track) => track.stop());
+      recordFirstSessionTrace('mic_ready');
       setError(null);
     } catch (err) {
       beacon('mic_failed');
-      setError(micErrorCode(err));
+      const code = micErrorCode(err);
+      recordFirstSessionTrace('mic_blocked', code === 'mic_not_found' ? 'not_found' : 'denied');
+      setError(code);
       setHandsFree(false);
       setTypeOpen(false);
       return;
@@ -5464,7 +5484,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     // Straight into the interview. The typed AUFWÄRMEN pre-fight warm-up was removed: it re-drilled the
     // same SRS due-items as SAG ES RICHTIG (spoken) and Daily Training (typed) — off-mission redundancy.
     start();
-  }, [start, auth.account]);
+  }, [start, auth.account, recordFirstSessionTrace]);
 
   const closeSalma = useCallback((why) => { setSalma(null); if (why) beacon(String(why)); }, []);
   const bookSalmaFight = useCallback((result) => {

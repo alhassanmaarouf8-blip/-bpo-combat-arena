@@ -44,6 +44,7 @@ export function defaultProfile(userId) {
     neuEinstufungPrompted: false, // Trainingslager: one-time "monthly re-assessment" prompt shown?
     liveUsage:        { day: '', sec: 0 }, // live-interview seconds used today (Cairo day-key)
     usageDays:        {},  // DURABLE per-day live seconds { 'YYYY-MM-DD': sec } — liveUsage resets daily, this does NOT (engagement analytics: days-active + minutes-each)
+    firstSessionTrace: null, // one bounded owner-only first-interview trace; never audio, transcript, IP, or email
     pushSub:          null, // Web Push subscription {endpoint,keys} for daily practice reminders (push.js)
     drillsSeen:       {},  // per-drill seen-id sets → never-repeat for every standalone drill
     recentErrors:     [],  // top error labels from the last session (cross-session boss memory)

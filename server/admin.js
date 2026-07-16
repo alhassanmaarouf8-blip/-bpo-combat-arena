@@ -24,6 +24,7 @@ import { deleteFeedbackFor }             from './feedback.js';
 import { deleteWeaknessData }             from './db.js';
 import { buildSpokenGoldProfileSnapshot } from './spokenGoldSnapshot.js';
 import { adminStudyCohortInventory, createAdminStudyInviteLink, studyCohortSlotAvailable } from './studyCohortAdmin.js';
+import { publicOwnerTrace } from './firstSessionTrace.js';
 
 export const adminRouter = express.Router();
 
@@ -363,6 +364,7 @@ adminRouter.get('/admin/user-detail', async (req, res) => {
       placement: p.placement || null,
       dailyStreakDays: (p.dailyDays || []).length,
       sessionCount: (p.sessions || []).length,
+      firstSessionTrace: publicOwnerTrace(p.firstSessionTrace),
       sessions, weakTop, payments,
     });
   } catch (e) { console.error('[admin] user-detail error:', e.message); res.status(500).json({ error: 'user_detail_failed' }); }
@@ -715,6 +717,13 @@ function loadUserDetail(){
       var pl=document.createElement('div');pl.style.cssText='margin-top:8px;font-size:11.5px;color:#93c5fd';
       pl.textContent='📌 Mission: '+d.placement.status.toUpperCase()+(d.placement.role?' · '+d.placement.role:'')+(d.placement.employer?' bei '+d.placement.employer:'');
       card.appendChild(pl);
+    }
+    if(d.firstSessionTrace&&Array.isArray(d.firstSessionTrace.events)&&d.firstSessionTrace.events.length){
+      var traceTitle=document.createElement('h2');traceTitle.textContent='ERSTE INTERVIEW-REISE';box.appendChild(traceTitle);
+      var trace=document.createElement('div');trace.className='card';trace.style.fontSize='12px';trace.style.lineHeight='1.75';
+      var labels={start_clicked:'Start gedrückt',mic_ready:'Mikrofon bereit',mic_blocked:'Mikrofon blockiert',fight_started:'Interview gestartet',interviewer_started:'Interviewer hat begonnen',first_answer_received:'Erste Antwort angekommen',debrief_generated:'Auswertung erzeugt',debrief_visible:'Auswertung gesehen',session_closed:'Sitzung beendet'};
+      d.firstSessionTrace.events.forEach(function(ev){var row=document.createElement('div');row.textContent=fmtTime(ev.at)+' · '+(labels[ev.event]||ev.event)+(ev.reason?' ('+ev.reason+')':'');trace.appendChild(row);});
+      box.appendChild(trace);
     }
     var snapshotButton=document.createElement('button');snapshotButton.className='act';snapshotButton.style.marginTop='10px';
     snapshotButton.textContent='Spoken-Gold-Snapshot herunterladen';

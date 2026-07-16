@@ -34,6 +34,7 @@ import { vertexConfigured }       from './vertexToken.js';
 import { completeVacancySession, vacancyLiveContext } from './vacancyTargetCore.js';
 import { missionControlVacancyLiveContext } from './missionControlCore.js';
 import { normalizeSalmaCoachState, recordMeaningfulRetest, salmaCoachFlags, salmaRetestTarget, syncSalmaCoach } from './salmaCoachCore.js';
+import { recordFirstSessionEvent } from './firstSessionTrace.js';
 
 // One canonical filler definition so the live counter, the per-turn HP scorer and the
 // session-total metric can NEVER drift apart (they used 3 slightly different regexes before,
@@ -369,6 +370,8 @@ export class WebSocketManager {
       authenticated:      false,
       authDeadline:       null,
       vacancySnapshot:    null,
+      firstInterviewerTraceRecorded: false,
+      firstAnswerTraceRecorded: false,
     };
 
     this._sessions.set(sessionId, ctx);
@@ -717,6 +720,10 @@ export class WebSocketManager {
           this._recordTurnLatency(ctx);   // [LAT] boss text ready (no-op if the early sentence already consumed this turn's clock)
           ctx.dialogue.push({ role: 'boss', text, stage: ctx.stageIdx, stageLabel: ctx.stages[ctx.stageIdx]?.label });
           this._send(ctx, { type: S.BOSS_SPEECH, text });
+          if (!ctx.firstInterviewerTraceRecorded && ctx.userId !== 'anon') {
+            ctx.firstInterviewerTraceRecorded = true;
+            recordFirstSessionEvent(ctx.userId, 'interviewer_started').catch(() => {});
+          }
         },
         // First complete sentence of the turn, emitted while the rest is still generating. The
         // client starts SPEAKING it immediately and splices the remainder in when the full line
@@ -960,6 +967,7 @@ export class WebSocketManager {
       // Billing starts now: stamp the start time and arm the cap at the SMALLER of the global
       // max and the user's remaining daily minutes.
       ctx.fightStartedAt = Date.now();
+      if (ctx.userId !== 'anon') recordFirstSessionEvent(ctx.userId, 'fight_started').catch(() => {});
       const capMs = Math.min(MAX_FIGHT_MS, (ctx.dailyCapSec || MAX_FIGHT_MS / 1000) * 1000);
       ctx.maxTimer = setTimeout(() => {
         // GRACEFUL end: stop after the boss finishes its current turn (no mid-sentence cut)…
@@ -1342,6 +1350,10 @@ export class WebSocketManager {
     await ctx.realtimeClient?.close().catch(() => {});
     ctx.realtimeClient = null;
     await this._finishSession(ctx);
+    if (ctx.userId !== 'anon' && ctx.fightStartedAt) {
+      const traceReason = ['completed', 'time_limit'].includes(reason) ? reason : 'other';
+      recordFirstSessionEvent(ctx.userId, 'session_closed', { reason: traceReason }).catch(() => {});
+    }
     this._send(ctx, { type: S.SESSION_CLOSED, reason });
   }
 
@@ -1395,6 +1407,7 @@ export class WebSocketManager {
     // Compute the result (rank/verdict/jobLabel) BEFORE persisting — the session record stores it.
     const result   = await this._computeResult(ctx, metrics, debrief);
     const progress = await this._persistProgress(ctx, metrics, debrief, result);
+    if (ctx.userId !== 'anon') recordFirstSessionEvent(ctx.userId, 'debrief_generated').catch(() => {});
 
     // Arabic-L1 pattern (ROADMAP #3): name the learner's SPECIFIC L1 wall — at most ONE,
     // only when it repeated (≥2), example honesty-gated (non-truncated, no low-confidence
@@ -1978,6 +1991,10 @@ export class WebSocketManager {
       }
       return;
     }
+    if (!ctx.firstAnswerTraceRecorded && ctx.userId !== 'anon') {
+      ctx.firstAnswerTraceRecorded = true;
+      recordFirstSessionEvent(ctx.userId, 'first_answer_received').catch(() => {});
+    }
     ctx._silence = { ...(ctx._silence || {}), emptyTurns: 0 };   // a real answer resets the silence counter
 
     // Evidence provenance is owned by the server. A classic recorded answer becomes
@@ -2510,7 +2527,8 @@ export class WebSocketManager {
     // Bill any live minutes when the tab was killed mid-fight (abrupt disconnect).
     // The normal path (_endSession) already sets ctx.closed = true before recording;
     // if it's still false here, _endSession never ran → record now to prevent a bypass.
-    if (!ctx.closed && ctx.fightStartedAt) {
+    const abruptFight = !ctx.closed && ctx.fightStartedAt;
+    if (abruptFight) {
       ctx.closed = true;
       const wallSec = Math.round((Date.now() - ctx.fightStartedAt) / 1000);
       const inSec   = Math.round(ctx.audioInBytes  / PCM16_BYTES_PER_SEC);
@@ -2533,6 +2551,9 @@ export class WebSocketManager {
       ctx._abandoned = true;
       try { await this._finishSession(ctx); }
       catch (e) { console.error(`[wsManager] abandoned-session debrief failed  session=${ctx.sessionId}:`, e.message); }
+    }
+    if (abruptFight && ctx.userId !== 'anon') {
+      recordFirstSessionEvent(ctx.userId, 'session_closed', { reason: 'abrupt_close' }).catch(() => {});
     }
 
     this._sessions.delete(ctx.sessionId);
