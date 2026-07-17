@@ -28,6 +28,7 @@ import {
 import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry, forgetStudyCohortEntry,
   verifyStudyCohortEntry } from './studyCohortEntry.js';
 import { useAccessibleOverlay } from './useAccessibleOverlay.js';
+import './AppShell.css';
 
 // Bearer capability hygiene: capture once and remove it from history during module initialization,
 // before the app's pre-warm request, telemetry, or first React render can run.
@@ -5808,13 +5809,41 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     }
   };
 
+  const goToHomeSection = (sectionId) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    section.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    section.focus({ preventScroll: true });
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="app-shell" style={{
+    <div className={`app-shell${canStart && !firstRun ? ' app-shell--navigation' : ''}`} style={{
       minHeight:'100svh',
       display:'flex', flexDirection:'column', position:'relative', overflowX:'hidden',
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
+
+      {canStart && !firstRun && (
+        <nav className="app-navigation" aria-label="Hauptnavigation" data-testid="app-navigation">
+          <div className="app-navigation__brand" aria-hidden="true">OP</div>
+          <button className="app-navigation__item app-navigation__item--current"
+            onClick={() => goToHomeSection('today-mission')} aria-label="Heute: dein nächster Schritt">
+            <Icon name="bolt" size={20} />
+            <span>Heute</span>
+          </button>
+          <button className="app-navigation__item" onClick={() => goToHomeSection('practice-library')}
+            aria-label="Übungen öffnen">
+            <Icon name="layers" size={20} />
+            <span>Übungen</span>
+          </button>
+          <button className="app-navigation__item" onClick={openDashboard} aria-label="Fortschritt öffnen">
+            <Icon name="chartUp" size={20} />
+            <span>Fortschritt</span>
+          </button>
+        </nav>
+      )}
 
       {/* Global BACK button — persistent on every screen (closes the top overlay, or exits the interview) */}
       {canGoBack && (
@@ -6049,6 +6078,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       )}
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
+      <main className="app-main">
       <div style={{ padding:'16px 16px 0' }}>
         {/* Connection status is only meaningful DURING a session. On the idle home it showed a scary
             "GETRENNT" (disconnected) as the first thing a new user sees — pure noise. Hide when idle. */}
@@ -6153,7 +6183,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {/* HERO CARD "Dein Interview" (uplift) — the one place everything about starting lives:
                 readiness, level, interviewer, options. The glass card + the orange button below read
                 as ONE hero object; nothing else on the page competes. */}
-            <div style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
+            <div id="today-mission" tabIndex={-1} className="home-section-anchor" style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
               border:'var(--glass-border)', boxShadow:'var(--e2), var(--glass-highlight)',
               backdropFilter:'blur(14px) saturate(1.1)' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', marginBottom:12 }}>
@@ -6895,7 +6925,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             wall before the first interview is choice-overload; the interview routes them to the right
             drill afterwards. */}
         {canStart && !firstRun && (
-          <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
+          <div id="practice-library" tabIndex={-1} className="home-section-anchor" style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginBottom:3 }}>
               Übungen
@@ -6985,6 +7015,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             animation:'pulse 1s infinite' }} />
         )}
       </div>
+      </main>
     </div>
   );
 }
