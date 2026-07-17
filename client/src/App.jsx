@@ -6167,6 +6167,39 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 </div>
               </div>
 
+              {/* THE INTERVIEW BUTTON — owner law (2026-07-18, verbatim demand): it lives HERE, top of
+                  the hero, mid-screen, ALWAYS visible when the user can start. No policy/directive may
+                  hide it (the primaryActionPolicy gate buried it → the founder couldn't find the
+                  interview). The brain's prescription renders BELOW; this door stays open. */}
+              {canStart && (billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
+                <div style={{ marginBottom:12, padding:'13px', borderRadius:8, border:'1px solid rgba(249,115,22,0.4)', background:'rgba(249,115,22,0.08)',
+                  textAlign:'center', fontSize:11, color:'var(--action)', lineHeight:1.6 }}>
+                  {feedbackLang === 'ar'
+                    ? 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.'
+                    : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
+                  <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ display:'block', width:'100%',
+                    marginTop:8, padding:'10px', minHeight:44, cursor:'pointer', background:'none',
+                    border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)' }}>
+                    <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Mehr Interviews pro Tag? Pläne ansehen →</span>{/* OWNER-AR slot */}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={beginSession}
+                  disabled={isConnecting}
+                  style={{
+                    width:'100%', marginBottom:12, padding:'16px 20px', minHeight:56, cursor: isConnecting ? 'wait' : 'pointer',
+                    display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                    fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em',
+                    borderRadius:16, border:'none', color:'#081019',
+                    background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
+                    transition:'transform 100ms var(--ease)',
+                    opacity: isConnecting ? 0.55 : 1,
+                  }}>
+                  <Icon name="mic" size={19} /> {isConnecting ? 'Verbinde…' : (activeStudyStart ? '8-MIN-DIAGNOSE STARTEN' : 'Interview starten')}
+                </button>
+              ))}
+
               {/* Honest velocity (R3): measured pace only — the server returns etaSessions null
                   below 2 xp-measured sessions (D4: below the evidence floor, say NOTHING).
                   Audit S16: unbounded, a slow learner could see "noch ~480 Sessions" — accurate
@@ -6743,39 +6776,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         )}
 
         {/* Start / Stop toggle — replaced by an honest "come back tomorrow" note at the daily cap */}
-        {homePrimaryAction.showGenericInterview && (canStart && billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
-          <div style={{ padding:'13px', borderRadius:8, border:'1px solid rgba(249,115,22,0.4)', background:'rgba(249,115,22,0.08)',
-            textAlign:'center', fontSize:11, color:'var(--action)', lineHeight:1.6 }}>
-            {feedbackLang === 'ar'
-              ? 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.'
-              : 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.'}
-            {/* The daily cap is the highest-intent moment on the home screen (an engaged user who
-                wants MORE) — before this link it said only "come back tomorrow" and sold nothing. */}
-            <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ display:'block', width:'100%',
-              marginTop:8, padding:'10px', minHeight:44, cursor:'pointer', background:'none',
-              border:'none', fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)' }}>
-              <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>Mehr Interviews pro Tag? Pläne ansehen →</span>{/* OWNER-AR slot */}
-            </button>
-          </div>
-        ) : canStart ? (
-          /* THE BUTTON (uplift): the single orange fill on the whole home — 56px, gradient, mic icon.
-             It was a thin blue outline while a secondary button screamed orange; hierarchy now matches
-             what the app IS: this is the arena door. */
-          <button
-            onClick={beginSession}
-            disabled={isConnecting}
-            style={{
-              width:'100%', padding:'16px 20px', minHeight:56, cursor: isConnecting ? 'wait' : 'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-              fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em',
-              borderRadius:16, border:'none', color:'#081019',
-              background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
-              transition:'transform 100ms var(--ease)',
-              opacity: isConnecting ? 0.55 : 1,
-            }}>
-            <Icon name="mic" size={19} /> {isConnecting ? 'Verbinde…' : (activeStudyStart ? '8-MIN-DIAGNOSE STARTEN' : 'Interview starten')}
-          </button>
-        ) : null)}
+        {/* The interview CTA moved INTO the hero top (owner order 07-18) — one button, always visible. */}
 
         {/* First-run reassurance: a novel user's whole home is just the hero + this one button. A short,
             low-stakes note lowers the "live German interview" fear. (Arabic left as an OWNER-AR slot; the
