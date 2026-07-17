@@ -63,3 +63,16 @@ test('beginner memory cannot be promoted into invented biography', async () => {
   assert.match(source, /NIE als Beruf, Arbeitgeber, Erfahrung oder andere biografische Tatsache/u);
   assert.match(source, /Beim letzten Mal haben Sie über/u);
 });
+
+test('parent guidance refresh cannot erase an open drill result', async () => {
+  for (const relative of [
+    '../client/src/SatzbauSchmiede.jsx',
+    '../client/src/FluencyDrill.jsx',
+    '../client/src/Shadowing.jsx',
+    '../client/src/SpokenReview.jsx',
+  ]) {
+    const source = await readFile(new URL(relative, import.meta.url), 'utf8');
+    assert.match(source, /pricingRef\.current\?\.\(\);\s*closeRef\.current\?\.\(\)/u, relative);
+    assert.doesNotMatch(source, /const blocked\s*=\s*useCallback\([^\n]+\[onGoPricing,\s*onClose\]\)/u, relative);
+  }
+});

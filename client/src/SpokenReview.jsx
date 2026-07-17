@@ -28,7 +28,9 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   const [err, setErr]     = useState(null);
 
   const recRef = useRef(null); const timerRef = useRef(null); const stopRef = useRef(null);
-  const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
+  const closeRef = useRef(onClose); const pricingRef = useRef(onGoPricing);
+  useEffect(() => { closeRef.current = onClose; pricingRef.current = onGoPricing; });
+  const blocked = useCallback(() => { pricingRef.current?.(); closeRef.current?.(); }, []);
 
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setPrescription(null); setItems([]); setIdx(0);

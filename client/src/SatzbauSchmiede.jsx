@@ -42,13 +42,16 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
   const [err, setErr]       = useState(null);
 
   const timerRef = useRef(null);
+  const closeRef = useRef(onClose);
+  const pricingRef = useRef(onGoPricing);
+  useEffect(() => { closeRef.current = onClose; pricingRef.current = onGoPricing; });
 
   // Native-voice stop handle: closing the drill (or re-listening) must SILENCE the previous line —
   // an orphaned model voice talking over the next screen reads as a bug.
   const stopVoiceRef = useRef(null);
   useEffect(() => () => { try { stopVoiceRef.current?.(); } catch { /* ignore */ } }, []);
 
-  const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
+  const blocked = useCallback(() => { pricingRef.current?.(); closeRef.current?.(); }, []);
 
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);

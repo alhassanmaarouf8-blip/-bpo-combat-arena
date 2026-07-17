@@ -38,8 +38,11 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   const recRef   = useRef(null);
   const timerRef = useRef(null);
   const stopRef  = useRef(null);
+  const closeRef = useRef(onClose);
+  const pricingRef = useRef(onGoPricing);
+  useEffect(() => { closeRef.current = onClose; pricingRef.current = onGoPricing; });
 
-  const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
+  const blocked = useCallback(() => { pricingRef.current?.(); closeRef.current?.(); }, []);
 
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setRes([]); setRound(0);

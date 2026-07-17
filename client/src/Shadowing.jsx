@@ -47,8 +47,11 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const stopRef     = useRef(null);
   const clipUrlRef  = useRef(null);   // mirror of clipUrl so we can revoke without stale closures
   const ownTakeStopRef = useRef(null);
+  const closeRef = useRef(onClose);
+  const pricingRef = useRef(onGoPricing);
+  useEffect(() => { closeRef.current = onClose; pricingRef.current = onGoPricing; });
 
-  const blocked = useCallback(() => { onGoPricing?.(); onClose?.(); }, [onGoPricing, onClose]);
+  const blocked = useCallback(() => { pricingRef.current?.(); closeRef.current?.(); }, []);
 
   const loadSession = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setIdx(0);
