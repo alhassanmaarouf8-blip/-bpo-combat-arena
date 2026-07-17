@@ -13,6 +13,7 @@ import { SpeakerIcon } from './icons/AudioIcons';
 import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { ClipRecorder } from './clipRecorder.js';
+import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 import { playNative } from './nativeVoice.js';
 import { beginIndependentPlayback } from './salmaAudioSafety.js';
 import { DrillIntro } from './drillIntros.jsx';
@@ -21,6 +22,7 @@ const MAX_SEC = 20;   // a single sentence repeat is short
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
+  const overlayProps = useAccessibleOverlay(onClose, 'Shadowing');
   const tutorSession = useSalmaDrillSession(token, 'shadowing');
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
   const [sentences, setSen] = useState([]);
@@ -194,7 +196,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
   // ── shells ──
   const shell = (children) => (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
+    <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>

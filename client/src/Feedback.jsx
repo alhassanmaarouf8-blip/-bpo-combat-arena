@@ -7,6 +7,7 @@
  */
 import { useState } from 'react';
 import { CloseIcon } from './icons/AudioIcons';
+import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 
 async function postFeedback(apiUrl, token, body) {
   try {
@@ -27,8 +28,8 @@ export function HomeFeedback({ token, apiUrl }) {
   const [text, setText]     = useState('');
   const [busy, setBusy]     = useState(false);
   const [sent, setSent]     = useState(false);
-
   const close = () => { if (busy) return; setOpen(false); setRating(0); setText(''); setSent(false); };
+  const overlayProps = useAccessibleOverlay(close, 'Feedback', open);
   const submit = async () => {
     if (busy || (rating === 0 && !text.trim())) return;
     setBusy(true);
@@ -39,14 +40,14 @@ export function HomeFeedback({ token, apiUrl }) {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} style={{ width: '100%', marginTop: 8, padding: '10px',
+      <button onClick={() => setOpen(true)} style={{ width: '100%', minHeight: 44, marginTop: 8, padding: '10px',
         cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.14em',
         borderRadius: 8, border: '1px solid rgba(148,163,184,0.35)', color: '#94a3b8', background: 'rgba(255,255,255,0.02)' }}>
          FEEDBACK GEBEN
       </button>
 
       {open && (
-        <div onClick={close} style={overlay}>
+        <div {...overlayProps} onClick={close} style={overlay}>
           <div onClick={(e) => e.stopPropagation()} style={modal}>
             {sent ? (
               <div style={{ ...thanks, direction: 'rtl' }}>شكرًا!</div>
@@ -56,9 +57,11 @@ export function HomeFeedback({ token, apiUrl }) {
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12 }}>Wie war deine Erfahrung?</div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 14 }}>
                   {[1, 2, 3, 4, 5].map((n) => (
-                    <button key={n} onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 28, lineHeight: 1, padding: 0,
-                        filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.4)', transition: 'filter 0.15s' }}></button>
+                    <button key={n} aria-label={`${n} ${n === 1 ? 'Stern' : 'Sterne'}`} aria-pressed={rating === n}
+                      onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 28, lineHeight: 1,
+                        minWidth: 44, minHeight: 44, padding: 6,
+                        filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.4)', transition: 'filter 0.15s' }}>★</button>
                   ))}
                 </div>
                 <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000}

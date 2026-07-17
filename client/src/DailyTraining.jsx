@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { SpeakerIcon, SpeakerQuietIcon, CloseIcon } from './icons/AudioIcons';
 import { Spinner } from './Loading.jsx';
 import { playNative } from './nativeVoice.js';
+import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 
 // Minimal client-side normaliser for the re-type gate (strict — they've seen the answer).
 function normClient(s) {
@@ -17,6 +18,7 @@ function normClient(s) {
 }
 
 export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang = 'de' }) {
+  const overlayProps = useAccessibleOverlay(onClose, 'Tägliches Training');
   const [data, setData]   = useState(null);
   const [idx, setIdx]     = useState(0);
   const [answer, setAnswer] = useState('');
@@ -170,7 +172,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   };
 
   return (
-    <div style={ov}>
+    <div {...overlayProps} style={ov}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '0.1em',

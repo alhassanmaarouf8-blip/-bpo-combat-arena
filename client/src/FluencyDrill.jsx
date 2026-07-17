@@ -18,11 +18,13 @@ import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
 import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
+import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 import { reportDrillEvent } from './salmaCoachClient.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
 export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onClose, onGoPricing, why = null }){
+  const overlayProps = useAccessibleOverlay(onClose, 'Flow-Drill');
   const tutorSession = useSalmaDrillSession(token, 'flow-drill');
   const [mode, setMode]     = useState('432');      // '432' (classic) | 'chunks' (Blitz-Formeln)
   const [phase, setPhase]   = useState('loading'); // loading | ready | practice | scoring | between | done | error
@@ -139,7 +141,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
 
   // ── shells (match the Shadowing/Assessment screens) ──
   const shell = (children) => (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
+    <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>

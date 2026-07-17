@@ -22,6 +22,7 @@ import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { playNative } from './nativeVoice.js';
 import { DrillIntro } from './drillIntros.jsx';
+import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 
 const T = (lang, de, ar) => (lang === 'ar' && ar ? ar : de);
 
@@ -30,6 +31,7 @@ const TIME_FLOOR = 10;   // never ramps below this
 const TIME_STEP  = 2;    // shaved off per subsequent item — the difficulty ramp
 
 export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
+  const overlayProps = useAccessibleOverlay(onClose, 'Satzbau-Schmiede');
   const tutorSession = useSalmaDrillSession(token, 'satzbau-schmiede');
   const [phase, setPhase]   = useState('loading'); // loading | practice | done | error
   const [items, setItems]   = useState([]);
@@ -151,7 +153,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
   };
 
   const shell = (children) => (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
+    <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>

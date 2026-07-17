@@ -27,6 +27,7 @@ import {
 } from './interviewPassClaimStore.js';
 import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry, forgetStudyCohortEntry,
   verifyStudyCohortEntry } from './studyCohortEntry.js';
+import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 
 // Bearer capability hygiene: capture once and remove it from history during module initialization,
 // before the app's pre-warm request, telemetry, or first React render can run.
@@ -2463,12 +2464,12 @@ function Sparkline({ data, color = 'var(--accent)', invert = false, height = 34 
 }
 
 // ── Component: Dashboard (return-to progress view) ────────────────────────────
-// ── Bewerbungs-Dossier — the REAL artifact: a printable one-pager of MEASURED training evidence
-// (rank, sessions, streak, vocab/rules, honest hire-readiness state). Nothing estimated, nothing
-// promised (legal redline: no job/outcome claims). White paper look — it's a document, not UI.
+// ── Bewerbungs-Dossier — a printable one-pager of bounded internal training evidence.
+// Estimated fields stay explicitly estimated; this is never presented as an external certificate.
 const DOSSIER_SKILL_DE = { fluency: 'Flüssigkeit', grammar: 'Grammatik', intelligibility: 'Verständlichkeit',
   confidence: 'Sicherheit', deescalation: 'Deeskalation', complexity: 'Satz-Komplexität' };
 function DossierSheet({ token, data, account, onClose }) {
+  const overlayProps = useAccessibleOverlay(onClose, 'Bewerbungs-Dossier');
   const [guideName, setGuideName] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -2495,7 +2496,7 @@ function DossierSheet({ token, data, account, onClose }) {
     ['Geschätztes Deutsch-Niveau', hr.level || '—'],
     ['Interview-Rang', `${rank.label || 'Einsteiger'} (Stufe ${(rank.tier ?? 0) + 1}/${(rank.ranks || []).length || 5})`],
     ['Live-Interviews absolviert', String(totals.sessions ?? 0)],
-    ['Trainings-Serie (aktuell)', `${data?.streak ?? 0} Tage`],
+    ['Trainings-Serie (aktuell)', `${data?.streak ?? 0} ${(data?.streak ?? 0) === 1 ? 'Tag' : 'Tage'}`],
     ['Vokabeln gelernt', String(totals.vocabLearned ?? 0)],
     ['Grammatik-Regeln gemeistert', String(totals.rulesMastered ?? 0)],
     ...(fluDelta !== null ? [['Flüssigkeit (Trend über die letzten Interviews)', `${fluDelta >= 0 ? '+' : ''}${fluDelta} Punkte`]] : []),
@@ -2503,7 +2504,7 @@ function DossierSheet({ token, data, account, onClose }) {
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 260, display: 'flex', alignItems: 'center',
+    <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 260, display: 'flex', alignItems: 'center',
       justifyContent: 'center', padding: 16, background: 'rgba(2,4,9,0.9)', backdropFilter: 'blur(5px)' }}>
       <div className="dossier-sheet" style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto',
         background: '#fdfdfb', color: '#111827', borderRadius: 10, padding: '26px 26px 20px',
@@ -2519,7 +2520,7 @@ function DossierSheet({ token, data, account, onClose }) {
 
         <div style={{ marginTop: 16, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 19 }}>Bewerbungs-Dossier</div>
         <div style={{ fontSize: 11.5, color: '#374151', marginTop: 3 }}>
-          Leistungsnachweis aus echten Trainings-Interviews — {guideName || account?.email || ''}
+          Privater Trainingsstand aus internen Simulationen — {guideName || account?.email || ''}
         </div>
 
         <table style={{ width: '100%', marginTop: 16, borderCollapse: 'collapse' }}>
@@ -2534,8 +2535,9 @@ function DossierSheet({ token, data, account, onClose }) {
         </table>
 
         <div style={{ fontSize: 9.5, color: '#6b7280', lineHeight: 1.6, marginTop: 16 }}>
-          Alle Werte wurden in gesprochenen Trainings-Interviews und Übungen GEMESSEN — nichts ist
-          geschätzt, nichts wird versprochen. Verifizierbar unter omni-perform.vercel.app.
+          Die Angaben stammen aus servergespeicherten Trainingsdaten. Das Deutsch-Niveau ist eine interne
+          Schätzung; der Simulationsstatus ist keine Arbeitgeberprognose. Dieses Dokument ist kein Zertifikat
+          und keine Jobgarantie.
         </div>
 
         <div className="dossier-hidep" style={{ display: 'flex', gap: 8, marginTop: 18 }}>
@@ -2574,6 +2576,7 @@ function dashboardBossPipeline(profileLevel, interviewLevel) {
 }
 
 function Dashboard({ data, loading, account, onClose, onReview, onLogout, token, interviewLevel }) {
+  const overlayProps = useAccessibleOverlay(onClose, 'Fortschritt');
   const [dossier, setDossier] = useState(false);
   const t   = data?.totals ?? {};
   const lp  = data?.levelProgress ?? { level: 1, pct: 0, intoLevel: 0, perLevel: 120 };
@@ -2588,7 +2591,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
   const isFreePlan = (ent.plan || 'free') === 'free';
   const visibleBosses = dashboardBossPipeline(lp.level, interviewLevel);
   return (
-    <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
+    <div {...overlayProps} style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, letterSpacing:2,
@@ -3740,6 +3743,7 @@ function paywallSalmaKey(info, trialEnded) {
 }
 
 function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lang = 'de' }) {
+  const overlayProps = useAccessibleOverlay(onClose, 'Plan wählen');
   const [email, setEmail]   = useState('');
   const [plans, setPlans]   = useState(null);
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
@@ -3918,7 +3922,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   };
 
   const shell = (children) => (
-    <div style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
+    <div {...overlayProps} style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
       {children}
     </div>
@@ -6177,7 +6181,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
             <div style={{ textAlign:'center', marginTop:10 }}>
               <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
-                fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'4px 6px', fontFamily:'inherit' }}>
+                minHeight:44, fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'8px 10px', fontFamily:'inherit' }}>
                 {showOpts ? '▾' : '▸'} Optionen · Niveau {({ 'a2-b1':'A2–B1', 'b2':'B2', 'c1':'C1' })[level]} · خيارات
               </button>
             </div>
@@ -6214,7 +6218,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
               <select aria-label="Interviewer auswählen" value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
-                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
+                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
                 {[
@@ -6256,7 +6260,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     .catch(() => loadBilling())
                     .finally(() => setTargetIndustrySaving(false));
                 }}
-                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:36, borderRadius:8, background:'rgba(2,6,16,0.7)',
+                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'rgba(2,6,16,0.7)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (gemischt)</option>
                 {[['telecom','Telekommunikation & Internet'],['ecommerce','E-Commerce & Handel'],['fintech','Banken & Fintech'],
@@ -6283,7 +6287,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <div style={{ display:'inline-flex', borderRadius:'var(--r-pill)', overflow:'hidden',
                 border:'1px solid var(--line)', background:'rgba(0,0,0,0.4)' }}>
                 {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
-                  <button key={id} onClick={() => chooseFeedbackLang(id)} style={{ cursor:'pointer', padding:'4px 12px',
+                  <button key={id} onClick={() => chooseFeedbackLang(id)} style={{ cursor:'pointer', minHeight:44, padding:'8px 12px',
                     fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
                     color: feedbackLang === id ? '#04070d' : '#94a3b8',
                     background: feedbackLang === id ? 'var(--accent)' : 'transparent',
@@ -6799,7 +6803,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 ✓ {lastDebrief.win.title}{lastDebrief.win.quote ? ` — „${lastDebrief.win.quote}“` : ''}
               </div>
             )}
-            <button onClick={dismissLastDebrief} style={{ marginTop:10, padding:'8px 14px', minHeight:40,
+            <button onClick={dismissLastDebrief} style={{ marginTop:10, padding:'8px 14px', minHeight:44,
               borderRadius:'var(--r-pill)', border:'1px solid var(--line)', background:'transparent',
               color:'var(--text-dim)', fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)', cursor:'pointer' }}>
               Verstanden · تمام
