@@ -2924,24 +2924,26 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // network request. The in-memory ref survives validation and the external-browser handoff.
   const [capturedStudyEntry] = useState(() => STUDY_ENTRY_BOOT);
   const studyEntryRef = useRef(capturedStudyEntry);
+  const studyEntryRequestRef = useRef(0);
   const [studyEntryState, setStudyEntryState] = useState(() =>
     studyEntryRef.current ? { phase:'checking', valid:false, days:0 } : { phase:'generic', valid:false, days:0 });
   useEffect(() => {
     const entry = studyEntryRef.current;
     if (!entry) return undefined;
+    const requestId = ++studyEntryRequestRef.current;
     const controller = new AbortController();
     verifyStudyCohortEntry(API_URL, entry.invite, { signal:controller.signal })
       .then((result) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || requestId !== studyEntryRequestRef.current) return;
         setStudyEntryState(result.valid
           ? { phase:'valid', valid:true, days:result.days }
           : { phase:result.state || 'invalid', valid:false, days:0 });
       })
       .catch(() => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || requestId !== studyEntryRequestRef.current) return;
         setStudyEntryState({ phase:'offline', valid:false, days:0 });
       });
-    return () => controller.abort();
+    return () => { controller.abort(); if (requestId === studyEntryRequestRef.current) studyEntryRequestRef.current += 1; };
   }, []);
   const validStudyEntry = studyEntryState.valid === true && studyEntryState.days === 21;
   const studyEntryChecking = studyEntryState.phase === 'checking';
@@ -2949,12 +2951,18 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   const retryStudyEntry = useCallback(() => {
     const entry = studyEntryRef.current;
     if (!entry) return;
+    const requestId = ++studyEntryRequestRef.current;
     setStudyEntryState({ phase:'checking', valid:false, days:0 });
     verifyStudyCohortEntry(API_URL, entry.invite)
-      .then((result) => setStudyEntryState(result.valid
-        ? { phase:'valid', valid:true, days:result.days }
-        : { phase:result.state || 'invalid', valid:false, days:0 }))
-      .catch(() => setStudyEntryState({ phase:'offline', valid:false, days:0 }));
+      .then((result) => {
+        if (requestId !== studyEntryRequestRef.current) return;
+        setStudyEntryState(result.valid
+          ? { phase:'valid', valid:true, days:result.days }
+          : { phase:result.state || 'invalid', valid:false, days:0 });
+      })
+      .catch(() => {
+        if (requestId === studyEntryRequestRef.current) setStudyEntryState({ phase:'offline', valid:false, days:0 });
+      });
   }, []);
   // Self-serve EMAIL password reset (owner order 2026-07-10 — the WhatsApp-manual flow is dead).
   // forgotState: null → closed · 'form' → email input · 'sent' → link on its way ·
@@ -4336,6 +4344,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [combo, setCombo]       = useState(0);
   const [roundFlash, setRoundFlash] = useState(null); // {id, n, label} round-advance banner
   const [feedbackLang, setFeedbackLang] = useState(loadFeedbackLang); // 'de'|'ar' — explanation language
+  useEffect(() => {
+    document.documentElement.lang = feedbackLang === 'ar' ? 'ar-EG' : 'de';
+    document.documentElement.dir = feedbackLang === 'ar' ? 'rtl' : 'ltr';
+  }, [feedbackLang]);
   const chooseFeedbackLang = useCallback((l) => { setFeedbackLang(l); saveFeedbackLang(l); }, []);
   // One-time "how it works" guide for first-time users (dismissed = stored per device).
   const [showHowto, setShowHowto] = useState(() => { try { return !localStorage.getItem('bpo_howto_seen'); } catch { return false; } });
@@ -6620,6 +6632,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             ) : (
               <>
                 <textarea
+                  className="interview-answer-input"
                   value={answerText}
                   onChange={(e) => { setAnswerText(e.target.value); pendingDurationRef.current = 0; }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAnswer(); } }}
@@ -6628,7 +6641,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   disabled={transcribing}
                   style={{ width:'100%', boxSizing:'border-box', resize:'vertical', padding:'10px 12px',
                     fontSize:14, lineHeight:1.5, color:'#e2e8f0', background:'rgba(2,6,16,0.7)',
-                    border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, outline:'none', fontFamily:'inherit' }}
+                    border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, fontFamily:'inherit' }}
                 />
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
                   <button onClick={() => { setTtsMuted(m => { const next = !m; if (next) stopBossVoice(); return next; }); }}

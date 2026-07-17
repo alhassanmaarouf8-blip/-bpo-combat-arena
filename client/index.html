@@ -116,7 +116,7 @@
       #boot-splash .ring{width:34px;height:34px;border-radius:50%;border:2.5px solid rgba(59,130,246,0.22);
         border-top-color:#3b82f6;animation:omni-boot-spin 0.8s linear infinite}
       @keyframes omni-boot-spin{to{transform:rotate(360deg)}}
-      @media (prefers-reduced-motion:reduce){#boot-splash .ring{animation-duration:2.4s}}
+      @media (prefers-reduced-motion:reduce){#boot-splash .ring{animation:none;border-color:rgba(59,130,246,0.5)}}
       /* Mobile-first app is a 440px phone column. On a laptop that skinny strip looked "zoomed in" and
          forced endless scrolling. On desktop we instead WIDEN the shell to fill the screen and lay the
          home's menu out in multiple columns (side-by-side, not an endless stack). Phones are untouched.

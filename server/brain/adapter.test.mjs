@@ -83,6 +83,30 @@ test('adapter: globalRegressed when total grammar errors rose last session', () 
   assert.equal(buildSnapshot(p, NOW).globalRegressed, true);
 });
 
+test('adapter: unreliable v2 sessions cannot advance or regress the compounding learner model', () => {
+  const reliable = (date, count) => ({ date, verdict: 'pass', grammarMeasured: true,
+    grammarRules: [{ ruleId: 'word-order-sub', count }],
+    evidenceQuality: { version: 2, prescriptionEligible: true, eligibleWords: 100 } });
+  const profile = { sessions: [
+    reliable(NOW - 3 * DAY, 3),
+    reliable(NOW - 2 * DAY, 1),
+    { ...reliable(NOW - DAY, 9), evidenceQuality: { version: 2, prescriptionEligible: false, eligibleWords: 20 } },
+  ] };
+  const snapshot = buildSnapshot(profile, NOW);
+  assert.equal(snapshot.sessionCount, 2);
+  assert.equal(snapshot.globalRegressed, false);
+  assert.equal(snapshot.daysSinceActive, 2);
+});
+
+test('adapter: modern partial-only evidence stays NEW instead of manufacturing functional mastery', () => {
+  const profile = { sessions: [{ date: NOW - DAY, verdict: 'pass', wpm: 180,
+    evidenceQuality: { version: 2, prescriptionEligible: false, eligibleWords: 8 } }] };
+  const snapshot = buildSnapshot(profile, NOW);
+  assert.equal(snapshot.sessionCount, 0);
+  assert.equal(snapshot.masteredSkills.length, 0);
+  assert.equal(decide(snapshot).state, 'NEW');
+});
+
 // Pins the listeningStats SHAPE fix: listening.js writes PER-TYPE ({ verstehen:{seen,correct}, … }),
 // never a flat {correct,total} — before the aggregation, listening mastery was unreachable forever.
 test('adapter: per-type listeningStats aggregate into listening mastery', () => {

@@ -117,9 +117,12 @@ export function buildSnapshot(p, now = Date.now()) {
   const sessions = chronologicalSessions(p);
   const authoritativeSessions = reliableSpeakingSessions(p);
   const evidenceProfile = { ...p, sessions: authoritativeSessions };
+  const hasV2Evidence = sessions.some((session) => Number(session?.evidenceQuality?.version) === 2);
+  const navigationProfile = hasV2Evidence ? evidenceProfile : p;
   const weakLog  = p?.weakLog || {};
-  const last = sessions[sessions.length - 1] || null;
-  const prev = sessions[sessions.length - 2] || null;
+  const progressionSessions = hasV2Evidence ? authoritativeSessions : sessions;
+  const last = progressionSessions[progressionSessions.length - 1] || null;
+  const prev = progressionSessions[progressionSessions.length - 2] || null;
   const hr = hireReadinessFor(evidenceProfile, now);
   const { measured, session: evidenceSession } = featuresFromProfile(evidenceProfile);
   const limitingCriterionId = hr.rejectionForecast?.criterion?.criterionId || null;
@@ -147,7 +150,7 @@ export function buildSnapshot(p, now = Date.now()) {
   const tl = tot(last), tp = tot(prev);
 
   return {
-    masteredSkills:   [...masteredSkillsFromProfile(p, now)],
+    masteredSkills:   [...masteredSkillsFromProfile(navigationProfile, now)],
     verifiedMasteredSkills: [...verifiedMasteredSkillsFromProfile(p, now)],
     verifiedImprovement: latestVerifiedImprovementFromProfile(p, now),
     weakLog,
@@ -165,7 +168,7 @@ export function buildSnapshot(p, now = Date.now()) {
       ? GENERAL_ROLE_GATING : CUSTOMER_SERVICE_GATING).filter((g) => !measured[g]),
     roleMeasurementState: evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'
       ? 'role_criterion_not_yet_validated' : 'customer_service_criterion_available',
-    sessionCount:     sessions.length,
+    sessionCount:     progressionSessions.length,
     daysSinceActive:  lastDate ? Math.floor((now - lastDate) / DAY_MS) : 0,
     prepDone,
     recentDrillEvents,

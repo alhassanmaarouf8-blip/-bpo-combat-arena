@@ -113,12 +113,26 @@ function violatesGuardedAction(text, rule) {
   return false;
 }
 
+function violatesNegativePattern(text, pattern) {
+  const globalPattern = new RegExp(pattern.source, `${pattern.flags.replace('g', '')}g`);
+  for (const match of text.matchAll(globalPattern)) {
+    const start = match.index || 0;
+    const before = text.slice(Math.max(0, start - 30), start);
+    const after = text.slice(start + match[0].length, start + match[0].length + 90);
+    const whole = `${before}${match[0]}${after}`;
+    if (/\bnicht\s+nur\b.{0,70}\bsondern\b/u.test(whole)) continue;
+    if (/^\s*(?:nicht|nie|niemals|keinesfalls|nichts|kein(?:e|en|em|er|es)?)\b/u.test(after)) continue;
+    return true;
+  }
+  return false;
+}
+
 /** Return only directly observed, role-specific live-HUD factors. */
 export function roleplayTurnFactors(transcript, roleType) {
   if (!ROLE_TYPES.has(roleType)) return Object.freeze({ roleType: null, contradicted: false, factors: Object.freeze([]) });
   const text = normalize(transcript);
   const rubric = RX[roleType];
-  const contradicted = rubric.negatives.some((pattern) => pattern.test(text))
+  const contradicted = rubric.negatives.some((pattern) => violatesNegativePattern(text, pattern))
     || violatesGuardedAction(text, rubric.guardedActions);
   const factors = contradicted
     ? [{ side: 'player', label: 'widerspr\u00fcchliche Rollenhandlung', hp: 7 }]

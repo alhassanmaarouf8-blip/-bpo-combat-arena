@@ -26,6 +26,13 @@ test('sales rewards needs discovery and blocks pressure tactics', () => {
   assert.equal(bad.factors[0].side, 'player');
 });
 
+test('sales counterfactual twins distinguish explicit refusal respect from pressure', () => {
+  assert.equal(roleplayTurnFactors('Ich ignoriere Ihr Nein.', 'sales').contradicted, true);
+  assert.equal(roleplayTurnFactors('Ich ignoriere Ihr Nein nicht.', 'sales').contradicted, false);
+  assert.equal(roleplayTurnFactors('Sie müssen heute unterschreiben.', 'sales').contradicted, true);
+  assert.equal(roleplayTurnFactors('Sie müssen nichts entscheiden; ich respektiere Ihre Entscheidung.', 'sales').contradicted, false);
+});
+
 test('sales consent safeguards are distinguished from affirmative consent bypasses', () => {
   const safe = roleplayTurnFactors('Danke f\u00fcr Ihre Offenheit. Darf ich fragen, was Ihnen wichtig ist? Ohne Ihre Zustimmung schlie\u00dfe ich keinen Vertrag ab.', 'sales');
   assert.equal(safe.contradicted, false);
@@ -38,6 +45,11 @@ test('retention rewards consent and respects cancellation', () => {
   const good = roleplayTurnFactors('Ich verstehe, dass Sie k\u00fcndigen. Darf ich fragen, warum? W\u00e4ren Sie offen f\u00fcr eine Alternative? Ich respektiere Ihre Entscheidung.', 'retention');
   assert.deepEqual(labels(good), ['K\u00fcndigungswunsch anerkannt', 'Grund gekl\u00e4rt', 'Erlaubnis vor Alternative', 'Entscheidung respektiert']);
   assert.equal(roleplayTurnFactors('Ich akzeptiere Ihre K\u00fcndigung nicht.', 'retention').contradicted, true);
+});
+
+test('retention contrast scope does not punish a safe nicht-nur construction', () => {
+  const safe = roleplayTurnFactors('Ich akzeptiere Ihre Kündigung nicht nur, sondern bestätige sie schriftlich.', 'retention');
+  assert.equal(safe.contradicted, false);
 });
 
 test('retention consent safeguards are distinguished from unauthorized alternatives', () => {

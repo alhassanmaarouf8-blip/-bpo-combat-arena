@@ -17,7 +17,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+    await Promise.all(keys.filter((k) => k !== CACHE && k !== META_CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -73,9 +73,11 @@ self.addEventListener('push', (e) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {
+    const requested = typeof e.notification?.data?.url === 'string' ? e.notification.data.url : '/';
+    const target = /^\/(?!\/)[^\s]*$/u.test(requested) ? requested : '/';
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of all) { if ('focus' in c) { c.navigate?.('/'); return c.focus(); } }
-    if (self.clients.openWindow) return self.clients.openWindow('/');
+    for (const c of all) { if ('focus' in c) { await c.navigate?.(target); return c.focus(); } }
+    if (self.clients.openWindow) return self.clients.openWindow(target);
   })());
 });
 
@@ -90,7 +92,13 @@ self.addEventListener('fetch', (e) => {
   // Reset tokens, media tickets, referrals and campaign tags live in the query string.
   // Never persist or replay a query-bearing request from Cache Storage.
   if (url.search) {
-    e.respondWith(fetch(req));
+    e.respondWith(fetch(req).catch(async () => {
+      if (req.mode === 'navigate') {
+        const shell = await caches.match('/index.html');
+        if (shell) return shell;
+      }
+      return new Response('', { status: 504, statusText: 'offline' });
+    }));
     return;
   }
 

@@ -54,7 +54,15 @@ export function extractNumberClaims(turn = {}) {
   for (const m of text.matchAll(NUMBER_CLAIM)) {
     const value = _cleanNum(m[1]);
     if (value == null) continue;
-    out.push({ value, unit: _unitKey(m[2]), raw: m[0].trim() });
+    const start = Math.max(0, (m.index || 0) - 60);
+    const end = Math.min(text.length, (m.index || 0) + m[0].length + 60);
+    const context = text.slice(start, end).toLocaleLowerCase('de-DE');
+    const before = text.slice(start, m.index || 0).toLocaleLowerCase('de-DE');
+    const unit = _unitKey(m[2]);
+    const axis = /\bvor\s*$/u.test(before) ? 'time_ago'
+      : /\b(?:erfahrung|berufserfahrung|gearbeitet|arbeite|arbeitete|tätig|beschäftigt|kundenservice|support)\b/u.test(context)
+        ? 'work_experience' : 'quantity';
+    out.push({ value, unit, axis, raw: m[0].trim() });
   }
   return out;
 }
@@ -65,10 +73,11 @@ export function noteTurn(ledger, turn, turnIndex = 0) {
     ledger.numbers.push({ ...c, turnIndex });
   }
   const text = typeof turn === 'string' ? turn.trim() : String(turn?.text || '').trim();
+  const containsEmployerHistory = /\b(?:arbeite|arbeitete|gearbeitet|tätig|beschäftigt)\b.{0,50}\b(?:bei|für)\s+[\p{L}\d&.-]{2,}/iu.test(text);
   // Callback memory is deliberately conservative: never quote uncertain/truncated speech,
   // one-word filler, or a named employer. The boss may reuse a candidate's substantive own words,
   // but must not repeat a company name from private work history.
-  if (!turn?.lowConf && !turn?.truncated && text.split(/\s+/).length >= 4
+  if (!turn?.lowConf && !turn?.truncated && !containsEmployerHistory && text.split(/\s+/).length >= 4
       && !/\bbei\s+[A-ZÃ„Ã–Ãœ][\p{L}\d&.-]*/u.test(text)) {
     ledger.callbacks.push({ raw: text.slice(0, 180), turnIndex });
     if (ledger.callbacks.length > 6) ledger.callbacks.shift();
@@ -91,11 +100,12 @@ export function findContradiction(ledger) {
   if (!ledger || !ledger.numbers) return null;
   const firstByUnit = new Map();
   for (const c of ledger.numbers) {
-    const prev = firstByUnit.get(c.unit);
+    const key = `${c.unit}:${c.axis || 'quantity'}`;
+    const prev = firstByUnit.get(key);
     if (prev && prev.value !== c.value && prev.turnIndex !== c.turnIndex) {
       return { unit: c.unit, earlier: prev, now: c };
     }
-    if (!prev) firstByUnit.set(c.unit, c);
+    if (!prev) firstByUnit.set(key, c);
   }
   return null;
 }

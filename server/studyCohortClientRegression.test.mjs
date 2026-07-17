@@ -69,6 +69,18 @@ test('client accepts only the server-attested fixed 21-day study shape', async (
   assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token'), { valid:false, state:'offline' });
 });
 
+test('cohort verification has a bounded offline fallback instead of hanging forever', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = (_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new Error('aborted')), { once:true });
+  });
+  const started = Date.now();
+  assert.deepEqual(await verifyStudyCohortEntry('https://api.test', 'private-token', { timeoutMs:100 }),
+    { valid:false, state:'offline' });
+  assert.ok(Date.now() - started < 1000);
+});
+
 test('generic landing remains three days while valid study state alone selects a user-gesture diagnostic CTA', async () => {
   const source = await readFile(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
   assert.match(source, /danach 3 Tage Basic ab Interviewstart · keine Karte nötig/);
@@ -80,6 +92,8 @@ test('generic landing remains three days while valid study state alone selects a
   assert.match(source, /const STUDY_ENTRY_BOOT = typeof window !== 'undefined' \? captureStudyCohortEntry\(window\.location\) : null/);
   assert.ok(source.indexOf('const STUDY_ENTRY_BOOT') < source.indexOf("try { fetch(`${API_URL}/health`)"));
   assert.match(source, /useState\(\(\) => STUDY_ENTRY_BOOT\)/);
+  assert.match(source, /const studyEntryRequestRef = useRef\(0\)/);
+  assert.match(source, /requestId !== studyEntryRequestRef\.current/u);
   assert.doesNotMatch(source, /aria-label="Studienlink"/);
   const handoffSource = source.slice(source.indexOf('function StudyBrowserHandoff'), source.indexOf('function VoiceReadinessCheck'));
   assert.doesNotMatch(handoffSource, />\{url\}<\/div>/);

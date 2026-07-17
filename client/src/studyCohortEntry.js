@@ -97,17 +97,25 @@ export function captureStudyCohortEntry(locationLike = globalThis.location, repl
   return readStoredStudyCohortEntry();
 }
 
-export async function verifyStudyCohortEntry(apiUrl, invite, { signal } = {}) {
+export async function verifyStudyCohortEntry(apiUrl, invite, { signal, timeoutMs = 12000 } = {}) {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener?.('abort', onAbort, { once:true });
+  const timer = setTimeout(() => controller.abort(), Math.max(100, Math.min(30000, Number(timeoutMs) || 12000)));
   let response;
   try {
     response = await fetch(`${apiUrl}/api/study-cohort/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invite }),
-      signal,
+      signal:controller.signal,
     });
   } catch {
     return Object.freeze({ valid:false, state:'offline' });
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener?.('abort', onAbort);
   }
   if (!response.ok) return Object.freeze({ valid: false, state:'offline' });
   const body = await response.json().catch(() => ({}));

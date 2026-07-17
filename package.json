@@ -9,6 +9,7 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "test:server": "node scripts/run-server-tests.mjs",
+    "test:mutations": "node scripts/reality-lab-mutation.mjs",
     "build:client": "npm --prefix client run build",
     "check:artifact": "node scripts/verify-production-artifact.mjs",
     "benchmark:merlin": "node scripts/benchmark-merlin.mjs",
