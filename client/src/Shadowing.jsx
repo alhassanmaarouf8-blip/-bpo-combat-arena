@@ -17,6 +17,7 @@ import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 import { playNative } from './nativeVoice.js';
 import { beginIndependentPlayback } from './salmaAudioSafety.js';
 import { DrillIntro } from './drillIntros.jsx';
+import { shadowingRoundTruth } from './drillTruth.js';
 
 const MAX_SEC = 20;   // a single sentence repeat is short
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
@@ -31,6 +32,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const [seconds, setSec]   = useState(0);
   const [busy, setBusy]     = useState(false);
   const [result, setResult] = useState(null);      // { transcript, match, note_de, note_ar, retry }
+  const [outcomes, setOutcomes] = useState([]);
   const [ttsOk, setTtsOk]   = useState(true);
   const [err, setErr]       = useState(null);
   const [clipUrl, setClipUrl] = useState(null);   // object URL of the learner's own take (record-and-compare)
@@ -56,7 +58,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const blocked = useCallback(() => { pricingRef.current?.(); closeRef.current?.(); }, []);
 
   const loadSession = useCallback(async () => {
-    setPhase('loading'); setErr(null); setResult(null); setIdx(0);
+    setPhase('loading'); setErr(null); setResult(null); setIdx(0); setOutcomes([]);
     if (clipUrlRef.current) { URL.revokeObjectURL(clipUrlRef.current); clipUrlRef.current = null; }
     setClipUrl(null); setRate(1);
     try {
@@ -174,6 +176,11 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'shadowing_failed');
       setResult(d);   // may be { retry:true } when nothing was transcribed
+      setOutcomes((current) => {
+        const nextOutcomes = [...current];
+        nextOutcomes[idx] = d;
+        return nextOutcomes;
+      });
       // Feed the brain: pronunciation drill done (closes the loop — Shadowing fed back nothing before).
       reportDrillEvent({ apiUrl, token, event: {
         drill: 'shadowing', evidenceReceipt: d.evidenceReceipt,
@@ -232,18 +239,27 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     </div>
   </>);
 
-  if (phase === 'done') return shell(<>
+  if (phase === 'done') {
+    const truth = shadowingRoundTruth(outcomes, sentences.length);
+    return shell(<>
     {header}
     <div style={{ textAlign: 'center', padding: '26px 0' }}>
-      <div style={{ fontSize: 40 }}>✅</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Runde geschafft!', 'خلّصت الجولة!')}</div>
+      <div style={{ fontSize: 40 }}>{truth.complete ? '✅' : '↻'}</div>
+      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+        {truth.complete
+          ? T(lang, 'Runde sauber abgeschlossen', 'الجولة اتعملت صح')
+          : T(lang, 'Runde beendet — noch nicht bestanden', 'الجولة خلصت — لسه محتاجة تدريب')}
+      </div>
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
-        {T(lang, 'Noch eine Runde? Es ist unbegrenzt.', 'جولة تانية؟ بلا حدود.')}
+        {T(lang,
+          `${truth.passed}/${truth.total} Sätze wurden zu mindestens 80% erkannt.`,
+          `${truth.passed}/${truth.total} جمل اتعرفت بنسبة 80% على الأقل.`)}
       </div>
       <button onClick={loadSession} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </div>
-  </>);
+    </>);
+  }
 
   // ── PRACTICE ──
   return shell(<>

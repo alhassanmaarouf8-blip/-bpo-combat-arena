@@ -20,6 +20,7 @@ import { playNative } from './nativeVoice.js';
 import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 import { reportDrillEvent } from './salmaCoachClient.js';
+import { flowRoundTruth } from './drillTruth.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
@@ -290,13 +291,18 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
 
 // ── Deterministic round-1 vs round-3 debrief — built ONLY from measured numbers ──
 function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
+  const truth = flowRoundTruth(results);
   const r1 = results[0]?.metrics || {};
   const rL = results[results.length - 1]?.metrics || {};
   const grammar = (results[results.length - 1]?.grammar) || [];
 
   // Speech-rate verdict — the headline. Branches on the REAL delta; never invents a win.
   let wpmLine, wpmGood = false;
-  if (r1.wpm > 0 && rL.wpm > r1.wpm) {
+  if (!truth.finalMeaningful) {
+    wpmLine = T(lang,
+      'Runde 3 war zu kurz für eine belastbare Auswertung. Sprich mindestens 15 Wörter als vollständige Antwort und versuche es erneut.',
+      'الجولة الثالثة كانت قصيرة جدًا للتقييم. اتكلم 15 كلمة على الأقل في إجابة كاملة وجرب تاني.');
+  } else if (r1.wpm > 0 && rL.wpm > r1.wpm) {
     const pct = Math.round(((rL.wpm - r1.wpm) / r1.wpm) * 100);
     wpmGood = true;
     wpmLine = T(lang,
@@ -316,7 +322,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
   if (r1.fillers > 0 && rL.fillers < r1.fillers) {
     fillerLine = T(lang, `Weniger Zögern: ${r1.fillers} → ${rL.fillers} erkannte Fülllaute (äh/ähm).`,
                          `تردد أقل: ${r1.fillers} ← ${rL.fillers} من أصوات التردد (äh/ähm).`);
-  } else if (r1.fillers === 0 && rL.fillers === 0) {
+  } else if (truth.fillerPraiseAllowed && r1.fillers === 0 && rL.fillers === 0) {
     fillerLine = T(lang, 'Keine Fülllaute erkannt — saubere Delivery.', 'مفيش أصوات تردد — أداء نظيف.');
   } else if (rL.fillers > r1.fillers) {
     fillerLine = T(lang, `Mehr Fülllaute in Runde 3 (${r1.fillers} → ${rL.fillers}) — unter Zeitdruck normal. Lieber eine kurze Pause als ein „äh".`,
@@ -384,13 +390,19 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
 
   // ACCURACY — surface the grammar count as an explicit matrix cell (the fix stays in the grammar
   // card below; here it's just the score, so "Tempo / Genauigkeit / Relevanz" reads as one matrix).
-  const grammarErrCount = grammar.reduce((n, g) => n + (g.count || (g.summaryExamples || []).length || 1), 0);
+  const grammarErrCount = truth.grammarMeasured
+    ? grammar.reduce((n, g) => n + (g.count || (g.summaryExamples || []).length || 1), 0)
+    : null;
 
   return (
     <>
       <div style={{ textAlign: 'center', padding: '6px 0 14px' }}>
-        <div style={{ fontSize: 38 }}>{wpmGood ? '' : '✅'}</div>
-        <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 6 }}>{T(lang, 'Drei Runden geschafft', 'خلّصت تلت جولات')}</div>
+        <div style={{ fontSize: 38 }}>{truth.allMeaningful ? '✅' : '↻'}</div>
+        <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 6 }}>
+          {truth.allMeaningful
+            ? T(lang, 'Drei Runden auswertbar', 'التلات جولات ينفع يتقيموا')
+            : T(lang, 'Drei Aufnahmen beendet — Ergebnis noch nicht belastbar', 'التلات تسجيلات خلصت — النتيجة لسه مش موثوقة')}
+        </div>
       </div>
 
       {/* Headline: round 1 vs round 3, side by side, from the learner's real numbers */}
@@ -406,10 +418,10 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <MatrixCell label={T(lang, 'TEMPO', 'السرعة')} value={`${rL.wpm ?? 0}`} unit={T(lang, 'W/Min', 'ك/د')} />
         <MatrixCell label={T(lang, 'GENAUIGKEIT', 'الدقة')}
-          value={typeof grammarErrCount === 'number' && grammar.length >= 0 ? `${grammarErrCount}` : '—'}
-          unit={T(lang, 'Fehler', 'أخطاء')} good={grammarErrCount === 0} />
+          value={typeof grammarErrCount === 'number' ? `${grammarErrCount}` : '—'}
+          unit={T(lang, 'Fehler', 'أخطاء')} good={typeof grammarErrCount === 'number' && grammarErrCount === 0} />
         <MatrixCell label={T(lang, 'RELEVANZ', 'الصلة')}
-          value={typeof rL.relevancy === 'number' ? `${Math.round(rL.relevancy * 100)}%` : '—'}
+          value={truth.relevancyMeasured ? `${Math.round(rL.relevancy * 100)}%` : '—'}
           unit={T(lang, 'zum Thema', 'للموضوع')} good={typeof rL.relevancy === 'number' && rL.relevancy >= 0.3}
           warn={relevancyWarn} />
       </div>

@@ -5581,11 +5581,17 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
   const beginSession = useCallback(async () => {
+    fightModeRef.current = 'daily';
+    if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
+    // The server remains authoritative, but a loaded zero balance must stop the journey before
+    // audio unlock, microphone permission, or a misleading CONNECTED state.
+    if (billing?.dailyLiveMinutes > 0 && Number(billing.secondsRemaining) <= 0) {
+      setError('daily_limit');
+      return;
+    }
     // The interview owns audio/microphone from this point onward; no tutor line may leak in.
     stopTutorPlayback();
     unlockAudioPlayback();   // MUST run synchronously inside the tap — unlocks mobile audio so boss TTS can play
-    fightModeRef.current = 'daily';
-    if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // Don't even open a socket if the trial is spent — show the wall up front.
     beacon('start_clicked');
     recordFirstSessionTrace('start_clicked');
@@ -5631,7 +5637,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     // Straight into the interview. The typed AUFWÄRMEN pre-fight warm-up was removed: it re-drilled the
     // same SRS due-items as SAG ES RICHTIG (spoken) and Daily Training (typed) — off-mission redundancy.
     start();
-  }, [start, auth.account, recordFirstSessionTrace]);
+  }, [start, auth.account, billing, recordFirstSessionTrace]);
 
   const closeSalma = useCallback((why) => { setSalma(null); if (why) beacon(String(why)); }, []);
   const bookSalmaFight = useCallback((result) => {

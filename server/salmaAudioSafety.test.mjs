@@ -73,7 +73,11 @@ test('takeover, fight start, capture, native and browser drill playback share st
   ]);
   assert.match(takeover, /speechStopRef/u);
   assert.match(takeover, /return \(\) => \{ removeHiddenStop\(\); stopSpeech\(\); \}/u);
-  assert.match(app, /const beginSession = useCallback\(async \(\) => \{\s*\/\/[^\n]*\s*stopTutorPlayback\(\);/u);
+  const begin = app.indexOf('const beginSession = useCallback');
+  const end = app.indexOf('const closeSalma', begin);
+  const beginBody = app.slice(begin, end);
+  assert.ok(beginBody.indexOf('stopTutorPlayback();') > beginBody.indexOf("setError('daily_limit')"));
+  assert.ok(beginBody.indexOf('stopTutorPlayback();') < beginBody.indexOf('unlockAudioPlayback();'));
   assert.match(recorder, /async start\(\) \{\s*\/\/[^\n]*\s*stopTutorPlayback\(\);/u);
   assert.match(native, /u\.onstart = \(\) => \{ releaseIndependent = beginIndependentPlayback\(\)/u);
   assert.match(native, /if \(!salma && !releaseIndependent\) releaseIndependent = beginIndependentPlayback\(\)/u);
