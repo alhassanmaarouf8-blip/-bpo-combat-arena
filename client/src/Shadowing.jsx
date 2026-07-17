@@ -322,7 +322,9 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
             <div style={{ textAlign: 'left' }}>
               <div style={{ padding: '11px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.3)' }}>
                 <div style={{ fontSize: 9, color: 'var(--accent-2)', letterSpacing: '0.1em', marginBottom: 5 }}>
-                  {T(lang, 'WORTGENAUIGKEIT', 'دقة الكلمات')} · {result.match}%
+                  {T(lang, 'WORTGENAUIGKEIT', 'دقة الكلمات')} · {
+                    Number.isFinite(Number(result.match ?? result.accuracy)) ? `${Number(result.match ?? result.accuracy)}%` : 'nicht verfügbar'
+                  }
                 </div>
                 <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{result.transcript}</div>
               </div>

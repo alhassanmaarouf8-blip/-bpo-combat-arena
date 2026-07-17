@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import PublicFeedback from './PublicFeedback.jsx';
 import { API_URL as BACKEND, BUILD_ID, IS_PRODUCTION } from './config.js';
+import { VoiceLabOverlay } from './VoiceLabOverlay.jsx';
 
 // A shareable link (?feedback) lands directly on the standalone feedback page — no login,
 // no hunting for the in-app button. Everything else renders the full app as before.
@@ -72,7 +73,7 @@ try {
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       <RootBoundary>
-        {IS_FEEDBACK ? <PublicFeedback /> : <App />}
+        {IS_FEEDBACK ? <PublicFeedback /> : <><App /><VoiceLabOverlay /></>}
       </RootBoundary>
     </StrictMode>,
   );

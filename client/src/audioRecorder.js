@@ -5,6 +5,8 @@
  * Uses an AudioWorklet (off main thread) so UI never blocks the audio pipeline.
  */
 
+import { createVoiceLabStream } from './voiceLabFixture.js';
+
 const SAMPLE_RATE  = 24_000;  // Hz — must match OAI Realtime API input
 const CHUNK_FRAMES = 2_400;   // samples per emit = 100ms at 24 kHz
 
@@ -82,14 +84,17 @@ export class AudioRecorder {
         noiseSuppression: true,
         autoGainControl:  true,
       };
-      try {
-        this._stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints, video: false });
-      } catch (constraintErr) {
-        if (constraintErr && constraintErr.name === 'OverconstrainedError') {
-          console.warn('[audioRecorder] mic rejected constraints → retrying with bare audio');
-          this._stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        } else {
-          throw constraintErr;
+      this._stream = await createVoiceLabStream();
+      if (!this._stream) {
+        try {
+          this._stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraints, video: false });
+        } catch (constraintErr) {
+          if (constraintErr && constraintErr.name === 'OverconstrainedError') {
+            console.warn('[audioRecorder] mic rejected constraints → retrying with bare audio');
+            this._stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+          } else {
+            throw constraintErr;
+          }
         }
       }
 

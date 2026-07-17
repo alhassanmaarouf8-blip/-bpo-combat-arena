@@ -10,6 +10,7 @@
     "check:syntax": "node scripts/check-syntax.mjs",
     "test:server": "node scripts/run-server-tests.mjs",
     "test:mutations": "node scripts/reality-lab-mutation.mjs",
+    "qa:voice": "node scripts/qa/voice-reality-lab.mjs",
     "build:client": "npm --prefix client run build",
     "check:artifact": "node scripts/verify-production-artifact.mjs",
     "benchmark:merlin": "node scripts/benchmark-merlin.mjs",
