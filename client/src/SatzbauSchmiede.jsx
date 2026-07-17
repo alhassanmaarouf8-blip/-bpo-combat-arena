@@ -16,6 +16,7 @@
  * T() falls back to German while the slot is empty).
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { actionBtn, ghostBtn, ghostBtnWide } from './ui/primitives.js';
 import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
 import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
@@ -154,7 +155,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
 
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
@@ -162,8 +163,8 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
   const header = (
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
-        🏗️ SATZBAU-SCHMIEDE
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--text)' }}>
+        SATZBAU-SCHMIEDE
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -184,7 +185,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
       <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'حاول تاني')}</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'حاول تاني')}</button>
     </div>
   </>);
 
@@ -196,7 +197,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
         {T(lang, 'Das Verb am Satzende sitzt jetzt schneller im Kopf.', '')}{/* OWNER-AR slot */}
       </div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', '')}</button>{/* OWNER-AR slot */}
     </div>
   </>);
@@ -208,7 +209,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8,
       display: 'flex', justifyContent: 'space-between' }}>
       <span>{T(lang, 'SATZ', '')} {idx + 1} / {items.length} · {item?.connector}</span>{/* OWNER-AR slot */}
-      <span style={{ color: seconds <= 5 ? '#ef4444' : '#64748b' }}>⏱ {seconds}s</span>
+      <span style={{ color: seconds <= 5 ? 'var(--action)' : 'var(--text-faint)' }}>{seconds}s</span>
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
@@ -275,13 +276,13 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           {!result.correct && <button onClick={retry} style={ghostBtnWide}>{T(lang, 'Nochmal', '')}</button>}{/* OWNER-AR slot */}
-          <button onClick={next} style={{ ...primaryBtn, flex: 1 }}>
+          <button onClick={next} style={{ ...actionBtn, flex: 1 }}>
             {idx < items.length - 1 ? T(lang, 'Weiter ▸', '') : T(lang, 'Fertig ▸', '')}{/* OWNER-AR slots */}
           </button>
         </div>
       </>
     ) : (
-      <button onClick={submit} disabled={busy || !chosen.length} style={{ ...primaryBtn, marginTop: 14, opacity: (busy || !chosen.length) ? 0.5 : 1 }}>
+      <button onClick={submit} disabled={busy || !chosen.length} style={{ ...actionBtn, marginTop: 14, opacity: (busy || !chosen.length) ? 0.5 : 1 }}>
         {busy ? T(lang, 'Prüfe…', '') : T(lang, 'Prüfen', '')}{/* OWNER-AR slots */}
       </button>
     )}
@@ -289,10 +290,3 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d',
-  background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
-  border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
-  borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };

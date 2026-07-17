@@ -8,6 +8,7 @@
  * Gating is server-side: GET/POST return 402 for free/expired accounts → we route to pricing.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { actionBtn, ghostBtn, ghostBtnWide } from './ui/primitives.js';
 import { LoadingPane } from './Loading.jsx';
 import { SpeakerIcon } from './icons/AudioIcons';
 import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
@@ -204,7 +205,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   // ── shells ──
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
@@ -212,8 +213,8 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const header = (
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent-2)' }}>
-        🗣️ SHADOWING · ترديد
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--text)' }}>
+        SHADOWING · ترديد
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -235,7 +236,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
       <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
-      <button onClick={loadSession} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
+      <button onClick={loadSession} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
     </div>
   </>);
 
@@ -255,7 +256,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
           `${truth.passed}/${truth.total} Sätze wurden zu mindestens 80% erkannt.`,
           `${truth.passed}/${truth.total} جمل اتعرفت بنسبة 80% على الأقل.`)}
       </div>
-      <button onClick={loadSession} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
+      <button onClick={loadSession} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </div>
     </>);
@@ -322,7 +323,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
             00:{String(seconds).padStart(2, '0')}
           </div>
           <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
-          <button onClick={stopRec} style={{ ...primaryBtn, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}>
+          <button onClick={stopRec} style={{ ...actionBtn }}>
             ⏹ {T(lang, 'Stopp', 'إيقاف')}
           </button>
         </>
@@ -359,14 +360,14 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
           )}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button onClick={() => { setResult(null); startRec(); }} style={{ ...ghostBtnWide }}>{T(lang, 'Nochmal', 'تاني')}</button>
-            <button onClick={next} style={{ ...primaryBtn, flex: 1 }}>
+            <button onClick={next} style={{ ...actionBtn, flex: 1 }}>
               {idx < sentences.length - 1 ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Fertig ▸', 'خلصت ▸')}
             </button>
           </div>
         </>
       ) : (
         <>
-          <button onClick={startRec} style={{ ...primaryBtn, fontSize: 14 }}>● {T(lang, 'Nachsprechen aufnehmen', 'سجّل وانت بتكرّر')}</button>
+          <button onClick={startRec} style={{ ...actionBtn, fontSize: 14 }}>● {T(lang, 'Nachsprechen aufnehmen', 'سجّل وانت بتكرّر')}</button>
           <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
             {T(lang, 'Hör den Satz an, dann sprich ihn nach.', 'اسمع الجملة، وبعدين كرّرها.')}
           </div>
@@ -378,13 +379,6 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 }
 
 // ── shared button styles (match the Assessment screen) ──
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent-2)', color: '#04070d',
-  background: 'linear-gradient(135deg,var(--accent-2),var(--accent))' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
-  border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
-  borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
 const speedBtn = (on) => ({ cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '5px 9px', borderRadius: 7,
   fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent-2)' : 'rgba(148,163,184,0.3)'}`,
   background: on ? 'rgba(96,165,250,0.15)' : 'transparent', color: on ? 'var(--accent-2)' : '#94a3b8' });

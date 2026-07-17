@@ -8,6 +8,7 @@
  * rejected: understanding a fast native speaker and capturing data correctly. Zero added cost.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { actionBtn, ghostBtn, ghostBtnWide } from './ui/primitives.js';
 import { SpeakerIcon } from './icons/AudioIcons';
 import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
@@ -194,7 +195,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
@@ -202,8 +203,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const header = (
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
-        🎧 HÖR-CHECK · فهم السمع
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--text)' }}>
+        HÖR-CHECK · فهم السمع
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -229,7 +230,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
       <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'حاول تاني')}</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'حاول تاني')}</button>
     </div>
   </>);
 
@@ -241,7 +242,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
         {T(lang, 'Verstehen am Telefon ist die halbe Miete im echten Job.', 'إنك تفهم في التليفون ده نص الشغل الحقيقي.')}
       </div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </div>
   </>);
@@ -262,7 +263,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
     {/* Play card — NO text shown; the whole point is to catch it by ear */}
     <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
-      <button onClick={play} disabled={!canPlay} style={{ ...primaryBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
+      <button onClick={play} disabled={!canPlay} style={{ ...actionBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
         <SpeakerIcon style={{ marginRight: 6 }} /> {playing
           ? T(lang, 'Audio wird vorbereitet…', 'بنجهّز الصوت…')
           : (played === 0 ? T(lang, 'Anruf abspielen', 'شغّل المكالمة') : T(lang, `Nochmal (${maxPlays - played} übrig)`, `كمان مرة (فاضل ${maxPlays - played})`))}
@@ -336,13 +337,13 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           {!result.correct && <button onClick={() => { setResult(null); setResponse(''); setPlayed(0); setPlaying(false); setTtsOk(true); }} style={ghostBtnWide}>{T(lang, 'Nochmal hören', 'اسمع تاني')}</button>}
-          <button onClick={next} style={{ ...primaryBtn, flex: 1 }}>
+          <button onClick={next} style={{ ...actionBtn, flex: 1 }}>
             {idx < items.length - 1 ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Fertig ▸', 'خلصت ▸')}
           </button>
         </div>
       </>
     ) : (played > 0 && item.kind !== 'verstehen') ? (
-      <button onClick={() => submit()} disabled={busy || !response.trim()} style={{ ...primaryBtn, marginTop: 12, opacity: (busy || !response.trim()) ? 0.5 : 1 }}>
+      <button onClick={() => submit()} disabled={busy || !response.trim()} style={{ ...actionBtn, marginTop: 12, opacity: (busy || !response.trim()) ? 0.5 : 1 }}>
         {busy ? T(lang, 'Prüfe…', 'بصحّح…') : T(lang, 'Antwort prüfen', 'صحّح الإجابة')}
       </button>
     ) : null}
@@ -350,10 +351,3 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d',
-  background: 'linear-gradient(135deg,var(--accent),var(--accent-2))' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
-  border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
-  borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
