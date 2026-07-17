@@ -28,7 +28,6 @@ import {
 import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry, forgetStudyCohortEntry,
   verifyStudyCohortEntry } from './studyCohortEntry.js';
 import { useAccessibleOverlay } from './useAccessibleOverlay.js';
-import './AppShell.css';
 
 // Bearer capability hygiene: capture once and remove it from history during module initialization,
 // before the app's pre-warm request, telemetry, or first React render can run.
@@ -4359,7 +4358,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // footer. Everything reveals after their first interview. (owner: "make my app very simple to
   // navigate for a novel user.") Based on flicker-free signals only (localStorage flag + cached streak).
   const [seenInterview, setSeenInterview] = useState(() => { try { return localStorage.getItem('ff_interviewed') === '1'; } catch { return false; } });
-  const [homeView, setHomeView] = useState('today'); // presentation only; BrainGuide still owns the action
   const [daily, setDaily]   = useState({ streak: 0, completedToday: false, streakShield: false, best: 0 }); // daily-training loop
   const [trainedToday, setTrainedToday] = useState(true); // any practice today? (drives loss-aversion line)
   const [rank, setRank]     = useState(null);              // interview-readiness rank ladder
@@ -5780,9 +5778,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     directive: brainDecision.directive,
   });
   const boss         = EMOTIONS[emotion] ?? EMOTIONS.idle;
-  const prescribedDrill = brainDecision.status === 'ready'
-    && brainDecision.directive?.prescription?.action === 'drill'
-    ? brainDecision.directive.prescription.drill : null;
 
   // ── Global BACK — a persistent control on every screen (owner request). Closes the top-most open
   // overlay/drill; inside a live interview it offers a clean exit to the home screen. ──
@@ -5813,49 +5808,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     }
   };
 
-  const goToHomeSection = (sectionId) => {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    section.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-    section.focus({ preventScroll: true });
-  };
-
-  const selectHomeView = (view) => {
-    setHomeView(view);
-    const sectionId = view === 'practice' ? 'practice-library' : 'today-mission';
-    requestAnimationFrame(() => requestAnimationFrame(() => goToHomeSection(sectionId)));
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={`app-shell${canStart && !firstRun ? ' app-shell--navigation' : ''}`} style={{
+    <div className="app-shell" style={{
       minHeight:'100svh',
       display:'flex', flexDirection:'column', position:'relative', overflowX:'hidden',
       paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
-
-      {canStart && !firstRun && (
-        <nav className="app-navigation" aria-label="Hauptnavigation" data-testid="app-navigation">
-          <div className="app-navigation__brand" aria-hidden="true">OP</div>
-          <button className={`app-navigation__item${homeView === 'today' ? ' app-navigation__item--current' : ''}`}
-            onClick={() => selectHomeView('today')} aria-label="Heute: dein nächster Schritt"
-            aria-current={homeView === 'today' ? 'page' : undefined}>
-            <Icon name="bolt" size={20} />
-            <span>Heute</span>
-          </button>
-          <button className={`app-navigation__item${homeView === 'practice' ? ' app-navigation__item--current' : ''}`}
-            onClick={() => selectHomeView('practice')} aria-label="Übungen öffnen"
-            aria-current={homeView === 'practice' ? 'page' : undefined}>
-            <Icon name="layers" size={20} />
-            <span>Übungen</span>
-          </button>
-          <button className="app-navigation__item" onClick={openDashboard} aria-label="Fortschritt öffnen">
-            <Icon name="chartUp" size={20} />
-            <span>Fortschritt</span>
-          </button>
-        </nav>
-      )}
 
       {/* Global BACK button — persistent on every screen (closes the top overlay, or exits the interview) */}
       {canGoBack && (
@@ -6090,7 +6049,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       )}
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <main className="app-main">
       <div style={{ padding:'16px 16px 0' }}>
         {/* Connection status is only meaningful DURING a session. On the idle home it showed a scary
             "GETRENNT" (disconnected) as the first thing a new user sees — pure noise. Hide when idle. */}
@@ -6153,7 +6111,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             </div>
           </div>
         ) : (
-          <div hidden={homeView !== 'today'} className="home-workspace" style={{ marginBottom:12 }}>
+          <div style={{ marginBottom:12 }}>
             {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. Hidden on first-run
                 (a novel user has no streak/habit to repeat yet — it'd be a second CTA above the hero). */}
             {!firstRun && <div style={{ display:'flex', gap:8, marginBottom:10 }}>
@@ -6195,7 +6153,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {/* HERO CARD "Dein Interview" (uplift) — the one place everything about starting lives:
                 readiness, level, interviewer, options. The glass card + the orange button below read
                 as ONE hero object; nothing else on the page competes. */}
-            <div id="today-mission" tabIndex={-1} className="home-section-anchor" style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
+            <div style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
               border:'var(--glass-border)', boxShadow:'var(--e2), var(--glass-highlight)',
               backdropFilter:'blur(14px) saturate(1.1)' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', marginBottom:12 }}>
@@ -6836,7 +6794,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             Corrections are LanguageTool-verified from the user's OWN sentences — the server stores
             none when there were none, so this card can never show invented noise. Quiet blue surface:
             the start button above keeps the screen's single orange. */}
-        {homeView === 'today' && canStart && lastDebrief && (
+        {canStart && lastDebrief && (
           <div style={{ marginTop:14, padding:'14px 16px', borderRadius:'var(--r-md)',
             background:'var(--surface)', border:'1px solid var(--accent)', textAlign:'left' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:700,
@@ -6881,7 +6839,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             already computes it honestly (hireReadiness.js: names the ONE blocking skill, shows X/9 signals
             measured, returns null rather than guess). Returning users only — a novel user has no signals
             yet, and the component self-hides when there's nothing measurable. */}
-        {homeView === 'today' && canStart && !firstRun && hireReadiness && (
+        {canStart && !firstRun && hireReadiness && (
           <HireVerdict h={hireReadiness} compact onTrain={(drill, why) => {
             const OPEN = { fluency: setFluencyOpen, shadowing: setShadowingOpen, pressure: setPressureOpen,
               listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
@@ -6891,7 +6849,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         )}
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
-        {homeView === 'today' && canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
+        {canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
 
         {/* Quiet footer: the "Fortschritt & Wiederholung" progress view — one check-in-later row
             below the Übungen grid. (Musk-cut: the PDF cert + weekly leaderboard were vanity, off the
@@ -6900,7 +6858,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         {/* Einstufung — DUPLICATE KILLED (uplift): this was the second, orange-screaming EINSTUFUNG
             button competing with the one inside the mission card. Now a quiet text link; the hero
             stays the only loud object on the page. */}
-        {homeView === 'today' && canStart && (
+        {canStart && (
           <button onClick={() => setAssessmentOpen(true)} style={{ width:'100%', marginTop:10, padding:'10px', minHeight:44,
             cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
@@ -6912,7 +6870,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             was unreachable — a hot day-1 buyer literally could not find a price). Quiet text link
             per design law (the orange stays on the start button); trial users also see their honest
             remaining-days count so the upgrade moment isn't a day-4 surprise. */}
-        {homeView === 'today' && canStart && (
+        {canStart && (
           <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ width:'100%', marginTop:2, padding:'10px',
             minHeight:44, cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
@@ -6927,7 +6885,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
         {/* WhatsApp opt-in — after interview #1 only, hidden once opted in (server flag covers
             other devices). The only $0 comeback channel this product has. */}
-        {homeView === 'today' && canStart && !firstRun && !auth.account?.whatsapp && (
+        {canStart && !firstRun && !auth.account?.whatsapp && (
           <WhatsAppOptIn token={auth.token} apiUrl={API_URL} />
         )}
 
@@ -6936,15 +6894,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             Druck-Leiter carries a neutral SCHWER badge instead). Hidden on first-run — an 8-tile drill
             wall before the first interview is choice-overload; the interview routes them to the right
             drill afterwards. */}
-        {homeView === 'practice' && canStart && !firstRun && (
-          <div id="practice-library" tabIndex={-1} className="home-section-anchor" style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
+        {canStart && !firstRun && (
+          <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginBottom:3 }}>
               Übungen
             </div>
-            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginBottom:11 }}>
-              {prescribedDrill ? 'Dein heutiges Training steht zuerst.' : 'Zusätzliche Übungen · تمارين إضافية'}
-            </div>
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginBottom:11 }}>تمارين إضافية</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               {/* EXPERT-TEACHER CULL (owner order 07-12, B1+ focus): Druck-Leiter and Video-Lektionen tiles
                   removed — the real interview trains pressure better than a simulator of it, and
@@ -6954,21 +6910,17 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   richtig the REAL count of SRS items due (data.progress.dueReviews) — never an invented
                   mastery number. The `hint` is builder-authored German; masri stays an OWNER-AR slot. */}
               {[
-                { id:'shadowing', icon:'waveform', de:'Shadowing', ar:'تمرين الترديد', hint:'Aussprache angleichen', open:() => setShadowingOpen(true) },
-                { id:'flow-drill', icon:'bolt', de:'Flow-Drill', ar:'سرعة الكلام', hint:'Schneller, ohne Stocken', open:() => setFluencyOpen(true) },
-                { id:'hoer-check', icon:'headphones', de:'Hör-Check', ar:'فهم السمع', hint:'Am Telefon verstehen', open:() => setListeningOpen(true) },
-                { id:'sag-es-richtig', icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح', hint:'Eigene Fehler & Call-Center-Sätze', due: dueReviews, open:() => setSpokenReviewOpen(true) },
-                { id:'satzbau-schmiede', icon:'layers', de:'Satzbau-Schmiede', ar:'', hint:'Verb ans Ende — automatisch', open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
-              ].sort((a, b) => Number(b.id === prescribedDrill) - Number(a.id === prescribedDrill)).map((t) => (
-                <button key={t.id} onClick={t.open} data-prescribed={t.id === prescribedDrill ? 'true' : undefined}
-                  className={`practice-tile${t.id === prescribedDrill ? ' practice-tile--prescribed' : ''}`}
-                  style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
+                { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', hint:'Aussprache angleichen',         open:() => setShadowingOpen(true) },
+                { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   hint:'Schneller, ohne Stocken',       open:() => setFluencyOpen(true) },
+                { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     hint:'Am Telefon verstehen',          open:() => setListeningOpen(true) },
+                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Eigene Fehler & Call-Center-Sätze', due: dueReviews, open:() => setSpokenReviewOpen(true) },
+                { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            hint:'Verb ans Ende — automatisch',   open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
+              ].map((t, i) => (
+                <button key={i} onClick={t.open} style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
                   display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
-                  {t.id === prescribedDrill ? (
-                    <span className="practice-tile__prescribed">HEUTE</span>
-                  ) : t.due > 0 ? (
+                  {t.due > 0 ? (
                     <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
                       color:'var(--action)', border:'1px solid rgba(249,115,22,0.5)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       {t.due} fällig
@@ -6993,7 +6945,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
         {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting.
             Hidden on first-run — progress is empty before the first interview. */}
-        {homeView === 'today' && canStart && !firstRun && (
+        {canStart && !firstRun && (
           <div style={{ marginTop:10, borderRadius:'var(--r-lg)', background:'var(--surface)', border:'1px solid var(--line)', overflow:'hidden' }}>
             {[
               { icon:'chartUp',   de:'Fortschritt & Wiederholung', ar:'',                     open: openDashboard },
@@ -7017,13 +6969,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
         {/* Install nudge — the durable-login fix (installed PWA = exempt from iOS storage
             eviction) and a home-screen icon for daily practice. Quiet, once-dismissible. */}
-        {homeView === 'today' && canStart && !firstRun && <InstallCard />}
+        {canStart && !firstRun && <InstallCard />}
         {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
-        {homeView === 'today' && canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL}
+        {canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL}
           reminderState={{ streak: daily.streak, shield: daily.streakShield, trainedToday,
             sessionsToNext: rank?.sessionsToNext, nextLabel: rank?.nextLabel }} />}
-        {homeView === 'today' && canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
-        {homeView === 'today' && canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
+        {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
+        {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
         </div>{/* /home-grid */}
 
         {/* Boss speaking indicator */}
@@ -7033,7 +6985,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             animation:'pulse 1s infinite' }} />
         )}
       </div>
-      </main>
     </div>
   );
 }
