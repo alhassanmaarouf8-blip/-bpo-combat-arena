@@ -4953,8 +4953,11 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           // Detect correction-drill turn: boss is asking the user to restate/fix their German
           setBossIsCorrection(/formulieren|nochmal|wie würden sie|wie sagen sie|korrig|nochmal versuchen/i.test(msg.text));
         } else {
-          bossLineRef.current += msg.text;
-          setBossText(t => t + msg.text);
+          // BOSS_SPEECH carries the complete authoritative utterance, not a
+          // delta. Replace stale/early text instead of concatenating it.
+          bossLineRef.current = msg.text;
+          setBossText(msg.text);
+          setBossIsCorrection(/formulieren|nochmal|wie würden sie|wie sagen sie|korrig|nochmal versuchen/i.test(msg.text));
         }
         break;
       }

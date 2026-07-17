@@ -791,7 +791,12 @@ export class WebSocketManager {
           ctx._geminiFellBack = true;
           this._send(ctx, { type: S.GEMINI_ENDED });
           if (!ctx.geminiGreeted) { try { ctx.realtimeClient?.emitOpening?.(); } catch { /* boss gone */ } }
-          else this._send(ctx, { type: S.BOSS_SPEECH, text: noticeText });
+          else {
+            this._send(ctx, { type: S.BOSS_SPEECH, text: noticeText });
+            // BOSS_SPEECH is a complete utterance. Always close it so the client
+            // cannot append the next real interviewer question to this notice.
+            this._send(ctx, { type: S.BOSS_SPEECH_DONE });
+          }
         };
         ctx.geminiFallback = geminiFallback;
         try {

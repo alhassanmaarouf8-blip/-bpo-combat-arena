@@ -49,3 +49,11 @@ test('spoken headline calculation enforces Evidence Contract v2 before grading',
   assert.ok(gate > 0 && grade > gate);
   assert.match(source, /rank, gradeUnavailable, verdict, gradeSource: 'panelscorer', spokenEvidence/u);
 });
+
+test('text-mode notices close and complete interviewer lines never concatenate', async () => {
+  const wsSource = await readFile(new URL('./websocketManager.js', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
+  assert.match(wsSource, /type:\s*S\.BOSS_SPEECH,\s*text:\s*noticeText[\s\S]*type:\s*S\.BOSS_SPEECH_DONE/u);
+  assert.doesNotMatch(appSource, /setBossText\(t\s*=>\s*t\s*\+\s*msg\.text\)/u);
+  assert.match(appSource, /bossLineRef\.current\s*=\s*msg\.text;[\s\S]*setBossText\(msg\.text\)/u);
+});
