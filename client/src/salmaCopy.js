@@ -14,7 +14,7 @@
 export const SALMA = {
   name: 'Salma',
   nameAr: 'سلمى', // OWNER-AR · EN: Arabic spelling of her name (renders "Salma" until filled)
-  role: { de: 'Persönliche Interviewtrainerin', ar: '' }, // OWNER-AR · native review required
+  role: { de: 'Deine Recruiterin', ar: 'الريكروتر بتاعتك' }, // OWNER-AR · native review required
 };
 
 export const SALMA_COPY = {

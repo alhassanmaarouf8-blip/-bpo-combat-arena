@@ -305,7 +305,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const bottleneck = forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId]
     ? RISK_LABELS[forecast.riskId]
     : risk?.state === 'measure_first'
-      ? 'Noch keine belastbare Diagnose'
+      ? 'Lass uns zuerst hören, wo du stehst'
       : forecast?.state === 'historical_only'
         ? 'Aktuelle Messung nötig'
         : null;
@@ -327,7 +327,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         </div>
         <div style={{ marginTop: 4, color: '#e2e8f0', fontSize: 13.5, fontWeight: 750 }}>{bottleneck}</div>
         {risk?.state === 'measure_first' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
-          Beende zuerst das Diagnose-Interview. Aus einer kurzen Aufnahme gibt Salma keine Diagnose.
+          Beende zuerst das Diagnose-Interview. Ein kurzes Interview reicht — danach bekommst du deinen ersten klaren Schritt.
         </div>}
         {forecast?.state === 'historical_only' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
           Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht automatisch auf heute.

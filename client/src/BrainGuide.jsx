@@ -426,7 +426,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
           DEIN NÄCHSTER SCHRITT
           <span className={`brain-guide__confidence brain-guide__confidence--${d.confidence || 'low'}`}>
             {d.confidence === 'high' && d.state === 'POST_FIGHT' ? 'WIEDERHOLT GEMESSEN'
-              : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'SERVER-GESTEUERT'}
+              : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'DEIN PLAN'}
           </span>
         </div>
         <h2 id="brain-guide-title" className="brain-guide__title">{brief.title}</h2>
@@ -462,7 +462,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
         <div className="brain-guide__journey" aria-label="Dein Weg zur internen Bewerbungsbereitschaft">
           <div className="brain-guide__journey-copy">
             <span>DEIN WEG ZUR BEWERBUNGSBEREITSCHAFT</span>
-            <strong>{j.entryDone ?? 0}/{j.entryTotal} transfer-verifizierte Fähigkeiten</strong>
+            <strong>{j.entryDone ?? 0}/{j.entryTotal} bestätigte Fähigkeiten</strong>
           </div>
           <div className="brain-guide__phases">
             {JOURNEY_PHASES.map((phase, index) => {
@@ -478,7 +478,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
           </div>
           <div className="brain-guide__track" aria-hidden="true"><div className="brain-guide__fill" style={{ width: `${pct}%` }} /></div>
           <p className="brain-guide__journey-caveat">
-            Fortschritt zählt nur nach einem verzögerten Transfer-Retest · keine Einstellungsprognose
+            Fortschritt zählt erst, wenn du es in einer neuen Situation zeigst
           </p>
         </div>
       )}
