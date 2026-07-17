@@ -641,6 +641,9 @@ test('between-attempt cue is emitted only for a real failed drill outcome', () =
   assert.equal(coachCueForDrill({ drill: 'shadowing', eventId: '0123456789abcdef' }), null);
   const cue = coachCueForDrill({ drill: 'shadowing', correct: false, eventId: '0123456789abcdef' });
   assert.equal(cue.kind, 'between_attempts'); assert.equal(cue.maxAutomaticSpeech, 2);
+  const listeningCue = coachCueForDrill({ drill: 'hoer-check', correct: false, eventId: 'fedcba9876543210' });
+  assert.match(listeningCue.text, /zweite Abspielen/u);
+  assert.doesNotMatch(listeningCue.text, /produziere dieselbe Antwort/u);
   assert.equal(coachCueForDrill({ drill: 'unknown', correct: false, eventId: '0123456789abcdef' }), null);
 });
 

@@ -1017,6 +1017,18 @@ export function acknowledgeEvent(state, eventId) {
 export function coachCueForDrill({ drill, correct, froze, eventId }) {
   const verifiedFailure = correct === false || froze === true;
   if (!DRILLS.has(drill) || !/^[a-f0-9]{16}$/u.test(eventId || '') || !verifiedFailure) return null;
+  const failureText = {
+    'hoer-check': 'Nutze das zweite Abspielen und achte nur auf die Information, nach der die Frage fragt. Danach geht es mit neuem Material weiter.',
+    'satzbau-schmiede': 'Vergleiche die erste abweichende Wortposition und baue denselben Satz danach noch einmal vollständig.',
+    shadowing: 'Höre den Modellsatz noch einmal. Achte auf die erste Abweichung und sprich danach den ganzen Satz erneut.',
+    'flow-drill': 'Beginne diesen Durchgang neu und halte die vollständige Antwort bis zum Ende durch.',
+    'sag-es-richtig': 'Korrigiere nur den ersten klaren Fehler und sage danach den ganzen Satz noch einmal.',
+    srs: 'Korrigiere nur den ersten klaren Fehler und produziere danach die ganze Antwort noch einmal.',
+    'druck-leiter': 'Formuliere zuerst nur den ersten vollständigen Satz und versuche danach dieselbe Stufe erneut.',
+  }[drill];
   return { id: hash({ eventId, drill, correct: correct === true, froze: froze === true }, 16), kind: 'between_attempts',
-    text: froze === true ? 'Stoppe kurz. Formuliere nur den ersten vollständigen Satz und versuche dieselbe Stufe erneut.' : 'Korrigiere nur den ersten klaren Fehler und produziere dieselbe Antwort noch einmal vollständig.', maxAutomaticSpeech: 2 };
+    text: froze === true && drill === 'druck-leiter'
+      ? 'Stoppe kurz. Formuliere nur den ersten vollständigen Satz und versuche dieselbe Stufe erneut.'
+      : failureText,
+    maxAutomaticSpeech: 2 };
 }

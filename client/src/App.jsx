@@ -2555,7 +2555,25 @@ function DossierSheet({ token, data, account, onClose }) {
   );
 }
 
-function Dashboard({ data, loading, account, onClose, onReview, onLogout, token }) {
+const DASHBOARD_BOSS_LADDER = Object.freeze([
+  { id:'yasmin', name:'YASMIN', tier:'Junior-Recruiterin', profileLevel:1, languageLevel:'a2-b1' },
+  { id:'lukas', name:'LUKAS', tier:'Agent-Trainer', profileLevel:2, languageLevel:'c1' },
+  { id:'karim', name:'KARIM', tier:'Teamleiter', profileLevel:3, languageLevel:'a2-b1' },
+  { id:'hana', name:'HANA', tier:'Hiring Managerin', profileLevel:4, languageLevel:'b2' },
+  { id:'tarek', name:'TAREK', tier:'Eskalations-Manager', profileLevel:6, languageLevel:'b2' },
+  { id:'frau-mona-adel', name:'FRAU MONA ADEL', tier:'Geschäftsführerin', profileLevel:8, languageLevel:'c1' },
+]);
+const DASHBOARD_LANGUAGE_RANK = Object.freeze({ 'a2-b1':0, b2:1, c1:2 });
+function dashboardBossPipeline(profileLevel, interviewLevel) {
+  const rank = DASHBOARD_LANGUAGE_RANK[interviewLevel] ?? 0;
+  const allowed = DASHBOARD_BOSS_LADDER.filter((boss) => DASHBOARD_LANGUAGE_RANK[boss.languageLevel] <= rank);
+  return {
+    current: [...allowed].reverse().find((boss) => boss.profileLevel <= profileLevel) || allowed[0],
+    next: allowed.find((boss) => boss.profileLevel > profileLevel) || null,
+  };
+}
+
+function Dashboard({ data, loading, account, onClose, onReview, onLogout, token, interviewLevel }) {
   const [dossier, setDossier] = useState(false);
   const t   = data?.totals ?? {};
   const lp  = data?.levelProgress ?? { level: 1, pct: 0, intoLevel: 0, perLevel: 120 };
@@ -2563,10 +2581,12 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
   const sub = acc?.subscription ?? {};
   const ent = acc?.entitlement ?? {};
   const planName = (ent.plan || 'free').toUpperCase();
+  const displayPlanName = ent.trial?.active ? 'TESTPHASE' : planName;
   const tierLabel = ent.dailyLiveMinutes > 0
-    ? `${planName} · ${ent.dailySessions > 0 ? `${ent.dailySessions} Interview${ent.dailySessions > 1 ? 's' : ''}/Tag` : `${ent.dailyLiveMinutes} Min/Tag`}`
+    ? `${displayPlanName} · ${ent.dailySessions > 0 ? `${ent.dailySessions} Interview${ent.dailySessions > 1 ? 's' : ''}/Tag` : `${ent.dailyLiveMinutes} Min/Tag`}`
     : 'GRATIS · Einstufung';
   const isFreePlan = (ent.plan || 'free') === 'free';
+  const visibleBosses = dashboardBossPipeline(lp.level, interviewLevel);
   return (
     <div style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
       background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
@@ -2626,12 +2646,12 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token 
                 transition:'width 0.6s' }} />
             </div>
             <div style={{ fontSize:11, color:'#cbd5e1' }}>
-              Aktueller Interviewer: <b style={{ color:'#fca5a5' }}>{data?.currentBoss?.name}</b>
-              <span style={{ color:'#64748b' }}> · {data?.currentBoss?.tier}</span>
+              Aktueller Interviewer: <b style={{ color:'#fca5a5' }}>{visibleBosses.current?.name}</b>
+              <span style={{ color:'#64748b' }}> · {visibleBosses.current?.tier}</span>
             </div>
-            {data?.nextBoss && (
+            {visibleBosses.next && (
               <div style={{ fontSize:10, color:'#64748b', marginTop:3 }}>
-                Nächster Interviewer ab Level {data.nextBoss.minLevel}: {data.nextBoss.name} ({data.nextBoss.tier})
+                Nächster Interviewer ab Level {visibleBosses.next.profileLevel}: {visibleBosses.next.name} ({visibleBosses.next.tier})
               </div>
             )}
             <div style={{ fontSize:10, color:'var(--accent)', marginTop:5 }}>
@@ -5851,7 +5871,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {/* Progress dashboard */}
       {dashboard && (
         <Dashboard data={dashboard.data} loading={dashboard.loading} account={auth.account} token={auth.token}
-          onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
+          interviewLevel={level} onClose={() => setDashboard(null)} onReview={startReviewFromDash} onLogout={onLogout} />
       )}
 
       {/* Free intelligent assessment (turn-based, cheap models only — never a Realtime session).
@@ -6870,7 +6890,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 { icon:'waveform',     de:'Shadowing',      ar:'تمرين الترديد', hint:'Aussprache angleichen',         open:() => setShadowingOpen(true) },
                 { icon:'bolt',         de:'Flow-Drill',     ar:'سرعة الكلام',   hint:'Schneller, ohne Stocken',       open:() => setFluencyOpen(true) },
                 { icon:'headphones',   de:'Hör-Check',      ar:'فهم السمع',     hint:'Am Telefon verstehen',          open:() => setListeningOpen(true) },
-                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Deine Fehler laut korrigieren', due: dueReviews, open:() => setSpokenReviewOpen(true) },
+                { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Eigene Fehler & Call-Center-Sätze', due: dueReviews, open:() => setSpokenReviewOpen(true) },
                 { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            hint:'Verb ans Ende — automatisch',   open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
               ].map((t, i) => (
                 <button key={i} onClick={t.open} style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',

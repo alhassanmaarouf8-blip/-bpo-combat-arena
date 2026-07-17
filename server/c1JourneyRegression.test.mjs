@@ -76,3 +76,11 @@ test('parent guidance refresh cannot erase an open drill result', async () => {
     assert.doesNotMatch(source, /const blocked\s*=\s*useCallback\([^\n]+\[onGoPricing,\s*onClose\]\)/u, relative);
   }
 });
+
+test('progress and review labels agree with the active learner configuration', async () => {
+  const source = await readFile(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
+  assert.match(source, /interviewLevel=\{level\}/u);
+  assert.match(source, /const displayPlanName = ent\.trial\?\.active \? 'TESTPHASE' : planName/u);
+  assert.match(source, /Eigene Fehler & Call-Center-Sätze/u);
+  assert.doesNotMatch(source, /hint:'Deine Fehler laut korrigieren'/u);
+});
