@@ -57,3 +57,9 @@ test('text-mode notices close and complete interviewer lines never concatenate',
   assert.doesNotMatch(appSource, /setBossText\(t\s*=>\s*t\s*\+\s*msg\.text\)/u);
   assert.match(appSource, /bossLineRef\.current\s*=\s*msg\.text;[\s\S]*setBossText\(msg\.text\)/u);
 });
+
+test('beginner memory cannot be promoted into invented biography', async () => {
+  const source = await readFile(new URL('./scenarios.js', import.meta.url), 'utf8');
+  assert.match(source, /NIE als Beruf, Arbeitgeber, Erfahrung oder andere biografische Tatsache/u);
+  assert.match(source, /Beim letzten Mal haben Sie über/u);
+});

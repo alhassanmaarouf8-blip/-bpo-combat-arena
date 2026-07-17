@@ -1000,7 +1000,7 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
   // recurring, an absence. This LAYERS on the weak-rule re-test above; it must merge with the file
   // mention, not be a second cold opening. Every clause is backed by stored data — invent nothing.
   const beginnerMemoryLine = memory && level.id === 'a2-b1'
-    ? `\nERINNERUNG (nur intern): ${memory}. Nutze höchstens ein einfaches, konkretes Detail in natürlichem A2-Deutsch. Sage nie „Akte“, „Muster“, „Schwäche“ oder einen technischen Messbegriff.\n`
+    ? `\nERINNERUNG (nur intern): ${memory}. Nutze höchstens ein einfaches, konkretes Detail in natürlichem A2-Deutsch. Behandle ein früheres Gesprächsthema NIE als Beruf, Arbeitgeber, Erfahrung oder andere biografische Tatsache. Wenn du es nutzt, sage nur „Beim letzten Mal haben Sie über … gesprochen“ und stelle dazu eine Frage. Sage nie „Akte“, „Muster“, „Schwäche“ oder einen technischen Messbegriff.\n`
     : '';
   const memoryLine = memory && level.id !== 'a2-b1'
     ? `\nAKTE / ERINNERUNG an diesen Kandidaten aus früheren Gesprächen: ${memory}.\n` +
