@@ -69,6 +69,33 @@ const cases = [
     killed:(source) => source.includes('reviewId, appDecision: item.appDecision,'),
     name:'blinded pack reveals app labels to raters',
   },
+  {
+    file:'server/pronunciationRegistry.js',
+    mutate:(source) => source.replace("release?.passed === true && release?.protocolVersion === PRONUNCIATION_PROTOCOL_VERSION",
+      'item'),
+    killed:(source) => !source.includes('release?.passed === true && release?.protocolVersion === PRONUNCIATION_PROTOCOL_VERSION'),
+    name:'unvalidated pronunciation category reaches learner feedback',
+  },
+  {
+    file:'server/pronunciationCore.js',
+    mutate:(source) => source.replace("if (quality.status !== 'usable')", "if (quality.status === 'impossible')"),
+    killed:(source) => !source.includes("if (quality.status !== 'usable')"),
+    name:'noise or clipping is reclassified as a learner pronunciation defect',
+  },
+  {
+    file:'server/pronunciationCore.js',
+    mutate:(source) => source.replace('state.words.size >= 2 && state.evidence.size >= 2',
+      'state.words.size >= 1 && state.evidence.size >= 1'),
+    killed:(source) => !source.includes('state.words.size >= 2 && state.evidence.size >= 2'),
+    name:'one ordinary pronunciation occurrence becomes a durable pattern',
+  },
+  {
+    file:'server/pronunciationCore.js',
+    mutate:(source) => source.replace('metrics.harmfulAcceptedVariantCorrections === 0',
+      'metrics.harmfulAcceptedVariantCorrections >= 0'),
+    killed:(source) => !source.includes('metrics.harmfulAcceptedVariantCorrections === 0'),
+    name:'harmful correction of an accepted pronunciation variant passes release',
+  },
 ];
 
 let killed = 0;

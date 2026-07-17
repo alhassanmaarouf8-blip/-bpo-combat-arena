@@ -33,6 +33,7 @@ import { missionControlRouter } from './missionControl.js';
 import { salmaCoachRouter } from './salmaCoach.js';
 import { studyCohortRouter } from './studyCohort.js';
 import { firstSessionTraceRouter } from './firstSessionTrace.js';
+import { pronunciationRouter } from './pronunciation.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
@@ -152,6 +153,7 @@ app.use('/api', missionControlRouter); // Job-to-Offer Mission Control (off by d
 app.use('/api', salmaCoachRouter); // Salma Personal Tutor (off by default; deterministic diagnosis)
 app.use('/api', studyCohortRouter); // Signed, allowlisted 21-day research cohort (off by default)
 app.use('/api', firstSessionTraceRouter); // First-interview activation trace (owner-only read)
+app.use('/api', pronunciationRouter); // Fail-closed pronunciation/clarity subsystem (all categories unvalidated by default)
 app.use(engagementRouter);  // /admin/engagement — ADMIN_KEY-gated per-user engagement analytics (paths absolute)
 app.use(pushRouter);        // /api/push/* (opt-in) + /admin/push/daily (cron) — web-push reminders; paths absolute
 app.use(placementRouter);   // /api/placement (user) + /admin/placements (founder KPI) — paths are absolute

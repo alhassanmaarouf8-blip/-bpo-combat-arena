@@ -143,6 +143,17 @@ function wordAccuracy(transcript, target) {
   return { match: Math.round((hit / wantSet.size) * 100), missed };
 }
 
+/** Resolve an exact served target without accepting learner-supplied text. */
+export async function resolveShadowingTarget(accountId, rawId) {
+  const id = Number.parseInt(String(rawId), 10);
+  if (!Number.isInteger(id) || id < 0) return null;
+  if (id < BPO_PHRASES.length) return { targetId: `shadowing:${id}`, targetText: BPO_PHRASES[id].de };
+  const user = await loadUser(accountId).catch(() => null);
+  const targetText = user?.shadowingPool?.[id]?.de;
+  return typeof targetText === 'string' && targetText.length >= 2 && targetText.length <= 500
+    ? { targetId: `shadowing:${id}`, targetText } : null;
+}
+
 // ── GET a fresh session of 3–5 sentences (paid only, unlimited sessions) ──
 shadowingRouter.get('/shadowing', requireAuth, async (req, res) => {
   if (!paidOnly(req, res)) return;
@@ -185,13 +196,8 @@ shadowingRouter.post('/shadowing/score',
       }
       // Resolve the target server-side (never trust the client). Fixed ids → BPO_PHRASES;
       // generated ids → the per-user persisted pool (the SAME text the learner was given).
-      let target;
-      if (id < BPO_PHRASES.length) {
-        target = BPO_PHRASES[id].de;
-      } else {
-        const u = await loadUser(req.account.id).catch(() => null);
-        target = u?.shadowingPool?.[id]?.de;
-      }
+      const binding = await resolveShadowingTarget(req.account.id, id);
+      const target = binding?.targetText;
       if (!target) return res.status(400).json({ error: 'bad_sentence' });
 
       // Edge case: empty / failed recording.
