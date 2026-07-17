@@ -64,3 +64,13 @@ test('the shared overlay contract isolates background, traps focus, supports Esc
   assert.match(source, /event\.key !== 'Tab'/);
   assert.match(source, /previousFocus\.focus/);
 });
+
+test('audio graph cleanup is idempotent and consumes async close rejection', () => {
+  const gemini = read('geminiVoice.js');
+  const native = read('nativeVoice.js');
+  assert.match(gemini, /ctx\.state !== 'closed'/);
+  assert.match(gemini, /ctx\.close\(\)\?\.catch\?\./);
+  assert.match(native, /new Set\(\[levelWire\?\.ctx, phoneCtx\]/);
+  assert.match(native, /ctx\.state === 'closed'/);
+  assert.match(native, /ctx\.close\(\)\?\.catch\?\./);
+});

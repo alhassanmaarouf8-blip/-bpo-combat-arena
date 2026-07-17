@@ -122,8 +122,11 @@ export class GeminiVoicePlayer {
     this._levelAlive = false;
     if (this._levelRaf) { try { cancelAnimationFrame(this._levelRaf); } catch { /* ignore */ } this._levelRaf = 0; }
     try { this._onLevel?.(0); } catch { /* ignore */ }   // drop the ring so no stale glow lingers
-    try { this._ctx.close(); } catch { /* already closed */ }
+    const ctx = this._ctx;
     this._ctx = null;
+    if (ctx && ctx.state !== 'closed') {
+      try { ctx.close()?.catch?.(() => {}); } catch { /* already closed */ }
+    }
   }
 }
 

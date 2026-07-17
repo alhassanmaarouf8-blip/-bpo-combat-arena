@@ -182,7 +182,14 @@ export function playNative({ apiUrl, token, text, ticketRequest = null, voice = 
     try { a.playbackRate = rate || 1; a.preservesPitch = true; } catch { /* Safari: ignore */ }
     let started = false, fellBack = null, phoneCtx = null, levelWire = null, retried = false, releaseIndependent = null;
     const releasePlayback = () => { try { releaseIndependent?.(); } catch { /* ignore */ } releaseIndependent = null; };
-    const closeGraphs = () => { try { levelWire?.stop(); } catch { /* ignore */ } try { levelWire?.ctx?.close(); } catch { /* ignore */ } try { phoneCtx?.close(); } catch { /* ignore */ } };
+    const closeGraphs = () => {
+      try { levelWire?.stop(); } catch { /* ignore */ }
+      const contexts = new Set([levelWire?.ctx, phoneCtx].filter(Boolean));
+      for (const ctx of contexts) {
+        if (ctx.state === 'closed') continue;
+        try { ctx.close()?.catch?.(() => {}); } catch { /* ignore */ }
+      }
+    };
     a.onplaying = () => {
       started = true;
       if (!salma && !releaseIndependent) releaseIndependent = beginIndependentPlayback();

@@ -41,3 +41,7 @@ The focused gate passed 51/51 before this run: typed-mode isolation, stage integ
 - Newly confirmed in this journey: **20**.
 - Requested target: 100 new, distinct defects.
 - This document deliberately does not claim 100.
+
+## Previously documented defect repaired during this run
+
+- QA-147 reproduced in production (`InvalidStateError: Cannot close a closed AudioContext`). It is not counted as new. Gemini and native-audio cleanup now deduplicate contexts, skip closed contexts, and consume asynchronous close rejection.
