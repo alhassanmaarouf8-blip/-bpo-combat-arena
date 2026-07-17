@@ -28,6 +28,7 @@
     "study:spoken:create": "node scripts/create-spoken-gold-study-pack.mjs",
     "study:spoken:compare": "node scripts/compare-spoken-gold-raters.mjs",
     "study:spoken:finalize": "node scripts/finalize-spoken-gold-study.mjs",
+    "study:expert-gold": "node scripts/expert-gold-harness.mjs",
     "study:invite": "node scripts/create-study-cohort-invite.mjs",
     "verify": "npm run check:secrets && npm run lint && npm run design-lint && npm run check:syntax && npm run test:server && npm run build:client && npm run check:artifact"
   },

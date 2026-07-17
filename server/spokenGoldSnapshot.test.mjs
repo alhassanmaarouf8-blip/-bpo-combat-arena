@@ -22,16 +22,27 @@ test('spoken gold snapshot contains only evidence required by the frozen study',
       priorityFix: 'free-form learner text must not leave the profile',
       transcript: 'raw transcript must not leak',
     }],
-    salmaCoach: { version: 3, coachState: { improvementHistory: [{ id: 'proof' }] } },
+    listeningAttempts: [{ attemptId: 'a'.repeat(24), skillId: 'listen-clear', correct: true,
+      itemHash: 'b'.repeat(64), rawAnswer: 'must not leak' }],
+    listeningCycleHistory: [{ version: 2, id: 'c'.repeat(16), skillId: 'listen-clear', status: 'passed',
+      matched: { skillId: 'listen-clear', sampleSize: 5, accuracy: 1, transcript: 'must not leak' },
+      recruiterNote: 'must not leak' }],
+    salmaCoach: { version: 3, privateQuestion: 'must not leak', coachState: {
+      improvementHistory: [{ id: 'd'.repeat(16), skillId: 'handle-clear-request', rawAudio: 'must not leak' }] } },
   };
 
   const snapshot = buildSpokenGoldProfileSnapshot(profile);
-  assert.deepEqual(Object.keys(snapshot), ['userId', 'sessions', 'salmaCoach']);
+  assert.deepEqual(Object.keys(snapshot), ['userId', 'sessions', 'listeningAttempts', 'listeningCycleHistory', 'salmaCoach']);
   assert.equal(snapshot.userId, 'account_001');
   assert.equal(snapshot.sessions[0].sessionId, 'session_001');
   assert.equal(snapshot.sessions[0].priorityFix, undefined);
   assert.equal(snapshot.sessions[0].transcript, undefined);
-  assert.doesNotMatch(JSON.stringify(snapshot), /must-not-leak|201000|private-envelope|raw transcript/u);
+  assert.equal(snapshot.listeningAttempts[0].rawAnswer, undefined);
+  assert.equal(snapshot.listeningCycleHistory[0].recruiterNote, undefined);
+  assert.equal(snapshot.listeningCycleHistory[0].matched.transcript, undefined);
+  assert.equal(snapshot.salmaCoach.privateQuestion, undefined);
+  assert.equal(snapshot.salmaCoach.coachState.improvementHistory[0].rawAudio, undefined);
+  assert.doesNotMatch(JSON.stringify(snapshot), /must-not-leak|must not leak|201000|private-envelope|raw transcript/u);
 });
 
 test('spoken gold snapshot is detached from mutable production state and fails closed without identity', () => {

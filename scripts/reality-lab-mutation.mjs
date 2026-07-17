@@ -27,6 +27,48 @@ const cases = [
     killed:(source) => !source.includes('const progressionSessions = hasV2Evidence ? authoritativeSessions : sessions;'),
     name:'unreliable v2 sessions advance the learner model',
   },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace('if (a.reviewerId === b.reviewerId) throw new Error', 'if (false) throw new Error'),
+    killed:(source) => !source.includes('if (a.reviewerId === b.reviewerId) throw new Error'),
+    name:'expert gold accepts one reviewer twice',
+  },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace(".filter(([, item]) => !['owner_smoke', 'synthetic_smoke'].includes(item.split))", ''),
+    killed:(source) => !source.includes("!['owner_smoke', 'synthetic_smoke'].includes(item.split)"),
+    name:'expert gold counts owner and synthetic smoke as accuracy evidence',
+  },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace("exactKeys(verdict, ['acceptableDrillIds'", "void verdict; exactKeys({ acceptableDrillIds: verdict.acceptableDrillIds }, ['acceptableDrillIds'"),
+    killed:(source) => !source.includes("exactKeys(verdict, ['acceptableDrillIds'"),
+    name:'expert review permits hidden manual app verdicts',
+  },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace('masteryClaimed = validatedTransferProofs(finalProfile, asOf).some', 'masteryClaimed = !!finalProfile || validatedTransferProofs(finalProfile, asOf).some'),
+    killed:(source) => !source.includes('masteryClaimed = validatedTransferProofs(finalProfile, asOf).some'),
+    name:'drill or profile completion is treated as transfer mastery',
+  },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace('if (!isDeepStrictEqual(rebuilt.pack, suppliedPack) || !isDeepStrictEqual(rebuilt.key, suppliedKey))', 'if (false)'),
+    killed:(source) => !source.includes('if (!isDeepStrictEqual(rebuilt.pack, suppliedPack) || !isDeepStrictEqual(rebuilt.key, suppliedKey))'),
+    name:'modified expert evidence is accepted without re-derivation',
+  },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace('containsRawAudioOrTranscript: false, reviewerIdentityStored: false,', 'containsRawAudioOrTranscript: false, reviewerIdentityStored: false, accuracy: 1,'),
+    killed:(source) => !source.includes('reviewerIdentityStored: false,') || source.includes('accuracy: 1,'),
+    name:'incompatible expert metrics are collapsed into one accuracy number',
+  },
+  {
+    file:'scripts/lib/expert-gold-harness.mjs',
+    mutate:(source) => source.replace('items: rows.map(({ item, reviewId }) => ({ reviewId,', 'items: rows.map(({ item, reviewId }) => ({ reviewId, appDecision: item.appDecision,'),
+    killed:(source) => source.includes('reviewId, appDecision: item.appDecision,'),
+    name:'blinded pack reveals app labels to raters',
+  },
 ];
 
 let killed = 0;
