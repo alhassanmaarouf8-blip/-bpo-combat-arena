@@ -6953,7 +6953,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               {/* Meaningful tiles: a one-line PURPOSE (what you gain — honest German), and on Sag es
                   richtig the REAL count of SRS items due (data.progress.dueReviews) — never an invented
                   mastery number. The `hint` is builder-authored German; masri stays an OWNER-AR slot. */}
-              {[ 
+              {[
                 { id:'shadowing', icon:'waveform', de:'Shadowing', ar:'تمرين الترديد', hint:'Aussprache angleichen', open:() => setShadowingOpen(true) },
                 { id:'flow-drill', icon:'bolt', de:'Flow-Drill', ar:'سرعة الكلام', hint:'Schneller, ohne Stocken', open:() => setFluencyOpen(true) },
                 { id:'hoer-check', icon:'headphones', de:'Hör-Check', ar:'فهم السمع', hint:'Am Telefon verstehen', open:() => setListeningOpen(true) },
