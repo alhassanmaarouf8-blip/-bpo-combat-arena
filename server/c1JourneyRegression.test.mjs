@@ -28,6 +28,8 @@ test('typed UI owns the turn and refreshes BrainGuide and Salma after debrief', 
   assert.match(source, /const levelRef\s*= useRef\(level\);/u);
   assert.doesNotMatch(source, /const levelRef\s*= useRef\('a2-b1'\)/u);
   assert.match(source, /audioCapable:\s*!typeOpenRef\.current\s*&&\s*handsFreeRef\.current/u);
+  assert.match(source, /stopGeminiMode\(\);[\s\S]*typeOpenRef\.current = true;[\s\S]*REQUEST_TEXT_MODE/u,
+    'switching to typing must hand the active Gemini session back to the text interviewer');
 });
 
 test('typed practice cannot award spoken progression or XP', async () => {

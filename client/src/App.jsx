@@ -6576,7 +6576,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                  "just speak" — two competing instructions at once (the owner's own confusion:
                  "what's the correlation between me speaking and the words showing"). The typing
                  path stays one quiet tap away — it's the mic-broken fallback, not the main act. */
-              <button onClick={() => setTypeOpen(true)} style={{ display:'block', margin:'0 auto',
+              <button onClick={() => {
+                // This is a real transport handoff, not merely a UI toggle. If Gemini keeps owning
+                // the session, the server's text-path interviewer reply is generated but the client
+                // intentionally ignores BOSS_SPEECH while `geminiModeRef` is still true.
+                stopGeminiMode();
+                typeOpenRef.current = true;
+                setTypeOpen(true);
+                try { wsRef.current?.send(JSON.stringify({ type: C.REQUEST_TEXT_MODE })); } catch { /* socket closing */ }
+              }} style={{ display:'block', margin:'0 auto',
                 padding:'8px 12px', minHeight:40, background:'none', border:'none', cursor:'pointer',
                 fontFamily:'var(--font-body)', fontSize:'var(--fs-meta)', color:'var(--text-faint)',
                 textDecoration:'underline', textUnderlineOffset:3 }}>
