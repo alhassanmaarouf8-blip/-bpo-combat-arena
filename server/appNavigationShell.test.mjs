@@ -14,9 +14,9 @@ test('returning-user navigation exposes only today, practice, and progress', () 
 });
 
 test('navigation points to the existing BrainGuide mission and practice library', () => {
-  assert.match(app, /goToHomeSection\('today-mission'\)/);
+  assert.match(app, /selectHomeView\('today'\)/);
   assert.match(app, /id="today-mission"[^>]+className="home-section-anchor"/);
-  assert.match(app, /goToHomeSection\('practice-library'\)/);
+  assert.match(app, /selectHomeView\('practice'\)/);
   assert.match(app, /id="practice-library"[^>]+className="home-section-anchor"/);
   assert.match(app, /onClick=\{openDashboard\}/);
 });
@@ -28,4 +28,20 @@ test('shell is a desktop rail and mobile bottom navigation with accessible targe
   assert.match(css, /env\(safe-area-inset-bottom\)/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test('Today and Practice are true exclusive workspaces, not competing page sections', () => {
+  assert.match(app, /const \[homeView, setHomeView\] = useState\('today'\)/);
+  assert.match(app, /hidden=\{homeView !== 'today'\}/);
+  assert.match(app, /homeView === 'practice' && canStart && !firstRun/);
+  assert.match(app, /aria-current=\{homeView === 'today' \? 'page'/);
+  assert.match(app, /aria-current=\{homeView === 'practice' \? 'page'/);
+});
+
+test('Practice highlights only a server-selected BrainGuide drill', () => {
+  assert.match(app, /brainDecision\.directive\?\.prescription\?\.action === 'drill'/);
+  assert.match(app, /brainDecision\.directive\.prescription\.drill/);
+  assert.match(app, /data-prescribed=\{t\.id === prescribedDrill \? 'true'/);
+  assert.match(app, /Number\(b\.id === prescribedDrill\) - Number\(a\.id === prescribedDrill\)/);
+  assert.match(css, /\.practice-tile--prescribed/);
 });
