@@ -13,6 +13,7 @@ import { salmaLine, salmaName, salmaRole } from './salmaCopy.js';
 import { SalmaPortrait } from './SalmaTakeover.jsx';
 import { salmaSpeak } from './salmaVoice.js';
 import { SalmaTutorPanel } from './SalmaTutorPanel.jsx';
+import './BrainGuide.css';
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // The guide's masri voice. Owner-ordered to finish 2026-07-10 ("go do them, the eight brain copy —
@@ -77,6 +78,89 @@ const MEASURE_LABEL = Object.freeze({
   deescalation: 'deine Deeskalation',
 });
 
+const ACTION_LABEL = Object.freeze({
+  assessment: 'Diagnose-Interview abschließen',
+  measure: 'Fehlendes Signal messen',
+  interview: 'Live-Retest starten',
+  apply: 'Passende Stellen prüfen',
+  wait: 'Bis zum Retest warten',
+  vacancy: 'Heutige Interview-Vorbereitung',
+  mission: 'Bewerbungs-Pass prüfen',
+  drill: 'Trainingsblock starten',
+});
+
+const MISSION_LABEL = Object.freeze({
+  passport: 'Kandidaten-Pass prüfen', measure: 'Bewerbungsreife messen', prep: 'Bewerbung vorbereiten',
+  shortlist: 'Passende Stellen prüfen', pack: 'Bewerbungs-Paket erstellen', submit: 'Bewerbung offiziell einreichen',
+  response: 'Arbeitgeber-Antwort einordnen', interview: 'Interview vorbereiten',
+});
+
+function cairoTime(value) {
+  const at = Number(value);
+  if (!Number.isFinite(at)) return null;
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Africa/Cairo', weekday: 'short', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(at));
+}
+
+function missionBrief(d, coach) {
+  const p = d.prescription || {};
+  const active = coach?.activePrescription;
+  const ownsDose = p.action === 'drill' && active?.drillId === p.drill && active?.skillId === p.skillId;
+  const minutes = ownsDose ? Math.max(1, Math.ceil(active.durationSeconds / 60)) : null;
+  const nextAt = ownsDose ? cairoTime(active.nextEligibleAt) : cairoTime(p.nextEligibleAt);
+  const skill = p.skillId ? (SKILL_LABEL[p.skillId] || ruleLabel(p.skillId)) : null;
+
+  if (ownsDose) return {
+    title: `${SKILL_LABEL[p.skillId] || BRAIN_COPY.drill(p.drill)} gezielt trainieren`,
+    dose: `${active.repetitions} Wiederholungen · ca. ${minutes} Min.`,
+    done: active.successGate,
+    after: active.timesPerDay > 1
+      ? `Block 2 nach mindestens ${Math.round(active.minimumSpacingMinutes / 60)} Std.; danach Live-Retest.`
+      : 'Danach prüft ein späterer Live-Retest neues Material.',
+  };
+  if (p.action === 'wait') return {
+    title: skill ? `${skill}: Retest vorbereiten` : ACTION_LABEL.wait,
+    dose: nextAt ? `Pause bis ${nextAt} Uhr (Kairo)` : 'Das Retest-Zeitfenster abwarten',
+    done: nextAt ? `Das Zeitfenster öffnet am ${nextAt} Uhr.` : 'BrainGuide gibt den Retest serverseitig frei.',
+    after: 'Dann beweist du die Fähigkeit mit neuem Material.',
+  };
+  if (p.action === 'assessment') return {
+    title: ACTION_LABEL.assessment, dose: 'Ein vollständiges gesprochenes Interview',
+    done: 'Alle Interviewstufen sind beantwortet und der Debrief ist gespeichert.',
+    after: 'Danach wählt BrainGuide genau einen gemessenen Engpass.',
+  };
+  if (p.action === 'measure') return {
+    title: ACTION_LABEL.measure, dose: `Ein Interview zur Messung: ${MEASURE_LABEL[p.signal] || 'deine aktuelle Leistung'}`,
+    done: 'Die erforderliche Sprechprobe ist vollständig und serverseitig auswertbar.',
+    after: 'Danach erhältst du nur bei ausreichender Evidenz einen Trainingsblock.',
+  };
+  if (p.action === 'interview') return {
+    title: p.phase === 'transfer' ? 'Transfer unter neuem Druck beweisen' : ACTION_LABEL.interview,
+    dose: 'Ein vollständiges gesprochenes Interview',
+    done: 'Der serverseitige Debrief ist vollständig gespeichert.',
+    after: p.phase === 'matched' ? 'Danach folgt ein späterer Test mit neuem Material.' : 'BrainGuide akzeptiert oder verwirft die Verbesserung.',
+  };
+  if (p.action === 'vacancy') return {
+    title: p.title || ACTION_LABEL.vacancy, dose: p.objective || 'Den heutigen Vorbereitungsschritt abschließen',
+    done: p.liveRequired ? 'Ein aussagekräftiger Live-Debrief wurde gespeichert.' : 'Der heutige Meilenstein ist bestätigt.',
+    after: 'Danach aktualisiert BrainGuide den Interviewplan.',
+  };
+  if (p.action === 'mission') return {
+    title: MISSION_LABEL[p.step] || ACTION_LABEL.mission, dose: 'Diesen einen Bewerbungs-Schritt abschließen',
+    done: 'Der Schritt ist bestätigt und dauerhaft gespeichert.', after: 'Danach wird der nächste zulässige Schritt sichtbar.',
+  };
+  if (p.action === 'apply') return {
+    title: ACTION_LABEL.apply, dose: 'Eine passende, noch offene Stelle prüfen',
+    done: 'Passung und harte Ausschlusskriterien sind ehrlich geprüft.', after: 'Du entscheidest selbst über die offizielle Bewerbung.',
+  };
+  return {
+    title: skill ? `${skill} trainieren` : (ACTION_LABEL[p.action] || 'Nächsten Schritt starten'),
+    dose: 'Den angezeigten Trainingsblock vollständig bearbeiten',
+    done: 'Der Abschluss ist serverseitig bestätigt.', after: 'Danach berechnet BrainGuide den nächsten Schritt neu.',
+  };
+}
+
 // THE FATHER EXPLAINS (bottleneck-doctrine D1–D4): one German sentence saying WHY this is the
 // step — the diagnosis framing (D1), honest "I must hear you more" (D4), drill-nominates/
 // interview-confirms (D3), soft wording on thin evidence (D4). German is builder-authorable;
@@ -133,6 +217,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   externalInterviewCta = false, lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [loadState, setLoadState] = useState('loading');
+  const [coachView, setCoachView] = useState(null);
   const [coachRevision, setCoachRevision] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const speechStopRef = useRef(null);
@@ -179,6 +264,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
     setData(null);
     setLoadState('loading');
     onDirectiveState?.({ status: 'loading', directive: null });
+    setCoachView(null);
     (async () => {
       try {
         const r = await fetch(`${apiUrl}/api/brain`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
@@ -200,6 +286,12 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
         setData(d);
         setLoadState('ready');
         onDirectiveState?.({ status: 'ready', directive: d.directive });
+        // Dose details are optional and fail closed. BrainGuide remains useful when the tutor
+        // feature is disabled (404) or temporarily unavailable; no invented dose is displayed.
+        fetch(`${apiUrl}/api/salma/coach`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } })
+          .then((response) => response.ok ? response.json() : null)
+          .then((view) => { if (alive && view) setCoachView(view); })
+          .catch(() => {});
       } catch {
         if (alive) { setLoadState('error'); onDirectiveState?.({ status: 'error', directive: null }); }
       }
@@ -248,6 +340,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   const pct = Math.max(0, Math.min(100, j.pctToApply || 0));
   const ahaMetric = d.aha && Object.hasOwn(AHA_METRIC, d.aha.metricKey) ? AHA_METRIC[d.aha.metricKey] : null;
   const ahaSkill = d.aha ? (SKILL_LABEL[d.aha.skillId] || ruleLabel(d.aha.skillId)) : null;
+  const brief = missionBrief(d, coachView);
 
   const ctaText =
       d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}`
@@ -273,25 +366,25 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   };
 
   return (
-    <div dir="rtl" style={card}>
+    <section dir="ltr" className={`brain-guide brain-guide--${String(d.state || 'active').toLowerCase()}`}
+      aria-labelledby="brain-guide-title">
+      <div className="brain-guide__aurora" aria-hidden="true" />
       {/* Salma explains BrainGuide's current evidence-grounded action; she does not create another one. */}
-      <div dir="ltr" style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, textAlign: 'left' }}>
+      <div className="brain-guide__coach">
         <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={46} speaking={speaking} />
-        <div style={{ lineHeight: 1.25 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, color: '#e2e8f0' }}>{salmaName(lang)}</div>
-          <div style={{ fontSize: 10.5, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
+        <div className="brain-guide__coach-copy">
+          <div className="brain-guide__coach-name">{salmaName(lang)}</div>
+          <div className="brain-guide__coach-role">{salmaRole(lang)}</div>
         </div>
         {whyLine(d) && <button onClick={speaking ? stopSpeaking : speakSalma} aria-label={speaking ? 'Salma unterbrechen' : 'Salma anhören'}
-          style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: '8px 10px', cursor: 'pointer',
-            borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
-            background: 'rgba(59,130,246,0.10)', fontSize: 16 }}>
+          className={`brain-guide__audio${speaking ? ' is-speaking' : ''}`}>
           {speaking ? '…' : <SpeakerIcon />}
         </button>}
       </div>
 
       {/* This is a narrow delayed-transfer measurement, not proof that training caused the change. */}
       {d.aha && ahaMetric && (
-        <div style={ahaBox}>
+        <div className="brain-guide__proof">
           <div style={{ fontWeight: 800, color: 'var(--accent)' }}>{BRAIN_COPY.ahaTitle}</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>{BRAIN_COPY.ahaBody(ahaSkill, ahaMetric.label, d.aha.before, d.aha.after, ahaMetric.unit)}</div>
           {/* Share only the observed metric and transfer context; never claim causality or hiring proof. */}
@@ -311,27 +404,52 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
       {/* The journey — makes step-by-step progress toward the goal VISIBLE (reflected back).
           Hidden entirely when the graph reports no steps (audit S14: a "0/0" line is a
           screenshot-able zero-state that reads as broken). */}
-      {(j.entryTotal ?? 0) > 0 && (
-        <>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
-            {BRAIN_COPY.journeyLabel} · {j.entryDone ?? 0}/{j.entryTotal}{j.stepsToApply > 0 ? ` · ${BRAIN_COPY.stepsLeft(j.stepsToApply)}` : ''}
-          </div>
-          <div style={track}><div style={{ ...fill, width: `${pct}%` }} /></div>
-        </>
-      )}
-
-      {/* The ONE next step. */}
-      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 12 }}>{BRAIN_COPY.nextStepLabel}</div>
-      {/* WHY this step (the father explains the diagnosis — bottleneck-doctrine). German, LTR
-          inside the RTL card; renders only when the engine's state yields an honest line. */}
-      {whyLine(d) && (
-        <div dir="ltr" style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.6, margin: '6px 0 2px', textAlign: 'left' }}>
-          {whyLine(d)}
+      <div className="brain-guide__mission">
+        <div className="brain-guide__mission-kicker">
+          <span className="brain-guide__pulse" aria-hidden="true" />
+          DEIN NÄCHSTER SCHRITT
+          <span className={`brain-guide__confidence brain-guide__confidence--${d.confidence || 'low'}`}>
+            {d.confidence === 'high' && d.state === 'POST_FIGHT' ? 'WIEDERHOLT GEMESSEN'
+              : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'SERVER-GESTEUERT'}
+          </span>
         </div>
-      )}
-      {/* BrainGuide's single next action stays visually ahead of tutor explanations and history. */}
-      {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
-        <button style={cta} onClick={() => onAction?.(d, whyLine(d))}>{ctaText}</button>
+        <h2 id="brain-guide-title" className="brain-guide__title">{brief.title}</h2>
+        <div className="brain-guide__specs" aria-label="Aufgabe, Abschluss und Folgeschritt">
+          <div className="brain-guide__spec">
+            <span>JETZT</span><strong>{brief.dose}</strong>
+          </div>
+          <div className="brain-guide__spec">
+            <span>FERTIG, WENN</span><strong>{brief.done}</strong>
+          </div>
+          <div className="brain-guide__spec">
+            <span>DANACH</span><strong>{brief.after}</strong>
+          </div>
+        </div>
+        {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
+          <button className="brain-guide__cta" onClick={() => onAction?.(d, whyLine(d))}>
+            <span>{ctaText}</span><span aria-hidden="true">→</span>
+          </button>
+        )}
+        {externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure') && (
+          <p className="brain-guide__external-hint">Starte mit dem Interview-Button direkt unter dieser Karte.</p>
+        )}
+        {whyLine(d) && (
+          <details className="brain-guide__why">
+            <summary>Warum genau jetzt?</summary>
+            <p>{whyLine(d)}</p>
+            <p className="brain-guide__caveat">Interne Simulation · keine Arbeitgeberentscheidung</p>
+          </details>
+        )}
+      </div>
+
+      {(j.entryTotal ?? 0) > 0 && (
+        <div className="brain-guide__journey">
+          <div className="brain-guide__journey-copy">
+            <span>SIMULATIONS-FORTSCHRITT</span>
+            <strong>{j.entryDone ?? 0}/{j.entryTotal}{j.stepsToApply > 0 ? ` · ${BRAIN_COPY.stepsLeft(j.stepsToApply)}` : ''}</strong>
+          </div>
+          <div className="brain-guide__track"><div className="brain-guide__fill" style={{ width: `${pct}%` }} /></div>
+        </div>
       )}
 
       <SalmaTutorPanel token={token} apiUrl={apiUrl} screen="home" refreshKey={refreshKey + coachRevision} />
@@ -377,12 +495,9 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
           </div>
         </details>
       )}
-    </div>
+    </section>
   );
 }
 
 const card   = { marginTop: 12, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', textAlign: 'right' };
-const track  = { height: 8, borderRadius: 6, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' };
-const fill   = { height: '100%', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))', transition: 'width .4s' };
-const ahaBox = { marginBottom: 12, padding: 10, borderRadius: 10, background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.3)' };
 const cta    = { width: '100%', minHeight: 44, marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };

@@ -237,7 +237,7 @@ test('the home tutor keeps one dominant action and progressively discloses exact
   assert.doesNotMatch(brain, /salmaLine\('note_trial'/u,
     'trial marketing must not enter Salma playback or the next-action card');
 
-  const actionIndex = brain.indexOf('<button style={cta}');
+  const actionIndex = brain.indexOf('<button className="brain-guide__cta"');
   const tutorIndex = brain.indexOf('<SalmaTutorPanel');
   assert.ok(actionIndex >= 0 && tutorIndex > actionIndex,
     'BrainGuide action must remain ahead of tutor details');
