@@ -11,6 +11,7 @@
     "test:server": "node scripts/run-server-tests.mjs",
     "test:mutations": "node scripts/reality-lab-mutation.mjs",
     "qa:voice": "node scripts/qa/voice-reality-lab.mjs",
+    "qa:voice:serve": "node scripts/qa/voice-fixture-server.mjs",
     "build:client": "npm --prefix client run build",
     "check:artifact": "node scripts/verify-production-artifact.mjs",
     "benchmark:merlin": "node scripts/benchmark-merlin.mjs",

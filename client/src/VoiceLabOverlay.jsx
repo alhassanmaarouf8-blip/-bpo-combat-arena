@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { currentVoiceLabFixture, setVoiceLabFixture, voiceLabEnabled } from './voiceLabFixture.js';
+import { currentVoiceLabFixture, loadVoiceLabFixtureUrl, setVoiceLabFixture, voiceLabEnabled } from './voiceLabFixture.js';
 
 export function VoiceLabOverlay() {
   const [fixture, setFixture] = useState(() => currentVoiceLabFixture());
   const [error, setError] = useState('');
+  const [fixtureUrl, setFixtureUrl] = useState('http://127.0.0.1:8787/voice-fixtures/learner.wav');
   if (!voiceLabEnabled()) return null;
   return <aside aria-label="Voice Reality Lab" style={{ position: 'fixed', right: 12, top: 12, zIndex: 2147483646,
     width: 300, padding: 12, borderRadius: 12, background: '#07101e', color: '#e2e8f0',
@@ -20,6 +21,16 @@ export function VoiceLabOverlay() {
         catch { setFixture(null); setError('Choose a valid RIFF/WAVE file under 4 MB.'); }
       }} />
     </label>
+    <label style={{ display: 'block', marginTop: 8 }}>
+      <span style={{ display: 'block', marginBottom: 4 }}>Local fixture URL</span>
+      <input aria-label="Local fixture URL" value={fixtureUrl} onChange={(event) => setFixtureUrl(event.target.value)}
+        style={{ width: '100%', minHeight: 44 }} />
+    </label>
+    <button type="button" onClick={async () => {
+      setError('');
+      try { setFixture(await loadVoiceLabFixtureUrl(fixtureUrl)); }
+      catch { setFixture(null); setError('Use a WAV from http://127.0.0.1:8787/voice-fixtures/.'); }
+    }} style={{ minHeight: 44, width: '100%', marginTop: 6 }}>Load local WAV</button>
     {fixture && <div role="status" style={{ color: '#86efac', overflowWrap: 'anywhere' }}>Armed: {fixture.name}</div>}
     {error && <div role="alert" style={{ color: '#fca5a5' }}>{error}</div>}
   </aside>;

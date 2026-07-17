@@ -21,6 +21,19 @@ export async function setVoiceLabFixture(file) {
   return { name: fixtureName, bytes: bytes.byteLength };
 }
 
+export async function loadVoiceLabFixtureUrl(value) {
+  if (!voiceLabEnabled()) throw new Error('voice_lab_disabled');
+  const url = new URL(String(value || ''), window.location.href);
+  if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.port !== '8787'
+    || !url.pathname.startsWith('/voice-fixtures/') || !/\.wav$/iu.test(url.pathname)) {
+    throw new Error('invalid_voice_fixture_url');
+  }
+  const response = await fetch(url.href, { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' });
+  if (!response.ok) throw new Error('voice_fixture_unavailable');
+  const blob = await response.blob();
+  return setVoiceLabFixture(new File([blob], url.pathname.split('/').pop() || 'fixture.wav', { type: 'audio/wav' }));
+}
+
 export function currentVoiceLabFixture() { return fixtureBytes ? { name: fixtureName, bytes: fixtureBytes.byteLength } : null; }
 
 export async function createVoiceLabStream() {

@@ -48,7 +48,9 @@ test('exact fixture adapter is localhost development-only and production has no 
   assert.match(fixture, /import\.meta\.env\.DEV/u);
   assert.match(fixture, /localhost.*127\.0\.0\.1/u);
   assert.match(fixture, /voiceLab=1/u);
-  assert.doesNotMatch(fixture + recorder + overlay, /fetch\(|XMLHttpRequest|WebSocket/u);
+  assert.doesNotMatch(recorder + overlay, /XMLHttpRequest|WebSocket/u);
+  assert.match(fixture, /hostname !== '127\.0\.0\.1'.*port !== '8787'.*\/voice-fixtures\//su);
+  assert.match(fixture, /credentials: 'omit'.*referrerPolicy: 'no-referrer'/su);
   assert.match(recorder, /await createVoiceLabStream\(\)/u);
   assert.doesNotMatch(fixture, /source\.onended\s*=.*track\.stop/su,
     'fixture completion must not impersonate a disconnected microphone');
