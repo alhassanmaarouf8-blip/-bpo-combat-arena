@@ -176,7 +176,7 @@ function gravityRank(item) {
 // Deterministic spoken grading. Targeted + lenient-positive.
 //  - grammar (has example.rightWord): correct if the corrected token/phrase is present.
 //  - phrase/vocab: correct if ≥70% of the answer's content words were produced.
-function gradeSpoken(item, transcript) {
+export function gradeSpoken(item, transcript) {
   const saidTokens = tokenize(transcript);
   if (!saidTokens.length) return { correct: false, expected: item.example?.right || item.answer };
   const saidPadded = ` ${saidTokens.join(' ')} `;
@@ -203,12 +203,24 @@ function gradeSpoken(item, transcript) {
   }
 
   // phrase / vocab / anything else: content-word overlap against the target German.
-  const want = tokenize(item.answer).filter((w) => w.length > 2);
+  const allWant = tokenize(item.answer);
+  const want = allWant.filter((w) => w.length > 2);
   const expected = item.answer;
   if (!want.length) return { correct: saidPadded.includes(` ${tokenize(item.answer).join(' ')} `), expected };
   const saidSet = new Set(saidTokens);
   const hit = want.filter((w) => saidSet.has(w)).length;
-  return { correct: hit / want.length >= 0.7, expected };
+  const coverage = hit / want.length;
+  // A correct fragment embedded in unrelated speech is not a correct production. This gate also
+  // blocks the real-world false pass where a long English recording happened to contain the target
+  // near its end. Keep a small allowance for Whisper splitting/duplicating short German tokens.
+  const maximumTokens = Math.max(allWant.length + 4, Math.ceil(allWant.length * 1.45));
+  if (saidTokens.length > maximumTokens) return { correct: false, expected, reason: 'contaminated_or_excess_speech' };
+  // Meaning reversals must never pass on lexical overlap ("tut mir NICHT leid").
+  const negationCount = (tokens) => tokens.filter((token) => token === 'nicht' || /^kein(?:e|en|em|er|es)?$/u.test(token)).length;
+  if (negationCount(allWant) !== negationCount(saidTokens)) {
+    return { correct: false, expected, reason: 'meaning_reversal' };
+  }
+  return { correct: coverage >= 0.8, expected };
 }
 
 async function transcribeGroq(buffer, mimeType) {

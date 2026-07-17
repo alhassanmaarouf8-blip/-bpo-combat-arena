@@ -18,6 +18,20 @@ export function flowRoundTruth(results = []) {
   };
   const final = rows[rows.length - 1];
   const finalMeaningful = meaningful(final);
+  const normalizedTranscript = (row) => String(row?.transcript || '').toLocaleLowerCase('de-DE')
+    .normalize('NFKC').replace(/[^a-z0-9äöüß\s]/giu, ' ').replace(/\s+/g, ' ').trim();
+  const transcriptTokens = rows.map((row) => normalizedTranscript(row).split(' ').filter(Boolean));
+  const nearDuplicate = (a, b) => {
+    if (a.length < 10 || b.length < 10) return false;
+    const left = new Set(a), right = new Set(b);
+    let shared = 0;
+    for (const token of left) if (right.has(token)) shared += 1;
+    const union = new Set([...left, ...right]).size;
+    return union > 0 && shared / union >= 0.9 && Math.abs(a.length - b.length) <= Math.max(3, Math.round(Math.max(a.length, b.length) * 0.1));
+  };
+  const duplicateRounds = rows.length === 3
+    && nearDuplicate(transcriptTokens[0], transcriptTokens[1])
+    && nearDuplicate(transcriptTokens[1], transcriptTokens[2]);
   return {
     roundsFinished: rows.length,
     allMeaningful: rows.length === 3 && rows.every(meaningful),
@@ -25,5 +39,7 @@ export function flowRoundTruth(results = []) {
     relevancyMeasured: finalMeaningful && typeof final?.metrics?.relevancy === 'number',
     grammarMeasured: finalMeaningful,
     fillerPraiseAllowed: rows.length === 3 && meaningful(rows[0]) && finalMeaningful,
+    duplicateRounds,
+    improvementMeasurable: rows.length === 3 && rows.every(meaningful) && !duplicateRounds,
   };
 }

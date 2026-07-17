@@ -31,6 +31,17 @@ test('flow recognizes three substantial rounds', () => {
   assert.equal(truth.fillerPraiseAllowed, true);
 });
 
+test('flow refuses to claim improvement from three near-identical transcripts', () => {
+  const base = 'zuerst höre ich dem kunden ruhig zu dann kläre ich das problem und biete eine konkrete lösung an';
+  const truth = flowRoundTruth([
+    { transcript: base, metrics: { words: 30, voicedMs: 12000, wpm: 210 } },
+    { transcript: `${base}.`, metrics: { words: 30, voicedMs: 11000, wpm: 230 } },
+    { transcript: base, metrics: { words: 30, voicedMs: 10000, wpm: 250 } },
+  ]);
+  assert.equal(truth.duplicateRounds, true);
+  assert.equal(truth.improvementMeasurable, false);
+});
+
 test('known exhausted allowance is checked before any interview audio or microphone work', () => {
   const source = fs.readFileSync(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
   const start = source.indexOf('const beginSession = useCallback');

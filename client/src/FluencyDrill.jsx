@@ -302,7 +302,11 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
     wpmLine = T(lang,
       'Runde 3 war zu kurz für eine belastbare Auswertung. Sprich mindestens 15 Wörter als vollständige Antwort und versuche es erneut.',
       'الجولة الثالثة كانت قصيرة جدًا للتقييم. اتكلم 15 كلمة على الأقل في إجابة كاملة وجرب تاني.');
-  } else if (r1.wpm > 0 && rL.wpm > r1.wpm) {
+  } else if (truth.duplicateRounds) {
+    wpmLine = T(lang,
+      'Die drei Antworten waren nahezu identisch. Daraus wird kein Tempo-Fortschritt behauptet — antworte frei neu, damit eine Veränderung messbar wird.',
+      'الإجابات الثلاثة كانت شبه متطابقة، لذلك لن ندّعي تحسنًا في السرعة. جاوب من جديد بشكل حر علشان التغيير يبقى قابل للقياس.');
+  } else if (truth.improvementMeasurable && r1.wpm > 0 && rL.wpm > r1.wpm) {
     const pct = Math.round(((rL.wpm - r1.wpm) / r1.wpm) * 100);
     wpmGood = true;
     wpmLine = T(lang,
