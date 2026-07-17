@@ -19,7 +19,7 @@ import { loadUser, saveUser } from './store.js';
 import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
-import { bossForLevel, levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER, RANKS } from './progression.js';
+import { levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER, RANKS } from './progression.js';
 import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
@@ -136,6 +136,33 @@ function stageForAnswers(n) {
   if (n < STAGE_AFTER[0]) return 0;
   if (n < STAGE_AFTER[1]) return 1;
   return 2;
+}
+
+const LANGUAGE_LEVEL_RANK = Object.freeze({ 'a2-b1': 0, b2: 1, c1: 2 });
+const BOSS_MIN_LANGUAGE_LEVEL = Object.freeze({
+  yasmin: 'a2-b1', karim: 'a2-b1', hana: 'b2', tarek: 'b2',
+  lukas: 'c1', 'frau-mona-adel': 'c1',
+});
+
+export function bossAllowedForLanguageLevel(bossId, levelId) {
+  const required = BOSS_MIN_LANGUAGE_LEVEL[bossId];
+  return required !== undefined
+    && LANGUAGE_LEVEL_RANK[levelId] !== undefined
+    && LANGUAGE_LEVEL_RANK[levelId] >= LANGUAGE_LEVEL_RANK[required];
+}
+
+export function autoBossForLanguageLevel(profileLevel, levelId) {
+  let chosen = BOSS_LADDER[0];
+  for (const boss of BOSS_LADDER) {
+    if (boss.minLevel <= profileLevel && bossAllowedForLanguageLevel(boss.id, levelId)) chosen = boss;
+  }
+  return chosen.id;
+}
+
+export function isLearnerHelpRequest(text) {
+  const value = String(text || '').trim().toLowerCase();
+  if (!value || value.split(/\s+/u).length > 30) return false;
+  return /(?:versteh(?:e|en)\s+(?:die\s+)?frage\s+nicht|nicht\s+verstanden|bitte\s+(?:noch\s+einmal|wiederholen|einfacher|langsamer)|was\s+(?:bedeutet|heißt)|satzanfang|i\s+(?:do\s+not|don't)\s+understand|مش\s+فاهم|ممكن\s+(?:تعيد|تبسط))/u.test(value);
 }
 
 export function pickRevancheMoment(current, candidate) {
@@ -544,7 +571,7 @@ export class WebSocketManager {
     let retestProbe = null;
     try {
       prof = await loadUser(ctx.userId);
-      bossId  = bossForLevel(prof.level).id;
+      bossId  = autoBossForLanguageLevel(prof.level, level);
       if (salmaCoachFlags(process.env, account).enabled) {
         improvementRetest = salmaRetestTarget(prof.salmaCoach, prof);
       }
@@ -594,7 +621,8 @@ export class WebSocketManager {
 
     // Boss-picker: let the client choose a specific interviewer so all 5 voices/personas
     // can be tested directly (otherwise the boss is gated by level). Validated against the ladder.
-    if (!improvementRetest && msg.bossId && BOSS_LADDER.some(b => b.id === msg.bossId)) {
+    if (!improvementRetest && msg.bossId && BOSS_LADDER.some(b => b.id === msg.bossId)
+      && bossAllowedForLanguageLevel(msg.bossId, level)) {
       bossId = msg.bossId;
       console.log(`[wsManager] boss-picker override → ${bossId}  session=${ctx.sessionId}`);
     }
@@ -2130,6 +2158,14 @@ export class WebSocketManager {
       wordCount,
       words,   // Deepgram word-level confidence — [{word, confidence}] — for client heat-map
     });
+
+    // A request to repeat, simplify or explain is useful interaction, but it is
+    // not an interview answer. Keep it visible and let the interviewer help;
+    // never score it, advance a stage, or persist it as language evidence.
+    if (isLearnerHelpRequest(transcript)) {
+      ctx.realtimeClient?.requestRescue?.('help_request');
+      return;
+    }
 
     if (!isTrustedSpokenEvidence(spokenEvidence)) ctx._untrustedEvidenceTurns += 1;
 
