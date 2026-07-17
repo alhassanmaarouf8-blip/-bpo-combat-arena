@@ -42,3 +42,11 @@ test('known exhausted allowance is checked before any interview audio or microph
   assert.ok(gate < body.indexOf('unlockAudioPlayback()'));
   assert.ok(gate < body.indexOf('start();'));
 });
+
+test('thin final Flow evidence suppresses every secondary performance claim', () => {
+  const source = fs.readFileSync(new URL('../client/src/FluencyDrill.jsx', import.meta.url), 'utf8');
+  assert.match(source, /if \(!truth\.finalMeaningful\) \{\s*fillerLine = null;/u);
+  assert.match(source, /if \(truth\.finalMeaningful && \(r1\.voicedMs/u);
+  assert.match(source, /if \(truth\.finalMeaningful && r1\.subClauseRate/u);
+  assert.match(source, /if \(truth\.relevancyMeasured\)/u);
+});

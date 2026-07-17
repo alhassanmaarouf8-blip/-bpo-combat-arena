@@ -319,7 +319,9 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
 
   // Filler verdict — honest, secondary, never overclaimed.
   let fillerLine = null;
-  if (r1.fillers > 0 && rL.fillers < r1.fillers) {
+  if (!truth.finalMeaningful) {
+    fillerLine = null;
+  } else if (r1.fillers > 0 && rL.fillers < r1.fillers) {
     fillerLine = T(lang, `Weniger Zögern: ${r1.fillers} → ${rL.fillers} erkannte Fülllaute (äh/ähm).`,
                          `تردد أقل: ${r1.fillers} ← ${rL.fillers} من أصوات التردد (äh/ähm).`);
   } else if (truth.fillerPraiseAllowed && r1.fillers === 0 && rL.fillers === 0) {
@@ -337,7 +339,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
   // of saying "äh" looks IDENTICAL to a fluent speaker under wpm+fillers alone — this catches it.
   // Gated on the SAME ≥800ms voiced-detection reliability threshold the server's own wpm calc uses.
   let pauseLine = null;
-  if ((r1.voicedMs || 0) >= 800 && (rL.voicedMs || 0) >= 800 && r1.durationMs > 0 && rL.durationMs > 0) {
+  if (truth.finalMeaningful && (r1.voicedMs || 0) >= 800 && (rL.voicedMs || 0) >= 800 && r1.durationMs > 0 && rL.durationMs > 0) {
     const pct1 = Math.round((r1.voicedMs / r1.durationMs) * 100);
     const pctL = Math.round((rL.voicedMs / rL.durationMs) * 100);
     if (pctL > pct1 + 5) {
@@ -364,7 +366,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
   // signal hireReadiness.js uses, reused here (no LLM, no new judgment). A rushed answer often
   // flattens into short disconnected fragments instead of a connected story.
   let complexityLine = null;
-  if (r1.subClauseRate != null && rL.subClauseRate != null) {
+  if (truth.finalMeaningful && r1.subClauseRate != null && rL.subClauseRate != null) {
     const c1 = Math.round(r1.subClauseRate * 100), cL = Math.round(rL.subClauseRate * 100);
     if (cL > c1 + 10) {
       complexityLine = `Deine Sätze wurden komplexer: mehr verbundene Nebensätze (weil/dass/wenn) unter Zeitdruck (${c1}% → ${cL}%).`;
@@ -378,7 +380,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
   // coverage; warn GENTLY only when a substantial answer touched almost none of the question's
   // key words; stay SILENT when null (too thin to judge). Never a hard "off-topic" verdict.
   let relevancyLine = null, relevancyWarn = false;
-  if (typeof rL.relevancy === 'number') {
+  if (truth.relevancyMeasured) {
     const pct = Math.round(rL.relevancy * 100);
     if (rL.relevancy >= 0.3) {
       relevancyLine = `Beim Thema geblieben: Du bist auf die Kernbegriffe der Frage eingegangen (${pct}% abgedeckt).`;
