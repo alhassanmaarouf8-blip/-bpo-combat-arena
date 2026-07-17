@@ -29,6 +29,12 @@ test('voice lab is an acoustic black-box harness, never a production injection r
   assert.doesNotMatch(source, /Authorization|Bearer|localStorage|sessionStorage/u);
 });
 
+test('noisy fixture uses a connected complex filter graph', async () => {
+  const source = await readFile(new URL('../scripts/qa/voice-reality-lab.mjs', import.meta.url), 'utf8');
+  assert.match(source, /selected\.key === 'noisy' \? '-filter_complex' : '-af'/u);
+  assert.match(source, /\[0:a\]anull\[voice\].*\[voice\]\[noise\]amix/su);
+});
+
 test('exact fixture adapter is localhost development-only and production has no injection route', async () => {
   const [fixture, recorder, overlay, shadowing, tutor, brain, flow] = await Promise.all([
     readFile(new URL('../client/src/voiceLabFixture.js', import.meta.url), 'utf8'),

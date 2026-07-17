@@ -26,7 +26,7 @@ const PROFILES = Object.freeze({
   rushed: { rate: '+35%', pitch: '+8Hz', filter: 'loudnorm=I=-20:LRA=7:TP=-2' },
   quiet: { rate: '+0%', pitch: '+0Hz', filter: 'volume=0.12' },
   noisy: { rate: '+0%', pitch: '+0Hz',
-    filter: 'asplit=2[voice][v];anoisesrc=color=pink:amplitude=0.025[noise];[v][noise]amix=inputs=2:duration=first:weights=1 0.35,loudnorm=I=-20:LRA=7:TP=-2' },
+    filter: '[0:a]anull[voice];anoisesrc=color=pink:amplitude=0.025[noise];[voice][noise]amix=inputs=2:duration=first:weights=1 0.35,loudnorm=I=-20:LRA=7:TP=-2' },
   clipped: { rate: '+0%', pitch: '+0Hz', filter: 'volume=8,alimiter=limit=0.22:attack=1:release=8,volume=4' },
 });
 
@@ -68,7 +68,8 @@ export async function generateVoiceFixture({ text, profile = 'clean', voice = 'd
 
   await exec(edgeTts, ['--voice', String(voice), `--rate=${selected.rate}`, `--pitch=${selected.pitch}`,
     '--text', safeText, '--write-media', mp3], { windowsHide: true, timeout: 60_000 });
-  await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-i', mp3, '-af', selected.filter,
+  const filterFlag = selected.key === 'noisy' ? '-filter_complex' : '-af';
+  await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-i', mp3, filterFlag, selected.filter,
     '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', wav], { windowsHide: true, timeout: 60_000 });
   const record = { version: 1, id, text: safeText, profile: selected.key, voice: String(voice),
     rate: selected.rate, pitch: selected.pitch, sampleRate: 24000, channels: 1,
