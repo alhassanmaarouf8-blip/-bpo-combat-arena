@@ -40,3 +40,27 @@ test('confidence copy cannot call an unmeasured gate repeatedly measured', async
   assert.match(source, /d\.confidence === 'high' && d\.state === 'POST_FIGHT' \? 'WIEDERHOLT GEMESSEN'/u);
   assert.match(source, /d\.confidence === 'low' \? 'ERSTE MESSUNG' : 'SERVER-GESTEUERT'/u);
 });
+
+test('career journey reflects verified evidence without becoming another planner', async () => {
+  const source = await read('client/src/BrainGuide.jsx');
+  assert.match(source, /const JOURNEY_PHASES = Object\.freeze/u);
+  assert.match(source, /function activeJourneyPhase\(directive\)/u);
+  assert.match(source, /action === 'drill' \|\| action === 'wait'/u);
+  assert.match(source, /\['READY', 'RETEST_READY'\]\.includes\(directive\?\.state\)/u);
+  assert.match(source, /j\.entryDone \?\? 0/u,
+    'visible progress must remain sourced from the server journey');
+  assert.match(source, /transfer-verifizierte F.higkeiten/u);
+  assert.match(source, /Fortschritt z.hlt nur nach einem verz.gerten Transfer-Retest/u);
+  assert.match(source, /keine Einstellungsprognose/u);
+  assert.match(source, /aria-current=\{current \? 'step' : undefined\}/u);
+  assert.equal((source.match(/className="brain-guide__cta"/gu) || []).length, 1,
+    'the presentation layer must not add a competing primary action');
+});
+
+test('career journey remains readable from narrow phones through desktop', async () => {
+  const css = await read('client/src/BrainGuide.css');
+  assert.match(css, /\.brain-guide__phases\s*\{[^}]*grid-template-columns:\s*repeat\(4,/su);
+  assert.match(css, /@media \(max-width:\s*680px\)[\s\S]*?\.brain-guide__phases\s*\{[^}]*repeat\(2,/u);
+  assert.match(css, /@media \(max-width:\s*390px\)[\s\S]*?\.brain-guide__phases\s*\{[^}]*grid-template-columns:\s*1fr/u);
+  assert.match(css, /\.brain-guide__phase\.is-current/u);
+});

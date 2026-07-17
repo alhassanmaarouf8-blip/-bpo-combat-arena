@@ -204,11 +204,38 @@
 .brain-guide__why p { max-width: 730px; margin: 2px 0 7px; line-height: 1.6; }
 .brain-guide__caveat { color: #7187a3; font-size: 10.5px; letter-spacing: 0.025em; }
 
-.brain-guide__journey { margin: 16px 2px 4px; }
+.brain-guide__journey {
+  margin: 16px 2px 4px;
+  padding: 14px;
+  border: 1px solid rgba(126, 174, 231, 0.16);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(10, 28, 50, 0.74), rgba(8, 18, 34, 0.58));
+}
 .brain-guide__journey-copy { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 7px; color: #8096b1; font-size: 9.5px; font-weight: 780; letter-spacing: 0.09em; }
 .brain-guide__journey-copy strong { color: #b7c8da; font-weight: 700; letter-spacing: 0; }
-.brain-guide__track { height: 7px; overflow: hidden; border-radius: 99px; background: rgba(255, 255, 255, 0.07); }
+.brain-guide__phases { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
+.brain-guide__phase {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(126, 174, 231, 0.1);
+  border-radius: 11px;
+  color: #738aa5;
+  background: rgba(4, 12, 24, 0.38);
+}
+.brain-guide__phase.is-current { border-color: rgba(79, 157, 255, 0.58); color: #e8f3ff; background: rgba(30, 92, 171, 0.18); box-shadow: inset 0 0 18px rgba(79, 157, 255, 0.07); }
+.brain-guide__phase-index { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 25px; border-radius: 50%; background: rgba(110, 144, 184, 0.13); color: #9fb5cd; font-size: 11px; font-weight: 850; }
+.brain-guide__phase.is-current .brain-guide__phase-index { background: var(--guide-blue); color: #06111f; box-shadow: 0 0 16px rgba(79, 157, 255, 0.32); }
+.brain-guide__phase > span:last-child { min-width: 0; }
+.brain-guide__phase strong, .brain-guide__phase small { display: block; }
+.brain-guide__phase strong { font-size: 11px; letter-spacing: 0.02em; }
+.brain-guide__phase small { margin-top: 2px; font-size: 9px; line-height: 1.25; color: #7187a2; }
+.brain-guide__phase.is-current small { color: #9fb8d3; }
+.brain-guide__track { height: 5px; overflow: hidden; border-radius: 99px; background: rgba(255, 255, 255, 0.07); }
 .brain-guide__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--guide-blue-deep), var(--guide-blue), var(--guide-orange)); box-shadow: 0 0 16px rgba(79, 157, 255, 0.45); transition: width 440ms cubic-bezier(.2,.8,.2,1); }
+.brain-guide__journey-caveat { margin: 8px 0 0; color: #637992; font-size: 9.5px; line-height: 1.45; }
 .brain-guide__proof { margin-bottom: 13px; padding: 11px; border: 1px solid rgba(79, 157, 255, 0.3); border-radius: 12px; background: rgba(59, 130, 246, 0.09); }
 
 @keyframes brain-guide-pulse {
@@ -225,6 +252,11 @@
   .brain-guide__specs { grid-template-columns: 1fr; }
   .brain-guide__spec { padding: 11px 12px; }
   .brain-guide__journey-copy { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .brain-guide__phases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 390px) {
+  .brain-guide__phases { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -95,6 +95,21 @@ const MISSION_LABEL = Object.freeze({
   response: 'Arbeitgeber-Antwort einordnen', interview: 'Interview vorbereiten',
 });
 
+const JOURNEY_PHASES = Object.freeze([
+  { id: 'measure', label: 'Messen', note: 'Sprachleistung beobachten' },
+  { id: 'train', label: 'Trainieren', note: 'Einen Engpass reparieren' },
+  { id: 'prove', label: 'Beweisen', note: 'Mit neuem Material retesten' },
+  { id: 'apply', label: 'Bewerben', note: 'Reale Chancen verfolgen' },
+]);
+
+function activeJourneyPhase(directive) {
+  const action = directive?.prescription?.action;
+  if (action === 'apply' || action === 'mission' || action === 'vacancy') return 'apply';
+  if (action === 'drill' || action === 'wait') return 'train';
+  if (action === 'interview' && ['READY', 'RETEST_READY'].includes(directive?.state)) return 'prove';
+  return 'measure';
+}
+
 function cairoTime(value) {
   const at = Number(value);
   if (!Number.isFinite(at)) return null;
@@ -341,6 +356,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   const ahaMetric = d.aha && Object.hasOwn(AHA_METRIC, d.aha.metricKey) ? AHA_METRIC[d.aha.metricKey] : null;
   const ahaSkill = d.aha ? (SKILL_LABEL[d.aha.skillId] || ruleLabel(d.aha.skillId)) : null;
   const brief = missionBrief(d, coachView);
+  const journeyPhase = activeJourneyPhase(d);
 
   const ctaText =
       d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}`
@@ -443,12 +459,27 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
       </div>
 
       {(j.entryTotal ?? 0) > 0 && (
-        <div className="brain-guide__journey">
+        <div className="brain-guide__journey" aria-label="Dein Weg zur internen Bewerbungsbereitschaft">
           <div className="brain-guide__journey-copy">
-            <span>SIMULATIONS-FORTSCHRITT</span>
-            <strong>{j.entryDone ?? 0}/{j.entryTotal}{j.stepsToApply > 0 ? ` · ${BRAIN_COPY.stepsLeft(j.stepsToApply)}` : ''}</strong>
+            <span>DEIN WEG ZUR BEWERBUNGSBEREITSCHAFT</span>
+            <strong>{j.entryDone ?? 0}/{j.entryTotal} transfer-verifizierte Fähigkeiten</strong>
           </div>
-          <div className="brain-guide__track"><div className="brain-guide__fill" style={{ width: `${pct}%` }} /></div>
+          <div className="brain-guide__phases">
+            {JOURNEY_PHASES.map((phase, index) => {
+              const current = phase.id === journeyPhase;
+              return (
+                <div key={phase.id} className={`brain-guide__phase${current ? ' is-current' : ''}`}
+                  aria-current={current ? 'step' : undefined}>
+                  <span className="brain-guide__phase-index" aria-hidden="true">{index + 1}</span>
+                  <span><strong>{phase.label}</strong><small>{phase.note}</small></span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="brain-guide__track" aria-hidden="true"><div className="brain-guide__fill" style={{ width: `${pct}%` }} /></div>
+          <p className="brain-guide__journey-caveat">
+            Fortschritt zählt nur nach einem verzögerten Transfer-Retest · keine Einstellungsprognose
+          </p>
         </div>
       )}
 
