@@ -14,6 +14,7 @@
  * shown as a secondary signal and never overclaimed.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { actionBtn, ghostBtn, ghostBtnWide } from './ui/primitives.js';
 import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
@@ -143,7 +144,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   // ── shells (match the Shadowing/Assessment screens) ──
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
       color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
@@ -151,7 +152,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
   const header = (
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--action)' }}>
         FLOW-DRILL · سرعة الكلام
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
@@ -182,7 +183,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
       <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
     </div>
   </>);
 
@@ -231,7 +232,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     )}
     {err && <ErrBox err={err} />}
     <div style={{ marginTop: 16, textAlign: 'center' }}>
-      <button onClick={startRec} style={{ ...primaryBtn, fontSize: 14 }}>
+      <button onClick={startRec} style={{ ...actionBtn, fontSize: 14 }}>
         ● {T(lang, `Runde ${round + 1} aufnehmen`, `سجّل الجولة ${round + 1}`)}
       </button>
       <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
@@ -250,11 +251,11 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     {header}
     {promptCard}
     <div style={{ marginTop: 18, textAlign: 'center' }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: remaining <= 10 ? '#ef4444' : 'var(--action)', fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 34, color: remaining <= 10 ? 'var(--action)' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
         00:{String(remaining).padStart(2, '0')}
       </div>
       <div style={{ fontSize: 10, color: '#64748b', marginBottom: 14 }}>{T(lang, 'verbleibend', 'الوقت المتبقي')}</div>
-      <button onClick={stopRec} style={{ ...primaryBtn, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}>
+      <button onClick={stopRec} style={{ ...actionBtn,  }}>
         ⏹ {T(lang, 'Fertig', 'خلصت')}
       </button>
     </div>
@@ -277,7 +278,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
         <StatRow lang={lang} m={m} />
       </div>
       {err && <ErrBox err={err} />}
-      <button onClick={nextRound} style={{ ...primaryBtn, marginTop: 16 }}>
+      <button onClick={nextRound} style={{ ...actionBtn, marginTop: 16 }}>
         {T(lang, `Runde ${round + 2} — schneller ▸`, `الجولة ${round + 2} — أسرع ▸`)}
       </button>
       <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, textAlign: 'center', lineHeight: 1.5 }}>
@@ -495,7 +496,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
           'إزاي اتقاس: الكلمات/دقيقة من وقت كلامك الفعلي (السكوت بيتشال) — مش من مدة التسجيل. أصوات التردد بتتعرف من النص وممكن تكون أقل من الحقيقة. النحو من LanguageTool — مفيش حاجة بتتألّف.')}
       </div>
 
-      <button onClick={onAgain} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Neue Frage ▸', 'سؤال جديد ▸')}</button>
+      <button onClick={onAgain} style={{ ...actionBtn, marginTop: 16 }}>{T(lang, 'Neue Frage ▸', 'سؤال جديد ▸')}</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </>
   );
@@ -719,7 +720,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
 
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--action)' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--action)' }}>
         BLITZ-FORMELN
       </span>
       <span style={{ display: 'flex', gap: 8 }}>
@@ -733,7 +734,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < results.length ? (results[i]?.hit ? 'var(--good)' : '#ef4444')
+          background: i < results.length ? (results[i]?.hit ? 'var(--good)' : 'var(--bad)')
                     : i === idx ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
@@ -746,7 +747,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
       <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}{err?.ar ? <><br /><span dir="rtl">{err.ar}</span></> : null}</div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
     </div>
   </>);
 
@@ -772,7 +773,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
           So wird aus Wissen ein Reflex — genau das, was am Telefon zählt.
         </div>
       </div>
-      <button onClick={load} style={{ ...primaryBtn, marginTop: 16 }}>Neue Runde ▸</button>
+      <button onClick={load} style={{ ...actionBtn, marginTop: 16 }}>Neue Runde ▸</button>
       <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10, width: '100%' }}>{T(lang, 'Fertig', 'تمام')}</button>
     </>);
   }
@@ -795,7 +796,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     </div>
     {err && <ErrBox err={err} />}
     <div style={{ marginTop: 16, textAlign: 'center' }}>
-      <button onClick={startFire} style={{ ...primaryBtn, fontSize: 14 }}>● Bereit — Situation zeigen</button>
+      <button onClick={startFire} style={{ ...actionBtn, fontSize: 14 }}>● Bereit — Situation zeigen</button>
       <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
         Nach dem Vorsprechen geht es automatisch los.
       </div>
@@ -810,7 +811,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
       <div style={{ fontSize: 17, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{item.cue}</div>
     </div>
     <div style={{ marginTop: 20, textAlign: 'center' }}>
-      <div style={{ fontSize: 26, color: '#ef4444', animation: 'pulse 1.2s infinite' }}>●</div>
+      <div style={{ fontSize: 26, color: 'var(--action)', animation: 'pulse 1.2s infinite' }}>●</div>
       <div style={{ fontSize: 10, color: '#64748b', marginTop: 6 }}>Aufnahme läuft — stoppt von selbst, wenn du fertig bist.</div>
       <button onClick={stopFire} style={{ ...ghostBtnWide, width: 'auto', padding: '10px 22px', marginTop: 12 }}>⏹ Fertig</button>
     </div>
@@ -849,7 +850,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
           </div>
         )}
       </div>
-      <button onClick={advance} style={{ ...primaryBtn, marginTop: 16 }}>
+      <button onClick={advance} style={{ ...actionBtn, marginTop: 16 }}>
         {idx + 1 >= items.length ? 'Ergebnis ▸' : 'Weiter ▸'}
       </button>
     </>);
@@ -859,10 +860,3 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
 }
 
 // ── shared button styles (match Shadowing) ──
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--action)', color: '#04070d',
-  background: 'linear-gradient(135deg,var(--action),var(--action))' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
-  border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
-  borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
