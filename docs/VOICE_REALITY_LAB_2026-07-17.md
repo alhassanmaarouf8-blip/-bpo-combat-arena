@@ -37,3 +37,11 @@ localhost exact-stream adapter or consented human recordings before they can val
 - Voice harness contract tests: 3/3 green.
 - Production build removes/unexposes the localhost-only control.
 - Full suite and production artifact gate are required before the branch can ship.
+
+## Verified finding closure
+
+- **Shadowing score compatibility:** the client accepts either the current `match` field or the legacy `accuracy` field, so a valid score no longer renders as a blank percentage.
+- **Fixture lifecycle:** finishing a WAV fixture no longer impersonates a disconnected microphone. The recorder remains the owner of stream shutdown and can submit the completed take.
+- **Flow auditability:** the result now exposes server-detected speech time. The observed 54-word run used 18.837 seconds of detected speech, so `54 / 18.837 * 60 = 172 WPM`; the displayed value is reproducible and is not based on the 31.368-second WAV wall time.
+- **Salma question auditability:** the exact recognized or typed question is shown above Salma's answer, making transcription and answer relevance independently inspectable.
+- **Truthful scope:** transcript-based evidence is labelled phone intelligibility, not phoneme-level pronunciation. Accent and phoneme accuracy remain a gold-audio validation task, not a claim manufactured from text.

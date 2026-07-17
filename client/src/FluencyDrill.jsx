@@ -499,6 +499,7 @@ function MatrixCell({ label, value, unit, good, warn }) {
 }
 
 function RoundCard({ lang, label, m, dim }) {
+  const speechSeconds = Number.isFinite(Number(m.voicedMs)) ? Math.round(Number(m.voicedMs) / 1000) : null;
   return (
     <div style={{ flex: 1, padding: '12px 10px', borderRadius: 11, textAlign: 'center',
       background: dim ? 'rgba(255,255,255,0.03)' : 'rgba(249,115,22,0.1)',
@@ -507,6 +508,8 @@ function RoundCard({ lang, label, m, dim }) {
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: dim ? '#cbd5e1' : 'var(--action)', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{m.wpm ?? 0}</div>
       <div style={{ fontSize: 8.5, color: '#64748b' }}>{T(lang, 'W/Min', 'كلمة/د')}</div>
       <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>{m.words ?? 0} {T(lang, 'Wörter', 'كلمة')} · {m.fillers ?? 0} {T(lang, 'äh', 'تردد')}</div>
+      {speechSeconds != null && <div style={{ fontSize: 9, color: '#64748b', marginTop: 3 }}>
+        {T(lang, `${speechSeconds} Sek. erkannte Sprechzeit`, `${speechSeconds} ثانية كلام متعرّف عليه`)}</div>}
     </div>
   );
 }
@@ -519,11 +522,14 @@ function StatRow({ lang, m }) {
     </div>
   );
   return (
-    <div style={{ display: 'flex', gap: 6 }}>
+    <><div style={{ display: 'flex', gap: 6 }}>
       {cell(m.wpm ?? 0, T(lang, 'W/Min', 'كلمة/د'))}
       {cell(m.words ?? 0, T(lang, 'Wörter', 'كلمة'))}
       {cell(m.fillers ?? 0, T(lang, 'Fülllaute', 'تردد'))}
-    </div>
+    </div>{Number.isFinite(Number(m.voicedMs)) && <div style={{ marginTop: 7, textAlign: 'center', fontSize: 9.5, color: '#64748b' }}>
+      {T(lang, `Tempo aus ${Math.round(Number(m.voicedMs) / 1000)} Sek. erkannter Sprechzeit berechnet.`,
+        `السرعة محسوبة من ${Math.round(Number(m.voicedMs) / 1000)} ثانية كلام متعرّف عليه.`)}
+    </div>}</>
   );
 }
 

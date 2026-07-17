@@ -35,11 +35,10 @@ export async function createVoiceLabStream() {
   source.buffer = audio;
   source.connect(destination);
   source.connect(monitor); monitor.connect(context.destination); // audible proof for the operator
-  source.onended = () => {
-    destination.stream.getTracks().forEach((track) => track.stop());
-    context.close().catch(() => {});
-  };
+  // Keep the destination track alive after the fixture ends. The real recorder owns stop timing;
+  // ending the track here looked like a microphone unplug and discarded an otherwise valid take.
+  // AudioRecorder.stop() stops the track, which then closes this private context.
+  destination.stream.getAudioTracks()[0]?.addEventListener('ended', () => context.close().catch(() => {}));
   source.start();
   return destination.stream;
 }
-

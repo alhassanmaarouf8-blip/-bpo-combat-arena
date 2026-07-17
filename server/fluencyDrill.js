@@ -174,7 +174,7 @@ const fixedPool = () => PROMPTS.map((p, i) => ({ ...p, id: i }));
 // mislabel correct speech as a filler — being wrong here would break the user's trust.
 const FILLER_SET = new Set(['äh', 'ähm', 'ähh', 'ähhm', 'ähem', 'ehm', 'öh', 'öhm', 'hm', 'hmm', 'mhm', 'mh']);
 
-function measure(transcript, durationMs, voicedMs) {
+export function measureFluency(transcript, durationMs, voicedMs) {
   const tokens = String(transcript || '').toLowerCase().normalize('NFC')
     .replace(/[^a-zäöüß0-9\s]/gi, ' ').split(/\s+/).filter(Boolean);
   const words = tokens.length;
@@ -475,7 +475,7 @@ fluencyRouter.post('/fluency/score',
       const transcript = (await transcribeGroq(audio, req.headers['content-type'] || 'audio/wav')).trim();
       if (!transcript) return res.json({ transcript: '', retry: true, noSpeech: true });
 
-      const metrics = measure(transcript, durationMs, voicedMs);
+      const metrics = measureFluency(transcript, durationMs, voicedMs);
       // Structural complexity (owner: "is WPM alone enough?") — reuses the SAME deterministic,
       // already-vetted extractor hireReadiness.js uses (no LLM, no new judgment call). null on
       // <20 words (its own honest gate) so a short answer never gets a fabricated verdict.

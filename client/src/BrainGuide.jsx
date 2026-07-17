@@ -51,7 +51,7 @@ const SKILL_LABEL = {
   'handle-clear-request': 'Klare Kundenanfragen', 'listen-phone': 'Hören am Telefon',
   'no-freeze-expected': 'Nicht einfrieren', 'deescalate': 'Deeskalation', 'gdpr-verify': 'Daten-Verifizierung',
   'complaint-phrases': 'Beschwerde-Formeln', 'fluency-interrupt': 'Flüssig trotz Unterbrechung',
-  'pronunciation-phone': 'Aussprache am Telefon', 'angry-c1': 'Wütende Kunden (C1)',
+  'pronunciation-phone': 'Verständlichkeit am Telefon', 'angry-c1': 'Wütende Kunden (C1)',
   'spontaneous-precise': 'Spontan & präzise', 'behavioral-salary': 'Verhaltensfragen & Gehalt',
   'konjunktiv-2': 'Konjunktiv II',
 };

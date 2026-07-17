@@ -99,6 +99,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const generatedQuestionId = useId();
   const [coach, setCoach] = useState(null);
   const [question, setQuestion] = useState('');
+  const [lastQuestion, setLastQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [cue, setCue] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -218,6 +219,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const ask = useCallback(async (text, speakReply = false) => {
     const clean = String(text || '').trim().slice(0, 400);
     if (!clean) return;
+    setLastQuestion(clean);
     setBusy(true); setError('');
     try {
       const response = await fetch(`${apiUrl}/api/salma/question`, { method: 'POST',
@@ -442,6 +444,9 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         <div style={{ paddingTop: 4 }}>
           {answer && <div role="status" style={{ marginBottom: 10, padding: 10, borderRadius: 10, color: '#dbeafe',
             background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.2)', fontSize: 13, lineHeight: 1.55 }}>
+            {lastQuestion && <div style={{ marginBottom: 6, color: '#94a3b8', fontSize: 11.5 }}>
+              <strong>Verstanden:</strong> „{lastQuestion}“
+            </div>}
             {answer}
           </div>}
           <form onSubmit={(event) => { event.preventDefault(); ask(question); }}>
