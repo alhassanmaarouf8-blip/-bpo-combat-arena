@@ -6836,7 +6836,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             Corrections are LanguageTool-verified from the user's OWN sentences — the server stores
             none when there were none, so this card can never show invented noise. Quiet blue surface:
             the start button above keeps the screen's single orange. */}
-        {canStart && lastDebrief && (
+        {homeView === 'today' && canStart && lastDebrief && (
           <div style={{ marginTop:14, padding:'14px 16px', borderRadius:'var(--r-md)',
             background:'var(--surface)', border:'1px solid var(--accent)', textAlign:'left' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:700,

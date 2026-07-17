@@ -34,6 +34,7 @@ test('Today and Practice are true exclusive workspaces, not competing page secti
   assert.match(app, /const \[homeView, setHomeView\] = useState\('today'\)/);
   assert.match(app, /hidden=\{homeView !== 'today'\}/);
   assert.match(app, /homeView === 'practice' && canStart && !firstRun/);
+  assert.match(app, /homeView === 'today' && canStart && lastDebrief/);
   assert.match(app, /aria-current=\{homeView === 'today' \? 'page'/);
   assert.match(app, /aria-current=\{homeView === 'practice' \? 'page'/);
 });
