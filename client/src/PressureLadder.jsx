@@ -12,6 +12,7 @@ import { SalmaTutorPanel, useSalmaDrillSession } from './SalmaTutorPanel.jsx';
 import { reportDrillEvent } from './salmaCoachClient.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { playNative } from './nativeVoice.js';
+import { actionBtn, ghostBtn, ghostBtnWide, drillShellBg } from './ui/primitives.js';
 
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
@@ -334,17 +335,16 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   };
 
   const shell = (children) => (
-    <div role="dialog" aria-modal="true" aria-labelledby="pressure-ladder-title" lang={lang === 'ar' ? 'ar-EG' : 'de'} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #1a0a0a 0%, #0a0506 55%, #020101 100%)',
-      color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
-      <style>{`.pressure-ladder button:focus-visible{outline:3px solid #fecaca;outline-offset:3px}@media(prefers-reduced-motion:reduce){.pressure-ladder *{animation:none!important;transition:none!important}}`}</style>
+    <div role="dialog" aria-modal="true" aria-labelledby="pressure-ladder-title" lang={lang === 'ar' ? 'ar-EG' : 'de'}
+      style={{ ...drillShellBg, animation: 'flash-in 0.3s ease' }}>
+      <style>{`.pressure-ladder button:focus-visible{outline:3px solid var(--accent-2);outline-offset:3px}@media(prefers-reduced-motion:reduce){.pressure-ladder *{animation:none!important;transition:none!important}}`}</style>
       <div className="pressure-ladder" style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
   const header = (
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <h1 id="pressure-ladder-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#ef4444' }}>
+      <h1 id="pressure-ladder-title" style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--text)' }}>
         DRUCK-LEITER · سُلّم الضغط
       </h1>
       <button onClick={() => { cleanup(); onClose?.(); }} aria-label={T(lang, 'Training pausieren und schließen', 'إيقاف التدريب وإغلاق')} style={ghostBtn}>{T(lang, 'PAUSE', 'إيقاف')}</button>
@@ -362,7 +362,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {activeLevels.map((lv, i) => (
         <div key={i} style={{ flex: 1, height: 5, borderRadius: 99,
-          background: i < survived ? 'var(--accent)' : (i === idx) ? '#ef4444' : 'rgba(255,255,255,0.08)' }} />
+          background: i < survived ? 'var(--accent)' : (i === idx) ? 'var(--accent-2)' : 'rgba(255,255,255,0.08)' }} />
       ))}
     </div>
   );
@@ -371,7 +371,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   // bounded; Hard remains available, but only after the learner knowingly opts into it.
   if (phase === 'intro' && !intensity) return shell(<>
     {header}
-    <section aria-labelledby="pressure-consent-title" style={{ padding:'16px', borderRadius:12, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)' }}>
+    <section aria-labelledby="pressure-consent-title" style={{ padding:'16px', borderRadius:12, background:'var(--surface)', border:'1px solid var(--line-strong)' }}>
       <h2 id="pressure-consent-title" style={{ margin:0, fontSize:16, color:'#f8fafc' }}>Interne Druck-Simulation</h2>
       <p style={{ margin:'8px 0 0', color:'#cbd5e1', fontSize:12.5, lineHeight:1.65 }}>
         Du wählst die Intensität. Das ist Training, keine Bewertung deiner Eignung. Du kannst jederzeit pausieren und schließen.
@@ -395,7 +395,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
 
   if (phase === 'intro') return shell(<>
     {header}
-    <div style={{ padding: '16px', borderRadius: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
+    <div style={{ padding: '16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)' }}>
       <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginBottom: 8 }}>{T(lang, 'Interne Hochdruck-Simulation.', 'محاكاة ضغط داخلية متدرجة.')}</div>
       <div style={{ fontSize: 12.5, color: '#cbd5e1', lineHeight: 1.7 }}>
         {T(lang,
@@ -403,28 +403,28 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
           '٥ مستويات: السرعة والضغط بيزيدوا مع وقت أقل للرد. هدفك تكمل كلامك بشكل مرتب. التحسن لازم يتأكد في اختبار جديد.')}
       </div>
     </div>
-    <button onClick={() => setPhase('ready')} style={{ ...primaryBtn, marginTop: 16 }}>{T(lang, 'Leiter besteigen ▸', 'اطلع السلّم ▸')}</button>
+    <button onClick={() => setPhase('ready')} style={{ ...actionBtn, marginTop: 16 }}>{T(lang, 'Leiter besteigen ▸', 'اطلع السلّم ▸')}</button>
   </>);
 
   if (phase === 'ready' && intensity === 'standard') return shell(<>
     {header}{ladder}
     <section aria-labelledby="pressure-ready-title" style={{ textAlign:'center', padding:'14px 0' }}>
       <div style={{ fontSize:11, color:'#94a3b8', fontFamily:'var(--font-display)', letterSpacing:'0.12em' }}>STUFE {L.n} / 3 · STANDARD</div>
-      <h2 id="pressure-ready-title" style={{ margin:'4px 0 0', fontSize:22, color:'#ef4444' }}>{L.de}</h2>
+      <h2 id="pressure-ready-title" style={{ margin:'4px 0 0', fontSize:22, color:'var(--text)' }}>{L.de}</h2>
       <p style={{ fontSize:12, color:'#94a3b8', margin:'8px 0 0', lineHeight:1.6 }}>Tempo {Math.round(L.rate * 100)}% · {L.sec}s · {L.interrupts} Unterbrechungen</p>
       <p style={{ fontSize:12.5, color:'#cbd5e1', margin:'14px 0 0', lineHeight:1.6 }}>Du kannst jederzeit PAUSE drücken. Sprich ruhig und bleib bei einem klaren Satz.</p>
     </section>
     <div style={{ fontSize:12, color:'var(--action)', margin:'4px 0 12px', lineHeight:1.55, padding:'10px 12px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)' }}>
       <b>Dein Ziel: </b>{konterFor(L).goal_de}
     </div>
-    <button onClick={beginRound} style={primaryBtn}>● START</button>
+    <button onClick={beginRound} style={actionBtn}>● START</button>
   </>);
 
   if (phase === 'ready') return shell(<>
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '14px 0' }}>
       <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'var(--font-display)', letterSpacing: '0.12em' }}>{endless ? T(lang, 'ÜBERLEBEN', 'بقاء') : `${T(lang, 'STUFE', 'مستوى')} ${L.n} / 5`}</div>
-      <div style={{ fontSize: 22, color: endless ? 'var(--action)' : '#ef4444', fontWeight: 800, marginTop: 4 }}>{T(lang, L.de, L.ar)}{endless && endlessStreak > 0 ? ` · ${endlessStreak}` : ''}</div>
+      <div style={{ fontSize: 22, color: 'var(--text)', fontWeight: 800, marginTop: 4 }}>{T(lang, L.de, L.ar)}{endless && endlessStreak > 0 ? ` · ${endlessStreak}` : ''}</div>
       <div style={{ fontSize: 12, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
         {T(lang, `Tempo ${Math.round(L.rate * 100)}% · ${L.sec}s · ${L.interrupts} Unterbrechungen`, `سرعة ${Math.round(L.rate * 100)}% · ${L.sec}ث · ${L.interrupts} مقاطعات`)}
       </div>
@@ -435,18 +435,18 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <div style={{ fontSize: 12, color: 'var(--action)', margin: '4px 0 12px', lineHeight: 1.55, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)' }}>
       <b>{T(lang, 'Dein Ziel: ', 'هدفك: ')}</b>{T(lang, konterFor(L).goal_de, konterFor(L).goal_ar)}
     </div>
-    <button onClick={beginRound} style={{ ...primaryBtn }}>● {T(lang, 'START — Boss kommt', 'ابدأ — الـ boss جاي')}</button>
+    <button onClick={beginRound} style={{ ...actionBtn }}>● {T(lang, 'START — Boss kommt', 'ابدأ — الـ boss جاي')}</button>
   </>);
 
   if (phase === 'answering') return shell(<>
     {header}{ladder}
-    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(239,68,68,0.4)' }}>
-      <div style={{ fontSize: 9, color: '#ef4444', letterSpacing: '0.12em', marginBottom: 6 }}>{T(lang, 'DER BOSS', 'الـ boss')} · {T(lang, L.de, L.ar)}</div>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.4)', border: '1px solid var(--line-strong)' }}>
+      <div style={{ fontSize: 10.5, color: 'var(--text-faint)', letterSpacing: '0.12em', marginBottom: 6 }}>{T(lang, 'DER BOSS', 'الـ boss')} · {T(lang, L.de, L.ar)}</div>
       <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.5 }}>{curLine}</div>
     </div>
     <div style={{ textAlign: 'center', marginTop: 18 }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, color: left <= 5 ? '#ef4444' : 'var(--action)', fontVariantNumeric: 'tabular-nums' }}>00:{String(left).padStart(2, '0')}</div>
-      <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4, letterSpacing: '0.05em' }}>{T(lang, '🔴 REDE WEITER — NICHT EINFRIEREN', '🔴 اتكلم — متجمدش')}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, color: left <= 5 ? 'var(--action)' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>00:{String(left).padStart(2, '0')}</div>
+      <div style={{ fontSize: 11, color: 'var(--action)', fontWeight: 700, marginTop: 4, letterSpacing: '0.05em' }}>{T(lang, 'REDE WEITER — NICHT EINFRIEREN', 'اتكلم — متجمدش')}</div>
       <button onClick={endRound} style={{ ...ghostBtnWide, width: '100%', marginTop: 16 }}>{T(lang, 'Fertig', 'خلصت')}</button>
     </div>
   </>);
@@ -466,7 +466,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   if (phase === 'round') return shell(<>
     {header}{ladder}
     <div style={{ textAlign: 'center', padding: '20px 0' }}>
-      <div style={{ fontSize: 18, color: froze ? '#fca5a5' : souveraen ? 'var(--accent)' : 'var(--accent-2)', fontWeight: 800, marginTop: 8 }}>
+      <div style={{ fontSize: 18, color: froze ? 'var(--bad)' : souveraen ? 'var(--accent)' : 'var(--accent-2)', fontWeight: 800, marginTop: 8 }}>
         {froze
           ? T(lang, 'Eingefroren.', 'اتجمدت.')
           : endless
@@ -488,7 +488,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     </div>
     <div style={{ display: 'flex', gap: 8 }}>
       {froze && <button onClick={() => setPhase('ready')} style={ghostBtnWide}>{T(lang, 'Nochmal', 'تاني')}</button>}
-      <button onClick={advance} style={{ ...primaryBtn, flex: 1 }}>
+      <button onClick={advance} style={{ ...actionBtn, flex: 1 }}>
         {froze ? T(lang, 'Diese Stufe nochmal', 'المستوى ده تاني')
           : endless ? T(lang, 'Weiter überleben ▸', 'كمّل بقاء ▸')
           : (idx < LEVELS.length - 1 ? T(lang, 'Nächste Stufe ▸', 'المستوى اللي بعده ▸') : T(lang, 'Finale ▸', 'النهاية ▸'))}
@@ -526,7 +526,4 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
   </>);
 }
 
-const primaryBtn = { width: '100%', padding: '14px', minHeight: 50, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 13, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 800, border: '1px solid #ef4444', color: '#fff', background: 'linear-gradient(135deg,#ef4444,#dc2626)' };
 const intensityButton = { minHeight: 64, cursor:'pointer', display:'flex', alignItems:'flex-start', justifyContent:'center', flexDirection:'column', gap:4, padding:'12px 14px', borderRadius:10, border:'1px solid', color:'#e2e8f0', textAlign:'left', fontSize:12.5 };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44, borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
