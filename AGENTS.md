@@ -269,3 +269,34 @@ When you apply knowledge from a previously evolved rule (AGENTS.md, MEMORY.md, T
 briefly mention it in your response: "（基于之前的经验：<one-line rule summary>）".
 Keep it to one short line at most. Do not echo on every turn — only when an evolved rule directly influenced your approach.
 <!-- /autoclaw:hermes-evolution-guidance -->
+
+<!-- codex:proof-of-done-and-owner-rules — enforcement for OpenAI Codex sessions (local AND cloud). Do not remove. -->
+# CODEX: PROOF-OF-DONE + OWNER RULES (binding in this repo)
+
+## Iron rule
+The words "done / fixed / working / deployed" are FORBIDDEN unless the same message contains a
+PROOF BLOCK: acceptance sentence written BEFORE the work ("open [URL], do [steps], see [exact
+result]") + live URL + numbered reproduction steps + screenshots or real observed output +
+"Verified: X | NOT verified: Y". Otherwise write the literal words **NOT VERIFIED**. Reading your
+own code or diff is never verification — verify by driving the LIVE app as a real user would.
+If a step fails, report the failure with its real output; never bury it or retry silently.
+
+## Hard owner rules for this app (OMNI-PERFORM)
+- **ZERO SPEND, ever.** No paid dependencies, tiers, or API keys.
+- **Deploys:** push to `main` deploys frontend (Vercel `bpo-combat-arena.vercel.app`) AND backend
+  (Render). Verify live: backend `/health` `build` and frontend `<meta name="build">` both equal
+  `git rev-parse --short HEAD`. Render is PATH-FILTERED — the backend build stamp only advances on
+  `server/` commits, so don't wait on it for client/docs-only changes.
+- **Never name any employer or company.** No fabricated metrics, reviews, or user counts — fake
+  social proof is illegal in Germany/EU. Thin data shows an honest "?", never an invented value.
+- **Never author Egyptian-Arabic (masri)** — leave owner-AR slots for the owner to fill.
+- **Design law:** blue + orange only, ONE orange accent per screen, Inter font, ≥44px touch
+  targets. No arcade/gaming mechanics (combos, streaks, XP, confetti). After any UI change run
+  `npm run design-lint`.
+- **German content:** after editing any German the learner sees, run
+  `node scripts/german-check.mjs <files>`.
+- **Learner-facing numbers and verdicts** must come from deterministic computation on real data —
+  never LLM-estimated.
+- **Shared working tree** (OneDrive + multiple AI agents): `git fetch` + `git status` FIRST; stage
+  files BY NAME (`git add -A` forbidden); never force-push; ONE bounded change per commit.
+<!-- /codex:proof-of-done-and-owner-rules -->
