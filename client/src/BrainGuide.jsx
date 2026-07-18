@@ -429,18 +429,11 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
               : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'DEIN PLAN'}
           </span>
         </div>
-        <h2 id="brain-guide-title" className="brain-guide__title">{brief.title}</h2>
-        <div className="brain-guide__specs" aria-label="Aufgabe, Abschluss und Folgeschritt">
-          <div className="brain-guide__spec">
-            <span>JETZT</span><strong>{brief.dose}</strong>
-          </div>
-          <div className="brain-guide__spec">
-            <span>FERTIG, WENN</span><strong>{brief.done}</strong>
-          </div>
-          <div className="brain-guide__spec">
-            <span>DANACH</span><strong>{brief.after}</strong>
-          </div>
-        </div>
+        {/* Merged (owner order 07-18): the giant title + JETZT/FERTIG/DANACH bureaucracy table
+            collapsed into ONE Salma-voiced step — a coach's sentence, not a process spec. The
+            done/after details live inside "Warum genau jetzt?" for the curious. */}
+        <h2 id="brain-guide-title" className="brain-guide__title" style={{ fontSize: 20, margin: '4px 0 6px' }}>{brief.title}</h2>
+        <p style={{ margin: '0 0 10px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-dim)' }}>{brief.dose}</p>
         {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
           <button className="brain-guide__cta" onClick={() => onAction?.(d, whyLine(d))}>
             <span>{ctaText}</span><span aria-hidden="true">→</span>
@@ -453,6 +446,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
           <details className="brain-guide__why">
             <summary>Warum genau jetzt?</summary>
             <p>{whyLine(d)}</p>
+            <p>Fertig, wenn: {brief.done} · Danach: {brief.after}</p>
             <p className="brain-guide__caveat">Interne Simulation · keine Arbeitgeberentscheidung</p>
           </details>
         )}
