@@ -1,5 +1,24 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🧪 JOURNEY-TEST + 4 BUGS FIXED, LIVE @ d65669f (2026-07-18)
+- Ran a full fresh-verified-account journey on prod (voice+interview+drills) + TheDebuggerMAN A–J
+  sweep. **The core loop is PROVEN working end-to-end:** signup → assessment (5 recorded answers →
+  verdict) → "Erstes Interview starten" → session_ready → Yasmin speaks → debrief. Empirically, NOT
+  theorized.
+- **Fixed + shipped + live-verified:** (1) `5831b4d` nav tabs did nothing (hero rendered on every
+  tab, content 1600px below fold) → hero scoped to Training + scroll-to-top + first-run Übungen empty
+  state; (2) `7f5911c` interview unreachable on non-interview BrainGuide steps → quiet secondary link;
+  (3) `d65669f` assessment could VOICE "achte auf die Kommasetzung" → isSpeakableRule filter + test;
+  (4) `d65669f` CSP media-src lacked `data:` → blocked own iOS audio primer. All gates green (56
+  tests), both build stamps == d65669f. Nav + CSP proven in the live browser.
+- **UNFIXED — owner-decision / live-audio (see memory [[bpo-journey-test-0718]]):** ★ F-2 the live
+  interview scores a turn from PCM BYTE-duration, not voiced-energy RMS (drills gate, the interview
+  path does NOT) — noise can count as a trusted spoken turn; HIGH but risky (turn-commit = foot-guns
+  #43/#44), needs owner live-audio test before touching. F-1 LLM grammar (owner-OK'd 07-05), F-3
+  daily/next answer key, F-4 Druck souverän badge, F-5 plans WpM. 3× cosmetic 404 (copilot flag off).
+- New reusable harness: `scripts/qa/journey-fresh.mjs` + `journey2-voice.mjs` (need PROBE_TOKEN;
+  verified journey acct alhassanmaarouf2+journey0718@gmail.com). Foot-guns #56–59 added.
+
 ## 🎨 PHASE-3 CONGRUENCE: NON-APP RESIDUES = 0 (2026-07-18 afternoon)
 - Converted the last 15 non-App.jsx design-lint congruence residues onto `ui/primitives` + tokens:
   Assessment (local primaryBtn/ghostBtn/ghostBtnWide deleted → `actionBtn` aliased import; stop-rec

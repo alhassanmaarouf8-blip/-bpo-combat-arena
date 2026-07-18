@@ -50,20 +50,36 @@ await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 90000 }).catch(() =>
 await p.waitForSelector('input', { timeout: 90000 });
 const build = await p.evaluate(() => document.querySelector('meta[name="build"]')?.content || '?');
 console.log('client build =', build);
-const email = `qa${Date.now()}@example.com`;
-const signup = await p.evaluate(async (em) => {
-  const r = await fetch('https://bpo-combat-arena.onrender.com/api/auth/signup', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: em, password: 'qatest12345', whatsapp: '01012345678' }),
-  });
-  return { ok: r.ok, body: await r.json().catch(() => null) };
-}, email);
-if (!signup.ok || !signup.body?.token) { console.log('FAIL signup', JSON.stringify(signup.body).slice(0,200)); await b.close(); process.exit(1); }
-await p.evaluate((auth) => {
-  localStorage.setItem('bpo_token', auth.token);
-  localStorage.setItem('bpo_account', JSON.stringify(auth.account));
+// Auth: email verification now gates fight-start, so fresh qa signups can't interview.
+// Preferred: pass a PRE-VERIFIED session via env PROBE_TOKEN (+ optional PROBE_ACCOUNT JSON).
+let auth;
+if (process.env.PROBE_TOKEN) {
+  auth = { token: process.env.PROBE_TOKEN, account: JSON.parse(process.env.PROBE_ACCOUNT || 'null') };
+  if (!auth.account) {
+    auth.account = await p.evaluate(async (tok) => {
+      const r = await fetch('https://bpo-combat-arena.onrender.com/api/auth/me', { headers: { Authorization: `Bearer ${tok}` } });
+      return (await r.json().catch(() => null))?.account || null;
+    }, auth.token);
+  }
+  if (!auth.account) { console.log('FAIL: PROBE_TOKEN rejected by /api/auth/me'); await b.close(); process.exit(1); }
+} else {
+  const email = `qa${Date.now()}@example.com`;
+  const signup = await p.evaluate(async (em) => {
+    const r = await fetch('https://bpo-combat-arena.onrender.com/api/auth/signup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: em, password: 'qatest12345', whatsapp: '01012345678' }),
+    });
+    return { ok: r.ok, body: await r.json().catch(() => null) };
+  }, email);
+  if (!signup.ok || !signup.body?.token) { console.log('FAIL signup', JSON.stringify(signup.body).slice(0,200)); await b.close(); process.exit(1); }
+  console.log('WARN: fresh signup is UNVERIFIED — fight start will be rejected; set PROBE_TOKEN for a real run');
+  auth = signup.body;
+}
+await p.evaluate((a) => {
+  localStorage.setItem('bpo_token', a.token);
+  localStorage.setItem('bpo_account', JSON.stringify(a.account));
   localStorage.setItem('bpo_howto_seen', '1');
-}, signup.body);
+}, auth);
 await p.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
 await p.waitForTimeout(4000);
 
