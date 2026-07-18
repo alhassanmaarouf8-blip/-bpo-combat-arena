@@ -18,6 +18,7 @@ import express from 'express';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, planOf, rateLimit }  from './auth.js';
 import { transcribeAudio }    from './planGuide.js';
+import { isSpeakableRule }    from './grammarCheck.js';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
 import { voicedDurationMs }   from './audioGuard.js';
 import { scrubStringsDeep }   from './langGuard.js';
@@ -62,6 +63,10 @@ Gib AUSSCHLIESSLICH gültiges JSON in GENAU diesem Schema zurück:
 HARTE REGELN:
 - estimatedLevel: ehrliche CEFR-Schätzung NUR aus dem, was er WIRKLICH produziert hat. Im Zweifel konservativ.
 - Beurteile KEINE Aussprache, Stimme, Sprechgeschwindigkeit oder mündliche Flüssigkeit: du erhältst nur Text.
+- Dies ist ein GESPROCHENER Trainer. NIEMALS Rechtschreibung, Zeichensetzung/Kommasetzung oder
+  Groß-/Kleinschreibung als blocker oder recommendedFocus nennen — das kann man beim Sprechen nicht
+  hören und stammt oft nur aus dem Transkript. Nur GESPROCHENE Fehler (Grammatik, Wortstellung,
+  Wortschatz, Verständlichkeit).
 - confidence: 'low' wenn die Antworten sehr kurz oder sehr wenige sind; sonst 'medium' oder 'high'.
 - blockers: 3 bis 5 Stück, die WICHTIGSTEN zuerst. JEDER blocker MUSS ein "example_from_their_own_answer"
   enthalten, das WÖRTLICH aus seinen Antworten stammt — NIEMALS erfinden. Findest du kein echtes
@@ -203,7 +208,10 @@ function normalizeResult(d, answers = []) {
       explanation_ar:                s(b?.explanation_ar, 320),
       example_from_their_own_answer: verifiedEx,
     };
-  }).filter((b) => b.rule);
+  // Deterministic guard (prompts don't stop fabrication): drop any blocker whose rule is a
+  // punctuation/casing/spelling artifact — a speaker cannot produce a comma, and this verdict is
+  // spoken aloud by Salma. Sibling of the SRS/grammar filters; foot-gun #17 + class B.
+  }).filter((b) => b.rule && isSpeakableRule(b.rule) && isSpeakableRule(b.explanation_de));
 
   const strengths = arr(d.strengths).slice(0, 2)
     .map((x) => ({ de: s(x?.de ?? x, 220), ar: s(x?.ar, 220) }))
@@ -217,6 +225,10 @@ function normalizeResult(d, answers = []) {
     measured:         { writtenGerman: true, speakingPronunciation: false, containsTypedAnswers: hasTyped },
     blockers,
     strengths,
-    recommendedFocus: { de: s(d.recommendedFocus?.de, 240), ar: s(d.recommendedFocus?.ar, 240) },
+    // Salma VOICES recommendedFocus.de — if the model returned an orthography focus (unhearable),
+    // drop it rather than have her read "achte auf die Kommasetzung" as the top spoken priority.
+    recommendedFocus: isSpeakableRule(d.recommendedFocus?.de)
+      ? { de: s(d.recommendedFocus?.de, 240), ar: s(d.recommendedFocus?.ar, 240) }
+      : { de: '', ar: '' },
   };
 }
