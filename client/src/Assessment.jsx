@@ -303,6 +303,17 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
         <br />{T(lang, 'Aussprache und Sprechtempo wurden in dieser Textauswertung nicht bewertet.', 'النطق وسرعة الكلام ما اتقاسوش في التقييم النصي ده.')}
       </div>
 
+      {/* Honest-when-thin: on a short/low-confidence sample we deliberately do NOT list many
+          weaknesses (that would be invented). Say so, and point to the real read: a full interview. */}
+      {result.measured?.evidenceThin && (
+        <div style={{ fontSize: 11.5, color: '#cbd5e1', textAlign: 'center', lineHeight: 1.55, marginBottom: 16,
+          padding: '10px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
+          {T(lang,
+            'Das waren noch wenige Wörter — für ein genaues Bild reicht das nicht. Wir raten hier bewusst nichts zusammen. Ein vollständiges Interview gibt dir die echte Auswertung.',
+            'الكلام كان قليل لسه — مش كفاية لتقييم دقيق. إحنا مش بنخمّن حاجة من عندنا. إنترفيو كامل هيديك التقييم الحقيقي.')}
+        </div>
+      )}
+
       {result.blockers?.length > 0 && (
         <Section title={T(lang, 'Deine größten Blocker', 'أكبر الحاجات اللي بتوقفك')} color="#f87171">
           {result.blockers.map((b, i) => (

@@ -32,3 +32,15 @@ test('the filter itself drops orthography and keeps spoken rules', () => {
     assert.equal(isSpeakableRule(good), true, `${good} is a real spoken weakness and must survive`);
   }
 });
+
+test('the verdict is honest-when-thin: no invented blockers on a short/low-confidence sample', () => {
+  // The prompt asks for evidence-scaled counts; this pins the deterministic guarantee in the source.
+  assert.match(src, /const thin = confidence === 'low' \|\| evidenceWords < 40/);
+  // On thin evidence, keep only quote-backed blockers, capped at 2.
+  assert.match(src, /if \(thin\) blockers = blockers\.filter\(\(b\) => b\.example_from_their_own_answer\)\.slice\(0, 2\)/);
+  // The evidence-scaled instruction replaced the old "3 bis 5" quota that forced fabrication.
+  assert.doesNotMatch(src, /blockers: 3 bis 5 Stück/);
+  assert.match(src, /Bei sehr kurzem oder dünnem Input.*nur 0 bis 2/s);
+  // The client is told whether evidence was thin so it can say so honestly.
+  assert.match(src, /evidenceThin: thin/);
+});

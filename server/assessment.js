@@ -68,12 +68,15 @@ HARTE REGELN:
   hören und stammt oft nur aus dem Transkript. Nur GESPROCHENE Fehler (Grammatik, Wortstellung,
   Wortschatz, Verständlichkeit).
 - confidence: 'low' wenn die Antworten sehr kurz oder sehr wenige sind; sonst 'medium' oder 'high'.
-- blockers: 3 bis 5 Stück, die WICHTIGSTEN zuerst. JEDER blocker MUSS ein "example_from_their_own_answer"
-  enthalten, das WÖRTLICH aus seinen Antworten stammt — NIEMALS erfinden. Findest du kein echtes
-  Beispiel für einen Fehler, lass diesen blocker WEG.
+- blockers: NUR so viele, wie durch die Antworten WIRKLICH belegt sind — die WICHTIGSTEN zuerst.
+  Bei sehr kurzem oder dünnem Input (confidence 'low') nur 0 bis 2, NIEMALS eine Schwäche erfinden,
+  um eine Zahl zu erreichen. Lieber WENIGE, echte Blocker als viele erfundene. JEDER blocker MUSS ein
+  "example_from_their_own_answer" enthalten, das WÖRTLICH aus seinen Antworten stammt. Findest du kein
+  echtes Beispiel, lass den blocker WEG. Bei sehr wenig Input: sei ermutigend, nicht kategorisch
+  vernichtend ("noch wenig Datenbasis"), statt harte Urteile wie "kann sich nicht vorstellen".
 - explanation_ar, strengths[].ar und recommendedFocus.ar: einfaches, modernes, ägyptenfreundliches
   Arabisch (KEIN steifes Hocharabisch).
-- strengths: GENAU 2, echt und ermutigend.
+- strengths: 1 bis 2, echt und belegbar (nichts erfinden — lieber eine echte als zwei erfundene).
 - recommendedFocus: die EINE wichtigste Sache zum Anfangen — konkret, nicht allgemein.
 - Erfinde NICHTS. Beziehe dich nur auf das, was der Kandidat gesagt hat. Antworte NUR mit dem JSON.`;
 
@@ -196,8 +199,18 @@ function normalizeResult(d, answers = []) {
   const s = (x, n) => String(x ?? '').slice(0, n);
   const canon = (x) => String(x ?? '').replace(/\s+/g, ' ').toLowerCase().trim();
   const saidCanon = canon(answers.map((a) => a?.transcript || '').join(' '));
+  // Evidence volume: how much the candidate ACTUALLY produced. A few short sentences cannot honestly
+  // support five categorical weaknesses — that's the "appearance of accuracy" the doctrine forbids.
+  const evidenceWords = saidCanon ? saidCanon.split(' ').filter(Boolean).length : 0;
 
-  const blockers = arr(d.blockers).slice(0, 5).map((b) => {
+  const hasTyped = answers.some((a) => a?.inputMode !== 'voice');
+  const confidence = hasTyped && d.confidence === 'high' ? 'medium'
+    : (['low', 'medium', 'high'].includes(d.confidence) ? d.confidence : 'low');
+  // Thin evidence = low confidence OR very little speech. On thin evidence a harsh categorical
+  // blocker with no VERIFIED own-words quote is fabrication, so we require the quote and cap the count.
+  const thin = confidence === 'low' || evidenceWords < 40;
+
+  let blockers = arr(d.blockers).slice(0, 5).map((b) => {
     const ex = s(b?.example_from_their_own_answer, 320);
     // Anti-fabrication: keep the "their own words" quote ONLY if it actually appears in a
     // transcript. Otherwise blank it (keep the rule) — never show a paraphrased/invented quote.
@@ -212,17 +225,18 @@ function normalizeResult(d, answers = []) {
   // punctuation/casing/spelling artifact — a speaker cannot produce a comma, and this verdict is
   // spoken aloud by Salma. Sibling of the SRS/grammar filters; foot-gun #17 + class B.
   }).filter((b) => b.rule && isSpeakableRule(b.rule) && isSpeakableRule(b.explanation_de));
+  // On thin evidence: keep ONLY blockers backed by a verified own-words quote, and at most 2.
+  // Better to name one real weakness (or none) than to invent five to fill a quota — honest-when-thin.
+  if (thin) blockers = blockers.filter((b) => b.example_from_their_own_answer).slice(0, 2);
 
   const strengths = arr(d.strengths).slice(0, 2)
     .map((x) => ({ de: s(x?.de ?? x, 220), ar: s(x?.ar, 220) }))
     .filter((x) => x.de);
 
-  const hasTyped = answers.some((a) => a?.inputMode !== 'voice');
   return {
     estimatedLevel:   LEVELS.includes(d.estimatedLevel) ? d.estimatedLevel : 'A2',
-    confidence:       hasTyped && d.confidence === 'high' ? 'medium'
-      : (['low', 'medium', 'high'].includes(d.confidence) ? d.confidence : 'low'),
-    measured:         { writtenGerman: true, speakingPronunciation: false, containsTypedAnswers: hasTyped },
+    confidence,
+    measured:         { writtenGerman: true, speakingPronunciation: false, containsTypedAnswers: hasTyped, evidenceThin: thin },
     blockers,
     strengths,
     // Salma VOICES recommendedFocus.de — if the model returned an orthography focus (unhearable),
