@@ -89,6 +89,33 @@ test('authentication mode switch exposes its selected state to assistive technol
   assert.match(auth, /aria-pressed=\{mode === m\}/u);
 });
 
+test('public conversion fails visibly and recoverably instead of hanging or using native English errors', async () => {
+  const [app, index] = await Promise.all([
+    read('client/src/App.jsx'),
+    read('client/index.html'),
+  ]);
+  const voice = section(app, 'function VoiceReadinessCheck(', 'function AuthScreen(');
+  const auth = section(app, 'function AuthScreen(', 'function PaywallScreen(');
+
+  assert.match(voice, /microphone_permission_timeout/u);
+  assert.match(voice, /8_000/u);
+  assert.match(voice, /state === 'timeout'/u);
+  assert.match(voice, /Mikrofon-Berechtigung/u);
+  assert.match(auth, /<main className="auth-shell"/u);
+  assert.match(auth, /overflowX:'hidden', overflowY:'visible'/u);
+  assert.match(auth, /<form noValidate/u);
+  assert.match(auth, /role="alert" aria-live="assertive"/u);
+  assert.match(auth, /Passwort anzeigen/u);
+  assert.match(auth, /type=\{showPw \? 'text' : 'password'\}/u);
+  assert.match(auth, /<h1 dir="rtl" lang="ar-EG"/u);
+  assert.match(index, /<link rel="canonical" href="https:\/\/omni-perform\.vercel\.app\/"/u);
+});
+
+test('production readiness logging never emits correlatable learner attributes', async () => {
+  const progress = await read('server/progress.js');
+  assert.doesNotMatch(progress, /\[hire-readiness\][^\n]*(?:user=|level=|gap=|ready=)/u);
+});
+
 test('BrainGuide renders useful loading and recoverable error states instead of disappearing', async () => {
   const brain = await read('client/src/BrainGuide.jsx');
   const fallback = section(brain, 'if (!data?.directive) return (', 'const d = data.directive;');

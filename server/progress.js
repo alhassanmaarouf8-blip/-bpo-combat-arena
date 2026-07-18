@@ -65,7 +65,8 @@ function buildDashboard(p) {
   // SIMULATION DIAGNOSTIC. Its thresholds are internal training references, not an employer-outcome
   // model. The outcome-calibration field stays explicit until real consented hiring outcomes exist.
   const hireReadiness = hireReadinessFor(p);
-  try { console.log(`[hire-readiness] user=${p.userId} level=${hireReadiness.level} ready=${hireReadiness.hireReady} gap=${hireReadiness.limitingSkill} signals=${hireReadiness.measuredSignals}/9`); } catch {}
+  // Readiness is private learner data. Do not emit account ids, level, bottlenecks, or verdicts
+  // into provider logs where they can be correlated by timestamp across requests.
 
   return {
     remainingXp,

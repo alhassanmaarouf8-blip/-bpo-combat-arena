@@ -29,6 +29,20 @@ export function dbEnabled() {
 let _pool = null;
 let _ready = null;
 
+export function databaseConnectionConfig(rawUrl) {
+  const parsed = new URL(String(rawUrl || ''));
+  // Render internal hosts do not use TLS. External hosts must verify the full certificate and
+  // hostname. Normalize the query too: `sslmode=require` would otherwise override the explicit
+  // secure object and emits a future-semantics warning at every production boot.
+  const useSsl = parsed.hostname.includes('.');
+  if (useSsl) parsed.searchParams.set('sslmode', 'verify-full');
+  else parsed.searchParams.delete('sslmode');
+  return {
+    connectionString:parsed.toString(),
+    ssl:useSsl ? { rejectUnauthorized:true } : false,
+  };
+}
+
 async function getPool() {
   if (_pool) return _pool;
   // Lazy: only require pg when a database is actually configured.
@@ -36,12 +50,12 @@ async function getPool() {
   const url = process.env.DATABASE_URL;
   // Render's INTERNAL host (e.g. dpg-xxxx-a, no domain dot) does NOT use SSL; the
   // EXTERNAL host (….render.com) requires it. Detect by whether the host has a dot.
-  const useSsl = /@[^/]+\.[^/]+/.test(url);
+  const connection = databaseConnectionConfig(url);
   _pool = new pg.Pool({
-    connectionString:  url,
+    connectionString:  connection.connectionString,
     // External providers must present a publicly trusted certificate. Disabling
     // verification turns every account/password/payment query into MITM-readable data.
-    ssl:               useSsl ? { rejectUnauthorized: true } : false,
+    ssl:               connection.ssl,
     max:               5,
     idleTimeoutMillis: 30_000,
   });

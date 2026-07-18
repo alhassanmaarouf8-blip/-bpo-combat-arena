@@ -2861,33 +2861,55 @@ function VoiceReadinessCheck() {
   const run = async () => {
     if (IN_APP_BROWSER || !checkAudioSupport().supported) { setState('unsupported'); return; }
     setState('checking');
+    let timer = null;
+    let timedOut = false;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const request = navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        // A browser permission sheet can resolve after our visible timeout. Never retain that
+        // late stream: the preflight is a capability check, not a recording session.
+        if (timedOut) stream.getTracks().forEach((track) => track.stop());
+        return stream;
+      });
+      const timeout = new Promise((_, reject) => {
+        timer = window.setTimeout(() => {
+          timedOut = true;
+          reject(Object.assign(new Error('microphone_permission_timeout'), { name:'TimeoutError' }));
+        }, 8_000);
+      });
+      const stream = await Promise.race([request, timeout]);
       stream.getTracks().forEach((track) => track.stop());
       try { localStorage.setItem('bpo_mic_ready', '1'); } catch { /* private mode */ }
       setState('ready');
     } catch (error) {
       const name = String(error?.name || '');
-      setState(name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'blocked');
+      setState(name === 'TimeoutError' ? 'timeout'
+        : name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'blocked');
+    } finally {
+      if (timer) window.clearTimeout(timer);
     }
   };
   const ready = state === 'ready';
-  const failed = state === 'blocked' || state === 'denied' || state === 'unsupported';
+  const failed = state === 'blocked' || state === 'denied' || state === 'unsupported' || state === 'timeout';
   return (
-    <div style={{ maxWidth:420, margin:'0 auto 18px', padding:'12px 14px', borderRadius:'var(--r-lg)',
+    <div role="status" aria-live="polite" style={{ maxWidth:420, margin:'0 auto 18px', padding:'12px 14px', borderRadius:'var(--r-lg)',
       background: ready ? 'rgba(34,197,94,0.07)' : failed ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.06)',
       border:`1px solid ${ready ? 'rgba(34,197,94,0.35)' : failed ? 'rgba(239,68,68,0.35)' : 'rgba(59,130,246,0.28)'}` }}>
-      <div dir="rtl" style={{ fontSize:12.5, fontWeight:700, color:ready ? '#bbf7d0' : failed ? '#fecaca' : '#dbeafe' }}>
-        {ready ? '✓ المايك جاهز للتدريب الصوتي' : failed ? 'المايك مش متاح هنا — افتح صلاحيات الموقع أو استخدم Chrome' : 'اختبر المايك قبل ما تعمل أكونت'}
+      <div dir="rtl" lang="ar-EG" style={{ fontSize:12.5, fontWeight:700, color:ready ? '#bbf7d0' : failed ? '#fecaca' : '#dbeafe' }}>
+        {ready ? '✓ المايك جاهز للتدريب الصوتي'
+          : state === 'timeout' ? 'المتصفح ما ردّش على طلب المايك — راجع علامة القفل وجرب تاني'
+            : failed ? 'المايك مش متاح هنا — افتح صلاحيات الموقع أو استخدم Chrome'
+              : 'اختبر المايك قبل ما تعمل أكونت'}
       </div>
       <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:3 }}>
-        {ready ? 'Mikrofon bereit — die Sprachinterviews können starten.' : 'Kostenloser Gerätecheck; es wird nichts aufgenommen oder gespeichert.'}
+        {ready ? 'Mikrofon bereit — die Sprachinterviews können starten.'
+          : state === 'timeout' ? 'Keine Antwort vom Browser. Prüfe die Mikrofon-Berechtigung am Schloss-Symbol und versuche es erneut.'
+            : 'Kostenloser Gerätecheck; es wird nichts aufgenommen oder gespeichert.'}
       </div>
       {!ready && (
         <button type="button" onClick={run} disabled={state === 'checking'}
           style={{ width:'100%', minHeight:44, marginTop:9, borderRadius:9, cursor:state === 'checking' ? 'wait' : 'pointer',
             border:'1px solid var(--accent)', background:'rgba(59,130,246,0.14)', color:'var(--accent-2)', fontWeight:800 }}>
-          {state === 'checking' ? 'PRÜFE…' : 'المايك · MIKROFON TESTEN'}
+          {state === 'checking' ? 'PRÜFE…' : <><span lang="ar-EG" dir="rtl">المايك</span> · MIKROFON TESTEN</>}
         </button>
       )}
       <details style={{ marginTop:10, textAlign:'left' }}>
@@ -2901,7 +2923,7 @@ function VoiceReadinessCheck() {
           <div><b>Antwort:</b> „Ich habe den Kunde geholfen und Problem gelöst.“</div>
           <div style={{ marginTop:5 }}><b style={{ color:'var(--action)' }}>Konkretes Feedback:</b> „dem Kunden“ (Dativ),
             „das Problem“ — plus Ergebnis ergänzen: „Danach blieb der Kunde und bestätigte die Lösung.“</div>
-          <div dir="rtl" style={{ marginTop:5, color:'#94a3b8' }}>
+          <div dir="rtl" lang="ar-EG" style={{ marginTop:5, color:'#94a3b8' }}>
             المثال توضيحي؛ تقييمك الحقيقي بيتبني من كلامك إنت، من غير نتائج أو شهادات مزيفة.
           </div>
 
@@ -2920,6 +2942,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   });
   const [email, setEmail] = useState('');
   const [pw, setPw]       = useState('');
+  const [showPw, setShowPw] = useState(false);
   // Capture the bearer capability and erase it from browser history before the first render or
   // network request. The in-memory ref survives validation and the external-browser handoff.
   const [capturedStudyEntry] = useState(() => STUDY_ENTRY_BOOT);
@@ -3082,12 +3105,14 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
     setErr('');
     window.requestAnimationFrame(() => {
       const field = document.getElementById(resetToken ? 'auth-password' : 'auth-email');
-      field?.focus({ preventScroll:true });
       const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
-      document.getElementById('signup-card')?.scrollIntoView({
+      const card = document.getElementById('signup-card');
+      card?.scrollIntoView({
         behavior:reducedMotion ? 'auto' : 'smooth',
-        block:'center',
+        block:'start',
       });
+      // Move keyboard/screen-reader focus after React has committed the selected auth mode.
+      window.setTimeout(() => field?.focus({ preventScroll:true }), reducedMotion ? 0 : 350);
     });
   }, [resetToken]);
 
@@ -3102,7 +3127,16 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
 
   const submit = async () => {
     if (busy) return;
-    if (!email || !pw) { setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' }); return; }
+    if (!email || !pw) {
+      setErr({ de: 'Bitte E-Mail und Passwort eingeben.', ar: 'من فضلك دخّل الإيميل والباسورد.' });
+      document.getElementById(!email ? 'auth-email' : 'auth-password')?.focus();
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(String(email).trim())) {
+      setErr({ de:'Bitte gib eine gültige E-Mail-Adresse ein.', ar:'من فضلك اكتب إيميل صحيح.' });
+      document.getElementById('auth-email')?.focus();
+      return;
+    }
     if (mode === 'signup' && String(pw).length < 10) { setErr(authErrText('weak_password')); return; }
     setErr(''); setBusy(true); setBusyHint(false);
     const ctrl = new AbortController();
@@ -3184,8 +3218,8 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // orange fill on the page. All DE/AR copy verbatim from the previous landing.
   const rise = (i) => ({ animation:`rise-in 0.36s var(--ease-out) both`, animationDelay:`${i * 60}ms` });
   return (
-    <div className="auth-shell" style={{ minHeight:'100svh', display:'flex', flexDirection:'column',
-      justifyContent:'center', padding:'24px', position:'relative', overflow:'hidden' }}>
+    <main className="auth-shell" style={{ minHeight:'100svh', display:'flex', flexDirection:'column',
+      justifyContent:'center', padding:'24px', position:'relative', overflowX:'hidden', overflowY:'visible' }}>
       {/* Craft pass #10 — a DECIDED atmosphere: one light source (top-left, behind the hero) and a
           whisper of grain. Depth that's felt, never noticed. */}
       <div style={{ position:'fixed', top:-220, left:-160, width:680, height:680, borderRadius:'50%', pointerEvents:'none',
@@ -3209,20 +3243,20 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         {/* Craft pass #4 — ONE short line carries the page (real Arabic display face, set like a
             headline); everything below steps down. Niche = the BPO industry IN Egypt (owner 07-10). */}
         {validStudyEntry ? <>
-          <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(28px, 5vw, 42px)', fontWeight:750,
-            color:'#f8fafc', marginTop:22, lineHeight:1.22, maxWidth:520, marginInline:'auto' }}>
+          <h1 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(28px, 5vw, 42px)', fontWeight:750,
+            color:'#f8fafc', margin:'22px auto 0', lineHeight:1.22, maxWidth:520 }}>
             Finde heute den einen Interviewfehler, der dich am ehesten zurückhält.
-          </div>
+          </h1>
           <div style={{ fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:12,
             lineHeight:1.75, maxWidth:470, marginInline:'auto' }}>
             Sprich etwa acht Minuten Deutsch. Danach erhältst du ein gemessenes Risiko, einen genauen Trainingsblock
             und den passenden Vergleichs- und Drucktest.
           </div>
         </> : <>
-          <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', marginTop:22, lineHeight:1.3 }}>
+          <h1 dir="rtl" lang="ar-EG" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', margin:'22px 0 0', lineHeight:1.3 }}>
             تدريب إنترفيو ألماني عملي
-          </div>
-          <div dir="rtl" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
+          </h1>
+          <div dir="rtl" lang="ar-EG" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
             علشان توصل للشغل في الكول سنتر الألماني في مصر أو شغل ريموت بالألماني.{/* OWNER-AR pass invited */}
           </div>
           <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:10, lineHeight:1.6, maxWidth:440, marginInline:'auto' }}>
@@ -3234,7 +3268,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           {validStudyEntry
             ? 'Nach Anmeldung und E-Mail-Bestätigung: direkt zur etwa achtminütigen Sprachdiagnose.'
             : <>Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus.
-              {' '}<span dir="rtl">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span></>}
+              {' '}<span dir="rtl" lang="ar-EG">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span></>}
         </div>
         <button onClick={() => focusAuth('signup')}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
@@ -3271,7 +3305,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             {salmaLine('b1_gate_line', 'de')}
           </div>
           {SALMA_COPY.b1_gate_line.ar && (
-            <div dir="rtl" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.7 }}>
+          <div dir="rtl" lang="ar-EG" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.7 }}>
               {SALMA_COPY.b1_gate_line.ar}
             </div>
           )}
@@ -3286,7 +3320,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       {!studyInviteLanding && <div style={{ maxWidth:420, margin:'26px auto 26px', display:'flex', flexDirection:'column', gap:18, ...rise(3) }}>
         {[
           { icon:'mic',     ar:'محاكاة واقعية لإنترفيو ألماني بالصوت مع HR صعب',  de:'Realistische deutsche Voice-Interview-Simulation mit anspruchsvollem HR' },
-          { icon:'target',  ar:'فيدباك دقيق على أخطائك انت — مش كلام عام',        de:'Präzises Feedback auf DEINE Fehler (Grammatik via LanguageTool) — nie generisch' },
+          { icon:'target',  ar:'فيدباك محدد لما الدليل يكون كفاية — ولو مش كفاية التطبيق يقولك بصراحة', de:'Konkretes Feedback auf zuverlässig gemessene Fehler — sonst sagt die App ehrlich, dass Belege fehlen' },
           { icon:'chartUp', ar:'شوف تقدّمك أسبوع بأسبوع واستعد للتقديم الجاي',     de:'Die App führt dich Schritt für Schritt — du siehst deinen Fortschritt bis zur nächsten Bewerbung' },
           // KB-depth row (P4, 2026-07-10): the moat nobody else can claim — drills built on the
           // REAL hiring bar. Masri verified per masri-verification-law (أكونت = owner's canon).
@@ -3298,7 +3332,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
               <Icon name={b.icon} size={18} />
             </div>
             <div style={{ flex:1 }}>
-              <div dir="rtl" style={{ fontSize:'var(--fs-label)', fontWeight:600, color:'#e2e8f0', textAlign:'right' }}>{b.ar}</div>
+              <div dir="rtl" lang="ar-EG" style={{ fontSize:'var(--fs-label)', fontWeight:600, color:'#e2e8f0', textAlign:'right' }}>{b.ar}</div>
               <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.5 }}>{b.de}</div>
             </div>
           </div>
@@ -3391,15 +3425,15 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             background:verificationNotice.state === 'success' ? 'rgba(34,197,94,0.08)' : 'rgba(248,113,113,0.08)',
             color:verificationNotice.state === 'success' ? '#bbf7d0' : '#fecaca', fontSize:12, lineHeight:1.55 }}>
             {verificationNotice.state === 'success'
-              ? <>E-Mail bestätigt. Du kannst dich jetzt anmelden. <span dir="rtl">تم تأكيد الإيميل — سجّل دخول.</span></>
-              : <>Der Bestätigungslink ist ungültig oder abgelaufen. Melde dich an und fordere einen neuen an. <span dir="rtl">اللينك غير صالح أو انتهى.</span></>}
+              ? <>E-Mail bestätigt. Du kannst dich jetzt anmelden. <span dir="rtl" lang="ar-EG">تم تأكيد الإيميل — سجّل دخول.</span></>
+              : <>Der Bestätigungslink ist ungültig oder abgelaufen. Melde dich an und fordere einen neuen an. <span dir="rtl" lang="ar-EG">اللينك غير صالح أو انتهى.</span></>}
           </div>
         )}
         {resetToken ? (
           <div style={{ marginBottom:4 }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, color:'var(--text)' }}>Neues Passwort setzen</div>
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.5 }}>
-              Privater Link aus deiner E-Mail — wähle unten dein neues Passwort. <span dir="rtl">اختار الباسورد الجديد.</span>
+              Privater Link aus deiner E-Mail — wähle unten dein neues Passwort. <span dir="rtl" lang="ar-EG">اختار الباسورد الجديد.</span>
             </div>
           </div>
         ) : (
@@ -3415,7 +3449,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
         )}
 
-        <form onSubmit={(e) => { e.preventDefault(); if (resetToken) submitReset(); else submit(); }}>
+        <form noValidate onSubmit={(e) => { e.preventDefault(); if (resetToken) submitReset(); else submit(); }}>
         {/* Visible labels: placeholder-only inputs disappear while typing and reduce trust. */}
         {!resetToken && (
           <>
@@ -3425,16 +3459,25 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           </>
         )}
         <label htmlFor="auth-password" style={{ display:'block', fontSize:11, fontWeight:600, letterSpacing:'0.05em', color:'var(--text-dim)', margin:'12px 2px 5px' }}>{resetToken ? 'NEUES PASSWORT' : 'PASSWORT'}</label>
-        <input id="auth-password" name="password" type="password" value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="mind. 10 Zeichen"
-          required minLength={10} maxLength={128}
-          autoComplete={mode==='signup' || resetToken ? 'new-password' : 'current-password'}
-          className="uplift-input" style={inputStyle} />
+        <div style={{ position:'relative' }}>
+          <input id="auth-password" name="password" type={showPw ? 'text' : 'password'} value={pw} onChange={(e)=>setPw(e.target.value)} placeholder="mind. 10 Zeichen"
+            required minLength={10} maxLength={128}
+            autoComplete={mode==='signup' || resetToken ? 'new-password' : 'current-password'}
+            className="uplift-input" style={{ ...inputStyle, paddingRight:92 }} />
+          <button type="button" onClick={() => setShowPw((value) => !value)}
+            aria-label={showPw ? 'Passwort verbergen' : 'Passwort anzeigen'} aria-pressed={showPw}
+            style={{ position:'absolute', insetInlineEnd:5, top:4, minWidth:80, minHeight:44, borderRadius:8,
+              border:'1px solid var(--line)', background:'rgba(255,255,255,0.04)', color:'var(--text-dim)',
+              cursor:'pointer', fontFamily:'var(--font-body)', fontWeight:700, fontSize:11 }}>
+            {showPw ? 'VERBERGEN' : 'ANZEIGEN'}
+          </button>
+        </div>
 
 
         {err && (
-          <div style={{ marginTop:10 }}>
+          <div role="alert" aria-live="assertive" style={{ marginTop:10 }}>
             <div style={{ color:'#fca5a5', fontSize:12 }}>⚠ {err.de}</div>
-            {err.ar && <div dir="rtl" style={{ color:'#fca5a5', fontSize:12, marginTop:2 }}>{err.ar}</div>}
+            {err.ar && <div dir="rtl" lang="ar-EG" style={{ color:'#fca5a5', fontSize:12, marginTop:2 }}>{err.ar}</div>}
             {/* Expired-link escape hatch (review catch): in reset mode every other control is
                 hidden — without this button a stale-link user had literally no way forward. */}
             {err.expired && (
@@ -3474,7 +3517,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
             border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
             <div>Wir schicken dir einen Link an deine E-Mail-Adresse (oben eintragen) — damit setzt du dein Passwort selbst zurück.</div>
-            <div dir="rtl" style={{ marginTop:4 }}>هنبعتلك لينك على إيميلك تغيّر بيه الباسورد بنفسك.</div>
+            <div dir="rtl" lang="ar-EG" style={{ marginTop:4 }}>هنبعتلك لينك على إيميلك تغيّر بيه الباسورد بنفسك.</div>
             <button type="button" onClick={sendForgot} disabled={forgotBusy}
               style={{ display:'block', width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:forgotBusy?'wait':'pointer',
                 fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, letterSpacing:'0.06em', borderRadius:9,
@@ -3487,7 +3530,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
             border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
             <div>Wenn ein Konto mit dieser Adresse existiert, ist der Link unterwegs — <b style={{ color:'var(--text)' }}>Posteingang und Spam-Ordner</b> prüfen. Gültig 45 Minuten.</div>
-            <div dir="rtl" style={{ marginTop:4 }}>لو في حساب بالإيميل ده، اللينك في السكة — بص في الإنبوكس والسبام. صالح ٤٥ دقيقة.</div>
+            <div dir="rtl" lang="ar-EG" style={{ marginTop:4 }}>لو في حساب بالإيميل ده، اللينك في السكة — بص في الإنبوكس والسبام. صالح ٤٥ دقيقة.</div>
           </div>
         )}
         {mode === 'login' && !resetToken && forgotState === 'unavailable' && (
@@ -3527,7 +3570,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
       </div>
       </div>{/* /column 2 */}
       </div>{/* /landing-grid */}
-    </div>
+    </main>
   );
 }
 function VerificationLinkScreen({ state = 'working', onRetry }) {
