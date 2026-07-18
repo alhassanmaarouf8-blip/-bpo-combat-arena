@@ -399,7 +399,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   const ctaText =
       d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}`
     : d.prescription?.action === 'interview'  ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill('interview')}`
-    : d.prescription?.action === 'assessment' ? `${BRAIN_COPY.startCta} · EINSTUFUNG`
+    : d.prescription?.action === 'assessment' ? `${BRAIN_COPY.startCta} · DIAGNOSE-INTERVIEW`
     : d.prescription?.action === 'measure'    ? BRAIN_COPY.measure
     : d.prescription?.action === 'apply'      ? BRAIN_COPY.apply
     : d.prescription?.action === 'wait'       ? 'RETEST-ZEITFENSTER ABWARTEN'
