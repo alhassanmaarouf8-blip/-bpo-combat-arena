@@ -4,12 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('BrainGuide makes one action, dose, completion and consequence immediately legible', async () => {
+test('BrainGuide keeps one visible action while details stay available on demand', async () => {
   const source = await read('client/src/BrainGuide.jsx');
   assert.match(source, /DEIN NÄCHSTER SCHRITT/u);
-  assert.match(source, />JETZT</u);
-  assert.match(source, />FERTIG, WENN</u);
-  assert.match(source, />DANACH</u);
+  assert.match(source, /\{brief\.title\}/u);
+  assert.match(source, /\{brief\.dose\}/u);
+  assert.match(source, /Fertig, wenn: \{brief\.done\}/u);
+  assert.match(source, /Danach: \{brief\.after\}/u);
   assert.match(source, /className="brain-guide__cta"/u);
   assert.equal((source.match(/className="brain-guide__cta"/gu) || []).length, 1,
     'the guide must render exactly one primary action implementation');
@@ -38,7 +39,7 @@ test('the mission UI stays energetic without sacrificing mobile, focus or motion
 test('confidence copy cannot call an unmeasured gate repeatedly measured', async () => {
   const source = await read('client/src/BrainGuide.jsx');
   assert.match(source, /d\.confidence === 'high' && d\.state === 'POST_FIGHT' \? 'WIEDERHOLT GEMESSEN'/u);
-  assert.match(source, /d\.confidence === 'low' \? 'ERSTE MESSUNG' : 'SERVER-GESTEUERT'/u);
+  assert.match(source, /d\.confidence === 'low' \? 'ERSTE MESSUNG' : 'DEIN PLAN'/u);
 });
 
 test('career journey reflects verified evidence without becoming another planner', async () => {
@@ -49,9 +50,8 @@ test('career journey reflects verified evidence without becoming another planner
   assert.match(source, /\['READY', 'RETEST_READY'\]\.includes\(directive\?\.state\)/u);
   assert.match(source, /j\.entryDone \?\? 0/u,
     'visible progress must remain sourced from the server journey');
-  assert.match(source, /transfer-verifizierte F.higkeiten/u);
-  assert.match(source, /Fortschritt z.hlt nur nach einem verz.gerten Transfer-Retest/u);
-  assert.match(source, /keine Einstellungsprognose/u);
+  assert.match(source, /best.tigte F.higkeiten/u);
+  assert.match(source, /Fortschritt z.hlt erst, wenn du es in einer neuen Situation zeigst/u);
   assert.match(source, /aria-current=\{current \? 'step' : undefined\}/u);
   assert.equal((source.match(/className="brain-guide__cta"/gu) || []).length, 1,
     'the presentation layer must not add a competing primary action');

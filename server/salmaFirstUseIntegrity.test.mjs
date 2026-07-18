@@ -59,7 +59,7 @@ test('A2 is routed through measured foundation work rather than rejected from tr
 test('reachable tutor copy names simulations honestly and contains no fixed invented dose', () => {
   const german = Object.values(SALMA_COPY).map((entry) => entry.de).join('\n');
 
-  assert.equal(salmaRole('de'), 'Persönliche Interviewtrainerin');
+  assert.equal(salmaRole('de'), 'Deine Recruiterin');
   assert.doesNotMatch(german, /echte Interviews|echtes Interview|im echten Gespräch/u);
   assert.doesNotMatch(german, /15 Minuten heute|unter 5 Grammatik-Fehler|ich melde mich nach jedem/u);
   assert.doesNotMatch(german, /Du brauchst keine Anfängerrunde|Dein Niveau ist stark/u);

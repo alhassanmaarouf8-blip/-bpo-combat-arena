@@ -6,10 +6,11 @@ import { primaryActionPolicy } from '../client/src/brainActionPolicy.js';
 const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
-test('Salma is a personal tutor without recruiter or booking claims', async () => {
+test('Salma keeps the approved recruiter identity without booking or employer claims', async () => {
   const copy = await read('client/src/salmaCopy.js');
-  assert.match(copy, /Persönliche Interviewtrainerin/u);
-  assert.doesNotMatch(copy, /Recruiterin|ich buche|ich vermittle|buche dir|Arbeitgeberin/u);
+  assert.match(copy, /Deine Recruiterin/u);
+  assert.match(copy, /persönliche Interviewtrainerin/u);
+  assert.doesNotMatch(copy, /ich buche|ich vermittle|buche dir|Arbeitgeberin/u);
 });
 
 test('portrait has no fake mouth layer and ordinary opens do not auto-greet', async () => {
@@ -312,7 +313,8 @@ test('home clears stale guidance and cannot display unsupported readiness or tra
 
   assert.match(app, /primaryActionPolicy/u);
   assert.match(app, /onDirectiveState=\{setBrainDecision\}/u);
-  assert.match(app, /homePrimaryAction\.showGenericInterview/u);
+  assert.match(app, /ALWAYS visible when the user can start/u);
+  assert.match(app, /onClick=\{beginSession\}/u);
   assert.doesNotMatch(app, /\{rank && <RankLadder/u);
 
   assert.match(brain, /setData\(null\);\s*setLoadState\('loading'\);\s*onDirectiveState\?\.\(\{ status: 'loading', directive: null \}\)/u);
