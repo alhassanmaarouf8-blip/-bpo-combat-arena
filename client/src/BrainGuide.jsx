@@ -85,12 +85,12 @@ const ACTION_LABEL = Object.freeze({
   apply: 'Passende Stellen prüfen',
   wait: 'Bis zum Retest warten',
   vacancy: 'Heutige Interview-Vorbereitung',
-  mission: 'Bewerbungs-Pass prüfen',
+  mission: 'Bewerbungsprofil vervollständigen',
   drill: 'Trainingsblock starten',
 });
 
 const MISSION_LABEL = Object.freeze({
-  passport: 'Kandidaten-Pass prüfen', measure: 'Bewerbungsreife messen', prep: 'Bewerbung vorbereiten',
+  passport: 'Dein Bewerbungsprofil erstellen', measure: 'Bewerbungsreife messen', prep: 'Bewerbung vorbereiten',
   shortlist: 'Passende Stellen prüfen', pack: 'Bewerbungs-Paket erstellen', submit: 'Bewerbung offiziell einreichen',
   response: 'Arbeitgeber-Antwort einordnen', interview: 'Interview vorbereiten',
 });
@@ -161,10 +161,18 @@ function missionBrief(d, coach) {
     done: p.liveRequired ? 'Ein aussagekräftiger Live-Debrief wurde gespeichert.' : 'Der heutige Meilenstein ist bestätigt.',
     after: 'Danach aktualisiert BrainGuide den Interviewplan.',
   };
-  if (p.action === 'mission') return {
-    title: MISSION_LABEL[p.step] || ACTION_LABEL.mission, dose: 'Diesen einen Bewerbungs-Schritt abschließen',
-    done: 'Der Schritt ist bestätigt und dauerhaft gespeichert.', after: 'Danach wird der nächste zulässige Schritt sichtbar.',
-  };
+  if (p.action === 'mission') {
+    if (p.step === 'passport') return {
+      title: MISSION_LABEL.passport,
+      dose: 'Zieljob, Erfahrung, Verfügbarkeit und bestätigte Stärken eintragen',
+      done: 'Deine Angaben sind von dir bestätigt und sicher gespeichert.',
+      after: 'Danach kann die App passende Stellen prüfen und Bewerbungshilfen nur aus deinen bestätigten Angaben erstellen.',
+    };
+    return {
+      title: MISSION_LABEL[p.step] || ACTION_LABEL.mission, dose: 'Diesen einen Bewerbungs-Schritt abschließen',
+      done: 'Der Schritt ist bestätigt und dauerhaft gespeichert.', after: 'Danach wird der nächste zulässige Schritt sichtbar.',
+    };
+  }
   if (p.action === 'apply') return {
     title: ACTION_LABEL.apply, dose: 'Eine passende, noch offene Stelle prüfen',
     done: 'Passung und harte Ausschlusskriterien sind ehrlich geprüft.', after: 'Du entscheidest selbst über die offizielle Bewerbung.',
@@ -367,7 +375,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
     : d.prescription?.action === 'wait'       ? 'RETEST-ZEITFENSTER ABWARTEN'
     : d.prescription?.action === 'vacancy'    ? `ZIEL-STELLE · ${d.prescription.title || 'HEUTIGER SCHRITT'}`
     : d.prescription?.action === 'mission'    ? `BEWERBUNG · ${({
-      passport:'PASS PRÜFEN', measure:'BEREITSCHAFT MESSEN', prep:'VORBEREITEN', shortlist:'PASSENDE STELLEN',
+      passport:'BEWERBUNGSPROFIL ERSTELLEN', measure:'BEREITSCHAFT MESSEN', prep:'VORBEREITEN', shortlist:'PASSENDE STELLEN',
       pack:'BEWERBUNGS-PACK', submit:'OFFIZIELL EINREICHEN', response:'ANTWORT EINORDNEN', interview:'INTERVIEW VORBEREITEN',
     })[d.prescription.step] || 'NÄCHSTER SCHRITT'}`
     : BRAIN_COPY.startCta;

@@ -115,7 +115,7 @@ function errorText(error) {
     tracked_limit: ['Dein aktuelles Limit für aktive Bewerbungen ist erreicht.', 'وصلت إلى حد الطلبات النشطة في خطتك.'],
     application_limit: ['Dein Limit für aktive Bewerbungen ist erreicht.', 'وصلت إلى حد طلبات التقديم النشطة.'],
     not_ready_to_apply: ['BrainGuide zeigt dir zuerst die fehlende Vorbereitung.', 'سيعرض BrainGuide خطوة الاستعداد المطلوبة أولاً.'],
-    passport_evidence_required: ['Bestätige zuerst mindestens einen teilbaren Beleg im Kandidaten-Pass.', 'أكّد أولاً دليلاً واحداً قابلاً للمشاركة في ملف المرشح.'],
+    passport_evidence_required: ['Bestätige zuerst mindestens einen nachweisbaren Punkt in deinem Bewerbungsprofil.', 'أكّد أولاً معلومة واحدة موثوقة في ملف التقديم.'],
     application_pack_stale: ['Dein Passport hat sich geändert. Erstelle den Pack neu und prüfe ihn erneut.', 'تم تعديل ملف المرشح. أنشئ الحزمة من جديد وراجعها.'],
     request_timeout: ['Der Server braucht zu lange. Bitte versuche es erneut.', 'الخادم يستغرق وقتاً طويلاً. حاول مرة أخرى.'],
     too_many_attempts: ['Bitte warte kurz, bevor du es erneut versuchst.', 'انتظر قليلاً قبل المحاولة مرة أخرى.'],
@@ -470,7 +470,7 @@ export function CandidateMissionControl({
 
   function openPassport() {
     if (capabilities.fullPassport !== true) {
-      setNotice(['Der vollständige Kandidaten-Pass gehört zu Basic und Elite.', 'ملف المرشح الكامل متاح في Basic وElite.']);
+      setNotice(['Das vollständige Bewerbungsprofil gehört zu Basic und Elite.', 'ملف التقديم الكامل متاح في Basic وElite.']);
       emit('mission_paywall_shown');
       onRequestUpgrade?.();
       return;
@@ -741,14 +741,14 @@ export function CandidateMissionControl({
           <div style={{ minWidth:0 }}>
             <div style={{ color:'var(--accent, #3b82f6)', fontSize:9.5, fontWeight:850, letterSpacing:'0.14em' }}>BEWERBUNGS-MISSION</div>
             <h2 id="cmc-compact-title" style={{ margin:'4px 0 0', color:'var(--text, #e2e8f0)', fontSize:14.5 }}>
-              {currentPassCopy?.[0] || 'Dein Passport, deine passenden Stellen, dein Tracker'}
+              {currentPassCopy?.[0] || 'Dein Bewerbungsprofil, passende Stellen und dein Tracker'}
             </h2>
             <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #64748b)', fontSize:10.5 }}>
               {currentPassCopy?.[1] || 'ملفك والوظائف الأنسب وتتبع التقديم — داخل OMNI-PERFORM'}
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <Chip tone="blue">{passportCompleteness}% PASS</Chip>
+            <Chip tone="blue">{passportCompleteness}% PROFIL</Chip>
             <button type="button" onClick={() => { setExpanded(true); emit('mission_control_opened'); }} style={neutralButton}>VERWALTEN</button>
           </div>
         </div>
@@ -769,7 +769,7 @@ export function CandidateMissionControl({
             <div dir="rtl" style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 13 }}>الوظائف المناسبة ومتابعة التقديم — داخل OMNI-PERFORM</div>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-            <button type="button" onClick={openPassport} style={neutralButton}>PASS EINSTELLEN</button>
+            <button type="button" onClick={openPassport} style={neutralButton}>PROFIL BEARBEITEN</button>
             <button type="button" onClick={() => { closeDialog(); setExpanded(false); }} style={neutralButton}>SCHLIESSEN</button>
           </div>
         </div>
@@ -888,8 +888,8 @@ export function CandidateMissionControl({
         )}
       </div>
 
-      <Dialog open={dialog === 'passport'} title="Privater Kandidaten-Pass" titleAr="ملف المرشح الخاص" busy={busy} onClose={closeDialog}
-        description="Nur bestätigte, kontrollierte Fakten dürfen in einen Bewerbungs-Pack gelangen.">
+      <Dialog open={dialog === 'passport'} title="Dein privates Bewerbungsprofil" titleAr="ملف التقديم الخاص بك" busy={busy} onClose={closeDialog}
+        description="Hier bestätigst du Zieljob, Erfahrung und Verfügbarkeit. Die App nutzt nur deine bestätigten Angaben für passende Stellen und Bewerbungshilfen.">
         {passportDraft && <div style={{ display: 'grid', gap: 15 }}>
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
             <legend style={{ color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>Zielrollen <span dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontWeight: 500 }}>الوظائف المستهدفة</span></legend>
@@ -921,7 +921,7 @@ export function CandidateMissionControl({
             {passportDraft.facts.length < 12 && <div className="cmc-two" style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr)', gap: 8, marginTop: 9 }}><select aria-label="Faktentyp" value={factDraft.type} onChange={(event) => setFactDraft((current) => ({ ...current, type: event.target.value }))} style={fieldStyle}>{FACT_TYPE_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.de}</option>)}</select><input aria-label="Bestätigte Tatsache" maxLength={240} value={factDraft.value} onChange={(event) => setFactDraft((current) => ({ ...current, value: event.target.value }))} placeholder="Nur eine konkrete, wahre Tatsache" style={fieldStyle}/><label style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-dim, #94a3b8)', fontSize: 11 }}><input type="checkbox" checked={factDraft.shareAllowed} onChange={(event) => setFactDraft((current) => ({ ...current, shareAllowed: event.target.checked }))} style={{ width: 18, height: 18, accentColor: 'var(--accent, #3b82f6)' }}/>Darf in einen Bewerbungs-Pack</label><button type="button" onClick={addFact} disabled={!factDraft.value.trim()} style={neutralButton}>FAKT HINZUFÜGEN</button></div>}
           </section>
           <label style={{ minHeight: 48, display: 'flex', alignItems: 'start', gap: 9, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.26)', cursor: 'pointer' }}><input type="checkbox" checked={passportConsent} onChange={(event) => setPassportConsent(event.target.checked)} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.5 }}>Ich bestätige, dass diese Angaben wahr sind. Nur Karten mit „Darf in einen Bewerbungs-Pack“ dürfen geteilt werden.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', marginTop: 3 }}>أؤكد أن البيانات صحيحة، ولا تُستخدم إلا الحقائق التي سمحت بمشاركتها.</span></span></label>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" onClick={savePassport} disabled={busy || !passportConsent} style={dialogPrimary}>PASS SPEICHERN</button></div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" onClick={savePassport} disabled={busy || !passportConsent} style={dialogPrimary}>PROFIL SPEICHERN</button></div>
         </div>}
       </Dialog>
 

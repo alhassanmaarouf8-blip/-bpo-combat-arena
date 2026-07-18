@@ -116,6 +116,21 @@ test('production readiness logging never emits correlatable learner attributes',
   assert.doesNotMatch(progress, /\[hire-readiness\][^\n]*(?:user=|level=|gap=|ready=)/u);
 });
 
+test('BrainGuide explains the candidate-profile action in learner outcomes instead of product jargon', async () => {
+  const [brain, mission] = await Promise.all([
+    read('client/src/BrainGuide.jsx'),
+    read('client/src/CandidateMissionControl.jsx'),
+  ]);
+
+  assert.match(brain, /passport: 'Dein Bewerbungsprofil erstellen'/u);
+  assert.match(brain, /Zieljob, Erfahrung, Verfügbarkeit und bestätigte Stärken eintragen/u);
+  assert.match(brain, /BEWERBUNGSPROFIL ERSTELLEN/u);
+  assert.doesNotMatch(brain, /Kandidaten-Pass prüfen|passport:'PASS PRÜFEN'/u);
+  assert.match(mission, /title="Dein privates Bewerbungsprofil"/u);
+  assert.match(mission, /passende Stellen und Bewerbungshilfen/u);
+  assert.match(mission, /PROFIL SPEICHERN/u);
+});
+
 test('BrainGuide renders useful loading and recoverable error states instead of disappearing', async () => {
   const brain = await read('client/src/BrainGuide.jsx');
   const fallback = section(brain, 'if (!data?.directive) return (', 'const d = data.directive;');
