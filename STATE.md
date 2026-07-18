@@ -1,6 +1,11 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
-## 🧪 JOURNEY-TEST + 4 BUGS FIXED, LIVE @ d65669f (2026-07-18)
+## 🧪 JOURNEY-TEST + 5 BUGS FIXED, LIVE @ 1202867 (2026-07-18)
+- 5th fix `1202867` (honest-when-thin): assessment prompt forced "3–5 blockers" regardless of
+  evidence → thin sample got 5 INVENTED harsh blockers (Salma voices them). Evidence-scaled prompt +
+  deterministic clamp (thin → quote-backed only, max 2) + `evidenceThin` client note. PROVEN LIVE:
+  fresh 3-answer/~15-word assessment → 0 blockers (was 5). Foot-gun #60. (Below: the first 4.)
+
 - Ran a full fresh-verified-account journey on prod (voice+interview+drills) + TheDebuggerMAN A–J
   sweep. **The core loop is PROVEN working end-to-end:** signup → assessment (5 recorded answers →
   verdict) → "Erstes Interview starten" → session_ready → Yasmin speaks → debrief. Empirically, NOT
