@@ -134,3 +134,31 @@ test('grammar focus is bounded and strips control and bidirectional characters',
   assert.ok(card.focus.length <= 120);
   assert.doesNotMatch(card.focus, /\u202e/u);
 });
+
+test('persisted long multi-error grammar cards are retired from Daily Training', () => {
+  const p = defaultProfile('daily-long-legacy-card');
+  const wrong = 'Ja, weil ich Erfahrung gesammelt habe und das ist ziemlich ein einfacher Stelle zu übernehmen im Bezug im Vergleich zu anderen Stellen.';
+  const right = 'Ja, weil ich Erfahrung gesammelt habe, und es ist eine ziemlich einfache Stelle im Vergleich zu anderen Stellen.';
+  p.srs.push({
+    id: 'grammar:long-legacy', type: 'grammar', content: 'Evtl. passen Wörter grammatisch nicht zusammen.',
+    prompt: `Korrigiere auf Deutsch: „${wrong}“`, answer: right, example: { wrong, right },
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  p.dailyPractice = { date: dayKey(), questionIds: ['grammar:long-legacy'], grades: {} };
+
+  const daily = buildDaily(p);
+  assert.equal(daily.questions.some((question) => question.id === 'grammar:long-legacy'), false);
+  assert.ok(daily.questions.length >= 3);
+});
+
+test('uncertain model language is never presented as an actionable grammar focus', () => {
+  const p = defaultProfile('daily-uncertain-focus');
+  p.srs.push({
+    id: 'grammar:uncertain-focus', type: 'grammar', content: 'Evtl. passen Wörter grammatisch nicht zusammen.',
+    prompt: 'Korrigiere: „Er gehen zur Arbeit.“', answer: 'Er geht zur Arbeit.',
+    example: { wrong: 'Er gehen zur Arbeit.', right: 'Er geht zur Arbeit.' },
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  const card = buildDaily(p).questions.find((question) => question.id === 'grammar:uncertain-focus');
+  assert.equal(card.focus, null);
+});

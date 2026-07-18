@@ -95,7 +95,7 @@ function dailyQuestionFromId(profile, rawId) {
     return item ? { id: item.id, kind: 'fix', prompt: item.prompt, hint: item.hint || null, source: 'generated' } : null;
   }
   const item = (profile.srs || []).find((row) => row?.id === id);
-  return item && drillable(item) ? {
+  return item && dailyDrillable(item) ? {
     id: item.id, kind: item.type === 'vocab' ? 'vocab' : 'fix', prompt: item.prompt,
     hint: item.type === 'vocab' ? 'Produziere das deutsche Wort.' : null,
     focus: item.type === 'grammar' ? safeFocus(item.content) : null,
@@ -103,11 +103,31 @@ function dailyQuestionFromId(profile, rawId) {
   } : null;
 }
 
+// Daily Training is deliberately a short, single-repair micro-session. A correction that
+// requires the learner to rewrite a long interview turn is not a useful recall card: it mixes
+// several possible errors, makes the target impossible to infer, and turns a 3–5 minute block
+// into transcription work. Keep those items in the learner record for the richer spoken-review
+// surfaces, but never serve them here. This also retires already-persisted legacy sessions on
+// the next GET because validPractice() revalidates every stored question ID.
+const DAILY_GRAMMAR_MAX_WORDS = 18;
+const UNCERTAIN_FOCUS = /\b(?:eventuell|evtl\.?|möglicherweise|vielleicht|unklar|könnte)\b|\bgrammatisch(?:e|er|es|en)?\s+(?:nicht|falsch|fehler)\b/iu;
+
+function wordCount(value) {
+  return String(value || '').normalize('NFC').trim().split(/\s+/u).filter(Boolean).length;
+}
+
+function dailyDrillable(item) {
+  if (!drillable(item)) return false;
+  if (item?.type !== 'grammar') return true;
+  return wordCount(item?.example?.wrong) <= DAILY_GRAMMAR_MAX_WORDS
+    && wordCount(item?.example?.right) <= DAILY_GRAMMAR_MAX_WORDS;
+}
+
 function safeFocus(value) {
   const text = String(value || '').normalize('NFC')
     .replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu, ' ')
     .replace(/\s+/gu, ' ').trim().slice(0, 120);
-  return text || null;
+  return text && !UNCERTAIN_FOCUS.test(text) ? text : null;
 }
 
 function publicDailyQuestion(profile, question) {
@@ -145,7 +165,7 @@ export function buildDaily(profile) {
       questions: existing.questions.map((question) => publicDailyQuestion(profile, question)),
       progress: dailyProgress(profile) };
   }
-  const due = dueItems(profile, Date.now(), 8);
+  const due = dueItems(profile, Date.now(), 24).filter(dailyDrillable).slice(0, 8);
   const fromMistakes = due.map((i) => ({
     id:     i.id,
     kind:   i.type === 'vocab' ? 'vocab' : 'fix',
