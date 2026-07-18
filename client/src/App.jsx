@@ -6281,7 +6281,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   interview when the brain owned the only button.) */}
               {brainGuideAuthority && (brainDecision.status === 'error'
                 || (homePrimaryAction.owner === 'brain' && homePrimaryAction.action
-                    && !['interview', 'measure', 'assessment', 'vacancy'].includes(homePrimaryAction.action))) && (
+                    && !['interview', 'assessment'].includes(homePrimaryAction.action))) && (
                 <button onClick={beginSession} disabled={isConnecting} style={{ width:'100%', marginTop:8, padding:'10px',
                   minHeight:44, cursor: isConnecting ? 'wait' : 'pointer', background:'none', border:'none',
                   fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>

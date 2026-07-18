@@ -6,6 +6,7 @@
   "scripts": {
     "lint": "eslint server client --no-warn-ignored",
     "design-lint": "node scripts/design-lint.mjs",
+    "guard:interview": "node scripts/interview-guard.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:syntax": "node scripts/check-syntax.mjs",
     "test:server": "node scripts/run-server-tests.mjs",
@@ -32,7 +33,7 @@
     "study:expert-gold": "node scripts/expert-gold-harness.mjs",
     "study:pronunciation:gate": "node scripts/pronunciation-release-gate.mjs",
     "study:invite": "node scripts/create-study-cohort-invite.mjs",
-    "verify": "npm run check:secrets && npm run lint && npm run design-lint && npm run check:syntax && npm run test:server && npm run build:client && npm run check:artifact"
+    "verify": "npm run check:secrets && npm run lint && npm run design-lint && npm run guard:interview && npm run check:syntax && npm run test:server && npm run build:client && npm run check:artifact"
   },
   "devDependencies": {
     "eslint": "^9.39.0",
