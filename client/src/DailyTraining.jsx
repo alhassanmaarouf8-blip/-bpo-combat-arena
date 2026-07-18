@@ -172,7 +172,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
   };
 
   return (
-    <div {...overlayProps} style={ov}>
+    <div {...overlayProps} dir="ltr" lang="de" style={ov}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '0.1em',
@@ -219,7 +219,10 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
           {/* Phrase of the day */}
           {data.phrase && (
             <div style={{ ...card, borderColor: 'rgba(59,130,246,0.3)' }}>
-              <div style={{ ...secTitle, color: 'var(--accent)' }}>PHRASE DES TAGES</div>
+              <div style={{ ...secTitle, color: 'var(--accent)' }}>ZUSATZ · SATZ FÜR DEN JOB</div>
+              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 7 }}>
+                Unabhängig von deinem Reparaturblock unten: anhören und einmal laut nachsprechen.
+              </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, color: '#e2e8f0', lineHeight: 1.4 }}>{data.phrase.de}</div>
                 <button onClick={() => speakCard(data.phrase.de, 'phrase')} style={speakBtnSt} title="Anhören">
@@ -272,11 +275,11 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                   background: result.correct ? 'rgba(59,130,246,0.12)' : 'rgba(239,68,68,0.12)',
                   border: `1px solid ${result.correct ? 'var(--accent)55' : '#ef444455'}` }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? 'var(--accent)' : '#f87171' }}>
-                    {result.correct ? '✓ Richtig' : '✗ Nochmal üben'}
+                    {result.correct ? '✓ Richtig' : '✗ Noch nicht richtig'}
                   </div>
                   {!result.correct && result.expected && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
-                      <div style={{ fontSize: 12, color: '#cbd5e1' }}>Lösung: <b style={{ color: '#e2e8f0' }}>{result.expected}</b></div>
+                      <div style={{ fontSize: 12, color: '#cbd5e1' }}>Zielantwort: <b style={{ color: '#e2e8f0' }}>{result.expected}</b></div>
                       <button onClick={() => speakCard(result.expected, 'answer')} style={speakBtnSt} title="Lösung anhören">
                         {speaking === 'answer' ? <SpeakerIcon /> : <SpeakerQuietIcon />}
                       </button>
@@ -291,7 +294,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                   {/* Write-it-again gate (Bjork 1994): retype correct form before advancing */}
                   {retypeMode && (
                     <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 4, letterSpacing: '0.06em' }}>SCHREIB ES AB, UM FORTZUFAHREN:</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 4, letterSpacing: '0.06em' }}>GIB DIE ZIELANTWORT VOLLSTÄNDIG EIN:</div>
                       <input value={retypeValue}
                         onChange={(e) => { setRetypeValue(e.target.value); checkRetype(e.target.value); }}
                         onKeyDown={(e) => { if (e.key === 'Enter' && retypeOk) next(); }}
@@ -314,7 +317,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                   opacity: (busy || (!result && !answer.trim()) || (result && !canAdvance)) ? 0.5 : 1 }}>
                 {busy ? '…'
                   : !result ? 'PRÜFEN'
-                  : !canAdvance ? '✍ ERST TIPPEN'
+                  : !canAdvance ? 'ZIELANTWORT VOLLSTÄNDIG EINGEBEN'
                   : idx + 1 < questions.length ? 'WEITER →' : 'ABSCHLIESSEN ✓'}
               </button>
             </div>

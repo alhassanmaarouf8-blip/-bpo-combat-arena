@@ -21,7 +21,13 @@ export const drillable = (i) => {
   // a correct sentence and demand that the learner copy the label. Hide those legacy cards.
   const answer = String(i?.answer || '').trim().toLocaleLowerCase('de-DE');
   const content = String(i?.content || '').trim().toLocaleLowerCase('de-DE');
-  return Boolean(i?.example?.wrong && i?.example?.right && answer && answer !== content);
+  const wrong = normalize(i?.example?.wrong).toLocaleLowerCase('de-DE');
+  const right = normalize(i?.example?.right).toLocaleLowerCase('de-DE');
+  const normalizedAnswer = normalize(i?.answer).toLocaleLowerCase('de-DE');
+  // A repair card must contain a real, visible change and its expected answer must be the
+  // authoritative corrected example. Historic/model-generated cards occasionally stored the
+  // same sentence as both wrong and right; those create a fake correction and must never surface.
+  return Boolean(wrong && right && answer && answer !== content && wrong !== right && normalizedAnswer === right);
 };
 
 export function srsKey(type, content) {

@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { defaultProfile } from './store.js';
 import { dayKey } from './time.js';
 import { buildDaily, completeDaily, gradeDailyItem } from './daily.js';
+
+const readClient = (path) => readFile(new URL(`../client/src/${path}`, import.meta.url), 'utf8');
 
 function profile(id = 'daily-test') {
   const value = defaultProfile(id);
@@ -64,4 +67,42 @@ test('legacy grammar labels are never served or graded as production answers', (
   const daily = buildDaily(p);
   assert.equal(daily.questions.some((question) => question.id === 'grammar:case-label'), false);
   assert.equal(gradeDailyItem(p, 'grammar:case-label', 'Kasus (Fall) nach Präposition').error, 'daily_session_required');
+});
+
+test('fake repairs with identical wrong and right sentences never reach the learner', () => {
+  const p = defaultProfile('daily-identical-repair');
+  const sentence = 'Ja, weil ich Erfahrung gesammelt habe.';
+  p.srs.push({
+    id: 'grammar:fake-repair', type: 'grammar', content: 'Satzbau',
+    prompt: `Korrigiere: ${sentence}`, answer: sentence,
+    example: { wrong: sentence, right: sentence },
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  p.dailyPractice = { date: dayKey(), questionIds: ['grammar:fake-repair'], grades: {} };
+  const daily = buildDaily(p);
+  assert.equal(daily.questions.some((question) => question.id === 'grammar:fake-repair'), false);
+  assert.equal(gradeDailyItem(p, 'grammar:fake-repair', sentence).error, 'daily_session_required');
+});
+
+test('a repair answer must match the stored corrected example', () => {
+  const p = defaultProfile('daily-mismatched-answer');
+  p.srs.push({
+    id: 'grammar:mismatched-answer', type: 'grammar', content: 'Nebensatz',
+    prompt: 'Korrigiere den weil-Satz.', answer: 'Eine andere Antwort.',
+    example: { wrong: 'Weil ich habe Erfahrung.', right: 'Weil ich Erfahrung habe.' },
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  p.dailyPractice = { date: dayKey(), questionIds: ['grammar:mismatched-answer'], grades: {} };
+  const daily = buildDaily(p);
+  assert.equal(daily.questions.some((question) => question.id === 'grammar:mismatched-answer'), false);
+});
+
+test('daily German practice is isolated from RTL and explains the two card purposes', async () => {
+  const source = await readClient('DailyTraining.jsx');
+  assert.match(source, /dir="ltr" lang="de"/u);
+  assert.match(source, /ZUSATZ · SATZ FÜR DEN JOB/u);
+  assert.match(source, /Unabhängig von deinem Reparaturblock unten/u);
+  assert.match(source, /Zielantwort:/u);
+  assert.match(source, /ZIELANTWORT VOLLSTÄNDIG EINGEBEN/u);
+  assert.doesNotMatch(source, /ERST TIPPEN/u);
 });
