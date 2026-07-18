@@ -419,7 +419,19 @@ export function canonicalCoachDirective(profile, account, { now = Date.now(), co
   } : null;
   const missionDue = missionNextAction(profile, account, { flags: governedMissionControlFlagsFor(account) });
   const coachGate = effectiveCoachFlags.enabled ? salmaCoachBrainGate(profile?.salmaCoach, profile, now) : null;
-  const directive = decide({ ...snapshot, vacancyDue: safeDue, missionDue, coachGate });
+  // The job-application layer (vacancy / mission-control) LEADS the primary next-step only when it is
+  // production-on for everyone. In admin/beta preview it stays reachable, but it must NOT hijack the
+  // learning-loop guidance (interview → drill → retest) that real users get — otherwise the founder's
+  // own admin view is led into a half-built feature with a dead button instead of the coaching.
+  // Reversible: set the mode to 'on' when the feature is ready and it leads again. [owner 07-18]
+  const modeIsOn = (v) => String(v || '').trim().toLowerCase() === 'on';
+  const jobLayerLeads = modeIsOn(process.env.OPPORTUNITY_COPILOT_MODE) || modeIsOn(process.env.VACANCY_MODE);
+  const directive = decide({
+    ...snapshot,
+    vacancyDue: (jobLayerLeads && modeIsOn(process.env.VACANCY_MODE)) ? safeDue : null,
+    missionDue: (jobLayerLeads && modeIsOn(process.env.OPPORTUNITY_COPILOT_MODE)) ? missionDue : null,
+    coachGate,
+  });
   // When Salma is enabled, a forecast-bound drill must have an evidence-bound prescription behind
   // it. Otherwise BrainGuide explicitly asks for the missing criterion measurement instead of
   // sending the learner into a generic drill that can never close the mastery loop. With the coach
