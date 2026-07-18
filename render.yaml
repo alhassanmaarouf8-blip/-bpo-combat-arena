@@ -9,7 +9,7 @@ services:
     runtime: node
     plan: free
     branch: main
-    autoDeploy: false
+    autoDeploy: true
     rootDir: server
     buildCommand: npm install
     startCommand: node server.js
