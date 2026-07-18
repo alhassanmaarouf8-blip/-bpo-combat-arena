@@ -5950,8 +5950,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         <Suspense fallback={<OverlayLoading />}>
           <Assessment token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onClose={salma
-              ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
-              : () => setAssessmentOpen(false)}
+              ? () => { setAssessmentOpen(false); window.scrollTo(0, 0); setSalmaResume((n) => n + 1); }
+              : () => { setAssessmentOpen(false); window.scrollTo(0, 0); }}
             onStartInterview={salma
               ? () => { setAssessmentOpen(false); setSalmaResume((n) => n + 1); }
               : completeAssessmentAndStartInterview} />
