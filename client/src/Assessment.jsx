@@ -12,6 +12,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { LoadingPane } from './Loading.jsx';
 import { ClipRecorder } from './clipRecorder.js';
+import { actionBtn as primaryBtn, ghostBtn, ghostBtnWide } from './ui/primitives.js';
 
 const MAX_SEC = 60;
 
@@ -141,7 +142,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   );
   const header = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 900, letterSpacing: 2, color: 'var(--accent)' }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--accent)' }}>
         EINSTUFUNG · تقييم مستواك
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
@@ -235,7 +236,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
             00:{String(seconds).padStart(2, '0')}
           </div>
           <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
-          <button onClick={stopRec} style={{ ...primaryBtn, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}>
+          <button onClick={stopRec} style={{ ...primaryBtn, background: 'var(--bad)', boxShadow: 'none', color: '#081019' }}>
             ⏹ {T(lang, 'Aufnahme stoppen', 'إيقاف التسجيل')}
           </button>
         </>
@@ -293,7 +294,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
     <div>
       <div style={{ textAlign: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 12, color: '#94a3b8' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 900, color: 'var(--accent)', textShadow: '0 0 22px rgba(59,130,246,0.5)' }}>~{lvl}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 600, color: 'var(--accent)', textShadow: '0 0 22px rgba(59,130,246,0.5)' }}>~{lvl}</div>
         <div style={{ fontSize: 10, color: '#64748b' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
       </div>
 
@@ -348,11 +349,4 @@ function Section({ title, color, children }) {
   );
 }
 
-// ── shared button styles ──
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: 'var(--font-display)',
-  fontSize: 12, letterSpacing: '0.08em', borderRadius: 10, fontWeight: 700, border: '1px solid var(--accent)', color: '#04070d',
-  background: 'linear-gradient(135deg,var(--accent-2),var(--accent))' };
-const ghostBtn = { cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '6px 10px', borderRadius: 7,
-  border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10.5, padding: '12px', minHeight: 44,
-  borderRadius: 9, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
+// shared button styles come from ui/primitives.js (actionBtn aliased as primaryBtn above)

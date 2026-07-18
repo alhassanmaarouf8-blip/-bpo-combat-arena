@@ -278,7 +278,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
               {result && (
                 <div className="flash" style={{ marginTop: 10, padding: '9px 11px', borderRadius: 'var(--r-sm)',
                   background: result.correct ? 'rgba(59,130,246,0.12)' : 'rgba(239,68,68,0.12)',
-                  border: `1px solid ${result.correct ? 'var(--accent)55' : '#ef444455'}` }}>
+                  border: `1px solid ${result.correct ? 'rgba(59,130,246,0.33)' : 'rgba(239,68,68,0.33)'}` }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? 'var(--accent)' : '#f87171' }}>
                     {result.correct ? '✓ Richtig' : '✗ Noch nicht richtig'}
                   </div>

@@ -1,5 +1,21 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 🎨 PHASE-3 CONGRUENCE: NON-APP RESIDUES = 0 (2026-07-18 afternoon)
+- Converted the last 15 non-App.jsx design-lint congruence residues onto `ui/primitives` + tokens:
+  Assessment (local primaryBtn/ghostBtn/ghostBtnWide deleted → `actionBtn` aliased import; stop-rec
+  button #ef4444 → var(--bad) dark-text; two caps-900 headers → 600/'0.02em'; verdict ~level 900→600),
+  VideoLessons (same const swap; 🎬 chrome emoji stripped; slide title 900→700; playBtn 900→600),
+  DailyTraining (result border used INVALID CSS `'var(--accent)55'`/`'#ef444455'` — the border
+  silently never rendered — now valid rgba tokens), InterviewPassPreview + VacancyTargetCard
+  badges 900→600.
+- Local congruence design-lint now reports **22 residues, ALL App.jsx** (fight/debrief verdict
+  visuals — owner-tuned surface; needs its own careful dedicated ship, not regex). Client build green.
+- The CONGRUENCE lock (extended `scripts/design-lint.mjs`) stays UNCOMMITTED until App.jsx hits 0.
+- Also this session: Codex enforcement (repo `AGENTS.md` §codex block pushed `b15a158`; global
+  `~/.codex/AGENTS.md` machine-wide). ⚠ AGENTS.md has an UNCOMMITTED round-3 edit (never-ask +
+  10-attempts persistence) — the harness classifier blocked me committing it; owner commits it
+  himself for Codex-cloud parity (local Codex already reads it from disk).
+
 ## SPOKEN GOLD SOFTWARE LOOP CLOSED (2026-07-16)
 - The first frozen spoken criterion is fully executable from production: the owner admin can now
   download a minimal `no-store` spoken-gold profile snapshot after baseline and final retest.

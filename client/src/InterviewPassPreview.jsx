@@ -111,7 +111,7 @@ function StepHeader({ step }) {
             background: active ? 'rgba(59,130,246,0.12)' : done ? 'rgba(59,130,246,0.06)' : 'rgba(255,255,255,0.018)' }}>
             <span aria-hidden="true" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%',
               background: active || done ? 'var(--accent, #3b82f6)' : 'rgba(148,163,184,0.16)',
-              color: active || done ? '#06101d' : 'var(--text-faint, #64748b)', fontSize: 11, fontWeight: 900 }}>{done ? '✓' : id}</span>
+              color: active || done ? '#06101d' : 'var(--text-faint, #64748b)', fontSize: 11, fontWeight: 600 }}>{done ? '✓' : id}</span>
             <span style={{ display: 'block', marginTop: 5, fontSize: 11.5, fontWeight: 750, color: active ? 'var(--accent-2, #93c5fd)' : 'var(--text-dim, #94a3b8)' }}>{de}</span>
             <span dir="rtl" style={{ display: 'block', marginTop: 2, fontSize: 10.5, color: 'var(--text-faint, #64748b)' }}>{ar}</span>
           </li>

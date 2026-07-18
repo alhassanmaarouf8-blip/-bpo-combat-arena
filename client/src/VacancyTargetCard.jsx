@@ -258,7 +258,7 @@ function ScheduleList({ record, busy, onComplete, canLive }) {
           const live = isLiveMilestone(row.id);
           return (
             <li key={row.id} style={{ display:'grid', gridTemplateColumns:'28px minmax(0,1fr) auto', gap:9, alignItems:'start', padding:'10px', borderRadius:10, border:'1px solid var(--line)', background:complete ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.025)' }}>
-              <span aria-hidden="true" style={{ width:26, height:26, display:'grid', placeItems:'center', borderRadius:'50%', background:complete ? 'var(--accent)' : 'rgba(59,130,246,0.14)', color:complete ? '#03111f' : 'var(--accent-2)', fontSize:11, fontWeight:900 }}>
+              <span aria-hidden="true" style={{ width:26, height:26, display:'grid', placeItems:'center', borderRadius:'50%', background:complete ? 'var(--accent)' : 'rgba(59,130,246,0.14)', color:complete ? '#03111f' : 'var(--accent-2)', fontSize:11, fontWeight:600 }}>
                 {complete ? '✓' : row.day}
               </span>
               <span style={{ minWidth:0 }}>

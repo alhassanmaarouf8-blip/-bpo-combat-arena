@@ -28,6 +28,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { playNative } from './nativeVoice.js';
+import { actionBtn as primaryBtn, ghostBtn, ghostBtnWide } from './ui/primitives.js';
 
 const LINE_MS = 1300;   // cadence of the one-by-one line reveal
 const BEAT_MS = 900;    // breathing room after the narration before the next slide
@@ -570,8 +571,8 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
   );
   const header = (backBtn) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 8 }}>
-      <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, color: '#60a5fa' }}>
-        🎬 VIDEO-LEKTIONEN{/* OWNER-AR slot: header label */}
+      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.02em', color: '#60a5fa' }}>
+        VIDEO-LEKTIONEN{/* OWNER-AR slot: header label */}
       </span>
       <div style={{ display: 'flex', gap: 8 }}>
         {backBtn && <button onClick={backToList} style={ghostBtn}>‹ Übersicht{/* OWNER-AR slot */}</button>}
@@ -721,7 +722,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
           {slide.kicker}
         </div>
       )}
-      <div style={{ fontSize: 28, fontWeight: 900, color: '#f8fafc', lineHeight: 1.2, marginBottom: 18, animation: riseIn }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: '#f8fafc', lineHeight: 1.2, marginBottom: 18, animation: riseIn }}>
         {slide.title}
       </div>
 
@@ -775,21 +776,14 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
   </>);
 }
 
-// ── styles (blue #3b82f6 base, orange #f97316 single action accent, slates on deep navy, Inter) ──
+// ── styles (shared atoms from ui/primitives; locals below are screen-specific, tokens only) ──
 const FONT = "'Inter', system-ui, sans-serif";
-const ghostBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 11, padding: '10px 12px', minHeight: 44, borderRadius: 8,
-  border: '1px solid rgba(148,163,184,0.3)', background: 'transparent', color: '#94a3b8' };
-const ghostBtnWide = { cursor: 'pointer', fontFamily: FONT, fontSize: 12, padding: '12px', minHeight: 44, borderRadius: 9,
-  border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.03)', color: '#cbd5e1' };
-const primaryBtn = { width: '100%', padding: '13px', minHeight: 48, cursor: 'pointer', fontFamily: FONT, fontSize: 13,
-  letterSpacing: '0.06em', borderRadius: 10, fontWeight: 800, border: '1px solid #60a5fa', color: '#04070d',
-  background: 'linear-gradient(135deg,#60a5fa,#3b82f6)' };
 const cardBtn = { display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: FONT, padding: '16px',
   minHeight: 44, borderRadius: 12, border: '1px solid rgba(96,165,250,0.25)', background: 'rgba(0,0,0,0.35)',
   color: '#e2e8f0', marginBottom: 12, boxSizing: 'border-box' };
 const ctlBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 50, height: 50, borderRadius: 12,
   border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.04)', color: '#cbd5e1', lineHeight: 1 };
-const playBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 64, height: 64, borderRadius: 16, fontWeight: 900,
+const playBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 64, height: 64, borderRadius: 16, fontWeight: 600,
   border: '1px solid #f97316', background: 'linear-gradient(135deg,#fb923c,#f97316)', color: '#04070d', lineHeight: 1 };
 
 export default VideoLessons;
