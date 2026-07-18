@@ -131,6 +131,27 @@ test('BrainGuide explains the candidate-profile action in learner outcomes inste
   assert.match(mission, /PROFIL SPEICHERN/u);
 });
 
+test('the live home exposes one creative orientation contract and one primary action', async () => {
+  const [app, brain, policy] = await Promise.all([
+    read('client/src/App.jsx'),
+    read('client/src/BrainGuide.jsx'),
+    read('client/src/brainActionPolicy.js'),
+  ]);
+
+  assert.match(app, /canStart && homePrimaryAction\.showGenericInterview/u);
+  assert.match(app, /brainGuideAuthority \? 'Deine Mission' : 'Dein Interview'/u);
+  assert.match(app, /Ein klarer Schritt auf dem Weg zum deutschen Jobinterview/u);
+  assert.doesNotMatch(app, /<BrainGuide[^>]*externalInterviewCta/u);
+  assert.match(policy, /showGenericInterview: false/u);
+  assert.match(brain, /01 · WARUM JETZT/u);
+  assert.match(brain, /02 · FERTIG, WENN/u);
+  assert.match(brain, /03 · DANACH/u);
+  assert.match(brain, /DAS GRÖSSERE ZIEL/u);
+  assert.match(brain, /DEIN WEG ZUM DEUTSCHEN JOBINTERVIEW/u);
+  assert.doesNotMatch(brain, /<details className="brain-guide__why"/u,
+    'the reason and completion contract must be visible without discovery clicks');
+});
+
 test('BrainGuide renders useful loading and recoverable error states instead of disappearing', async () => {
   const brain = await read('client/src/BrainGuide.jsx');
   const fallback = section(brain, 'if (!data?.directive) return (', 'const d = data.directive;');

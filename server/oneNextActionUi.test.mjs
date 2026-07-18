@@ -4,13 +4,18 @@ import { readFile } from 'node:fs/promises';
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('BrainGuide keeps one visible action while details stay available on demand', async () => {
+test('BrainGuide keeps one visible action and an always-visible orientation contract', async () => {
   const source = await read('client/src/BrainGuide.jsx');
   assert.match(source, /DEIN NÄCHSTER SCHRITT/u);
   assert.match(source, /\{brief\.title\}/u);
   assert.match(source, /\{brief\.dose\}/u);
-  assert.match(source, /Fertig, wenn: \{brief\.done\}/u);
-  assert.match(source, /Danach: \{brief\.after\}/u);
+  assert.match(source, /01 · WARUM JETZT/u);
+  assert.match(source, /02 · FERTIG, WENN/u);
+  assert.match(source, /03 · DANACH/u);
+  assert.match(source, /\{brief\.done\}/u);
+  assert.match(source, /\{brief\.after\}/u);
+  assert.match(source, /DAS GRÖSSERE ZIEL/u);
+  assert.doesNotMatch(source, /<details className="brain-guide__why"/u);
   assert.match(source, /className="brain-guide__cta"/u);
   assert.equal((source.match(/className="brain-guide__cta"/gu) || []).length, 1,
     'the guide must render exactly one primary action implementation');
@@ -50,7 +55,7 @@ test('career journey reflects verified evidence without becoming another planner
   assert.match(source, /\['READY', 'RETEST_READY'\]\.includes\(directive\?\.state\)/u);
   assert.match(source, /j\.entryDone \?\? 0/u,
     'visible progress must remain sourced from the server journey');
-  assert.match(source, /best.tigte F.higkeiten/u);
+  assert.match(source, /F.higkeiten best.tigt/u);
   assert.match(source, /Fortschritt z.hlt erst, wenn du es in einer neuen Situation zeigst/u);
   assert.match(source, /aria-current=\{current \? 'step' : undefined\}/u);
   assert.equal((source.match(/className="brain-guide__cta"/gu) || []).length, 1,

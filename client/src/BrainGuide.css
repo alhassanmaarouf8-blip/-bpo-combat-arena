@@ -136,6 +136,27 @@
   text-wrap: balance;
 }
 
+.brain-guide__dose {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: #c8d7e9;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.brain-guide__dose span {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid rgba(79, 157, 255, 0.3);
+  border-radius: 999px;
+  color: #9dccff;
+  background: rgba(79, 157, 255, 0.08);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+}
+
 .brain-guide__specs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -192,17 +213,85 @@
 .brain-guide__cta:hover::before { transform: translateX(125%); }
 
 .brain-guide__audio:focus-visible,
-.brain-guide__cta:focus-visible,
-.brain-guide__why summary:focus-visible {
+.brain-guide__cta:focus-visible {
   outline: 3px solid #ffd2ad;
   outline-offset: 3px;
 }
 
-.brain-guide__external-hint { margin: 12px 0 0; color: #b8c9dc; font-size: 12px; }
-.brain-guide__why { margin-top: 11px; color: #9bb0c9; font-size: 12px; }
-.brain-guide__why summary { display: flex; align-items: center; width: fit-content; min-height: 44px; cursor: pointer; color: #b9cee6; font-weight: 700; }
-.brain-guide__why p { max-width: 730px; margin: 2px 0 7px; line-height: 1.6; }
-.brain-guide__caveat { color: #7187a3; font-size: 10.5px; letter-spacing: 0.025em; }
+.brain-guide__briefing {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.brain-guide__briefing-card {
+  position: relative;
+  min-width: 0;
+  min-height: 108px;
+  padding: 14px 13px 13px;
+  overflow: hidden;
+  border: 1px solid rgba(126, 174, 231, 0.15);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(10, 29, 54, 0.8), rgba(5, 13, 26, 0.72));
+}
+.brain-guide__briefing-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 42%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--guide-blue), transparent);
+}
+.brain-guide__briefing-card--finish::before { background: linear-gradient(90deg, #78b8ff, transparent); }
+.brain-guide__briefing-card--next::before { background: linear-gradient(90deg, var(--guide-orange), transparent); }
+.brain-guide__briefing-card > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #76a9e8;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.brain-guide__briefing-card--next > span { color: #ffab72; }
+.brain-guide__briefing-card strong {
+  display: block;
+  color: #dce9f8;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.48;
+}
+.brain-guide__north-star {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  margin-top: 9px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 138, 61, 0.19);
+  border-radius: 13px;
+  background: linear-gradient(100deg, rgba(26, 74, 140, 0.14), rgba(255, 126, 47, 0.08));
+}
+.brain-guide__north-star-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 153, 85, 0.38);
+  border-radius: 50%;
+  color: #ffab72;
+  box-shadow: inset 0 0 12px rgba(255, 138, 61, 0.1), 0 0 18px rgba(79, 157, 255, 0.08);
+}
+.brain-guide__north-star small {
+  display: block;
+  margin-bottom: 3px;
+  color: #ffab72;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.brain-guide__north-star strong { display: block; color: #dce9f8; font-size: 11.5px; line-height: 1.45; }
+.brain-guide__north-star em { color: #7187a3; font-size: 9px; font-style: normal; text-align: right; }
 
 .brain-guide__journey {
   margin: 16px 2px 4px;
@@ -251,6 +340,11 @@
   .brain-guide__confidence { margin-left: 0; }
   .brain-guide__specs { grid-template-columns: 1fr; }
   .brain-guide__spec { padding: 11px 12px; }
+  .brain-guide__dose { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .brain-guide__briefing { grid-template-columns: 1fr; }
+  .brain-guide__briefing-card { min-height: auto; }
+  .brain-guide__north-star { grid-template-columns: auto minmax(0, 1fr); }
+  .brain-guide__north-star em { grid-column: 2; text-align: left; }
   .brain-guide__journey-copy { align-items: flex-start; flex-direction: column; gap: 3px; }
   .brain-guide__phases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

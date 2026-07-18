@@ -1,10 +1,8 @@
-const GENERIC_INTERVIEW_ACTIONS = new Set(['interview', 'measure']);
-
 /**
  * The home may expose one primary action only. Once BrainGuide owns the returning-user
- * journey, the legacy arena button is allowed only when it is the exact action selected
- * by the authoritative server directive. Missing, loading, failed, or unknown directives
- * fail closed instead of silently turning into an interview.
+ * journey, its action is the only primary action. BrainGuide can still launch an interview,
+ * but the legacy arena button must not duplicate or contradict it. Missing, loading, failed,
+ * or unknown directives fail closed instead of silently turning into an interview.
  */
 export function primaryActionPolicy({ brainGuideEnabled = false, missionContinuation = false,
   status = 'idle', directive = null } = {}) {
@@ -19,7 +17,7 @@ export function primaryActionPolicy({ brainGuideEnabled = false, missionContinua
   return {
     owner: 'brain',
     action,
-    showGenericInterview: GENERIC_INTERVIEW_ACTIONS.has(action),
+    showGenericInterview: false,
   };
 }
 

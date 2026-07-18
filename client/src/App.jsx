@@ -6203,19 +6203,18 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', marginBottom:12 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-h1)', color:'var(--text)', lineHeight:1.1 }}>
-                    Dein Interview
+                    {brainGuideAuthority ? 'Deine Mission' : 'Dein Interview'}
                   </div>
                   <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, display:'flex', alignItems:'center', gap:5 }}>
-                    <Icon name="clock" size={12} /> Dein Interviewer wartet
+                    <Icon name={brainGuideAuthority ? 'chartUp' : 'clock'} size={12} />
+                    {brainGuideAuthority ? 'Ein klarer Schritt auf dem Weg zum deutschen Jobinterview' : 'Dein Interviewer wartet'}
                   </div>
                 </div>
               </div>
 
-              {/* THE INTERVIEW BUTTON — owner law (2026-07-18, verbatim demand): it lives HERE, top of
-                  the hero, mid-screen, ALWAYS visible when the user can start. No policy/directive may
-                  hide it (the primaryActionPolicy gate buried it → the founder couldn't find the
-                  interview). The brain's prescription renders BELOW; this door stays open. */}
-              {canStart && (billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
+              {/* Legacy fallback only. When BrainGuide is active, its evidence-backed mission briefing
+                  owns the one primary action, including interview and assessment starts. */}
+              {canStart && homePrimaryAction.showGenericInterview && (billing?.dailyLiveMinutes > 0 && billing.minutesRemaining <= 0 ? (
                 <div style={{ marginBottom:12, padding:'13px', borderRadius:8, border:'1px solid rgba(249,115,22,0.4)', background:'rgba(249,115,22,0.08)',
                   textAlign:'center', fontSize:11, color:'var(--action)', lineHeight:1.6 }}>
                   {feedbackLang === 'ar'
@@ -6259,7 +6258,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   Doctrine D2: clear lead + open doors — everything below stays reachable. Hidden on
                   no home state; missing/loading directives fail closed in primaryActionPolicy. */}
               {brainGuideAuthority && (
-                <BrainGuide token={auth.token} apiUrl={API_URL} externalInterviewCta refreshKey={brainGuideRefresh + interviewPassClaimRevision}
+                <BrainGuide token={auth.token} apiUrl={API_URL} refreshKey={brainGuideRefresh + interviewPassClaimRevision}
                   onDirectiveState={setBrainDecision}
                   onSessionExpired={onLogout}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}

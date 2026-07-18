@@ -218,10 +218,38 @@ function whyLine(d) {
   }
 }
 
+function orientationReason(d) {
+  const p = d.prescription || {};
+  if (p.action === 'mission') {
+    const reasons = {
+      passport: 'Ohne bestätigte Angaben kann die App passende Stellen und Bewerbungshilfen nicht zuverlässig vorbereiten.',
+      measure: 'Vor einer Empfehlung fehlen noch überprüfbare Angaben zu deiner Bewerbungsbereitschaft.',
+      prep: 'Deine bestätigten Angaben müssen jetzt in eine konkrete, wahrheitsgemäße Bewerbung übersetzt werden.',
+      shortlist: 'Jetzt zählt Passung: nur offene Stellen ohne harte Ausschlusskriterien sollen deine Zeit bekommen.',
+      pack: 'Die Stelle ist passend genug für einen ehrlichen, auf deine bestätigten Fakten begrenzten Bewerbungsentwurf.',
+      submit: 'Der Entwurf ist bestätigt; nur du kannst die Bewerbung auf der offiziellen Arbeitgeberseite einreichen.',
+      response: 'Die Arbeitgeberantwort bestimmt, ob du weiter bewirbst oder in die Interview-Vorbereitung wechselst.',
+      interview: 'Ein bestätigtes Interview macht die passende Vorbereitung jetzt dringlicher als weitere Bewerbungen.',
+    };
+    if (reasons[p.step]) return reasons[p.step];
+  }
+  return whyLine(d) || 'Dieser Schritt folgt aus deinem aktuellen, serverseitig bestätigten Lernstand.';
+}
+
+function biggerGoal(d) {
+  const action = d.prescription?.action;
+  if (action === 'vacancy') {
+    return 'Im bestätigten Ziel-Interview verständlich, relevant und ehrlich antworten.';
+  }
+  if (action === 'mission' || action === 'apply') {
+    return 'Eine passende deutschsprachige BPO- oder Remote-Stelle mit ehrlichen, bestätigten Angaben verfolgen.';
+  }
+  return 'Im deutschen BPO-Interview verständlich und belastbar antworten — und die Verbesserung mit neuem Material beweisen.';
+}
+
 // onAction(directive) — the parent launches the prescribed thing (drill / interview / assessment / apply).
-// externalInterviewCta: the host screen already shows THE interview button (the home's single
-// orange) — when the prescription IS the interview, the guide keeps its why + journey but hides
-// its own button instead of duplicating the CTA (designer pass 2026-07-10: one job, one button).
+// BrainGuide owns the one primary action whenever it is enabled. The home must not render a
+// second generic interview CTA beside it.
 // The interviewer org ladder (mirror of server/progression.js BOSS_LADDER — ids/tiers/minLevels
 // are stable product canon). Salma's pipeline renders progression against it; the SERVER still
 // decides every real unlock.
@@ -237,7 +265,7 @@ const LADDER = [
 ];
 
 export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessionExpired,
-  externalInterviewCta = false, lang = 'de', pipeline = null, refreshKey = 0 }) {
+  lang = 'de', pipeline = null, refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [loadState, setLoadState] = useState('loading');
   const [coachView, setCoachView] = useState(null);
@@ -365,6 +393,8 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   const ahaSkill = d.aha ? (SKILL_LABEL[d.aha.skillId] || ruleLabel(d.aha.skillId)) : null;
   const brief = missionBrief(d, coachView);
   const journeyPhase = activeJourneyPhase(d);
+  const currentJourney = JOURNEY_PHASES.find((phase) => phase.id === journeyPhase) || JOURNEY_PHASES[0];
+  const reason = orientationReason(d);
 
   const ctaText =
       d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}`
@@ -437,34 +467,36 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
               : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'DEIN PLAN'}
           </span>
         </div>
-        {/* Merged (owner order 07-18): the giant title + JETZT/FERTIG/DANACH bureaucracy table
-            collapsed into ONE Salma-voiced step — a coach's sentence, not a process spec. The
-            done/after details live inside "Warum genau jetzt?" for the curious. */}
         <h2 id="brain-guide-title" className="brain-guide__title" style={{ fontSize: 20, margin: '4px 0 6px' }}>{brief.title}</h2>
-        <p style={{ margin: '0 0 10px', fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-dim)' }}>{brief.dose}</p>
-        {d.prescription?.action !== 'wait' && !(externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure')) && (
+        <p className="brain-guide__dose"><span>DEIN AUFTRAG</span>{brief.dose}</p>
+        {d.prescription?.action !== 'wait' && (
           <button className="brain-guide__cta" onClick={() => onAction?.(d, whyLine(d))}>
             <span>{ctaText}</span><span aria-hidden="true">→</span>
           </button>
         )}
-        {externalInterviewCta && (d.prescription?.action === 'interview' || d.prescription?.action === 'measure') && (
-          <p className="brain-guide__external-hint">Starte mit dem Interview-Button direkt unter dieser Karte.</p>
-        )}
-        {whyLine(d) && (
-          <details className="brain-guide__why">
-            <summary>Warum genau jetzt?</summary>
-            <p>{whyLine(d)}</p>
-            <p>Fertig, wenn: {brief.done} · Danach: {brief.after}</p>
-            <p className="brain-guide__caveat">Interne Simulation · keine Arbeitgeberentscheidung</p>
-          </details>
-        )}
+        <div className="brain-guide__briefing" aria-label="Dein persönliches Missionsbriefing">
+          <article className="brain-guide__briefing-card brain-guide__briefing-card--why">
+            <span>01 · WARUM JETZT</span><strong>{reason}</strong>
+          </article>
+          <article className="brain-guide__briefing-card brain-guide__briefing-card--finish">
+            <span>02 · FERTIG, WENN</span><strong>{brief.done}</strong>
+          </article>
+          <article className="brain-guide__briefing-card brain-guide__briefing-card--next">
+            <span>03 · DANACH</span><strong>{brief.after}</strong>
+          </article>
+        </div>
+        <div className="brain-guide__north-star">
+          <span className="brain-guide__north-star-mark" aria-hidden="true">◎</span>
+          <span><small>DAS GRÖSSERE ZIEL</small><strong>{biggerGoal(d)}</strong></span>
+          <em>Interne Simulation · keine Arbeitgeberentscheidung</em>
+        </div>
       </div>
 
       {(j.entryTotal ?? 0) > 0 && (
         <div className="brain-guide__journey" aria-label="Dein Weg zur internen Bewerbungsbereitschaft">
           <div className="brain-guide__journey-copy">
-            <span>DEIN WEG ZUR BEWERBUNGSBEREITSCHAFT</span>
-            <strong>{j.entryDone ?? 0}/{j.entryTotal} bestätigte Fähigkeiten</strong>
+            <span>DEIN WEG ZUM DEUTSCHEN JOBINTERVIEW</span>
+            <strong>JETZT: {currentJourney.label} · {j.entryDone ?? 0} von {j.entryTotal} Fähigkeiten bestätigt</strong>
           </div>
           <div className="brain-guide__phases">
             {JOURNEY_PHASES.map((phase, index) => {

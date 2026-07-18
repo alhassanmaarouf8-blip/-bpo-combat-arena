@@ -273,9 +273,7 @@ test('BrainGuide is the only returning-user primary action authority', () => {
 
   assert.equal(primaryActionPolicy().showGenericInterview, true);
   assert.equal(primaryActionPolicy({ brainGuideEnabled: true, missionContinuation: false }).showGenericInterview, true);
-  assert.equal(ready('interview').showGenericInterview, true);
-  assert.equal(ready('measure').showGenericInterview, true);
-  for (const action of ['assessment', 'drill', 'wait', 'vacancy', 'mission', 'apply', 'unknown']) {
+  for (const action of ['assessment', 'interview', 'measure', 'drill', 'wait', 'vacancy', 'mission', 'apply', 'unknown']) {
     assert.equal(ready(action).showGenericInterview, false, `${action} must not compete with a generic interview CTA`);
   }
   for (const status of ['idle', 'loading', 'error']) {
@@ -313,7 +311,8 @@ test('home clears stale guidance and cannot display unsupported readiness or tra
 
   assert.match(app, /primaryActionPolicy/u);
   assert.match(app, /onDirectiveState=\{setBrainDecision\}/u);
-  assert.match(app, /ALWAYS visible when the user can start/u);
+  assert.match(app, /canStart && homePrimaryAction\.showGenericInterview/u);
+  assert.match(app, /owns the one primary action/u);
   assert.match(app, /onClick=\{beginSession\}/u);
   assert.doesNotMatch(app, /\{rank && <RankLadder/u);
 
