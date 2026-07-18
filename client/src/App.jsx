@@ -5762,6 +5762,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // just the hero + Interview-starten button (progressive disclosure). NOTE: do NOT reference `data`
   // here — the fight-result object lives in a child component, not this scope (it crashed the home).
   // seenInterview (set at beginSession) already covers the "has interviewed" case, so `data` is redundant.
+  const [homeTab, setHomeTab] = useState('training');   // bottom-tab nav (owner order 07-18): Training | Übungen | Fortschritt
   const firstRun     = canStart && !seenInterview && !streak;
   // Server-authoritative so a verification link opened on another browser/device still lands on
   // the cohort's measured first action. firstRun keeps this a one-time CTA; it never auto-starts.
@@ -6840,7 +6841,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             already computes it honestly (hireReadiness.js: names the ONE blocking skill, shows X/9 signals
             measured, returns null rather than guess). Returning users only — a novel user has no signals
             yet, and the component self-hides when there's nothing measurable. */}
-        {canStart && !firstRun && hireReadiness && (
+        {homeTab === 'fortschritt' && canStart && !firstRun && hireReadiness && (
           <HireVerdict h={hireReadiness} compact onTrain={(drill, why) => {
             const OPEN = { fluency: setFluencyOpen, shadowing: setShadowingOpen, pressure: setPressureOpen,
               listening: setListeningOpen, spoken: setSpokenReviewOpen, satzbau: setSatzbauOpen };
@@ -6850,7 +6851,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         )}
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
-        {canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
+        {homeTab === 'fortschritt' && canStart && <PlacementPrompt token={auth.token} apiUrl={API_URL} lang={feedbackLang} />}
 
         {/* Quiet footer: the "Fortschritt & Wiederholung" progress view — one check-in-later row
             below the Übungen grid. (Musk-cut: the PDF cert + weekly leaderboard were vanity, off the
@@ -6859,7 +6860,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         {/* Einstufung — DUPLICATE KILLED (uplift): this was the second, orange-screaming EINSTUFUNG
             button competing with the one inside the mission card. Now a quiet text link; the hero
             stays the only loud object on the page. */}
-        {canStart && (
+        {homeTab === 'fortschritt' && canStart && (
           <button onClick={() => setAssessmentOpen(true)} style={{ width:'100%', marginTop:10, padding:'10px', minHeight:44,
             cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
@@ -6871,7 +6872,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             was unreachable — a hot day-1 buyer literally could not find a price). Quiet text link
             per design law (the orange stays on the start button); trial users also see their honest
             remaining-days count so the upgrade moment isn't a day-4 surprise. */}
-        {canStart && (
+        {homeTab === 'fortschritt' && canStart && (
           <button onClick={() => setPaywall(auth.account?.entitlement || {})} style={{ width:'100%', marginTop:2, padding:'10px',
             minHeight:44, cursor:'pointer', background:'none', border:'none', fontFamily:'var(--font-body)',
             fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
@@ -6895,7 +6896,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             Druck-Leiter carries a neutral SCHWER badge instead). Hidden on first-run — an 8-tile drill
             wall before the first interview is choice-overload; the interview routes them to the right
             drill afterwards. */}
-        {canStart && !firstRun && (
+        {homeTab === 'ueben' && canStart && !firstRun && (
           <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginBottom:3 }}>
@@ -6946,7 +6947,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
         {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting.
             Hidden on first-run — progress is empty before the first interview. */}
-        {canStart && !firstRun && (
+        {homeTab === 'fortschritt' && canStart && !firstRun && (
           <div style={{ marginTop:10, borderRadius:'var(--r-lg)', background:'var(--surface)', border:'1px solid var(--line)', overflow:'hidden' }}>
             {[
               { icon:'chartUp',   de:'Fortschritt & Wiederholung', ar:'',                     open: openDashboard },
@@ -6970,13 +6971,31 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
 
         {/* Install nudge — the durable-login fix (installed PWA = exempt from iOS storage
             eviction) and a home-screen icon for daily practice. Quiet, once-dismissible. */}
-        {canStart && !firstRun && <InstallCard />}
+        {homeTab === 'fortschritt' && canStart && !firstRun && <InstallCard />}
         {/* Permanent feedback button (idle only; hidden on first-run — nothing to give feedback on yet) */}
-        {canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL}
+        {homeTab === 'fortschritt' && canStart && !firstRun && <PushReminder token={auth.token} apiUrl={API_URL}
           reminderState={{ streak: daily.streak, shield: daily.streakShield, trainedToday,
             sessionsToNext: rank?.sessionsToNext, nextLabel: rank?.nextLabel }} />}
-        {canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
+        {homeTab === 'fortschritt' && canStart && !firstRun && <HomeFeedback token={auth.token} apiUrl={API_URL} />}
         {canStart && auth.account?.isAdmin && <AdminFeedback token={auth.token} apiUrl={API_URL} />}
+        {canStart && (
+          <>
+          <div style={{ height:64 }} />
+          <nav aria-label="Bereiche" style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:200,
+            display:'flex', background:'rgba(6,10,18,0.96)', backdropFilter:'blur(10px)',
+            borderTop:'1px solid var(--line-strong)' }}>
+            {[['training','Training','mic'],['ueben','Übungen','bolt'],['fortschritt','Fortschritt','chartUp']].map(([id,label,icon]) => (
+              <button key={id} onClick={() => setHomeTab(id)} style={{ flex:1, minHeight:56, cursor:'pointer',
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3,
+                background:'none', border:'none', borderTop: homeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
+                color: homeTab === id ? 'var(--accent-2)' : 'var(--text-dim)',
+                fontFamily:'var(--font-display)', fontSize:11, fontWeight:600 }}>
+                <Icon name={icon} size={18} />{label}
+              </button>
+            ))}
+          </nav>
+          </>
+        )}
         </div>{/* /home-grid */}
 
         {/* Boss speaking indicator */}
