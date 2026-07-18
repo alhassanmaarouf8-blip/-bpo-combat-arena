@@ -34,6 +34,7 @@ import { salmaCoachRouter } from './salmaCoach.js';
 import { studyCohortRouter } from './studyCohort.js';
 import { firstSessionTraceRouter } from './firstSessionTrace.js';
 import { pronunciationRouter } from './pronunciation.js';
+import { createPronunciationGoldRouter } from './pronunciationGold.js';
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
@@ -154,6 +155,7 @@ app.use('/api', salmaCoachRouter); // Salma Personal Tutor (off by default; dete
 app.use('/api', studyCohortRouter); // Signed, allowlisted 21-day research cohort (off by default)
 app.use('/api', firstSessionTraceRouter); // First-interview activation trace (owner-only read)
 app.use('/api', pronunciationRouter); // Fail-closed pronunciation/clarity subsystem (all categories unvalidated by default)
+app.use('/api', createPronunciationGoldRouter()); // Consent-gated gold collection (PRON_GOLD_COLLECT=1 to enable; 404s otherwise)
 app.use(engagementRouter);  // /admin/engagement — ADMIN_KEY-gated per-user engagement analytics (paths absolute)
 app.use(pushRouter);        // /api/push/* (opt-in) + /admin/push/daily (cron) — web-push reminders; paths absolute
 app.use(placementRouter);   // /api/placement (user) + /admin/placements (founder KPI) — paths are absolute
