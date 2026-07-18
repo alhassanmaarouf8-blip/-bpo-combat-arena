@@ -1550,7 +1550,10 @@ function HireVerdict({ h, compact = false }) {
   } else if (h.simulationReady === false && levelOk && SKILL) {
     v = { label: 'SIMULATION: GRÖSSTER HEBEL', color: 'var(--action)', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.4)',
           de: `Was dich gerade am stärksten blockiert: ${SKILL.de}`, ar: `أكتر حاجة بتعطّلك دلوقتي: ${SKILL.ar}` };
-  } else if (SKILL) {
+  } else if (SKILL && compact) {
+    // Advisory lever only on the home progress card. On the debrief the Salma panel directly
+    // below owns the measured bottleneck — naming the same skill twice on one screen reads
+    // as two competing diagnoses.
     v = { label: 'DEIN GRÖSSTER HEBEL', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
           de: SKILL.de, ar: SKILL.ar };
   }
@@ -6271,6 +6274,19 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   <VacancyTargetCard apiUrl={API_URL} token={auth.token} onBeacon={beacon}
                     onActiveChange={setVacancyLiveActive} openRequest={vacancyOpenRequest} />
                 </Suspense>
+              )}
+              {/* The interview stays reachable even when BrainGuide prescribes a drill/apply step or
+                  its directive failed — a quiet secondary entry that never competes with the mission's
+                  one orange CTA. (Regression d4566dc: the founder literally could not find the
+                  interview when the brain owned the only button.) */}
+              {brainGuideAuthority && (brainDecision.status === 'error'
+                || (homePrimaryAction.owner === 'brain' && homePrimaryAction.action
+                    && !['interview', 'measure', 'assessment', 'vacancy'].includes(homePrimaryAction.action))) && (
+                <button onClick={beginSession} disabled={isConnecting} style={{ width:'100%', marginTop:8, padding:'10px',
+                  minHeight:44, cursor: isConnecting ? 'wait' : 'pointer', background:'none', border:'none',
+                  fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>
+                  <span style={{ textDecoration:'underline', textUnderlineOffset:3 }}>{isConnecting ? 'Verbinde…' : 'Interview direkt starten'}</span>{/* OWNER-AR slot */}
+                </button>
               )}
             {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
             <div style={{ textAlign:'center', marginTop:10 }}>
