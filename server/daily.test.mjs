@@ -106,3 +106,31 @@ test('daily German practice is isolated from RTL and explains the two card purpo
   assert.match(source, /ZIELANTWORT VOLLSTÄNDIG EINGEBEN/u);
   assert.doesNotMatch(source, /ERST TIPPEN/u);
 });
+
+test('a stored grammar repair exposes its focus once without repeating the original sentence', () => {
+  const p = defaultProfile('daily-focus-label');
+  p.srs.push({
+    id: 'grammar:focus-label', type: 'grammar', content: 'Verb am Ende nach weil',
+    prompt: 'Korrigiere: „Weil ich habe Erfahrung."', answer: 'Weil ich Erfahrung habe.',
+    example: { wrong: 'Weil ich habe Erfahrung.', right: 'Weil ich Erfahrung habe.' },
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  const daily = buildDaily(p);
+  const card = daily.questions.find((question) => question.id === 'grammar:focus-label');
+  assert.equal(card.focus, 'Verb am Ende nach weil');
+  assert.equal(card.hint, null);
+  assert.equal((JSON.stringify(card).match(/Weil ich habe Erfahrung\./gu) || []).length, 1);
+});
+
+test('grammar focus is bounded and strips control and bidirectional characters', () => {
+  const p = defaultProfile('daily-safe-focus');
+  p.srs.push({
+    id: 'grammar:safe-focus', type: 'grammar', content: `Satzbau\u202e${'x'.repeat(180)}`,
+    prompt: 'Korrigiere: „Ich denke ich kann das."', answer: 'Ich denke, dass ich das kann.',
+    example: { wrong: 'Ich denke ich kann das.', right: 'Ich denke, dass ich das kann.' },
+    stage: 0, due: 0, reps: 0, lapses: 0, mastered: false,
+  });
+  const card = buildDaily(p).questions.find((question) => question.id === 'grammar:safe-focus');
+  assert.ok(card.focus.length <= 120);
+  assert.doesNotMatch(card.focus, /\u202e/u);
+});

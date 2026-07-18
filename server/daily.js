@@ -97,9 +97,17 @@ function dailyQuestionFromId(profile, rawId) {
   const item = (profile.srs || []).find((row) => row?.id === id);
   return item && drillable(item) ? {
     id: item.id, kind: item.type === 'vocab' ? 'vocab' : 'fix', prompt: item.prompt,
-    hint: item.example?.wrong ? `Dein Satz: ${item.example.wrong}` : (item.type === 'vocab' ? 'Produziere das deutsche Wort.' : null),
+    hint: item.type === 'vocab' ? 'Produziere das deutsche Wort.' : null,
+    focus: item.type === 'grammar' ? safeFocus(item.content) : null,
     source: 'mistake',
   } : null;
+}
+
+function safeFocus(value) {
+  const text = String(value || '').normalize('NFC')
+    .replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu, ' ')
+    .replace(/\s+/gu, ' ').trim().slice(0, 120);
+  return text || null;
 }
 
 function publicDailyQuestion(profile, question) {
@@ -142,7 +150,8 @@ export function buildDaily(profile) {
     id:     i.id,
     kind:   i.type === 'vocab' ? 'vocab' : 'fix',
     prompt: i.prompt,
-    hint:   i.example?.wrong ? `Dein Satz: „${i.example.wrong}"` : (i.type === 'vocab' ? 'Produziere das deutsche Wort.' : null),
+    hint:   i.type === 'vocab' ? 'Produziere das deutsche Wort.' : null,
+    focus:  i.type === 'grammar' ? safeFocus(i.content) : null,
     source: 'mistake',
   }));
 

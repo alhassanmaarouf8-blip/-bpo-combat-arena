@@ -251,6 +251,11 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                   {speaking === 'prompt' ? <SpeakerIcon /> : <SpeakerQuietIcon />}
                 </button>
               </div>
+              {q.focus && (
+                <div style={{ fontSize: 11, color: 'var(--action)', marginTop: 5 }}>
+                  Fokus: <strong>{q.focus}</strong>
+                </div>
+              )}
               {q.hint && <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 5, fontStyle: 'italic' }}>{q.hint}</div>}
 
               <input autoFocus value={answer} disabled={!!result}
