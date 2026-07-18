@@ -25,6 +25,12 @@ invoke them. Written so any model (Opus 4.8 or later) operates this repo at full
 - **Shipping:** skill **`ship`** / **`ship-and-verify`** — "done" = deployed AND verified live.
 
 ## Hard owner rules (non-negotiable — full doctrine in `.claude/skills/owner-doctrine`)
+- **PROTECTED FEATURES — never delete, hide, gate away, or relabel without the word surviving:**
+  the live INTERVIEW (a control containing "INTERVIEW" must exist in the first Training viewport),
+  the assessment/Einstufung, the drills (Übungen), and Fortschritt. Feature culls need the owner's
+  explicit written order naming the feature. If a brain/policy change would leave the home with zero
+  interview-labeled control, that change is WRONG by definition (owner order 2026-07-18; see
+  memory bpo-interview-findability-0718 — this exact failure shipped twice).
 - **Zero spend, ever** (one owner-approved exception: ElevenLabs voice). No new paid deps.
 - **Never name any employer/company.** No fabricated metrics. Nothing robotic (native voice or
   silence — no browser speechSynthesis).
