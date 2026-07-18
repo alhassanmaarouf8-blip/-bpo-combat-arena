@@ -6154,7 +6154,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               </span>
             </div>
           </div>
-        ) : (
+        ) : homeTab !== 'training' ? null : (
           <div style={{ marginBottom:12 }}>
             {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. Hidden on first-run
                 (a novel user has no streak/habit to repeat yet — it'd be a second CTA above the hero). */}
@@ -6938,6 +6938,24 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             Druck-Leiter carries a neutral SCHWER badge instead). Hidden on first-run — an 8-tile drill
             wall before the first interview is choice-overload; the interview routes them to the right
             drill afterwards. */}
+        {/* First-run: the drill grid is hidden until the first interview — say so honestly instead of
+            rendering an empty tab (a tap that shows nothing reads as "broken"). */}
+        {homeTab === 'ueben' && canStart && firstRun && (
+          <div style={{ marginTop:14, padding:'18px 16px', borderRadius:'var(--r-lg)', background:'var(--surface)',
+            border:'1px solid var(--line)', textAlign:'center' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-label)', color:'var(--text)' }}>
+              Übungen schalten sich nach deinem ersten Interview frei.{/* OWNER-AR slot */}
+            </div>
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:6, lineHeight:1.5 }}>
+              Erst hören wir, wo du stehst — dann bekommst du genau die Übungen, die dich weiterbringen.{/* OWNER-AR slot */}
+            </div>
+            <button onClick={() => { setHomeTab('training'); window.scrollTo(0, 0); }} style={{ marginTop:12, padding:'10px 16px',
+              minHeight:44, cursor:'pointer', borderRadius:'var(--r-md)', border:'1px solid var(--accent-dim)',
+              background:'transparent', color:'var(--accent-2)', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:600 }}>
+              Zum ersten Schritt
+            </button>
+          </div>
+        )}
         {homeTab === 'ueben' && canStart && !firstRun && (
           <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
@@ -7027,7 +7045,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             display:'flex', background:'rgba(6,10,18,0.96)', backdropFilter:'blur(10px)',
             borderTop:'1px solid var(--line-strong)' }}>
             {[['training','Training','mic'],['ueben','Übungen','bolt'],['fortschritt','Fortschritt','chartUp']].map(([id,label,icon]) => (
-              <button key={id} onClick={() => setHomeTab(id)} style={{ flex:1, minHeight:56, cursor:'pointer',
+              <button key={id} onClick={() => { setHomeTab(id); window.scrollTo(0, 0); }} style={{ flex:1, minHeight:56, cursor:'pointer',
                 display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3,
                 background:'none', border:'none', borderTop: homeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
                 color: homeTab === id ? 'var(--accent-2)' : 'var(--text-dim)',
