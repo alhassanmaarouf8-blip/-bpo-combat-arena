@@ -313,6 +313,7 @@ export function CandidateMissionControl({
   onStartAssessment,
   onMissionStateChange,
   onRequestUpgrade,
+  onUnavailable,
   openRequest = null,
   refreshKey = 0,
   className = '',
@@ -409,8 +410,13 @@ export function CandidateMissionControl({
 
   useEffect(() => {
     const requestId = typeof openRequest === 'object' ? openRequest?.id : openRequest;
-    if (!requestId || requestId === lastOpenRequestRef.current || visibility !== 'visible') return;
+    if (!requestId || requestId === lastOpenRequestRef.current) return;
+    if (visibility === 'checking') return;   // not resolved yet — this effect re-runs when it resolves
     lastOpenRequestRef.current = requestId;
+    // The brain (server) may show a mission "next step" button while this panel resolves to
+    // hidden/locked for the account (a rollout-flag mismatch). Never leave the tapped button dead —
+    // hand control back so the parent routes to a real action instead of silently doing nothing.
+    if (visibility !== 'visible') { onUnavailable?.(); return; }
     const step = typeof openRequest === 'object' ? openRequest?.step : 'today';
     const opportunityId = typeof openRequest === 'object' ? openRequest?.opportunityId : '';
     const opportunity = [...opportunities, ...radar].find((item) => item.id === opportunityId) || null;
@@ -438,7 +444,7 @@ export function CandidateMissionControl({
     // Route actions are function declarations that deliberately use the latest loaded bundle.
     // requestId makes this effect idempotent even though those declarations are recreated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emit, openRequest, onInterviewConfirmed, onStartAssessment, opportunities, radar, visibility]);
+  }, [emit, openRequest, onInterviewConfirmed, onStartAssessment, onUnavailable, opportunities, radar, visibility]);
 
   if (!active || !client || visibility === 'checking' || visibility === 'hidden') return null;
 

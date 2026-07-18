@@ -6422,7 +6422,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     if (payload?.routeOnly) setVacancyOpenRequest((value) => value + 1);
                     else setBrainGuideRefresh((value) => value + 1);
                   }}
-                  onRequestUpgrade={() => setPaywall(auth.account?.entitlement || { plan:'free' })} />
+                  onRequestUpgrade={() => setPaywall(auth.account?.entitlement || { plan:'free' })}
+                  onUnavailable={beginSession} />
               </Suspense>
             )}
           </div>
