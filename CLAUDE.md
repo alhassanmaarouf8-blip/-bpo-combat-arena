@@ -1,5 +1,12 @@
 # OMNI-PERFORM (bpo-combat-arena) — auto-loaded operating instructions
 
+## ⚖️ THE TWO LAWS (owner order 2026-07-19 — govern ALL work in this repo)
+1. **Plan first, approval always.** No phase/feature work starts without the owner's approval of a
+   written plan; each phase = one approval, one ship, one prove-it.
+2. **Evidence + human prove-it checklist, never narration.** Every phase ends with the diff shown,
+   gates output pasted, deploy stamps == HEAD, and a prove-it checklist the OWNER runs on the live
+   app before the next phase starts. "Done" is what he verified, not what was written.
+
 German BPO interview trainer for the Egyptian market. **Frontend** `client/` → Vercel. **Backend**
 `server/` → Render. **Push to `main` = deploy both.** This file auto-loads; the skills below do NOT —
 invoke them. Written so any model (Opus 4.8 or later) operates this repo at full level.
