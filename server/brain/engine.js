@@ -113,7 +113,7 @@ export function decide(snapshot = {}) {
     limitingEvidenceConflictCount = 0, unmeasuredGates = [],
     limitingGrammarRuleId = null, limitingGrammarEvidenceCount = 0,
     limitingGrammarEvidenceConflictCount = 0,
-    sessionCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
+    sessionCount = 0, srsDueCount = 0, daysSinceActive = 0, prepDone = false, globalRegressed = false,
     recentDrillEvents = null,
     coachGate = null,
     vacancyDue = null,
@@ -198,6 +198,17 @@ export function decide(snapshot = {}) {
 
   // A hire-gating signal is unmeasured → MEASURE it (don't prescribe a grammar drill on missing data).
   if (unmeasuredGates.length) {
+    // …UNLESS the candidate just walked out of a real interview with recorded corrections due
+    // (owner lived the dead-end twice, 07-19/20: session done, 44 items recorded, and the app
+    // answered "erst sauber messen" as if nothing happened). Reviewing the learner's OWN
+    // LT-verified corrections aloud requires NO diagnosis — nothing is asserted about a
+    // weakness (confidence stays low, the measure list stays visible), so D4 holds. MEASURE
+    // returns the moment the review queue is empty.
+    if (srsDueCount > 0) {
+      return { state: 'POST_FIGHT', confidence: 'low', target: null,
+        prescription: { action: 'drill', drill: 'sag-es-richtig' },
+        tier, journey, aha, measure: unmeasuredGates, ranked };
+    }
     return { state: 'MEASURE', confidence: 'high', target: null,
       prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, journey, aha, measure: unmeasuredGates, ranked };
   }
