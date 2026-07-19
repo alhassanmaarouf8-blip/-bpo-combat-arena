@@ -1,6 +1,13 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID }      from 'crypto';
 import { probeTarget }     from './brain/problemRank.js';
+import { voicedMsInPcm16 } from './audioGuard.js';
+
+// F-2 (owner order 2026-07-20): trust a live turn's MEASUREMENT on voiced RMS energy, not byte-
+// duration — byte-duration counts silence/noise as spoken evidence. OFF by default; the flag
+// changes evidence TRUST only, never the turn flow (INTENT.md audio-loop law: owner live-test
+// gates the flip). Rollback = unset TURN_VOICED_GATE.
+const voicedGateOn = () => process.env.TURN_VOICED_GATE === '1';
 import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
@@ -395,6 +402,8 @@ export class WebSocketManager {
       geminiBossParts:   [],    // accumulated boss-transcript parts this Gemini turn (display + debrief)
       _geminiTurnStartMs: 0,    // wall-clock start of the current Gemini user turn (for durationMs)
       _geminiTurnAudioBytes: 0, // server-observed PCM16 bytes for provenance only; never persisted
+      _turnVoicedMs: 0,         // F-2: RMS-voiced ms in the current Deepgram-path turn (gate on only)
+      _geminiTurnVoicedMs: 0,   // F-2: RMS-voiced ms in the current Gemini-path turn (gate on only)
       answerInFlight:     false,
       startInFlight:      false,
       messageWindowAt:    Date.now(),
@@ -875,10 +884,12 @@ export class WebSocketManager {
                   const bossFull = ctx.geminiBossParts.join('').trim();
                   const userFull = ctx.geminiUserParts.join('').trim();
                   const userAudioMs = Math.round((ctx._geminiTurnAudioBytes / 32_000) * 1000);
+                  const userVoicedMs = ctx._geminiTurnVoicedMs;
                   ctx.geminiBossParts = [];
                   ctx.geminiUserParts = [];
                   ctx._geminiTurnStartMs = 0;
                   ctx._geminiTurnAudioBytes = 0;
+                  ctx._geminiTurnVoicedMs = 0;
                   // Echo guard needs the boss line the user was ANSWERING (the one whose speaker
                   // audio could bleed into the mic) — captured BEFORE this turn's fresh boss reply
                   // is pushed below. Comparing against the fresh reply would both miss the real
@@ -921,7 +932,8 @@ export class WebSocketManager {
                   } else if (userFull.length >= 2) {
                     Promise.resolve(this._handleAnswer(ctx, { text: userFull }, {
                       skipRespond: true,
-                      spokenEvidence: serverStreamEvidence({ source: 'gemini_live_stt', serverAudioMs: userAudioMs }),
+                      spokenEvidence: serverStreamEvidence({ source: 'gemini_live_stt', serverAudioMs: userAudioMs,
+                        voicedMs: voicedGateOn() ? userVoicedMs : null, enforceVoiced: voicedGateOn() }),
                     }))
                       .catch((e) => console.error(`[wsManager] gemini answer scoring failed session=${ctx.sessionId}: ${e.message}`))
                       .finally(() => { this._maybeRequestGeminiClosing(ctx); this._maybeAnnounceGeminiLastQuestion(ctx); });
@@ -1176,6 +1188,7 @@ export class WebSocketManager {
       const pcm16k = downsamplePcm24to16(msg._audioBuffer || Buffer.from(msg.data, 'base64'));
       ctx.audioInBytes += pcm16k.length;
       ctx._geminiTurnAudioBytes += pcm16k.length;
+      if (voicedGateOn()) ctx._geminiTurnVoicedMs += voicedMsInPcm16(pcm16k, 16000);
       const sent = ctx.geminiProxy.sendAudioChunk(pcm16k.toString('base64'));
       if (sent) return;
       console.warn(`[wsManager] Gemini proxy reject chunk → fallback Deepgram  session=${ctx.sessionId}`);
@@ -1223,6 +1236,7 @@ export class WebSocketManager {
 
     const buf = msg._audioBuffer || Buffer.from(msg.data, 'base64');
     ctx._turnAudioBytes += buf.length;
+    if (voicedGateOn()) ctx._turnVoicedMs += voicedMsInPcm16(buf, 24000);
     ctx.dgStreamer.sendChunk(buf);
   }
 
@@ -1279,10 +1293,14 @@ export class WebSocketManager {
     const wallMs = ctx._speechStartMs ? Date.now() - ctx._speechStartMs : 0;
     const durationMs = speakingMs > 0 ? speakingMs : wallMs;
     const serverAudioMs = Math.round((ctx._turnAudioBytes / PCM16_BYTES_PER_SEC) * 1000);
+    const turnVoicedMs = ctx._turnVoicedMs;
     ctx._turnText = '';
     ctx._turnWords = [];
     ctx._turnAudioBytes = 0;
+    ctx._turnVoicedMs = 0;
     ctx._speechStartMs = null;
+    // F-2 observability for the owner's live test: one line per committed turn while the gate is on.
+    if (voicedGateOn()) console.log(`[voiced-gate] session=${ctx.sessionId} audioMs=${serverAudioMs} voicedMs=${turnVoicedMs} text=${!!text}`);
     // No usable speech → reset the mic to retry. Gate ONLY on empty text: the streaming Deepgram
     // path already returns empty on true silence, so real text = a real answer. (The old extra
     // `speakingMs < 300` discard was removed — it false-dropped legitimate terse replies like "Ja."
@@ -1296,6 +1314,7 @@ export class WebSocketManager {
     this._handleAnswer(ctx, { text }, {
       spokenEvidence: serverStreamEvidence({
         source: 'deepgram_stream', serverAudioMs, scoringDurationMs: durationMs,
+        voicedMs: voicedGateOn() ? turnVoicedMs : null, enforceVoiced: voicedGateOn(),
       }),
     });
   }
