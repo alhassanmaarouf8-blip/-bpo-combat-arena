@@ -18,7 +18,8 @@ import express from 'express';
 import { loadUser, saveUser } from './store.js';
 import { requireAuth, planOf, rateLimit }  from './auth.js';
 import { transcribeAudio }    from './planGuide.js';
-import { isSpeakableRule }    from './grammarCheck.js';
+import { isSpeakableRule, buildGrammarForBenchmark } from './grammarCheck.js';
+import { computeDials }       from './skillDials.mjs';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
 import { voicedDurationMs }   from './audioGuard.js';
 import { scrubStringsDeep }   from './langGuard.js';
@@ -166,14 +167,28 @@ assessmentRouter.post('/assessment/analyze', requireAuth,
     const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
     const clean = answers
       .map((a) => ({ q: String(a?.q || '').slice(0, 300), transcript: String(a?.transcript || '').slice(0, 2000).trim(),
-        inputMode: a?.inputMode === 'voice' ? 'voice' : 'typed' }))
+        inputMode: a?.inputMode === 'voice' ? 'voice' : 'typed',
+        qid: Number.isInteger(a?.qid) ? a.qid : undefined,
+        durationMs: Math.max(0, Number(a?.durationMs) || 0) }))
       .filter((a) => a.transcript);
     if (clean.length < 1) return res.status(400).json({ error: 'no_answers' });
 
     const result = await analyze(clean);
 
+    // 6-dial profile (v2 Phase 1): deterministic, evidence-floored, computed from the answers —
+    // the LLM never touches a dial. Grammar count comes from LanguageTool UNCAPPED (a density
+    // needs every verified error, not the 6-rule display cap); LT down → dial honestly unmeasured.
+    let grammarErrors = null;
+    try {
+      const groups = await buildGrammarForBenchmark(clean.map((a) => ({ text: a.transcript })));
+      grammarErrors = groups.reduce((s, g) => s + (g.count || 0), 0);
+    } catch (err) {
+      console.error('[assessment] dials grammar count unavailable:', err.message);
+    }
+    const dials = computeDials({ answers: clean, grammarErrors });
+
     p.assessmentUsed   = true;
-    p.assessmentResult = { ...result, at: Date.now() };
+    p.assessmentResult = { ...result, dials, at: Date.now() };
     await saveUser(p);
 
     res.json({ result: p.assessmentResult });

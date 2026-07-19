@@ -14,7 +14,9 @@ import { isSpeakableRule } from './grammarCheck.js';
 const src = await readFile(new URL('./assessment.js', import.meta.url), 'utf8');
 
 test('assessment imports and applies the speakable-rule filter', () => {
-  assert.match(src, /import \{ isSpeakableRule \}\s+from '\.\/grammarCheck\.js'/);
+  // isSpeakableRule must be imported from grammarCheck (siblings in the destructure are fine —
+  // the guarantee is the FILTER + its three sinks below, not the exact import byte-form).
+  assert.match(src, /import \{[^}]*\bisSpeakableRule\b[^}]*\}\s*from '\.\/grammarCheck\.js'/);
   // blockers filtered on rule AND explanation
   assert.match(src, /isSpeakableRule\(b\.rule\)/);
   assert.match(src, /isSpeakableRule\(b\.explanation_de\)/);
