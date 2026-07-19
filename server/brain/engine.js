@@ -133,6 +133,15 @@ export function decide(snapshot = {}) {
 
   // Cold-start: no history → no causal claims, just the first concrete step.
   if (sessionCount <= 0) {
+    // …but recorded corrections outrank "start from zero" (probe-proven 07-20: a short/stopped
+    // interview stays below the progression floor — sessionCount 0 — yet produced real LT-verified
+    // corrections; sending that user back to the Diagnose is the dead-end class again). Reviewing
+    // their OWN corrections needs no diagnosis; confidence stays low, nothing is asserted.
+    if (srsDueCount > 0) {
+      return { state: 'POST_FIGHT', confidence: 'low', target: null,
+        prescription: { action: 'drill', drill: 'sag-es-richtig' },
+        tier: tierStatus(verifiedMasteredSkills), journey, aha: null, measure: [], ranked };
+    }
     return { state: 'NEW', confidence: 'low', target: null,
       prescription: { action: 'assessment' }, tier: tierStatus(verifiedMasteredSkills), journey, aha: null, measure: [], ranked };
   }

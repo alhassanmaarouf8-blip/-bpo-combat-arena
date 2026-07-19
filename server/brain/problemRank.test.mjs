@@ -97,6 +97,15 @@ test('OWNER CASE 07-19: interview done + corrections due + gates unmeasured → 
   assert.deepEqual(d.measure, ['intelligibility', 'wpm'], 'the honest measure list stays visible (D4)');
 });
 
+test('PROBE CASE 07-20: cold-start (uncounted short interview) WITH due corrections → leads to sag-es-richtig, never back to the Diagnose', () => {
+  const d = decide({ sessionCount: 0, srsDueCount: 7 });
+  assert.equal(d.state, 'POST_FIGHT');
+  assert.equal(d.prescription.drill, 'sag-es-richtig');
+  assert.equal(d.confidence, 'low');
+  const cold = decide({ sessionCount: 0, srsDueCount: 0 });
+  assert.equal(cold.state, 'NEW', 'a truly empty account still starts at the Diagnose');
+});
+
 test('engine: with NOTHING due the MEASURE state is unchanged (the interim step never invents work)', () => {
   const d = decide({ sessionCount: 1, srsDueCount: 0, unmeasuredGates: ['intelligibility'] });
   assert.equal(d.state, 'MEASURE');

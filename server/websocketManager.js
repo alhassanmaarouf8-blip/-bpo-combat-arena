@@ -1508,6 +1508,20 @@ export class WebSocketManager {
         && evidenceQuality.eligible === true;
       if (!meaningful) {
         console.log(`[wsManager] session NOT counted (insufficient trusted speech) answers=${metrics.answers} words=${metrics.words} evidence=${evidenceQuality.reason || 'ineligible'} session=${ctx.sessionId}`);
+        // LEARNING MATERIAL SURVIVES the anti-farm gate (probe-proven 07-20): the gate exists to
+        // stop XP/streak/rank farming — but the LT-verified corrections from the turns that DID
+        // happen are work, not reward. Evaporating them is the trial-value-death disease (a short
+        // first interview showed corrections once, then the account had nothing to review and the
+        // brain had nothing to lead with). Progression stays fully gated below this line.
+        let seeded = 0;
+        for (const g of (debrief?.grammar || [])) {
+          const ex = (g.summaryExamples || [])[0] || (g.allExamples || [])[0] || null;
+          if (!ex?.wrong || !ex?.right) continue;
+          addItem(p, { type: 'grammar', content: g.rule,
+            prompt: `Korrigiere auf Deutsch: „${ex.wrong}“`, answer: ex.right, example: ex }, now);
+          seeded++;
+        }
+        if (seeded) { await saveUser(p); console.log(`[wsManager] seeded ${seeded} SRS corrections despite uncounted session  session=${ctx.sessionId}`); }
         const flAll = p.sessions.map((s) => s.fluency ?? 0);
         const fiAll = p.sessions.map((s) => s.fillers ?? 0);
         return {
