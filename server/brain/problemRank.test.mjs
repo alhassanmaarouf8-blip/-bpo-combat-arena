@@ -88,6 +88,21 @@ test('probeTarget (AKTE unification): impact wins, readiness ignored, ltName sur
   assert.equal(probeTarget({ 'some-rule': sessions(2, 2) }).name, 'some-rule', 'missing ltName falls back to the id');
 });
 
+test('OWNER CASE 07-19: interview done + corrections due + gates unmeasured → the app LEADS to sag-es-richtig, never the measure dead-end', () => {
+  const d = decide({ sessionCount: 1, srsDueCount: 44, unmeasuredGates: ['intelligibility', 'wpm'] });
+  assert.equal(d.state, 'POST_FIGHT');
+  assert.equal(d.prescription.action, 'drill');
+  assert.equal(d.prescription.drill, 'sag-es-richtig', 'the prescription is his OWN recorded errors, spoken aloud');
+  assert.equal(d.confidence, 'low', 'no diagnosis is asserted');
+  assert.deepEqual(d.measure, ['intelligibility', 'wpm'], 'the honest measure list stays visible (D4)');
+});
+
+test('engine: with NOTHING due the MEASURE state is unchanged (the interim step never invents work)', () => {
+  const d = decide({ sessionCount: 1, srsDueCount: 0, unmeasuredGates: ['intelligibility'] });
+  assert.equal(d.state, 'MEASURE');
+  assert.equal(d.prescription.action, 'measure');
+});
+
 test('engine: every directive carries the ranked list (cold start included, honestly empty)', () => {
   const cold = decide({ sessionCount: 0 });
   assert.deepEqual(cold.ranked, []);

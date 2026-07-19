@@ -13,6 +13,7 @@ import { serviceRecoveryScoreFromSession } from '../scoring/serviceRecoveryEvide
 import { forecastEvidenceSummary, forecastGrammarRuleSummary } from '../scoring/forecastEvidence.js';
 import { reliableSpeakingSessions } from '../scoring/speakingMeasurement.js';
 import { validatedTransferProofs } from '../scoring/transferProofs.js';
+import { dueCount } from '../srs.js';
 
 const GRAMMAR_SKILL_IDS = ['konjunktiv-2', 'dativ-akkusativ', 'word-order-sub'];
 const CUSTOMER_SERVICE_GATING = ['intelligibility', 'deescalation', 'wpm'];
@@ -169,6 +170,7 @@ export function buildSnapshot(p, now = Date.now()) {
     roleMeasurementState: evidenceSession?.targetRoleType && evidenceSession.targetRoleType !== 'customer_service'
       ? 'role_criterion_not_yet_validated' : 'customer_service_criterion_available',
     sessionCount:     progressionSessions.length,
+    srsDueCount:      dueCount(p, now),
     daysSinceActive:  lastDate ? Math.floor((now - lastDate) / DAY_MS) : 0,
     prepDone,
     recentDrillEvents,
