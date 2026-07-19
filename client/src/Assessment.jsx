@@ -165,7 +165,8 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     try {
       const r = await fetch(`${apiUrl}/api/assessment/analyze`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ answers: answers.map((a, i) => ({ q: quests[i].de, transcript: a?.transcript || '', inputMode: a?.inputMode || 'typed' })) }),
+        body: JSON.stringify({ answers: answers.map((a, i) => ({ q: quests[i].de, transcript: a?.transcript || '', inputMode: a?.inputMode || 'typed',
+          qid: quests[i].id, durationMs: a?.durationMs || 0 })) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'analyze_failed');
@@ -355,6 +356,16 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
         <br />{T(lang, 'Aussprache und Sprechtempo wurden in dieser Textauswertung nicht bewertet.', 'النطق وسرعة الكلام ما اتقاسوش في التقييم النصي ده.')}
       </div>
 
+      {Array.isArray(result.dials) && result.dials.length > 0 && (
+        <Section title={T(lang, 'Dein Profil — sechs Messwerte', 'ملفك — ست قياسات')} color="var(--accent)">
+          {result.dials.map((d) => <DialRow key={d.key} d={d} lang={lang} />)}
+          <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.5, marginTop: 4 }}>
+            {T(lang, 'Jeder Wert ist direkt aus deinen Antworten gemessen — was wir nicht sicher messen können, lassen wir offen.',
+              'كل قيمة متقاسة من إجاباتك مباشرة — واللي مش نقدر نقيسه بدقة بنسيبه مفتوح.')}
+          </div>
+        </Section>
+      )}
+
       {/* Honest-when-thin: on a short/low-confidence sample we deliberately do NOT list many
           weaknesses (that would be invented). Say so, and point to the real read: a full interview. */}
       {result.measured?.evidenceThin && (
@@ -408,6 +419,63 @@ function Section({ title, color, children }) {
     <div style={{ borderRadius: 10, padding: '11px 13px', marginBottom: 10, background: 'rgba(0,0,0,0.32)', border: `1px solid ${color}33` }}>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.12em', color, marginBottom: 8 }}>{title}</div>
       {children}
+    </div>
+  );
+}
+
+// ── The 6-dial profile (v2 Phase 1) — server-measured, client-rendered ─────────────
+// Copy lives HERE (doctrine: the engine is copy-free). Arabic = OWNER-AR slots; empty → German.
+const DIAL_COPY = {
+  fluency:       { de: 'Flüssigkeit', ar: '' /* OWNER-AR */, bands: ['langsam', 'solide', 'flüssig'] },
+  vocab:         { de: 'Wortschatz', ar: '' /* OWNER-AR */, bands: ['wiederholend', 'solide', 'breit'] },
+  grammar:       { de: 'Grammatik', ar: '' /* OWNER-AR */, bands: ['viele Fehler', 'einige Fehler', 'wenige Fehler'] },
+  structures:    { de: 'Satzbau', ar: '' /* OWNER-AR */, bands: ['einfach', 'gemischt', 'komplex'] },
+  stability:     { de: 'Belastbarkeit', ar: '' /* OWNER-AR */, bands: ['bricht ein', 'hält teilweise', 'hält stand'] },
+  pronunciation: { de: 'Aussprache', ar: '' /* OWNER-AR */, bands: [] },
+};
+const DIAL_REASONS = {
+  thin:                { de: 'Noch zu wenig Material — wir raten nicht.', ar: '' /* OWNER-AR */ },
+  typed_only:          { de: 'Nur mit Stimme messbar — diese Antworten waren getippt.', ar: '' /* OWNER-AR */ },
+  not_adaptive:        { de: 'Wird ab dem adaptiven Diagnose-Interview gemessen.', ar: '' /* OWNER-AR */ },
+  checker_unavailable: { de: 'Prüfdienst gerade nicht erreichbar — wir schätzen nichts.', ar: '' /* OWNER-AR */ },
+  unvalidated:         { de: 'Aussprache bewerten wir erst nach externer Prüfung des Messverfahrens.', ar: '' /* OWNER-AR */ },
+};
+function dialMetricLine(d) {
+  const m = d.metric || {};
+  if (d.key === 'fluency')    return `${m.wpm} Wörter/Min`;
+  if (d.key === 'vocab')      return `${m.uniqueWords} verschiedene Wörter`;
+  if (d.key === 'grammar')    return `${m.errorsPer100w} geprüfte Fehler pro 100 Wörter`;
+  if (d.key === 'structures') return `${m.subordPer100w} Nebensätze pro 100 Wörter`;
+  if (d.key === 'stability')  return `${Math.round((m.holdRate || 0) * 100)}% der schweren Fragen getragen`;
+  return '';
+}
+
+function DialRow({ d, lang }) {
+  const copy = DIAL_COPY[d.key];
+  if (!copy) return null;
+  const label = lang === 'ar' && copy.ar ? copy.ar : copy.de;
+  const reason = DIAL_REASONS[d.reason];
+  return (
+    <div style={{ marginBottom: 9 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 12, color: '#e2e8f0' }}>{label}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {d.measurable && (
+            <span style={{ fontSize: 11, color: 'var(--accent-2)' }}>{copy.bands[d.level]}</span>
+          )}
+          <span style={{ display: 'flex', gap: 3 }} aria-hidden="true">
+            {[0, 1, 2].map((i) => (
+              <span key={i} style={{ width: 14, height: 5, borderRadius: 2,
+                background: d.measurable && i <= d.level ? 'var(--accent)' : 'rgba(255,255,255,0.10)' }} />
+            ))}
+          </span>
+        </span>
+      </div>
+      <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, lineHeight: 1.45 }}>
+        {d.measurable
+          ? `${dialMetricLine(d)} · basiert auf ${d.evidence?.answers ?? 0} Antworten`
+          : (reason ? (lang === 'ar' && reason.ar ? reason.ar : reason.de) : '')}
+      </div>
     </div>
   );
 }

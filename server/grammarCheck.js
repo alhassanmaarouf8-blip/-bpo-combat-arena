@@ -236,9 +236,10 @@ export async function buildGrammar(utterances) {
   return buildGrammarInternal(utterances, 6);
 }
 
-// Offline benchmark-only surface. It deliberately reuses every production filter but avoids the
-// learner-facing six-rule presentation cap so batched corpus sentences cannot hide later matches.
-// No API route imports this function.
+// Uncapped surface. It deliberately reuses every production filter but avoids the learner-facing
+// six-rule presentation cap so later matches cannot hide. Consumers: offline benchmarks, and the
+// assessment 6-dial grammar DENSITY count (a density needs every verified error — the count is
+// shown as a number, never as 6 display cards).
 export async function buildGrammarForBenchmark(utterances) {
   return buildGrammarInternal(utterances, Number.POSITIVE_INFINITY);
 }
