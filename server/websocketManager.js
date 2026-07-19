@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID }      from 'crypto';
+import { probeTarget }     from './brain/problemRank.js';
 import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
@@ -183,6 +184,13 @@ export function pickRevancheMoment(current, candidate) {
 // The candidate's most recurring grammar weakness (for the boss memory dossier):
 // the still-unmastered grammar rule they've relapsed on most.
 function topWeakRule(profile) {
+  // v2 Phase 2 UNIFICATION (owner live-test 2026-07-19: with zero drill history the legacy sort
+  // tied on everything and INSERTION ORDER picked the "biggest problem" — an accident presented
+  // as a diagnosis). Every "your problem" surface now asks THE one elite-teacher chooser first
+  // (impact → frequency, ≥2-session floor). Only below that floor may the legacy drill-failure
+  // sort still speak, so a brand-new student keeps a plausible open case instead of none.
+  const ranked = probeTarget(profile?.weakLog || {});
+  if (ranked?.name && isSpeakableRule(ranked.name)) return ranked.name;
   const items = (profile?.srs || []).filter((i) => i.type === 'grammar' && !i.mastered && i.content && isSpeakableRule(i.content));
   if (!items.length) return null;
   items.sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || (b.reps || 0) - (a.reps || 0));
