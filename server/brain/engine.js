@@ -12,6 +12,7 @@
  *  - when a hire-gating signal is unmeasured, the next action is to MEASURE it, not guess
  */
 import { frontier, tierStatus, progress, SKILL_BY_ID } from './skillGraph.js';
+import { rankProblems } from './problemRank.js';
 
 // Which frontier skill best addresses the hire-gating limiting skill (reuses hireReadiness' vector).
 const LIMIT_TO_SKILL = {
@@ -47,7 +48,7 @@ function pathTarget(targetId, frIds, seen = new Set()) {
   return null;
 }
 
-function pickTarget(fr, limitingSkill, weakLog, criterionId = null, grammarRuleId = null) {
+function pickTarget(fr, limitingSkill, weakLog, criterionId = null, grammarRuleId = null, ranked = []) {
   if (!fr.length) return null;
   const frIds = new Set(fr.map((s) => s.id));
   // A v2 grammar-control forecast may target only the exact rule attributed by the same fresh,
@@ -57,12 +58,17 @@ function pickTarget(fr, limitingSkill, weakLog, criterionId = null, grammarRuleI
     return GRAMMAR_SKILLS.includes(grammarRuleId) && frIds.has(grammarRuleId)
       ? SKILL_BY_ID[grammarRuleId] : null;
   }
-  // Legacy grammar guidance without a criterion keeps its historical weakLog behavior.
+  // Grammar guidance without a criterion: the elite-teacher ranking chooses first (v2 Phase 2 —
+  // impact tier before raw count: 2 verb-position sessions outrank 5 dative slips because the
+  // former breaks understanding). A rule below the ranking's 2-session evidence floor keeps the
+  // historical worst-by-last-count fallback, so a single-session observation still beats drilling
+  // something never observed.
   if (limitingSkill === 'grammar') {
+    const topRanked = ranked.find((r) => GRAMMAR_SKILLS.includes(r.ruleId));
     const worst = GRAMMAR_SKILLS
       .map((id) => ({ id, n: lastErr(weakLog, id) }))
       .sort((a, b) => b.n - a.n)[0];
-    const grammarTarget = pathTarget(worst?.n > 0 ? worst.id : 'word-order-sub', frIds);
+    const grammarTarget = pathTarget(topRanked?.ruleId || (worst?.n > 0 ? worst.id : 'word-order-sub'), frIds);
     if (grammarTarget) return grammarTarget;
   }
   // 2) the exact observed criterion wins. If its direct skill is still locked, select the nearest
@@ -120,10 +126,15 @@ export function decide(snapshot = {}) {
   // transfer-verified mastery only. A generic pass or historical completion can never unlock readiness.
   const journey = progress(verifiedMasteredSkills);
 
+  // v2 Phase 2 CHOOSE layer: the elite-teacher problem ranking (impact → frequency → readiness,
+  // lexicographic, ≥2-session floor). Top 5 ride on every directive so Fortschritt can show the
+  // ranked list with a checkable "why" — while the prescription surface still shows exactly ONE step.
+  const ranked = rankProblems({ weakLog, masteredSkills }).slice(0, 5);
+
   // Cold-start: no history → no causal claims, just the first concrete step.
   if (sessionCount <= 0) {
     return { state: 'NEW', confidence: 'low', target: null,
-      prescription: { action: 'assessment' }, tier: tierStatus(verifiedMasteredSkills), journey, aha: null, measure: [] };
+      prescription: { action: 'assessment' }, tier: tierStatus(verifiedMasteredSkills), journey, aha: null, measure: [], ranked };
   }
 
   // A confirmed vacancy target adds one due preparation step to the same
@@ -146,6 +157,7 @@ export function decide(snapshot = {}) {
       journey,
       aha: null,
       measure: [],
+      ranked,
     };
   }
 
@@ -169,6 +181,7 @@ export function decide(snapshot = {}) {
       journey,
       aha: null,
       measure: [],
+      ranked,
     };
   }
 
@@ -180,19 +193,19 @@ export function decide(snapshot = {}) {
   // Entry tier cleared → stop drilling, start applying (the loop must end in a JOB, not a treadmill).
   if (tier.applyNow) {
     return { state: 'APPLY', confidence: 'high', target: null,
-      prescription: { action: 'apply', tier: 'entry' }, tier, journey, aha, measure: [] };
+      prescription: { action: 'apply', tier: 'entry' }, tier, journey, aha, measure: [], ranked };
   }
 
   // A hire-gating signal is unmeasured → MEASURE it (don't prescribe a grammar drill on missing data).
   if (unmeasuredGates.length) {
     return { state: 'MEASURE', confidence: 'high', target: null,
-      prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, journey, aha, measure: unmeasuredGates };
+      prescription: { action: 'measure', signal: unmeasuredGates[0] }, tier, journey, aha, measure: unmeasuredGates, ranked };
   }
 
   const coachSkillId = typeof coachGate?.skillId === 'string' && Object.hasOwn(SKILL_BY_ID, coachGate.skillId)
     && ['practice', 'wait', 'retest'].includes(coachGate.status) ? coachGate.skillId : null;
   const target = coachSkillId ? SKILL_BY_ID[coachSkillId]
-    : pickTarget(fr, limitingSkill, weakLog, limitingCriterionId, limitingGrammarRuleId);
+    : pickTarget(fr, limitingSkill, weakLog, limitingCriterionId, limitingGrammarRuleId, ranked);
   // Confidence: only assert "your weakness" if the targeted rule has ≥2 sessions of evidence.
   const targetEvidence = target && weakLog?.[target.id]?.errCounts?.length || 0;
   const criterionEvidenceCount = limitingCriterionId === 'grammar_control'
@@ -217,6 +230,7 @@ export function decide(snapshot = {}) {
       prescription: { action: 'wait', skillId: target.id, phase: matchingCoachGate.phase,
         nextEligibleAt: matchingCoachGate.nextEligibleAt },
       measure: [],
+      ranked,
     };
   }
   if (matchingCoachGate?.status === 'retest') {
@@ -228,6 +242,7 @@ export function decide(snapshot = {}) {
         ? { action: 'interview', skillId: target.id, phase: matchingCoachGate.phase }
         : { action: 'drill', drill: matchingCoachGate.drillId, skillId: target.id, phase: matchingCoachGate.phase },
       measure: [],
+      ranked,
     };
   }
   const prepMatched = matchingCoachGate?.status === 'practice' ? false : !target || recentDrillEvents == null
@@ -242,7 +257,7 @@ export function decide(snapshot = {}) {
   const targetShape = target ? { skillId: target.id, layer: target.layer, ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : null;
   if (state === 'READY') {
     return { state, confidence, tier, journey, aha, target: targetShape,
-      prescription: { action: 'interview', ...(target ? { skillId: target.id } : {}) }, measure: [] };
+      prescription: { action: 'interview', ...(target ? { skillId: target.id } : {}) }, measure: [], ranked };
   }
   return {
     state, confidence, tier, journey, aha,
@@ -250,5 +265,6 @@ export function decide(snapshot = {}) {
     prescription: target ? { action: 'drill', drill: target.drill, skillId: target.id,
       ...(limitingCriterionId ? { criterionId: limitingCriterionId } : {}) } : { action: 'interview' },
     measure: [],
+    ranked,
   };
 }
