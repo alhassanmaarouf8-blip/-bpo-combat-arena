@@ -3,6 +3,9 @@ import { createHash, randomBytes } from 'crypto';
 const RECEIPT_TTL_MS = 2 * 60 * 1000;
 const RECEIPT_LIMIT_PER_ACCOUNT = 8;
 const MIN_TRUSTED_AUDIO_MS = 600;
+// F-2: when the voiced gate is enforced, trust additionally requires this much RMS-voiced audio
+// in the turn — byte-duration alone can be silence/noise (the exact hole F-2 names).
+const MIN_TRUSTED_VOICED_MS = 400;
 const TRUSTED_SOURCES = new Set(['classic_server_stt', 'deepgram_stream', 'gemini_live_stt']);
 const pendingReceipts = new Map();
 
@@ -36,6 +39,9 @@ function publicEvidence(row) {
     receiptId: row.receiptId,
     serverAudioMs: boundedMs(row.serverAudioMs),
     scoringDurationMs: boundedMs(row.scoringDurationMs),
+    // null = voiced energy was not measured for this row (classic receipts, gate off) — an honest
+    // unknown, never a fabricated 0.
+    voicedMs: row.voicedMs == null ? null : boundedMs(row.voicedMs),
   });
 }
 
@@ -84,16 +90,20 @@ export function consumeClassicSpeechReceipt({ accountId, sessionId, transcript, 
   return publicEvidence(row);
 }
 
-export function serverStreamEvidence({ source, serverAudioMs, scoringDurationMs = 0 } = {}) {
+export function serverStreamEvidence({ source, serverAudioMs, scoringDurationMs = 0, voicedMs = null, enforceVoiced = false } = {}) {
   if (!TRUSTED_SOURCES.has(source) || source === 'classic_server_stt') return typedAnswerEvidence();
   const audioMs = boundedMs(serverAudioMs);
+  // F-2: with the voiced gate enforced, byte-duration alone no longer buys trust — the turn must
+  // also contain real RMS-voiced audio. Gate off (default) → exact legacy behavior.
+  const voicedOk = !enforceVoiced || (voicedMs != null && boundedMs(voicedMs) >= MIN_TRUSTED_VOICED_MS);
   return publicEvidence({
     version: 2,
     source,
-    trustedAudio: audioMs >= MIN_TRUSTED_AUDIO_MS,
+    trustedAudio: audioMs >= MIN_TRUSTED_AUDIO_MS && voicedOk,
     receiptId: randomBytes(12).toString('hex'),
     serverAudioMs: audioMs,
     scoringDurationMs: boundedMs(scoringDurationMs),
+    voicedMs,
   });
 }
 
@@ -131,6 +141,7 @@ export function clearSpeechReceipts({ accountId, sessionId } = {}) {
 
 export const SPOKEN_EVIDENCE_V2 = Object.freeze({
   minTrustedAudioMs: MIN_TRUSTED_AUDIO_MS,
+  minTrustedVoicedMs: MIN_TRUSTED_VOICED_MS,
   receiptTtlMs: RECEIPT_TTL_MS,
   trustedSources: Object.freeze([...TRUSTED_SOURCES]),
 });

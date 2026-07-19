@@ -48,6 +48,8 @@ test('classic STT receipt binds exact account, session, transcript, and server a
     receiptId,
     serverAudioMs: 1_847,
     scoringDurationMs: 1_847,
+    // F-2: classic receipts don't measure voiced energy — an honest null, never a fabricated 0.
+    voicedMs: null,
   });
   assert.equal(consumeClassicSpeechReceipt({
     accountId: 'acct_one', sessionId: 'fight_one',
