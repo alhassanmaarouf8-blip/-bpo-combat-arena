@@ -4,6 +4,7 @@ import { ClipRecorder } from './clipRecorder.js';
 import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
 import { GeminiVoicePlayer, emitBossLevel, subscribeBossLevel } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
+import { ProblemRankPanel } from './ProblemRankPanel.jsx';
 import { HomeFeedback, FirstFightCard, AdminFeedback } from './Feedback.jsx';
 import { PushReminder } from './PushReminder.jsx';
 import { BargeInMonitor } from './bargeInMonitor.js';
@@ -6907,6 +6908,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             setDrillWhy(why || null);
             (OPEN[drill] || (() => {}))(true);
           }} />
+        )}
+
+        {/* v2 Phase 2 CHOOSE layer made visible: the learner's problems ranked the elite-teacher way
+            (impact → frequency in their own interviews → readiness). Data = brain directive's `ranked`
+            (deterministic, server-computed); self-hides without evidence — never a fake card. */}
+        {homeTab === 'fortschritt' && canStart && !firstRun && (
+          <ProblemRankPanel ranked={brainDecision.status === 'ready' ? brainDecision.directive?.ranked : null} lang={feedbackLang} />
         )}
 
         {/* Mission KPI: ask returning students for a job-search update (self-hides unless the server says due) */}
