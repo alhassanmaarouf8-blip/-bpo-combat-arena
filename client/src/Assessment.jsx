@@ -6,6 +6,12 @@
  * Groq llama-3.3-70b call analyzes all five. It NEVER opens a Realtime session (ClipRecorder keeps
  * the audio local until submit). One per account, enforced server-side.
  *
+ * v2 Phase 1 (ADAPTIVE, dark until server ASSESSMENT_ADAPTIVE=1): on mount we probe
+ * POST /assessment/next-question once. If the server answers, questions come one at a time and
+ * ramp with the candidate (3–7, server-routed, deterministic). On 404/error/timeout the shipped
+ * fixed-5 flow above runs COMPLETELY unchanged — the flag-off path is first-class (foot-gun #52).
+ * The verdict path (/assessment/analyze) is identical in both modes.
+ *
  * Phase 1 shows a simple but readable verdict so the AI quality can be judged. Phase 2 will
  * replace the verdict block with the polished arena results screen.
  */
@@ -42,6 +48,20 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   const timerRef = useRef(null);
   const stopRef  = useRef(null);
 
+  // ── v2 adaptive ramp (null = fixed mode; array = server-routed question list) ──
+  const [aQuests, setAQ]  = useState(null);
+  const [firstAQ, setFAQ] = useState(null);
+  const probeRef = useRef(null);
+
+  const askNext = (list) => fetch(`${apiUrl}/api/assessment/next-question`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ answers: list }),
+  }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+
+  useEffect(() => {
+    probeRef.current = askNext([]).then((d) => { const q0 = d?.question || null; setFAQ(q0); return q0; });
+  }, [token, apiUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Is this account's one free assessment already used? If so, show the stored verdict.
   useEffect(() => {
     let cancel = false;
@@ -58,8 +78,32 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     recRef.current?.stop?.().catch(() => {});
   }, []);
 
-  const q = QUESTIONS[idx];
+  const adaptive = !!aQuests;
+  const quests = adaptive ? aQuests : QUESTIONS;
+  const q = quests[idx];
   const answer = answers[idx];
+
+  // Adaptive begin: use the mount probe's result; a hung probe can never brick the start —
+  // after 2.5s we fall back to the shipped fixed flow.
+  const begin = async () => {
+    const q0 = await Promise.race([probeRef.current || Promise.resolve(null),
+      new Promise((res) => setTimeout(() => res(null), 2500))]);
+    if (q0) { setAQ([q0]); setAns([null]); }
+    setPhase('question');
+  };
+
+  // Adaptive step: the server replays ALL answers so far and returns the next question or done.
+  // Mid-run failure ends the run honestly with what we have (analyze accepts ≥1) — never a dead end.
+  const nextAdaptive = async () => {
+    setBusy(true); setErr(null);
+    const d = await askNext(answers.map((a, i) => ({ qid: aQuests[i].id, transcript: a?.transcript || '',
+      durationMs: a?.durationMs || 0, inputMode: a?.inputMode || 'typed' })));
+    setBusy(false);
+    if (!d || d.done || !d.question) { submit(); return; }
+    setAQ((prev) => [...prev, d.question]);
+    setAns((prev) => [...prev, null]);
+    setIdx(idx + 1); setRR(false); setTyped(''); setSec(0);
+  };
 
   const startRec = async () => {
     setErr(null);
@@ -121,7 +165,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     try {
       const r = await fetch(`${apiUrl}/api/assessment/analyze`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ answers: answers.map((a, i) => ({ q: QUESTIONS[i].de, transcript: a?.transcript || '', inputMode: a?.inputMode || 'typed' })) }),
+        body: JSON.stringify({ answers: answers.map((a, i) => ({ q: quests[i].de, transcript: a?.transcript || '', inputMode: a?.inputMode || 'typed' })) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'analyze_failed');
@@ -158,14 +202,20 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       {T(lang, 'Kostenlose Einstufung', 'تقييم مستواك المجاني')}
     </h2>
     <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.7 }}>
-      {T(lang,
-        '5 kurze Fragen auf Deutsch. Antworte per Stimme oder Text. Am Ende bekommst du eine ehrliche Einschätzung deines Niveaus und deiner größten Blocker. Dauert ~5 Minuten.',
-        '٥ أسئلة قصيرة بالألماني. جاوب بصوتك أو بالكتابة. في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
+      {/* Adaptive: honest count (3–7, server-routed). OWNER-AR pending for the adaptive line —
+          until filled, ar-mode keeps the shipped sentence (its "5" is the one known mismatch). */}
+      {firstAQ
+        ? T(lang,
+          'Kurze Fragen auf Deutsch — sie passen sich deinem Niveau an (3 bis 7). Antworte per Stimme oder Text. Am Ende bekommst du eine ehrliche Einschätzung deines Niveaus und deiner größten Blocker.',
+          '٥ أسئلة قصيرة بالألماني. جاوب بصوتك أو بالكتابة. في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')
+        : T(lang,
+          '5 kurze Fragen auf Deutsch. Antworte per Stimme oder Text. Am Ende bekommst du eine ehrliche Einschätzung deines Niveaus und deiner größten Blocker. Dauert ~5 Minuten.',
+          '٥ أسئلة قصيرة بالألماني. جاوب بصوتك أو بالكتابة. في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
     </p>
     <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
       {T(lang, 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.', 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.')}
     </div>
-    <button onClick={() => setPhase('question')} style={{ ...primaryBtn, marginTop: 18 }}>
+    <button onClick={begin} style={{ ...primaryBtn, marginTop: 18 }}>
       {T(lang, 'Los geht’s', 'يلا نبدأ')} ▸
     </button>
   </>);
@@ -204,13 +254,13 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     {header}
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
       <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
-        {T(lang, 'FRAGE', 'سؤال')} {idx + 1} / {QUESTIONS.length}
+        {T(lang, 'FRAGE', 'سؤال')} {idx + 1} {adaptive ? T(lang, '· max. 7', '· الأقصى ٧') : `/ ${QUESTIONS.length}`}
       </span>
       <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
     </div>
     {/* progress dots */}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
-      {QUESTIONS.map((_, i) => (
+      {(adaptive ? Array.from({ length: 7 }) : QUESTIONS).map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
           background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />
       ))}
@@ -219,7 +269,8 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     {/* the German prompt + Arabic translation so they understand the task */}
     <div style={{ padding: '13px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.22)' }}>
       <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{q.de}</div>
-      <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{q.ar}</div>
+      {/* New adaptive questions ship with empty OWNER-AR slots — render nothing, never a blank row. */}
+      {q.ar ? <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{q.ar}</div> : null}
     </div>
 
     {err && (
@@ -259,8 +310,9 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
             {answer.inputMode !== 'typed' && !reRecorded && (
               <button onClick={reRecord} style={{ ...ghostBtnWide }}>{T(lang, 'Nochmal aufnehmen (1×)', 'سجّل تاني (مرة)')}</button>
             )}
-            <button onClick={idx < QUESTIONS.length - 1 ? next : submit} style={{ ...primaryBtn, flex: 1 }}>
-              {idx < QUESTIONS.length - 1 ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Auswerten ▸', 'اعرف النتيجة ▸')}
+            <button onClick={adaptive ? nextAdaptive : (idx < QUESTIONS.length - 1 ? next : submit)} style={{ ...primaryBtn, flex: 1 }}>
+              {adaptive ? T(lang, 'Weiter ▸', 'التالي ▸')
+                : idx < QUESTIONS.length - 1 ? T(lang, 'Weiter ▸', 'التالي ▸') : T(lang, 'Auswerten ▸', 'اعرف النتيجة ▸')}
             </button>
           </div>
         </>

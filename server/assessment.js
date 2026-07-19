@@ -75,7 +75,7 @@ function canStartAssessment(profile, account) {
 
 const SYSTEM_PROMPT =
 `Du bist ein erfahrener, fairer Deutsch-Prüfer für ägyptische Bewerber (Zielmarkt: deutsche
-Call-Center / BPO). Du bekommst bis zu 5 Antworten EINES Kandidaten. Jede Antwort ist ehrlich als
+Call-Center / BPO). Du bekommst bis zu 7 Antworten EINES Kandidaten. Jede Antwort ist ehrlich als
 GESPROCHENES TRANSKRIPT oder GETIPPTER TEXT markiert (kleine Transkriptionsfehler ignorieren).
 Schätze sein Deutsch-Niveau EHRLICH und konkret ein.
 
