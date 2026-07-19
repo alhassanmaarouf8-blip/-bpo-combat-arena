@@ -22,8 +22,41 @@ import { isSpeakableRule }    from './grammarCheck.js';
 import { FREE_ASSESSMENTS }   from './plans.config.js';
 import { voicedDurationMs }   from './audioGuard.js';
 import { scrubStringsDeep }   from './langGuard.js';
+import { planNext }           from './assessmentRamp.mjs';
 
 export const assessmentRouter = express.Router();
+
+// ── POST next-question: deterministic adaptive routing (v2 Phase 1) ──────────────
+// DARK until ASSESSMENT_ADAPTIVE=1 (ship-dark law: the client isn't wired yet; flipping the flag
+// without the client changes nothing a user sees). Stateless by design: the full answer list is
+// replayed on every call, so the same answers always yield the same next question (idempotent,
+// no session state to corrupt). Routing only — the verdict stays with /assessment/analyze.
+assessmentRouter.post('/assessment/next-question', requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 120, tag: 'assessment-next-ip' }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 40, tag: 'assessment-next-account',
+              keyExtra: (req) => req.account.id, accountOnly: true }), async (req, res) => {
+  if (process.env.ASSESSMENT_ADAPTIVE !== '1') return res.status(404).json({ error: 'not_enabled' });
+  try {
+    const p = await loadUser(req.account.id);
+    if (!canStartAssessment(p, req.account)) return res.status(403).json({ error: 'assessment_used' });
+
+    const answers = (Array.isArray(req.body?.answers) ? req.body.answers : []).slice(0, 12)
+      .map((a) => ({ qid: Number(a?.qid), transcript: String(a?.transcript || '').slice(0, 2000),
+        durationMs: Math.max(0, Number(a?.durationMs) || 0), inputMode: a?.inputMode === 'voice' ? 'voice' : 'typed' }));
+
+    let plan;
+    try { plan = planNext(answers); }
+    catch { return res.status(400).json({ error: 'bad_answers' }); }
+
+    // Minimal surface: the client needs the question and the stop signal — never the internal
+    // routing measurements (numbers that reach a UI become "scores"; these must not).
+    res.json({ done: plan.done, reason: plan.done ? plan.reason : null, asked: plan.trace.length,
+      question: plan.next ? { id: plan.next.id, band: plan.next.band, de: plan.next.de, ar: plan.next.ar } : null });
+  } catch (err) {
+    console.error('[assessment] next-question error:', err.message);
+    res.status(500).json({ error: 'next_question_failed' });
+  }
+});
 
 const ANALYSIS_MODEL = process.env.GROQ_PLAN_MODEL ?? 'llama-3.3-70b-versatile';
 const GROQ_CHAT      = 'https://api.groq.com/openai/v1/chat/completions';
