@@ -66,3 +66,19 @@ export function rankProblems({ weakLog = {}, masteredSkills = [] } = {}) {
     (b.ready - a.ready) || (b.tier - a.tier) || (b.sessionsWith - a.sessionsWith)
     || (b.occurrences - a.occurrences) || (a.ruleId < b.ruleId ? -1 : 1));
 }
+
+/**
+ * probeTarget(weakLog) → { ruleId, name } | null — the AKTE/re-test surface's view of the SAME
+ * ranking (v2 unification, owner live-test 07-19: the old picker degraded to insertion order).
+ * Differences from the prescription ordering, both deliberate: readiness is IGNORED (a re-test
+ * probe is not a prescription — the boss may probe a problem whose curriculum prerequisites
+ * aren't done) and mastery is not filtered (retention re-tests are legitimate). The ≥2-session
+ * floor is shared: below it there is no ranked verdict, and the caller's legacy fallback speaks.
+ */
+export function probeTarget(weakLog = {}) {
+  const rows = rankProblems({ weakLog });
+  if (!rows.length) return null;
+  const [top] = [...rows].sort((a, b) => (b.tier - a.tier) || (b.sessionsWith - a.sessionsWith)
+    || (b.occurrences - a.occurrences) || (a.ruleId < b.ruleId ? -1 : 1));
+  return { ruleId: top.ruleId, name: weakLog[top.ruleId]?.ltName || top.ruleId };
+}

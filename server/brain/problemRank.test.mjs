@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rankProblems, impactTierOf } from './problemRank.js';
+import { rankProblems, impactTierOf, probeTarget } from './problemRank.js';
 import { decide } from './engine.js';
 
 const sessions = (...counts) => ({ errCounts: counts.map((count) => ({ count })) });
@@ -71,6 +71,21 @@ test('engine: below the ranking floor the historical worst-by-last-count behavio
   const d = decide({ sessionCount: 3, masteredSkills: foundation, limitingSkill: 'grammar',
     weakLog: { 'dativ-akkusativ': { errCounts: [{ count: 3 }] } } });    // one session only
   assert.equal(d.target.skillId, 'dativ-akkusativ', 'single-session observation still beats drilling the unobserved');
+});
+
+test('probeTarget (AKTE unification): impact wins, readiness ignored, ltName surfaces, floor shared', () => {
+  assert.equal(probeTarget({}), null, 'no evidence → no ranked verdict (legacy fallback speaks)');
+  assert.equal(probeTarget({ 'word-order-sub': sessions(4) }), null, 'one session stays below the floor');
+  const weakLog = {
+    // konjunktiv-2 is NOT ready (word-order-sub unmastered) — the probe must ignore that:
+    // a re-test is not a prescription. Tier 2 beats the unknown tier-1 rule despite ready flags.
+    'konjunktiv-2': { ...sessions(1, 1), ltName: 'Konjunktiv II' },
+    'lt:DE_AGREEMENT': { ...sessions(3, 3), ltName: 'Evtl. passen Wörter grammatisch nicht zusammen.' },
+  };
+  const probe = probeTarget(weakLog);
+  assert.equal(probe.ruleId, 'konjunktiv-2', 'tier 2 outranks the unknown-class rule regardless of counts/readiness');
+  assert.equal(probe.name, 'Konjunktiv II', 'the display name comes from the weakLog ltName');
+  assert.equal(probeTarget({ 'some-rule': sessions(2, 2) }).name, 'some-rule', 'missing ltName falls back to the id');
 });
 
 test('engine: every directive carries the ranked list (cold start included, honestly empty)', () => {
