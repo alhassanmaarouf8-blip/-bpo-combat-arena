@@ -199,7 +199,9 @@ export function updatePriorStatuses(records, todayEvents, { sessionId, now = 0 }
     if (rec.status === 'closed') continue;
     // Closure counts every event in the record's problem FAMILY — an exact-subcode count let a
     // file close while the same wall was still failing under a sibling name (live run dea58862).
-    const familyEvents = (todayEvents || []).filter((e) => sameProblemFamily(e.category, rec.category));
+    // Category derives from the code for records that predate the category field.
+    const recCategory = rec.category || String(rec.code || '').split('/')[0];
+    const familyEvents = (todayEvents || []).filter((e) => sameProblemFamily(e.category, recCategory));
     const occurrences = familyEvents.length;
     const worst = familyEvents.length ? Math.max(...familyEvents.map((e) => e.severity || 1)) : 0;
     if (occurrences <= CLOSE_MAX_OCCURRENCES && worst < 4) {
