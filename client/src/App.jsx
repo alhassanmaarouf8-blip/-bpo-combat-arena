@@ -4450,6 +4450,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
+  // Series stage variants (drill-prescription doctrine): 'find' = FINDE-DEN-FEHLER (Stage A),
+  // 'tempo' = timed SAG-ES-RICHTIG (Stage C). Reset on close so manual opens get the classic drill.
+  const [spokenReviewMode, setSpokenReviewMode] = useState(null);
+  const [spokenReviewRule, setSpokenReviewRule] = useState(null);
   const [satzbauOpen, setSatzbauOpen] = useState(false);           // paid verb-final word-order builder drill route
   const [pressureOpen, setPressureOpen] = useState(false);         // pressure-ladder overload drill (client-only)
   // WHY-YOU for a prescribed drill: set when the brain guide / debrief routes into a drill so the
@@ -5714,10 +5718,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const executeBrainDirective = useCallback((d, why) => {
     const p = d?.prescription || {};
     const OPEN = { 'shadowing': setShadowingOpen, 'sag-es-richtig': setSpokenReviewOpen,
+      'finde-den-fehler': setSpokenReviewOpen, 'sag-es-richtig-tempo': setSpokenReviewOpen,
       'flow-drill': setFluencyOpen, 'hoer-check': setListeningOpen, 'druck-leiter': setPressureOpen,
       'satzbau-schmiede': setSatzbauOpen,
       'srs': setDailyOpen };
     if (p.action === 'drill') {
+      // Series stage variants ride the SpokenReview surface with a mode + the prescribed rule.
+      const stageMode = p.drill === 'finde-den-fehler' ? 'find' : p.drill === 'sag-es-richtig-tempo' ? 'tempo' : null;
+      setSpokenReviewMode(stageMode);
+      setSpokenReviewRule(stageMode ? (p.skillId || null) : null);
       const fn = OPEN[p.drill];
       // Hand the WHY only to overlays that actually render it ('srs'/Daily doesn't, and the
       // beginSession fallback isn't a drill) — otherwise the line would become stale.
@@ -6001,8 +6010,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {spokenReviewOpen && (
         <Suspense fallback={<OverlayLoading />}>
           <SpokenReview token={auth.token} apiUrl={API_URL} lang={feedbackLang} why={drillWhy}
-            onClose={() => { setSpokenReviewOpen(false); setDrillWhy(null); }}
-            onGoPricing={() => { setSpokenReviewOpen(false); setDrillWhy(null); setPaywall(auth.account?.entitlement || {}); }} />
+            mode={spokenReviewMode} targetRule={spokenReviewRule}
+            onClose={() => { setSpokenReviewOpen(false); setDrillWhy(null); setSpokenReviewMode(null); setSpokenReviewRule(null); }}
+            onGoPricing={() => { setSpokenReviewOpen(false); setDrillWhy(null); setSpokenReviewMode(null); setSpokenReviewRule(null); setPaywall(auth.account?.entitlement || {}); }} />
         </Suspense>
       )}
 

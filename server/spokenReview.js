@@ -30,6 +30,16 @@ export const spokenReviewRouter = express.Router();
 const GROQ_BASE = 'https://api.groq.com/openai/v1';
 const STT_MODEL = process.env.GROQ_TRANSCRIBE_MODEL || 'whisper-large-v3';
 
+// Stage variants of the drill-prescription doctrine (docs/drill-prescription-doctrine.md):
+// 'find' = Stage A NOTICE (finde-den-fehler): the rule chip is withheld so the learner must FIND
+// the error in their own sentence before repairing it aloud (K3 elicit, Schmidt noticing).
+// 'tempo' = Stage C AUTOMATIZE (sag-es-richtig-tempo): the client enforces a short countdown, so
+// a pass is structurally a within-time production; the grading gate itself is unchanged.
+// The mode names the drill id recorded on the weakLog spine, which is exactly how the series
+// state machine (brain/drillSeries.mjs) counts stage completions.
+const MODE_DRILL = Object.freeze({ find: 'finde-den-fehler', tempo: 'sag-es-richtig-tempo' });
+const modeOf = (req) => (Object.hasOwn(MODE_DRILL, String(req.query.mode || '')) ? String(req.query.mode) : null);
+
 function canonicalSkillForItem(item) {
   if (item?.type !== 'grammar' || !item.content) return null;
   return classifyGrammar([{ rule: item.content, count: 1 }])[0] ?? null;
@@ -248,6 +258,22 @@ spokenReviewRouter.get('/spoken-review', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');   // fresh due items every open
   try {
     const p = await loadUser(req.account.id);
+
+    // Stage A (finde-den-fehler): grammar items ONLY (there is no error to find in a phrase task),
+    // the prescribed rule's items first, and NO rule chip — the learner does the noticing.
+    if (modeOf(req) === 'find') {
+      const targetRule = String(req.query.rule || '');
+      const onTarget = (i) => (targetRule && canonicalSkillForItem(i) === targetRule ? 1 : 0);
+      const items = dueItems(p, Date.now(), 50)
+        .filter((i) => i.type === 'grammar' && usableSpokenReviewItem(i))
+        .sort((a, b) => onTarget(b) - onTarget(a) || gravityRank(b) - gravityRank(a) || (a.due - b.due))
+        .slice(0, 8)
+        .map((i) => ({ id: i.id, type: i.type, rule: '',
+          prompt: 'In diesem Satz steckt ein Fehler. Finde ihn und sag den Satz KORREKT laut.',
+          wrong: i.example?.wrong || '' }));
+      return res.json({ items });
+    }
+
     const coachEnabled = salmaCoachFlags(process.env, req.account).enabled;
     const coachState = coachEnabled ? syncSalmaCoach(p).state : null;
     // GRAVITY-FIRST: pull the full due set, re-order so GLOBAL (skeleton) errors come before LOCAL
@@ -312,11 +338,14 @@ spokenReviewRouter.post('/spoken-review/grade',
       if (!transcript) return res.json({ retry: true, noSpeech: true });
 
       const { correct, expected } = gradeSpoken(item, transcript);
+      const mode = modeOf(req);
       const coachEnabled = salmaCoachFlags(process.env, req.account).enabled;
       const { state: coachState } = coachEnabled ? syncSalmaCoach(p) : { state: null };
       const active = coachState?.activePrescription;
       const canonicalSkillId = canonicalSkillForItem(item);
-      const isPrescribedCard = active?.drillId === 'sag-es-richtig' && hasUsableSpokenRepair(item)
+      // A stage-variant rep (find/tempo) belongs to the series ladder, never to a plain
+      // sag-es-richtig coach dose — crediting it there would mis-count the dose.
+      const isPrescribedCard = !mode && active?.drillId === 'sag-es-richtig' && hasUsableSpokenRepair(item)
         && canonicalSkillId === active.skillId;
       // One coaching dose may repeat the same sentence for automaticity, but it must not fast-forward
       // the long-term spaced schedule eight times in one sitting.
@@ -330,7 +359,7 @@ spokenReviewRouter.post('/spoken-review/grade',
       // same canonical weakLog spine the interview writes (classifyGrammar), so on-target prep and
       // the aha can actually fire; non-grammar items go to the general drillLog. Server-side and
       // atomic with the SRS save — no extra request, nothing for the client to forget.
-      const ev = { at: Date.now(), drill: 'sag-es-richtig', correct };
+      const ev = { at: Date.now(), drill: mode ? MODE_DRILL[mode] : 'sag-es-richtig', correct };
       if (item.type === 'grammar' && item.content) {
         const canon = canonicalSkillId;
         const key = canon || ('lt:' + item.content);

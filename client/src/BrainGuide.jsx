@@ -37,6 +37,7 @@ const DRILL_LABEL = {
   'shadowing': 'SHADOWING', 'sag-es-richtig': 'SAG-ES-RICHTIG', 'flow-drill': 'FLOW-DRILL',
   'hoer-check': 'HÖR-CHECK', 'druck-leiter': 'DRUCK-LEITER', 'srs': 'WIEDERHOLUNG', 'interview': 'INTERVIEW',
   'satzbau-schmiede': 'SATZBAU-SCHMIEDE',
+  'finde-den-fehler': 'FINDE DEN FEHLER', 'sag-es-richtig-tempo': 'SAG-ES-RICHTIG · TEMPO',
 };
 // Readable German labels for the canonical grammar ruleIds (so the aha reads naturally, not "konjunktiv-2").
 const RULE_LABEL = {
@@ -396,8 +397,12 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
   const currentJourney = JOURNEY_PHASES.find((phase) => phase.id === journeyPhase) || JOURNEY_PHASES[0];
   const reason = orientationReason(d);
 
+  // The honest series position ("Schritt 2/5 gegen dein größtes Problem") — only when the
+  // prescription actually came from a drill series (drill-prescription doctrine 07-20).
+  const seriesSuffix = d.prescription?.seriesStage
+    ? ` · SCHRITT ${d.prescription.seriesStage.step}/${d.prescription.seriesStage.of}` : '';
   const ctaText =
-      d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}`
+      d.prescription?.action === 'drill'      ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill(d.prescription.drill)}${seriesSuffix}`
     : d.prescription?.action === 'interview'  ? `${BRAIN_COPY.startCta} · ${BRAIN_COPY.drill('interview')}`
     : d.prescription?.action === 'assessment' ? `${BRAIN_COPY.startCta} · DIAGNOSE-INTERVIEW`
     : d.prescription?.action === 'measure'    ? BRAIN_COPY.measure

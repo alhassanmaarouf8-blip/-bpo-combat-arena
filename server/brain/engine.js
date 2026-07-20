@@ -13,6 +13,7 @@
  */
 import { frontier, tierStatus, progress, SKILL_BY_ID } from './skillGraph.js';
 import { rankProblems } from './problemRank.js';
+import { seriesProgress } from './drillSeries.mjs';
 
 // Which frontier skill best addresses the hire-gating limiting skill (reuses hireReadiness' vector).
 const LIMIT_TO_SKILL = {
@@ -270,6 +271,31 @@ export function decide(snapshot = {}) {
     : recentDrillEvents.some((e) => (e.ruleId && e.ruleId === target.id) || (e.drill && e.drill === target.drill));
 
   const inactive = daysSinceActive >= 4;
+
+  // Drill-prescription doctrine (docs/drill-prescription-doctrine.md): a ranked grammar problem is
+  // treated through its staged SERIES (NOTICE → CONTROLLED → AUTOMATIZE → disguised TRANSFER), the
+  // stage derived from the rule's own drill-event record — not through the skill graph's single
+  // static drill. Scope guard: criterion-driven forecasts and active coach doses keep their own
+  // machinery (their drill ids anchor dose crediting); the series governs the pure ranked path.
+  if (target && !limitingCriterionId && !matchingCoachGate) {
+    const series = seriesProgress(target.id, weakLog);
+    if (series) {
+      const state = inactive ? 'PLATEAU' : series.transferReady ? 'READY' : 'POST_FIGHT';
+      const seriesStage = series.transferReady
+        ? { stage: 'D', step: series.totalSteps, of: series.totalSteps }
+        : { stage: series.current.stage, step: series.currentIndex + 1, of: series.totalSteps,
+          ...(series.regressed ? { regressed: true } : {}) };
+      return {
+        state, confidence, tier, journey, aha,
+        target: { skillId: target.id, layer: target.layer },
+        prescription: series.transferReady
+          ? { action: 'interview', skillId: target.id, seriesStage }
+          : { action: 'drill', drill: series.current.drill, skillId: target.id, seriesStage },
+        measure: [],
+        ranked,
+      };
+    }
+  }
   const state = inactive ? 'PLATEAU'
     : prepMatched        ? 'READY'        // did the prep (on target) → earn the targeted rematch
     : 'POST_FIGHT';                        // fresh debrief → here's the prescription

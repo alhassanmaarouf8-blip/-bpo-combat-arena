@@ -15,11 +15,18 @@ import { DrillIntro } from './drillIntros.jsx';
 import { useAccessibleOverlay } from './useAccessibleOverlay.js';
 
 const MAX_SEC = 18;
+const TEMPO_SEC = 9;   // Stage C (doctrine K6): automatization = correct production under time pressure
 const T = (lang, de, ar) => (lang === 'ar' ? ar : de);
 
-export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null }) {
-  const overlayProps = useAccessibleOverlay(onClose, 'Sag es richtig');
+// mode: null = classic SAG-ES-RICHTIG (Stage B) · 'find' = FINDE-DEN-FEHLER (Stage A NOTICE: the
+// rule is withheld, the learner must find the error in their own sentence) · 'tempo' = timed
+// Stage C variant. targetRule = the prescribed canonical rule, so Stage A serves matching items first.
+export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing, why = null,
+  mode = null, targetRule = null }) {
+  const overlayProps = useAccessibleOverlay(onClose, mode === 'find' ? 'Finde den Fehler' : 'Sag es richtig');
   const tutorSession = useSalmaDrillSession(token, 'sag-es-richtig');
+  const maxSec = mode === 'tempo' ? TEMPO_SEC : MAX_SEC;
+  const modeDrill = mode === 'find' ? 'finde-den-fehler' : mode === 'tempo' ? 'sag-es-richtig-tempo' : 'sag-es-richtig';
   const [phase, setPhase] = useState('loading'); // loading | practice | empty | done | error
   const [items, setItems] = useState([]);
   const [prescription, setPrescription] = useState(null);
@@ -38,7 +45,8 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   const load = useCallback(async () => {
     setPhase('loading'); setErr(null); setResult(null); setPrescription(null); setItems([]); setIdx(0);
     try {
-      const r = await fetch(`${apiUrl}/api/spoken-review?t=${Date.now()}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
+      const modeQs = mode === 'find' ? `&mode=find${targetRule ? `&rule=${encodeURIComponent(targetRule)}` : ''}` : '';
+      const r = await fetch(`${apiUrl}/api/spoken-review?t=${Date.now()}${modeQs}`, { cache: 'no-store', headers: { Authorization: `Bearer ${token}` } });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error('load_failed');
@@ -49,7 +57,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       setErr({ de: 'Konnte die Wiederholung nicht laden.', ar: 'مقدرناش نحمّل المراجعة.' });
       setPhase('error');
     }
-  }, [apiUrl, token, blocked]);
+  }, [apiUrl, token, blocked, mode, targetRule]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => () => { clearInterval(timerRef.current); clearTimeout(stopRef.current); recRef.current?.stop?.().catch(() => {}); }, []);
@@ -70,7 +78,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     }
     recRef.current = rec; setRec(true); setSec(0);
     timerRef.current = setInterval(() => setSec((x) => x + 1), 1000);
-    stopRef.current  = setTimeout(() => stopRec(), MAX_SEC * 1000);
+    stopRef.current  = setTimeout(() => stopRec(), maxSec * 1000);
   };
 
   const stopRec = async () => {
@@ -80,14 +88,14 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     if (!clip?.blob || clip.blob.size < 1200) { setErr({ de: 'Nichts aufgenommen — sprich bitte.', ar: 'مفيش صوت — اتكلم من فضلك.' }); return; }
     setBusy(true);
     try {
-      const r = await fetch(`${apiUrl}/api/spoken-review/grade?id=${encodeURIComponent(item.id)}`, {
+      const r = await fetch(`${apiUrl}/api/spoken-review/grade?id=${encodeURIComponent(item.id)}${mode ? `&mode=${mode}` : ''}`, {
         method: 'POST', headers: { 'Content-Type': 'audio/wav', Authorization: `Bearer ${token}` }, body: clip.blob,
       });
       if (r.status === 402) { blocked(); return; }
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'failed');
       if (!d.retry && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('omni:coach-state-changed', { detail: { source: 'drill', drill: 'sag-es-richtig' } }));
+        window.dispatchEvent(new CustomEvent('omni:coach-state-changed', { detail: { source: 'drill', drill: modeDrill } }));
       }
       const coachCue = !d.retry ? d.coachCue || null : null;
       setResult({ ...d, ...(coachCue ? { coachCue } : {}) });
@@ -119,7 +127,8 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     <>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
       <span style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--accent)' }}>
-        SAG ES RICHTIG · قولها صح
+        {/* Stage titles: German only for the new variants — masri is an OWNER-AR slot. */}
+        {mode === 'find' ? 'FINDE DEN FEHLER' : mode === 'tempo' ? 'SAG ES RICHTIG · TEMPO' : 'SAG ES RICHTIG · قولها صح'}
       </span>
       <button onClick={onClose} style={ghostBtn}>{T(lang, 'Schließen', 'إغلاق')}</button>
     </div>
@@ -202,7 +211,8 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)' }}>
       {item?.type === 'grammar' ? (
         <>
-          <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item?.rule}</div>
+          {/* Stage A withholds the rule chip (server sends rule:'') — noticing is the exercise. */}
+          {item?.rule && <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item.rule}</div>}
           <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
           {item?.wrong && (
             <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
@@ -238,7 +248,10 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     <div style={{ marginTop: 16, textAlign: 'center' }}>
       {recording ? (
         <>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= MAX_SEC - 4 ? 'var(--action)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>00:{String(seconds).padStart(2, '0')}</div>
+          {/* Tempo (Stage C) counts DOWN — the shrinking window IS the exercise (Nation 4/3/2). */}
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= maxSec - 4 ? 'var(--action)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
+            {mode === 'tempo' ? `${Math.max(0, maxSec - seconds)}s` : `00:${String(seconds).padStart(2, '0')}`}
+          </div>
           <button onClick={stopRec} style={{ ...actionBtn, marginTop: 8,  }}>⏹ {T(lang, 'Fertig', 'خلصت')}</button>
         </>
       ) : busy ? (
