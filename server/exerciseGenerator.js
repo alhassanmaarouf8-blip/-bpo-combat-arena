@@ -24,7 +24,10 @@ import { scrubStringsDeep } from './langGuard.js';
 
 const GEN_MODEL  = process.env.GROQ_EXERCISE_MODEL ?? 'llama-3.3-70b-versatile';
 const TIMEOUT_MS = 45_000;
-const RETRIES    = 2;
+// Backoff between attempts (session-debug 07-20: all 3 retries fired within ONE second against a
+// requests-per-MINUTE limit — guaranteed dead). Generation is post-debrief and non-blocking, so
+// waiting out the rate window is free.
+const RETRY_DELAYS = [0, 8_000, 25_000];
 
 const _canon = (s) => String(s ?? '').normalize('NFC').toLowerCase()
   .replace(/["'„“”‚‘»«]+/g, '').replace(/\s+/g, ' ').trim();
@@ -167,7 +170,8 @@ export async function generateExerciseSet({ bottleneck, evidence = [], level = '
     `\nBaue jetzt den Übungsblock als JSON.`;
 
   let lastErr = null;
-  for (let attempt = 0; attempt <= RETRIES; attempt++) {
+  for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
+    if (RETRY_DELAYS[attempt]) await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
     try {
       const { content, usage, provider } = await chatWithFailover({
         messages: [
@@ -185,7 +189,7 @@ export async function generateExerciseSet({ bottleneck, evidence = [], level = '
       return { set: { ...set, ...plan }, usage: { provider, promptTokens: usage?.prompt_tokens ?? null, completionTokens: usage?.completion_tokens ?? null } };
     } catch (err) {
       lastErr = err;
-      console.error(`[exerciseGen] attempt ${attempt + 1}/${RETRIES + 1} failed  session=${sessionId ?? '?'}: ${err.message}`);
+      console.error(`[exerciseGen] attempt ${attempt + 1}/${RETRY_DELAYS.length} failed  session=${sessionId ?? '?'}: ${err.message}`);
     }
   }
   throw lastErr ?? new Error('exercise_generation_failed');
