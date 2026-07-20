@@ -80,3 +80,6 @@ graphify-out/
 /.opencode/
 /.cluster/
 /evolution-drafts/
+
+# QA acceptance runtime state (cross-run novelty signature, rewritten every run)
+scripts/qa/.deepqa-last-set.json
