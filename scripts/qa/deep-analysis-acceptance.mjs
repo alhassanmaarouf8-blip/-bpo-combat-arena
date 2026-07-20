@@ -147,5 +147,58 @@ if (prevRec) {
   if (prevRec.code === bn.code && bn.repeat) log('repeat-day behavior CONFIRMED (same code re-selected, flagged)');
 }
 
-console.log('\n[deepqa] PASS — deep analysis + bottleneck selection verified end-to-end.');
-console.log(`[deepqa] probe account: ${EMAIL} (delete via admin if desired)`);
+// 7) Phase 4 — the personal step: generated set, brief data, stage-1 server validation, gating.
+import('node:fs').then(async ({ promises: fs }) => {
+  let ps = null;
+  for (let i = 0; i < 30; i++) {
+    const r = await api(`/api/personal-step?sessionId=${sessionId}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+    if (r.ok && (r.body.status === 'ready' || r.body.status === 'fallback')) { ps = r.body; break; }
+    if (r.ok && r.body.status === 'failed') fail('personal step status=failed (fallback should have caught this)');
+    await new Promise((s) => setTimeout(s, 4000));
+  }
+  if (!ps) fail('personal step never became ready (2 min)');
+  const set = ps.set;
+  log(`personal step: status=${ps.status}  title="${set.title_de}"  s1=${set.stage1.length} s2=${set.stage2.length} s3=${set.stage3.length}  reps=${set.totalReps}  ~${set.estMinutes}min`);
+  if (!ps.bottleneck?.evidenceQuotes?.length && !set.fallback) fail('brief has no evidence quotes');
+  if (ps.status === 'ready') {
+    if (set.stage1.length < 3 || set.stage2.length < 2 || set.stage3.length < 1) fail('generated ladder incomplete');
+    for (const i of set.stage1) if ((i.options || []).length !== 2) fail(`stage1 ${i.id} lacks 2 options`);
+    for (const i of [...set.stage2, ...set.stage3]) if (!i.why_de) fail(`${i.id} has no why`);
+    if (set.stage3[0].must_use_de) fail('stage3 leaked must_use before the attempt (covert test broken)');
+  }
+  if (ps.completed || ps.reinterviewUnlocked) fail('step claims completed before any work');
+
+  // Stage 1 via API: try option A; if wrong, option B — only correct answers count server-side.
+  for (const item of set.stage1) {
+    let r = await api('/api/personal-step/answer', { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({ sessionId, itemId: item.id, choice: item.options[0] }) });
+    if (r.ok && !r.body.correct) {
+      r = await api('/api/personal-step/answer', { method: 'POST', headers: { Authorization: `Bearer ${TOKEN}` },
+        body: JSON.stringify({ sessionId, itemId: item.id, choice: item.options[1] }) });
+    }
+    if (!r.ok || !r.body.correct) fail(`stage1 ${item.id}: neither option accepted`);
+    if (!r.body.why_de) fail(`stage1 ${item.id}: answer response has no why`);
+  }
+  const after = await api(`/api/personal-step?sessionId=${sessionId}`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  const s1done = (after.body.set.stage1 || []).every((i) => i.repsDone >= i.reps);
+  if (set.stage1.length && !s1done) fail('stage1 reps not recorded server-side');
+  if (set.stage2.length && (after.body.completed || after.body.reinterviewUnlocked)) fail('re-interview unlocked before spoken stages (gate broken)');
+  log(`stage1 completed via API (${set.stage1.length} items); re-interview correctly still locked (spoken stages pending)`);
+
+  // Cross-run novelty: compare this set's stage-1 texts with the previous invocation's.
+  const sigPath = new URL('./.deepqa-last-set.json', import.meta.url);
+  const texts = set.stage1.flatMap((i) => i.options || []);
+  try {
+    const prev = JSON.parse(await fs.readFile(sigPath, 'utf8'));
+    if (prev.family === (ps.bottleneck?.category || '') || true) {
+      const overlap = texts.filter((t) => prev.texts.includes(t)).length;
+      log(`novelty vs previous run: ${overlap}/${texts.length} overlapping stage1 texts`);
+      if (texts.length && overlap === texts.length) fail('repeat set is identical to previous set — novelty broken');
+    }
+  } catch { /* first run — nothing to compare */ }
+  await fs.writeFile(sigPath, JSON.stringify({ at: Date.now(), family: ps.bottleneck?.category || '', texts }));
+
+  console.log('\n[deepqa] PASS — analysis + bottleneck + personal step verified end-to-end.');
+  console.log('[deepqa] (spoken stages 2-3 + re-interview unlock = owner voice test on device)');
+  console.log(`[deepqa] probe account: ${EMAIL} (delete via admin if desired)`);
+});

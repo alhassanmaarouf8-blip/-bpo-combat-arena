@@ -297,7 +297,8 @@ test('the debrief does not invent a fixed homework order beside BrainGuide', asy
   const app = await read('client/src/App.jsx');
   assert.doesNotMatch(app, /homework_order_top|unter 5 Grammatik-Fehler|15 Minuten heute und 15 Minuten morgen/u);
   assert.match(app, /<SalmaTutorPanel token=\{token\} apiUrl=\{apiUrl\} screen="debrief" \/>/u);
-  assert.match(app, /onClick=\{onDone\}/u);
+  // v2 Phase 4: the blue button opens the personal step; onDone stays the no-handler fallback.
+  assert.match(app, /onClick=\{onPersonalStep \|\| onDone\}/u);
   assert.match(app, /PERSÖNLICHEN SCHRITT ÖFFNEN/u);
   assert.doesNotMatch(app, /debrief_followup_next|WOCHENFOKUS/u);
 });

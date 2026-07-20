@@ -195,12 +195,16 @@ test('debrief uses the canonical tutor and one personal next-step action; interv
     'the measured prescription must come from the canonical coach endpoint');
   assert.doesNotMatch(debrief, /debrief_followup_(?:next|top)|WOCHENFOKUS/u,
     'generic follow-ups must not compete with the evidence-backed tutor prescription');
-  assert.equal((debrief.match(/onClick=\{onDone\}/gu) || []).length, 1,
+  // v2 Phase 4: the dominant route OPENS the personal step (bottleneck brief + generated
+  // exercise block); plain route-home stays only as the fallback when no step handler exists.
+  assert.equal((debrief.match(/onClick=\{onPersonalStep \|\| onDone\}/gu) || []).length, 1,
     'there must be exactly one dominant route to the personal training block');
+  assert.equal((debrief.match(/onClick=\{onDone\}/gu) || []).length, 0,
+    'no second plain route-home button may compete with the personal step');
   assert.match(debrief, /PERSÖNLICHEN (?:TRAININGSBLOCK|SCHRITT)/u);
   assert.doesNotMatch(debrief, /onClick=\{onDone \|\| onRestart\}/u);
 
-  const primary = debrief.indexOf('onClick={onDone}');
+  const primary = debrief.indexOf('onClick={onPersonalStep || onDone}');
   const retry = debrief.indexOf('onClick={onRestart}', primary + 1);
   assert.ok(primary >= 0 && retry > primary,
     'another interview may remain only after the personal training route as a secondary action');

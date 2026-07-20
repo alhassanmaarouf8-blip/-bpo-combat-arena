@@ -44,6 +44,7 @@ const VideoLessons = lazy(() => import('./VideoLessons.jsx').then((m) => ({ defa
 const DailyTraining = lazy(() => import('./DailyTraining.jsx'));
 const Assessment = lazy(() => import('./Assessment.jsx').then((m) => ({ default: m.Assessment })));
 const Shadowing = lazy(() => import('./Shadowing.jsx').then((m) => ({ default: m.Shadowing })));
+const PersonalStep = lazy(() => import('./PersonalStep.jsx'));
 const Listening = lazy(() => import('./Listening.jsx').then((m) => ({ default: m.Listening })));
 const SpokenReview = lazy(() => import('./SpokenReview.jsx').then((m) => ({ default: m.SpokenReview })));
 const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => ({ default: m.SatzbauSchmiede })));
@@ -1761,7 +1762,7 @@ function DeepAnalysisSection({ token, apiUrl, sessionId, ar, rtl }) {
   );
 }
 
-function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
+function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, onDone, onPersonalStep, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
   const nm  = _fn ? _fn.charAt(0).toUpperCase() + _fn.slice(1) : '';
@@ -2548,7 +2549,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       )}
 
       <div style={{ padding:'10px 16px 20px', display:'flex', gap:10 }}>
-        <button onClick={onDone} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
+        {/* Phase 4: the blue button OPENS the personal step (bottleneck brief + generated
+            exercise block) — it stopped being a plain route-home in v2 Phase 4. */}
+        <button onClick={onPersonalStep || onDone} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
           letterSpacing:'0.1em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
           border:'1px solid var(--accent)', color:'#04070d',
           background:'linear-gradient(135deg, var(--accent-2), var(--accent))',
@@ -4642,6 +4645,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [fluencyOpen, setFluencyOpen] = useState(false);       // paid 4-3-2 fluency drill route
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
+  const [personalStepOpen, setPersonalStepOpen] = useState(false); // Phase 4: the personal step behind the debrief's blue button
   // Series stage variants (drill-prescription doctrine): 'find' = FINDE-DEN-FEHLER (Stage A),
   // 'tempo' = timed SAG-ES-RICHTIG (Stage C). Reset on close so manual opens get the classic drill.
   const [spokenReviewMode, setSpokenReviewMode] = useState(null);
@@ -6033,6 +6037,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const _overlays = [
     [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
+    [personalStepOpen, setPersonalStepOpen],
     [satzbauOpen, setSatzbauOpen],
     [pressureOpen, setPressureOpen],
     [videoLessonsOpen, setVideoLessonsOpen],
@@ -6198,6 +6203,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         </Suspense>
       )}
 
+      {/* Phase 4: the personal step — bottleneck brief + generated 3-stage ladder + re-interview unlock */}
+      {personalStepOpen && (
+        <Suspense fallback={<OverlayLoading />}>
+          <PersonalStep token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            onClose={() => setPersonalStepOpen(false)}
+            onStartInterview={() => { setPersonalStepOpen(false); beginSession(); }} />
+        </Suspense>
+      )}
+
       {/* Spoken-production SRS — say YOUR own errors correctly, spaced (PAID; Groq Whisper, deterministic) */}
       {spokenReviewOpen && (
         <Suspense fallback={<OverlayLoading />}>
@@ -6264,6 +6278,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           boss's voice has finished (bossSpeak) so the screen never jumps ahead of audio. */}
       {(debrief || debriefPending) && !bossSpeak && !noSession && (
         <Debrief data={debrief} pending={debriefPending} verdictHold={verdictHold} onRestart={handleRestart} onRevanche={handleRevanche} onDone={handleDebriefDone}
+          onPersonalStep={() => { handleDebriefDone(); setPersonalStepOpen(true); }}
           lang={feedbackLang} onLang={chooseFeedbackLang} bossName={funnel?.displayName}
           studentName={auth.account?.name || (auth.account?.email || '').split('@')[0]}
           ent={auth.account?.entitlement}

@@ -11,6 +11,7 @@ import { generateDeepAnalysis } from './deepDiagnosis.js';
 import { loadAnalysisRecord, saveAnalysisRecord, eventsFromAnalysis, appendErrorEvents, loadErrorEvents } from './analysisStore.js';
 import { selectBottleneck, updatePriorStatuses } from './bottleneckSelector.js';
 import { loadBottlenecks, saveBottlenecks } from './bottleneckStore.js';
+import { startExerciseGeneration } from './personalStep.js';
 import { dayKey } from './time.js';
 
 export const MAX_ATTEMPTS   = 5;
@@ -62,6 +63,12 @@ export async function runAnalysis(record) {
       record.bottleneck = bn;                       // GET /api/analysis serves the choice + why
       await saveAnalysisRecord(record);
       console.log(`[analysisRunner] bottleneck  user=${record.userId}  session=${record.sessionId}  code=${bn.code}  score=${bn.score}  repeat=${bn.repeat}  streak=${bn.dayStreak}  lowConf=${bn.lowConfidence}  fallback=${bn.fallback}`);
+      // Phase 4: generate the personal exercise set for the chosen bottleneck immediately —
+      // fire-and-forget; a failure inside falls back to Stage-2 drills, never an empty step.
+      startExerciseGeneration({
+        userId: record.userId, sessionId: record.sessionId, bottleneck: bn,
+        level: record.input?.level || 'b2', cairoDay: bn.cairoDay,
+      }).catch((e) => console.error(`[analysisRunner] exercise generation failed session=${record.sessionId}: ${e.message}`));
     } catch (e) {
       console.error(`[analysisRunner] bottleneck selection failed  session=${record.sessionId}: ${e.message}`);
     }

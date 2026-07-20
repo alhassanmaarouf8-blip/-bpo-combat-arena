@@ -5,6 +5,7 @@ import cors from 'cors';
 import { WebSocketManager } from './websocketManager.js';
 import { progressRouter }   from './progress.js';
 import { analysisRouter }   from './analysisRoutes.js';
+import { personalStepRouter } from './personalStep.js';
 import { authRouter, billingRouter } from './auth.js';
 import { planRouter }        from './plans.js';
 import { dailyRouter }       from './daily.js';
@@ -136,6 +137,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api', progressRouter);
 app.use('/api', analysisRouter);   // Deep Diagnostic Engine (v2 Phase 2): full-transcript analysis + error events
+app.use('/api', personalStepRouter);   // Phase 4: the personal step (generated exercise block + server-confirmed completion)
 app.use('/api', beaconRouter);   // PII-free funnel counters (see funnelBeacon.js)
 app.use('/api', planRouter);
 app.use('/api', dailyRouter);
