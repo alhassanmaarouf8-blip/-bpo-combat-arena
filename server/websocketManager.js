@@ -11,6 +11,7 @@ const voicedGateOn = () => process.env.TURN_VOICED_GATE === '1';
 import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.js';
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
+import { startAnalysisForSession } from './analysisRunner.js';
 import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
 import { serviceRecoveryEvidenceFromUtterances } from './scoring/serviceRecoveryEvidence.js';
 import { entryInteractionEvidenceFromUtterances } from './scoring/entryInteractionEvidence.js';
@@ -1485,7 +1486,27 @@ export class WebSocketManager {
       type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress,
       revancheMoment: result.outcome === 'loss' ? ctx.revancheMoment : null,
       nextTime: { targetWeakRule: ctx.targetWeakRule || null, nextBoss: progress?.nextBoss || null },
+      deepAnalysis: ctx.userId !== 'anon' ? { sessionId: ctx.sessionId } : null,
     });
+
+    // ── Deep Diagnostic Engine (v2 Phase 2) — STRICTLY after the debrief is sent. Fire-and-forget:
+    // the record persists the full transcript input, so a crash/restart/retry can never lose it,
+    // and no failure in this block may ever touch the debrief the learner is already reading.
+    if (ctx.userId !== 'anon') {
+      try {
+        startAnalysisForSession({
+          userId: ctx.userId, sessionId: ctx.sessionId,
+          input: {
+            dialogue: ctx.dialogue,
+            utterances: (ctx.utterances || []).map((u) => ({
+              text: u.text, words: u.words, durationMs: u.durationMs,
+              stage: u.stage, stageLabel: u.stageLabel, lowConf: u.lowConf || [],
+            })),
+            metrics, level: ctx.level, csScenarioId: ctx.csScenarioId || 'general',
+          },
+        }).catch((e) => console.error(`[wsManager] deep analysis start failed session=${ctx.sessionId}: ${e.message}`));
+      } catch (e) { console.error(`[wsManager] deep analysis wiring failed session=${ctx.sessionId}: ${e.message}`); }
+    }
   }
 
   // Persist this session: history, vocab growth, SRS items from errors, XP/level.

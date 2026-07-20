@@ -1574,6 +1574,157 @@ function HireVerdict({ h, compact = false }) {
   );
 }
 
+// ── Deep Diagnostic Engine view (v2 Phase 2): the COMPLETE analysis of every answer ─────────────
+// Server generates it right after the debrief (GET /api/analysis/:sessionId); this section mounts
+// lazily inside the details toggle and polls while the analysis is still being written. Colors
+// follow the existing correction conventions: var(--bad) strikethrough → var(--accent-2) fix.
+const DEEP_CAT_DE = {
+  ADJ_ENDUNG:'Adjektivendung', KASUS:'Kasus', ARTIKEL_GENUS:'Artikel/Genus', VERB_POSITION:'Verbstellung',
+  VERB_KONJUGATION:'Konjugation', TEMPUS:'Zeitform', PRAEPOSITION:'Präposition', PLURAL:'Plural',
+  WORTSTELLUNG:'Wortstellung', SATZBAU_NEBENSATZ:'Nebensatz', WORTSCHATZ_PRAEZISION:'Wortschatz',
+  REGISTER_FORMALITAET:'Register', FUELLWOERTER:'Füllwörter', SELBSTKORREKTUR_SCHLEIFEN:'Neustarts',
+  AUSSPRACHE:'Aussprache', FLUESSIGKEIT:'Flüssigkeit', ANTWORT_STRUKTUR:'Antwortstruktur', KOHAERENZ:'Kohärenz',
+};
+
+// Split one answer into text segments + inline error marks (first case-insensitive occurrence per
+// error, non-overlapping). Errors whose quote isn't literally in THIS answer render as cards below.
+function segmentAnswer(original, errors) {
+  const marks = [];
+  const taken = [];
+  for (let i = 0; i < errors.length; i++) {
+    const q = errors[i].quote || '';
+    if (!q) continue;
+    const at = original.toLowerCase().indexOf(q.toLowerCase());
+    if (at < 0 || taken.some(([s, e]) => at < e && at + q.length > s)) continue;
+    taken.push([at, at + q.length]);
+    marks.push({ at, len: q.length, errIdx: i });
+  }
+  marks.sort((a, b) => a.at - b.at);
+  const segs = [];
+  let pos = 0;
+  for (const m of marks) {
+    if (m.at > pos) segs.push({ text: original.slice(pos, m.at) });
+    segs.push({ text: original.slice(m.at, m.at + m.len), errIdx: m.errIdx });
+    pos = m.at + m.len;
+  }
+  if (pos < original.length) segs.push({ text: original.slice(pos) });
+  const inline = new Set(marks.map((m) => m.errIdx));
+  return { segs, unplaced: errors.map((_, i) => i).filter((i) => !inline.has(i)) };
+}
+
+function DeepAnalysisSection({ token, apiUrl, sessionId, ar, rtl }) {
+  const [state, setState] = useState({ status: 'pending' });
+  const [openErr, setOpenErr] = useState(null);
+  useEffect(() => {
+    if (!sessionId || !token) return undefined;
+    let stopped = false, tries = 0, timer = null;
+    const tick = async () => {
+      try {
+        const r = await fetch(`${apiUrl}/api/analysis/${sessionId}`, { headers: { Authorization: `Bearer ${token}` } });
+        const j = r.ok ? await r.json() : { status: r.status === 404 ? 'failed' : 'pending' };
+        if (stopped) return;
+        if (j.status === 'ready' || j.status === 'failed') { setState(j); return; }
+        setState({ status: j.status });
+      } catch { /* transient — keep polling */ }
+      if (!stopped && ++tries < 36) timer = setTimeout(tick, 5000);
+      else if (!stopped) setState((s) => (s.status === 'ready' ? s : { status: 'failed' }));
+    };
+    tick();
+    return () => { stopped = true; if (timer) clearTimeout(timer); };
+  }, [sessionId, token, apiUrl]);
+
+  if (!sessionId) return null;
+  const title = ar ? 'التحليل الكامل' : 'KOMPLETTE ANALYSE';
+  if (state.status !== 'ready') {
+    return (
+      <Section title={title} color="var(--accent)">
+        <div style={{ fontSize:12, color:'var(--text-dim)', lineHeight:1.6, ...rtl }}>
+          {state.status === 'failed'
+            ? (<>Die komplette Analyse ist für diese Sitzung nicht verfügbar.{/* OWNER-AR slot */}</>)
+            : (ar ? '⏳ التحليل جاي حالًا' : '⏳ Komplette Analyse wird erstellt …')}
+        </div>
+      </Section>
+    );
+  }
+  const agg = state.aggregates || {};
+  const cats = Object.entries(agg.byCategory || {}).sort((a, b) => b[1] - a[1]);
+  return (
+    <Section title={title} color="var(--accent)"
+      right={<span style={{ fontSize:9.5, color:'var(--text-dim)' }}>{agg.totalErrors ?? 0} {ar ? 'ملاحظة' : 'Funde'}</span>}>
+      {!!cats.length && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10 }}>
+          {cats.map(([c, n]) => (
+            <span key={c} style={{ fontSize:9.5, padding:'3px 8px', borderRadius:20, color:'var(--text-dim)',
+              border:'1px solid var(--line-strong)', background:'rgba(255,255,255,0.03)' }}>
+              {DEEP_CAT_DE[c] || c} · {n}
+            </span>
+          ))}
+        </div>
+      )}
+      {(state.answers || []).map((a, ai) => {
+        const { segs, unplaced } = segmentAnswer(a.original || '', a.errors || []);
+        return (
+          <div key={ai} style={{ marginBottom: ai < state.answers.length - 1 ? 14 : 0,
+            paddingBottom: ai < state.answers.length - 1 ? 12 : 0,
+            borderBottom: ai < state.answers.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            {a.frage && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4, ...rtl }}>❓ {a.frage}</div>}
+            <div style={{ fontSize:12.5, color:'#e2e8f0', lineHeight:1.8, overflowWrap:'anywhere' }}>
+              {segs.map((s, si) => s.errIdx == null
+                ? <span key={si}>{s.text}</span>
+                : (
+                  <span key={si} onClick={() => setOpenErr(openErr === `${ai}:${s.errIdx}` ? null : `${ai}:${s.errIdx}`)}
+                    style={{ cursor:'pointer' }}>
+                    <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{s.text}</span>
+                    {' '}<span style={{ color:'var(--accent-2)', fontWeight:600 }}>{a.errors[s.errIdx].korrektur}</span>
+                  </span>
+                ))}
+            </div>
+            {(a.errors || []).map((e, ei) => (
+              (openErr === `${ai}:${ei}` || unplaced.includes(ei)) && (
+                <div key={ei} onClick={() => unplaced.includes(ei) ? null : setOpenErr(null)}
+                  style={{ marginTop:6, padding:'7px 10px', borderRadius:8, fontSize:11.5, lineHeight:1.6,
+                    background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.25)' }}>
+                  {unplaced.includes(ei) && (
+                    <div style={{ marginBottom:3 }}>
+                      <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{e.quote}</span>
+                      {' '}<span style={{ color:'var(--accent-2)', fontWeight:600 }}>{e.korrektur}</span>
+                    </div>
+                  )}
+                  <div style={{ color:'#e2e8f0', ...rtl }}>{ar && e.erklaerung_ar ? e.erklaerung_ar : e.erklaerung_de}</div>
+                  <div style={{ marginTop:3, fontSize:9.5, color:'var(--text-dim)' }}>{DEEP_CAT_DE[e.kategorie] || e.kategorie}</div>
+                </div>
+              )
+            ))}
+            {!!(a.alternativen || []).length && (
+              <div style={{ marginTop:8 }}>
+                <div style={{ fontSize:9, fontFamily:'var(--font-display)', letterSpacing:'0.12em', color:'var(--accent-2)', marginBottom:4 }}>
+                  {ar ? 'طرق تانية تقولها' : 'SO GEHT ES AUCH'}
+                </div>
+                {a.alternativen.map((v, vi) => (
+                  <div key={vi} style={{ marginBottom:5, padding:'7px 10px', borderRadius:8,
+                    background:'rgba(96,165,250,0.06)', border:'1px solid rgba(96,165,250,0.22)' }}>
+                    <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.55 }}>{v.text}</div>
+                    {(v.wann_de || v.wann_ar) && (
+                      <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:2, lineHeight:1.5, ...rtl }}>
+                        {ar && v.wann_ar ? v.wann_ar : v.wann_de}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {(a.staerken || []).map((s, si) => (
+              <div key={si} style={{ marginTop:5, fontSize:11.5, color:'var(--accent-2)', lineHeight:1.5, ...rtl }}>
+                ✓ „{s.quote}“ — {ar && s.warum_ar ? s.warum_ar : s.warum_de}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </Section>
+  );
+}
+
 function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, onDone, lang = 'de', onLang, bossName, token, apiUrl, studentName, onTrainSkill, ent, onSeePlans }) {
   // The student's first name — so the most personal moment in the app actually speaks to THEM.
   const _fn = (studentName || '').toString().trim().split(/\s+/)[0];
@@ -1920,6 +2071,11 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           </button>
 
           {showDetails && (<>
+          {/* KOMPLETTE ANALYSE — the Deep Diagnostic Engine: every answer, every error, alternatives */}
+          {data?.deepAnalysis?.sessionId && (
+            <DeepAnalysisSection token={token} apiUrl={apiUrl} sessionId={data.deepAnalysis.sessionId} ar={ar} rtl={rtl} />
+          )}
+
           {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
           {!typedPractice && data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
             <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.3)' }}>
