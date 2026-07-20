@@ -54,6 +54,10 @@ const PROTOCOLS = Object.freeze({
   shadowing: { repetitions: 4, durationSeconds: 480, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz in zwei getrennten Versuchen erfolgreich nachsprechen.' },
   'druck-leiter': { repetitions: 5, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Die verfehlte Antwort üben, bevor dieselbe Stufe erneut versucht wird.' },
   srs: { repetitions: 8, durationSeconds: 600, minimumSpacingMinutes: 240, successGate: 'Jeden verfehlten Satz in zwei getrennten Versuchen korrekt produzieren.' },
+  // Series stage variants (drill-prescription doctrine 07-20). Stage A is a NOTICING gate, not a
+  // grind: few reps, the finish line is finding the error yourself. Stage C is timed production.
+  'finde-den-fehler': { repetitions: 6, durationSeconds: 480, minimumSpacingMinutes: 240, successGate: 'Jeden Fehler selbst finden und den Satz zweimal korrekt laut sagen.' },
+  'sag-es-richtig-tempo': { repetitions: 6, durationSeconds: 420, minimumSpacingMinutes: 240, successGate: 'Jeden Satz innerhalb des Countdowns korrekt sprechen.' },
 });
 
 /** Read-only access for offline, non-deployed evidence audits; production behavior is unchanged. */

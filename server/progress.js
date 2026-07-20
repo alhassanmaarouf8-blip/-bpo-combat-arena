@@ -20,7 +20,7 @@ import { classifyGrammar } from './errorTags.js';
 import { INDUSTRIES } from './scenarios.js';
 import { adminRequestOk } from './adminAuth.js';
 import { canonicalCoachDirective, coachCueForDrill, recordDrillOutcome, salmaCoachEventId,
-  salmaCoachFlags, syncSalmaCoach } from './salmaCoachCore.js';
+  salmaCoachFlags, salmaDrillProtocol, syncSalmaCoach } from './salmaCoachCore.js';
 import { redeemDrillEvidenceReceipt } from './drillEvidence.js';
 
 export const progressRouter = express.Router();
@@ -201,6 +201,14 @@ progressRouter.get('/brain', requireAuth, async (req, res) => {
     const p = await loadUser(req.account.id);
     const snapshot = buildSnapshot(p);
     const directive = canonicalCoachDirective(p, req.account);
+    // The concrete DOSE (owner 07-20: "it didn't tell me what to do, how many, for how long"):
+    // every drill prescription ships its deterministic protocol (reps · minutes · success gate)
+    // so the card states the assignment like a real coach. Static per-drill presentation data —
+    // attached at the API boundary; the engine directive itself stays copy-free.
+    if (directive?.prescription?.action === 'drill') {
+      const protocol = salmaDrillProtocol(directive.prescription.drill);
+      if (protocol) directive.prescription.protocol = protocol;
+    }
     res.json({ directive, level: snapshot.level, hireReady: snapshot.hireReady, hireNote: snapshot.hireNote });
   } catch (err) {
     console.error('[brain] error:', err.message);

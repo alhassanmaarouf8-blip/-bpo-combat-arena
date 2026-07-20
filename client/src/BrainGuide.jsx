@@ -178,10 +178,17 @@ function missionBrief(d, coach) {
     title: ACTION_LABEL.apply, dose: 'Eine passende, noch offene Stelle prüfen',
     done: 'Passung und harte Ausschlusskriterien sind ehrlich geprüft.', after: 'Du entscheidest selbst über die offizielle Bewerbung.',
   };
+  // The concrete DOSE without the coach flag (owner 07-20: "it didn't tell me what to do, how many,
+  // for how long — nothing"): every drill prescription carries its static protocol from the server,
+  // so the assignment reads like a real coach's — reps, minutes, and the finish line — even before
+  // the dose machinery is live. Generic line only when no protocol is known.
+  const proto = p.action === 'drill' && p.protocol ? p.protocol : null;
   return {
     title: skill ? `${skill} trainieren` : (ACTION_LABEL[p.action] || 'Nächsten Schritt starten'),
-    dose: 'Den angezeigten Trainingsblock vollständig bearbeiten',
-    done: 'Der Abschluss ist serverseitig bestätigt.', after: 'Danach berechnet BrainGuide den nächsten Schritt neu.',
+    dose: proto ? `${proto.repetitions} Wiederholungen · ca. ${Math.max(1, Math.ceil(proto.durationSeconds / 60))} Min.`
+      : 'Den angezeigten Trainingsblock vollständig bearbeiten',
+    done: proto?.successGate || 'Der Abschluss ist serverseitig bestätigt.',
+    after: 'Danach berechnet BrainGuide den nächsten Schritt neu.',
   };
 }
 
