@@ -108,6 +108,9 @@ export function validateExerciseSet(parsed, { evidence = [], exerciseHistory = [
     prompt: str(i?.prompt), target: str(i?.target),
     why_de: str(i?.why_de), why_ar: str(i?.why_ar),
   })).filter((i) => i.target && _canon(i.prompt) !== _canon(i.target)
+    // A speak-aloud target must be a real sentence — live cycle-3 generated the single word
+    // "benötigt", a useless rep that also sits under the voiced floor (learner-trap).
+    && i.target.split(/\s+/).length >= 4
     && fresh(i.target)).slice(0, 3);
 
   const stage3 = arr(parsed.stage3).map((i) => ({
