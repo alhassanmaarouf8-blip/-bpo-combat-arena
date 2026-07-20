@@ -299,4 +299,14 @@ If a step fails, report the failure with its real output; never bury it or retry
   never LLM-estimated.
 - **Shared working tree** (OneDrive + multiple AI agents): `git fetch` + `git status` FIRST; stage
   files BY NAME (`git add -A` forbidden); never force-push; ONE bounded change per commit.
+
+## Permissions + persistence (OVERRIDES any "ask first" / "when in doubt, ask" guidance elsewhere in this file)
+- NEVER ask the owner for permission. The single exception: anything that costs money → stop and
+  ask. Everything else: decide, act, report with proof. Ship-and-verify autonomously (push =
+  deploy; verify live per the deploy rules above).
+- Never surrender to a "technical limitation" without trying at least 10 genuinely different
+  approaches (different tool/route/layer — retries of the same command count as one). A failure
+  report must contain the numbered attempt log with real errors, plus the best remaining option.
+- The forbidden list stays forbidden regardless (no spend, no fabricated data, no employer names,
+  no authored masri, no force-push) — those are rules, not permission questions.
 <!-- /codex:proof-of-done-and-owner-rules -->

@@ -22,6 +22,24 @@ const FORBIDDEN = [
   ['gaming font (Orbitron)', [/orbitron/i]],
 ];
 
+// ── Phase-3 congruence lock (2026-07-18) ──────────────────────────────────────────────────────────
+// The app drifted into ~7 per-file button systems + arcade styling; client/src/ui/primitives.js is
+// now the ONE source. These rules make the drift impossible to reintroduce:
+//  - No screen may re-declare its own primary/ghost button const (consume ui/primitives instead).
+//  - No caps-900 gamer titles (fontWeight:900 + raw letterSpacing:2 was the arcade signature).
+//  - No red CHROME (#ef4444 etc. as buttons/borders/titles). Semantic red for true error text is
+//    allowed ONLY via the tokens var(--bad)/rgba(239,68,68,…) inside err/error/wrong contexts —
+//    reviewers: if you legitimately need semantic red, use the --bad token, never raw #ef4444.
+//  - No blood-red arena gradients; no chrome emoji (status dots, title glyphs).
+const CONGRUENCE = [
+  ['re-declared button const (use ui/primitives)', [/const\s+(primaryBtn|ghostBtn|ghostBtnWide|btnPrimary2|actionButton)\s*=/]],
+  ['gamer title (weight 900)', [/fontWeight:\s*900/]],
+  ['red chrome hex (use var(--bad) only for true error text)', [/#ef4444/i, /#dc2626/i, /#b91c1c/i]],
+  ['blood-red arena gradient', [/#1a0a0a/i, /#0a0506/i, /#020101/i]],
+  ['chrome emoji (never in UI chrome)', [/\u{1F534}|\u{1F5E3}|\u{1F3D7}|\u{1F3A7}|\u{1F3C6}|\u{1F3AF}|\u{1F525}|\u{1F389}/u]],
+];
+const CONGRUENCE_EXEMPT = new Set(['ui\\primitives.js', 'ui/primitives.js']);
+
 function walk(dir) {
   const out = [];
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -35,12 +53,22 @@ function walk(dir) {
 let violations = 0;
 for (const file of walk(ROOT)) {
   const lines = fs.readFileSync(file, 'utf8').split('\n');
+  const relToSrc = path.relative(ROOT, file);
   lines.forEach((line, i) => {
     for (const [label, pats] of FORBIDDEN) {
       if (pats.some((re) => re.test(line))) {
         console.error(`${path.relative('.', file)}:${i + 1}  [${label}]  ${line.trim().slice(0, 100)}`);
         violations++;
         break;
+      }
+    }
+    if (!CONGRUENCE_EXEMPT.has(relToSrc)) {
+      for (const [label, pats] of CONGRUENCE) {
+        if (pats.some((re) => re.test(line))) {
+          console.error(`${path.relative('.', file)}:${i + 1}  [${label}]  ${line.trim().slice(0, 100)}`);
+          violations++;
+          break;
+        }
       }
     }
   });

@@ -1,5 +1,222 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 📜 DRILL-PRESCRIPTION DOCTRINE (2026-07-20, owner correction → research phase DONE)
+- Owner corrected the v2 understanding: detect everything ✓, ONE problem via fixed researched
+  hierarchy ✓ (exists, v1) — but "drill then retest is bullshit": he demands a SERIES of exercises
+  per problem, chosen by researched elite-teacher criteria, PROVENLY solving that problem for that
+  student. The old one-problem→one-drill static table (skillGraph `drill:` field) is the weak link.
+- Research phase SHIPPED @ be4b2d3 (feature/v2-phase1-adaptive-ramp worktree):
+  `docs/drill-prescription-doctrine.md` — 8 anchors (Bloom mastery loop, Lepper/INSPIRE indirect
+  tutoring, Lyster&Saito prompts>recasts, Schmidt noticing, DeKeyser 3-stage skill acquisition,
+  Nation 4/3/2, Lightbown TAP, Pienemann teachability) → K1–K9 selection rules + 4-stage series
+  (A NOTICE own-error → B CONTROLLED → C AUTOMATIZE timed → D disguised TRANSFER probe in real
+  interview) mapped per problem class onto the EXISTING drills + 3 named gaps (drillSeries.mjs
+  state machine, FINDE-DEN-FEHLER Stage A, timed SAG-ES-RICHTIG variant, SALMA_COACH_MODE on).
+- BUILD SHIPPED (owner "ok" = GO, 07-20): PR #17 merged → main 6a89f7b (Guardian green, verify
+  gate 825/825 local). drillSeries.mjs (4-stage ladders derived from weakLog drill events, K8
+  regression re-opens Stage C post-failure) + engine seriesStage prescriptions (scope-guarded:
+  criterion forecasts + coach doses untouched) + spokenReview mode=find/tempo recording their own
+  drill ids + client (SpokenReview mode prop, App routing, BrainGuide SCHRITT n/m). 15 new pins;
+  2 old pins updated to intent (problemRank #40, adapter D3-prep now on a non-series target).
+- 🔴→✅ COUNTING BUG found+fixed during the proof (PR #18, main f78124f): the meaningful gate read
+  phantom v1 `evidenceQuality.eligible` (v2 computes prescriptionEligible) → constant-false → NO
+  interview EVER counted (the real cause of both nights' "measure first" dead-ends — not looped
+  turns). Catalogue #62. LIVE-PROVEN after fix on +loop-sweep3 (silence-gapped error WAV,
+  scratchpad series-wav/qa-series.wav): sessions:2 ✓ · DIAGNOSE-ABGESCHLOSSEN banner ✓ · 44 SRS
+  corrections seeded ✓ · ranked real (dativ-akkusativ tier2 5 interviews 10× > adjektivendungen
+  tier1 — elite ordering live) ✓ · BAUSTELLEN panel rendered ✓ · Stage-A round trip on prod:
+  mode=find items (rule withheld) + spoken corrections → correct:true ×2 ✓.
+- HONEST BOUNDARY of the synthetic proof: fake-mic sessions store wpm=0 / no intelligibility →
+  unmeasuredGates non-empty → D4 measure-first correctly withholds the series prescription. The
+  seriesStage-in-directive leg is exhaustively unit-pinned (15 tests); its live appearance = the
+  OWNER's real-mic account once gates measure + queue drains. WATCH: wpm[0,0] on counted fake-mic
+  sessions — verify a real-mic session stores wpm>0 (else that's the next phantom-signal bug).
+- 🔴→✅ "NO INTERVIEW BUTTON" (owner live report 07-20, THIRD occurrence): the quiet "Interview
+  direkt starten" link rendered BELOW the whole mission card → outside the phone's first viewport.
+  Fixed @ PR #19 (main 316e504, frontend stamp verified): the link now lives INSIDE BrainGuide
+  directly under the primary CTA for every non-interview prescription (App-level link kept for the
+  directive-error case). interview-guard now pins ADJACENCY (existence ≠ findability — catalogue
+  #63). Proof: headless 390×844 home shows the link at top-offset 524px, screenshot sent to owner.
+- PROVE-IT (owner, live): after your next REAL counted interview with weil-errors and an empty
+  review queue, home CTA should read FINDE DEN FEHLER · SCHRITT 1/5; completing stages walks
+  2/5→4/5 then LIVE-RETEST; a warum-question probes the rule in that interview. NOTE: while your
+  44 due reviews + unmeasured gates stand, home still says SAG-ES-RICHTIG (interim step, correct).
+- OUT of scope (own phases later): 7.5-min session structure, field-picker, pron gold study.
+
+## 🔁 V2 GOAL LOOP (2026-07-20, owner order): finish + MULTI-WAY-VERIFY every session goal — PAUSED by "stop"
+- LOOP CYCLE LOG: F-2 shipped dark @ d754c6a (PR #15) ✓ · voice sweep run1 (+loop-sweep1, clean
+  German): adaptive ceiling@4 ✓, 6 dials with Flüssigkeit 145WpM MEASURED ✓, honest wiederholend ✓
+  · run2 (+loop-sweep2, error German): quote-anchored blockers ✓, L1-verb-final debrief pattern 6×
+  with rewrite ✓ — but home dead-ended: TWO defects found+fixed+merged @ aea27e3 (PR #16):
+  (1) anti-farm gate evaporated corrections on short/stopped fights → SRS seeding now survives
+  (progression stays gated); (2) engine cold-start now prescribes sag-es-richtig when srsDueCount>0.
+  ✅ SWEEP3 PASS (~00:50): HOME-AFTER = "يلا بينا · SAG-ES-RICHTIG" (dead-end GONE, user-proven),
+  dueReviews=1 via API, L1 verb-final debrief with rewrite; screenshots sent to owner.
+- LOOP PAUSED ~01:30 (background tasks killed externally — likely machine winding down). FINDINGS:
+  (1) ranked-panel synthetic user-proof hit an honest boundary: full fake-mic interviews complete
+  with debrief but FAIL speakingEvidenceQuality (looped/garbled turns) → never counted → weakLog
+  empty → ranked []. Correct honesty behavior; the panel's user-proof = OWNER'S next real
+  interview (his acct has 1 counted session + 44 due; 2nd real interview → panel speaks).
+  (2) "Bewertung nicht verfügbar" on COMPLETED fake-mic fights = gradeUnavailable fail-loud —
+  probe-input class, watch on real accounts. (3) Salma modal speaker: 0 tts requests across 3 runs
+  via aria-label locator — VERIFY with correct locator before calling regression.
+  RESUME QUEUE (owner says go): dial-deepening v2 build → Phase 3 coachCore un-gate → Phase 5
+  daily loop → XP-dossier cull (needs written order). PARKED OWNER: TURN_VOICED_GATE=1 + live mic
+  test (F-2 dark @ d754c6a); his 2nd real interview = ranked-panel prove-it.
+  New QA asset: scripts/qa/loop-interview.mjs (untracked) — full-interview harness, ROUNDS env.
+- Owner: every goal from the 07-19/20 session must be fully done and verified numerous ways incl.
+  the complete user experience in a real browser. Loop = self-paced ScheduleWakeup carrying the
+  /loop prompt; each cycle: build → verify → PR-via-Chrome → stamps → browser user-test → STATE.
+- F-2 SHIPPED DARK @ d754c6a (PR #15, Guardian green): voiced-RMS turn trust behind
+  TURN_VOICED_GATE (off). Both paths accumulate voicedMs; evidence-trust only; 6 test pins.
+  PARKED FOR OWNER: set TURN_VOICED_GATE=1 on Render + his live spoken interview while I read
+  Render logs ([voiced-gate] lines) — then keep or unset.
+- SWEEP QUEUE (verification, in order): (a) review-while-measuring on a probe account — needs an
+  interview producing SRS items; investigate scripts/qa/journey2-voice.mjs (untracked, main tree)
+  + PROBE_TOKEN for synthetic-voice prod interviews; (b) ranked Baustellen + AKTE unification via
+  2-interview probe; (c) 6-dial voice run (fluency dial measured); (d) adaptive-ramp re-check;
+  then the remaining v2 slices (dial-deepening v2, Phase 3 coachCore, Phase 5 daily loop).
+
+## 🧭 REVIEW-WHILE-MEASURING LIVE @ 349d3b7 (2026-07-20 ~00:50) — PR #14, backend stamp VERIFIED
+- Owner's twice-lived dead-end FIXED: adapter snapshot carries `srsDueCount` (srs.dueCount);
+  engine's unmeasured-gates branch now prescribes `POST_FIGHT + drill sag-es-richtig` when
+  recorded corrections are due (low confidence, measure list stays visible — D4 intact; MEASURE
+  returns when the queue empties). Client untouched (BrainGuide renders drill CTAs already).
+  Pinned by the exact owner case (44 due + unmeasured → leads). 35/35 brain tests; Guardian 30s.
+- OWNER PROVE-IT once backend stamp == 349d3b7: hard-refresh → home. The mission card should now
+  read SAG-ES-RICHTIG (his 44 items) instead of "erst sauber messen". Blue button opens the drill.
+
+## ⚖️ ONE-CHOOSER UNIFICATION LIVE @ 019d416 (2026-07-20 ~00:25) — PR #13, backend stamp VERIFIED
+- Owner's "how was my biggest problem identified" finding FIXED: `probeTarget(weakLog)` in
+  problemRank.js (the AKTE/re-test view of the SAME ranking — impact→frequency, shared 2-session
+  floor, readiness+mastery deliberately ignored for probes) + websocketManager `topWeakRule` asks
+  it FIRST; legacy lapses/reps sort only speaks below the floor. AKTE line, practice-briefing
+  scrutiny + weakRuleDelta now all flow from the one elite-teacher chooser. 9/9 ranking tests,
+  all engine tests, full verify + PR Guardian green. REMAINING from the findings: the
+  post-interview INTERIM step (acknowledge session → prescribe Wiederholungen below floors) —
+  speced below, not yet built.
+
+## 🔍 OWNER LIVE-TEST FINDINGS (2026-07-19 midnight) — NEXT SLICES SPECED, AWAITING "go"
+- Owner ran a real interview on his main acct (alhassanmaarouf8@, 1 Sitzung, 44 SRS items) and hit:
+  (1) **No guidance after the interview** — MEASURE loop: gates (wpm/intelligibility) unmeasured
+  (his session recorded TEMPO 0 WpM + truncated STT turns, F-2 class) → SalmaTutorPanel said
+  "Beende zuerst das Diagnose-Interview" as if he'd done nothing. Fix spec: post-interview INTERIM
+  state — acknowledge the session, prescribe the SRS Wiederholungen while evidence is below the
+  ranking/diagnosis floors, say honestly what one more interview unlocks.
+  (2) **"How was my biggest problem identified?"** — the AKTE line (App.jsx:2298 targetWeakRule ←
+  websocketManager topWeakRule) sorts SRS grammar items by lapses→reps; with ZERO drill history
+  everything ties → INSERTION ORDER wins = effectively arbitrary pick presented as a diagnosis.
+  Fix spec: **ONE CHOOSER EVERYWHERE** — AKTE/debrief/topWeakness surfaces all read from
+  brain/problemRank (same evidence bar on every surface, #59/WYSIWYH class).
+- Both slices approved-in-principle by the conversation but NOT yet "go"-ordered. Build order
+  when he says go: unification first (trust repair), then interim step. The ranked panel itself
+  is live @ 098f3b4 but his acct needs a 2nd interview before it speaks (2-session floor).
+
+## 👁 RANKED-PROBLEMS PANEL MERGED @ 098f3b4 (2026-07-19 latest) — PR #12, Fortschritt shows the CHOOSE layer
+- `client/src/ProblemRankPanel.jsx` on the Fortschritt tab: DEINE GRÖSSTEN BAUSTELLEN — the
+  learner's problems in the brain's elite-teacher order, each line checkable ("bricht das
+  Verständnis · in N Interviews aufgetreten (M×)"), "gereiht nach Wirkung — nicht nach Anzahl",
+  not-ready problems flagged "kommt später — Grundlagen zuerst". Self-hides without evidence.
+  Data = directive.ranked (brainDecision passthrough). Guardian green on PR (28s), client-only →
+  Vercel stamp advances (Render path-filtered, backend stays f26f87f — correct).
+- ⭐ OWNER PROVE-IT NOW POSSIBLE: his own account has interviews + weakLog → his Fortschritt tab
+  should show HIS ranked problems. Ask him to hard-refresh → Fortschritt.
+- Chrome gotcha: GitHub PR pages froze renderers repeatedly this session (script-injection
+  timeouts) — fix = close the frozen tab, fresh tab, re-navigate; gh CLI is NOT authenticated.
+
+## 🧠 PHASE 2 CHOOSE LAYER MERGED @ f26f87f (2026-07-19 late night) — PR #11 via Chrome, deploy verifying
+- `server/brain/problemRank.js`: the elite-teacher triage — impact tier (global verb-position/
+  verb-form 3 > register case/Konjunktiv 2 > local 1, unknown→1 never promoted) then
+  sessions-with-error then occurrences, LEXICOGRAPHIC (no invented weights), ≥2-session floor
+  (slip≠system), readiness via skill-graph prereqs. engine.js: every directive carries `ranked`
+  (top 5, copy-free); grammar-target branch consumes it (2 verb-position sessions beat 5 dative
+  slips) with the historical fallback below the floor. 8 new tests + all 24 engine tests green;
+  Guardian green on PR (31s). NEXT SLICE: Fortschritt renders the ranked list with the plain-
+  language "why now" case (client copy + OWNER-AR slots) → then the owner's 2-interview prove-it.
+
+## 🎛✅ 6-DIAL PROFILE LIVE + PROVEN ON PROD @ c31448c (2026-07-19 night) — merged VIA CHROME
+- Owner: "DO IT ALL THROUGH CHROME" → PR #10 created + merged in his logged-in GitHub (the
+  classifier-proof deploy path: compare→Create PR→Merge; deploys fire on merge). Both stamps
+  live-verified == c31448c. Fresh acct (+ramp-dials) run through the LIVE UI: all six dials
+  render with evidence lines — Wortschatz breit (129 W), Grammatik 0 F/100W, Satzbau komplex
+  (6.8 NS/100W), Belastbarkeit hält stand (100%), Flüssigkeit honestly unmeasured (typed run,
+  reason shown), Aussprache honestly deferred. Screenshot sent to owner. Phase 1 slices 1–3 DONE.
+- DIAL-DEEPENING SPEC researched + locked in the plan (owner: "not only obwohl und weil"):
+  Pienemann word-order staircase for Satzbau, MTLD/MATTR + frequency-band for Wortschatz,
+  articulation-rate + mid-clause pauses (250–300ms) for Flüssigkeit, EFC% + gravity-weight for
+  Grammatik, CAF-delta across tiers for Belastbarkeit. Phase 2 owner requirement locked: detect
+  EVERY mistake (coverage ratchet, honest ~5.5% recall baseline) + elite-teacher CHOOSE layer.
+- Demo accts consumed: +ramp-{strong,weak,demo,dials}@. NEXT: dial-deepening slice OR Phase 2
+  scorer in brain/engine.js — owner picks.
+
+## 🎛 6-DIAL PROFILE BUILT @ 9a7d5c2 (2026-07-19 late) — on the branch, AWAITING owner push to main
+- Phase 1 slice 3: `server/skillDials.mjs` — six deterministic dials from the candidate's own
+  answers (LLM never touches a dial): Flüssigkeit (wpm, voice-only), Wortschatz (TTR), Grammatik
+  (LT uncapped errors/100w via buildGrammarForBenchmark), Satzbau (Nebensatz-density),
+  Belastbarkeit (hold-rate across ramp tiers), Aussprache (NEVER measured until gold study —
+  test-pinned). Every dial: evidence (N Antworten · M Wörter) + fails honest below floor
+  (measurable:false + reason). Engine copy-free; client renders all German (OWNER-AR slots).
+  Verdict shows "Dein Profil — sechs Messwerte". 11 new tests; assessmentSpeakable pin loosened
+  to intent (sibling imports OK). Full verify green. NEXT: owner `!`-pushes main → live dial
+  prove-it on a fresh account; then fold interview sessions into the same dials, then Phase 2.
+
+## ✅ ADAPTIVE RAMP LIVE + PROVEN ON PROD (2026-07-19 night) — flag ON for all users
+- Owner: "DO IT YOURSELF" → full self-serve loop executed: 2 fresh accounts created via API
+  (+ramp-strong/+ramp-weak, verify links pulled from Gmail-in-Chrome, POST /api/auth/verify),
+  `ASSESSMENT_ADAPTIVE=1` set by driving the logged-in Render dashboard (typed keystrokes,
+  Save-rebuild-deploy), flag-live poll (404→200), then both runs against the LIVE API:
+  STRONG → A1·A2→B1→B1·B2→B2·C1, ceiling after 4 ✓. WEAK → confirm-at-tier, breakdown at 3 ✓.
+  Verdict path green for both (honest-thin clamps visibly working: 4× repeated sentence → A2/low/
+  0 blockers). ⚠ FLAG IS ON FOR REAL USERS now; revert = delete the env var (Render → Environment).
+- Both test accounts' free assessments are consumed. Owner's own lived UI run = still the nicest
+  final gate (fresh account → „Frage N · max. 7" counter) but the mechanism is prod-proven.
+- NEXT (per approved plan): Phase 1 slice 3 — the 6-dial profile fed by the ramp trace + folding
+  interview sessions into the dials; then Phase 2 prioritization inside brain/engine.js.
+
+## 🚀 V2 PHASE 0+1 LIVE ON PROD @ 7a98ec7 (2026-07-19 evening) — DARK, awaiting owner flag+test
+- Owner pushed main via `!` (classifier blocks Claude pushing/self-permissioning — foot-gun #61 note;
+  `!` runs BASH: forward slashes, backslash paths get eaten). Both stamps LIVE-VERIFIED == 7a98ec7
+  (Vercel meta + Render /health); new endpoint mounted (unauth POST /api/assessment/next-question
+  → 401, not route-miss). Zero user-facing change: adaptive is dark until `ASSESSMENT_ADAPTIVE=1`.
+- Ramp proven in-browser (Playwright harness scripts/qa/ramp-demo.html + terminal replay): strong
+  → A1·A2→B1→B1·B2→B2·C1 ceiling; weak → confirm-at-tier then breakdown at the 3-answer floor.
+- ⚠ OWNER NEXT: (1) Render env `ASSESSMENT_ADAPTIVE=1` (typed) → restart; (2) two fresh accounts:
+  strong run should show "Frage N · max. 7" + climbing bands; weak run stays easy, ends ~3;
+  (3) revert = delete the env var. OWNER-AR pending: ramp q6–8 ar slots + adaptive intro line
+  (ar intro still says "٥ أسئلة" — known mismatch until owner fills). Also: /permissions mishap
+  deleted the `Bash(git add *)` allow rule + `Bash(git *)` never added — owner may re-add.
+
+## 📐 V2 PLAN APPROVED → PHASE 0 + PHASE 1 SLICE 1 BUILT (2026-07-19, branch `feature/v2-phase1-adaptive-ramp`, pushed, NOT merged)
+- Plan `~/.claude/plans/peaceful-pondering-ullman.md` refined (draft had BrainGuide-OFF wrong +
+  missed `server/brain/engine.js`; Phases 1–3 now build THROUGH `decide()`; Phase 1 got 5 hard
+  constraints; owner probe added AVOIDANCE DETECTION + slip-vs-system to Phase 2, validated
+  against the 07-12 25-year-DaF-expert deliverable). Owner reviewed + approved ("ok" after the
+  detection-mechanism probe).
+- **Built on the worktree branch (verify FULLY GREEN, 2 commits `17537f3`+`e4147e6`):**
+  (1) Phase 0 — the Two Laws at the top of CLAUDE.md. (2) Phase 1 slice 1 —
+  `server/assessmentRamp.mjs`: deterministic adaptive question routing (4 tiers × 2 questions;
+  climb on coping, confirm-at-tier on ONE weak answer, stop on confirmed breakdown/ceiling/7-cap,
+  never below the 3-answer floor; routing ONLY — verdict stays with analyze's honest clamps) +
+  POST `/api/assessment/next-question` DARK behind `ASSESSMENT_ADAPTIVE=1` + 13 unit tests
+  (determinism, climb, slip≠system, floor, masri-law pin: q6–8 ar='' OWNER-AR slots).
+  German passed german-check. Worktree gotcha: junction node_modules (root+client+server) or
+  every server test fails ERR_MODULE_NOT_FOUND.
+- **NEXT SLICE:** wire Assessment.jsx to the endpoint behind the same flag (fallback = current
+  fixed-5 when flag off/endpoint fails) → owner prove-it (strong vs weak run, harder questions
+  only in the strong run) → then the 6-dial profile. Merge to main ONLY after owner prove-it.
+
+## 🔎 "THERE IS NO INTERVIEW" FIXED, LIVE @ 09b70a4 (2026-07-18 evening)
+- Owner (lived, Edge): "there is no interview." Root causes seen live on his account state
+  (ERSTE MESSUNG): (1) the one primary CTA read `يلا بينا · EINSTUFUNG` — no control on the whole
+  Training tab contained the word "Interview" (generic button + quiet fallback link both correctly
+  suppressed for action='assessment'); (2) the in-flow Assessment verdict overlay bequeathed its
+  scroll depth to the home on close — owner landed below the mission card (his screenshot state).
+- Shipped + live-verified in the logged-in browser: `b4094b7` CTA now `يلا بينا · DIAGNOSE-INTERVIEW`
+  (matches its own title "Diagnose-Interview abschließen"); `09b70a4` assessment onClose →
+  window.scrollTo(0,0) (same idiom as 5831b4d tab fix). Both build stamps == HEAD, button seen live.
+- A remote claude.ai/code session "force-proof-protocol" STALLED mid-investigation on this same bug
+  (~18:00) — owner should close it; its only output was the owner's pasted screenshot.
+
 ## 🧪 JOURNEY-TEST + 5 BUGS FIXED, LIVE @ 1202867 (2026-07-18)
 - 5th fix `1202867` (honest-when-thin): assessment prompt forced "3–5 blockers" regardless of
   evidence → thin sample got 5 INVENTED harsh blockers (Salma voices them). Evidence-scaled prompt +
