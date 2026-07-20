@@ -62,7 +62,10 @@ test('ENGINE CONSUMES THE RANKING (#40): grammar target follows impact, not wors
       'word-order-sub':  { errCounts: [{ count: 1 }, { count: 1 }] },   // deadlier
     } });
   assert.equal(d.target.skillId, 'word-order-sub', 'the deadlier problem wins, not the louder one');
-  assert.equal(d.prescription.drill, 'satzbau-schmiede');
+  // Drill-prescription doctrine (07-20): the prescription is the SERIES' current stage for the
+  // ranked problem — a fresh problem starts at NOTICE (finde-den-fehler), not at a static drill.
+  assert.equal(d.prescription.drill, 'finde-den-fehler');
+  assert.deepEqual(d.prescription.seriesStage, { stage: 'A', step: 1, of: 5 });
   assert.equal(d.ranked[0].ruleId, 'word-order-sub');
 });
 

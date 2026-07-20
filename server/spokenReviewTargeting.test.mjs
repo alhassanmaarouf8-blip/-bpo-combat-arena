@@ -182,5 +182,9 @@ test('the client ends a targeted session only from authoritative server completi
   assert.match(source, /if \(progress\) setPrescription\(progress\)/u);
   assert.match(source, /prescription\?\.targeted && prescription\?\.completed/u);
   assert.match(source, /role="status" aria-live="polite"/u);
-  assert.match(source, /drill: 'sag-es-richtig'/u);
+  // The coach-refresh event announces the drill that actually ran: mode-aware since the series
+  // stage variants (07-20), with the classic id as the fallback (pin the symbol + its default,
+  // not the literal byte-form — see memory pin-intent-not-bytes-0719).
+  assert.match(source, /drill: modeDrill/u);
+  assert.match(source, /modeDrill = [^;]*'sag-es-richtig';/u);
 });

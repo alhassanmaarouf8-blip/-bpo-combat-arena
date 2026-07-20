@@ -333,10 +333,13 @@ test('adapter: only delayed transfer proof enters readiness-authorizing mastery'
 // READY only if it hit the targeted rule OR came from the target's prescribed drill — an
 // unrelated rep (shadowing for a dative target) stays POST_FIGHT even when legacy prepDone=true.
 test('engine: READY only for on-target prep (rule match or prescribed-drill match)', () => {
+  // Series-tracked grammar targets (drill-prescription doctrine 07-20) earn the rematch only by
+  // COMPLETING the ladder — pinned in drillSeries.test.mjs. The D3 on-target prep-matching logic
+  // still governs non-series targets; pin it there, so an unrelated rep never earns the rematch.
   const snap = {
-    masteredSkills: ['praesens-perfekt', 'self-intro', 'core-vocab', 'listen-clear'],
-    weakLog: { 'dativ-akkusativ': { errCounts: [{ count: 3 }, { count: 2 }], drills: [] } },
-    limitingSkill: 'grammar',
+    masteredSkills: ['praesens-perfekt', 'self-intro', 'core-vocab', 'listen-clear', 'no-freeze-expected'],
+    weakLog: {},
+    limitingSkill: 'fluency',
     unmeasuredGates: [],
     sessionCount: 3,
     daysSinceActive: 0,
@@ -345,12 +348,19 @@ test('engine: READY only for on-target prep (rule match or prescribed-drill matc
     recentDrillEvents: [{ drill: 'shadowing', ruleId: null }],
   };
   const off = decide(snap);
-  assert.equal(off.target?.skillId, 'dativ-akkusativ');
+  assert.equal(off.target?.skillId, 'fluency-interrupt');
   assert.equal(off.state, 'POST_FIGHT');   // off-target rep does NOT earn the rematch
 
-  const ruleMatched = decide({ ...snap, recentDrillEvents: [{ drill: 'sag-es-richtig', ruleId: 'dativ-akkusativ' }] });
+  const ruleMatched = decide({ ...snap, recentDrillEvents: [{ drill: 'sag-es-richtig', ruleId: 'fluency-interrupt' }] });
   assert.equal(ruleMatched.state, 'READY');
 
-  const kindMatched = decide({ ...snap, recentDrillEvents: [{ drill: 'sag-es-richtig', ruleId: null }] });
+  const kindMatched = decide({ ...snap, recentDrillEvents: [{ drill: 'flow-drill', ruleId: null }] });
   assert.equal(kindMatched.state, 'READY');  // a rule-less event from the PRESCRIBED drill counts
+
+  // And a series-tracked grammar target with an off-target rep prescribes its series stage —
+  // the loose prepDone signal can no longer conjure a rematch there either.
+  const grammar = decide({ ...snap, limitingSkill: 'grammar',
+    weakLog: { 'dativ-akkusativ': { errCounts: [{ count: 3 }, { count: 2 }], drills: [] } } });
+  assert.equal(grammar.state, 'POST_FIGHT');
+  assert.equal(grammar.prescription.drill, 'finde-den-fehler');
 });
