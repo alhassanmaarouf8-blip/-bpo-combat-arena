@@ -8,7 +8,10 @@
  * 'failed'. No cron, no new infra: the retry rides on the poll the UI is doing anyway.
  */
 import { generateDeepAnalysis } from './deepDiagnosis.js';
-import { loadAnalysisRecord, saveAnalysisRecord, eventsFromAnalysis, appendErrorEvents } from './analysisStore.js';
+import { loadAnalysisRecord, saveAnalysisRecord, eventsFromAnalysis, appendErrorEvents, loadErrorEvents } from './analysisStore.js';
+import { selectBottleneck, updatePriorStatuses } from './bottleneckSelector.js';
+import { loadBottlenecks, saveBottlenecks } from './bottleneckStore.js';
+import { dayKey } from './time.js';
 
 export const MAX_ATTEMPTS   = 5;
 export const RETRY_SPACING_MS = 60_000;
@@ -32,6 +35,36 @@ export async function runAnalysis(record) {
     const events = eventsFromAnalysis({ userId: record.userId, sessionId: record.sessionId, validated });
     await appendErrorEvents(record.userId, events);
     console.log(`[analysisRunner] ready  user=${record.userId}  session=${record.sessionId}  events=${events.length}`);
+
+    // ── Phase 3: the deliberate ONE-bottleneck choice, right after the evidence lands. A failure
+    // here must never un-ready the analysis — the selection is additive. ─────────────────────────
+    try {
+      const now = Date.now();
+      const state = await loadBottlenecks(record.userId);
+      updatePriorStatuses(state.records, events, { sessionId: record.sessionId, now });
+      const historyEvents = await loadErrorEvents(record.userId);
+      const bn = selectBottleneck({
+        todayEvents: events,
+        historyEvents,
+        records: state.records,
+        level: record.input?.level || 'b2',
+        sessionId: record.sessionId,
+        cairoDay: dayKey(now),
+        now,
+        answersAnalyzed: validated.answers.length,
+        wordsSpoken: record.input?.metrics?.words || 0,
+        aggregates: record.aggregates,
+        metrics: record.input?.metrics || {},
+        answers: validated.answers,
+      });
+      state.records.push(bn);
+      await saveBottlenecks(record.userId, state);
+      record.bottleneck = bn;                       // GET /api/analysis serves the choice + why
+      await saveAnalysisRecord(record);
+      console.log(`[analysisRunner] bottleneck  user=${record.userId}  session=${record.sessionId}  code=${bn.code}  score=${bn.score}  repeat=${bn.repeat}  streak=${bn.dayStreak}  lowConf=${bn.lowConfidence}  fallback=${bn.fallback}`);
+    } catch (e) {
+      console.error(`[analysisRunner] bottleneck selection failed  session=${record.sessionId}: ${e.message}`);
+    }
   } catch (err) {
     record.status = (record.attempts || 0) >= MAX_ATTEMPTS ? 'failed' : 'queued';
     console.error(`[analysisRunner] ${record.status}  user=${record.userId}  session=${record.sessionId}  attempt=${record.attempts}: ${err.message}`);

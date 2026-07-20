@@ -127,5 +127,25 @@ const sessionRows = (ev.body.events || []).filter((e) => e.sessionId === session
 log(`error_events rows: total=${ev.body.events?.length}  this-session=${sessionRows}`);
 if (sessionRows !== (agg.totalErrors || 0)) fail(`error_events for session (${sessionRows}) != totalErrors (${agg.totalErrors})`);
 
-console.log('\n[deepqa] PASS — deep analysis detected the planted errors, alternatives present, error_events persisted.');
+// 6) Phase 3 — exactly one bottleneck record for this interview, evidence-backed, with runner-ups.
+const bn = analysis.bottleneck;
+if (!bn) fail('analysis carries no bottleneck record');
+log(`bottleneck: ${bn.code}  score=${bn.score}  repeat=${bn.repeat}  streak=${bn.dayStreak}  status=${bn.status}  lowConf=${bn.lowConfidence}  fallback=${bn.fallback}`);
+log(`why: ${bn.why}`);
+if (bn.sessionId !== sessionId) fail('bottleneck record is not for this session');
+if (!bn.fallback && !(bn.evidenceQuotes || []).length) fail('bottleneck has no evidence quotes');
+if (!bn.fallback && !(bn.runnerUps || []).length) fail('bottleneck has no runner-ups');
+if (!bn.why || bn.why.length < 10) fail('bottleneck has no stored why');
+const bns = await api('/api/bottlenecks', { headers: { Authorization: `Bearer ${TOKEN}` } });
+const mine = (bns.body.records || []);
+const thisIdx = mine.findIndex((r) => r.sessionId === sessionId);
+if (thisIdx < 0 || mine.filter((r) => r.sessionId === sessionId).length !== 1) fail('expected exactly one daily_bottleneck row for this interview');
+const prevRec = thisIdx > 0 ? mine[thisIdx - 1] : null;
+if (prevRec) {
+  log(`previous record: ${prevRec.code}  status=${prevRec.status}`);
+  if (prevRec.code === bn.code && prevRec.status !== 'closed' && !bn.repeat) fail('same dominant code as previous record but repeat not flagged');
+  if (prevRec.code === bn.code && bn.repeat) log('repeat-day behavior CONFIRMED (same code re-selected, flagged)');
+}
+
+console.log('\n[deepqa] PASS — deep analysis + bottleneck selection verified end-to-end.');
 console.log(`[deepqa] probe account: ${EMAIL} (delete via admin if desired)`);

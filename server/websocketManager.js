@@ -12,6 +12,9 @@ import { RealtimeClient, TURN_RULE, silenceRescueStep }  from './realtimeClient.
 import { DeepgramStreamer } from './streamingTranscribe.js';
 import { generateDebrief } from './coach.js';
 import { startAnalysisForSession } from './analysisRunner.js';
+import { loadBottlenecks, latestActiveRecord } from './bottleneckStore.js';
+import { CATEGORIES as BN_CATEGORIES } from './scoring/errorTaxonomy.js';
+const BN_CATEGORY_DE = Object.fromEntries(Object.entries(BN_CATEGORIES).map(([k, v]) => [k, v.de]));
 import { looksTruncatedDE, lowConfidenceWords, speakingEvidenceQuality } from './scoring/turnQuality.js';
 import { serviceRecoveryEvidenceFromUtterances } from './scoring/serviceRecoveryEvidence.js';
 import { entryInteractionEvidenceFromUtterances } from './scoring/entryInteractionEvidence.js';
@@ -606,6 +609,19 @@ export class WebSocketManager {
       // Preserve the ordinary interview context. A retest skill is an assessor-only probe: telling
       // the learner the expected structure before the answer would turn a measurement into coaching.
       dossier = topWeakRule(prof);
+      // Phase 3: the daily bottleneck (deep-analysis evidence: severity × impact × persistence)
+      // outranks the weakLog heuristic for the AKTE line when an active record exists — the
+      // BOTTLENECK-FIRST chooser, with problemRank/topWeakRule as the fallback. One effective
+      // chooser at runtime; never a third competing brain. AUSSPRACHE stays out (a transcript
+      // probe cannot prove pronunciation).
+      try {
+        const bnState = await loadBottlenecks(ctx.userId);
+        const bn = latestActiveRecord(bnState);
+        if (bn && bn.category !== 'AUSSPRACHE' && !bn.fallback) {
+          const label = BN_CATEGORY_DE[bn.category] || bn.category;
+          if (isSpeakableRule(label)) dossier = label;
+        }
+      } catch (e) { console.error(`[wsManager] bottleneck dossier load failed: ${e.message}`); }
       retestProbe = improvementRetest?.dossier || null;
       ctx.targetImprovementSkillId = improvementRetest?.skillId || null;
       ctx.targetImprovementPrescriptionId = improvementRetest?.prescriptionId || null;

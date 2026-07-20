@@ -1648,9 +1648,45 @@ function DeepAnalysisSection({ token, apiUrl, sessionId, ar, rtl }) {
   }
   const agg = state.aggregates || {};
   const cats = Object.entries(agg.byCategory || {}).sort((a, b) => b[1] - a[1]);
+  const bn = state.bottleneck;
   return (
     <Section title={title} color="var(--accent)"
       right={<span style={{ fontSize:9.5, color:'var(--text-dim)' }}>{agg.totalErrors ?? 0} {ar ? 'ملاحظة' : 'Funde'}</span>}>
+      {/* Phase 3 — the ONE deliberately chosen bottleneck: named, evidence-backed, with the why.
+          The screen's single orange stays on the rank; this card is quiet blue by design. */}
+      {bn && (
+        <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:'var(--r-md)',
+          background:'rgba(59,130,246,0.08)', border:'1px solid var(--accent)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontFamily:'var(--font-display)', fontSize:10, fontWeight:800,
+              letterSpacing:'0.14em', color:'var(--accent)' }}>DEIN ENGPASS{/* OWNER-AR slot */}</span>
+            <span style={{ fontSize:9, color:'var(--text-dim)' }}>
+              {bn.repeat ? `Tag-Serie ×${bn.dayStreak}` : bn.lowConfidence ? 'dünne Datenlage' : ''}
+            </span>
+          </div>
+          <div style={{ marginTop:5, fontSize:13, fontWeight:700, color:'var(--text)' }}>
+            {DEEP_CAT_DE[bn.category] || bn.category}
+            <span style={{ fontWeight:400, fontSize:10.5, color:'var(--text-dim)' }}> · {bn.subcode?.replace(/_/g, ' ')}</span>
+          </div>
+          <div style={{ marginTop:5, fontSize:11.5, color:'#e2e8f0', lineHeight:1.55 }}>{bn.why}</div>
+          {(bn.evidenceQuotes || []).slice(0, 2).map((q, qi) => (
+            <div key={qi} style={{ marginTop:5, fontSize:11.5, lineHeight:1.6, overflowWrap:'anywhere' }}>
+              <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{q.quote}</span>
+              {q.corrected && <>{' '}<span style={{ color:'var(--accent-2)', fontWeight:600 }}>{q.corrected}</span></>}
+            </div>
+          ))}
+          {!!(bn.runnerUps || []).length && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:7 }}>
+              {bn.runnerUps.map((r, ri) => (
+                <span key={ri} style={{ fontSize:9, padding:'2px 7px', borderRadius:20, color:'var(--text-dim)',
+                  border:'1px solid var(--line)', background:'rgba(255,255,255,0.03)' }}>
+                  danach: {DEEP_CAT_DE[r.category] || r.category} · {r.score}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {!!cats.length && (
         <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10 }}>
           {cats.map(([c, n]) => (

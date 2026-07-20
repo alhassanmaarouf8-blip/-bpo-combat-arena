@@ -12,6 +12,7 @@ import express from 'express';
 import { requireAuth, rateLimit } from './auth.js';
 import { getOrRetryAnalysis } from './analysisRunner.js';
 import { loadErrorEvents } from './analysisStore.js';
+import { loadBottlenecks } from './bottleneckStore.js';
 
 export const analysisRouter = express.Router();
 
@@ -26,10 +27,26 @@ analysisRouter.get('/analysis/:sessionId',
       if (record.status !== 'ready') return res.json({ status: record.status });
       // The client gets the validated analysis + code-counted aggregates — never the raw input
       // blob and never another user's data (the key is scoped to the authed account above).
-      return res.json({ status: 'ready', answers: record.analysis.answers, cefr: record.analysis.cefr, aggregates: record.aggregates });
+      return res.json({ status: 'ready', answers: record.analysis.answers, cefr: record.analysis.cefr,
+        aggregates: record.aggregates, bottleneck: record.bottleneck ?? null });
     } catch (err) {
       console.error('[analysisRoutes] get failed:', err.message);
       return res.status(500).json({ error: 'analysis_get_failed' });
+    }
+  });
+
+// The caller's own bottleneck history (Phase 3 selection records — open files, streaks, closures).
+analysisRouter.get('/bottlenecks',
+  requireAuth,
+  rateLimit({ windowMs: 10 * 60 * 1000, max: 60, tag: 'bottlenecks', keyExtra: (req) => req.account.id }),
+  async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const state = await loadBottlenecks(req.account.id);
+      return res.json({ records: (state.records || []).slice(-30) });
+    } catch (err) {
+      console.error('[analysisRoutes] bottlenecks failed:', err.message);
+      return res.status(500).json({ error: 'bottlenecks_failed' });
     }
   });
 
