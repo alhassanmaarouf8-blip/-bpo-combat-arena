@@ -479,6 +479,19 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
             <span>{ctaText}</span><span aria-hidden="true">→</span>
           </button>
         )}
+        {/* PROTECTED FEATURE (owner order 2026-07-18, third occurrence 07-20): whenever the mission
+            step is not itself the interview, an INTERVIEW-labeled control must sit INSIDE the first
+            viewport — directly under the CTA, quiet, never competing with the one primary action.
+            The old below-the-card link "existed" but scrolled out of view, which reads as "there is
+            literally no interview button" on a phone. */}
+        {!['interview', 'assessment'].includes(d.prescription?.action) && (
+          <button type="button" onClick={() => onAction?.({ prescription: { action: 'interview' } }, null)}
+            style={{ width: '100%', marginTop: 6, minHeight: 44, background: 'none', border: 'none',
+              cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 'var(--fs-label)',
+              color: 'var(--accent-2)', textAlign: 'center' }}>
+            <span style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>Interview direkt starten</span>{/* OWNER-AR slot */}
+          </button>
+        )}
         <div className="brain-guide__briefing" aria-label="Dein persönliches Missionsbriefing">
           <article className="brain-guide__briefing-card brain-guide__briefing-card--why">
             <span>01 · WARUM JETZT</span><strong>{reason}</strong>
