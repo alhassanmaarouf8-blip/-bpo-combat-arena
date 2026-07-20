@@ -75,6 +75,10 @@ HARTE REGELN:
   falsche Präposition, Füllwort-Häufung, Neustart-Schleifen wie "ich habe... ich bin... also ich
   habe"). Zu wenige Fehler zu melden ist der aktuelle Hauptmangel dieses Systems. Melde jedes
   Vorkommen einzeln (dieselbe Regel 3× falsch = 3 Einträge, gern mit demselben subcode).
+- SYSTEMATISCHE PRÜFUNG pro Antwort: gehe JEDES Satzglied durch — jeden Artikel, jede
+  Adjektivendung, den Kasus nach JEDER Präposition, die Verbposition in JEDEM Haupt- und
+  Nebensatz, jede Zeitform. Ein einziger Satz kann 3+ verschiedene Fehler enthalten — melde
+  jeden einzeln, fasse NIE mehrere reale Vorkommen zu einem Eintrag zusammen.
 - WAHRHEIT VOR VOLLSTÄNDIGKEIT: "quote" MUSS wörtlich in der jeweiligen Antwort stehen. Erfinde
   NIE Wörter. Ist ein Satz korrekt, ist er KEIN Fehler — Stil ist kein Fehler. "korrektur" muss
   sich von "quote" unterscheiden, sonst weglassen.
@@ -83,9 +87,11 @@ HARTE REGELN:
 - Mit „⟨ABGEBROCHEN⟩" markierte Antworten wurden vom Interviewer unterbrochen: dort NIEMALS
   ANTWORT_STRUKTUR, KOHAERENZ, FLUESSIGKEIT oder SELBSTKORREKTUR_SCHLEIFEN bemängeln — nur
   Fehler INNERHALB der tatsächlich gesprochenen Wörter.
-- "alternativen" sind PFLICHT für jede substanzielle Antwort (ab ca. 6 Wörtern): 2–3 wirklich
-  VERSCHIEDENE Formulierungen derselben Aussage — keine Korrekturen, sondern bessere Varianten
-  (natürlicher, professioneller, stärker im Interview). Bei sehr kurzen Antworten: leere Liste.
+- "alternativen" sind PFLICHT für jede substanzielle Antwort (ab ca. 6 Wörtern): GENAU 2 oder 3
+  wirklich VERSCHIEDENE Formulierungen derselben Aussage — keine Korrekturen, sondern bessere
+  Varianten (natürlicher, professioneller, stärker im Interview), jede mit "wann"-Zeile.
+  EINE einzelne Alternative ist UNGÜLTIG — liefere immer mindestens 2, sonst ist die ganze
+  Ausgabe unbrauchbar. Nur bei sehr kurzen Antworten (unter 6 Wörtern): leere Liste.
 - "staerken": nur echte, zitierbare Stärken (z.B. Verb korrekt am Ende nach "weil", gutes
   Konnektoren-Gerüst, höfliche Deeskalation). Keine leere Schmeichelei.
 - ARABISCH-STIL (verbindlich für alle _ar-Felder): ECHTES ägyptisches Umgangsarabisch (عامية
@@ -211,23 +217,35 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
     `DAS VOLLSTÄNDIGE GESPRÄCH:\n${transcript}\n\n` +
     `Analysiere jetzt JEDE Antwort A1..A${candidateTurns.length} vollständig als JSON.`;
 
-  let lastErr = null;
+  // A substantive answer with fewer than 2 alternatives misses the spec's mandate. Such an
+  // attempt is kept as fallback (never discarded — its errors are real) but retried once for a
+  // fuller pass; the BEST attempt (fewest thin answers, then most errors found) is returned.
+  const thinCount = (v) => v.answers.filter((a) =>
+    !a.truncated && (a.original || '').split(/\s+/).length >= 6 && a.alternativen.length < 2).length;
+
+  let lastErr = null, best = null;
   for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
     if (RETRY_DELAYS[attempt]) await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
+      const messages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user',   content: userMsg },
+      ];
+      if (best && thinCount(best.validated) > 0) {
+        messages.push({ role: 'user', content:
+          'Deine letzte Analyse hatte bei mehreren substanziellen Antworten weniger als 2 "alternativen". ' +
+          'Wiederhole die KOMPLETTE Analyse als JSON und liefere für JEDE substanzielle Antwort GENAU 2–3 Alternativen mit "wann"-Zeilen.' });
+      }
       const res = await fetch(GROQ_CHAT_URL, {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         signal:  controller.signal,
         body: JSON.stringify({
-          model: DEEP_MODEL, temperature: 0.2, max_tokens: 6000,
+          model: DEEP_MODEL, temperature: 0.2, max_tokens: 7500,
           response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user',   content: userMsg },
-          ],
+          messages,
         }),
       });
       if (!res.ok) throw new Error(`deep API ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300));
@@ -242,9 +260,14 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
         promptTokens:     data.usage?.prompt_tokens     ?? null,
         completionTokens: data.usage?.completion_tokens ?? null,
       };
+      const candidate = { validated, aggregates, usage };
+      if (!best || thinCount(validated) < thinCount(best.validated)
+        || (thinCount(validated) === thinCount(best.validated) && aggregates.totalErrors > best.aggregates.totalErrors)) {
+        best = candidate;
+      }
       // Token cost per analysis, always visible in the logs (spec §5).
-      console.log(`[deepDiagnosis] analysis ok  session=${sessionId ?? '?'}  answers=${validated.answers.length}  errors=${aggregates.totalErrors}  dropped=${validated.dropped}  tokens=${usage.promptTokens ?? '?'}in/${usage.completionTokens ?? '?'}out  model=${DEEP_MODEL}`);
-      return { validated, aggregates, usage };
+      console.log(`[deepDiagnosis] attempt ${attempt + 1} ok  session=${sessionId ?? '?'}  answers=${validated.answers.length}  errors=${aggregates.totalErrors}  thinAlt=${thinCount(validated)}  dropped=${validated.dropped}  tokens=${usage.promptTokens ?? '?'}in/${usage.completionTokens ?? '?'}out  model=${DEEP_MODEL}`);
+      if (thinCount(best.validated) === 0) return best;
     } catch (err) {
       lastErr = err;
       console.error(`[deepDiagnosis] attempt ${attempt + 1}/${RETRY_DELAYS.length} failed  session=${sessionId ?? '?'}: ${err.message}`);
@@ -252,6 +275,7 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
       clearTimeout(timer);
     }
   }
+  if (best) return best;
   throw lastErr ?? new Error('deep_analysis_failed');
 }
 
