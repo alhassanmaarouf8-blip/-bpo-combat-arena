@@ -1,6 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateDeepAnalysis, computeAggregates, numberedTranscript } from './deepDiagnosis.js';
+import { validateDeepAnalysis, computeAggregates, numberedTranscript, augmentFillerEvents, augmentRegisterEvents } from './deepDiagnosis.js';
+
+test('augmentFillerEvents: a filler storm becomes a code-made event with a real de-filled correction', () => {
+  const v = { answers: [
+    { index: 1, original: 'Ähm also ähm ich denke also ähm wirklich.', errors: [] },
+    { index: 2, original: 'Ich habe drei Jahre gearbeitet.', errors: [] },              // clean → untouched
+    { index: 3, original: 'Ähm also ähm ja ähm gut.', errors: [{ kategorie: 'FUELLWOERTER', quote: 'x', korrektur: 'y' }] }, // model already filed → skip
+  ] };
+  augmentFillerEvents(v);
+  assert.equal(v.answers[0].errors.length, 1);
+  assert.equal(v.answers[0].errors[0].code, 'FUELLWOERTER/fuellwoerter_haeufung');
+  assert.equal(v.answers[0].errors[0].deterministic, true);
+  assert.ok(!v.answers[0].errors[0].korrektur.match(/ähm|also/i));
+  assert.equal(v.answers[1].errors.length, 0);
+  assert.equal(v.answers[2].errors.length, 1);
+});
+
+test('augmentRegisterEvents: du/Sie slip gets a safe word-level correction; Sie-form answers untouched', () => {
+  const v = { answers: [
+    { index: 1, original: 'Danke, dass du mir diese Frage stellst — kannst du mir mehr erzählen?', errors: [] },
+    { index: 2, original: 'Ich danke Ihnen für die Frage und erzähle Ihnen gern mehr.', errors: [] },
+    { index: 3, original: 'Ich bin geduldig und ruhig.', errors: [] },
+  ] };
+  augmentRegisterEvents(v);
+  assert.equal(v.answers[0].errors.length, 1);
+  const e = v.answers[0].errors[0];
+  assert.equal(e.code, 'REGISTER_FORMALITAET/du_statt_sie');
+  assert.equal(e.quote.toLowerCase(), 'kannst du');
+  assert.equal(e.korrektur, 'können Sie');
+  assert.equal(v.answers[1].errors.length, 0);
+  assert.equal(v.answers[2].errors.length, 0);
+});
 
 const TURNS = [
   'Ich habe gearbeitet in einer Firma weil ich habe Erfahrung',   // A1 — planted errors

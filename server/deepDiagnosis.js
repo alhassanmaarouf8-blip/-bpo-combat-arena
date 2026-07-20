@@ -196,6 +196,60 @@ export function validateDeepAnalysis(parsed, { candidateTurns = [], lowConfSet =
   return { answers, cefr, dropped };
 }
 
+// ── Deterministic filler events (E2E verification 07-20): fillers are already MEASURED by code
+// (FILLER_RE, same as the live meter), but the SELECTOR only weighs error events — when the model
+// skipped filing a FUELLWOERTER event, a filler storm could never become the bottleneck. An
+// answer with ≥3 fillers now gets ONE code-made event (verbatim quote, correction = the same
+// sentence without fillers). Skipped when the model already filed one for that answer. ─────────
+export function augmentFillerEvents(validated) {
+  for (const a of validated.answers) {
+    const matches = (a.original || '').match(FILLER_RE) || [];
+    if (matches.length < 3) continue;
+    if (a.errors.some((e) => e.kategorie === 'FUELLWOERTER')) continue;
+    const korrektur = (a.original || '').replace(FILLER_RE, ' ').replace(/\s+/g, ' ').trim();
+    if (!korrektur || korrektur === a.original) continue;
+    a.errors.push({
+      quote: a.original, korrektur,
+      kategorie: 'FUELLWOERTER', subcode: 'fuellwoerter_haeufung',
+      code: 'FUELLWOERTER/fuellwoerter_haeufung',
+      schwere: 2, verstaendlichkeit: 2,
+      erklaerung_de: `${matches.length} Füllwörter in einer Antwort (${[...new Set(matches.map((m) => m.toLowerCase()))].slice(0, 3).join(', ')}) — ersetze sie durch kurze Pausen.`,
+      erklaerung_ar: '',
+      deterministic: true,
+    });
+  }
+  return validated;
+}
+
+// ── Deterministic register events (same verification: du/Sie slips were caught in only 1 of 2
+// identical runs). Informal address in a job interview is regex-detectable; corrections come from
+// a FIXED safe map (word/phrase level only — never an auto-conjugated full sentence, which could
+// show the learner a broken "correction"). Fail-closed: no safe mapping → word-level du→Sie. ───
+const REGISTER_PAIRS = [
+  ['kannst du', 'können Sie'], ['hast du', 'haben Sie'], ['bist du', 'sind Sie'],
+  ['willst du', 'möchten Sie'], ['weißt du', 'wissen Sie'],
+  ['dich', 'Sie'], ['dir', 'Ihnen'], ['deine', 'Ihre'], ['dein', 'Ihr'], ['du', 'Sie'],
+];
+export function augmentRegisterEvents(validated) {
+  for (const a of validated.answers) {
+    if (a.errors.some((e) => e.kategorie === 'REGISTER_FORMALITAET')) continue;
+    const text = a.original || '';
+    const hit = REGISTER_PAIRS.find(([inf]) => new RegExp(`(?<!\\p{L})${inf}(?!\\p{L})`, 'iu').test(text));
+    if (!hit) continue;
+    const m = text.match(new RegExp(`(?<!\\p{L})${hit[0]}(?!\\p{L})`, 'iu'));
+    a.errors.push({
+      quote: m[0], korrektur: hit[1],
+      kategorie: 'REGISTER_FORMALITAET', subcode: 'du_statt_sie',
+      code: 'REGISTER_FORMALITAET/du_statt_sie',
+      schwere: 3, verstaendlichkeit: 2,
+      erklaerung_de: 'Im Vorstellungsgespräch gilt durchgehend die Sie-Form — „du“ wirkt hier unprofessionell.',
+      erklaerung_ar: '',
+      deterministic: true,
+    });
+  }
+  return validated;
+}
+
 // ── Aggregates: counted in CODE from validated errors — never by the model ─────────────────────
 export function computeAggregates(validated, utterances = []) {
   const byCategory = {}, byCode = {};
@@ -342,6 +396,8 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
   }
   if (!merged.answers.length) throw groupErr ?? new Error('deep_analysis_failed');
   merged.answers.sort((a, b) => a.index - b.index);
+  augmentFillerEvents(merged);     // deterministic classes the model reliably under-reports
+  augmentRegisterEvents(merged);   // (E2E verification 07-20) — code fills them, never the model
   const aggregates = computeAggregates(merged, utterances);
   if (failedGroups) aggregates.incomplete = true;   // honest flag: part of the interview is missing
   // Token cost per analysis, always visible in the logs (spec §5).

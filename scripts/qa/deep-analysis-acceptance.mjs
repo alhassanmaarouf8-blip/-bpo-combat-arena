@@ -129,8 +129,13 @@ for (const a of analysis.answers) {
     if (!e.erklaerung_ar) log(`  ⚠ A${a.index} error missing AR explanation: ${e.code}`);
   }
 }
-if ((agg.totalErrors || 0) < 10) fail(`only ${agg.totalErrors} errors detected — spec needs ≥10 (under-reporting)`);
-if (cats.length < 4) fail(`only ${cats.length} categories — spec needs ≥4`);
+const ADJ_VARIANT = process.env.PROBE_VARIANT === 'adj';
+// The ADJ variant CONCENTRATES errors in 2-3 categories by design — the broad-coverage bars
+// apply to the default 13-error/7-class transcript only.
+if ((agg.totalErrors || 0) < (ADJ_VARIANT ? 8 : 10)) fail(`only ${agg.totalErrors} errors detected — under-reporting`);
+if (!ADJ_VARIANT && cats.length < 4) fail(`only ${cats.length} categories — spec needs ≥4`);
+if (ADJ_VARIANT && !['ADJ_ENDUNG', 'ARTIKEL_GENUS', 'KASUS'].some((c) => (agg.byCategory || {})[c] > 0))
+  fail('adj variant: no adjective/article/case errors detected');
 // Planted-class coverage (default variant, verification item 1): every REQUIRED class group
 // must surface. Placement + adjective/article classes accept family siblings (LLM naming drift).
 if (process.env.PROBE_VARIANT !== 'adj') {
