@@ -122,8 +122,11 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
   };
 
   const shell = (children) => (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'var(--bg, #04070d)', padding: '18px 16px 40px' }}>
+    // dir=ltr pinned: the overlay is German-primary (targets, options, prompts are German); in
+    // Arabic feedback mode an inherited RTL direction flipped its punctuation (".Ich werde mich…",
+    // "0 von 15" reversed — E2E verification 07-20, screenshot v-04). Arabic lines keep their own dir.
+    <div dir="ltr" style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
+      background: 'var(--bg, #04070d)', padding: '18px 16px 40px', direction: 'ltr', textAlign: 'left' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <span style={stageTitle}>DEIN PERSÖNLICHER SCHRITT{/* OWNER-AR slot */}</span>
