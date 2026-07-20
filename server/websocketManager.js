@@ -1503,11 +1503,16 @@ export class WebSocketManager {
       const evidenceQuality = speakingEvidenceQuality(ctx.utterances, {
         observedUntrustedTurns: ctx._untrustedEvidenceTurns,
       });
+      // The gate field is the v2 contract's prescriptionEligible — the SAME field the CEFR grade
+      // path enforces below. The previous gate read a v1 field (`.eligible`) that the v2 quality
+      // object never computes, so the condition was permanently false and NO interview could ever
+      // count (live-proven 07-20: two fully-graded B1 fights persisted sessions:0).
+      // Read-but-never-computed — the sibling of foot-gun #40.
       const meaningful = (metrics.answers || 0) >= MIN_REAL_ANSWERS
         && (metrics.words || 0) >= MIN_REAL_WORDS
-        && evidenceQuality.eligible === true;
+        && evidenceQuality.prescriptionEligible === true;
       if (!meaningful) {
-        console.log(`[wsManager] session NOT counted (insufficient trusted speech) answers=${metrics.answers} words=${metrics.words} evidence=${evidenceQuality.reason || 'ineligible'} session=${ctx.sessionId}`);
+        console.log(`[wsManager] session NOT counted (insufficient trusted speech) answers=${metrics.answers} words=${metrics.words} trusted=${evidenceQuality.trustedSpokenTurns} excluded=${evidenceQuality.excludedUntrustedTurns} stages=${evidenceQuality.stageCoverage} truncated=${evidenceQuality.truncatedTurns} session=${ctx.sessionId}`);
         // LEARNING MATERIAL SURVIVES the anti-farm gate (probe-proven 07-20): the gate exists to
         // stop XP/streak/rank farming — but the LT-verified corrections from the turns that DID
         // happen are work, not reward. Evaporating them is the trial-value-death disease (a short
