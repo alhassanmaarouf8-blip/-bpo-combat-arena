@@ -42,6 +42,11 @@ export async function runAnalysis(record) {
   return record;
 }
 
+// The debrief pipeline fires its own LLM calls on the same free-tier key seconds before this
+// engine starts (live evidence: session 3a7a8e81 queued repeatedly right after the debrief).
+// A short deliberate delay moves the analysis out of that rate window. 0 in tests.
+export const INITIAL_DELAY_MS = Number(process.env.DEEP_ANALYSIS_DELAY_MS ?? 20_000);
+
 /** Create the record (transcript input included → survives restarts) and run asynchronously. */
 export async function startAnalysisForSession({ userId, sessionId, input }) {
   const record = {
@@ -49,7 +54,9 @@ export async function startAnalysisForSession({ userId, sessionId, input }) {
     createdAt: Date.now(), updatedAt: Date.now(), input,
   };
   await saveAnalysisRecord(record);
-  runAnalysis(record).catch((e) => console.error('[analysisRunner] detached run failed:', e.message));
+  setTimeout(() => {
+    runAnalysis(record).catch((e) => console.error('[analysisRunner] detached run failed:', e.message));
+  }, INITIAL_DELAY_MS);
   return record;
 }
 

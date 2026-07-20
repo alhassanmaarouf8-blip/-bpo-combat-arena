@@ -21,9 +21,21 @@ import { ANSWER_LEVEL_CATEGORIES, CATEGORY_IDS, normalizeCategory, normalizeSubc
 import { scrubStringsDeep } from './langGuard.js';
 
 const DEEP_MODEL    = process.env.GROQ_DEEP_MODEL ?? 'llama-3.3-70b-versatile';
-const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TIMEOUT_MS    = 60_000;
 const RETRY_DELAYS  = [0, 2_000, 8_000];   // spec: retry with backoff before queueing
+
+// Same failover doctrine as the boss (realtimeClient.js PROVIDERS): live session 3a7a8e81 showed
+// the shared Groq key degrading (boss turns threw realtime_error, deep calls kept failing into the
+// retry queue) while the boss survived on Cerebras. Cerebras serves the SAME llama-3.3-70b, so the
+// analysis quality contract is unchanged on failover. Evaluated per call so env stays testable.
+function deepProviders() {
+  return [
+    { name: 'groq',     base: 'https://api.groq.com/openai/v1',
+      key: process.env.GROQ_API_KEY,     model: DEEP_MODEL },
+    { name: 'cerebras', base: process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
+      key: process.env.CEREBRAS_API_KEY, model: process.env.CEREBRAS_DEEP_MODEL ?? 'llama-3.3-70b' },
+  ].filter((p) => p.key);
+}
 
 // Same filler semantics as the live meter (websocketManager.js FILLER_RE — duplicated there,
 // in scoreFactors.js and elevenDebrief.js by existing convention).
@@ -212,8 +224,8 @@ export function computeAggregates(validated, utterances = []) {
 const GROUP_SIZE = 4;
 
 export async function generateDeepAnalysis({ dialogue, utterances, metrics, level, csScenarioId, sessionId }) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('no_groq_key');
+  const providers = deepProviders();
+  if (!providers.length) throw new Error('no_llm_provider_key');
   const { transcript, candidateTurns } = numberedTranscript(dialogue, utterances);
   if (!candidateTurns.length) throw new Error('no_candidate_turns');
   const lowConfSet = new Set((utterances || []).flatMap((u) => u?.lowConf || []));
@@ -236,61 +248,75 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
     let lastErr = null, best = null;
     for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
       if (RETRY_DELAYS[attempt]) await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      try {
-        const messages = [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: groupMsg },
-        ];
-        if (best && thinCount(best) > 0) {
-          messages.push({ role: 'user', content:
-            'Deine letzte Analyse hatte bei substanziellen Antworten weniger als 2 "alternativen". ' +
-            `Wiederhole die Analyse von A${from} bis A${to} als JSON mit GENAU 2–3 Alternativen (je mit "wann"-Zeilen) pro substanzieller Antwort.` });
-        }
-        const res = await fetch(GROQ_CHAT_URL, {
-          method:  'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          signal:  controller.signal,
-          body: JSON.stringify({
-            model: DEEP_MODEL, temperature: 0.2, max_tokens: 5000,
-            response_format: { type: 'json_object' },
-            messages,
-          }),
-        });
-        if (!res.ok) throw new Error(`deep API ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300));
-        const data   = await res.json();
-        const finish = data.choices?.[0]?.finish_reason;
-        const txt    = data.choices?.[0]?.message?.content ?? '{}';
-        const parsed = scrubStringsDeep(JSON.parse(txt));
-        const validated = validateDeepAnalysis(parsed, { candidateTurns, lowConfSet });
-        if (!validated) throw new Error(`schema_invalid (finish=${finish})`);
-        // Keep only this group's answers — out-of-range entries are context bleed, not analysis.
-        validated.answers = validated.answers.filter((a) => a.index >= from && a.index <= to);
-        validated.usage = {
-          promptTokens:     data.usage?.prompt_tokens     ?? 0,
-          completionTokens: data.usage?.completion_tokens ?? 0,
-        };
-        if (!best || thinCount(validated) < thinCount(best)
-          || (thinCount(validated) === thinCount(best)
-            && validated.answers.reduce((s, a) => s + a.errors.length, 0) > best.answers.reduce((s, a) => s + a.errors.length, 0))) {
-          best = validated;
-        }
-        console.log(`[deepDiagnosis] group A${from}-A${to} attempt ${attempt + 1} ok  session=${sessionId ?? '?'}  answers=${validated.answers.length}  thinAlt=${thinCount(validated)}  finish=${finish}  tokens=${validated.usage.promptTokens}in/${validated.usage.completionTokens}out`);
-        if (thinCount(best) === 0) return best;
-      } catch (err) {
-        lastErr = err;
-        console.error(`[deepDiagnosis] group A${from}-A${to} attempt ${attempt + 1}/${RETRY_DELAYS.length} failed  session=${sessionId ?? '?'}: ${err.message}`);
-      } finally {
-        clearTimeout(timer);
+      const messages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user',   content: groupMsg },
+      ];
+      if (best && thinCount(best) > 0) {
+        messages.push({ role: 'user', content:
+          'Deine letzte Analyse hatte bei substanziellen Antworten weniger als 2 "alternativen". ' +
+          `Wiederhole die Analyse von A${from} bis A${to} als JSON mit GENAU 2–3 Alternativen (je mit "wann"-Zeilen) pro substanzieller Antwort.` });
       }
+      // Provider chain inside the attempt: a rate-limited Groq fails over to Cerebras on the
+      // SAME turn, exactly like the boss — the analysis never waits a retry window for a 429.
+      for (const p of providers) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          const call = (withJsonMode) => fetch(`${p.base}/chat/completions`, {
+            method:  'POST',
+            headers: { 'Authorization': `Bearer ${p.key}`, 'Content-Type': 'application/json' },
+            signal:  controller.signal,
+            body: JSON.stringify({
+              model: p.model, temperature: 0.2, max_tokens: 5000,
+              ...(withJsonMode ? { response_format: { type: 'json_object' } } : {}),
+              messages,
+            }),
+          });
+          let res = await call(true);
+          // Unproven-provider guard: if a provider rejects JSON mode itself, retry once without —
+          // the prompt already demands pure JSON and the validator is the real correctness gate.
+          if (res.status === 400) {
+            const errText = await res.text().catch(() => '');
+            if (/response_format|json_object/i.test(errText)) res = await call(false);
+            else throw new Error(`deep API 400 ${errText}`.slice(0, 300));
+          }
+          if (!res.ok) throw new Error(`deep API ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300));
+          const data   = await res.json();
+          const finish = data.choices?.[0]?.finish_reason;
+          const txt    = data.choices?.[0]?.message?.content ?? '{}';
+          const parsed = scrubStringsDeep(JSON.parse(txt));
+          const validated = validateDeepAnalysis(parsed, { candidateTurns, lowConfSet });
+          if (!validated) throw new Error(`schema_invalid (finish=${finish})`);
+          // Keep only this group's answers — out-of-range entries are context bleed, not analysis.
+          validated.answers = validated.answers.filter((a) => a.index >= from && a.index <= to);
+          validated.usage = {
+            provider:         `${p.name}:${p.model}`,
+            promptTokens:     data.usage?.prompt_tokens     ?? 0,
+            completionTokens: data.usage?.completion_tokens ?? 0,
+          };
+          if (!best || thinCount(validated) < thinCount(best)
+            || (thinCount(validated) === thinCount(best)
+              && validated.answers.reduce((s, a) => s + a.errors.length, 0) > best.answers.reduce((s, a) => s + a.errors.length, 0))) {
+            best = validated;
+          }
+          console.log(`[deepDiagnosis] group A${from}-A${to} attempt ${attempt + 1} ok  session=${sessionId ?? '?'}  provider=${p.name}  answers=${validated.answers.length}  thinAlt=${thinCount(validated)}  finish=${finish}  tokens=${validated.usage.promptTokens}in/${validated.usage.completionTokens}out`);
+          break;   // provider succeeded — no further failover this attempt
+        } catch (err) {
+          lastErr = err;
+          console.error(`[deepDiagnosis] group A${from}-A${to} attempt ${attempt + 1}/${RETRY_DELAYS.length} provider=${p.name} failed  session=${sessionId ?? '?'}: ${err.message}`);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      if (best && thinCount(best) === 0) return best;
     }
     if (best) return best;
     throw lastErr ?? new Error('group_failed');
   };
 
   const merged = { answers: [], cefr: null, dropped: 0 };
-  const usage = { model: DEEP_MODEL, promptTokens: 0, completionTokens: 0 };
+  const usage = { model: DEEP_MODEL, providers: [], promptTokens: 0, completionTokens: 0 };
   let failedGroups = 0, groupErr = null;
   for (let from = 1; from <= candidateTurns.length; from += GROUP_SIZE) {
     const to = Math.min(from + GROUP_SIZE - 1, candidateTurns.length);
@@ -299,6 +325,7 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
       merged.answers.push(...v.answers);
       merged.dropped += v.dropped;
       if (!merged.cefr && v.cefr) merged.cefr = v.cefr;
+      if (v.usage.provider && !usage.providers.includes(v.usage.provider)) usage.providers.push(v.usage.provider);
       usage.promptTokens     += v.usage.promptTokens;
       usage.completionTokens += v.usage.completionTokens;
     } catch (err) {
