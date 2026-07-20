@@ -73,6 +73,21 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
     setBusyItem(null);
   };
 
+  const regenerate = async () => {
+    setBusyItem('regen'); setErr(null);
+    try {
+      const r = await fetch(`${apiUrl}/api/personal-step/regenerate`, {
+        method: 'POST', headers: { ...hdr, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: data.sessionId }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'failed');
+      setAnswered({}); setSpeakRes({});
+      setData((prev) => ({ ...prev, status: d.status, set: d.set || prev.set }));
+    } catch { setErr({ de: 'Konnte keinen neuen Block generieren — der Basis-Block bleibt.', ar: '' /* OWNER-AR slot */ }); }
+    setBusyItem(null);
+  };
+
   const startRec = async (item, maxSec) => {
     setErr(null); setSpeakRes((s) => ({ ...s, [item.id]: null }));
     const rec = new ClipRecorder({ onVolume: () => {} });
@@ -159,6 +174,12 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
       <div style={{ marginTop: 8, fontSize: 10.5, color: 'var(--text-dim)' }}>
         {totalDone} von {set.totalReps} · ca. {set.estMinutes} Min.{set.fallback ? ' · Basis-Modus' : ''}
       </div>
+      {set.fallback && !completed && (
+        <button onClick={regenerate} disabled={busyItem === 'regen'}
+          style={{ ...ghostBtn, marginTop: 8, minHeight: 40, fontSize: 11 }}>
+          {busyItem === 'regen' ? 'Generiere …' : '↻ NEUEN ÜBUNGSBLOCK GENERIEREN'}{/* OWNER-AR slot */}
+        </button>
+      )}
       <div style={{ marginTop: 5, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.07)' }}>
         <div style={{ width: `${Math.round((totalDone / Math.max(1, set.totalReps)) * 100)}%`, height: 4, borderRadius: 2, background: 'var(--accent)' }} />
       </div>

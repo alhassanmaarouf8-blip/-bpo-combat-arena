@@ -185,8 +185,14 @@ export function buildWhy(selected, runnerUps) {
     : `${label}: ${selected.frequencyToday}× in diesem Interview, Schweregrad Ø ${selected.avgSeverity}, ` +
       `Verständlichkeit Ø ${selected.avgImpact}` +
       (selected.priorSessions > 0 ? `, wiederholt in ${selected.priorSessions} früheren Interviews` : '') + '.';
-  const vs = (runnerUps || []).slice(0, 2)
-    .map((r) => `${CATEGORIES[r.category]?.de || r.category} (${r.score})`).join(' und ');
+  // When runner-ups share a category, the label alone reads as a duplicate ("Wortstellung (6)
+  // und Wortstellung (6)" — live run dea58862 sibling): disambiguate with the subcode.
+  const tops = (runnerUps || []).slice(0, 2);
+  const dupCat = tops.length === 2 && tops[0].category === tops[1].category;
+  const vs = tops.map((r) => {
+    const lbl = CATEGORIES[r.category]?.de || r.category;
+    return `${dupCat ? `${lbl} – ${String(r.subcode || '').replace(/_/g, ' ')}` : lbl} (${r.score})`;
+  }).join(' und ');
   return vs ? `${base} Gewählt vor ${vs}${selected.fallback ? '' : ` — Score ${selected.score}`}.` : base;
 }
 
