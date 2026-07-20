@@ -6286,13 +6286,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     onActiveChange={setVacancyLiveActive} openRequest={vacancyOpenRequest} />
                 </Suspense>
               )}
-              {/* The interview stays reachable even when BrainGuide prescribes a drill/apply step or
-                  its directive failed — a quiet secondary entry that never competes with the mission's
-                  one orange CTA. (Regression d4566dc: the founder literally could not find the
-                  interview when the brain owned the only button.) */}
-              {brainGuideAuthority && (brainDecision.status === 'error'
-                || (homePrimaryAction.owner === 'brain' && homePrimaryAction.action
-                    && !['interview', 'assessment'].includes(homePrimaryAction.action))) && (
+              {/* The interview stays reachable when the BrainGuide directive FAILED (its card then
+                  renders no in-card interview link). The non-error case moved INSIDE BrainGuide,
+                  directly under the CTA — the below-the-card position scrolled out of the first
+                  viewport, which shipped the "there is no interview button" failure a third time
+                  (owner 07-20; regression d4566dc; memory bpo-interview-findability-0718). */}
+              {brainGuideAuthority && brainDecision.status === 'error' && (
                 <button onClick={beginSession} disabled={isConnecting} style={{ width:'100%', marginTop:8, padding:'10px',
                   minHeight:44, cursor: isConnecting ? 'wait' : 'pointer', background:'none', border:'none',
                   fontFamily:'var(--font-body)', fontSize:'var(--fs-label)', color:'var(--accent-2)', textAlign:'center' }}>

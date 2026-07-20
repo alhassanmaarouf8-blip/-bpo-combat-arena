@@ -27,20 +27,24 @@ if (!app.includes("'Interview direkt starten'")) {
   fails.push("App.jsx: the quiet 'Interview direkt starten' fallback link is gone");
 }
 
-// 3) The fallback link's exclusion list may only contain brain actions whose own BrainGuide CTA
-//    label contains INTERVIEW — anything else suppresses the link AND shows a non-interview label,
-//    leaving the home with zero interview-labeled controls (the "there is no interview" bug).
-const excl = app.match(/!\[([^\]]+)\]\.includes\(homePrimaryAction\.action\)/);
-if (!excl) {
-  fails.push('App.jsx: fallback-link exclusion list not found (pattern changed — update this guard)');
-} else {
-  const allowed = new Set(['interview', 'assessment']);
-  for (const raw of excl[1].split(',')) {
-    const action = raw.trim().replace(/^['"]|['"]$/g, '');
-    if (!allowed.has(action)) {
-      fails.push(`App.jsx: exclusion list suppresses the interview link for action '${action}', whose CTA label does not say INTERVIEW`);
-    }
-  }
+// 3) FIRST-VIEWPORT guarantee (third occurrence 07-20: the link "existed" below the mission card
+//    but scrolled out of view — existence is NOT findability). Whenever the mission CTA is not
+//    itself the interview/assessment, BrainGuide must render an interview-labeled control INSIDE
+//    the card, directly under the CTA. Pin the condition, the label, and the ADJACENCY: the
+//    in-card link's code must sit within the same block right after the primary CTA button.
+const ctaAt = guide.indexOf("className=\"brain-guide__cta\"");
+const inCardLink = guide.indexOf("Interview direkt starten", ctaAt);
+if (ctaAt < 0) {
+  fails.push('BrainGuide.jsx: primary CTA marker not found (pattern changed — update this guard)');
+} else if (inCardLink < 0 || inCardLink - ctaAt > 2000) {
+  fails.push('BrainGuide.jsx: no in-card "Interview direkt starten" control adjacent to the CTA — the interview leaves the first viewport');
+}
+if (!/!\['interview', 'assessment'\]\.includes\(d\.prescription\?\.action\)/.test(guide)) {
+  fails.push('BrainGuide.jsx: the in-card interview link no longer covers every non-interview prescription');
+}
+// The App-level fallback remains for the directive-ERROR case, where the card renders no CTA.
+if (!/brainDecision\.status === 'error' && \(/.test(app)) {
+  fails.push('App.jsx: the error-case fallback interview link condition is gone');
 }
 
 // 4) The BrainGuide CTA labels for those covered actions must actually say INTERVIEW.
