@@ -19,18 +19,33 @@ const WSU   = BASE.replace(/^http/, 'ws');
 const EMAIL = process.env.PROBE_EMAIL || `alhassanmaarouf2+deepqa${Date.now()}@gmail.com`;
 const PASS  = process.env.PROBE_PASS  || `DeepQA-${Date.now()}!x`;
 
-// Planted answers (B2): every error commented so a human can re-verify the expectations.
-const ANSWERS = [
-  'Ich heiße Omar und ich habe gearbeitet drei Jahre in einer Firma weil ich habe viel Erfahrung mit Kunden.',   // VERB_POSITION ×2 (Partizip-Stellung, weil+V2), WORTSTELLUNG
-  'Ich bin einer regelmäßige Nutzer von diese Software und ich arbeite mit die Kunden jeden Tag.',               // ADJ_ENDUNG, ARTIKEL/KASUS ×3
-  'Gestern ich habe angerufen habe hatte mit einem Kunde gesprochen.',                                            // WORTSTELLUNG (V2), TEMPUS (angerufen habe hatte), KASUS (einem Kunde)
-  'Ähm also ich denke dass ich bin sehr geduldig und ähm ich kann helfen die Kunden immer.',                      // FUELLWOERTER, VERB_POSITION (dass), WORTSTELLUNG
-  'Es tut mir leid für die Problem. Ich werde kümmern mich um das sofort.',                                       // ARTIKEL_GENUS (die Problem), VERB_POSITION (Reflexiv)
-  'Ich verstehe Ihre Frustration und ich möchte lösen das Problem heute noch.',                                   // VERB_POSITION
-  'Ich möchte arbeiten in Ihre Firma weil die Team ist sehr gut und die Kollegen sind freundlich.',               // VERB_POSITION, KASUS (in Ihre Firma), ARTIKEL_GENUS (die Team)
-  'Ich habe gelernt Deutsch seit drei Jahren und ich hoffe dass ich kann bald besser sprechen.',                  // VERB_POSITION ×2, TEMPUS-Idiomatik
+// Planted answers, DEFAULT variant (B2) — 13 planted errors across 7 classes, every error
+// commented so a human can re-verify the expectations (E2E verification protocol item 1).
+const ANSWERS_DEFAULT = [
+  'Ich heiße Omar und ich habe gearbeitet drei Jahre in einer Firma weil ich habe viel Erfahrung mit Kunden.',   // E1 Partizip-Stellung (placement), E2 weil+V2 (placement)
+  'Ich bin einer regelmäßige Nutzer von diese Software.',                                                         // E3 ADJ_ENDUNG/ARTIKEL, E4 KASUS (von diese)
+  'Gestern ich habe angerufen habe hatte mit einem Kunde gesprochen.',                                            // E5 V2 nach Gestern, E6 TEMPUS (angerufen habe hatte), E7 KASUS (einem Kunde)
+  'Ähm also ähm ich denke dass ich bin ähm sehr geduldig also ähm wirklich.',                                     // E8 FUELLWOERTER-Sturm, E9 dass+V2 (placement)
+  'Es tut mir leid für die Problem. Ich werde kümmern mich sofort darum.',                                        // E10 ARTIKEL_GENUS (die Problem), E11 Reflexiv-Stellung (placement)
+  'Danke, dass du mir diese Frage stellst — kannst du mir mehr über das Team erzählen?',                          // E12 REGISTER du/Sie (×2 Vorkommen)
+  'Ich verstehe Ihre Frustration und ich möchte lösen das Problem heute noch.',                                   // E13 VERB_POSITION
+  'Ich habe drei Jahre im Kundenservice gearbeitet und dabei viel über Geduld gelernt.',                          // clean
   'Vielen Dank für das Gespräch, ich freue mich auf Ihre Antwort.',                                               // clean closer
 ];
+// ADJ/ARTIKEL-heavy variant (PROBE_VARIANT=adj) — main clauses only, correct V2, no subordinate
+// clauses: the placement family cannot win, the selector must SWITCH (protocol item 3).
+const ANSWERS_ADJ = [
+  'Ich bin ein sehr motivierte Mitarbeiter und ein zuverlässige Kollege.',                                        // ADJ_ENDUNG ×2
+  'Ich habe eine große Erfahrung mit schwierige Kunden im Callcenter.',                                           // ADJ_ENDUNG (schwierige→schwierigen)
+  'Mein letzte Chef war sehr zufrieden mit meine Arbeit.',                                                        // ADJ_ENDUNG, KASUS (mit meine)
+  'Ich suche eine neue Herausforderung in eine internationale Firma.',                                            // KASUS (in eine→einer)
+  'Es tut mir leid, das ist ein große Problem für Sie.',                                                          // ADJ_ENDUNG/GENUS
+  'Ich biete dem Kunde immer eine schnelle Lösung an.',                                                           // KASUS (dem Kunde→Kunden)
+  'Ich bin ein geduldige Mensch und bleibe immer ruhig.',                                                         // ADJ_ENDUNG
+  'Meine deutsche Sprachkenntnisse werden jeden Tag besser.',                                                     // ADJ_ENDUNG (deutsche→deutschen)
+  'Vielen Dank für das Gespräch, ich freue mich auf Ihre Antwort.',                                               // clean closer
+];
+const ANSWERS = process.env.PROBE_VARIANT === 'adj' ? ANSWERS_ADJ : ANSWERS_DEFAULT;
 
 const log = (...a) => console.log('[deepqa]', ...a);
 const fail = (msg) => { console.error('[deepqa] FAIL:', msg); process.exit(1); };
@@ -116,6 +131,19 @@ for (const a of analysis.answers) {
 }
 if ((agg.totalErrors || 0) < 10) fail(`only ${agg.totalErrors} errors detected — spec needs ≥10 (under-reporting)`);
 if (cats.length < 4) fail(`only ${cats.length} categories — spec needs ≥4`);
+// Planted-class coverage (default variant, verification item 1): every REQUIRED class group
+// must surface. Placement + adjective/article classes accept family siblings (LLM naming drift).
+if (process.env.PROBE_VARIANT !== 'adj') {
+  const has = (...names) => names.some((n) => (agg.byCategory || {})[n] > 0);
+  const missing = [];
+  if (!has('VERB_POSITION', 'WORTSTELLUNG', 'SATZBAU_NEBENSATZ')) missing.push('placement-family');
+  if (!has('ADJ_ENDUNG', 'ARTIKEL_GENUS')) missing.push('adjektiv/artikel');
+  if (!has('TEMPUS', 'VERB_KONJUGATION')) missing.push('tempus');
+  if (!has('FUELLWOERTER', 'SELBSTKORREKTUR_SCHLEIFEN', 'FLUESSIGKEIT')) missing.push('füllwörter');
+  if (!has('REGISTER_FORMALITAET')) missing.push('register (du/Sie)');
+  if (missing.length) fail(`planted classes NOT detected: ${missing.join(', ')}`);
+  log('planted-class coverage: placement ✓ adj/artikel ✓ tempus ✓ füllwörter ✓ register ✓');
+}
 const substantive = analysis.answers.filter((a) => (a.original || '').split(/\s+/).length >= 6 && !a.truncated);
 const thin = substantive.filter((a) => a.alternativen.length < 2);
 if (thin.length) fail(`${thin.length} substantive answer(s) with <2 alternatives: ${thin.map((a) => 'A' + a.index).join(',')}`);
@@ -140,11 +168,17 @@ const bns = await api('/api/bottlenecks', { headers: { Authorization: `Bearer ${
 const mine = (bns.body.records || []);
 const thisIdx = mine.findIndex((r) => r.sessionId === sessionId);
 if (thisIdx < 0 || mine.filter((r) => r.sessionId === sessionId).length !== 1) fail('expected exactly one daily_bottleneck row for this interview');
+const FAMILY = new Set(['VERB_POSITION', 'WORTSTELLUNG', 'SATZBAU_NEBENSATZ']);
+const sameFam = (a, b) => a === b || (FAMILY.has(a) && FAMILY.has(b));
 const prevRec = thisIdx > 0 ? mine[thisIdx - 1] : null;
 if (prevRec) {
-  log(`previous record: ${prevRec.code}  status=${prevRec.status}`);
-  if (prevRec.code === bn.code && prevRec.status !== 'closed' && !bn.repeat) fail('same dominant code as previous record but repeat not flagged');
-  if (prevRec.code === bn.code && bn.repeat) log('repeat-day behavior CONFIRMED (same code re-selected, flagged)');
+  log(`previous record: ${prevRec.code}  status=${prevRec.status}  cleanStreak=${prevRec.cleanStreak ?? 0}`);
+  if (sameFam(prevRec.category, bn.category) && prevRec.status !== 'closed' && !bn.repeat) fail('same problem family as previous record but repeat not flagged');
+  if (bn.repeat) log('repeat-day behavior CONFIRMED (same wall re-selected, flagged)');
+  // Verification item 3: a NEW dominant error must not close yesterday's file on one clean day.
+  if (!sameFam(prevRec.category, bn.category) && prevRec.status === 'closed' && (prevRec.cleanStreak ?? 0) < 2
+    && prevRec.status !== 'retested') fail(`selector switched but yesterday's file closed after ONE clean day (mastery by avoidance)`);
+  if (!sameFam(prevRec.category, bn.category) && prevRec.status !== 'closed') log(`selector SWITCH confirmed — yesterday's file stays ${prevRec.status} (streak ${prevRec.cleanStreak ?? 0}/2)`);
 }
 
 // 7) Phase 4 — the personal step: generated set, brief data, stage-1 server validation, gating.
@@ -185,18 +219,26 @@ import('node:fs').then(async ({ promises: fs }) => {
   if (set.stage2.length && (after.body.completed || after.body.reinterviewUnlocked)) fail('re-interview unlocked before spoken stages (gate broken)');
   log(`stage1 completed via API (${set.stage1.length} items); re-interview correctly still locked (spoken stages pending)`);
 
-  // Cross-run novelty: compare this set's stage-1 texts with the previous invocation's.
+  // Cross-run novelty (verification item 2): both runs generated + same problem family →
+  // ZERO reused items across ALL stages, else the do-not-reuse contract is broken.
   const sigPath = new URL('./.deepqa-last-set.json', import.meta.url);
-  const texts = set.stage1.flatMap((i) => i.options || []);
+  const canonT = (t) => String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const texts = [
+    ...set.stage1.flatMap((i) => i.options || []),
+    ...set.stage2.map((i) => i.target), ...set.stage2.map((i) => i.prompt),
+    ...set.stage3.map((i) => i.frage),
+  ].filter(Boolean).map(canonT);
   try {
     const prev = JSON.parse(await fs.readFile(sigPath, 'utf8'));
-    if (prev.family === (ps.bottleneck?.category || '') || true) {
-      const overlap = texts.filter((t) => prev.texts.includes(t)).length;
-      log(`novelty vs previous run: ${overlap}/${texts.length} overlapping stage1 texts`);
-      if (texts.length && overlap === texts.length) fail('repeat set is identical to previous set — novelty broken');
-    }
+    const bothReady = prev.status === 'ready' && ps.status === 'ready';
+    const famPrev = prev.family || '', famNow = ps.bottleneck?.category || '';
+    const sameFamily = famPrev === famNow || (['VERB_POSITION', 'WORTSTELLUNG', 'SATZBAU_NEBENSATZ'].includes(famPrev)
+      && ['VERB_POSITION', 'WORTSTELLUNG', 'SATZBAU_NEBENSATZ'].includes(famNow));
+    const overlap = texts.filter((t) => prev.texts.includes(t));
+    log(`novelty vs previous run: ${overlap.length}/${texts.length} reused items (bothReady=${bothReady} sameFamily=${sameFamily})`);
+    if (bothReady && sameFamily && overlap.length > 0) fail(`repeat set reuses ${overlap.length} item(s): "${overlap[0]}"`);
   } catch { /* first run — nothing to compare */ }
-  await fs.writeFile(sigPath, JSON.stringify({ at: Date.now(), family: ps.bottleneck?.category || '', texts }));
+  await fs.writeFile(sigPath, JSON.stringify({ at: Date.now(), status: ps.status, family: ps.bottleneck?.category || '', texts }));
 
   console.log('\n[deepqa] PASS — analysis + bottleneck + personal step verified end-to-end.');
   console.log('[deepqa] (spoken stages 2-3 + re-interview unlock = owner voice test on device)');

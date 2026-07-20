@@ -88,21 +88,28 @@ test('repeat-day: same dominant code selected again → repeat flagged, streak g
   assert.equal(sameDayAgain.dayStreak, 2);               // streak counts DAYS, not sessions
 });
 
-test('updatePriorStatuses: closes at ≤1 occurrence with no high severity; drilled→retested otherwise', () => {
+test('updatePriorStatuses: one clean day is NOT mastery — closure needs 2 clean days or drilled+1', () => {
   const records = [
-    { code: 'VERB_POSITION/x', status: 'open' },
-    { code: 'KASUS/y', status: 'drilled' },
-    { code: 'TEMPUS/z', status: 'open' },
+    { code: 'VERB_POSITION/x', category: 'VERB_POSITION', status: 'open' },
+    { code: 'KASUS/y', category: 'KASUS', status: 'drilled' },
+    { code: 'TEMPUS/z', category: 'TEMPUS', status: 'open' },
   ];
-  const today = [
-    ev('KASUS/y', 's9'), ev('KASUS/y', 's9'),                       // still 2× → not closed, drilled→retested
-    ev('TEMPUS/z', 's9', { severity: 5 }),                          // 1× but severity 5 → stays open
-  ];                                                                 // VERB_POSITION absent → closed
-  updatePriorStatuses(records, today, { sessionId: 's9', now: 7 });
-  assert.equal(records[0].status, 'closed');
-  assert.equal(records[0].closedBySessionId, 's9');
+  const day1 = [
+    ev('KASUS/y', 's9'), ev('KASUS/y', 's9'),                       // still 2× → drilled→retested, streak 0
+    ev('TEMPUS/z', 's9', { severity: 5 }),                          // 1× but severity 5 → open, streak 0
+  ];                                                                 // VERB_POSITION absent → clean day 1, stays OPEN
+  updatePriorStatuses(records, day1, { sessionId: 's9', now: 7 });
+  assert.equal(records[0].status, 'open');                          // mastery-by-avoidance blocked
+  assert.equal(records[0].cleanStreak, 1);
   assert.equal(records[1].status, 'retested');
   assert.equal(records[2].status, 'open');
+  const day2 = [ev('ADJ_ENDUNG/q', 's10')];                        // everyone clean today
+  updatePriorStatuses(records, day2, { sessionId: 's10', now: 8 });
+  assert.equal(records[0].status, 'closed');                        // 2 consecutive clean days
+  assert.equal(records[0].closedBySessionId, 's10');
+  assert.equal(records[1].status, 'closed');                        // loop ran (retested) + 1 clean day
+  assert.equal(records[2].status, 'open');                          // TEMPUS clean streak only 1
+  assert.equal(records[2].cleanStreak, 1);
 });
 
 test('family repeat: sibling category of the same wall re-selected → repeat flagged, history carried (live run dea58862)', () => {
@@ -124,9 +131,12 @@ test('family closure block: a file must not close while a sibling name of the sa
   const records = [{ code: 'VERB_POSITION/verb_stellung_nach_zeitangabe', category: 'VERB_POSITION', status: 'open' }];
   updatePriorStatuses(records, [ev('WORTSTELLUNG/verb_zu_anfang_zeitangabe', 's2'), ev('WORTSTELLUNG/verb_zu_anfang_zeitangabe', 's2')],
     { sessionId: 's2', now: 5 });
-  assert.equal(records[0].status, 'open');   // 2 family occurrences → threshold not met
+  assert.equal(records[0].status, 'open');   // 2 family occurrences → threshold not met, streak reset
+  assert.equal(records[0].cleanStreak, 0);
   updatePriorStatuses(records, [ev('KASUS/x', 's3')], { sessionId: 's3', now: 6 });
-  assert.equal(records[0].status, 'closed'); // no family occurrences at all → closes
+  assert.equal(records[0].status, 'open');   // clean day 1 of 2 — avoidance is not mastery
+  updatePriorStatuses(records, [ev('KASUS/x', 's4')], { sessionId: 's4', now: 7 });
+  assert.equal(records[0].status, 'closed'); // clean day 2 → the file may close
 });
 
 test('near-perfect interview: polish fallback, never "nothing to train"', () => {

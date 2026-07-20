@@ -113,6 +113,7 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
         method: 'POST', headers: { ...hdr, 'Content-Type': 'audio/wav' }, body: clip.blob,
       });
       const d = await r.json();
+      if (r.status === 422 && d.error === 'no_voice') { setErr({ de: 'Nichts aufgenommen — sprich bitte.', ar: 'مفيش صوت — اتكلم من فضلك.' }); setBusyItem(null); return; }
       if (!r.ok) throw new Error(d.error || 'failed');
       setSpeakRes((s) => ({ ...s, [item.id]: d }));
       mergeReps(d, item.id);

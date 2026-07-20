@@ -198,8 +198,11 @@ export function buildWhy(selected, runnerUps) {
 
 // ── Status updates for PRIOR records, evaluated against TODAY's evidence ──────────────────────
 // "Die Akte bleibt offen … wird erneut geprüft": a later interview closes the file only when the
-// error rate dropped below the threshold (≤1 occurrence, none severity ≥4). A drilled file that
-// was re-examined without closing becomes 'retested'.
+// error rate dropped below the threshold (≤1 occurrence, none severity ≥4) — but ONE clean day is
+// not mastery (E2E verification 07-20: a learner who simply avoided subordinate clauses for a day
+// closed their verb-position file untreated — mastery by avoidance). Closure now needs the loop
+// to have run (drilled/retested + 1 clean interview) OR 2 CONSECUTIVE clean interviews. A drilled
+// file re-examined without closing becomes 'retested'.
 export function updatePriorStatuses(records, todayEvents, { sessionId, now = 0 } = {}) {
   for (const rec of records || []) {
     if (rec.status === 'closed') continue;
@@ -210,7 +213,10 @@ export function updatePriorStatuses(records, todayEvents, { sessionId, now = 0 }
     const familyEvents = (todayEvents || []).filter((e) => sameProblemFamily(e.category, recCategory));
     const occurrences = familyEvents.length;
     const worst = familyEvents.length ? Math.max(...familyEvents.map((e) => e.severity || 1)) : 0;
-    if (occurrences <= CLOSE_MAX_OCCURRENCES && worst < 4) {
+    const cleanToday = occurrences <= CLOSE_MAX_OCCURRENCES && worst < 4;
+    rec.cleanStreak = cleanToday ? (rec.cleanStreak || 0) + 1 : 0;
+    const loopRan = rec.status === 'drilled' || rec.status === 'retested';
+    if (cleanToday && (rec.cleanStreak >= 2 || (loopRan && rec.cleanStreak >= 1))) {
       rec.status = 'closed';
       rec.closedAt = now;
       rec.closedBySessionId = sessionId;

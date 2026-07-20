@@ -275,6 +275,10 @@ personalStepRouter.post('/personal-step/speak',
       if (!req.body?.length || req.body.length < 1200) return res.status(400).json({ error: 'no_audio' });
 
       const voicedMs = voicedDurationMs(req.body) || 0;
+      // A near-silent clip is NOT an attempt (E2E verification 07-20: two silent posts walked the
+      // MAX_SPEAK_ATTEMPTS ladder and completed a rep — farming the server-confirmed unlock).
+      // The learner sees an honest "speak, please"; nothing is counted or consumed.
+      if (voicedMs < 1200) return res.status(422).json({ error: 'no_voice' });
       const heard = await transcribeGroq(req.body, req.headers['content-type'] || 'audio/wav');
       const stage3 = itemId.startsWith('s3');
       const passed = stage3
