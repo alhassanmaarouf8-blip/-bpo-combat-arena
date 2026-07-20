@@ -35,7 +35,14 @@ test('typed UI owns the turn and refreshes BrainGuide and Salma after debrief', 
 test('typed practice cannot award spoken progression or XP', async () => {
   const wsSource = await readFile(new URL('./websocketManager.js', import.meta.url), 'utf8');
   const appSource = await readFile(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
-  assert.match(wsSource, /const meaningful\s*=\s*\(metrics\.answers[\s\S]*evidenceQuality\.eligible\s*===\s*true/u);
+  // The counting gate must read the SAME v2 field the CEFR grade path enforces. The old
+  // `evidenceQuality.eligible` was a v1 field the v2 object never computes — permanently false,
+  // so NO interview counted (live-proven 07-20). Pin the field name AND that it actually exists
+  // on the quality object, so a phantom-field regression can never ship silently again.
+  assert.match(wsSource, /const meaningful\s*=\s*\(metrics\.answers[\s\S]*evidenceQuality\.prescriptionEligible\s*===\s*true/u);
+  assert.doesNotMatch(wsSource, /evidenceQuality\.eligible\b/u, 'the phantom v1 field must stay dead');
+  assert.ok(Object.hasOwn(speakingEvidenceQuality([]), 'prescriptionEligible'),
+    'the gate field must exist on the v2 quality object');
   assert.match(wsSource, /session NOT counted \(insufficient trusted speech\)/u);
   assert.match(wsSource, /score >= 68 && isTrustedSpokenEvidence\(spokenEvidence\)/u);
   assert.match(appSource, /TIPPÜBUNG ABGESCHLOSSEN/u);
