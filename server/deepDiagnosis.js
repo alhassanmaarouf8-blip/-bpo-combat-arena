@@ -31,9 +31,15 @@ const RETRY_DELAYS  = [0, 2_000, 8_000];   // spec: retry with backoff before qu
 function deepProviders() {
   return [
     { name: 'groq',     base: 'https://api.groq.com/openai/v1',
-      key: process.env.GROQ_API_KEY,     model: DEEP_MODEL },
+      key: process.env.GROQ_API_KEY,     model: DEEP_MODEL,
+      maxTokens: 5000, extra: {} },
+    // gpt-oss-120b is the PROVEN model on this Cerebras account (the boss runs on it; live log
+    // 73a7b0e3 showed llama-3.3-70b → 404 model_not_found there — provider catalogs differ, never
+    // assume). Reasoning model: reasoning_effort low + extra completion headroom, or the visible
+    // JSON gets eaten by the thinking budget (same lesson as realtimeClient's boss config).
     { name: 'cerebras', base: process.env.CEREBRAS_BASE_URL || 'https://api.cerebras.ai/v1',
-      key: process.env.CEREBRAS_API_KEY, model: process.env.CEREBRAS_DEEP_MODEL ?? 'llama-3.3-70b' },
+      key: process.env.CEREBRAS_API_KEY, model: process.env.CEREBRAS_DEEP_MODEL ?? 'gpt-oss-120b',
+      maxTokens: 8000, extra: { reasoning_effort: 'low' } },
   ].filter((p) => p.key);
 }
 
@@ -268,7 +274,8 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
             headers: { 'Authorization': `Bearer ${p.key}`, 'Content-Type': 'application/json' },
             signal:  controller.signal,
             body: JSON.stringify({
-              model: p.model, temperature: 0.2, max_tokens: 5000,
+              model: p.model, temperature: 0.2, max_tokens: p.maxTokens,
+              ...(p.extra || {}),
               ...(withJsonMode ? { response_format: { type: 'json_object' } } : {}),
               messages,
             }),
