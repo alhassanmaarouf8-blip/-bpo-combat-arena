@@ -48,6 +48,18 @@ const TIER_BY_CATEGORY = {
 };
 const tierOf = (category) => TIER_BY_CATEGORY[category] ?? 1;
 
+// Live finding (acceptance runs 9a96e030/dea58862): the analyzer names the SAME underlying wall
+// slightly differently across days — "Gestern ich habe…" was VERB_POSITION one run and
+// WORTSTELLUNG the next. Repeat detection and file-closing therefore work at CATEGORY level,
+// with the verb-placement trio as one equivalence family: a file must not close while a sibling
+// name of the same problem is still failing, and a re-pick under a sibling name IS a repeat.
+const PLACEMENT_FAMILY = new Set(['VERB_POSITION', 'WORTSTELLUNG', 'SATZBAU_NEBENSATZ']);
+export function sameProblemFamily(catA, catB) {
+  if (!catA || !catB) return false;
+  if (catA === catB) return true;
+  return PLACEMENT_FAMILY.has(catA) && PLACEMENT_FAMILY.has(catB);
+}
+
 const r2 = (n) => Math.round(n * 100) / 100;
 const mean = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
 
@@ -183,12 +195,13 @@ export function buildWhy(selected, runnerUps) {
 // error rate dropped below the threshold (≤1 occurrence, none severity ≥4). A drilled file that
 // was re-examined without closing becomes 'retested'.
 export function updatePriorStatuses(records, todayEvents, { sessionId, now = 0 } = {}) {
-  const today = byCode(todayEvents);
   for (const rec of records || []) {
     if (rec.status === 'closed') continue;
-    const g = today.get(rec.code);
-    const occurrences = g ? g.events.length : 0;
-    const worst = g ? Math.max(...g.events.map((e) => e.severity || 1)) : 0;
+    // Closure counts every event in the record's problem FAMILY — an exact-subcode count let a
+    // file close while the same wall was still failing under a sibling name (live run dea58862).
+    const familyEvents = (todayEvents || []).filter((e) => sameProblemFamily(e.category, rec.category));
+    const occurrences = familyEvents.length;
+    const worst = familyEvents.length ? Math.max(...familyEvents.map((e) => e.severity || 1)) : 0;
     if (occurrences <= CLOSE_MAX_OCCURRENCES && worst < 4) {
       rec.status = 'closed';
       rec.closedAt = now;
@@ -224,10 +237,11 @@ export function selectBottleneck({ todayEvents = [], historyEvents = [], records
     runnerUps = [];
   }
 
-  // Repeat-day: the same code may win again, but it must be FLAGGED so Phase 4 generates
+  // Repeat-day: the same problem may win again, but it must be FLAGGED so Phase 4 generates
   // completely different exercises (exerciseHistory travels with the record for that call).
+  // Family-level match: a re-pick under a sibling name of the same wall is still a repeat.
   const prev = (records || []).filter((r) => r.status !== 'superseded').at(-1) || null;
-  const repeat = !!(prev && prev.code === selected.code && prev.status !== 'closed');
+  const repeat = !!(prev && prev.status !== 'closed' && sameProblemFamily(prev.category, selected.category));
   const dayStreak = repeat
     ? (prev.dayStreak || 1) + (prev.cairoDay && cairoDay && prev.cairoDay !== cairoDay ? 1 : 0)
     : 1;

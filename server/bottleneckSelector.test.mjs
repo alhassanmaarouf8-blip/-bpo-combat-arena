@@ -105,6 +105,30 @@ test('updatePriorStatuses: closes at ≤1 occurrence with no high severity; dril
   assert.equal(records[2].status, 'open');
 });
 
+test('family repeat: sibling category of the same wall re-selected → repeat flagged, history carried (live run dea58862)', () => {
+  const prev = selectBottleneck({
+    todayEvents: [ev('VERB_POSITION/verb_stellung_nach_zeitangabe', 's1'), ev('VERB_POSITION/verb_stellung_nach_zeitangabe', 's1')],
+    sessionId: 's1', cairoDay: '2026-07-20', now: 1, level: 'b2', answersAnalyzed: 8,
+  });
+  prev.exerciseHistory = ['ex-1'];
+  const next = selectBottleneck({
+    todayEvents: [ev('WORTSTELLUNG/verb_zu_anfang_zeitangabe', 's2'), ev('WORTSTELLUNG/verb_zu_anfang_zeitangabe', 's2')],
+    sessionId: 's2', cairoDay: '2026-07-21', now: 2, level: 'b2', answersAnalyzed: 8, records: [prev],
+  });
+  assert.equal(next.repeat, true);
+  assert.equal(next.dayStreak, 2);
+  assert.deepEqual(next.exerciseHistory, ['ex-1']);
+});
+
+test('family closure block: a file must not close while a sibling name of the same wall still fails', () => {
+  const records = [{ code: 'VERB_POSITION/verb_stellung_nach_zeitangabe', category: 'VERB_POSITION', status: 'open' }];
+  updatePriorStatuses(records, [ev('WORTSTELLUNG/verb_zu_anfang_zeitangabe', 's2'), ev('WORTSTELLUNG/verb_zu_anfang_zeitangabe', 's2')],
+    { sessionId: 's2', now: 5 });
+  assert.equal(records[0].status, 'open');   // 2 family occurrences → threshold not met
+  updatePriorStatuses(records, [ev('KASUS/x', 's3')], { sessionId: 's3', now: 6 });
+  assert.equal(records[0].status, 'closed'); // no family occurrences at all → closes
+});
+
 test('near-perfect interview: polish fallback, never "nothing to train"', () => {
   const rec = selectBottleneck({ todayEvents: [], sessionId: 's1', cairoDay: 'd', now: 1,
     level: 'b2', answersAnalyzed: 8, aggregates: { fillerCount: 0 }, metrics: { wpm: 150 },
