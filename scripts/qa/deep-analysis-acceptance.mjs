@@ -120,10 +120,12 @@ const substantive = analysis.answers.filter((a) => (a.original || '').split(/\s+
 const thin = substantive.filter((a) => a.alternativen.length < 2);
 if (thin.length) fail(`${thin.length} substantive answer(s) with <2 alternatives: ${thin.map((a) => 'A' + a.index).join(',')}`);
 
-// 5) error_events rows
+// 5) error_events rows — the log accumulates across the account's WHOLE history by design
+// (Phase-3 fuel), so the assertion filters to THIS interview's session.
 const ev = await api('/api/error-events', { headers: { Authorization: `Bearer ${TOKEN}` } });
-log(`error_events rows=${ev.body.events?.length}`);
-if ((ev.body.events?.length || 0) !== (agg.totalErrors || 0)) fail(`error_events (${ev.body.events?.length}) != totalErrors (${agg.totalErrors})`);
+const sessionRows = (ev.body.events || []).filter((e) => e.sessionId === sessionId).length;
+log(`error_events rows: total=${ev.body.events?.length}  this-session=${sessionRows}`);
+if (sessionRows !== (agg.totalErrors || 0)) fail(`error_events for session (${sessionRows}) != totalErrors (${agg.totalErrors})`);
 
 console.log('\n[deepqa] PASS — deep analysis detected the planted errors, alternatives present, error_events persisted.');
 console.log(`[deepqa] probe account: ${EMAIL} (delete via admin if desired)`);
