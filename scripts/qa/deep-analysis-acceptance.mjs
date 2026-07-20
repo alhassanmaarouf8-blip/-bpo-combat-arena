@@ -78,7 +78,7 @@ const debrief = await new Promise((resolve, reject) => {
       setTimeout(() => { if (!answeredThisTurn) sendAnswer(); }, 1200);
     } else if (m.type === 'debrief') {
       clearTimeout(die);
-      log(`debrief arrived  deepAnalysis=${JSON.stringify(m.deepAnalysis)}`);
+      log(`debrief arrived  generated=${m.generated}  deepAnalysis=${JSON.stringify(m.deepAnalysis)}`);
       try { ws.close(); } catch {}
       resolve(m);
     } else if (m.type === 'no_session') {

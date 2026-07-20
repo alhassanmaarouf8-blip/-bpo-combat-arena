@@ -5,9 +5,9 @@
  * Returns structured JSON merged into the debrief.
  */
 import { scrubStringsDeep } from './langGuard.js';
+import { chatWithFailover } from './llmFailover.js';
 
 const COACH_MODEL   = process.env.GROQ_COACH_MODEL ?? 'llama-3.3-70b-versatile';
-const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TIMEOUT_MS    = 12_000;
 
 const SYSTEM_PROMPT =
@@ -50,8 +50,7 @@ HARTE REGELN:
 - Antworte AUSSCHLIESSLICH mit dem JSON-Objekt, OHNE Markdown-Codeblöcke.`;
 
 export async function evaluateNaturalness({ utterances, level, csScenarioId }) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey || !utterances || utterances.length === 0) return null;
+  if ((!process.env.GROQ_API_KEY && !process.env.CEREBRAS_API_KEY) || !utterances || utterances.length === 0) return null;
 
   const lines = utterances
     .map((u, i) => `${i + 1}. ${u.text ?? ''}`)
@@ -62,33 +61,19 @@ export async function evaluateNaturalness({ utterances, level, csScenarioId }) {
     `Szenario: ${csScenarioId ?? 'unbekannt'}\n` +
     `Äußerungen des Kandidaten (nur Kandidatenseite):\n${lines}`;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
   try {
-    const res = await fetch(GROQ_CHAT_URL, {
-      method:  'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      signal:  controller.signal,
-      body: JSON.stringify({
-        model:           COACH_MODEL,
-        temperature:     0.3,
-        max_tokens:      600,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: userMsg },
-        ],
-      }),
+    const { content } = await chatWithFailover({
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user',   content: userMsg },
+      ],
+      temperature: 0.3,
+      maxTokens:   600,
+      timeoutMs:   TIMEOUT_MS,
+      groqModel:   COACH_MODEL,
+      tag:         'naturalness',
     });
-
-    if (!res.ok) {
-      console.error(`[naturalness] API error ${res.status}`);
-      return null;
-    }
-
-    const data   = await res.json();
-    const txt    = data.choices?.[0]?.message?.content ?? '{}';
+    const txt = content || '{}';
     // Scrub script-drift glyphs (the "兄" class) from every string field before anything is shown.
     const parsed = scrubStringsDeep(JSON.parse(txt));
 
@@ -120,7 +105,5 @@ export async function evaluateNaturalness({ utterances, level, csScenarioId }) {
   } catch (err) {
     console.error('[naturalness] evaluateNaturalness failed:', err.message);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }

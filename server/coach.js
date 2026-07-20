@@ -16,13 +16,13 @@ import { mergeGrammarSources, attachGrammarProvenance } from './grammarProvenanc
 import { evaluateNaturalness } from './naturalness.js';
 import { looksTruncatedDE, sessionSubstance, quoteHasLowConfidence } from './scoring/turnQuality.js';
 import { scrubStringsDeep, formalArabicMarkers } from './langGuard.js';
+import { chatWithFailover } from './llmFailover.js';
 
 // Debrief enrichment runs on Groq (OpenAI-compatible chat API) — no OpenAI. Grammar
 // stays authoritative from LanguageTool; the model only writes strengths/study-next/
 // vocab/upgrades + their Arabic. Without GROQ_API_KEY this degrades to a metrics-only
 // debrief (+ LanguageTool grammar), so the interview never depends on the model call.
 const COACH_MODEL   = process.env.GROQ_COACH_MODEL ?? 'llama-3.3-70b-versatile';
-const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TIMEOUT_MS    = 30_000;
 
 const SYSTEM_PROMPT =
@@ -97,7 +97,8 @@ HARTE REGELN:
 - NIVEAU für interviewReview: a2-b1 → höchstens 2–3 Einträge, sanft, ein Fix pro Eintrag, nie überfordernd. b2 → hoher Maßstab, benenne fehlende Ergebnisse/Lösungen klar, aber immer mit dem konkreten Fix.`;
 
 export async function generateDebrief({ utterances, dialogue, history, metrics, level, csScenarioId }) {
-  const apiKey = process.env.GROQ_API_KEY;
+  // "No key" now means NO provider at all — with only Cerebras configured the debrief still runs.
+  const apiKey = process.env.GROQ_API_KEY || process.env.CEREBRAS_API_KEY;
   // Deterministic, 100%-accurate "you progressed" narrative from the user's OWN past sessions
   // (never the model's opinion). Always attached so the numbers can never be wrong.
   const progressNarrative = buildProgress(history, metrics);
@@ -174,42 +175,31 @@ export async function generateDebrief({ utterances, dialogue, history, metrics, 
     `DAS ECHTE GESPRÄCH (B = Interviewer, K = Kandidat) — analysiere "interviewReview" auf DIESER Grundlage:\n${transcriptBlock}\n\n` +
     `Äußerungen des Kandidaten (chronologisch, mit Pace pro Antwort):\n${sentences}`;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  const coachFetch = fetch(GROQ_CHAT_URL, {
-    method:  'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    signal:  controller.signal,
-    body: JSON.stringify({
-      model:           COACH_MODEL,
-      temperature:     0.2,
-      max_tokens:      3200,   // larger now to fit the per-exchange interviewReview
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user',   content: userMsg },
-      ],
-    }),
+  // Provider failover (owner approval 2026-07-20): a capped/down Groq no longer degrades the
+  // debrief to metrics-only — the same chain that saved the boss and the deep analysis.
+  const coachCall = chatWithFailover({
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user',   content: userMsg },
+    ],
+    temperature: 0.2,
+    maxTokens:   3200,   // larger now to fit the per-exchange interviewReview
+    timeoutMs:   TIMEOUT_MS,
+    groqModel:   COACH_MODEL,
+    tag:         'coach',
   });
 
   // Run naturalness evaluator in parallel — zero added latency.
   const [coachResult, naturalResult] = await Promise.allSettled([
-    coachFetch,
+    coachCall,
     evaluateNaturalness({ utterances, level, csScenarioId }),
   ]);
-
-  clearTimeout(timer);
 
   const naturalness = naturalResult.status === 'fulfilled' ? naturalResult.value?.naturalness ?? null : null;
 
   try {
     if (coachResult.status === 'rejected') throw coachResult.reason;
-    const res = coachResult.value;
-    if (!res.ok) throw new Error(`coach API ${res.status} ${await res.text().catch(() => '')}`);
-
-    const data   = await res.json();
-    const txt    = data.choices?.[0]?.message?.content ?? '{}';
+    const txt = coachResult.value.content || '{}';
     // Scrub script-drift glyphs (CJK/Cyrillic/… — the "兄" class of glitch) from EVERY string
     // field, incl. _ar: the debrief is one-of-a-kind text with no curated pool to fall back to,
     // so stripping the glyph is the only $0 fix that keeps the rest of the (fine) content.

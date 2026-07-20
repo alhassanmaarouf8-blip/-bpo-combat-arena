@@ -17,8 +17,8 @@
  *   [{ rule, explanation, explanation_ar, ltRuleId, ltCategoryId, examples:[{wrong, right, fragment...}] }]
  */
 import { looksTruncatedDE, looksLikeTrustworthyCorrection } from './scoring/turnQuality.js';
+import { chatWithFailover } from './llmFailover.js';
 
-const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL      = process.env.GROQ_GRAMMAR_MODEL ?? 'llama-3.3-70b-versatile';
 const TIMEOUT_MS = 12_000;
 
@@ -57,8 +57,7 @@ Für jeden ECHTEN Fehler geben:
  * @returns {Promise<Array|null>} grammar array (buildGrammar shape) or null on failure (→ caller falls back)
  */
 export async function buildGrammarLLM(utterances) {
-  const key = process.env.GROQ_API_KEY;
-  if (!key) return null;
+  if (!process.env.GROQ_API_KEY && !process.env.CEREBRAS_API_KEY) return null;
 
   // Only check clean, complete turns (law 7: never grade a cut-off fragment).
   const clean = (utterances || [])
@@ -67,34 +66,24 @@ export async function buildGrammarLLM(utterances) {
   if (!clean.length) return [];
   const doc = clean.join('\n');
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   let errors;
   try {
-    const res = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL,
-        temperature: 0,                       // deterministic → same text, same verdict
-        max_tokens: 900,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: SYSTEM },
-          { role: 'user', content: `Transkript des Kandidaten (jede Zeile eine Aussage):\n${doc}` },
-        ],
-      }),
+    const { content } = await chatWithFailover({
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: `Transkript des Kandidaten (jede Zeile eine Aussage):\n${doc}` },
+      ],
+      temperature: 0,                       // deterministic → same text, same verdict
+      maxTokens: 900,
+      timeoutMs: TIMEOUT_MS,
+      groqModel: MODEL,
+      tag: 'grammarLLM',
     });
-    if (!res.ok) { console.error(`[grammarLLM] API ${res.status}`); return null; }
-    const data = await res.json();
-    const parsed = JSON.parse(data.choices?.[0]?.message?.content ?? '{}');
+    const parsed = JSON.parse(content || '{}');
     errors = Array.isArray(parsed?.errors) ? parsed.errors : [];
   } catch (e) {
     console.error('[grammarLLM] failed:', e.message);
     return null;                              // fail-safe → coach.js keeps LanguageTool/none
-  } finally {
-    clearTimeout(timer);
   }
 
   // ── Guards: quote-verify, no-change, trustworthy-correction ──────────────────────────────────
