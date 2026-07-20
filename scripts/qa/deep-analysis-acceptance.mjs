@@ -42,15 +42,22 @@ async function api(path, opts = {}) {
   return { ok: r.ok, status: r.status, body: j };
 }
 
-// 1) Fresh account
+// 1) Fresh account — or login when PROBE_EMAIL points at an existing (verified) probe account.
+let TOKEN = null;
 const su = await api('/api/auth/signup', { method: 'POST', body: JSON.stringify({ email: EMAIL, password: PASS }) });
-if (!su.ok || !su.body.token) fail(`signup ${su.status} ${JSON.stringify(su.body)}`);
-const TOKEN = su.body.token;
-log('account created', EMAIL);
+if (su.ok && su.body.token) { TOKEN = su.body.token; log('account created', EMAIL); }
+else {
+  const li = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email: EMAIL, password: PASS }) });
+  if (!li.ok || !li.body.token) fail(`signup ${su.status} ${JSON.stringify(su.body)} / login ${li.status} ${JSON.stringify(li.body)}`);
+  TOKEN = li.body.token; log('logged into existing probe account', EMAIL);
+}
 
 // 2) Typed interview over the real WS protocol
 const debrief = await new Promise((resolve, reject) => {
-  const ws = new WebSocket(WSU);
+  // The server denies originless upgrades (websocketOriginAllowed) — present the prod client
+  // origin like a browser would. Node's undici WebSocket accepts a non-standard headers option.
+  const ORIGIN = process.env.PROBE_ORIGIN || 'https://bpo-combat-arena.vercel.app';
+  const ws = new WebSocket(WSU, { headers: { Origin: ORIGIN } });
   let next = 0, started = false, answeredThisTurn = false;
   const die = setTimeout(() => { try { ws.close(); } catch {} reject(new Error('interview timed out (10 min)')); }, 600_000);
   const sendAnswer = () => {
