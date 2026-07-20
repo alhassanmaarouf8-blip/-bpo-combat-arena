@@ -203,7 +203,14 @@ export function computeAggregates(validated, utterances = []) {
   };
 }
 
-// ── The one full-transcript analysis call (retry-with-backoff inside; throws when exhausted) ───
+// ── The full-transcript analysis, CHUNKED (proven necessary on live session 2c76ea13: asking one
+// call for every answer × 2–3 alternatives × bilingual explanations exceeded the completion
+// budget → truncated JSON → parse-fail on every retry). Each call sees the WHOLE dialogue as
+// context but writes the full analysis for only GROUP_SIZE answers, so its output stays far
+// below the cap — and the model can no longer economize across nine answers. Groups run
+// sequentially (free-tier TPM friendliness); a failed group drops only its own answers. ───────
+const GROUP_SIZE = 4;
+
 export async function generateDeepAnalysis({ dialogue, utterances, metrics, level, csScenarioId, sessionId }) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('no_groq_key');
@@ -211,72 +218,101 @@ export async function generateDeepAnalysis({ dialogue, utterances, metrics, leve
   if (!candidateTurns.length) throw new Error('no_candidate_turns');
   const lowConfSet = new Set((utterances || []).flatMap((u) => u?.lowConf || []));
 
-  const userMsg =
+  const baseMsg =
     `Niveau: ${level}\nRollenspiel-Szenario: ${csScenarioId ?? 'unbekannt'}\n` +
     `Objektive Metriken (Kontext, nicht neu erfinden): ${JSON.stringify(metrics ?? {})}\n\n` +
-    `DAS VOLLSTÄNDIGE GESPRÄCH:\n${transcript}\n\n` +
-    `Analysiere jetzt JEDE Antwort A1..A${candidateTurns.length} vollständig als JSON.`;
+    `DAS VOLLSTÄNDIGE GESPRÄCH:\n${transcript}\n\n`;
 
   // A substantive answer with fewer than 2 alternatives misses the spec's mandate. Such an
-  // attempt is kept as fallback (never discarded — its errors are real) but retried once for a
-  // fuller pass; the BEST attempt (fewest thin answers, then most errors found) is returned.
+  // attempt is kept as fallback (never discarded — its errors are real) but retried for a
+  // fuller pass; per group the BEST attempt (fewest thin answers, then most errors) wins.
   const thinCount = (v) => v.answers.filter((a) =>
     !a.truncated && (a.original || '').split(/\s+/).length >= 6 && a.alternativen.length < 2).length;
 
-  let lastErr = null, best = null;
-  for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
-    if (RETRY_DELAYS[attempt]) await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const analyzeGroup = async (from, to) => {
+    const groupMsg = baseMsg +
+      `Analysiere JETZT NUR die Antworten A${from} bis A${to} — vollständig, jede einzeln, als JSON. ` +
+      `Die übrigen Antworten sind reiner Kontext und dürfen NICHT im JSON erscheinen.`;
+    let lastErr = null, best = null;
+    for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
+      if (RETRY_DELAYS[attempt]) await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const messages = [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user',   content: groupMsg },
+        ];
+        if (best && thinCount(best) > 0) {
+          messages.push({ role: 'user', content:
+            'Deine letzte Analyse hatte bei substanziellen Antworten weniger als 2 "alternativen". ' +
+            `Wiederhole die Analyse von A${from} bis A${to} als JSON mit GENAU 2–3 Alternativen (je mit "wann"-Zeilen) pro substanzieller Antwort.` });
+        }
+        const res = await fetch(GROQ_CHAT_URL, {
+          method:  'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          signal:  controller.signal,
+          body: JSON.stringify({
+            model: DEEP_MODEL, temperature: 0.2, max_tokens: 5000,
+            response_format: { type: 'json_object' },
+            messages,
+          }),
+        });
+        if (!res.ok) throw new Error(`deep API ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300));
+        const data   = await res.json();
+        const finish = data.choices?.[0]?.finish_reason;
+        const txt    = data.choices?.[0]?.message?.content ?? '{}';
+        const parsed = scrubStringsDeep(JSON.parse(txt));
+        const validated = validateDeepAnalysis(parsed, { candidateTurns, lowConfSet });
+        if (!validated) throw new Error(`schema_invalid (finish=${finish})`);
+        // Keep only this group's answers — out-of-range entries are context bleed, not analysis.
+        validated.answers = validated.answers.filter((a) => a.index >= from && a.index <= to);
+        validated.usage = {
+          promptTokens:     data.usage?.prompt_tokens     ?? 0,
+          completionTokens: data.usage?.completion_tokens ?? 0,
+        };
+        if (!best || thinCount(validated) < thinCount(best)
+          || (thinCount(validated) === thinCount(best)
+            && validated.answers.reduce((s, a) => s + a.errors.length, 0) > best.answers.reduce((s, a) => s + a.errors.length, 0))) {
+          best = validated;
+        }
+        console.log(`[deepDiagnosis] group A${from}-A${to} attempt ${attempt + 1} ok  session=${sessionId ?? '?'}  answers=${validated.answers.length}  thinAlt=${thinCount(validated)}  finish=${finish}  tokens=${validated.usage.promptTokens}in/${validated.usage.completionTokens}out`);
+        if (thinCount(best) === 0) return best;
+      } catch (err) {
+        lastErr = err;
+        console.error(`[deepDiagnosis] group A${from}-A${to} attempt ${attempt + 1}/${RETRY_DELAYS.length} failed  session=${sessionId ?? '?'}: ${err.message}`);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    if (best) return best;
+    throw lastErr ?? new Error('group_failed');
+  };
+
+  const merged = { answers: [], cefr: null, dropped: 0 };
+  const usage = { model: DEEP_MODEL, promptTokens: 0, completionTokens: 0 };
+  let failedGroups = 0, groupErr = null;
+  for (let from = 1; from <= candidateTurns.length; from += GROUP_SIZE) {
+    const to = Math.min(from + GROUP_SIZE - 1, candidateTurns.length);
     try {
-      const messages = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user',   content: userMsg },
-      ];
-      if (best && thinCount(best.validated) > 0) {
-        messages.push({ role: 'user', content:
-          'Deine letzte Analyse hatte bei mehreren substanziellen Antworten weniger als 2 "alternativen". ' +
-          'Wiederhole die KOMPLETTE Analyse als JSON und liefere für JEDE substanzielle Antwort GENAU 2–3 Alternativen mit "wann"-Zeilen.' });
-      }
-      const res = await fetch(GROQ_CHAT_URL, {
-        method:  'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        signal:  controller.signal,
-        body: JSON.stringify({
-          model: DEEP_MODEL, temperature: 0.2, max_tokens: 7500,
-          response_format: { type: 'json_object' },
-          messages,
-        }),
-      });
-      if (!res.ok) throw new Error(`deep API ${res.status} ${await res.text().catch(() => '')}`.slice(0, 300));
-      const data   = await res.json();
-      const txt    = data.choices?.[0]?.message?.content ?? '{}';
-      const parsed = scrubStringsDeep(JSON.parse(txt));
-      const validated = validateDeepAnalysis(parsed, { candidateTurns, lowConfSet });
-      if (!validated) throw new Error('schema_invalid');
-      const aggregates = computeAggregates(validated, utterances);
-      const usage = {
-        model: DEEP_MODEL,
-        promptTokens:     data.usage?.prompt_tokens     ?? null,
-        completionTokens: data.usage?.completion_tokens ?? null,
-      };
-      const candidate = { validated, aggregates, usage };
-      if (!best || thinCount(validated) < thinCount(best.validated)
-        || (thinCount(validated) === thinCount(best.validated) && aggregates.totalErrors > best.aggregates.totalErrors)) {
-        best = candidate;
-      }
-      // Token cost per analysis, always visible in the logs (spec §5).
-      console.log(`[deepDiagnosis] attempt ${attempt + 1} ok  session=${sessionId ?? '?'}  answers=${validated.answers.length}  errors=${aggregates.totalErrors}  thinAlt=${thinCount(validated)}  dropped=${validated.dropped}  tokens=${usage.promptTokens ?? '?'}in/${usage.completionTokens ?? '?'}out  model=${DEEP_MODEL}`);
-      if (thinCount(best.validated) === 0) return best;
+      const v = await analyzeGroup(from, to);
+      merged.answers.push(...v.answers);
+      merged.dropped += v.dropped;
+      if (!merged.cefr && v.cefr) merged.cefr = v.cefr;
+      usage.promptTokens     += v.usage.promptTokens;
+      usage.completionTokens += v.usage.completionTokens;
     } catch (err) {
-      lastErr = err;
-      console.error(`[deepDiagnosis] attempt ${attempt + 1}/${RETRY_DELAYS.length} failed  session=${sessionId ?? '?'}: ${err.message}`);
-    } finally {
-      clearTimeout(timer);
+      failedGroups++; groupErr = err;
+      console.error(`[deepDiagnosis] group A${from}-A${to} EXHAUSTED  session=${sessionId ?? '?'}: ${err.message}`);
     }
   }
-  if (best) return best;
-  throw lastErr ?? new Error('deep_analysis_failed');
+  if (!merged.answers.length) throw groupErr ?? new Error('deep_analysis_failed');
+  merged.answers.sort((a, b) => a.index - b.index);
+  const aggregates = computeAggregates(merged, utterances);
+  if (failedGroups) aggregates.incomplete = true;   // honest flag: part of the interview is missing
+  // Token cost per analysis, always visible in the logs (spec §5).
+  console.log(`[deepDiagnosis] analysis done  session=${sessionId ?? '?'}  answers=${merged.answers.length}  errors=${aggregates.totalErrors}  failedGroups=${failedGroups}  tokens=${usage.promptTokens}in/${usage.completionTokens}out  model=${DEEP_MODEL}`);
+  return { validated: merged, aggregates, usage };
 }
 
 export default { generateDeepAnalysis, validateDeepAnalysis, computeAggregates, numberedTranscript };
