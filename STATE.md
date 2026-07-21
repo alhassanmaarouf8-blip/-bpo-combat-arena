@@ -1,6 +1,37 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
-## 📞 CALL FLOOR PHASE 2 SHIPPED @ db2f954 (2026-07-21, owner "go") — DARK behind CALLFLOOR_ENABLED, awaiting merge + prod prove-it
+## ✅ DB "EMERGENCY" WAS A FALSE ALARM — PROD RUNS ON NEON, HEALTHY (resolved 2026-07-21)
+- Scare: Render `bpo-combat-db` (dpg-d8ljfipo3t8c73dgolf0-a, free) shows EXPIRED/Suspended,
+  "deleted in 4 days." I assumed it was production. **It is NOT.** Revealing the web service's
+  `DATABASE_URL` showed a **Neon** URL (`postgresql://neondb_owner:...@ep-misty-dew-...neon...`)
+  → production has been on **Neon** all along; the Render Postgres is an unused ORPHAN. Its
+  expiry is harmless (no prod data there). LESSON: verify WHICH db is wired (read DATABASE_URL)
+  before declaring a DB down — don't infer from a dashboard status badge.
+- PROOF prod is healthy: `curl /health` → `{"status":"ok","build":"ff14c9b"}`; **signup POST →
+  200 + token** (writes/reads Neon fine, account a_3afc4c31e9eeab69 created).
+- ⚠ I accidentally created a throwaway free Render `bpo-combat-db2` (dpg-d9ft2ifjqk9s73ev00t0-a)
+  during the false alarm, and nearly repointed DATABASE_URL at it — CAUGHT before saving (Ctrl+A
+  hit the page not the field; reloaded to discard). db2 is empty + unreferenced → delete it
+  (cleanup) or let it auto-expire. DATABASE_URL was NOT changed; Neon URL intact.
+
+
+## 📞✅ CALL FLOOR PHASES 1+2 LIVE + PROD PROVE-IT DONE @ ff14c9b (2026-07-21) — full spoken E2E confirmed
+- PR #20 MERGED via Chrome (Guardian green 1m). Deploy `ff14c9b` LIVE (`/health` build==ff14c9b).
+  `CALLFLOOR_ENABLED=1` SET on Render. Gating chain proven: no-auth→401, unverified→403.
+- ★ FULL SPOKEN CALL PROVEN ON PROD (curl + SAPI German WAVs, verified acct
+  alhassanmaarouf2+cfprove1@gmail.com, session cf_mrv3p027_fb9c15eb): state→4 quadrants; start→
+  ics-rechnung-doppelt; turn1 WAV→STT + persona IN CHARACTER ("Herr Brandt und ich bin sauer!")
+  mood 2→1; turn2 (agent apologizes+refund)→persona "Endlich jemand der mir zuhört!" mood 1→3
+  (ARC WORKS); verdict overall=80, verbatim-quote gate LIVE (deeskalation/struktur/loesung got
+  real quotes; empathie+effizienz quotes EMPTY not fabricated; resolved=null not faked).
+- ★ DUAL HARVEST confirmed in prod logs: `[callfloor/post] result saved overall=80` (call_results)
+  + `[deepDiagnosis] analysis done errors=7` + `[callfloor/post] language ready events=7` (7
+  error_events filed via the errors-only door → feeds next interview). Groq 429→Cerebras FAILOVER
+  fired + recovered live. `[callfloor/db] schema ensured (ai_usage_events)` on Neon.
+- Probe data (1 call/results/7 events) sits on prod under the cfprove1 account — harmless.
+- NEXT (needs owner go): Phase 3 shift mode (job-realistic core ONLY per anti-slop ruling).
+
+## 📞 CALL FLOOR PHASE 2 SHIPPED @ db2f954 (2026-07-21, owner "go") — superseded by the MERGED block above
 - 4-quadrant engine live on the branch: 12 scenarios (2 unsolvable graceful-no; german-check
   clean; OWNER-AR slots; no employer names) · cheap live loop (Groq Whisper STT → persona LLM via
   loggedChat → Aura-2 via existing drill TTS route, all metered) · persona self-reports mood
