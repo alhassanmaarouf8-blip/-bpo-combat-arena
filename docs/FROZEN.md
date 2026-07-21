@@ -54,6 +54,14 @@ entry in `_overlays` will be proposed as the single, owner-approved wiring excep
 global BACK contract physically lives in App.jsx. Until the owner approves that line, Mode 2
 touches no client file.)
 
+## Named wiring exceptions (Phase 2, 2026-07-21 — the ONLY Mode 1 lines Mode 2 may own)
+Every "alongside" mode needs an entry point; these are the two, each flag-gated and inert when
+`CALLFLOOR_ENABLED` is off (test-pinned: flag off ⇒ the API answers the catch-all's identical 404):
+1. `server/server.js` — one import + one `app.use('/api', callfloorRouter)` line.
+2. `client/src/main.jsx` — the `?callfloor` param branch (lazy chunk; mirrors the shipped
+   `?feedback` pattern; App.jsx and the protected home are untouched).
+Anything beyond these two lines in any frozen file is a violation, not an extension.
+
 ## Explicitly OUTSIDE the freeze (owner decision, 2026-07-21)
 Billing/plan files — `plans.config.js`, `plans.js`, `payments.js`, `paymentsStore.js`,
 `auth.js` (entitlements), `admin.js` — because the owner ruled that Call Floor plans EXTEND the
