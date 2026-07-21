@@ -17,6 +17,8 @@ import { runPostCall } from './postCall.js';
 import { listCallResults, secondsUsedToday } from './resultsStore.js';
 import { dayKey } from '../time.js';
 import * as cs from './callSession.js';
+import * as shift from './shift.js';
+import { shiftReport, careerProfile, scoreDelta, floorScore } from './analytics.js';
 
 export const callfloorRouter = express.Router();
 
@@ -53,6 +55,15 @@ function sessionOr404(req, res) {
   return session;
 }
 
+// The honest Floor-Score delta for a just-judged call: score across all prior calls vs including
+// this one. Never fabricated — null when there isn't enough scored evidence yet.
+async function deltaFor(userId, result) {
+  if (!result) return null;
+  const all = await listCallResults(userId).catch(() => []);
+  const prior = all.filter((r) => r.sessionId !== result.sessionId);
+  return scoreDelta(prior, result);
+}
+
 // ── State: quadrants + today's remaining allowance ────────────────────────────────────────────
 callfloorRouter.get('/callfloor/state', requireAuth, async (req, res) => {
   try {
@@ -61,6 +72,7 @@ callfloorRouter.get('/callfloor/state', requireAuth, async (req, res) => {
       quadrants: Object.entries(QUADRANTS).map(([id, q]) => ({ id, label_de: q.label_de, label_ar: q.label_ar, skill_de: q.skill_de })),
       usedTodaySec: used,
       dailyLimitSec: cs.dailyLimitSec(),
+      shiftOptions: shift.SHIFT_MINUTES,
       results: (await listCallResults(req.account.id)).slice(-20).map((r) => ({
         quadrant: r.quadrant, scenarioId: r.scenarioId, resolved: r.resolved,
         satisfactionFinal: r.satisfactionFinal, overall: r.meta?.overall ?? null, createdAt: r.createdAt,
@@ -164,7 +176,7 @@ callfloorRouter.post('/callfloor/session/:id/end',
         return res.json({ sessionId: session.id, pending: true,
           handleSeconds: Math.round((session.endedAt - session.startedAt) / 1000), satisfactionFinal: session.finalMood });
       }
-      res.json({ sessionId: session.id, pending: false, result });
+      res.json({ sessionId: session.id, pending: false, result, scoreDelta: await deltaFor(req.account.id, result) });
     } catch (err) {
       console.error('[callfloor] end failed:', err.message);
       res.status(500).json({ error: 'end_failed' });
@@ -179,15 +191,70 @@ callfloorRouter.get('/callfloor/session/:id/result', requireAuth, async (req, re
     if (inFlight) {
       const r = await Promise.race([inFlight, new Promise((r2) => setTimeout(() => r2('pending'), 100))]);
       if (r === 'pending') return res.json({ pending: true });
-      if (r) return res.json({ pending: false, result: r });
+      if (r) return res.json({ pending: false, result: r, scoreDelta: await deltaFor(req.account.id, r) });
     }
     const all = await listCallResults(req.account.id);
     const found = all.find((r) => r.sessionId === id);
-    if (found) return res.json({ pending: false, result: found });
+    if (found) return res.json({ pending: false, result: found, scoreDelta: await deltaFor(req.account.id, found) });
     res.json({ pending: !!inFlight, result: null, failed: !inFlight });   // honest: judge failed / unknown id
   } catch (err) {
     console.error('[callfloor] result failed:', err.message);
     res.status(500).json({ error: 'result_failed' });
+  }
+});
+
+// ── Shift Mode: start a run of back-to-back calls (time budget clamped to the daily ceiling) ────
+callfloorRouter.post('/callfloor/shift',
+  requireAuth, express.json(),
+  rateLimit({ windowMs: 10 * 60 * 1000, max: 20, tag: 'callfloor-shift', keyExtra: (req) => req.account.id }),
+  async (req, res) => {
+    try {
+      const out = await shift.startShift({ userId: req.account.id, targetMin: req.body?.targetMin });
+      if (out.error) return res.status(429).json(out);
+      res.json({ shiftId: out.shift.id, targetSec: out.shift.targetSec, startedAt: out.shift.startedAt,
+        remainingDailySec: out.remainingDailySec, options: shift.SHIFT_MINUTES });
+    } catch (err) {
+      console.error('[callfloor] shift start failed:', err.message);
+      res.status(500).json({ error: 'shift_failed' });
+    }
+  });
+
+// ── Shift report: the BPO supervisor read of the active shift's calls (server-computed) ─────────
+callfloorRouter.get('/callfloor/shift/report', requireAuth, async (req, res) => {
+  try {
+    const s = shift.getShift(req.account.id);
+    if (!s) return res.json({ active: false });
+    const all = await listCallResults(req.account.id);
+    const report = shiftReport(shift.resultsInShift(s, all));
+    res.json({ active: true, targetSec: s.targetSec, elapsedSec: Math.round((Date.now() - s.startedAt) / 1000), report });
+  } catch (err) {
+    console.error('[callfloor] shift report failed:', err.message);
+    res.status(500).json({ error: 'report_failed' });
+  }
+});
+
+// Close the shift (client calls when the budget is spent or the learner stops) → final report.
+callfloorRouter.post('/callfloor/shift/end', requireAuth, express.json(), async (req, res) => {
+  try {
+    const s = shift.getShift(req.account.id);
+    const all = await listCallResults(req.account.id);
+    const report = shiftReport(shift.resultsInShift(s, all));
+    shift.endShift(req.account.id);
+    res.json({ report });
+  } catch (err) {
+    console.error('[callfloor] shift end failed:', err.message);
+    res.status(500).json({ error: 'shift_end_failed' });
+  }
+});
+
+// ── Quadrant Career Profile: demonstrated skill per seat + best seat + rejection stamina ────────
+callfloorRouter.get('/callfloor/profile', requireAuth, async (req, res) => {
+  try {
+    const all = await listCallResults(req.account.id);
+    res.json({ totalCalls: all.length, profile: careerProfile(all), floorScore: floorScore(all) });
+  } catch (err) {
+    console.error('[callfloor] profile failed:', err.message);
+    res.status(500).json({ error: 'profile_failed' });
   }
 });
 
