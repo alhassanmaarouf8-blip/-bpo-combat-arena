@@ -15,6 +15,25 @@
   (cleanup) or let it auto-expire. DATABASE_URL was NOT changed; Neon URL intact.
 
 
+## 📞✅ CALL FLOOR PHASE 3 LIVE + PROD-PROVEN @ 87d12c8 (2026-07-21) — Shift/Profile/Stamina, core-only
+- PR #21 MERGED to main (Guardian green 1m), deploy `87d12c8` LIVE. Anti-slop ruling honored:
+  real BPO metrics ONLY (no bonuses/streaks/rarity). Isolation vs main = 7 files, all Mode 2 +
+  STATE.md, ZERO Mode 1 touched. 38/38 callfloor tests (added analytics 8 + shift 4).
+- Built: `analytics.js` (floorScore, shiftReport, careerProfile, rejectionStamina, scoreDelta —
+  pure, honest denominators, honest-when-thin) + `shift.js` (in-memory shift, budget clamped to
+  daily ceiling, shift = call_results in its time window — no new table/schema) + routes
+  (POST /callfloor/shift, GET /shift/report, POST /shift/end, GET /profile; end/result carry
+  scoreDelta; state serves shiftOptions) + CallFloor.jsx (shift flow, score-delta card, profile
+  screen).
+- ★ PROD PROVE-IT (prove account, session sh_2026-07-21_...): shift start targetSec=596 (clamped
+  to remaining daily budget) ✓ · 2 back-to-back calls diff quadrants, outbound flow "Frau Berger.
+  Hallo?" (student opens) ✓ · Floor-Score delta 80→57 (−23) then 57→51 (−6) — HONEST drop ✓ ·
+  shift report callsHandled=2 resolvedPct=null(not 0%) avgSat=1.5 floorScore=37 best/hardest with
+  enriched titles ✓ · career profile: inbound_cs tested(2 calls,57,top=deeskalation), others
+  tested=false, bestSeat=inbound_cs, trainUp=null, rejectionStamina measurable=false (only 1
+  outbound sales call — HONEST abstention) ✓ · floorScore across 3 calls = 51 ✓.
+- NEXT (needs owner go): Phase 4 (plans/entitlements — extend Basic/Elite) → Phase 6 margin engine.
+
 ## 📞✅ CALL FLOOR PHASES 1+2 LIVE + PROD PROVE-IT DONE @ ff14c9b (2026-07-21) — full spoken E2E confirmed
 - PR #20 MERGED via Chrome (Guardian green 1m). Deploy `ff14c9b` LIVE (`/health` build==ff14c9b).
   `CALLFLOOR_ENABLED=1` SET on Render. Gating chain proven: no-auth→401, unverified→403.
