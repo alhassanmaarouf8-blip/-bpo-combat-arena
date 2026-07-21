@@ -1,5 +1,26 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 📞 CALL FLOOR PHASE 1 SHIPPED @ d9d2249 (2026-07-21) — branch `feature/callfloor-phase1`, AWAITING OWNER GO on Phase 2
+- New owner build track (pasted phase doc): Call Floor (Mode 2) — live simulated phone calls, 4
+  quadrants + margin engine (≥80% GM). RULE ZERO: Mode 1 (the daily loop) is FROZEN — Phase 1
+  proof: `git diff --name-status main...HEAD` = 10 A-lines, ZERO M. Owner decisions locked:
+  phase-at-a-time · masri law stands (OWNER-AR slots) · Phase-3 mechanics = job-realistic core
+  ONLY (no random bonuses/legendary events/streaks — anti-slop) · plans EXTEND Basic/Elite.
+- Shipped: `docs/FROZEN.md` (freeze manifest; billing files outside) · `docs/AUDIT_CALLFLOOR.md`
+  (isolation plan, stack map, unit costs, Phase 2–6 gaps) · `docs/PRICEBOOK.md` +
+  `server/callfloor/` (ai_usage_events w/ DUAL pricing usd_actual/usd_list — margins compute at
+  LIST; loggedChat wrapper over unmodified chatWithFailover; own pg pool + additive schema;
+  11/11 tests) · `scripts/callfloor/backfill-usage.mjs` (zero-LLM, measured=false, dry-run-first).
+- Gates: lint ✓ design-lint ✓ suite 880/882 (2 fails = PRE-EXISTING credential-gated
+  vertex-proof tests, no key locally) client build ✓. Branch pushed; PR not yet opened.
+- ⚠ OWNER ITEMS: (1) set `DATABASE_URL` on Render — usage telemetry (and learner data) is
+  ephemeral without it; (2) Phase 2 design call: may a CALL mint the daily bottleneck via
+  `startAnalysisForSession` (full chain) or errors-only (needs a narrower additive door)?
+  (3) callfloor tests not in the verify-gate glob — Phase 2 adds `server/callfloor/*.test.mjs`.
+- Loss-flag for Phase 6: Groq free tier 100k tok/DAY app-wide ≈ ~4 calls/day → Call Floor at
+  scale runs at LIST rates; 80% GM fails TODAY at worst-case usage (plans.config pin) — the
+  allowance formula is the fix, not hope.
+
 ## 📜 DRILL-PRESCRIPTION DOCTRINE (2026-07-20, owner correction → research phase DONE)
 - Owner corrected the v2 understanding: detect everything ✓, ONE problem via fixed researched
   hierarchy ✓ (exists, v1) — but "drill then retest is bullshit": he demands a SERIES of exercises
