@@ -1,6 +1,31 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
-## 📞 CALL FLOOR PHASE 1 SHIPPED @ d9d2249 (2026-07-21) — branch `feature/callfloor-phase1`, AWAITING OWNER GO on Phase 2
+## 📞 CALL FLOOR PHASE 2 SHIPPED @ db2f954 (2026-07-21, owner "go") — DARK behind CALLFLOOR_ENABLED, awaiting merge + prod prove-it
+- 4-quadrant engine live on the branch: 12 scenarios (2 unsolvable graceful-no; german-check
+  clean; OWNER-AR slots; no employer names) · cheap live loop (Groq Whisper STT → persona LLM via
+  loggedChat → Aura-2 via existing drill TTS route, all metered) · persona self-reports mood
+  [STIMMUNG:n] → satisfaction face (character state, never fabricated measurement) · walls: 4min
+  + 8 turns + CALLFLOOR_DAILY_MIN (durable from second zero) + voiced-floor 422 anti-farm.
+- DUAL HARVEST post-call on text: (a) ERRORS-ONLY door — exported generateDeepAnalysis →
+  appendErrorEvents; **calls feed evidence, interviews mint bottlenecks** (my design call under
+  owner "go" — resolves the Phase-1 open question with the spec's own words); (b) quadrant rubric
+  judge, verbatim-quote gate (fabricated quote → dropped; fake resolved → null) → call_results.
+- Client = standalone `?callfloor` root (lazy 9.6KB chunk; main.jsx branch mirrors ?feedback);
+  home/App.jsx untouched. Wiring = EXACTLY the 2 named exceptions in docs/FROZEN.md; isolation
+  proof: diff vs main = 20 A + M only on server.js(+5)/main.jsx(+10-2)/STATE.md. Kill switch
+  test-pinned (flag off ⇒ catch-all-identical 404).
+- Gates: lint ✓ design-lint 22 residues (=baseline, 0 new) ✓ suite 895/897 (2 pre-existing
+  vertex-proof credential fails) ✓ client build ✓ 26/26 callfloor tests ✓ german-check ✓.
+- Local live E2E (port 3021): login→state→start→durable session row→honest 502 PROVEN; LLM legs
+  (STT/persona/judge/analysis) blocked locally — ⚠ server/.env is UTF-16-corrupted AND its Groq
+  key is DEAD (independent 401). Owner: re-save server/.env as plain UTF-8 with a current key if
+  local dev should work.
+- OWNER PROVE-IT after merge: set CALLFLOOR_ENABLED=1 (+DATABASE_URL!) on Render → open
+  app URL + `?callfloor` logged in → one call per quadrant on real mic → check verdict quotes are
+  verbatim, satisfaction face tracks the customer, errors appear in the next interview's dossier.
+- NEXT (needs owner go): Phase 3 shift mode (job-realistic core ONLY per anti-slop ruling).
+
+## 📞 CALL FLOOR PHASE 1 SHIPPED @ d9d2249 (2026-07-21) — branch `feature/callfloor-phase1`, Phase 2 built on top same day
 - New owner build track (pasted phase doc): Call Floor (Mode 2) — live simulated phone calls, 4
   quadrants + margin engine (≥80% GM). RULE ZERO: Mode 1 (the daily loop) is FROZEN — Phase 1
   proof: `git diff --name-status main...HEAD` = 10 A-lines, ZERO M. Owner decisions locked:
