@@ -1,4 +1,4 @@
-import { StrictMode, Component } from 'react';
+import { StrictMode, Component, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import PublicFeedback from './PublicFeedback.jsx';
@@ -8,6 +8,10 @@ import { VoiceLabOverlay } from './VoiceLabOverlay.jsx';
 // A shareable link (?feedback) lands directly on the standalone feedback page — no login,
 // no hunting for the in-app button. Everything else renders the full app as before.
 const IS_FEEDBACK = /[?&]feedback\b/.test(window.location.search);
+// Call Floor (Mode 2) — named wiring exception per docs/FROZEN.md: ?callfloor renders the
+// standalone floor (lazy chunk, main bundle untouched); server-side CALLFLOOR_ENABLED gates it.
+const IS_CALLFLOOR = /[?&]callfloor\b/.test(window.location.search);
+const CallFloor = lazy(() => import('./CallFloor.jsx'));
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
@@ -73,7 +77,9 @@ try {
   createRoot(document.getElementById('root')).render(
     <StrictMode>
       <RootBoundary>
-        {IS_FEEDBACK ? <PublicFeedback /> : <><App /><VoiceLabOverlay /></>}
+        {IS_FEEDBACK ? <PublicFeedback />
+          : IS_CALLFLOOR ? <Suspense fallback={null}><CallFloor /></Suspense>
+          : <><App /><VoiceLabOverlay /></>}
       </RootBoundary>
     </StrictMode>,
   );
