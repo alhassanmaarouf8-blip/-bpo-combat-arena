@@ -4647,6 +4647,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
   const [personalStepOpen, setPersonalStepOpen] = useState(false); // Phase 4: the personal step behind the debrief's blue button
+  const [resumeStep, setResumeStep] = useState(null); // home re-entry: the active, NOT-completed personal step from the last interview (null = none/completed → no card)
   // Series stage variants (drill-prescription doctrine): 'find' = FINDE-DEN-FEHLER (Stage A),
   // 'tempo' = timed SAG-ES-RICHTIG (Stage C). Reset on close so manual opens get the classic drill.
   const [spokenReviewMode, setSpokenReviewMode] = useState(null);
@@ -6006,6 +6007,23 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     return () => { cancelled = true; };
   }, [authHeaders]);
 
+  // ── Home re-entry: is there an active, UNFINISHED personal step to resume? ──
+  // Owner nav call: after an interview the personalized exercises must be reachable from the home,
+  // not only via the next debrief. The server already resolves the newest step at
+  // GET /api/personal-step (404 = none). Show the card ONLY when a step exists AND isn't completed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/personal-step`, { headers: authHeaders(), cache: 'no-store' });
+        if (!r.ok) { if (!cancelled) setResumeStep(null); return; }   // 404 no_personal_step → no card
+        const data = await r.json();
+        if (!cancelled) setResumeStep(data && data.completed === false && data.set ? data : null);
+      } catch { if (!cancelled) setResumeStep(null); }   // fail-closed: never a broken card
+    })();
+    return () => { cancelled = true; };
+  }, [authHeaders]);
+
   // ── Derived display state ─────────────────────────────────────────────────
   const [targetIndustrySaving, setTargetIndustrySaving] = useState(false);
   const isActive     = phase === 'active';
@@ -7199,6 +7217,48 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           </div>
         )}
         {homeTab === 'ueben' && canStart && !firstRun && (
+          <>
+          {/* Re-entry to the personalized exercises from the last interview (owner nav call). Shown ONLY
+              when an active, unfinished step exists — resumes exactly where the learner left off. The
+              "OFFENE MASSNAHME" / OFFEN treatment previews the "Die Akte" direction. Focus + N/M are REAL
+              (set.title_de and per-item repsDone from the server), never invented. */}
+          {resumeStep && (() => {
+            const items = [ ...(resumeStep.set.stage1 || []), ...(resumeStep.set.stage2 || []), ...(resumeStep.set.stage3 || []) ];
+            const total = items.length;
+            const done  = items.filter(i => (i.repsDone || 0) >= (i.reps || 1)).length;
+            const focus = resumeStep.set?.title_de || '';
+            const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+            return (
+              <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'15px 16px', position:'relative', overflow:'hidden',
+                background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
+                <span style={{ position:'absolute', top:13, right:13, fontFamily:'var(--font-display)', fontSize:9, fontWeight:800,
+                  letterSpacing:'0.14em', color:'var(--action)', border:'1px solid rgba(249,115,22,0.55)',
+                  borderRadius:'var(--r-pill)', padding:'3px 8px' }}>OFFEN</span>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:9.5, fontWeight:700, letterSpacing:'0.12em',
+                  textTransform:'uppercase', color:'var(--text-faint)' }}>Offene Maßnahme{/* OWNER-AR slot */}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginTop:4 }}>
+                  Deine Übungen
+                </div>
+                <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.4 }}>
+                  Aus deinem Interview{focus ? ` · ${focus}` : ''} — weiter, wo du aufgehört hast.{/* OWNER-AR slot */}
+                </div>
+                {total > 0 && (
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:12 }}>
+                    <div style={{ flex:1, height:6, borderRadius:'var(--r-pill)', background:'var(--line)', overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${pct}%`, background:'var(--accent)', borderRadius:'var(--r-pill)' }} />
+                    </div>
+                    <span style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-meta)', fontWeight:700,
+                      color:'var(--text-dim)', fontVariantNumeric:'tabular-nums' }}>{done} / {total}</span>
+                  </div>
+                )}
+                <button onClick={() => setPersonalStepOpen(true)} style={{ marginTop:13, width:'100%', padding:'13px', minHeight:48,
+                  cursor:'pointer', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:700, letterSpacing:'0.02em',
+                  borderRadius:12, border:'none', color:'#081019', background:'var(--grad-action)', boxShadow:'var(--shadow-action)' }}>
+                  Weiter an der Akte arbeiten{/* OWNER-AR slot */}
+                </button>
+              </div>
+            );
+          })()}
           <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'14px', background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-h2)', color:'var(--text)', marginBottom:3 }}>
@@ -7226,7 +7286,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
                   {t.due > 0 ? (
                     <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
-                      color:'var(--action)', border:'1px solid rgba(249,115,22,0.5)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
+                      color: resumeStep ? 'var(--text-dim)' : 'var(--action)',
+                      border: resumeStep ? '1px solid var(--line-strong)' : '1px solid rgba(249,115,22,0.5)',
+                      borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       {t.due} fällig
                     </span>
                   ) : t.badge && (
@@ -7245,6 +7307,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               ))}
             </div>
           </div>
+          </>
         )}
 
         {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting.
