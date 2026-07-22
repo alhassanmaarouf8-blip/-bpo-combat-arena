@@ -65,10 +65,10 @@ test('callFloorFor fails closed: unknown plan → zero minutes, no seats', () =>
 
 // ── Margin config ─────────────────────────────────────────────────────────────────────────────
 test('margin: EGP→USD, net revenue after fee, gross margin', () => {
-  assert.equal(EGP_PER_USD.rate, 49);
-  assert.ok(Math.abs(egpToUsd(49) - 1) < 1e-9);
-  const net999 = netRevenueUsd(999);                       // (999/49)*0.95 − 0.5
-  assert.ok(Math.abs(net999 - ((999 / 49) * (1 - PAYMENT_FEE.pct) - PAYMENT_FEE.fixedUsd)) < 1e-9);
+  assert.equal(EGP_PER_USD.rate, 51);
+  assert.ok(Math.abs(egpToUsd(51) - 1) < 1e-9);
+  const net999 = netRevenueUsd(999);                       // Vodafone Cash: (999/51)*(1−0) − 0
+  assert.ok(Math.abs(net999 - ((999 / 51) * (1 - PAYMENT_FEE.pct) - PAYMENT_FEE.fixedUsd)) < 1e-9);
   assert.equal(netRevenueUsd(0), 0);                       // free plan → no revenue
   assert.equal(grossMargin(20, 4), 0.8);
   assert.equal(grossMargin(0, 5), null);                   // no revenue → margin undefined (not −Inf)
@@ -93,8 +93,8 @@ test('ledger: month-to-date sums only THIS month; margin computed vs net revenue
   const led = await userLedger({ id: 'u', subscription: { plan: 'basic' } }, now);
   assert.equal(led.planId, 'basic');
   assert.equal(led.priceEgp, 999);
-  assert.ok(led.revenueUsd > 18 && led.revenueUsd < 19);
-  assert.ok(led.marginList > 0.99 && led.marginList <= 1);  // 3¢ cost on ~$18.9 revenue → ~99.8%
+  assert.ok(led.revenueUsd > 19 && led.revenueUsd < 20);   // 999/51, Vodafone-Cash 0 fee → ~$19.6
+  assert.ok(led.marginList > 0.99 && led.marginList <= 1);  // 3¢ cost on ~$19.6 revenue → ~99.8%
   assert.equal(led.marginActual, 1);                        // $0 actual cost today → 100%
 
   const free = await userLedger({ id: 'u', subscription: {} }, now);

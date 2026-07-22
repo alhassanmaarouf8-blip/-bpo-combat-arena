@@ -17,9 +17,9 @@ test('paymentFee = pct·revenue + fixed', () => {
 });
 
 test('marginFor: heavy usage under a low price is correctly BELOW target', () => {
-  // Basic 999 EGP → ~$20.4 gross. Heavy: 900 voice-min/mo × $0.02 = $18 + analysis + fee → margin ≪ 0.8.
+  // Basic 999 EGP → ~$19.6 gross (rate 51). Heavy: 900 voice-min/mo × $0.02 = $18 + analysis → margin ≪ 0.8.
   const m = marginFor(999, { voiceMinPerMonth: 900, sessionsPerMonth: 60 }, COSTS);
-  assert.ok(m.revenue > 20 && m.revenue < 21, `rev=${m.revenue}`);
+  assert.ok(m.revenue > 19 && m.revenue < 20, `rev=${m.revenue}`);
   assert.ok(m.margin < TARGET_MARGIN, `expected <0.8, got ${m.margin}`);
   assert.ok(m.cogs.voice === 18 && m.cogs.total > 18);
 });
@@ -38,8 +38,9 @@ test('affordableVoiceMinutes: the max minutes that still hold 80% at 100% usage'
 });
 
 test('affordableVoiceMinutes: null when the price cannot even cover non-voice COGS at target', () => {
-  // A tiny price whose 20% budget is smaller than the fixed fee → null.
-  assert.equal(affordableVoiceMinutes(1, 0, COSTS), null);
+  // A tiny price whose 20% budget is smaller than the per-session analysis COGS → null.
+  // (At a 0-fee rail the fixed fee no longer triggers this; heavy analysis COGS does.)
+  assert.equal(affordableVoiceMinutes(1, 60, COSTS), null);
 });
 
 test('priceForTarget: the EGP price that hits 80% for a given consumption checks out', () => {

@@ -7,17 +7,18 @@
 
 // EGP per 1 USD. PLACEHOLDER — set by the owner; verify against the live rate before Phase 6.
 export const EGP_PER_USD = {
-  rate: 49,
+  rate: 51,
   checkedOn: '2026-07-22',
-  source: 'owner-set placeholder (2026 estimate) — REFRESH before Phase 6 pricing',
+  source: 'owner rail: live mid-market EGP↔USD ~51 (XE 2026-07-22, range 49.6–54.4)',
 };
 
-// Payment-processing fee. Paddle/Lemon-Squeezy class estimate; verify with the chosen Egyptian rail
-// (Fawry/Paymob differ). Applied to gross revenue when computing net revenue for margin.
+// Payment-processing fee. The owner's CURRENT rail is manual Vodafone Cash, which takes ≈0 fee on
+// received money — so net = gross here. If a card processor (Fawry/Paymob/Paddle) is adopted later,
+// restore its pct + fixed (Paddle-class was 5% + $0.50) and re-run the margin report.
 export const PAYMENT_FEE = {
-  pct: 0.05,
-  fixedUsd: 0.5,
-  note: 'Paddle-class estimate — verify with the actual rail (Fawry/Paymob) before Phase 6',
+  pct: 0,
+  fixedUsd: 0,
+  note: 'Vodafone Cash (owner manual rail) ≈ $0 fee — restore processor fee if a card rail is adopted',
 };
 
 export function egpToUsd(egp) {
