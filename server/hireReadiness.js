@@ -227,8 +227,14 @@ export function hireReadinessFor(p, now = Date.now(), options = {}) {
     : forecast.state === 'observed_simulation_risk'
       ? { state: 'observed_risk', confidence: forecast.confidence, limitingSkill }
       : { state: 'no_single_risk_observed', confidence: 'medium', limitingSkill: null };
+  // raw.level (levelOf) is driven by wpm/errPer100/subClauseRate/vocabDiversity — with no real interview
+  // packet or those drivers unmeasured it is a level fabricated from FAVORABLE DEFAULTS (0 signals →
+  // a confident "B1"). Assert a measured level ONLY from a real packet with its core drivers measured;
+  // otherwise null (consumers already handle it: HireVerdict treats null as not-yet-B1, the debrief
+  // table shows "—"). The app's own assessment estimate still wins when present.
+  const levelMeasured = !!evidenceQuality && measured.wpm && measured.errPer100;
   const out = {
-    level: p?.assessmentResult?.estimatedLevel || raw.level,   // prefer the real CEFR estimate
+    level: p?.assessmentResult?.estimatedLevel || (levelMeasured ? raw.level : null),   // prefer the real CEFR estimate; never a defaults-fabricated level
     hireReady,
     simulationReady,
     outcomeCalibration: 'not_yet_validated_against_real_hiring_outcomes',
