@@ -1,5 +1,30 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 📅 "STUDY 5, REST 2" WEEKLY CAP BUILT + PUSHED (2026-07-22) — ⏳ MERGE PENDING (browser flaky)
+- Owner order: keep 15/30 min/day + 999/1999 prices; hit better margin via a 5-study-days/week cap
+  (the 2 skipped days = the learner's own rest days, chosen by showing up). Lifts list-rate margin
+  ~53%→~67% both plans; $0 actual today. NOT 80% (that needs 3 days/wk); 80% comes later via
+  value-pricing once users get hired (owner aligned). ALSO agreed: usage-gated refund (≤N interviews)
+  to close the refund-abuse hole — NOT built yet, owner's next.
+- BUILT + pushed on `feature/study-week-cap` (commit 8dbfc10), NOT merged/deployed:
+  `server/studyWeek.js` (pure: Cairo Mon-start weeks, distinct-day COUNT from usageDays, can't be
+  gamed to 7; 7 unit tests) + `plans.config` studyDaysPerWeek:5 on basic/elite + studyDaysPerWeekFor()
+  + websocketManager ADDITIVE gate beside the daily-cap (paid only; free one-time fight exempt;
+  blocks the 6th study day with weekly_rest close; interview flow untouched) + App.jsx friendly
+  weekly_rest message (ar = OWNER-AR slot → falls back to German). Prices/quotas UNCHANGED (verified
+  diff: only studyDaysPerWeek added). Gates: lint ✓, suite 931/933 (2 pre-existing vertex fails),
+  build ✓.
+- ⏳ REMAINING: merge PR (GitHub compare page kept FREEZING the Chrome renderer — the known
+  "GitHub-PR-tab freezes" gotcha; fix = close frozen tab, fresh tab, retry) + deploy + regression
+  check (start an interview on a probe acct — must NOT be blocked since <5 study days this week).
+  Owner was anxious ("no bugs, don't destroy") so this is a fine checkpoint before the interview
+  path goes live.
+- ⚠ SEPARATE PRICING WORK THIS SESSION WAS ALL REVERTED (owner: keep 999/1999 + 15/30). The margin
+  levers explored (cut minutes / raise price / days-per-week) are documented in docs/PRICING.md
+  (Phase 6, already merged). margin.config still has rate 49 + fee 5% placeholder (committed); the
+  real rate is ~51 and his rail is Vodafone Cash (~0 fee) — update before any real pricing move.
+
+
 ## ✅ DB "EMERGENCY" WAS A FALSE ALARM — PROD RUNS ON NEON, HEALTHY (resolved 2026-07-21)
 - Scare: Render `bpo-combat-db` (dpg-d8ljfipo3t8c73dgolf0-a, free) shows EXPIRED/Suspended,
   "deleted in 4 days." I assumed it was production. **It is NOT.** Revealing the web service's
