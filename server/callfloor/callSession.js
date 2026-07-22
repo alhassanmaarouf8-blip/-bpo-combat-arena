@@ -16,6 +16,7 @@ import { dayKey } from '../time.js';
 import { pickScenario, getScenario } from './scenarios.js';
 import { openingTurn } from './callEngine.js';
 import { saveCallSession, listCallResults, secondsUsedToday } from './resultsStore.js';
+import { callFloorEntitlement, requiredPlanForQuadrant, upsellFor } from './entitlements.js';
 
 export const MAX_CALL_MS     = 4 * 60_000;
 export const MAX_AGENT_TURNS = 8;
@@ -39,14 +40,22 @@ export async function abandonSession(session) {
 }
 
 /**
- * Start a call. Enforces the daily ceiling and one-live-call-per-user. Returns
- * { session, scenario, opening } or { error, ... } for honest client messaging.
+ * Start a call. Enforces the PLAN entitlement (unlocked seat + metered daily voice ceiling) and
+ * one-live-call-per-user. `account` drives entitlement; without it (no auth) the env fallback caps
+ * apply. Returns { session, scenario, opening } or { error, ... } for honest client messaging.
  */
-export async function startCall({ userId, quadrant }) {
+export async function startCall({ userId, account, quadrant }) {
+  const ent = account ? callFloorEntitlement(account) : null;
+  // Seat gate first — a locked seat is an upgrade prompt regardless of budget (covert-test-safe:
+  // no scenario is created).
+  if (ent && !ent.quadrants.includes(quadrant)) {
+    return { error: 'quadrant_locked', quadrant, requiredPlan: requiredPlanForQuadrant(quadrant), ...upsellFor(ent.planId) };
+  }
   const day = dayKey();
   const used = await secondsUsedToday(userId, day);
-  const limit = dailyLimitSec();
-  if (used >= limit) return { error: 'daily_limit', usedSec: used, limitSec: limit };
+  const limit = ent ? ent.dailyCallSeconds : dailyLimitSec();
+  if (limit <= 0) return { error: 'not_entitled', planId: ent?.planId, ...upsellFor(ent?.planId || 'free') };
+  if (used >= limit) return { error: 'daily_limit', usedSec: used, limitSec: limit, planId: ent?.planId };
 
   // A user starting a new call abandons their previous live one (page reloads, crashes).
   for (const s of live.values()) {

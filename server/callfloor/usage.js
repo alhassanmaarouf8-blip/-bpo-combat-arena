@@ -73,14 +73,26 @@ export async function recordAiUsage(event) {
   }
 }
 
-/** Read back events (verification/tests; Phase 4 builds the real ledger). Never throws. */
+// Normalize a DB row (snake_case columns) to the SAME shape shapeUsageEvent produces, so the
+// ledger sees one consistent shape whether the sink is Postgres or the JSONL fallback.
+function fromDbRow(row) {
+  return {
+    ts: row.ts instanceof Date ? row.ts.toISOString() : String(row.ts),
+    userId: row.user_id, feature: row.feature, provider: row.provider, model: row.model,
+    unitType: row.unit_type, unitsIn: Number(row.units_in) || 0, unitsOut: Number(row.units_out) || 0,
+    usdActual: Number(row.usd_actual) || 0, usdList: Number(row.usd_list) || 0,
+    measured: row.measured !== false, meta: row.meta ?? null,
+  };
+}
+
+/** Read back events (verification/tests + the Phase 4 ledger). Never throws. Consistent shape. */
 export async function readUsageEvents({ userId } = {}) {
   try {
     if (callfloorDbEnabled()) {
       const r = userId
         ? await cfQuery('SELECT * FROM ai_usage_events WHERE user_id = $1 ORDER BY ts', [userId])
         : await cfQuery('SELECT * FROM ai_usage_events ORDER BY ts', []);
-      return r.rows;
+      return r.rows.map(fromDbRow);
     }
     const text = await readFile(FALLBACK_FILE(), 'utf8').catch(() => '');
     const rows = text.split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } })
