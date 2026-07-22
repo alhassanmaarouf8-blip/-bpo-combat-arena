@@ -15,6 +15,25 @@
   (cleanup) or let it auto-expire. DATABASE_URL was NOT changed; Neon URL intact.
 
 
+## 📞💰 CALL FLOOR PHASE 6 MARGIN ENGINE MERGED (2026-07-22) — ⛔ STOPPED FOR OWNER PRICING SIGN-OFF
+- PR #24 MERGED. Pure analysis: `marginEngine.js` (5 tests: gross-margin, cogs, affordable-voice
+  formula, break-even price) + `scripts/callfloor/margin-report.mjs` → **docs/PRICING.md**. STAGES
+  NOTHING — plans.config.js UNCHANGED. Applying any price/allowance = owner's explicit go.
+- ★ FINDING (LIST-rate model, PLACEHOLDER inputs EGP↔USD=49, fee 5%+$0.5, voice $0.02/min):
+  **both plans miss 80% badly.** Basic 47.5% typical / **2.5% heavy** @ 999 EGP; Elite 48.8% /
+  **3.8% heavy** @ 1999. Cause: daily voice allowances (interview + Call Floor combined = 30/60
+  min/day) cost >20% of the EGP price. To hold 80% at HEAVY use: cut TOTAL voice to ~2.3 min/day
+  (Basic) / ~5.4 (Elite), OR raise price to ~6162/12160 EGP (market-implausible), OR cut $/min.
+- ⚠ HONEST CAVEATS: (1) ACTUAL cost today ≈ $0 (free tiers) — this is a "when you scale past free
+  tiers" projection; LIST used because free tiers don't scale. (2) EGP↔USD=49 + fee 5% are MY
+  placeholders — owner must verify before acting. (3) "heavy" = user maxes BOTH interview AND call
+  allowances daily (worst case). (4) Real call $/min lands in ai_usage_events — re-run with prod
+  DATABASE_URL for measured (not estimated) call costs.
+- ⛔ OWNER DECISION NEEDED before Phase 7: (a) refresh the ⚠ placeholders; (b) pick a lever per
+  plan (allowance cut / price bump / $/min cut / accept a lower floor). Then I apply to
+  plans.config + re-run + Phase 7 (final verification). Recommended middle path: modest allowance
+  cut + modest price bump (typical usage ~50% → generous-feeling yet ≥80% at heavy).
+
 ## 📞✅ CALL FLOOR PHASE 5 LIVE + PROD-PROVEN @ b54480a (2026-07-22) — free-talk + product-knowledge
 - PR #23 MERGED (Guardian green), deploy `b54480a` LIVE. Pure Mode 2 — ZERO Mode 1 files touched.
   Isolation = 9 files (Mode 2 + client + STATE). 50/50 callfloor tests (6 new).
