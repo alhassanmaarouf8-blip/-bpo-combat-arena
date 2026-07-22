@@ -6,8 +6,11 @@
  */
 
 import express from 'express';
-import { requireAuth, rateLimit } from '../auth.js';
+import { requireAuth, rateLimit, listAllAccounts } from '../auth.js';
 import { voicedDurationMs } from '../audioGuard.js';
+import { callFloorEntitlement, requiredPlanForQuadrant } from './entitlements.js';
+import { planLedger } from './ledger.js';
+import { EGP_PER_USD, PAYMENT_FEE } from './margin.config.js';
 import { QUADRANTS, RUBRICS } from './scenarios.js';
 import { personaTurn } from './callEngine.js';
 import { transcribeCallTurn } from './transcribe.js';
@@ -67,11 +70,18 @@ async function deltaFor(userId, result) {
 // ── State: quadrants + today's remaining allowance ────────────────────────────────────────────
 callfloorRouter.get('/callfloor/state', requireAuth, async (req, res) => {
   try {
+    const ent = callFloorEntitlement(req.account);
     const used = await secondsUsedToday(req.account.id, dayKey());
     res.json({
-      quadrants: Object.entries(QUADRANTS).map(([id, q]) => ({ id, label_de: q.label_de, label_ar: q.label_ar, skill_de: q.skill_de })),
+      planId: ent.planId,
+      entitlement: { dailyCallSeconds: ent.dailyCallSeconds, quadrants: ent.quadrants, freeTalk: ent.freeTalk,
+        overageEgpPerBlock: ent.overageEgpPerBlock, overageBlockMin: ent.overageBlockMin },
+      quadrants: Object.entries(QUADRANTS).map(([id, q]) => ({ id, label_de: q.label_de, label_ar: q.label_ar,
+        skill_de: q.skill_de, unlocked: ent.quadrants.includes(id),
+        requiredPlan: ent.quadrants.includes(id) ? null : requiredPlanForQuadrant(id) })),
       usedTodaySec: used,
-      dailyLimitSec: cs.dailyLimitSec(),
+      dailyLimitSec: ent.dailyCallSeconds,   // now plan-based (field kept for client compatibility)
+      remainingSec: Math.max(0, ent.dailyCallSeconds - used),
       shiftOptions: shift.SHIFT_MINUTES,
       results: (await listCallResults(req.account.id)).slice(-20).map((r) => ({
         quadrant: r.quadrant, scenarioId: r.scenarioId, resolved: r.resolved,
@@ -92,8 +102,12 @@ callfloorRouter.post('/callfloor/session',
     try {
       const quadrant = String(req.body?.quadrant || '');
       if (!QUADRANTS[quadrant]) return res.status(400).json({ error: 'unknown_quadrant' });
-      const out = await cs.startCall({ userId: req.account.id, quadrant });
-      if (out.error) return res.status(out.error === 'daily_limit' ? 429 : 400).json(out);
+      const out = await cs.startCall({ userId: req.account.id, account: req.account, quadrant });
+      if (out.error) {
+        const code = out.error === 'daily_limit' ? 429
+          : (out.error === 'quadrant_locked' || out.error === 'not_entitled') ? 403 : 400;
+        return res.status(code).json(out);
+      }
       const { session, scenario, opening } = out;
       if (opening) await logTtsChars(req.account.id, opening.text);
       // `unsolvable` and the goal stay SERVER-SIDE (covert-test law — the skill is judged, not announced).
@@ -209,7 +223,7 @@ callfloorRouter.post('/callfloor/shift',
   rateLimit({ windowMs: 10 * 60 * 1000, max: 20, tag: 'callfloor-shift', keyExtra: (req) => req.account.id }),
   async (req, res) => {
     try {
-      const out = await shift.startShift({ userId: req.account.id, targetMin: req.body?.targetMin });
+      const out = await shift.startShift({ userId: req.account.id, account: req.account, targetMin: req.body?.targetMin });
       if (out.error) return res.status(429).json(out);
       res.json({ shiftId: out.shift.id, targetSec: out.shift.targetSec, startedAt: out.shift.startedAt,
         remainingDailySec: out.remainingDailySec, options: shift.SHIFT_MINUTES });
@@ -255,6 +269,30 @@ callfloorRouter.get('/callfloor/profile', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[callfloor] profile failed:', err.message);
     res.status(500).json({ error: 'profile_failed' });
+  }
+});
+
+// ── Admin cost ledger: month-to-date AI cost vs plan revenue → live margin, per user + per plan.
+// ADMIN_KEY-gated like admin.js; answers 404 (not 401) without the key so the route stays invisible.
+callfloorRouter.get('/callfloor/admin/ledger', async (req, res) => {
+  const ADMIN = String(process.env.ADMIN_KEY || '');
+  const key = String(req.query.key || req.get('x-admin-key') || '');
+  if (!ADMIN || key.length < 8 || key !== ADMIN) return res.status(404).json({ error: 'not_found' });
+  try {
+    const accounts = await listAllAccounts();
+    const now = Date.now();
+    const led = await planLedger(accounts, now);
+    res.json({
+      generatedAt: now,
+      egpPerUsd: EGP_PER_USD,
+      paymentFee: PAYMENT_FEE,
+      note: 'Costs at LIST (the honest cost structure) AND actual (free-tier today). Placeholders — refresh margin.config + pricebook before Phase 6.',
+      perPlan: led.perPlan,
+      perUser: led.perUser,
+    });
+  } catch (err) {
+    console.error('[callfloor] admin ledger failed:', err.message);
+    res.status(500).json({ error: 'ledger_failed' });
   }
 });
 

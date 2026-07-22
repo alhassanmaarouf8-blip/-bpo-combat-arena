@@ -120,16 +120,21 @@ export default function CallFloor() {
     const { status, data } = await api('/api/callfloor/session', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quadrant }),
     });
-    if (status === 429) { setErr(`Tageslimit erreicht — heute schon ${Math.round((data.usedSec || 0) / 60)} Min. telefoniert.`); setView('floor'); return; }
+    if (status === 429) { setErr(`Tageslimit erreicht — heute schon ${Math.round((data.usedSec || 0) / 60)} Min. telefoniert. Komm morgen wieder${data.nextLabel ? ` oder hol dir ${data.nextLabel}` : ''}.`); setView('floor'); return; }
+    if (status === 403) {
+      const label = data.nextLabel || 'Elite';
+      setErr(data.error === 'quadrant_locked' ? `Dieser Platz ist ab ${label} verfügbar.` : `Der Anruf-Floor ist ab ${label} verfügbar.`);
+      setView('floor'); return;
+    }
     if (status !== 200) { setErr('Anruf konnte nicht gestartet werden.'); setView('floor'); return; }
     callRef.current = data; setCall(data); setMood(data.mood); setView('call');
     if (data.opening?.text) { setPhase('customer'); speak(data.opening.text, data.scenario.voice, () => setPhase('yourturn')); }
     else setPhase('yourturn');
   };
 
-  // A shift picks the seat like a real floor: unpredictable, every quadrant in play.
+  // A shift picks the seat like a real floor: unpredictable — but only from the UNLOCKED seats.
   const nextShiftQuadrant = () => {
-    const qs = (floor?.quadrants || []).map((q) => q.id);
+    const qs = (floor?.quadrants || []).filter((q) => q.unlocked).map((q) => q.id);
     return qs[Math.floor(Math.random() * qs.length)] || 'inbound_cs';
   };
 
@@ -366,11 +371,15 @@ export default function CallFloor() {
 
     <div style={{ fontWeight: 600, fontSize: 14, opacity: 0.85, margin: '4px 0 8px' }}>Einzelanruf{/* OWNER-AR slot */}</div>
     {(floor?.quadrants || []).map((q) => (
-      <button key={q.id}
+      <button key={q.id} disabled={!q.unlocked}
         style={{ ...ghostBtn, width: '100%', textAlign: 'left', padding: 14, marginBottom: 8, minHeight: 56,
+          opacity: q.unlocked ? 1 : 0.5, cursor: q.unlocked ? 'pointer' : 'not-allowed',
           borderColor: picked === q.id ? 'var(--accent, #3b82f6)' : undefined }}
-        onClick={() => setPicked(q.id)}>
-        <div style={{ fontWeight: 600 }}>{q.label_ar || q.label_de}</div>
+        onClick={() => q.unlocked && setPicked(q.id)}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <span style={{ fontWeight: 600 }}>{q.label_ar || q.label_de}</span>
+          {!q.unlocked && <span style={{ fontSize: 12, color: 'var(--accent, #3b82f6)' }}>ab {q.requiredPlan === 'elite' ? 'Elite' : 'Basic'}{/* OWNER-AR slot */}</span>}
+        </div>
         <div style={{ opacity: 0.7, fontSize: 13, marginTop: 2 }}>{q.skill_de}</div>
       </button>
     ))}

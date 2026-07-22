@@ -32,6 +32,14 @@ export const PLANS = {
     jobFitPreviewsMonthly: 3,
     trackedApplications: 1,
     applicationPacks: false,
+    // Call Floor (Mode 2). PLACEHOLDER allowances — Phase 6's margin engine sets the real numbers
+    // via the affordable-allowance formula (docs/PRICING.md). `dailyCallMinutes` = the metered voice
+    // ceiling for simulated calls (SEPARATE from the interview `dailyLiveMinutes` meter — unifying
+    // them into one voice wallet touches the frozen interview path and is an owner-gated Phase 6
+    // call). `quadrants` = unlocked seats (outbound_sales is the Elite hook). `freeTalk` = Phase 5
+    // open conversation. `overageEgpPerBlock` = price per extra CALLFLOOR_OVERAGE_BLOCK_MIN block (0
+    // until Phase 6 prices it).
+    callFloor: { dailyCallMinutes: 6, quadrants: ['inbound_cs', 'inbound_sales'], freeTalk: false, overageEgpPerBlock: 0 },
   },
   // Owner order 07-11 (supersedes the same-day 599/1499 ship): Basic = 15 live minutes/day,
   // Elite = 30, prices raised. Sold as full interviews: 2×7.5 and 4×7.5 (MAX_FIGHT_MS = 7.5 min).
@@ -53,6 +61,9 @@ export const PLANS = {
     jobRadarDaily:    5,
     trackedApplications: 100, // operational ceiling, not a volume promise
     applicationPacks: true,
+    // Call Floor — PLACEHOLDER (see the free-plan note above). Basic = the three service/CS-heavy
+    // seats; outbound_sales stays the Elite upsell.
+    callFloor: { dailyCallMinutes: 15, quadrants: ['inbound_cs', 'inbound_sales', 'outbound_cs'], freeTalk: false, overageEgpPerBlock: 0 },
   },
   elite: {
     id:                     'elite',
@@ -72,6 +83,9 @@ export const PLANS = {
     jobRadarDaily:          5,
     trackedApplications:    250, // operational ceiling, not a volume promise
     applicationPacks:       true,
+    // Call Floor — PLACEHOLDER (see the free-plan note above). Elite = the full floor incl.
+    // outbound_sales + the Phase 5 free-talk mode.
+    callFloor: { dailyCallMinutes: 30, quadrants: ['inbound_cs', 'inbound_sales', 'outbound_cs', 'outbound_sales'], freeTalk: true, overageEgpPerBlock: 0 },
   },
   // "Bis zum Job" one-time plan: KILLED by owner order 2026-07-10 evening ("cancel that shit",
   // he saw the live card and vetoed the whole tier — outranks the morning teardown's approval).
@@ -79,6 +93,14 @@ export const PLANS = {
   // it is plan-agnostic and a future one-time plan may use it. Accounts that ever got plan:'job'
   // lapse safely to free via planOf()'s PLANS[s.plan] existence check.
 };
+
+// Call Floor overage block size (minutes). Phase 6 prices `overagePerBlock`; the block size is here.
+export const CALLFLOOR_OVERAGE_BLOCK_MIN = 5;
+// The Call Floor entitlement block for a plan id (never throws; unknown → a locked, zero-minute
+// default so a lapsed/unknown plan can never accidentally get free voice).
+export function callFloorFor(planId = 'free') {
+  return PLANS[planId]?.callFloor || { dailyCallMinutes: 0, quadrants: [], freeTalk: false, overageEgpPerBlock: 0 };
+}
 
 // Convenience accessors (kept in ONE place).
 export const FREE_ASSESSMENTS = PLANS.free.assessments;
