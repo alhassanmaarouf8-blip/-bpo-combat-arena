@@ -24,12 +24,18 @@ export function quoteIsVerbatim(quote, agentTurns) {
   return hay.includes(q);
 }
 
-export function judgePrompt(scenario, rubric, transcriptText) {
+export function judgePrompt(scenario, rubric, transcriptText, product = null) {
+  const productBlock = product ? `
+PRODUKT, das der Agent verkauft — ${product.name_de} (${product.type_de}):
+${product.facts_de.map((f) => `- ${f}`).join('\n')}
+Prüfe bei "produktwissen", ob der Agent diese Fakten KORREKT eingesetzt hat und KEINE falschen
+Fakten erfunden hat. Erfundene oder falsche Produktfakten sind ein schwerer Fehler.
+` : '';
   return `Du bewertest ein Callcenter-Trainingsgespräch. A = der Agent (der Lernende), K = der Kunde.
 SZENARIO: ${scenario.brief_de}
 ZIEL DES AGENTEN: ${scenario.goal_de}${scenario.unsolvable ? `
 WICHTIG: Das Anliegen ist bewusst NICHT lösbar — Erfolg heißt hier: ehrlich bleiben und trotzdem
-professionell abschließen. Ein erfundenes Ja wäre ein Fehler.` : ''}
+professionell abschließen. Ein erfundenes Ja wäre ein Fehler.` : ''}${productBlock}
 
 Bewerte NUR den Agenten, NUR anhand seiner wörtlichen Aussagen. Gib AUSSCHLIESSLICH gültiges JSON:
 {
@@ -56,13 +62,20 @@ ${transcriptText}`;
  * Judge one finished call. → { skills:[{key,score,quote,why_de}], resolved, summaryDe, thin }
  * Skills whose quotes fail verification lose the quote; a fabricated `resolved` becomes null.
  */
-export async function judgeCall({ scenario, transcript, userId, _chat = loggedChat }) {
-  const rubric = RUBRICS[scenario.quadrant] || [];
+export async function judgeCall({ scenario, transcript, userId, product = null, _chat = loggedChat }) {
+  let rubric = RUBRICS[scenario.quadrant] || [];
+  // Product knowledge is a scored sales skill (Phase 5) — added only when a sales call actually
+  // has a product, so non-sales judging is unchanged.
+  const isSales = scenario.quadrant === 'inbound_sales' || scenario.quadrant === 'outbound_sales';
+  if (isSales && product) {
+    rubric = [...rubric, { key: 'produktwissen',
+      de: 'Produktwissen: setzt die Produktfakten (Preis, Laufzeit, Kernnutzen) korrekt ein und erfindet keine falschen Fakten' }];
+  }
   const agentTurns = transcript.filter((t) => t.role === 'agent').map((t) => t.text);
   const text = transcript.map((t) => `${t.role === 'agent' ? 'A' : 'K'}: ${t.text}`).join('\n');
 
   const res = await _chat({
-    messages: [{ role: 'user', content: judgePrompt(scenario, rubric, text) }],
+    messages: [{ role: 'user', content: judgePrompt(scenario, rubric, text, isSales ? product : null) }],
     temperature: 0.2, maxTokens: 900, jsonMode: true, timeoutMs: 45_000,
     groqModel: JUDGE_MODEL(), tag: 'callfloor-judge',
   }, { userId, feature: 'callfloor-judge' });

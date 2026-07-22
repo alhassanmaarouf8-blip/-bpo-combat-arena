@@ -95,6 +95,7 @@ export default function CallFloor() {
   const [shiftInfo, setShiftInfo] = useState(null);  // { targetSec, startedAt } when a shift is running
   const [shiftReport, setShiftReport] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [product, setProduct] = useState(null);      // sales fact sheet to review before the call
   const recRef = useRef(null);
   const callRef = useRef(null);
   const stopVoiceRef = useRef(null);
@@ -128,8 +129,25 @@ export default function CallFloor() {
     }
     if (status !== 200) { setErr('Anruf konnte nicht gestartet werden.'); setView('floor'); return; }
     callRef.current = data; setCall(data); setMood(data.mood); setView('call');
+    // Sales calls: review the product fact sheet BEFORE the call begins.
+    if (data.product) { setProduct(data.product); setPhase('factsheet'); return; }
+    playOpening(data);
+  };
+
+  const playOpening = (data) => {
+    setProduct(null);
     if (data.opening?.text) { setPhase('customer'); speak(data.opening.text, data.scenario.voice, () => setPhase('yourturn')); }
     else setPhase('yourturn');
+  };
+
+  const startFreeTalk = async () => {
+    setErr(''); setVerdict(null); setShiftInfo(null);
+    const { status, data } = await api('/api/callfloor/freetalk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    if (status === 403) { setErr(`Freies Gespräch ist ab ${data.nextLabel || 'Elite'} verfügbar.`); return; }
+    if (status === 429) { setErr('Tageslimit erreicht — komm morgen wieder.'); return; }
+    if (status !== 200) { setErr('Gespräch konnte nicht gestartet werden.'); return; }
+    callRef.current = data; setCall(data); setMood(4); setView('call');
+    setPhase('customer'); speak(data.opening.text, data.scenario.voice, () => setPhase('yourturn'));
   };
 
   // A shift picks the seat like a real floor: unpredictable — but only from the UNLOCKED seats.
@@ -193,6 +211,7 @@ export default function CallFloor() {
     const { data } = await api(`/api/callfloor/session/${encodeURIComponent(c.sessionId)}/end`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     });
+    if (data.freeTalk) { setVerdict({ pending: false, freeTalk: true, handleSeconds: data.handleSeconds, wordsSpoken: data.wordsSpoken }); return; }
     if (data.pending) pollResult(c.sessionId);
     else setVerdict({ pending: false, result: data.result, scoreDelta: data.scoreDelta });
   };
@@ -289,6 +308,19 @@ export default function CallFloor() {
     </>);
   }
 
+  // ── Free-talk summary (not scored — errors are harvested silently) ────────────────────────────
+  if (view === 'verdict' && verdict?.freeTalk) {
+    return shell(<>
+      <div style={{ ...screenTitle, marginBottom: 14 }}>GESPRÄCH BEENDET{/* OWNER-AR slot */}</div>
+      <div style={{ ...cardSurface, padding: 18, marginBottom: 12 }}>
+        <div style={{ fontSize: 15 }}>{mmss(verdict.handleSeconds)} Min gesprochen · {verdict.wordsSpoken} Wörter.</div>
+        <div style={{ opacity: 0.75, fontSize: 14, marginTop: 6 }}>Deine Fehler werden im Hintergrund ausgewertet und fließen in deine Diagnose ein.</div>
+      </div>
+      <button style={{ ...actionBtn, width: '100%', marginTop: 8, minHeight: 48 }}
+        onClick={() => { setCall(null); setVerdict(null); setView('floor'); loadFloor(); }}>ZURÜCK ZUM FLOOR</button>
+    </>);
+  }
+
   // ── Verdict ─────────────────────────────────────────────────────────────────────────────────
   if (view === 'verdict') {
     const r = verdict?.result;
@@ -326,6 +358,24 @@ export default function CallFloor() {
         {shiftInfo ? (shiftBudgetLeft() > 20 ? 'NÄCHSTER ANRUF' : 'SCHICHT-REPORT ANSEHEN') : 'NÄCHSTER ANRUF'}
       </button>
       {shiftInfo && <button style={{ ...ghostBtn, width: '100%', marginTop: 10, minHeight: 44 }} onClick={endShift}>SCHICHT BEENDEN</button>}
+    </>);
+  }
+
+  // ── Product fact sheet (reviewed before a sales call) ─────────────────────────────────────────
+  if (view === 'call' && call && phase === 'factsheet' && product) {
+    return shell(<>
+      <div style={{ ...screenTitle, marginBottom: 4 }}>PRODUKT-INFOBLATT{/* OWNER-AR slot */}</div>
+      <div style={{ opacity: 0.75, fontSize: 14, marginBottom: 14 }}>Lies das kurz durch — im Anruf zählt, dass du die Fakten richtig nutzt.</div>
+      <div style={{ ...cardSurface, padding: 18, marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, fontSize: 17 }}>{product.name_ar || product.name_de}</div>
+        <div style={{ opacity: 0.7, fontSize: 13, marginBottom: 10 }}>{product.type_de}</div>
+        <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6, fontSize: 14.5 }}>
+          {(product.facts_de || []).map((f, i) => <li key={i}>{f}</li>)}
+        </ul>
+      </div>
+      <button style={{ ...actionBtn, width: '100%', minHeight: 52 }} onClick={() => playOpening(callRef.current)}>
+        {call.quadrant?.startsWith('outbound') ? 'ANRUFEN' : 'ANRUF ANNEHMEN'}
+      </button>
     </>);
   }
 
@@ -388,6 +438,12 @@ export default function CallFloor() {
       disabled={!picked} onClick={() => beginCall(picked)}>
       {picked?.startsWith('outbound') ? 'ANRUFEN' : 'ANRUF ANNEHMEN'}
     </button>
+    {floor?.entitlement?.freeTalk && (
+      <button style={{ ...ghostBtn, width: '100%', marginTop: 18, minHeight: 52 }} onClick={startFreeTalk}>
+        <div style={{ fontWeight: 600 }}>Freies Gespräch{/* OWNER-AR slot */}</div>
+        <div style={{ opacity: 0.7, fontSize: 13, marginTop: 2 }}>Locker auf Deutsch reden — Fehler werden still ausgewertet.</div>
+      </button>
+    )}
     <button style={{ ...ghostBtn, width: '100%', marginTop: 10, minHeight: 44 }} onClick={openProfile}>MEIN KARRIERE-PROFIL</button>
     <a href="/" style={{ display: 'block', textAlign: 'center', marginTop: 18, color: '#7d93b8', fontSize: 14 }}>Zurück zur App</a>
   </>);

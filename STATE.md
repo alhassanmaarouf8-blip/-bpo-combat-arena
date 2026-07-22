@@ -15,6 +15,29 @@
   (cleanup) or let it auto-expire. DATABASE_URL was NOT changed; Neon URL intact.
 
 
+## 📞✅ CALL FLOOR PHASE 4 LIVE + PROD-PROVEN @ 4ef9521 (2026-07-22) — plans/entitlements/cost-ledger
+- PR #22 MERGED to main (Guardian green 1m), deploy `4ef9521` LIVE. Owner decision honored: Call
+  Floor EXTENDS Basic/Elite (no parallel plans). NO prices set (Phase 6). Only Mode-1 edit =
+  ADDITIVE `callFloor` block in plans.config.js (billing file, outside freeze); interview metering
+  + auth/payment gating UNTOUCHED. Isolation vs main = 11 files (10 Mode 2 + plans.config.js).
+  44/44 callfloor tests (6 new billing).
+- Built: `entitlements.js` (plan→allowance: metered daily voice minutes + unlocked seats, trial
+  mirrors Elite, fail-closed) · `margin.config.js` (EGP↔USD rate 49 + payment fee 5%+$0.5 — DATED
+  PLACEHOLDERS, refresh before Phase 6) · `ledger.js` (per-user month-to-date cost from
+  ai_usage_events LIST+actual vs net plan revenue → live gross margin; per-user + per-plan) ·
+  usage.readUsageEvents normalizes DB rows · callSession/shift enforce PLAN allowance + seat gate ·
+  routes: /state carries entitlement+per-seat locks, 403 upsell on locked seat, GET
+  /callfloor/admin/ledger (ADMIN_KEY-gated, 404 without) · CallFloor.jsx locked-seat UI.
+- PLACEHOLDER allowances (Phase 6 sets real): free 6min [inbound_cs,inbound_sales] · basic 15min
+  [+outbound_cs] · elite 30min [+outbound_sales] +freeTalk. outbound_sales = the Elite hook.
+- ★ PROD PROVE-IT (free prove acct): /state planId=free, allowance 360s, seats show
+  unlocked/LOCKED-ab-basic/LOCKED-ab-elite ✓ · outbound_sales start → 403 quadrant_locked
+  {requiredPlan:elite,nextLabel:Basic} ✓ · inbound_cs start → 200 ✓ · admin ledger no-key → 404 ✓.
+- 💰 OWNER: the live margin dashboard = GET /api/callfloor/admin/ledger?key=<ADMIN_KEY> (per-user +
+  per-plan cost/revenue/margin at LIST + actual). This is what Phase 6 reads.
+- NEXT (needs owner go): Phase 5 (free-talk + full floor, Elite) → ★ Phase 6 MARGIN ENGINE (sets
+  prices to ≥80% GM from real ai_usage_events; STOPS before any price goes live for sign-off).
+
 ## 📞✅ CALL FLOOR PHASE 3 LIVE + PROD-PROVEN @ 87d12c8 (2026-07-21) — Shift/Profile/Stamina, core-only
 - PR #21 MERGED to main (Guardian green 1m), deploy `87d12c8` LIVE. Anti-slop ruling honored:
   real BPO metrics ONLY (no bonuses/streaks/rarity). Isolation vs main = 7 files, all Mode 2 +

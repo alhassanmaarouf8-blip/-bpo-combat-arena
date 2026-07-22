@@ -17,6 +17,7 @@ import { pickScenario, getScenario } from './scenarios.js';
 import { openingTurn } from './callEngine.js';
 import { saveCallSession, listCallResults, secondsUsedToday } from './resultsStore.js';
 import { callFloorEntitlement, requiredPlanForQuadrant, upsellFor } from './entitlements.js';
+import { FREETALK_SCENARIO, freeTalkOpening } from './freetalk.js';
 
 export const MAX_CALL_MS     = 4 * 60_000;
 export const MAX_AGENT_TURNS = 8;
@@ -81,10 +82,39 @@ export async function startCall({ userId, account, quadrant }) {
   return { session, scenario, opening };
 }
 
-/** Deterministic wall check — returns a reason when the call must end NOW. */
+/**
+ * Start a FREE-TALK session (Phase 5). Elite/trial only (entitlement.freeTalk); metered against
+ * the SAME daily voice ceiling as calls. Reuses the live-session shape so the turn/end plumbing is
+ * shared; quadrant='freetalk' routes it to the conversation partner + languageOnly harvest.
+ */
+export async function startFreeTalk({ userId, account }) {
+  const ent = account ? callFloorEntitlement(account) : null;
+  if (ent && !ent.freeTalk) return { error: 'not_entitled_freetalk', planId: ent.planId, ...upsellFor(ent.planId) };
+  const day = dayKey();
+  const used = await secondsUsedToday(userId, day);
+  const limit = ent ? ent.dailyCallSeconds : dailyLimitSec();
+  if (limit <= 0) return { error: 'not_entitled', planId: ent?.planId, ...upsellFor(ent?.planId || 'free') };
+  if (used >= limit) return { error: 'daily_limit', usedSec: used, limitSec: limit, planId: ent?.planId };
+
+  for (const s of live.values()) { if (s.userId === userId) await abandonSession(s); }
+
+  const session = {
+    id: newId(), userId, quadrant: 'freetalk', scenarioId: 'freetalk',
+    startedAt: Date.now(), endedAt: null, status: 'live', analysisStatus: 'pending',
+    transcript: [], mood: 4, finalMood: null, agentTurns: 0, cairoDay: day,
+  };
+  live.set(session.id, session);
+  await saveCallSession(session).catch(() => {});
+  const opening = freeTalkOpening();
+  session.transcript.push({ role: 'customer', text: opening.text, at: Date.now() });
+  return { session, scenario: FREETALK_SCENARIO, opening };
+}
+
+/** Deterministic wall check — returns a reason when the call must end NOW. Free-talk has no turn
+ * cap (it's an open conversation), only the time wall + the learner's goodbye. */
 export function wallReason(session) {
   if (Date.now() - session.startedAt >= MAX_CALL_MS) return 'time';
-  if (session.agentTurns >= MAX_AGENT_TURNS) return 'turns';
+  if (session.quadrant !== 'freetalk' && session.agentTurns >= MAX_AGENT_TURNS) return 'turns';
   return null;
 }
 
@@ -108,4 +138,4 @@ export async function endCall(session) {
 }
 
 export { getScenario };
-export default { startCall, endCall, abandonSession, getLive, wallReason, recordAgentTurn, recordCustomerTurn, MAX_CALL_MS, MAX_AGENT_TURNS, dailyLimitSec, _resetForTest };
+export default { startCall, startFreeTalk, endCall, abandonSession, getLive, wallReason, recordAgentTurn, recordCustomerTurn, MAX_CALL_MS, MAX_AGENT_TURNS, dailyLimitSec, _resetForTest };
