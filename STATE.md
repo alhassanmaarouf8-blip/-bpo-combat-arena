@@ -15,6 +15,26 @@
   (cleanup) or let it auto-expire. DATABASE_URL was NOT changed; Neon URL intact.
 
 
+## 📞✅ CALL FLOOR PHASE 5 LIVE + PROD-PROVEN @ b54480a (2026-07-22) — free-talk + product-knowledge
+- PR #23 MERGED (Guardian green), deploy `b54480a` LIVE. Pure Mode 2 — ZERO Mode 1 files touched.
+  Isolation = 9 files (Mode 2 + client + STATE). 50/50 callfloor tests (6 new).
+- Built: `freetalk.js` (open German conversation, Elite/trial only, metered; NOT scored — frozen
+  pipeline harvests errors silently via languageOnly runPostCall → error_events; no turn cap, ends
+  on time/goodbye) · `products.js` (2 fictional products MobilTarif M + GiroBasis, generic names,
+  german-check clean, OWNER-AR slots, keyFacts for grading) · competency judge gains a
+  verbatim-gated `produktwissen` skill for sales calls with a product · postCall passes product +
+  languageOnly · routes: POST /callfloor/freetalk, sales /session returns the product fact sheet,
+  turn/end branch on quadrant='freetalk' · CallFloor.jsx: free-talk entry (shown when
+  entitlement.freeTalk), product fact-sheet screen before sales calls, free-talk end summary.
+- Full floor / mixed shifts: already satisfied by Phase 4 entitlements + the random-seat shift.
+- ★ PROD PROVE-IT (free prove acct): freetalk → 403 not_entitled_freetalk ✓ · inbound_sales start
+  returns MobilTarif M fact sheet (5 facts, facts_ar empty) ✓ · spoke the tariff → verdict has
+  produktwissen 2/5 verbatim-quoted + all 5 sales skills ✓ (low score = SAPI garbled the numbers,
+  correct). Full free-talk CONVERSATION run = Elite/trial account (owner's device) — gate proven.
+- NEXT: ★ Phase 6 MARGIN ENGINE (reads real ai_usage_events → COGS/margin per plan, sizes
+  allowances/prices to ≥80% GM, writes docs/PRICING.md, STAGES prices behind a flag + STOPS for
+  owner sign-off — no price goes live without confirmation).
+
 ## 📞✅ CALL FLOOR PHASE 4 LIVE + PROD-PROVEN @ 4ef9521 (2026-07-22) — plans/entitlements/cost-ledger
 - PR #22 MERGED to main (Guardian green 1m), deploy `4ef9521` LIVE. Owner decision honored: Call
   Floor EXTENDS Basic/Elite (no parallel plans). NO prices set (Phase 6). Only Mode-1 edit =
