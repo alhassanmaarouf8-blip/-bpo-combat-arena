@@ -7158,7 +7158,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             curve is never fabricated. <2 interviews → an honest "not enough data yet" state. Blue
             (var(--accent)) so the tab's orange stays with HireVerdict's drill actions. Reworked D1. */}
         {homeTab === 'fortschritt' && canStart && !firstRun && (() => {
-          const flu = (trends?.fluency || []).map(Number).filter(Number.isFinite);
+          const flu = realFluencyTrend(trends?.fluency);   // strips fabricated ?? 0 zeros (same honesty helper as the debrief) — never plot a fake nosedive
           const shell = { borderRadius:'var(--r-lg)', padding:'15px 16px 12px', marginBottom:10, background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' };
           const eyebrow = { fontFamily:'var(--font-display)', fontSize:9.5, fontWeight:800, letterSpacing:'0.16em',
