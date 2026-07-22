@@ -1,24 +1,29 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
-## 📅 "STUDY 5, REST 2" WEEKLY CAP BUILT + PUSHED (2026-07-22) — ⏳ MERGE PENDING (browser flaky)
-- Owner order: keep 15/30 min/day + 999/1999 prices; hit better margin via a 5-study-days/week cap
-  (the 2 skipped days = the learner's own rest days, chosen by showing up). Lifts list-rate margin
-  ~53%→~67% both plans; $0 actual today. NOT 80% (that needs 3 days/wk); 80% comes later via
-  value-pricing once users get hired (owner aligned). ALSO agreed: usage-gated refund (≤N interviews)
-  to close the refund-abuse hole — NOT built yet, owner's next.
-- BUILT + pushed on `feature/study-week-cap` (commit 8dbfc10), NOT merged/deployed:
-  `server/studyWeek.js` (pure: Cairo Mon-start weeks, distinct-day COUNT from usageDays, can't be
-  gamed to 7; 7 unit tests) + `plans.config` studyDaysPerWeek:5 on basic/elite + studyDaysPerWeekFor()
-  + websocketManager ADDITIVE gate beside the daily-cap (paid only; free one-time fight exempt;
-  blocks the 6th study day with weekly_rest close; interview flow untouched) + App.jsx friendly
-  weekly_rest message (ar = OWNER-AR slot → falls back to German). Prices/quotas UNCHANGED (verified
-  diff: only studyDaysPerWeek added). Gates: lint ✓, suite 931/933 (2 pre-existing vertex fails),
-  build ✓.
-- ⏳ REMAINING: merge PR (GitHub compare page kept FREEZING the Chrome renderer — the known
-  "GitHub-PR-tab freezes" gotcha; fix = close frozen tab, fresh tab, retry) + deploy + regression
-  check (start an interview on a probe acct — must NOT be blocked since <5 study days this week).
-  Owner was anxious ("no bugs, don't destroy") so this is a fine checkpoint before the interview
-  path goes live.
+## 📅 "STUDY 5, REST 2" CAP + USAGE-GATED REFUND — BOTH BUILT+PUSHED (2026-07-22) — ⏳ OWNER MERGE
+- Two features on ONE branch `feature/study-week-cap`, pushed, NOT merged: 8dbfc10 (study cap) +
+  b447881 (usage-gated refund). Both ADDITIVE, gates green, prices/quotas UNCHANGED.
+- (1) STUDY 5, REST 2 — keep 15/30 min/day + 999/1999; margin lever = 5 study-days/week cap (the 2
+  skipped days = the learner's OWN rest, chosen by showing up). List-rate margin ~53%→~67% both
+  plans; $0 actual today. NOT 80% (needs 3 days/wk); 80% comes later via value-pricing once users get
+  hired (owner aligned). Files: `server/studyWeek.js` (pure: Cairo Mon-start, distinct-day COUNT from
+  usageDays → can't game to 7; 7 tests) + `plans.config` studyDaysPerWeek:5 basic/elite +
+  studyDaysPerWeekFor() + websocketManager ADDITIVE gate beside the daily cap (paid only; free
+  one-time fight exempt; blocks the 6th study day with a weekly_rest close; interview flow untouched)
+  + App.jsx weekly_rest message (ar='' OWNER-AR → German fallback).
+- (2) USAGE-GATED REFUND — closes the refund-abuse hole (pay, burn voice minutes in the 14-day
+  window, refund). `server/refundPolicy.js` pure (9 tests): eligible = within REFUND_WINDOW_DAYS=14
+  of `subscription.planSetAt` AND ≤REFUND_MAX_INTERVIEWS=2 interviews since (from
+  `profile.sessions[].date`). Owner-only decision helper `GET /admin/refund-check?email=`
+  (ADMIN_KEY-gated, read-only, NEVER moves money) in admin.js. It's a consistency tool for his MANUAL
+  Vodafone Cash rail — NOT code enforcement.
+- Gates: lint ✓, refund 9/9 + studyWeek 7/7, admin.js loads ✓. (Full suite last green 931/933, 2
+  pre-existing vertex-credential fails.)
+- ⏳ REMAINING (OWNER-gated by the Two Laws — this touches the FROZEN interview gate): merge the
+  branch, then deploy + prove-it: (a) start an interview on a probe acct → must NOT be blocked (<5
+  study days this week); (b) `GET /admin/refund-check?email=<his>&key=<ADMIN_KEY>` returns JSON.
+  gh/PR creation is CLASSIFIER-BLOCKED for me + GitHub compare pages froze the Chrome renderer → the
+  merge is the owner's tap via the compare link.
 - ⚠ SEPARATE PRICING WORK THIS SESSION WAS ALL REVERTED (owner: keep 999/1999 + 15/30). The margin
   levers explored (cut minutes / raise price / days-per-week) are documented in docs/PRICING.md
   (Phase 6, already merged). margin.config still has rate 49 + fee 5% placeholder (committed); the
