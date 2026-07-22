@@ -53,6 +53,11 @@ export const PLANS = {
     dailySessions:    2,     // 2 FULL HR interviews per day — the daily-quota law
     sessionMinutes:   7.5,
     dailyLiveMinutes: 15,    // 2 × 7.5 — hard daily spend cap
+    // "Study 5, rest 2" (owner 2026-07-22): a paid subscriber gets 5 STUDY DAYS per week (Cairo,
+    // Mon-start); the 2 days they skip are their own rest days — they pick by simply showing up.
+    // Mirrors a real work week + protects margin (~67% at list). Enforced as a weekly COUNT (not
+    // shuffleable named days), so it can't be gamed to 7.
+    studyDaysPerWeek: 5,
     vacancyTarget:    'full',
     vacancyPlanDays:  7,
     interviewPass:    'full',
@@ -73,6 +78,8 @@ export const PLANS = {
     dailySessions:          4,     // 4 FULL HR interviews per day
     sessionMinutes:         7.5,
     dailyLiveMinutes:       30,    // 4 × 7.5 — hard daily spend cap
+    studyDaysPerWeek:       5,     // "Study 5, rest 2" — see the Basic note above
+
     zielStelle:             true,  // Ziel-Stelle matching — the interview is framed for the target account type
     vacancyTarget:          'full',
     vacancyPlanDays:        7,
@@ -93,6 +100,12 @@ export const PLANS = {
   // it is plan-agnostic and a future one-time plan may use it. Accounts that ever got plan:'job'
   // lapse safely to free via planOf()'s PLANS[s.plan] existence check.
 };
+
+// Study days per week for a plan (0/absent = no weekly limit, e.g. the free one-time fight).
+export function studyDaysPerWeekFor(planId = 'free') {
+  const v = Number(PLANS[planId]?.studyDaysPerWeek);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
 
 // Call Floor overage block size (minutes). Phase 6 prices `overagePerBlock`; the block size is here.
 export const CALLFLOOR_OVERAGE_BLOCK_MIN = 5;
