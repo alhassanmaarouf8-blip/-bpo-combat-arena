@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useReducer, Component, lazy, Suspense } from 'react';
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
+import { realFluencyTrend } from './progressTrend.js';
 import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
 import { GeminiVoicePlayer, emitBossLevel, subscribeBossLevel } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
@@ -2186,15 +2187,20 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           )}
 
           {/* ── Dein Fortschritt: readiness rank + one improvement trend line ── */}
-          {(data?.progress?.rank || data?.progress?.trend?.fluency?.length > 1) && (
+          {(data?.progress?.rank || realFluencyTrend(data?.progress?.trend?.fluency).length > 1) && (
             <Section title={ar ? 'تقدّمك · DEIN FORTSCHRITT' : 'DEIN FORTSCHRITT'} color="var(--accent)">
               {data.progress.rank && <RankLadder rank={data.progress.rank} />}
-              {data.progress.trend?.fluency?.length > 1 && (() => {
-                const f = data.progress.trend.fluency;
-                const delta = f[f.length - 1] - f[0];
+              {/* Honest fix (2026-07-22): the old verdict here read `last - first` of a RAW composite
+                  fluency slice across DIFFERENT bosses/levels/moods (with ?? 0 fabricating jumps) and
+                  printed "du verbesserst dich" — appearance of progress, not real progress. Killed. The
+                  sparkline now shows only real values (realFluencyTrend strips the fabricated 0s); the
+                  EARNED progress claim lives below in weekTrend/weakRuleDelta (same-window, honest). */}
+              {(() => {
+                const f = realFluencyTrend(data.progress.trend?.fluency);
+                if (f.length < 2) return null;   // honest-when-thin: <2 comparable values → no sparkline
                 return (
                   <div style={{ marginTop:11 }}>
-                    <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:5 }}>Flüssigkeit über deine letzten Sitzungen:</div>
+                    <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:5 }}>Flüssigkeit über deine letzten Sitzungen (verschiedene Interviews):{/* OWNER-AR slot */}</div>
                     <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, letterSpacing:'0.02em' }}>
                       {f.map((v, i) => (
                         <span key={i}>
@@ -2203,11 +2209,6 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                           {i < f.length - 1 && <span style={{ color:'#475569', margin:'0 7px' }}>→</span>}
                         </span>
                       ))}
-                    </div>
-                    <div style={{ fontSize:10, marginTop:4, color: delta > 0 ? 'var(--accent)' : delta < 0 ? '#f87171' : '#94a3b8' }}>
-                      {delta > 0 ? `+${delta} besser als zu Beginn dieser Reihe — du verbesserst dich.`
-                        : delta < 0 ? `${delta} heute — dranbleiben, der Trend dreht sich.`
-                        : 'Stabil — jetzt zum nächsten Sprung.'}
                     </div>
                   </div>
                 );
