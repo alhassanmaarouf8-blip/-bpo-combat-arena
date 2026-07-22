@@ -4648,6 +4648,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
   const [personalStepOpen, setPersonalStepOpen] = useState(false); // Phase 4: the personal step behind the debrief's blue button
   const [resumeStep, setResumeStep] = useState(null); // home re-entry: the active, NOT-completed personal step from the last interview (null = none/completed → no card)
+  const [trends, setTrends] = useState(null); // P3 "Aufstieg" ridge: real per-interview series {fluency,wpm,vocab,dates} from /api/progress
   // Series stage variants (drill-prescription doctrine): 'find' = FINDE-DEN-FEHLER (Stage A),
   // 'tempo' = timed SAG-ES-RICHTIG (Stage C). Reset on close so manual opens get the classic drill.
   const [spokenReviewMode, setSpokenReviewMode] = useState(null);
@@ -6001,6 +6002,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         if (!cancelled && data.hireReadiness) setHireReadiness(data.hireReadiness);   // honest hire-readiness verdict for the home
         if (!cancelled && data.lastDebrief) setLastDebrief(data.lastDebrief);         // one-shot proof card (server clears it after debrief-seen)
         if (!cancelled && data.topWeakness) setTopWeakness(data.topWeakness);         // Salma's file note (#1 lapsed rule — was computed but never surfaced)
+        if (!cancelled && data.trends) setTrends(data.trends);                        // P3 Aufstieg ridge: real per-interview fluency series
         if (!cancelled && data.currentBoss) setPipeline({ currentBoss: data.currentBoss, nextBoss: data.nextBoss || null });   // training-interview progression
       } catch { /* keep cached value */ }
     })();
@@ -7150,6 +7152,62 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             already computes it honestly (hireReadiness.js: names the ONE blocking skill, shows X/9 signals
             measured, returns null rather than guess). Returning users only — a novel user has no signals
             yet, and the component self-hides when there's nothing measurable. */}
+        {/* P3 — "Dein Aufstieg": the readiness ridge from REAL data (trends.fluency per interview,
+            server-computed). Each dot = one real interview; dips are honest (a harder interview), the
+            curve is never fabricated. <2 interviews → an honest "not enough data yet" state. Blue
+            (var(--accent)) so the tab's orange stays with HireVerdict's drill actions. Reworked D1. */}
+        {homeTab === 'fortschritt' && canStart && !firstRun && (() => {
+          const flu = (trends?.fluency || []).map(Number).filter(Number.isFinite);
+          const shell = { borderRadius:'var(--r-lg)', padding:'15px 16px 12px', marginBottom:10, background:'var(--glass)',
+            border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' };
+          const eyebrow = { fontFamily:'var(--font-display)', fontSize:9.5, fontWeight:800, letterSpacing:'0.16em',
+            textTransform:'uppercase', color:'var(--text-faint)' };
+          if (flu.length < 2) {
+            return (
+              <div style={shell}>
+                <div style={eyebrow}>Dein Aufstieg{/* OWNER-AR slot */}</div>
+                <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:6, lineHeight:1.5 }}>
+                  Nach zwei Interviews zeichnet sich deine Aufstiegskurve — dein Redefluss über die Zeit.{/* OWNER-AR slot */}
+                </div>
+              </div>
+            );
+          }
+          const max = Math.max(...flu), min = Math.min(...flu), flat = max === min, span = (max - min) || 1;
+          const W = 320, H = 116, padX = 6, padY = 12;
+          const pts = flu.map((v, i) => [
+            +(padX + (i / (flu.length - 1)) * (W - padX * 2)).toFixed(1),
+            +(flat ? H / 2 : (H - padY) - ((v - min) / span) * (H - padY * 2)).toFixed(1),
+          ]);
+          const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join(' ');
+          const area = `${line} L${pts[pts.length - 1][0]},${H} L${pts[0][0]},${H} Z`;
+          return (
+            <div style={shell}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:9 }}>
+                <div style={eyebrow}>Dein Aufstieg{/* OWNER-AR slot */}</div>
+                <div style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-meta)', fontWeight:700, color:'var(--text-dim)' }}>
+                  Redefluss · {flu.length} Interviews
+                </div>
+              </div>
+              <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display:'block', width:'100%', height:'auto' }} aria-label="Redefluss über deine Interviews">
+                <defs>
+                  <linearGradient id="ridgeArea" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" style={{ stopColor:'var(--accent)', stopOpacity:0.30 }} />
+                    <stop offset="1" style={{ stopColor:'var(--accent)', stopOpacity:0 }} />
+                  </linearGradient>
+                </defs>
+                <path d={area} fill="url(#ridgeArea)" />
+                <path d={line} style={{ fill:'none', stroke:'var(--accent)' }} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {pts.map((p, i) => (
+                  <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.6 : 2} style={{ fill:'var(--accent)' }} />
+                ))}
+              </svg>
+              <div style={{ fontSize:9.5, color:'var(--text-faint)', marginTop:7, display:'flex', justifyContent:'space-between' }}>
+                <span>höher = flüssiger</span><span>jeder Punkt = ein Interview</span>
+              </div>
+            </div>
+          );
+        })()}
+
         {homeTab === 'fortschritt' && canStart && !firstRun && hireReadiness && (
           <HireVerdict h={hireReadiness} compact onTrain={(drill, why) => {
             const OPEN = { fluency: setFluencyOpen, shadowing: setShadowingOpen, pressure: setPressureOpen,
