@@ -17,6 +17,7 @@ import { generateDeepAnalysis } from '../deepDiagnosis.js';
 import { eventsFromAnalysis, appendErrorEvents } from '../analysisStore.js';
 import { judgeCall, overallScore } from './competency.js';
 import { saveCallResult, saveCallSession } from './resultsStore.js';
+import { productForScenario } from './products.js';
 
 const RETRY_DELAYS = [0, 8_000, 25_000];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -58,7 +59,7 @@ async function withRetries(tag, fn) {
  * Fire-and-forget after a call ends. Language and competency run independently — one failing
  * never blocks the other. Returns the result record (or null) for the synchronous caller path.
  */
-export async function runPostCall({ session, scenario }) {
+export async function runPostCall({ session, scenario, languageOnly = false }) {
   const userId = session.userId;
 
   // (a) LANGUAGE → error_events (evidence for the next interview's bottleneck choice).
@@ -81,9 +82,11 @@ export async function runPostCall({ session, scenario }) {
     return null;
   });
 
-  // (b) JOB COMPETENCY → call_results.
+  // (b) JOB COMPETENCY → call_results. Free-talk is languageOnly: it harvests errors silently but
+  // is NOT a scored call (no verdict), so the competency leg is skipped.
+  if (languageOnly) { await language; return null; }
   const competency = withRetries('competency', () =>
-    judgeCall({ scenario, transcript: session.transcript, userId }),
+    judgeCall({ scenario, transcript: session.transcript, userId, product: productForScenario(scenario.id) }),
   ).then(async (judged) => {
     const result = {
       sessionId: session.id, userId, quadrant: session.quadrant, scenarioId: scenario.id,

@@ -13,6 +13,8 @@ import { planLedger } from './ledger.js';
 import { EGP_PER_USD, PAYMENT_FEE } from './margin.config.js';
 import { QUADRANTS, RUBRICS } from './scenarios.js';
 import { personaTurn } from './callEngine.js';
+import { freeTalkTurn, FREETALK_SCENARIO } from './freetalk.js';
+import { factSheet, productForScenario } from './products.js';
 import { transcribeCallTurn } from './transcribe.js';
 import { recordAiUsage } from './usage.js';
 import { PRICEBOOK } from './pricebook.config.js';
@@ -121,10 +123,39 @@ callfloorRouter.post('/callfloor/session',
         opening: opening ? { text: opening.text } : null,
         mood: session.mood,
         maxTurns: cs.MAX_AGENT_TURNS, maxMs: cs.MAX_CALL_MS,
+        // Phase 5: sales seats get the product fact sheet to review before the call.
+        product: (quadrant === 'inbound_sales' || quadrant === 'outbound_sales') ? factSheet(productForScenario(scenario.id)) : null,
       });
     } catch (err) {
       console.error('[callfloor] start failed:', err.message);
       res.status(500).json({ error: 'start_failed' });
+    }
+  });
+
+// ── Free-Talk (Phase 5): start an open conversation (Elite/trial only; metered) ────────────────
+callfloorRouter.post('/callfloor/freetalk',
+  requireAuth, express.json(),
+  rateLimit({ windowMs: 10 * 60 * 1000, max: 20, tag: 'callfloor-freetalk-start', keyExtra: (req) => req.account.id }),
+  async (req, res) => {
+    try {
+      const out = await cs.startFreeTalk({ userId: req.account.id, account: req.account });
+      if (out.error) {
+        const code = out.error === 'daily_limit' ? 429
+          : (out.error === 'not_entitled_freetalk' || out.error === 'not_entitled') ? 403 : 400;
+        return res.status(code).json(out);
+      }
+      const { session, opening } = out;
+      await logTtsChars(req.account.id, opening.text);
+      res.json({
+        sessionId: session.id, freeTalk: true,
+        scenario: { id: 'freetalk', title_de: FREETALK_SCENARIO.title_de, title_ar: FREETALK_SCENARIO.title_ar,
+          brief_de: FREETALK_SCENARIO.brief_de, brief_ar: FREETALK_SCENARIO.brief_ar,
+          customerName: FREETALK_SCENARIO.customer.name, voice: FREETALK_SCENARIO.voice },
+        opening: { text: opening.text }, maxMs: cs.MAX_CALL_MS,
+      });
+    } catch (err) {
+      console.error('[callfloor] freetalk start failed:', err.message);
+      res.status(500).json({ error: 'freetalk_failed' });
     }
   });
 
@@ -149,21 +180,20 @@ callfloorRouter.post('/callfloor/session/:id/turn',
       if (!heard) return res.status(422).json({ error: 'no_voice' });
       cs.recordAgentTurn(session, { text: heard, durationSec });
 
-      const scenario = cs.getScenario(session.scenarioId);
-      const customer = await personaTurn({
-        scenario,
-        history: session.transcript.map((t) => ({ role: t.role, text: t.text })),
-        prevMood: session.mood, userId: req.account.id,
-      });
+      const isFreeTalk = session.quadrant === 'freetalk';
+      const history = session.transcript.map((t) => ({ role: t.role, text: t.text }));
+      const customer = isFreeTalk
+        ? await freeTalkTurn({ history, prevMood: session.mood, userId: req.account.id })
+        : await personaTurn({ scenario: cs.getScenario(session.scenarioId), history, prevMood: session.mood, userId: req.account.id });
       cs.recordCustomerTurn(session, customer);
       await logTtsChars(req.account.id, customer.text);
 
-      const turnsLeft = Math.max(0, cs.MAX_AGENT_TURNS - session.agentTurns);
+      const turnsLeft = isFreeTalk ? null : Math.max(0, cs.MAX_AGENT_TURNS - session.agentTurns);
       res.json({
         heard,
         customer: { text: customer.text, mood: customer.mood, end: customer.end },
         mood: customer.mood, turnsLeft,
-        forceEnd: customer.end || turnsLeft === 0 || !!cs.wallReason(session),
+        forceEnd: customer.end || (!isFreeTalk && turnsLeft === 0) || !!cs.wallReason(session),
       });
     } catch (err) {
       console.error('[callfloor] turn failed:', err.message);
@@ -179,8 +209,20 @@ callfloorRouter.post('/callfloor/session/:id/end',
     try {
       const session = sessionOr404(req, res);
       if (!session) return;
-      const scenario = cs.getScenario(session.scenarioId);
+      const isFreeTalk = session.quadrant === 'freetalk';
+      const scenario = isFreeTalk ? FREETALK_SCENARIO : cs.getScenario(session.scenarioId);
       await cs.endCall(session);
+
+      // Free-talk is not scored: fire the languageOnly harvest and return a light summary (no verdict).
+      if (isFreeTalk) {
+        runPostCall({ session, scenario, languageOnly: true })
+          .catch((e) => console.error(`[callfloor] freetalk harvest failed session=${session.id}: ${e.message}`));
+        const words = session.transcript.filter((t) => t.role === 'agent')
+          .reduce((s, t) => s + String(t.text || '').split(/\s+/).filter(Boolean).length, 0);
+        return res.json({ freeTalk: true, sessionId: session.id,
+          handleSeconds: Math.round((session.endedAt - session.startedAt) / 1000), wordsSpoken: words });
+      }
+
       const p = runPostCall({ session, scenario });
       postCallPromises.set(session.id, p);
       p.finally(() => setTimeout(() => postCallPromises.delete(session.id), 10 * 60_000));
