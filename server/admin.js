@@ -25,6 +25,7 @@ import { deleteWeaknessData }             from './db.js';
 import { buildSpokenGoldProfileSnapshot } from './spokenGoldSnapshot.js';
 import { adminStudyCohortInventory, createAdminStudyInviteLink, studyCohortSlotAvailable } from './studyCohortAdmin.js';
 import { publicOwnerTrace } from './firstSessionTrace.js';
+import { refundEligibility } from './refundPolicy.js';
 
 export const adminRouter = express.Router();
 
@@ -178,6 +179,26 @@ adminRouter.get('/admin/account', async (req, res) => {
       billingPeriodEnd: s.billingPeriodEnd || null, deactivatedAt: s.deactivatedAt || null,
     });
   } catch (e) { console.error('[admin] account lookup error:', e.message); res.status(500).json({ error: 'lookup_failed' }); }
+});
+
+// Refund eligibility check — the owner approves every Vodafone Cash refund by hand; this tells him,
+// per his own policy, whether a given email qualifies (still in the 14-day window AND barely used).
+// It NEVER moves money — pure read + decision. Usage: GET /admin/refund-check?email=…
+adminRouter.get('/admin/refund-check', async (req, res) => {
+  if (!adminKeyOk(req)) return deny(res).json({ error: 'forbidden' });
+  try {
+    const acc = await getAccountByEmail(String(req.query.email || '').trim());
+    if (!acc) return res.json({ found: false });
+    const s = acc.subscription || {};
+    const p = await loadUser(acc.id);
+    const elig = refundEligibility({ planSetAt: s.planSetAt || 0, sessions: p?.sessions || [] });
+    res.json({
+      found: true, email: acc.email, plan: planOf(acc),
+      planSetAt: s.planSetAt || null,
+      planSetAtISO: s.planSetAt ? new Date(s.planSetAt).toISOString().slice(0, 10) : null,
+      ...elig,
+    });
+  } catch (e) { console.error('[admin] refund-check error:', e.message); res.status(500).json({ error: 'refund_check_failed' }); }
 });
 
 // Manual password recovery (support-over-WhatsApp): there is no email infrastructure for a

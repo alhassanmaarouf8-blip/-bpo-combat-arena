@@ -1,5 +1,35 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 📅 "STUDY 5, REST 2" CAP + USAGE-GATED REFUND — BOTH BUILT+PUSHED (2026-07-22) — ⏳ OWNER MERGE
+- Two features on ONE branch `feature/study-week-cap`, pushed, NOT merged: 8dbfc10 (study cap) +
+  b447881 (usage-gated refund). Both ADDITIVE, gates green, prices/quotas UNCHANGED.
+- (1) STUDY 5, REST 2 — keep 15/30 min/day + 999/1999; margin lever = 5 study-days/week cap (the 2
+  skipped days = the learner's OWN rest, chosen by showing up). List-rate margin ~53%→~67% both
+  plans; $0 actual today. NOT 80% (needs 3 days/wk); 80% comes later via value-pricing once users get
+  hired (owner aligned). Files: `server/studyWeek.js` (pure: Cairo Mon-start, distinct-day COUNT from
+  usageDays → can't game to 7; 7 tests) + `plans.config` studyDaysPerWeek:5 basic/elite +
+  studyDaysPerWeekFor() + websocketManager ADDITIVE gate beside the daily cap (paid only; free
+  one-time fight exempt; blocks the 6th study day with a weekly_rest close; interview flow untouched)
+  + App.jsx weekly_rest message (ar='' OWNER-AR → German fallback).
+- (2) USAGE-GATED REFUND — closes the refund-abuse hole (pay, burn voice minutes in the 14-day
+  window, refund). `server/refundPolicy.js` pure (9 tests): eligible = within REFUND_WINDOW_DAYS=14
+  of `subscription.planSetAt` AND ≤REFUND_MAX_INTERVIEWS=2 interviews since (from
+  `profile.sessions[].date`). Owner-only decision helper `GET /admin/refund-check?email=`
+  (ADMIN_KEY-gated, read-only, NEVER moves money) in admin.js. It's a consistency tool for his MANUAL
+  Vodafone Cash rail — NOT code enforcement.
+- Gates: lint ✓, refund 9/9 + studyWeek 7/7, admin.js loads ✓. (Full suite last green 931/933, 2
+  pre-existing vertex-credential fails.)
+- ⏳ REMAINING (OWNER-gated by the Two Laws — this touches the FROZEN interview gate): merge the
+  branch, then deploy + prove-it: (a) start an interview on a probe acct → must NOT be blocked (<5
+  study days this week); (b) `GET /admin/refund-check?email=<his>&key=<ADMIN_KEY>` returns JSON.
+  gh/PR creation is CLASSIFIER-BLOCKED for me + GitHub compare pages froze the Chrome renderer → the
+  merge is the owner's tap via the compare link.
+- ⚠ SEPARATE PRICING WORK THIS SESSION WAS ALL REVERTED (owner: keep 999/1999 + 15/30). The margin
+  levers explored (cut minutes / raise price / days-per-week) are documented in docs/PRICING.md
+  (Phase 6, already merged). margin.config still has rate 49 + fee 5% placeholder (committed); the
+  real rate is ~51 and his rail is Vodafone Cash (~0 fee) — update before any real pricing move.
+
+
 ## ✅ DB "EMERGENCY" WAS A FALSE ALARM — PROD RUNS ON NEON, HEALTHY (resolved 2026-07-21)
 - Scare: Render `bpo-combat-db` (dpg-d8ljfipo3t8c73dgolf0-a, free) shows EXPIRED/Suspended,
   "deleted in 4 days." I assumed it was production. **It is NOT.** Revealing the web service's
@@ -14,6 +44,25 @@
   hit the page not the field; reloaded to discard). db2 is empty + unreferenced → delete it
   (cleanup) or let it auto-expire. DATABASE_URL was NOT changed; Neon URL intact.
 
+
+## 📞💰 CALL FLOOR PHASE 6 MARGIN ENGINE MERGED (2026-07-22) — ⛔ STOPPED FOR OWNER PRICING SIGN-OFF
+- PR #24 MERGED. Pure analysis: `marginEngine.js` (5 tests: gross-margin, cogs, affordable-voice
+  formula, break-even price) + `scripts/callfloor/margin-report.mjs` → **docs/PRICING.md**. STAGES
+  NOTHING — plans.config.js UNCHANGED. Applying any price/allowance = owner's explicit go.
+- ★ FINDING (LIST-rate model, PLACEHOLDER inputs EGP↔USD=49, fee 5%+$0.5, voice $0.02/min):
+  **both plans miss 80% badly.** Basic 47.5% typical / **2.5% heavy** @ 999 EGP; Elite 48.8% /
+  **3.8% heavy** @ 1999. Cause: daily voice allowances (interview + Call Floor combined = 30/60
+  min/day) cost >20% of the EGP price. To hold 80% at HEAVY use: cut TOTAL voice to ~2.3 min/day
+  (Basic) / ~5.4 (Elite), OR raise price to ~6162/12160 EGP (market-implausible), OR cut $/min.
+- ⚠ HONEST CAVEATS: (1) ACTUAL cost today ≈ $0 (free tiers) — this is a "when you scale past free
+  tiers" projection; LIST used because free tiers don't scale. (2) EGP↔USD=49 + fee 5% are MY
+  placeholders — owner must verify before acting. (3) "heavy" = user maxes BOTH interview AND call
+  allowances daily (worst case). (4) Real call $/min lands in ai_usage_events — re-run with prod
+  DATABASE_URL for measured (not estimated) call costs.
+- ⛔ OWNER DECISION NEEDED before Phase 7: (a) refresh the ⚠ placeholders; (b) pick a lever per
+  plan (allowance cut / price bump / $/min cut / accept a lower floor). Then I apply to
+  plans.config + re-run + Phase 7 (final verification). Recommended middle path: modest allowance
+  cut + modest price bump (typical usage ~50% → generous-feeling yet ≥80% at heavy).
 
 ## 📞✅ CALL FLOOR PHASE 5 LIVE + PROD-PROVEN @ b54480a (2026-07-22) — free-talk + product-knowledge
 - PR #23 MERGED (Guardian green), deploy `b54480a` LIVE. Pure Mode 2 — ZERO Mode 1 files touched.

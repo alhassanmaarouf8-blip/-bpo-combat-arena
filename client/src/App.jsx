@@ -191,6 +191,7 @@ const WS_ERROR_TEXT = {
   mic_lost:             { de: 'Verbindung zum Mikrofon verloren. Du kannst per Text fortfahren oder neu starten.', ar: 'الاتصال بالمايك اتقطع. تقدر تكمل بالكتابة أو تبدأ من جديد.' },
   plan_required:        { de: 'Dein Trainingsplan ist fertig — wähle einen Plan, um ihn freizuschalten.', ar: 'خطتك جاهزة — اختار خطة عشان تفتحها.' },
   daily_limit:          { de: 'Dein heutiges Training ist erledigt. Morgen wartet das nächste — heute: Drills & Lektionen.', ar: 'تمرين النهارده خلص. بكرة في جولة جديدة — النهارده: تمارين ودروس.' },
+  weekly_rest:          { de: 'Stark! Deine 5 Trainingstage diese Woche sind geschafft — jetzt zwei Tage Pause. Ab Montag geht es weiter. Heute: Drills und Lektionen.', ar: '' /* OWNER-AR */ },
   ws_connect_failed:    { de: 'Keine Verbindung zum Server. Prüfe dein Internet und starte neu.', ar: 'مفيش اتصال بالسيرفر. اتأكد من النت وابدأ من جديد.' },
   connection_lost:      { de: 'Verbindung unterbrochen. Bitte starte das Interview neu.', ar: 'الاتصال اتقطع. من فضلك ابدأ الإنترفيو من جديد.' },
   // Honest wall for in-app/legacy browsers that CANNOT do mic capture — before this, they got

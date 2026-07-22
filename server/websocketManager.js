@@ -33,6 +33,8 @@ import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER, RANKS } from './progression.js';
 import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
+import { weekStudyStatus } from './studyWeek.js';
+import { studyDaysPerWeekFor } from './plans.config.js';
 import { classifyGrammar }       from './errorTags.js';
 import { buildBossMemory }        from './bossMemory.js';
 import { refreshRecommendations } from './trainingslager.js';
@@ -680,6 +682,21 @@ export class WebSocketManager {
       this._sendError(ctx, 'daily_limit');
       ctx.socket.close(4403, 'daily_limit');
       return;
+    }
+    // ── Weekly study-day cap: "study 5, rest 2" (owner 2026-07-22). PAID plans only (the free
+    // one-time fight is exempt via freeFightSec>0). A learner gets N distinct study days/week
+    // (Cairo, Monday-start) from the durable usageDays map; the days they skip are their own rest
+    // days. Enforced as a COUNT (not shuffleable named days) so it can't be gamed to 7. Additive —
+    // the interview flow below is untouched; a rest day is a clean, honest "back Monday" close. ──
+    if (freeFightSec <= 0) {
+      const wk = weekStudyStatus(prof?.usageDays || {}, studyDaysPerWeekFor(planOf(account)));
+      if (!wk.allowedToday) {
+        console.log(`[wsManager] Weekly rest day  user=${ctx.userId}  studyDays=${wk.studyDaysThisWeek}/${wk.cap}  session=${ctx.sessionId}`);
+        this._releaseFight(ctx);
+        this._sendError(ctx, 'weekly_rest');
+        ctx.socket.close(4403, 'weekly_rest');
+        return;
+      }
     }
     // Authentication becomes durable for this socket only after identity, mailbox, plan,
     // duplicate-session, and daily-cap checks all pass. Failed START attempts retain the auth
