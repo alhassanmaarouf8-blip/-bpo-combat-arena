@@ -7188,6 +7188,16 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   Redefluss · {flu.length} Interviews
                 </div>
               </div>
+              {/* Motion that MEANS something (never-boring, not decorative): the climb draws itself in —
+                  the line reveals your ascent, the dots land after. Guarded by prefers-reduced-motion. */}
+              <style>{`
+                @media (prefers-reduced-motion: no-preference){
+                  .aufstiegLine{stroke-dasharray:1000;stroke-dashoffset:1000;animation:aufstiegDraw 1.25s var(--ease-out,cubic-bezier(.2,.7,.2,1)) forwards .12s}
+                  @keyframes aufstiegDraw{to{stroke-dashoffset:0}}
+                  .aufstiegDot{opacity:0;animation:aufstiegPop .35s ease forwards 1.15s}
+                  @keyframes aufstiegPop{to{opacity:1}}
+                }
+              `}</style>
               <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display:'block', width:'100%', height:'auto' }} aria-label="Redefluss über deine Interviews">
                 <defs>
                   <linearGradient id="ridgeArea" x1="0" y1="0" x2="0" y2="1">
@@ -7196,9 +7206,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   </linearGradient>
                 </defs>
                 <path d={area} fill="url(#ridgeArea)" />
-                <path d={line} style={{ fill:'none', stroke:'var(--accent)' }} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path className="aufstiegLine" d={line} style={{ fill:'none', stroke:'var(--accent)' }} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 {pts.map((p, i) => (
-                  <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.6 : 2} style={{ fill:'var(--accent)' }} />
+                  <circle className="aufstiegDot" key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.6 : 2} style={{ fill:'var(--accent)' }} />
                 ))}
               </svg>
               <div style={{ fontSize:9.5, color:'var(--text-faint)', marginTop:7, display:'flex', justifyContent:'space-between' }}>
