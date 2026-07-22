@@ -6396,6 +6396,20 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           </div>
         ) : homeTab !== 'training' ? null : (
           <div style={{ marginBottom:12 }}>
+            {/* AKTE MASTHEAD (P2 — "Die Akte" home direction): the dossier identity, ABOVE everything.
+                Purely additive — it never touches the protected interview control below. Orange belongs
+                to the interview (see 6421), so this header is neutral/blue. Level is real (localStorage /
+                assessment); status = "In Prüfung" (the file is under review until einstellungsreif). */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+              <div style={{ fontFamily:'var(--font-display)', fontSize:9.5, fontWeight:800, letterSpacing:'0.16em',
+                textTransform:'uppercase', color:'var(--text-faint)' }}>Deine Akte{/* OWNER-AR slot */}</div>
+              <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:'var(--font-display)', fontSize:9.5,
+                fontWeight:700, letterSpacing:'0.08em', color:'var(--accent-2)', border:'1px solid var(--line-strong)',
+                borderRadius:'var(--r-pill)', padding:'4px 9px' }}>
+                <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--accent-2)' }} />
+                In Prüfung · {({ 'a2-b1':'A2–B1', 'b2':'B2', 'c1':'C1' }[level] || 'A2–B1')}
+              </span>
+            </div>
             {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. Hidden on first-run
                 (a novel user has no streak/habit to repeat yet — it'd be a second CTA above the hero). */}
             {!firstRun && <div style={{ display:'flex', gap:8, marginBottom:10 }}>
@@ -7227,6 +7241,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             const total = items.length;
             const done  = items.filter(i => (i.repsDone || 0) >= (i.reps || 1)).length;
             const focus = resumeStep.set?.title_de || '';
+            // The REAL "Befund": the learner's own faulty sentence → its correction. stage2 labels them
+            // explicitly (prompt=faulty, target=corrected); evidenceQuotes is the spoken-quote fallback.
+            const _s2 = (resumeStep.set.stage2 || [])[0];
+            const _eq = (resumeStep.bottleneck?.evidenceQuotes || [])[0];
+            const faulty    = String(_s2?.prompt || _eq?.quote || '').trim();
+            const corrected = String(_s2?.target || _eq?.corrected || '').trim();
             const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
             return (
               <div style={{ marginTop:14, borderRadius:'var(--r-lg)', padding:'15px 16px', position:'relative', overflow:'hidden',
@@ -7242,6 +7262,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.4 }}>
                   Aus deinem Interview{focus ? ` · ${focus}` : ''} — weiter, wo du aufgehört hast.{/* OWNER-AR slot */}
                 </div>
+                {faulty && corrected && (
+                  <div style={{ marginTop:11, padding:'11px 12px', borderRadius:'var(--r-md)', background:'var(--surface)', border:'1px solid var(--line)' }}>
+                    <div style={{ fontSize:'var(--fs-meta)', lineHeight:1.6 }}>
+                      <span style={{ color:'var(--bad)', textDecoration:'line-through', textDecorationThickness:'2px' }}>{faulty}</span>
+                      <span style={{ display:'block', marginTop:5, color:'var(--text-dim)' }}>→ <b style={{ color:'var(--text)', fontWeight:700 }}>{corrected}</b></span>
+                    </div>
+                  </div>
+                )}
                 {total > 0 && (
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:12 }}>
                     <div style={{ flex:1, height:6, borderRadius:'var(--r-pill)', background:'var(--line)', overflow:'hidden' }}>
