@@ -122,6 +122,11 @@ const STORE_MODE = (() => {
     return sessionStorage.getItem('ctx_store') === '1';
   } catch { return false; }
 })();
+// Paymob hosted payment links (card + wallet) per plan. Tapping "pay by card" opens the plan's link;
+// the owner confirms + activates after payment (same manual step as Vodafone Cash). These are TEST-mode
+// links — swap for the live-mode links once Paymob KYC is approved. The full auto-activation path
+// (server Intention API + webhook, server/paymob.js) is built and dormant behind PAYMOB_ENABLED.
+const PAYMOB_LINKS = { basic: 'https://paymob.link/VMG7A', elite: 'https://paymob.link/bFa0s' };
 // A getUserMedia failure means different things in different shells, so the message must match the
 // real cause. In an in-app browser (Messenger/Facebook/Instagram/WebView) the mic can NEVER be
 // granted — sending the user to "allow it in browser settings" (mic_denied) is a dead end. Some of
@@ -4013,7 +4018,6 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
   const [yearly, setYearly] = useState(false);
   const [vodafone, setVodafone] = useState(null);
-  const [cardPay, setCardPay] = useState(false);   // Paymob card + wallet checkout available
   const [paymentAvailable, setPaymentAvailable] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
@@ -4043,7 +4047,6 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         ? !!d.vodafoneNumber
         : !!d.paymentAvailable && !!d.vodafoneNumber);
       setWhatsapp(d.whatsappNumber || null);
-      setCardPay(!!d.cardPayment);
       setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
       if (d.pendingPayment) paymentWatchRef.current = true;
       if (!d.pendingPayment && d.paymentIntent) {
@@ -4116,24 +4119,14 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     setSubmitting(false);
   };
 
-  // Card + wallet (Paymob Unified Checkout — all methods, instant activation). Redirects the browser
-  // to Paymob's hosted page; on success Paymob's webhook activates the plan server-side.
-  const payWithCard = async (choice) => {
-    if (submitting) return;
-    setSubmitting(true); setPaymentError('');
-    try {
-      const r = await fetch(`${API_URL}/api/paymob/checkout`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ plan: choice.planId, billingPeriod: choice.period }),
-      });
-      const d = await r.json().catch(() => ({}));
-      if (r.status === 503) { setPaymentError(ar ? 'الدفع بالبطاقة هيكون متاح قريب.' : 'Kartenzahlung ist bald verfügbar.'); setSubmitting(false); return; }
-      if (!r.ok || !d.url) throw new Error(d.error || `checkout ${r.status}`);
-      window.location.href = d.url;   // → Paymob Unified Checkout (submitting stays true through the redirect)
-    } catch {
-      setPaymentError(ar ? 'تعذر بدء الدفع بالبطاقة. حاول تاني.' : 'Kartenzahlung konnte nicht gestartet werden. Bitte erneut versuchen.');
-      setSubmitting(false);
-    }
+  // Card + wallet: open the plan's Paymob hosted payment link. The customer pays there; the owner
+  // confirms + activates after (same manual step as Vodafone Cash). New tab so the app isn't lost;
+  // falls back to same-tab navigation if a popup blocker intervenes.
+  const payWithCard = (choice) => {
+    const link = PAYMOB_LINKS[choice.planId];
+    if (!link) return;
+    const w = window.open(link, '_blank', 'noopener');
+    if (!w) window.location.href = link;
   };
 
   // Post-payment "send proof" actions: copy the reference code, and (if a WhatsApp number is
@@ -4236,6 +4229,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
   // ── PAYMENT-INSTRUCTIONS VIEW ──
   if (pay) {
+    const cardLink = PAYMOB_LINKS[pay.planId];   // Paymob hosted link for this plan (card + wallet)
     return shell(<>
       <div style={{ textAlign:'center', marginBottom:12 }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, letterSpacing:1.2, color:'var(--text)' }}>{pay.label?.toUpperCase()}</div>
@@ -4246,15 +4240,15 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
       {/* Card + wallet (Paymob) — all payment methods, instant activation. Blue (not orange) so the
           Vodafone "Ich habe bezahlt" below stays the single orange action when both are shown. */}
-      {cardPay && (
-        <button onClick={() => payWithCard(pay)} disabled={submitting}
-          style={{ width:'100%', padding:'13px', minHeight:50, cursor: submitting ? 'wait' : 'pointer',
+      {cardLink && (
+        <button onClick={() => payWithCard(pay)}
+          style={{ width:'100%', padding:'13px', minHeight:50, cursor:'pointer',
             fontFamily:'var(--font-display)', fontSize:13, fontWeight:800, letterSpacing:'0.02em', borderRadius:10,
-            border:'1px solid var(--accent-2)', color:'#04121f', background:'var(--accent-2)', opacity: submitting ? 0.6 : 1 }}>
-          {submitting ? '…' : (ar ? 'ادفع بالكارت أو المحفظة' : 'Mit Karte oder Wallet zahlen')}{/* OWNER-AR slot */}
+            border:'1px solid var(--accent-2)', color:'#04121f', background:'var(--accent-2)' }}>
+          {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
         </button>
       )}
-      {cardPay && !STORE_MODE && vodafone && (
+      {cardLink && !STORE_MODE && vodafone && (
         <div style={{ textAlign:'center', fontSize:10.5, color:'#64748b', margin:'8px 0 6px' }}>{ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash'}</div>
       )}
 
@@ -4319,7 +4313,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           </button>
           {paymentError && <div role="alert" style={{ marginTop:10, color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>{paymentError}</div>}
         </div>
-      ) : cardPay ? (
+      ) : cardLink ? (
         paymentError ? <div role="alert" style={{ marginTop:10, color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>{paymentError}</div> : null
       ) : (
         <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'#94a3b8', fontSize:12, padding:20 }}>
