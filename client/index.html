@@ -118,26 +118,17 @@
         border-top-color:#3b82f6;animation:omni-boot-spin 0.8s linear infinite}
       @keyframes omni-boot-spin{to{transform:rotate(360deg)}}
       @media (prefers-reduced-motion:reduce){#boot-splash .ring{animation:none;border-color:rgba(59,130,246,0.5)}}
-      /* Mobile-first app is a 440px phone column. On a laptop that skinny strip looked "zoomed in" and
-         forced endless scrolling. On desktop we instead WIDEN the shell to fill the screen and lay the
-         home's menu out in multiple columns (side-by-side, not an endless stack). Phones are untouched.
-         Width is kept in vw and the zoom factor chosen so rendered width (vw × zoom) stays < 100vw → no
-         horizontal scrollbar. */
-      .app-shell, .auth-shell{ width:100%; max-width:440px; margin:0 auto; }
+      /* Mobile-first app = a phone-width column. On desktop it stays a CENTERED phone column on the
+         ambient background — the polished, intentional look. (An earlier pass stretched it to 80vw +
+         zoom to "fill the laptop"; that made every card oversized and the home read sparse/unfinished
+         — owner 2026-07-23 "the UI is garbage". Reverted to the centered column.) Phones untouched. */
+      .app-shell, .auth-shell{ width:100%; max-width:460px; margin:0 auto; }
       @media (min-width:900px){
-        .app-shell{ max-width:none; width:80vw; zoom:1.15; }   /* rendered ≈ 92vw — fills the laptop */
-        /* Landing/auth gets a REAL desktop layout (aesthetic pass 2026-07-10). The old 560px+zoom
-           clamp squeezed the already-existing two-column .landing-grid into a phone column: the
-           Arabic hero shattered into 1-2 words per line, the ★-rating and legal links scattered
-           into stray grid cells, and input placeholders truncated. Wide shell + zoom 1 lets the
-           grid do its job: hero left, ratings/signup right. */
+        .app-shell{ max-width:460px; width:100%; }             /* centered phone column, natural size — no zoom-stretch */
+        .home-grid{ column-count:1; }                          /* one clean stack, never stretched multi-column cards */
+        /* Landing/auth keeps its REAL two-column desktop layout (aesthetic pass 2026-07-10): the
+           two-column .landing-grid needs the width — hero left, ratings/signup right. */
         .auth-shell{ max-width:1160px; zoom:1; padding-inline:36px; }
-        .home-grid{ column-count:2; column-gap:16px; }
-        .home-grid > *{ break-inside:avoid; }                  /* keep each card whole across columns */
-      }
-      @media (min-width:1500px){
-        .app-shell{ width:74vw; zoom:1.2; }
-        .home-grid{ column-count:3; }
       }
     </style>
   </head>
