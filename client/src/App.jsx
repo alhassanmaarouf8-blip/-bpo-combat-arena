@@ -4252,14 +4252,15 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
             <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
           </div>
 
-          {/* TRUST at the money moment: the buyer is sending cash to a bare number — give it a
-              face, a receipt promise, and the guarantee that already exists on /refund.html.
-              Every claim here is as-built (manual founder verification, live refund policy). */}
+          {/* TRUST at the money moment: the buyer is sending cash to a bare number — give it a face, a
+              receipt promise, and the HONEST basis of trust. No money-back guarantee is promised: the
+              3-day free trial IS the try-before-buy, and payments are non-refundable (owner 2026-07-23). */}
           <div style={{ borderRadius:10, padding:'11px 13px', marginBottom:6, background:'rgba(59,130,246,0.07)',
             border:'1px solid rgba(59,130,246,0.3)', fontSize:11.5, color:'#cbd5e1', lineHeight:1.65 }}>
             Du zahlst direkt an <b>Alhassan</b>, den Gründer — kein Zwischenhändler. Du bekommst eine
-            Bestätigung per WhatsApp, und es gilt die <a href="/refund.html" target="_blank" rel="noopener noreferrer"
-            style={{ color:'var(--accent-2)' }}>14-Tage-Geld-zurück-Garantie auf den ersten Kauf</a>.{/* OWNER-AR slot */}
+            Bestätigung per WhatsApp. Du hast 3 Tage gratis getestet, bevor du zahlst — danach ist die
+            Zahlung nicht erstattungsfähig (<a href="/refund.html" target="_blank" rel="noopener noreferrer"
+            style={{ color:'var(--accent-2)' }}>Rückerstattungsrichtlinie</a>).{/* OWNER-AR slot */}
           </div>
 
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}

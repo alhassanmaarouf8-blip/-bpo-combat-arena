@@ -7,8 +7,12 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 test('BrainGuide keeps one visible action and an always-visible orientation contract', async () => {
   const source = await read('client/src/BrainGuide.jsx');
   assert.match(source, /DEIN NÄCHSTER SCHRITT/u);
-  assert.match(source, /\{brief\.title\}/u);
-  assert.match(source, /\{brief\.dose\}/u);
+  assert.match(source, /\{primaryTitle\}/u);
+  assert.match(source, /\{primaryDose\}/u);
+  // Resume-aware primary (owner 2026-07-23): an UNFINISHED interview exercise set supersedes the drill
+  // as the next step — but when NOT resuming, title/dose still come from the server brief, never fabricated.
+  assert.match(source, /primaryTitle\s*=\s*resuming\s*\?[^;]*:\s*brief\.title/u);
+  assert.match(source, /primaryDose\s*=\s*resuming\s*\?[^;]*:\s*brief\.dose/u);
   assert.match(source, /01 · WARUM JETZT/u);
   assert.match(source, /02 · FERTIG, WENN/u);
   assert.match(source, /03 · DANACH/u);
