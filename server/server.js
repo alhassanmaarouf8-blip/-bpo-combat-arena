@@ -108,6 +108,11 @@ app.use(cors({
   },
   credentials: true,
 }));
+// "Meine eigenen Fragen" sends base64 images to extract questions — far larger than the global
+// 64kb JSON cap. This path-specific parser is registered BEFORE the global one so it parses the big
+// body first; body-parser sets req._body, and the global express.json below then skips it. Without
+// this the global 64kb parser rejects the request with PayloadTooLargeError before the route runs.
+app.use('/api/custom-questions/extract', express.json({ limit: '12mb' }));
 app.use(express.json({ limit: '64kb' }));
 
 // Opportunistic daily push reminder: fire-and-forget on ordinary traffic (throttled inside).
