@@ -6520,6 +6520,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   onSessionExpired={onLogout}
                   topWeakness={topWeakness} trial={auth.account?.entitlement?.trial} lang={feedbackLang}
                   pipeline={pipeline}
+                  resumeStep={resumeStep} onResume={() => setPersonalStepOpen(true)}
                   onAction={executeBrainDirective} />
               )}
 

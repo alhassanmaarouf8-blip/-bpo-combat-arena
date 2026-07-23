@@ -266,7 +266,7 @@ const LADDER = [
 ];
 
 export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessionExpired,
-  lang = 'de', pipeline = null, refreshKey = 0 }) {
+  lang = 'de', pipeline = null, refreshKey = 0, resumeStep = null, onResume }) {
   const [data, setData] = useState(null);
   const [loadState, setLoadState] = useState('loading');
   const [coachView, setCoachView] = useState(null);
@@ -424,6 +424,19 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
     startSpeaking({ items: [], dePrefix: whyLine(d) });
   };
 
+  // "Switch them" (owner 2026-07-23): an UNFINISHED exercise set from the last interview is the ONE
+  // thing to return to — it SUPERSEDES the generic drill prescription as the home's primary next step,
+  // so the learner lands back on their interview's own exercises instead of "SAG ES RICHTIG". Focus is
+  // real (set.title_de). The interview stays reachable via the link below (resume ≠ interview/assessment
+  // → the protected link still renders), so nothing is stranded.
+  const resuming = !!resumeStep;
+  const resumeFocus = resumeStep?.set?.title_de || '';
+  const primaryTitle = resuming ? 'Deine Übungen fortsetzen' : brief.title;
+  const primaryDose  = resuming ? 'Zurück zu den Übungen aus deinem Interview — weiter, wo du aufgehört hast.' : brief.dose;
+  const primaryCta   = resuming ? `ÜBUNGEN FORTSETZEN${resumeFocus ? ` · ${resumeFocus.toUpperCase()}` : ''}` : ctaText;
+  const onPrimary    = resuming ? () => onResume?.() : () => onAction?.(d, whyLine(d));
+  const showCta      = resuming || d.prescription?.action !== 'wait';
+
   return (
     <section dir="ltr" className={`brain-guide brain-guide--${String(d.state || 'active').toLowerCase()}`}
       aria-labelledby="brain-guide-title">
@@ -472,11 +485,11 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
               : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'DEIN PLAN'}
           </span>
         </div>
-        <h2 id="brain-guide-title" className="brain-guide__title" style={{ fontSize: 20, margin: '4px 0 6px' }}>{brief.title}</h2>
-        <p className="brain-guide__dose"><span>DEIN AUFTRAG</span>{brief.dose}</p>
-        {d.prescription?.action !== 'wait' && (
-          <button className="brain-guide__cta" onClick={() => onAction?.(d, whyLine(d))}>
-            <span>{ctaText}</span><span aria-hidden="true">→</span>
+        <h2 id="brain-guide-title" className="brain-guide__title" style={{ fontSize: 20, margin: '4px 0 6px' }}>{primaryTitle}</h2>
+        <p className="brain-guide__dose"><span>DEIN AUFTRAG</span>{primaryDose}</p>
+        {showCta && (
+          <button className="brain-guide__cta" onClick={onPrimary}>
+            <span>{primaryCta}</span><span aria-hidden="true">→</span>
           </button>
         )}
         {/* PROTECTED FEATURE (owner order 2026-07-18, third occurrence 07-20): whenever the mission
@@ -484,7 +497,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
             viewport — directly under the CTA, quiet, never competing with the one primary action.
             The old below-the-card link "existed" but scrolled out of view, which reads as "there is
             literally no interview button" on a phone. */}
-        {!['interview', 'assessment'].includes(d.prescription?.action) && (
+        {(resuming || !['interview', 'assessment'].includes(d.prescription?.action)) && (
           <button type="button" onClick={() => onAction?.({ prescription: { action: 'interview' } }, null)}
             style={{ width: '100%', marginTop: 6, minHeight: 44, background: 'none', border: 'none',
               cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 'var(--fs-label)',
