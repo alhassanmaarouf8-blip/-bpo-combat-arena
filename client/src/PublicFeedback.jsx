@@ -68,7 +68,7 @@ export default function PublicFeedback() {
   return (
     <div style={S.page}>
       <div style={S.card}>
-        <div style={S.brand}>OMNI<span style={{ color: C.orange }}>·</span>PERFORM</div>
+        <div style={S.brand}>German Interview Trainer</div>
 
         {sent ? (
           <div style={{ textAlign: 'center', padding: '18px 0' }}>

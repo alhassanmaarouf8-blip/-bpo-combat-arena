@@ -866,7 +866,7 @@ const GLOBAL_CSS = `
      no gaming display face. Share Tech Mono kept only for any monospace numerics. */
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
 
-  /* ── OMNI-PERFORM design tokens ─────────────────────────────────────────────
+  /* ── German Interview Trainer design tokens ─────────────────────────────────────────────
      Single source of truth for colour, type, spacing, radius, motion, depth.
      Everything in the redesign references these — never hard-coded hexes. */
   :root {
@@ -1878,9 +1878,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       const blob = await makeShareImage();
       if (blob && navigator.canShare) {
         const file = new File([blob], 'omni-perform.png', { type: 'image/png' });
-        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: shareText, title: 'OMNI-PERFORM' }); return; }
+        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text: shareText, title: 'German Interview Trainer' }); return; }
       }
-      if (navigator.share) { await navigator.share({ title: 'OMNI-PERFORM', text: shareText, url: shareUrl }); return; }
+      if (navigator.share) { await navigator.share({ title: 'German Interview Trainer', text: shareText, url: shareUrl }); return; }
       await navigator.clipboard?.writeText(shareText); setCopied(true); setTimeout(() => setCopied(false), 1800);
     } catch { /* user cancelled */ }
   };
@@ -2713,7 +2713,7 @@ function DossierSheet({ token, data, account, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
           borderBottom: '2px solid #111827', paddingBottom: 10 }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 15, letterSpacing: '0.1em' }}>OMNI-PERFORM</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 15, letterSpacing: '0.1em' }}>German Interview Trainer</div>
             <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '0.06em', marginTop: 2 }}>DEUTSCH-INTERVIEW-TRAINING · KAIRO</div>
           </div>
           <div style={{ fontSize: 10, color: '#6b7280' }}>{today}</div>
@@ -2919,7 +2919,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
 // preview rather than pretending to be a live session.
 function ProductHomePreview() {
   return (
-    <figure aria-label="Vorschau des OMNI-PERFORM Interview-Trainings"
+    <figure aria-label="Vorschau des Interview-Trainings"
       style={{ maxWidth:420, margin:'24px auto 4px', padding:0 }}>
       <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em',
         color:'var(--accent)', marginBottom:8 }}>
@@ -2942,7 +2942,7 @@ function ProductHomePreview() {
             </div>
             <div>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
-                letterSpacing:'0.08em', color:'#f8fafc' }}>OMNI-PERFORM</div>
+                letterSpacing:'0.08em', color:'#f8fafc' }}>German Interview Trainer</div>
               <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:2 }}>Deutsches Interview-Training</div>
             </div>
           </div>
@@ -3003,7 +3003,7 @@ function ProductHomePreview() {
         </div>
       </div>
       <figcaption style={{ fontSize:10.5, color:'var(--text-faint)', lineHeight:1.55, marginTop:9 }}>
-        Vorschau des bestehenden OMNI-PERFORM Trainings — Sprache, Fragen und Feedback passen sich deinem Niveau an.
+        Vorschau des bestehenden Trainings — Sprache, Fragen und Feedback passen sich deinem Niveau an.
       </figcaption>
     </figure>
   );
@@ -3037,7 +3037,7 @@ function StudyBrowserHandoff({ invite }) {
           Finde heute den einen Interviewfehler, der dich am ehesten zurückhält.
         </h1>
         <p style={{ margin:0, color:'var(--text-dim)', fontSize:14, lineHeight:1.65 }}>
-          Dafür braucht OMNI-PERFORM deine Stimme. Facebook und Instagram blockieren das Mikrofon häufig;
+          Dafür braucht German Interview Trainer deine Stimme. Facebook und Instagram blockieren das Mikrofon häufig;
           in Chrome oder Safari läuft die etwa achtminütige Diagnose zuverlässig.
         </p>
         <ol style={{ margin:'16px 0 18px', paddingLeft:20, color:'var(--text)', fontSize:13, lineHeight:1.8 }}>
@@ -3438,7 +3438,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             <rect x="12.4" y="5.5" width="2.6" height="11" rx="1.3" fill="var(--action)" />
           </svg>
           <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.08em', color:'var(--text)' }}>
-            OMNI-PERFORM
+            German Interview Trainer
           </div>
         </div>
         {/* Craft pass #4 — ONE short line carries the page (real Arabic display face, set like a
@@ -3790,7 +3790,7 @@ function VerificationLinkScreen({ state = 'working', onRetry }) {
     <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
       <div role={retryable ? 'alert' : 'status'} aria-live="polite" style={{ width:'100%', maxWidth:420, padding:24, textAlign:'center',
         borderRadius:'var(--r-xl)', background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3)' }}>
-        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>OMNI-PERFORM</div>
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>German Interview Trainer</div>
         <div style={{ marginTop:14, fontSize:15, fontWeight:700 }}>{title}</div>
         {detail ? (
           <>
@@ -3839,7 +3839,7 @@ function EmailVerificationGate({ auth, onLogout, onVerifiedElsewhere, linkState 
     <div style={{ minHeight:'100svh', display:'grid', placeItems:'center', padding:24, background:'var(--bg)', color:'var(--text)' }}>
       <div style={{ width:'100%', maxWidth:440, padding:26, textAlign:'center', borderRadius:'var(--r-xl)',
         background:'var(--glass)', border:'var(--glass-border)', boxShadow:'var(--e3)' }}>
-        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>OMNI-PERFORM</div>
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, letterSpacing:'0.06em', color:'var(--accent)' }}>German Interview Trainer</div>
         <h1 style={{ margin:'18px 0 8px', fontSize:22 }}>E-Mail bestätigen</h1>
         <div style={{ color:'var(--text-dim)', fontSize:13, lineHeight:1.65 }}>
           Öffne den Bestätigungslink für <b style={{ color:'var(--text)', overflowWrap:'anywhere' }}>{auth.account.email}</b>.
@@ -4129,8 +4129,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     if (!digits) return null;
     const planLabel = pay?.label || (pendingPayment?.plan ? pendingPayment.plan.toUpperCase() : '');
     const msg = ar
-      ? `أهلاً، دفعت اشتراك OMNI-PERFORM ${planLabel}. رقم الطلب: ${code}${senderLast4 ? `، آخر ٤ أرقام من محفظتي: ${senderLast4}` : ''}`
-      : `Hallo, ich habe für OMNI-PERFORM ${planLabel} bezahlt. Vorgang: ${code}${senderLast4 ? `, letzte 4 Ziffern meiner Wallet: ${senderLast4}` : ''}`;
+      ? `أهلاً، دفعت اشتراك German Interview Trainer ${planLabel}. رقم الطلب: ${code}${senderLast4 ? `، آخر ٤ أرقام من محفظتي: ${senderLast4}` : ''}`
+      : `Hallo, ich habe für German Interview Trainer ${planLabel} bezahlt. Vorgang: ${code}${senderLast4 ? `, letzte 4 Ziffern meiner Wallet: ${senderLast4}` : ''}`;
     return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
   };
   const proofActions = (code) => (
@@ -7770,7 +7770,7 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
       color:'#e2e8f0', animation:'flash-in 0.4s ease' }}>
 
       <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:900, letterSpacing:3,
-        color:'var(--accent)', textShadow:'0 0 24px rgba(59,130,246,0.55)' }}>OMNI-PERFORM</div>
+        color:'var(--accent)', textShadow:'0 0 24px rgba(59,130,246,0.55)' }}>German Interview Trainer</div>
 
       {!failed ? (
         <>

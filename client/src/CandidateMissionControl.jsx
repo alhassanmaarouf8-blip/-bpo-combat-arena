@@ -750,7 +750,7 @@ export function CandidateMissionControl({
               {currentPassCopy?.[0] || 'Dein Bewerbungsprofil, passende Stellen und dein Tracker'}
             </h2>
             <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #64748b)', fontSize:10.5 }}>
-              {currentPassCopy?.[1] || 'ملفك والوظائف الأنسب وتتبع التقديم — داخل OMNI-PERFORM'}
+              {currentPassCopy?.[1] || 'ملفك والوظائف الأنسب وتتبع التقديم — داخل German Interview Trainer'}
             </div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -772,7 +772,7 @@ export function CandidateMissionControl({
           <div>
             <div style={{ fontFamily: 'var(--font-display, inherit)', color: 'var(--accent, #3b82f6)', fontSize: 9.5, letterSpacing: '0.17em', fontWeight: 850 }}>BEWERBUNGEN</div>
             <h2 id="cmc-title" style={{ margin: '7px 0 0', color: '#f8fafc', fontSize: 'clamp(18px,3vw,23px)', lineHeight: 1.25 }}>Passende Stellen und dein Bewerbungs-Tracker</h2>
-            <div dir="rtl" style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 13 }}>الوظائف المناسبة ومتابعة التقديم — داخل OMNI-PERFORM</div>
+            <div dir="rtl" style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 13 }}>الوظائف المناسبة ومتابعة التقديم — داخل German Interview Trainer</div>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             <button type="button" onClick={openPassport} style={neutralButton}>PROFIL BEARBEITEN</button>
@@ -954,7 +954,7 @@ export function CandidateMissionControl({
         </div>}
       </Dialog>
 
-      <Dialog open={dialog === 'submitted'} title="Einreichung bestätigen" titleAr="تأكيد التقديم" busy={busy} onClose={closeDialog} width={540} description="OMNI-PERFORM reicht nichts automatisch ein.">
+      <Dialog open={dialog === 'submitted'} title="Einreichung bestätigen" titleAr="تأكيد التقديم" busy={busy} onClose={closeDialog} width={540} description="German Interview Trainer reicht nichts automatisch ein.">
         <label style={{ minHeight: 52, display: 'flex', alignItems: 'start', gap: 10, padding: '11px 12px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.26)', cursor: 'pointer' }}><input data-autofocus type="checkbox" checked={submissionConfirmed} onChange={(event) => setSubmissionConfirmed(event.target.checked)} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12, lineHeight: 1.5 }}>Ich habe diese Bewerbung selbst auf der offiziellen Arbeitgeberseite eingereicht.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', marginTop: 3 }}>أنا قدّمت هذا الطلب بنفسي على الصفحة الرسمية لصاحب العمل.</span></span></label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 13 }}><button type="button" onClick={markSubmitted} disabled={busy || !submissionConfirmed} style={dialogPrimary}>ALS EINGEREICHT MARKIEREN</button></div>
       </Dialog>

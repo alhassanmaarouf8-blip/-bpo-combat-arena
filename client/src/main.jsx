@@ -37,7 +37,7 @@ function paintError(title, detail) {
   box.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:24px;text-align:center;background:#0a0f1a;color:#fca5a5;font-family:monospace;z-index:99999';
   const technical = IS_PRODUCTION ? '' : `<pre style="max-width:560px;max-height:50vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;color:#fb923c;text-align:left;background:#020409;padding:14px;border-radius:8px;border:1px solid #f8717155">${String(detail || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre>`;
   box.innerHTML =
-    `<div style="font-size:20px;font-weight:700;color:#f8fafc">OMNI-PERFORM</div>` +
+    `<div style="font-size:20px;font-weight:700;color:#f8fafc">German Interview Trainer</div>` +
     `<div style="font-size:15px;color:#cbd5e1">Die App konnte gerade nicht geladen werden. Deine Zahlung oder dein Konto wurden dadurch nicht verändert.</div>` +
     technical +
     `<button id="omni-reload" style="padding:12px 18px;border:0;border-radius:10px;background:#f97316;color:#081019;font-weight:800;cursor:pointer">SEITE NEU LADEN</button>`;
