@@ -127,29 +127,38 @@ export async function extractQuestionsFromImages(images) {
   }
   if (!usable) return { questions: [], note: 'no_image' };
 
+  // No responseMimeType JSON constraint: schema-mode adds latency and can stall vision requests
+  // (30s-timeout observed on Vertex). We ask for JSON in the prompt and parse fences/plain lines
+  // ourselves (parseVisionQuestions), which is both faster and more robust.
   const body = {
     contents: [{ role: 'user', parts }],
-    generationConfig: { temperature: 0.1, responseMimeType: 'application/json', maxOutputTokens: 1024 },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
   };
 
-  let url, headers;
+  let url, headers, via;
   if (vertexConfigured()) {
     const token = await getVertexAccessToken();
     url = `https://${VERTEX_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_PROJECT}`
         + `/locations/${VERTEX_LOCATION}/publishers/google/models/${VISION_MODEL_VERTEX}:generateContent`;
     headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    via = `vertex/${VISION_MODEL_VERTEX}`;
   } else {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error('no_vision_credentials');
     url = `https://generativelanguage.googleapis.com/v1beta/models/${VISION_MODEL}:generateContent?key=${key}`;
     headers = { 'Content-Type': 'application/json' };
+    via = `aistudio/${VISION_MODEL}`;
   }
 
-  const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000) });
-  if (!r.ok) throw new Error(`vision ${r.status}: ${(await r.text().catch(() => '')).slice(0, 160)}`);
+  const t0 = Date.now();
+  console.log(`[customQuestions] vision call via ${via}  images=${usable}`);
+  const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(75_000) });
+  if (!r.ok) throw new Error(`vision ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
   const j = await r.json();
   const raw = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
-  return parseVisionQuestions(raw);
+  const out = parseVisionQuestions(raw);
+  console.log(`[customQuestions] vision ok via ${via}  ${Date.now() - t0}ms  questions=${out.questions.length}`);
+  return out;
 }
 
 // ── Router ───────────────────────────────────────────────────────────────────────────────────────
