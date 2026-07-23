@@ -78,6 +78,10 @@ export function defaultProfile(userId) {
     // bounded metrics and enums only—never transcripts, audio, recruiter text, or causal claims.
     outcomeCalibration: { version: 1, activeForecast: null, records: [] },
     targetIndustry: null,  // Ziel-Stelle: INDUSTRIES key (scenarios.js) the candidate is applying for, or null
+    // "Meine eigenen Fragen": the confirmed set of interview questions the candidate uploaded/edited,
+    // injected into buildSessionScript so the interview asks THESE. Only the confirmed text lives here
+    // — never the raw uploaded images. One active set (a new upload replaces it). See customQuestions.js.
+    customQuestionSet: null,  // { questions: string[], createdAt } | null
     // Vacancy Target v1: one bounded draft + one active target. Only derived,
     // allowlisted facts live here; source text and source URLs are never persisted.
     vacancyTarget: {

@@ -693,6 +693,7 @@ export class RealtimeClient {
       excludedBehavioralPromptIds: Array.isArray(opts.excludedBehavioralPromptIds) ? opts.excludedBehavioralPromptIds : [],
       forcedScreeningPromptId: opts.forcedScreeningPromptId || null,
       excludedScreeningPromptIds: Array.isArray(opts.excludedScreeningPromptIds) ? opts.excludedScreeningPromptIds : [],
+      customQuestions: Array.isArray(opts.customQuestions) && opts.customQuestions.length ? opts.customQuestions : null,
     });
 
     // Persona forcefulness → an interview-style block in the system prompt + a patience value the client

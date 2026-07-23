@@ -46,6 +46,7 @@ const DailyTraining = lazy(() => import('./DailyTraining.jsx'));
 const Assessment = lazy(() => import('./Assessment.jsx').then((m) => ({ default: m.Assessment })));
 const Shadowing = lazy(() => import('./Shadowing.jsx').then((m) => ({ default: m.Shadowing })));
 const PersonalStep = lazy(() => import('./PersonalStep.jsx'));
+const CustomQuestions = lazy(() => import('./CustomQuestions.jsx'));
 const Listening = lazy(() => import('./Listening.jsx').then((m) => ({ default: m.Listening })));
 const SpokenReview = lazy(() => import('./SpokenReview.jsx').then((m) => ({ default: m.SpokenReview })));
 const SatzbauSchmiede = lazy(() => import('./SatzbauSchmiede.jsx').then((m) => ({ default: m.SatzbauSchmiede })));
@@ -4649,6 +4650,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   const [listeningOpen, setListeningOpen] = useState(false);   // paid listening & data-capture drill route
   const [spokenReviewOpen, setSpokenReviewOpen] = useState(false); // paid spoken-production SRS route
   const [personalStepOpen, setPersonalStepOpen] = useState(false); // Phase 4: the personal step behind the debrief's blue button
+  const [customQuestionsOpen, setCustomQuestionsOpen] = useState(false); // "Meine eigenen Fragen": upload→extract→confirm→interview
+  const customQuestionsRef = useRef(false); // one-shot: next interview runs on the user's own confirmed set
   const [resumeStep, setResumeStep] = useState(null); // home re-entry: the active, NOT-completed personal step from the last interview (null = none/completed → no card)
   const [trends, setTrends] = useState(null); // P3 "Aufstieg" ridge: real per-interview series {fluency,wpm,vocab,dates} from /api/progress
   // Series stage variants (drill-prescription doctrine): 'find' = FINDE-DEN-FEHLER (Stage A),
@@ -4947,8 +4950,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           // server suppress its normal text/TTS interviewer, so control returned with no question.
           audioCapable: !typeOpenRef.current && handsFreeRef.current
             && !IN_APP_BROWSER && checkAudioSupport().supported,
+          // "Meine eigenen Fragen": the server loads the CONFIRMED set from the profile (never from
+          // here) and runs the interview on it. A retest overrides it (guarded server-side).
+          customQuestions: customQuestionsRef.current || undefined,
         }));
         revancheRef.current = null;
+        customQuestionsRef.current = false;
         break;
 
       case S.LIVE_STATS:
@@ -5832,8 +5839,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   }, [authHeaders]);
 
   // ── Begin: run a spaced-repetition recall drill (if any due) before the fight ─
-  const beginSession = useCallback(async () => {
+  const beginSession = useCallback(async (opts = {}) => {
     fightModeRef.current = 'daily';
+    // One-shot: this interview runs on the user's own confirmed question set. Reset after the
+    // START_FIGHT send so a later normal interview never inherits it. (opts may be a DOM event when
+    // beginSession is used directly as an onClick handler — only a literal true opts in.)
+    customQuestionsRef.current = opts?.customQuestions === true;
     if (phaseRef.current !== 'idle' && phaseRef.current !== 'error') return;
     // The server remains authoritative, but a loaded zero balance must stop the journey before
     // audio unlock, microphone permission, or a misleading CONNECTED state.
@@ -6061,6 +6072,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
     [assessmentOpen, setAssessmentOpen], [shadowingOpen, setShadowingOpen],
     [fluencyOpen, setFluencyOpen], [listeningOpen, setListeningOpen], [spokenReviewOpen, setSpokenReviewOpen],
     [personalStepOpen, setPersonalStepOpen],
+    [customQuestionsOpen, setCustomQuestionsOpen],
     [satzbauOpen, setSatzbauOpen],
     [pressureOpen, setPressureOpen],
     [videoLessonsOpen, setVideoLessonsOpen],
@@ -6072,7 +6084,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // redundant SECOND close AND it overlapped each drill's title (top-left collision). Hide it for
   // those; keep it only for the live interview (which has no own close) + panels without one.
   const ownCloseOverlay = assessmentOpen || shadowingOpen || fluencyOpen || listeningOpen
-    || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen || !!salma;
+    || spokenReviewOpen || satzbauOpen || pressureOpen || videoLessonsOpen || customQuestionsOpen || !!salma;
   const canGoBack = (_overlays.some(([o]) => o) && !ownCloseOverlay) || !!funnel || isActive || isConnecting;
   const goBack = () => {
     // Closing via the bare setter bypasses the onClose wrappers, so clear the why here too —
@@ -6232,6 +6244,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           <PersonalStep token={auth.token} apiUrl={API_URL} lang={feedbackLang}
             onClose={() => setPersonalStepOpen(false)}
             onStartInterview={() => { setPersonalStepOpen(false); beginSession(); }} />
+        </Suspense>
+      )}
+
+      {/* "Meine eigenen Fragen": upload → vision-extract → confirm/edit → interview on YOUR questions */}
+      {customQuestionsOpen && (
+        <Suspense fallback={<OverlayLoading />}>
+          <CustomQuestions token={auth.token} apiUrl={API_URL} lang={feedbackLang}
+            onClose={() => setCustomQuestionsOpen(false)}
+            onStart={() => { setCustomQuestionsOpen(false); beginSession({ customQuestions: true }); }} />
         </Suspense>
       )}
 
@@ -6635,6 +6656,21 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               </select>
               {targetIndustrySaving && <span role="status" style={{ width:'100%', textAlign:'right', fontSize:10, color:'var(--text-dim)' }}>Ziel wird gespeichert ...</span>}
             </div>}
+
+            {/* "Meine eigenen Fragen": armed + entitled only (billing.customQuestions). Neutral by
+                design — the interview's start button remains the screen's single orange. */}
+            {billing?.customQuestions && <button type="button" disabled={!canStart}
+              onClick={() => setCustomQuestionsOpen(true)}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, width:'100%', marginTop:8,
+                padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)',
+                border:'1px solid var(--line)', color:'var(--text)', textAlign:'left', fontFamily:'inherit',
+                cursor: canStart ? 'pointer' : 'default' }}>
+              <span style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                <span style={{ fontSize:'var(--fs-label)', fontWeight:600 }}>Meine eigenen Fragen{/* OWNER-AR slot: masri label */}</span>
+                <span style={{ fontSize:10, color:'var(--text-dim)' }}>Fotos deiner erwarteten Fragen → Interview genau darauf</span>
+              </span>
+              <span aria-hidden style={{ fontSize:16, color:'var(--text-dim)' }}>›</span>
+            </button>}
 
             {/* Hands-free (Beta): no buttons — speak and it auto-sends on silence */}
             <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:10,

@@ -64,6 +64,10 @@ const countFillers = (text) => ((text || '').match(FILLER_RE) ?? []).length;
 // Gemini Live native-audio path is active only when explicitly enabled. Defined here (not just in
 // server.js) because the fight-start path references it — a bare reference would ReferenceError.
 const USE_GEMINI_LIVE = process.env.USE_GEMINI_LIVE === '1';
+// "Meine eigenen Fragen": OFF by default. When armed, a session started with msg.customQuestions===true
+// runs the interview on the user's own CONFIRMED question set (loaded server-side, entitlement-gated —
+// the client never injects prompt text). See customQuestions.js + scenarios.js buildSessionScript.
+const CUSTOM_QUESTIONS_ENABLED = process.env.CUSTOM_QUESTIONS_ENABLED === '1';
 // Gemini Live (native-audio speech-to-speech) is ENABLED FOR ALL USERS — owner-authorized 2026-07-05.
 // The 07-04 "2–7s, disabled" note is STALE: the config was re-tuned afterward (native-audio model +
 // thinkingBudget:0 + 400ms end-of-turn VAD → ~1.1s measured) but the switch was never flipped back.
@@ -749,6 +753,16 @@ export class WebSocketManager {
     // the evidence came from, never whichever target happens to be active days later.
     ctx.targetIndustry = targetIndustry || null;
     ctx.targetRoleType = retestContext?.roleType || vacancySnapshot?.roleType || 'customer_service';
+    // "Meine eigenen Fragen": the interview runs on the candidate's OWN confirmed questions only when
+    // the feature is armed, the client requested it, entitlement allows (trial or paid — same gate as
+    // drills), and a confirmed set is stored. The questions come from the PROFILE, never from the
+    // client message — the client cannot inject arbitrary prompt text. A retest overrides it (targeted
+    // re-test must probe the prescribed skill, not the custom set).
+    const customQuestions = (CUSTOM_QUESTIONS_ENABLED && msg.customQuestions === true && !improvementRetest
+      && entitlement(account).drillsUnlocked
+      && Array.isArray(prof?.customQuestionSet?.questions) && prof.customQuestionSet.questions.length)
+      ? prof.customQuestionSet.questions.slice(0, 15) : null;
+    if (customQuestions) console.log(`[custom-questions] fight on own set  user=${ctx.userId}  n=${customQuestions.length}`);
     if (vacancySnapshot) console.log(`[vacancy-target] fight snapshot  user=${ctx.userId}  target=${vacancySnapshot.targetId}`);
     else if (targetIndustry) console.log(`[ziel-stelle] fight targeted  user=${ctx.userId}  industry=${targetIndustry}`);
     if (focusTitle) console.log(`[trainingslager] fight focus injected  user=${ctx.userId}  title="${focusTitle}"`);
@@ -779,6 +793,7 @@ export class WebSocketManager {
         candidateName,
         recent,
         targetIndustry,
+        customQuestions,
         jobContext: retestContext && !vacancySnapshot && retestContext.roleType !== 'customer_service'
           ? { roleType: retestContext.roleType, germanLevel: 'unspecified', skillIds: [], questionTopicIds: [] }
           : vacancySnapshot,

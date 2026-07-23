@@ -935,7 +935,7 @@ Bleibe in dieser Rolle und reagiere auf das, was der Kandidat tats\u00e4chlich s
 ${pressure}`;
 }
 
-export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null, retestProbe = null, forcedScenarioId = null, excludedScenarioIds = [], forcedBehavioralPromptId = null, excludedBehavioralPromptIds = [], forcedScreeningPromptId = null, excludedScreeningPromptIds = [] }) {
+export function buildSessionScript({ persona, displayName, greeting, greetings = null, levelId, dossier, memory, candidateName, focusTitle, mood = 'neutral', clarificationRate = 0, recent = {}, sessionSeed = '', targetIndustry = null, jobContext = null, revanche = null, retestProbe = null, forcedScenarioId = null, excludedScenarioIds = [], forcedBehavioralPromptId = null, excludedBehavioralPromptIds = [], forcedScreeningPromptId = null, excludedScreeningPromptIds = [], customQuestions = null }) {
   const level      = LEVELS[levelId] ?? LEVELS['a2-b1'];
   // NO-REPEAT content: avoid every behavioral question, screening filter and customer
   // scenario the candidate has already faced (recent.* = persisted seen-id lists) until the
@@ -1041,11 +1041,28 @@ export function buildSessionScript({ persona, displayName, greeting, greetings =
 
   const targetedRoleplay = targetRoleplayInstruction(targetRoleType, cs);
 
+  // "Meine eigenen Fragen": when the candidate uploaded + confirmed their own interview questions,
+  // the three-part scaffold below is replaced by exactly those questions. The persona, every
+  // natural-conversation rule above, and the scoring/debrief downstream are UNCHANGED — only the
+  // question SOURCE changes. Absent → the generic bank path stays byte-identical.
+  // Fall back to the generic bank if NOTHING survives cleaning — an empty array is truthy, so guard
+  // on the cleaned length, never the raw input (else a set of blanks yields a zero-question interview).
+  const cleanedCustom = Array.isArray(customQuestions)
+    ? customQuestions.map((q) => String(q ?? '').trim()).filter(Boolean).slice(0, 15) : [];
+  const custom = cleanedCustom.length ? cleanedCustom : null;
+  const customInterviewBody = custom ? `DIESES INTERVIEW — DIE FRAGEN, AUF DIE SICH DER KANDIDAT VORBEREITET HAT (verbindlich):
+Der Kandidat hat GENAU diese Fragen für ein echtes Vorstellungsgespräch vorbereitet. Führe ein natürliches, zusammenhängendes Gespräch und ARBEITE DIESE FRAGEN DER REIHE NACH AB — jede in DEINEN eigenen Worten und deinem Ton, angeknüpft an das, was der Kandidat vorher gesagt hat. EINE Frage pro Redebeitrag, danach Stille (siehe Regeln oben). Halte dich an SINN und THEMA jeder Frage; formuliere sie natürlich, aber verändere ihre Bedeutung nicht und erfinde keine zusätzlichen Themen.
+Beginne damit, dass sich der Kandidat kurz vorstellt (Name, Hintergrund, Motivation). Geh danach diese Fragen der Reihe nach durch:
+${custom.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+Sind alle Fragen beantwortet, stelle höchstens ein bis zwei natürliche Anschlussfragen und beende das Gespräch dann höflich und professionell.` : '';
   const stages = [
     { ...STAGE_META[0], prompt: 'Stellen Sie sich kurz vor — Name, Erfahrung, Motivation.' },
     { ...STAGE_META[1], prompt: behavioral },
     { ...STAGE_META[2], ...(targetedRoleplay ? { label: TARGET_STAGE_LABELS[targetRoleType] } : {}), prompt: cs.situation },
   ];
+  const stagesOut = custom
+    ? custom.slice(0, 3).map((q, i) => ({ ...(STAGE_META[i] || STAGE_META[STAGE_META.length - 1]), prompt: q }))
+    : stages;
 
   const instructions =
 `${persona}
@@ -1095,7 +1112,7 @@ MENSCHLICHE NÄHE (für maximale Echtheit — sparsam und nie aufgesetzt):
 - Merkst du, dass die Zeit knapp wird oder er sehr ausschweift, drängle NICHT mechanisch: quittiere freundlich und schließe den Punkt ab („Ich glaube, ich hab ein gutes Bild — lassen Sie uns weitermachen."), statt ihn mitten im Satz abzuschneiden.
 - Es ist ein GESPRÄCH, kein Formular: die Übergänge sollen sich flüssig und überlegt anfühlen, nie abgehakt.
 
-TEIL 1 — SELBSTVORSTELLUNG (ca. 1–2 Wortwechsel):
+${custom ? customInterviewBody : `TEIL 1 — SELBSTVORSTELLUNG (ca. 1–2 Wortwechsel):
 Bitte den Kandidaten, sich kurz vorzustellen (Name, Berufserfahrung, Motivation). Hake einmal kurz nach. Stelle danach GENAU EINE organisatorische Screening-Frage, wie sie in jedem echten BPO-Telefoninterview kommt: "${screening}" — höre die Antwort, würdige sie kurz, und leite dann mit einer kurzen menschlichen Überleitung (siehe oben) weiter.
 
 TEIL 2 — VERHALTENSFRAGE (ca. 2 Wortwechsel):
@@ -1110,7 +1127,7 @@ Bleibe durchgehend in der Rolle dieses wütenden Kunden und reagiere jedes Mal a
 ${CS_RUBRIC}
 ${DATA_VERIFICATION_RUBRIC}
 ${CS_LIFECYCLE_RUBRIC}
-${DRUCKTEST_RUBRIC}`}
+${DRUCKTEST_RUBRIC}`}`}
 
 ÜBERGÄNGE ZWISCHEN DEN TEILEN — NATÜRLICH, NICHT ROBOTERHAFT (sehr wichtig):
 Sage NIEMALS mechanisch "Teil eins", "Teil zwei", "Teil drei" oder "Frage 3 von 8" an — so spricht eine Maschine, kein Mensch. Wechsle stattdessen WEICH: Würdige zuerst kurz die letzte Antwort, dann leite mit einer natürlichen Brücke über. Knüpf wenn möglich an etwas an, das der Kandidat vorher gesagt hat, damit es sich wie EIN Gespräch anfühlt, nicht wie eine Checkliste. Beispiele für solche Brücken:
@@ -1165,9 +1182,9 @@ Beginne JETZT mit der Selbstvorstellung — OHNE das Wort "Teil" zu benutzen.`;
     instructions,
     openingLine,
     level:      { id: level.id, label: level.label },
-    behavioral,
+    behavioral: custom ? (custom[0] || behavioral) : behavioral,
     csScenario: cs,
-    stages,
+    stages:     stagesOut,
     // The chosen ids (+ reset flags) so the caller can persist the no-repeat seen-lists.
     picks: {
       behavioral: { id: behPick.id, reset: behPick.reset },

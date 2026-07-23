@@ -441,6 +441,9 @@ export function entitlement(account) {
     drillsUnlocked:        drillsUnlocked(account),
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
     zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — trial gives the full taste
+    // "Meine eigenen Fragen": armed only when the server flag is on AND the user is entitled (trial or
+    // paid — same gate as drills). Drives whether the client shows the entry at all (dark by default).
+    customQuestions:       (process.env.CUSTOM_QUESTIONS_ENABLED === '1') && drillsUnlocked(account),
     unlimited:             isAdminAccount(account),
   };
 }
@@ -927,6 +930,7 @@ billingRouter.get('/state', requireAuth, async (req, res) => {
     // Ziel-Stelle: entitlement flag + the stored pick, so the home Optionen panel renders honestly
     // (flag false ⇒ the picker labels itself "ab Elite" — stored aspiration, not yet active).
     zielStelle: entitlement(account).zielStelle,
+    customQuestions: entitlement(account).customQuestions,   // "Meine eigenen Fragen" armed + entitled
     targetIndustry,
   });
 });
