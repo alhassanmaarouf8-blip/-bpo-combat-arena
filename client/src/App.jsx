@@ -111,6 +111,17 @@ try { fetch(`${API_URL}/health`).catch(() => {}); } catch { /* never block boot 
 // once; the shell shows an escape banner and beginSession fails honestly instead of "mic blocked".
 const IN_APP_BROWSER = /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|; wv\)/i.test(
   (typeof navigator !== 'undefined' && navigator.userAgent) || '');
+// STORE_MODE: the build distributed through Google Play sets its start URL to `?ctx=store`. In that
+// mode we hide the Vodafone-Cash transfer screen (Play forbids showing external payment for digital
+// goods) and offer only the card/wallet checkout, which reads as normal e-commerce. The web app and
+// any WhatsApp-shared build (no `?ctx=store`) keep Vodafone Cash. Persisted so SPA nav can't lose it.
+const STORE_MODE = (() => {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('ctx') === 'store') { sessionStorage.setItem('ctx_store', '1'); return true; }
+    return sessionStorage.getItem('ctx_store') === '1';
+  } catch { return false; }
+})();
 // A getUserMedia failure means different things in different shells, so the message must match the
 // real cause. In an in-app browser (Messenger/Facebook/Instagram/WebView) the mic can NEVER be
 // granted — sending the user to "allow it in browser settings" (mic_denied) is a dead end. Some of
@@ -4002,6 +4013,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
   const [yearly, setYearly] = useState(false);
   const [vodafone, setVodafone] = useState(null);
+  const [cardPay, setCardPay] = useState(false);   // Paymob card + wallet checkout available
   const [paymentAvailable, setPaymentAvailable] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
@@ -4031,6 +4043,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         ? !!d.vodafoneNumber
         : !!d.paymentAvailable && !!d.vodafoneNumber);
       setWhatsapp(d.whatsappNumber || null);
+      setCardPay(!!d.cardPayment);
       setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
       if (d.pendingPayment) paymentWatchRef.current = true;
       if (!d.pendingPayment && d.paymentIntent) {
@@ -4101,6 +4114,26 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       setPaymentError(ar ? 'تعذر تجهيز الدفع. ما تحوّلش أي مبلغ وحاول تاني.' : 'Zahlung konnte nicht vorbereitet werden. Bitte noch nichts überweisen und erneut versuchen.');
     }
     setSubmitting(false);
+  };
+
+  // Card + wallet (Paymob Unified Checkout — all methods, instant activation). Redirects the browser
+  // to Paymob's hosted page; on success Paymob's webhook activates the plan server-side.
+  const payWithCard = async (choice) => {
+    if (submitting) return;
+    setSubmitting(true); setPaymentError('');
+    try {
+      const r = await fetch(`${API_URL}/api/paymob/checkout`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan: choice.planId, billingPeriod: choice.period }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 503) { setPaymentError(ar ? 'الدفع بالبطاقة هيكون متاح قريب.' : 'Kartenzahlung ist bald verfügbar.'); setSubmitting(false); return; }
+      if (!r.ok || !d.url) throw new Error(d.error || `checkout ${r.status}`);
+      window.location.href = d.url;   // → Paymob Unified Checkout (submitting stays true through the redirect)
+    } catch {
+      setPaymentError(ar ? 'تعذر بدء الدفع بالبطاقة. حاول تاني.' : 'Kartenzahlung konnte nicht gestartet werden. Bitte erneut versuchen.');
+      setSubmitting(false);
+    }
   };
 
   // Post-payment "send proof" actions: copy the reference code, and (if a WhatsApp number is
@@ -4205,14 +4238,27 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   if (pay) {
     return shell(<>
       <div style={{ textAlign:'center', marginBottom:12 }}>
-        <div style={{ fontSize:30 }}>📲</div>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:900, letterSpacing:1.5, color:'var(--accent-2)' }}>VODAFONE CASH</div>
-        <div style={{ fontSize:11, color:'#cbd5e1', marginTop:4 }}>
-          {pay.label?.toUpperCase()} — <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'once' ? (ar?'مرة واحدة':'einmalig') : pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
+        <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, letterSpacing:1.2, color:'var(--text)' }}>{pay.label?.toUpperCase()}</div>
+        <div style={{ fontSize:12, color:'#cbd5e1', marginTop:4 }}>
+          <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'once' ? (ar?'مرة واحدة':'einmalig') : pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
         </div>
       </div>
 
-      {vodafone ? (
+      {/* Card + wallet (Paymob) — all payment methods, instant activation. Blue (not orange) so the
+          Vodafone "Ich habe bezahlt" below stays the single orange action when both are shown. */}
+      {cardPay && (
+        <button onClick={() => payWithCard(pay)} disabled={submitting}
+          style={{ width:'100%', padding:'13px', minHeight:50, cursor: submitting ? 'wait' : 'pointer',
+            fontFamily:'var(--font-display)', fontSize:13, fontWeight:800, letterSpacing:'0.02em', borderRadius:10,
+            border:'1px solid var(--accent-2)', color:'#04121f', background:'var(--accent-2)', opacity: submitting ? 0.6 : 1 }}>
+          {submitting ? '…' : (ar ? 'ادفع بالكارت أو المحفظة' : 'Mit Karte oder Wallet zahlen')}{/* OWNER-AR slot */}
+        </button>
+      )}
+      {cardPay && !STORE_MODE && vodafone && (
+        <div style={{ textAlign:'center', fontSize:10.5, color:'#64748b', margin:'8px 0 6px' }}>{ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash'}</div>
+      )}
+
+      {!STORE_MODE && vodafone ? (
         <div style={{ flex:1 }}>
           {/* Step 1 — send the money */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(0,0,0,0.4)', border:'1px solid rgba(96,165,250,0.3)' }}>
@@ -4273,6 +4319,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           </button>
           {paymentError && <div role="alert" style={{ marginTop:10, color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>{paymentError}</div>}
         </div>
+      ) : cardPay ? (
+        paymentError ? <div role="alert" style={{ marginTop:10, color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>{paymentError}</div> : null
       ) : (
         <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'#94a3b8', fontSize:12, padding:20 }}>
           Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span>
