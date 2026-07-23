@@ -1,6 +1,6 @@
 {
-  "name": "OMNI-PERFORM — German Interview Trainer",
-  "short_name": "OMNI-PERFORM",
+  "name": "German Interview Trainer",
+  "short_name": "German Interview",
   "description": "Practice realistic German job-interview simulations out loud and get specific feedback on your answers.",
   "id": "/",
   "start_url": "/?src=pwa",
