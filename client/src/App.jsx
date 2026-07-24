@@ -4855,6 +4855,40 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         );
       })()}
 
+      {/* TRIAL TIMELINE (research: Wellness + Education paywall teardowns — Headspace, Calm,
+          Blinkist, Headway). Their shared move is to make TIME explicit before showing a price:
+          a buyer who cannot see where the free part ends assumes it already has. Every number
+          here is the server's own entitlement (trial.days / trial.daysLeft) — the same facts the
+          paywall already stated in a sentence, given a shape the eye can read at a glance.
+          Nothing new is claimed and nothing is counted client-side. */}
+      {info?.trial?.active && info.trial.days > 0 && (() => {
+        const total = info.trial.days;
+        const left  = Math.max(0, Math.min(total, info.trial.daysLeft ?? 0));
+        const done  = total - left;                       // days already used
+        const pct   = Math.round((done / total) * 100);
+        return (
+          <div style={{ marginBottom:14, padding:'14px 15px', borderRadius:12,
+            background:'var(--surface)', border:'1px solid var(--line)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:10, marginBottom:10 }}>
+              <span style={{ fontFamily:'var(--font-display)', fontSize:10.5, fontWeight:700,
+                letterSpacing:'0.13em', textTransform:'uppercase', color:'var(--text-faint)' }}>
+                Deine Testphase{/* OWNER-AR slot */}
+              </span>
+              <span dir="ltr" style={{ fontSize:13, fontWeight:700, color:'var(--text)', fontVariantNumeric:'tabular-nums' }}>
+                {left} von {total} Tagen übrig{/* OWNER-AR slot */}
+              </span>
+            </div>
+            <div style={{ height:6, borderRadius:99, background:'var(--surface-2)', overflow:'hidden' }}>
+              <div style={{ width:`${pct}%`, height:'100%', background:'var(--action)' }} />
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:11.5, color:'var(--text-faint)' }}>
+              <span>Heute: alles frei{/* OWNER-AR slot */}</span>
+              <span>Danach: dein Plan{/* OWNER-AR slot */}</span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* monthly / yearly toggle */}
       <div style={{ display:'flex', gap:6, marginBottom:12 }}>
         {toggleBtn(false, ar ? 'شهري' : 'MONATLICH')}
