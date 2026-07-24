@@ -375,13 +375,13 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
       </div>
       {loadState === 'auth' && (
         <button type="button" onClick={onSessionExpired}
-          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'var(--accent)' }}>
+          style={{ ...cta, marginTop:12, background:'var(--text)', color:'#FFFFFF' }}>
           ERNEUT ANMELDEN
         </button>
       )}
       {loadState === 'error' && (
         <button type="button" onClick={() => setCoachRevision((value) => value + 1)}
-          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'var(--accent)' }}>
+          style={{ ...cta, marginTop:12, background:'var(--text)', color:'#FFFFFF' }}>
           ERNEUT LADEN
         </button>
       )}
