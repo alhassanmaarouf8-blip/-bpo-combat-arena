@@ -1,141 +1,120 @@
 /**
- * TrainingHomeLightPreview.jsx — PHASE-1 PROTOTYPE ONLY. Not shipped to users.
+ * TrainingHomeLightPreview.jsx — PREVIEW ONLY (?preview=light). Not shipped to users.
  *
- * Reached exclusively via `?preview=light` (wired in main.jsx as a lazy branch, so it never enters
- * the production bundle). Its single job is to let the owner APPROVE OR KILL the light "Speak"
- * direction from one 390px screenshot before any of the real migration (Phase 2+) is attempted.
+ * v3 (2026-07-24) — rebuilt to answer the design critique on the v1/v2 mockups:
+ *  - REAL React component rendered by the real Vite build (not a hand-drawn CSS mockup).
+ *  - Salma is a FULL-BLEED HERO (kills the "navy rectangle clip-art" floating in a white card).
+ *  - Left-aligned EDITORIAL layout — not the centered-card AI reflex.
+ *  - ONE huge tight display line; everything else two steps down (design-system elite law).
+ *  - Machined CTA: solid flat fill, ~12px radius, NO glow bloom, sentence case.
+ *  - A real brand device (the two-voice-bars monogram from the design law), used as the anchor.
+ *  - ONE decided light source (top-left) + a faint grain — "decided atmosphere", never noticed.
+ *  - Rounding discipline: one big sheet radius, hairlines elsewhere.
  *
- * DESIGN INTENT (from Speak / Headspace, owner references 2026-07-24):
- *   near-white ground · one streak/level chip · ONE dark headline (the next step) · ONE white
- *   action card carrying Salma's photo used LARGE + the task + a single filled INTERVIEW button ·
- *   then real emptiness (~half the viewport) · orientation kept quiet BELOW the fold, always
- *   rendered (never hidden). One orange object on the screen: the button.
- *
- * SCOPING: the light token VALUES live on the `.preview-light` wrapper only — same NAMES as the
- * global :root so the approved language ports verbatim in Phase 2, but the global theme is left
- * completely untouched. The real Training home (App.jsx / BrainGuide.jsx) is NOT edited by this PR.
- *
- * HONESTY: the card + orientation reuse the REAL server-brief shape and real German from
- * BrainGuide.jsx's `interview` prescription (title/dose/done/after). No fabricated hireability,
- * CEFR, counts, or "du verbesserst dich" claims. The synthetic "Interne Simulation" footer stays.
+ * Data is a representative interview-prescription brief (the real shape BrainGuide emits); when this
+ * graduates into the real home it reads the live directive. No fabricated claims. New German lines
+ * carry OWNER-AR slots.
  */
-import { SalmaPortrait } from '../SalmaTakeover.jsx';
-import { salmaName, salmaRole } from '../salmaCopy.js';
-import { actionBtn } from '../ui/primitives.js';
 
-// The light theme, scoped to this prototype. Same token names as the global :root (App.jsx ~L896)
-// so Phase 2 is a value re-map, not a rename. NOTE: template literal — no backticks inside.
-const PREVIEW_LIGHT_CSS = `
-.preview-light {
-  --bg:#FAFAF8; --surface:#FFFFFF; --surface-2:#F4F4F1;
-  --line:rgba(15,23,42,0.08); --line-strong:rgba(15,23,42,0.14);
-  --text:#0F172A; --text-dim:#475569; --text-faint:#64748B;
-  --accent:#3b82f6; --action:#f97316;
-  --grad-action:linear-gradient(180deg,#fb923c,#f97316);
-  --shadow-action:0 10px 24px -8px rgba(249,115,22,0.42);
-  --card-shadow:0 22px 60px -28px rgba(15,23,42,0.35), 0 2px 8px -4px rgba(15,23,42,0.10);
-  --font-display:'Inter','system-ui',sans-serif;
-  position:fixed; inset:0; overflow-y:auto; background:var(--bg); color:var(--text);
-  font-family:var(--font-display); -webkit-font-smoothing:antialiased;
-}
-.preview-light * { box-sizing:border-box; }
-.pl-shell { max-width:440px; margin:0 auto; min-height:100%; padding:20px 22px 40px;
-  display:flex; flex-direction:column; }
-.pl-header { display:flex; align-items:center; justify-content:space-between; padding:6px 0 40px; }
-.pl-chip { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px;
-  background:var(--surface); border:1px solid var(--line); box-shadow:0 1px 2px rgba(15,23,42,0.04);
-  font-size:13px; font-weight:600; color:var(--text-dim); }
-.pl-chip b { color:var(--text); font-weight:700; }
-.pl-dot { width:8px; height:8px; border-radius:999px; background:var(--accent); }
-.pl-hello { font-size:14px; font-weight:600; color:var(--text-faint); }
-.pl-headline { margin:0 0 24px; font-size:clamp(30px,8.5vw,38px); line-height:1.08;
-  letter-spacing:-0.02em; font-weight:700; color:var(--text); }
-.pl-card { background:var(--surface); border-radius:24px; padding:26px 22px 22px;
-  box-shadow:var(--card-shadow); display:flex; flex-direction:column; align-items:center;
-  text-align:center; }
-.pl-card-face { margin-bottom:16px; }
-.pl-card-coach { font-size:13px; font-weight:600; color:var(--text-faint); margin-bottom:14px; }
-.pl-card-coach b { color:var(--text); font-weight:700; }
-.pl-card-task { margin:0 0 6px; font-size:20px; font-weight:700; letter-spacing:-0.01em;
-  color:var(--text); }
-.pl-card-dose { margin:0 0 22px; font-size:14.5px; line-height:1.5; color:var(--text-dim); }
-.pl-card-btn { width:100%; }
-.pl-empty { flex:1 1 auto; min-height:22vh; }
-.pl-orient { padding-top:8px; border-top:1px solid var(--line); }
-.pl-orient-row { padding:14px 0; border-bottom:1px solid var(--line); }
-.pl-orient-row:last-child { border-bottom:none; }
-.pl-orient-k { font-size:12.5px; font-weight:600; color:var(--text-faint); margin:0 0 3px; }
-.pl-orient-v { font-size:14px; line-height:1.5; color:var(--text-dim); margin:0; }
-.pl-foot { margin-top:20px; text-align:center; font-size:11.5px; color:var(--text-faint); }
-@media (prefers-reduced-motion:reduce) { .preview-light * { animation:none!important; } }
-`;
-
-// A REPRESENTATIVE server brief — the real shape and real German from BrainGuide.jsx's `interview`
-// prescription (missionBrief, L154). Not fabricated: these are the exact honest facts the live
-// brain already emits for this step.
-const BRIEF = {
-  task:   'Ein Interview sprechen',
-  dose:   'Ein vollständiges gesprochenes Interview — nimm dir 8–10 Minuten und sprich frei.',
-  reason: 'Ich muss dich noch einmal live hören, um deinen nächsten Engpass sicher zu bestimmen.',
-  done:   'Der serverseitige Debrief ist vollständig gespeichert.',
-  after:  'Danach wähle ich genau eine Sache, an der wir als Nächstes arbeiten.',
-  goal:   'Dein Ziel: ein deutsches BPO-Interview souverän auf Deutsch bestehen.',
+// Representative next-step (the real 'interview' prescription shape from BrainGuide.missionBrief).
+const STEP = {
+  greet:  'Salma',
+  role:   'deine Recruiterin',
+  kicker: 'Dein nächster Schritt',
+  head:   'Ein Interview sprechen.',
+  // Salma's voice — short, human, a little edge (a recruiter who has heard a thousand candidates).
+  /* OWNER-AR slot */
+  lead:   'Zehn Minuten. Sprich einfach los — den Rest mache ich.',
+  /* OWNER-AR slot */
+  cta:    'Interview starten',
+  level:  'Level 2 · Tag 3',
+  why:    'Ich muss dich einmal live hören.',
+  after:  'Danach nehmen wir uns genau eine Sache vor.',
 };
+
+const CSS = `
+.thl{position:fixed;inset:0;overflow-y:auto;background:#F5F3EF;color:#141821;
+  font-family:'Inter','system-ui',sans-serif;-webkit-font-smoothing:antialiased}
+.thl *{box-sizing:border-box}
+/* one decided light source, top-left */
+.thl::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(120% 90% at 8% -6%, rgba(255,255,255,.9), rgba(255,255,255,0) 46%)}
+/* faint grain — felt, never noticed */
+.thl::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.thl-in{position:relative;z-index:1;max-width:440px;margin:0 auto;min-height:100%}
+/* hero — full-bleed Salma */
+.thl-hero{position:relative;height:314px;overflow:hidden;background:#0e1b33}
+.thl-hero img{width:100%;height:100%;object-fit:cover;object-position:50% 26%;display:block}
+.thl-hero-grad{position:absolute;inset:0;
+  background:linear-gradient(to bottom, rgba(10,16,28,.28) 0%, rgba(10,16,28,0) 26%, rgba(10,16,28,0) 52%, rgba(245,243,239,.2) 82%, #F5F3EF 100%)}
+.thl-top{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;z-index:2}
+.thl-mark{display:flex;align-items:center;gap:9px}
+.thl-mono{width:30px;height:30px;border-radius:9px;background:#0f1626;display:grid;place-items:center;
+  box-shadow:0 2px 8px rgba(2,6,17,.4)}
+.thl-mono i{display:block;width:3.5px;height:13px;border-radius:2px}
+.thl-mono i:first-child{background:#3b82f6;margin-right:3px}
+.thl-mono i:last-child{background:#f97316;height:9px}
+.thl-wm{color:#fff;font-size:12.5px;font-weight:650;letter-spacing:.01em;text-shadow:0 1px 6px rgba(2,6,17,.5)}
+.thl-chip{color:#fff;font-size:12px;font-weight:600;background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(8px);border-radius:999px;padding:6px 12px}
+.thl-name{position:absolute;left:20px;bottom:44px;z-index:2}
+.thl-name b{display:block;color:#fff;font-size:17px;font-weight:750;letter-spacing:-.01em;text-shadow:0 1px 8px rgba(2,6,17,.5)}
+.thl-name span{color:rgba(255,255,255,.82);font-size:12.5px;font-weight:500}
+/* sheet */
+.thl-sheet{position:relative;margin-top:-26px;background:#F5F3EF;border-radius:26px 26px 0 0;padding:26px 22px 34px}
+.thl-kick{font-size:12.5px;font-weight:650;color:#2563EB;letter-spacing:.02em;margin:0 0 8px}
+.thl-h1{font-size:35px;line-height:1.04;letter-spacing:-.035em;font-weight:800;margin:0 0 12px;color:#0E1320;text-wrap:balance}
+.thl-lead{font-size:15.5px;line-height:1.5;color:#4B5563;margin:0 0 22px;max-width:30ch}
+.thl-btn{display:block;width:100%;border:0;border-radius:12px;padding:16px;cursor:pointer;
+  font-family:inherit;font-size:16px;font-weight:640;color:#26120a;background:#F26A1B;
+  box-shadow:0 1px 2px rgba(20,24,33,.18);transition:transform .12s}
+.thl-btn:active{transform:translateY(1px)}
+.thl-orient{margin-top:26px;padding-top:6px}
+.thl-orow{display:flex;gap:10px;padding:12px 0;border-top:1px solid rgba(20,24,33,.08)}
+.thl-orow b{flex:0 0 78px;font-size:13px;font-weight:650;color:#0E1320}
+.thl-orow span{font-size:13.5px;line-height:1.45;color:#5C6472}
+.thl-foot{margin-top:22px;font-size:11.5px;color:#8A93A1;text-align:left}
+@media (prefers-reduced-motion:reduce){.thl-btn{transition:none}}
+`;
 
 export default function TrainingHomeLightPreview() {
   return (
-    <div className="preview-light">
-      <style>{PREVIEW_LIGHT_CSS}</style>
-      <div className="pl-shell">
+    <div className="thl">
+      <style>{CSS}</style>
+      <div className="thl-in">
 
-        <header className="pl-header">
-          <span className="pl-chip"><span className="pl-dot" aria-hidden="true" />Level <b>2</b></span>
-          <span className="pl-hello">Willkommen zurück</span>
-        </header>
-
-        {/* The one message: the single next step, stated plainly in Salma's voice. */}
-        {/* OWNER-AR slot */}
-        <h1 className="pl-headline">Lass uns ein Interview sprechen.</h1>
-
-        {/* The ONE action card — Salma's photo LARGE, the task, one filled button. */}
-        <section className="pl-card">
-          <div className="pl-card-face">
-            <SalmaPortrait fallback={salmaName().charAt(0)} size={104} />
+        <div className="thl-hero">
+          <img src="/salma.jpg" alt="Salma" decoding="async" />
+          <div className="thl-hero-grad" aria-hidden="true" />
+          <div className="thl-top">
+            <div className="thl-mark">
+              <span className="thl-mono" aria-hidden="true"><i /><i /></span>
+              <span className="thl-wm">German Interview Trainer</span>
+            </div>
+            <span className="thl-chip">{STEP.level}</span>
           </div>
-          <div className="pl-card-coach"><b>{salmaName()}</b> · {salmaRole()}</div>
-          <h2 className="pl-card-task">{BRIEF.task}</h2>
-          <p className="pl-card-dose">{BRIEF.dose}</p>
-          {/* The protected INTERVIEW control, inside the first viewport. One orange object. */}
+          <div className="thl-name">
+            <b>{STEP.greet}</b>
+            <span>{STEP.role}</span>
+          </div>
+        </div>
+
+        <div className="thl-sheet">
+          <p className="thl-kick">{STEP.kicker}</p>
+          <h1 className="thl-h1">{STEP.head}</h1>
+          <p className="thl-lead">{STEP.lead}</p>
           {/* OWNER-AR slot */}
-          <button type="button" className="pl-card-btn" style={{ ...actionBtn }}>
-            INTERVIEW STARTEN
-          </button>
-        </section>
+          <button type="button" className="thl-btn">{STEP.cta}</button>
 
-        {/* Real emptiness — the premium signal. ~half the viewport carries nothing. */}
-        <div className="pl-empty" aria-hidden="true" />
+          <div className="thl-orient">
+            <div className="thl-orow"><b>Warum jetzt</b><span>{STEP.why}</span></div>
+            <div className="thl-orow"><b>Danach</b><span>{STEP.after}</span></div>
+          </div>
 
-        {/* Orientation: quiet, below the fold, ALWAYS rendered (never collapsed). */}
-        <section className="pl-orient" aria-label="Orientierung">
-          <div className="pl-orient-row">
-            <p className="pl-orient-k">Warum jetzt</p>
-            <p className="pl-orient-v">{BRIEF.reason}</p>
-          </div>
-          <div className="pl-orient-row">
-            <p className="pl-orient-k">Fertig, wenn</p>
-            <p className="pl-orient-v">{BRIEF.done}</p>
-          </div>
-          <div className="pl-orient-row">
-            <p className="pl-orient-k">Danach</p>
-            <p className="pl-orient-v">{BRIEF.after}</p>
-          </div>
-          <div className="pl-orient-row">
-            <p className="pl-orient-k">Das Ziel</p>
-            <p className="pl-orient-v">{BRIEF.goal}</p>
-          </div>
-        </section>
-
-        <p className="pl-foot">Interne Simulation · keine Arbeitgeberentscheidung</p>
+          <p className="thl-foot">Interne Simulation · keine Arbeitgeberentscheidung</p>
+        </div>
 
       </div>
     </div>
