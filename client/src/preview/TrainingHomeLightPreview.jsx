@@ -17,6 +17,8 @@
  */
 
 // Representative next-step (the real 'interview' prescription shape from BrainGuide.missionBrief).
+import PreviewNav from './PreviewNav.jsx';
+
 const STEP = {
   greet:  'Salma',
   role:   'deine Recruiterin',
@@ -63,7 +65,7 @@ const CSS = `
 .thl-name b{display:block;color:#fff;font-size:17px;font-weight:750;letter-spacing:-.01em;text-shadow:0 1px 8px rgba(2,6,17,.5)}
 .thl-name span{color:rgba(255,255,255,.82);font-size:12.5px;font-weight:500}
 /* sheet */
-.thl-sheet{position:relative;margin-top:-26px;background:#F5F3EF;border-radius:26px 26px 0 0;padding:26px 22px 34px}
+.thl-sheet{position:relative;margin-top:-26px;background:#F5F3EF;border-radius:26px 26px 0 0;padding:26px 22px 96px}
 .thl-kick{font-size:12.5px;font-weight:650;color:#2563EB;letter-spacing:.02em;margin:0 0 8px}
 .thl-h1{font-size:35px;line-height:1.04;letter-spacing:-.035em;font-weight:800;margin:0 0 12px;color:#0E1320;text-wrap:balance}
 .thl-lead{font-size:15.5px;line-height:1.5;color:#4B5563;margin:0 0 22px;max-width:30ch}
@@ -117,6 +119,7 @@ export default function TrainingHomeLightPreview() {
         </div>
 
       </div>
+      <PreviewNav current="light" />
     </div>
   );
 }

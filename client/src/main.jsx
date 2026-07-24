@@ -20,6 +20,16 @@ const TrainingHomeLightPreview = lazy(() => import('./preview/TrainingHomeLightP
 // Same preview lane for the rebuilt debrief (?preview=debrief).
 const IS_PREVIEW_DEBRIEF = /[?&]preview=debrief\b/.test(window.location.search);
 const DebriefLightPreview = lazy(() => import('./preview/DebriefLightPreview.jsx'));
+const IS_PREVIEW_LANDING = /[?&]preview=landing\b/.test(window.location.search);
+const LandingLightPreview = lazy(() => import('./preview/LandingLightPreview.jsx'));
+const IS_PREVIEW_DIAGNOSE = /[?&]preview=diagnose\b/.test(window.location.search);
+const DiagnoseLightPreview = lazy(() => import('./preview/DiagnoseLightPreview.jsx'));
+const IS_PREVIEW_INTERVIEW = /[?&]preview=interview\b/.test(window.location.search);
+const InterviewStagePreview = lazy(() => import('./preview/InterviewStagePreview.jsx'));
+const IS_PREVIEW_FORT = /[?&]preview=fortschritt\b/.test(window.location.search);
+const FortschrittLightPreview = lazy(() => import('./preview/FortschrittLightPreview.jsx'));
+const IS_PREVIEW_UEB = /[?&]preview=uebungen\b/.test(window.location.search);
+const UebungenLightPreview = lazy(() => import('./preview/UebungenLightPreview.jsx'));
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
@@ -89,6 +99,11 @@ try {
           : IS_CALLFLOOR ? <Suspense fallback={null}><CallFloor /></Suspense>
           : IS_PREVIEW_LIGHT ? <Suspense fallback={null}><TrainingHomeLightPreview /></Suspense>
           : IS_PREVIEW_DEBRIEF ? <Suspense fallback={null}><DebriefLightPreview /></Suspense>
+          : IS_PREVIEW_LANDING ? <Suspense fallback={null}><LandingLightPreview /></Suspense>
+          : IS_PREVIEW_DIAGNOSE ? <Suspense fallback={null}><DiagnoseLightPreview /></Suspense>
+          : IS_PREVIEW_INTERVIEW ? <Suspense fallback={null}><InterviewStagePreview /></Suspense>
+          : IS_PREVIEW_FORT ? <Suspense fallback={null}><FortschrittLightPreview /></Suspense>
+          : IS_PREVIEW_UEB ? <Suspense fallback={null}><UebungenLightPreview /></Suspense>
           : <><App /><VoiceLabOverlay /></>}
       </RootBoundary>
     </StrictMode>,
