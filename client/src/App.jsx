@@ -4440,6 +4440,24 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         </div>
       </div>
 
+      {/* WHY YOU LANDED HERE — only when a locked Übungen tile sent you. Answering the exact
+          question the tap asked beats a generic plan wall, and the second sentence is the honest
+          softener: /api/personal-step carries NO entitlement gate (verified in server/personalStep.js
+          — zero 402s, unlike all five drills), so the exercises built from the user's OWN sentences
+          really are free forever. The plan buys the generic drills and the daily interview that
+          generates the next Befund. Blue/neutral — the paywall's orange stays on the plan CTA. */}
+      {info?.reason === 'drill' && info?.drillLabel && (
+        <div style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, textAlign:'left',
+          background:'rgba(59,130,246,0.06)', border:'1px solid rgba(96,165,250,0.28)' }}>
+          <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.6 }}>
+            Übung „{info.drillLabel}“ gehört zum Plan.{/* OWNER-AR slot */}
+          </div>
+          <div style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>
+            Dein persönlicher Schritt aus deinem letzten Interview bleibt frei.{/* OWNER-AR slot */}
+          </div>
+        </div>
+      )}
+
       {/* Salma fronts the money moment — one honest recruiter line picked deterministically from
           the entitlement (trial running / trial over / free file). Neutral blue; the pay CTA and
           expiry banner keep the paywall's orange. */}
@@ -6154,6 +6172,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
   // seenInterview (set at beginSession) already covers the "has interviewed" case, so `data` is redundant.
   const [homeTab, setHomeTab] = useState('training');   // bottom-tab nav (owner order 07-18): Training | Übungen | Fortschritt
   const firstRun     = canStart && !seenInterview && !streak;
+  // THE PAID BOUNDARY, MADE VISIBLE. `entitlement.drillsUnlocked` is computed server-side
+  // (auth.js: any paid plan OR an active trial) and — until now — thrown away by the client: a free
+  // user tapped an Übungen tile, the drill overlay opened, the server 402'd, the overlay slammed
+  // shut and a paywall appeared with no stated reason. That reads as a BUG, not an offer, and it
+  // teaches the user nothing about what a plan would buy.
+  // STRICT `=== false`: a missing, stale or still-loading entitlement must fail OPEN, so a paying
+  // subscriber can never be badge-locked by a race. The server 402 stays the real enforcement —
+  // this flag only supplies the explanation.
+  const drillsLocked = auth.account?.entitlement?.drillsUnlocked === false;
   // Server-authoritative so a verification link opened on another browser/device still lands on
   // the cohort's measured first action. firstRun keeps this a one-time CTA; it never auto-starts.
   const activeStudyStart = firstRun && auth.account?.studyAccess?.active === true
@@ -7519,11 +7546,36 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 { icon:'messageCheck', de:'Sag es richtig', ar:'قولها صح',      hint:'Eigene Fehler & Call-Center-Sätze', due: dueReviews, open:() => setSpokenReviewOpen(true) },
                 { icon:'layers',       de:'Satzbau-Schmiede', ar:'',            hint:'Verb ans Ende — automatisch',   open:() => setSatzbauOpen(true), badge:'NEU' },   /* OWNER-AR slot */
               ].map((t, i) => (
-                <button key={i} onClick={t.open} style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
+                <button key={i}
+                  onClick={() => {
+                    if (!drillsLocked) return t.open();
+                    // Do NOT open a drill just to have the server 402 slam it shut a beat later.
+                    // Name the boundary and go straight to the plans, carrying WHICH exercise was
+                    // wanted so the paywall can answer the question the user actually asked.
+                    beacon('drill_locked_tap');
+                    setPaywall({ ...(auth.account?.entitlement || {}), reason:'drill', drillLabel:t.de });
+                  }}
+                  // Deliberately NOT `disabled`: a disabled tile is unfocusable, un-tappable and
+                  // explains nothing. Dimmed + badged + tappable teaches the boundary and offers
+                  // the way past it. Tiles are never removed, hidden or relabeled (PROTECTED).
+                  aria-label={drillsLocked ? `${t.de} — ab Basic verfügbar` : undefined}
+                  style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
                   borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
+                  opacity: drillsLocked ? 0.5 : 1,
                   display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
-                  {t.due > 0 ? (
+                  {/* Badge priority: the lock OUTRANKS "N fällig" and "NEU". Showing "3 fällig" on a
+                      tile the user cannot open is a tease that can't be acted on; "ab Basic" is the
+                      one true, actionable fact. One badge per tile. Same slot, same grammar as the
+                      Call-Floor seat badges (CallFloor.jsx) so a locked seat and a locked drill read
+                      as ONE rule, not two different refusals. Blue — never red, never a padlock shout. */}
+                  {drillsLocked ? (
+                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:600, letterSpacing:'0.05em',
+                      color:'var(--accent)', border:'1px solid var(--accent-dim)',
+                      borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
+                      ab Basic{/* OWNER-AR slot */}
+                    </span>
+                  ) : t.due > 0 ? (
                     <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
                       color: resumeStep ? 'var(--text-dim)' : 'var(--action)',
                       border: resumeStep ? '1px solid var(--line-strong)' : '1px solid rgba(249,115,22,0.5)',
