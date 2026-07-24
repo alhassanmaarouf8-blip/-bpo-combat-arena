@@ -485,7 +485,11 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
               : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'DEIN PLAN'}
           </span>
         </div>
-        <h2 id="brain-guide-title" className="brain-guide__title" style={{ fontSize: 20, margin: '4px 0 6px' }}>{primaryTitle}</h2>
+        {/* The inline fontSize:20 was overriding BrainGuide.css's own type scale
+            (clamp(23px,4vw,38px)) — so the one thing on this screen that should have rank was
+            capped at 20px while nine uppercase micro-labels competed with it. The stylesheet was
+            right; the inline override was the bug. Removed, so the task title reads as the title. */}
+        <h2 id="brain-guide-title" className="brain-guide__title" style={{ margin: '4px 0 6px' }}>{primaryTitle}</h2>
         <p className="brain-guide__dose"><span>DEIN AUFTRAG</span>{primaryDose}</p>
         {showCta && (
           <button className="brain-guide__cta" onClick={onPrimary}>
