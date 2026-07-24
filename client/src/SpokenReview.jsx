@@ -205,7 +205,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       </div>
     )}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
-      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
+      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />))}
     </div>
 
     <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.25)' }}>

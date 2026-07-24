@@ -257,7 +257,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
@@ -294,7 +294,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
                 <button key={oi} disabled={busy || playing || !!result} onClick={() => submit(oi)}
                   style={{ textAlign: lang === 'ar' ? 'right' : 'left', direction: lang === 'ar' ? 'rtl' : 'ltr',
                     padding: '11px 13px', borderRadius: 9, fontSize: 13.5, cursor: result ? 'default' : 'pointer', color: '#f1f5f9',
-                    background: result && isRight ? 'rgba(34,197,94,0.12)' : (result && chose ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)'),
+                    background: result && isRight ? 'rgba(34,197,94,0.12)' : (result && chose ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)'),
                     border: `1px solid ${result ? (isRight ? 'rgba(34,197,94,0.6)' : (chose ? 'rgba(239,68,68,0.6)' : 'rgba(148,163,184,0.2)')) : 'rgba(148,163,184,0.35)'}` }}>
                   {result && isRight ? '✓ ' : ''}{T(lang, o.de, o.ar)}
                 </button>
@@ -306,7 +306,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
             placeholder={T(lang, 'Tippe, was du gehört hast…', 'اكتب اللي سمعته…')}
             style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 9, fontSize: 15,
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.35)', color: 'var(--text)', outline: 'none' }} />
+              background: 'var(--surface-2)', border: '1px solid rgba(148,163,184,0.35)', color: 'var(--text)', outline: 'none' }} />
         )}
       </div>
     )}

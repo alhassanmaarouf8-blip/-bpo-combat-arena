@@ -37,8 +37,8 @@ export function ProblemRankPanel({ ranked, lang = 'de' }) {
   // today. JSX comments only work INSIDE JSX.)
   return (
     <div style={{ borderRadius: 18, padding: '20px 18px', marginTop: 12,
-      background: 'rgba(255,255,255,0.035)', border: '1px solid var(--line)',
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+      background: 'var(--surface-2)', border: '1px solid var(--line)',
+      boxShadow: 'inset 0 1px 0 var(--surface-2)' }}>
       <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17,
         letterSpacing: '-0.01em', color: 'var(--text)', marginBottom: 3 }}>
         Deine größten Baustellen{/* OWNER-AR slot */}
@@ -50,7 +50,7 @@ export function ProblemRankPanel({ ranked, lang = 'de' }) {
         const reason = REASON_BY_TIER[r.tier] || REASON_BY_TIER[1];
         return (
           <div key={r.ruleId} style={{ display: 'flex', gap: 10, alignItems: 'baseline',
-            padding: '7px 0', borderTop: i ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            padding: '7px 0', borderTop: i ? '1px solid var(--surface-2)' : 'none' }}>
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 13,
               color: i === 0 ? 'var(--accent)' : 'var(--text-faint)', minWidth: 18 }}>{i + 1}.</span>
             <span style={{ flex: 1 }}>

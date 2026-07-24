@@ -257,7 +257,7 @@ function ScheduleList({ record, busy, onComplete, canLive }) {
           const complete = !!row.completedAt;
           const live = isLiveMilestone(row.id);
           return (
-            <li key={row.id} style={{ display:'grid', gridTemplateColumns:'28px minmax(0,1fr) auto', gap:9, alignItems:'start', padding:'10px', borderRadius:10, border:'1px solid var(--line)', background:complete ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.025)' }}>
+            <li key={row.id} style={{ display:'grid', gridTemplateColumns:'28px minmax(0,1fr) auto', gap:9, alignItems:'start', padding:'10px', borderRadius:10, border:'1px solid var(--line)', background:complete ? 'rgba(59,130,246,0.08)' : 'var(--surface-2)' }}>
               <span aria-hidden="true" style={{ width:26, height:26, display:'grid', placeItems:'center', borderRadius:'50%', background:complete ? 'var(--accent)' : 'rgba(59,130,246,0.14)', color:complete ? '#03111f' : 'var(--accent-2)', fontSize:11, fontWeight:600 }}>
                 {complete ? '✓' : row.day}
               </span>
@@ -802,7 +802,7 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
                     onChange={(event) => setInterviewDate(event.target.value)} disabled={busy} style={fieldStyle} />
                 </div>
 
-                <div style={{ padding:'10px 12px', borderRadius:10, background:'rgba(255,255,255,0.035)', color:'var(--text-faint)', fontSize:10.5, lineHeight:1.5 }}>
+                <div style={{ padding:'10px 12px', borderRadius:10, background:'var(--surface-2)', color:'var(--text-faint)', fontSize:10.5, lineHeight:1.5 }}>
                   Wir analysieren nur die Anzeige für dein Training. Wir bewerben dich nicht, kontaktieren den Arbeitgeber nicht und versprechen keine Einstellung.
                 </div>
                 <button type="submit" disabled={busy} style={{ ...primaryButtonStyle, width:'100%', opacity:busy ? 0.65 : 1, cursor:busy ? 'wait' : 'pointer' }}>

@@ -18,7 +18,7 @@ const MIC_ERRORS = {
 
 const dim = { fontSize: 10.5, color: 'var(--text-dim)', lineHeight: 1.5 };
 const stageTitle = { fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: 'var(--accent)' };
-const card = { padding: '11px 13px', borderRadius: 'var(--r-md)', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)', marginTop: 8 };
+const card = { padding: '11px 13px', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--line)', marginTop: 8 };
 
 export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onStartInterview }) {
   const ar = lang === 'ar';
@@ -184,7 +184,7 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
           {busyItem === 'regen' ? 'Generiere …' : '↻ NEUEN ÜBUNGSBLOCK GENERIEREN'}{/* OWNER-AR slot */}
         </button>
       )}
-      <div style={{ marginTop: 5, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.07)' }}>
+      <div style={{ marginTop: 5, height: 4, borderRadius: 2, background: 'var(--surface-2)' }}>
         <div style={{ width: `${Math.round((totalDone / Math.max(1, set.totalReps)) * 100)}%`, height: 4, borderRadius: 2, background: 'var(--accent)' }} />
       </div>
     </div>
@@ -210,7 +210,7 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
                     style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 6, padding: '10px 12px',
                       minHeight: 44, borderRadius: 10, cursor: a ? 'default' : 'pointer', fontSize: 12.5, lineHeight: 1.55,
                       color: a ? (isCorrect ? 'var(--accent-2)' : chosen ? 'var(--bad)' : 'var(--text-dim)') : 'var(--text)',
-                      background: 'rgba(255,255,255,0.03)',
+                      background: 'var(--surface-2)',
                       border: `1px solid ${a ? (isCorrect ? 'var(--accent-2)' : chosen ? 'var(--bad)' : 'var(--line)') : 'var(--line-strong)'}` }}>
                     {opt}
                   </button>

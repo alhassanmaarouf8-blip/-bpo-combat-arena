@@ -214,7 +214,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
@@ -240,7 +240,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
       {tiles.map((t, i) => !t.used && (
         <button key={i} onClick={() => tapTile(i)} disabled={!!result || busy}
           style={{ padding: '9px 13px', borderRadius: 8, fontSize: 13.5, cursor: 'pointer', color: '#f1f5f9',
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.35)' }}>
+            background: 'var(--surface-2)', border: '1px solid rgba(148,163,184,0.35)' }}>
           {t.text}
         </button>
       ))}

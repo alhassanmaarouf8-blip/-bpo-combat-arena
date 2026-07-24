@@ -263,7 +263,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {(adaptive ? Array.from({ length: 7 }) : QUESTIONS).map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
@@ -328,7 +328,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
               lang="de" dir="ltr" aria-label={T(lang, 'Antwort auf Deutsch tippen', 'اكتب إجابتك بالألماني')}
               placeholder={T(lang, 'Antwort auf Deutsch tippen…', 'اكتب إجابتك بالألماني…')}
               style={{ flex: 1, minHeight: 72, resize: 'vertical', padding: 10, borderRadius: 9,
-                border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.04)', color: 'var(--text)', fontSize: 14 }} />
+                border: '1px solid rgba(148,163,184,0.35)', background: 'var(--surface-2)', color: 'var(--text)', fontSize: 14 }} />
             <button onClick={saveTyped} disabled={typed.trim().length < 2}
               style={{ ...ghostBtn, minWidth: 82, opacity: typed.trim().length < 2 ? 0.45 : 1 }}>
               {T(lang, 'Speichern', 'حفظ')}

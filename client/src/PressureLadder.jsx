@@ -362,7 +362,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
       {activeLevels.map((lv, i) => (
         <div key={i} style={{ flex: 1, height: 5, borderRadius: 99,
-          background: i < survived ? 'var(--accent)' : (i === idx) ? 'var(--accent-2)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < survived ? 'var(--accent)' : (i === idx) ? 'var(--accent-2)' : 'var(--surface-2)' }} />
       ))}
     </div>
   );
@@ -414,7 +414,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
       <p style={{ fontSize:12, color:'var(--text-dim)', margin:'8px 0 0', lineHeight:1.6 }}>Tempo {Math.round(L.rate * 100)}% · {L.sec}s · {L.interrupts} Unterbrechungen</p>
       <p style={{ fontSize:12.5, color:'var(--text-dim)', margin:'14px 0 0', lineHeight:1.6 }}>Du kannst jederzeit PAUSE drücken. Sprich ruhig und bleib bei einem klaren Satz.</p>
     </section>
-    <div style={{ fontSize:12, color:'var(--action)', margin:'4px 0 12px', lineHeight:1.55, padding:'10px 12px', background:'rgba(255,255,255,0.04)', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)' }}>
+    <div style={{ fontSize:12, color:'var(--action)', margin:'4px 0 12px', lineHeight:1.55, padding:'10px 12px', background:'var(--surface-2)', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)' }}>
       <b>Dein Ziel: </b>{konterFor(L).goal_de}
     </div>
     <button onClick={beginRound} style={actionBtn}>● START</button>
@@ -432,7 +432,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
         {T(lang, 'Sobald du startest, fragt der Boss SOFORT. Rede los und HÖR NICHT AUF.', 'أول ما تبدأ، الـ boss هيسأل على طول. اتكلم وماتسكتش.')}
       </div>
     </div>
-    <div style={{ fontSize: 12, color: 'var(--action)', margin: '4px 0 12px', lineHeight: 1.55, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)' }}>
+    <div style={{ fontSize: 12, color: 'var(--action)', margin: '4px 0 12px', lineHeight: 1.55, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)' }}>
       <b>{T(lang, 'Dein Ziel: ', 'هدفك: ')}</b>{T(lang, konterFor(L).goal_de, konterFor(L).goal_ar)}
     </div>
     <button onClick={beginRound} style={{ ...actionBtn }}>● {T(lang, 'START — Boss kommt', 'ابدأ — الـ boss جاي')}</button>

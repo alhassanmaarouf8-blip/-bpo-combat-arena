@@ -265,7 +265,7 @@ const SALMA_FACE_CSS = `
 .salma-photo .face{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 38%;display:block}
 .salma-photo .lids{opacity:0;animation:salmaBlink 5.4s ease-in-out infinite}
 /* The ring is an audio meter, not a generic "she is talking" animation. */
-.salma-photo .vring{position:absolute;inset:-3px;border-radius:inherit;border:2.5px solid var(--accent, #3b82f6);opacity:0;pointer-events:none;transition:opacity 70ms linear,transform 70ms linear}
+.salma-photo .vring{position:absolute;inset:-3px;border-radius:inherit;border:2.5px solid var(--action, #D9541A);opacity:0;pointer-events:none;transition:opacity 70ms linear,transform 70ms linear}
 @keyframes salmaBlink{0%,92%{opacity:0}95%{opacity:1}98%,100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.salma-photo .lids{animation:none;opacity:0}.salma-photo .vring{transition:none}}`;
 
@@ -325,7 +325,7 @@ const card = { width: '100%', maxWidth: 400, maxHeight: '86vh', overflowY: 'auto
   border: '1px solid rgba(59,130,246,0.30)', boxShadow: '0 18px 60px rgba(14,19,32,0.16)' };
 const portrait = { position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
   overflow: 'hidden', background: 'linear-gradient(145deg, #172554, #0f172a)',
-  border: '2px solid rgba(96,165,250,0.72)', boxShadow: '0 0 14px rgba(59,130,246,0.35)' };
+  border: '2px solid rgba(14,19,32,0.14)', boxShadow: '0 2px 10px rgba(14,19,32,0.14)' };
 const portraitFallback = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' };
 const bubble = { padding: '10px 12px', borderRadius: '4px 12px 12px 12px', fontSize: 13.5, lineHeight: 1.6,
   color: 'var(--text)', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.22)',

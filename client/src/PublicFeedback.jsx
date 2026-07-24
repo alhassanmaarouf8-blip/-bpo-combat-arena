@@ -21,7 +21,7 @@ const C = {
   bg0: '#0a0f1a', bg1: '#0f1626', bg2: '#172033',
   blue: '#3b82f6', blue2: '#60a5fa', orange: '#f97316', orange2: '#fb923c',
   text: 'var(--text)', dim: 'var(--text-dim)', faint: 'var(--text-faint)',
-  line: 'rgba(255,255,255,0.09)', surface: 'rgba(255,255,255,0.04)',
+  line: 'var(--surface-2)', surface: 'var(--surface-2)',
   font: "'Inter',system-ui,sans-serif",
 };
 

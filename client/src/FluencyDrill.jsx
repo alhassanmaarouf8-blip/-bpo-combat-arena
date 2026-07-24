@@ -199,7 +199,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
       <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
         {rounds.map((sec, i) => (
           <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-            background: i < round ? 'var(--action)' : i === round ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)' }} />
+            background: i < round ? 'var(--action)' : i === round ? 'rgba(249,115,22,0.5)' : 'var(--surface-2)' }} />
         ))}
       </div>
       <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(249,115,22,0.25)' }}>
@@ -509,7 +509,7 @@ function MatrixCell({ label, value, unit, good, warn }) {
   const border = warn ? 'rgba(249,115,22,0.4)' : good ? 'rgba(59,130,246,0.35)' : 'rgba(148,163,184,0.2)';
   return (
     <div style={{ flex: 1, padding: '10px 8px', borderRadius: 10, textAlign: 'center',
-      background: 'rgba(255,255,255,0.03)', border: `1px solid ${border}` }}>
+      background: 'var(--surface-2)', border: `1px solid ${border}` }}>
       <div style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '0.1em', fontFamily: 'var(--font-display)' }}>{label}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color, fontVariantNumeric: 'tabular-nums', marginTop: 3 }}>{value}</div>
       <div style={{ fontSize: 8.5, color: 'var(--text-faint)', marginTop: 1 }}>{unit}</div>
@@ -521,7 +521,7 @@ function RoundCard({ lang, label, m, dim }) {
   const speechSeconds = Number.isFinite(Number(m.voicedMs)) ? Math.round(Number(m.voicedMs) / 1000) : null;
   return (
     <div style={{ flex: 1, padding: '12px 10px', borderRadius: 11, textAlign: 'center',
-      background: dim ? 'rgba(255,255,255,0.03)' : 'rgba(249,115,22,0.1)',
+      background: dim ? 'var(--surface-2)' : 'rgba(249,115,22,0.1)',
       border: `1px solid ${dim ? 'rgba(148,163,184,0.2)' : 'rgba(249,115,22,0.45)'}` }}>
       <div style={{ fontSize: 8.5, color: dim ? 'var(--text-dim)' : 'var(--action)', letterSpacing: '0.12em' }}>{label}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: dim ? 'var(--text-dim)' : 'var(--action)', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{m.wpm ?? 0}</div>
@@ -735,7 +735,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
           background: i < results.length ? (results[i]?.hit ? 'var(--good)' : 'var(--bad)')
-                    : i === idx ? 'rgba(249,115,22,0.5)' : 'rgba(255,255,255,0.08)' }} />
+                    : i === idx ? 'rgba(249,115,22,0.5)' : 'var(--surface-2)' }} />
       ))}
     </div>
   );

@@ -24,7 +24,7 @@ export function DrillIntro({ drillKey, style }) {
   if (!text) return null;
   return (
     <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.5, padding: '8px 11px',
-      borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--line)',
+      borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--line)',
       marginBottom: 12, ...style }}>
       {text} {/* OWNER-AR slot */}
     </div>

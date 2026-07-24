@@ -108,7 +108,7 @@ function StepHeader({ step }) {
         return (
           <li key={id} aria-current={active ? 'step' : undefined} style={{ minWidth: 0, padding: '9px 10px', borderRadius: 10,
             border: `1px solid ${active ? 'rgba(96,165,250,0.65)' : 'rgba(148,163,184,0.16)'}`,
-            background: active ? 'rgba(59,130,246,0.12)' : done ? 'rgba(59,130,246,0.06)' : 'rgba(255,255,255,0.018)' }}>
+            background: active ? 'rgba(59,130,246,0.12)' : done ? 'rgba(59,130,246,0.06)' : 'var(--surface-2)' }}>
             <span aria-hidden="true" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%',
               background: active || done ? 'var(--accent, #3b82f6)' : 'rgba(148,163,184,0.16)',
               color: active || done ? '#06101d' : 'var(--text-faint, #64748b)', fontSize: 11, fontWeight: 600 }}>{done ? '✓' : id}</span>
@@ -367,7 +367,7 @@ export function InterviewPassPreview({
                   return (
                     <label key={item.id} className="ipx-choice" style={{ minHeight: 54, display: 'flex', gap: 10, alignItems: 'center', padding: '9px 11px', cursor: 'pointer', borderRadius: 10,
                       border: `1px solid ${checked ? 'rgba(96,165,250,0.68)' : 'rgba(148,163,184,0.19)'}`,
-                      background: checked ? 'rgba(59,130,246,0.11)' : 'rgba(255,255,255,0.018)' }}>
+                      background: checked ? 'rgba(59,130,246,0.11)' : 'var(--surface-2)' }}>
                       <input type="checkbox" checked={checked} onChange={() => toggleEvidence(item.id)} style={{ width: 20, height: 20, accentColor: 'var(--accent, #3b82f6)', flex: '0 0 auto' }} />
                       <span style={{ minWidth: 0 }}>
                         <span style={{ display: 'block', color: 'var(--text, #e2e8f0)', fontSize: 12.5, lineHeight: 1.35 }}>{item.de}</span>
@@ -402,7 +402,7 @@ export function InterviewPassPreview({
               <p dir="rtl" style={{ margin: '3px 0 0', color: 'var(--text-faint, #64748b)', fontSize: 11.5 }}>توقعات للتدريب وليست أسئلة حقيقية مؤكدة</p>
               <ol style={{ margin: '10px 0 0', paddingLeft: 20, display: 'grid', gap: 8 }}>
                 {preview.practicePredictions.slice(0, 3).map((question) => (
-                  <li key={question.id} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'rgba(255,255,255,0.018)', color: 'var(--text-dim, #94a3b8)', fontSize: 13, lineHeight: 1.55 }}>
+                  <li key={question.id} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface-2)', color: 'var(--text-dim, #94a3b8)', fontSize: 13, lineHeight: 1.55 }}>
                     <span style={{ display: 'block', color: 'var(--accent-2, #93c5fd)', fontSize: 9.5, fontWeight: 800, letterSpacing: '0.1em', marginBottom: 4 }}>{question.label.toUpperCase()}</span>
                     {question.text}
                   </li>
@@ -411,7 +411,7 @@ export function InterviewPassPreview({
             </section>
 
             <section className="ipx-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,.9fr)', gap: 12, marginTop: 16 }}>
-              <div style={{ padding: '13px', borderRadius: 11, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'rgba(255,255,255,0.018)' }}>
+              <div style={{ padding: '13px', borderRadius: 11, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface-2)' }}>
                 <h3 style={{ margin: 0, fontSize: 13.5, color: 'var(--text, #e2e8f0)' }}>60-Sekunden-Antwort</h3>
                 <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-faint, #64748b)', fontSize: 11 }}>هيكل إجابة في 60 ثانية</div>
                 <ol style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}>

@@ -900,8 +900,8 @@ const GLOBAL_CSS = `
        (player = blue, boss = orange — the brand pair, not green/red). */
     /* surfaces / depth — calm deep navy, not neon black */
     --bg-0:#0a0f1a; --bg-1:#0f1626; --bg-2:#172033;
-    --surface:rgba(255,255,255,0.04); --surface-2:rgba(255,255,255,0.07);
-    --line:rgba(255,255,255,0.09); --line-strong:rgba(255,255,255,0.18);
+    --surface:var(--surface-2); --surface-2:var(--surface-2);
+    --line:var(--surface-2); --line-strong:rgba(255,255,255,0.18);
     /* accents — blue primary, orange action */
     --accent:#3b82f6; --accent-2:#60a5fa; --accent-dim:rgba(59,130,246,0.45);
     --action:#f97316; --action-2:#fb923c; --action-deep:#ea580c; --action-dim:rgba(249,115,22,0.45);
@@ -932,9 +932,9 @@ const GLOBAL_CSS = `
        Floor 11px — the 8.5-10.5px micro-caps era is over. One orange object per screen. */
     --fs-hero:clamp(30px,7vw,44px); --fs-h1:24px; --fs-h2:17px;
     --fs-body:15px; --fs-label:13px; --fs-meta:11px;
-    --glass:linear-gradient(165deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015));
+    --glass:linear-gradient(165deg,var(--surface-2),var(--surface-2));
     --glass-border:1px solid rgba(255,255,255,0.10);
-    --glass-highlight:inset 0 1px 0 rgba(255,255,255,0.08);
+    --glass-highlight:inset 0 1px 0 var(--surface-2);
     --e1:0 1px 2px rgba(14,19,32,0.16);
     --e2:0 8px 24px -8px rgba(14,19,32,0.16);
     --e3:0 24px 64px -16px rgba(2,6,17,0.7);
@@ -959,8 +959,8 @@ const GLOBAL_CSS = `
        NOTE: this whole block is a JS template literal, so backticks are forbidden in these
        comments — they terminate the string and the parse error points at the literal's opening
        line, not at the backtick. */
-    --pane-bg:        rgba(255,255,255,0.055);
-    --pane-bg-strong: rgba(255,255,255,0.085);
+    --pane-bg:        var(--surface-2);
+    --pane-bg-strong: var(--surface-2);
     --pane-border:    rgba(255,255,255,0.13);
     --pane-highlight: rgba(255,255,255,0.22);
     --pane-shadow:    0 20px 60px -18px rgba(14,19,32,0.16);
@@ -982,6 +982,22 @@ const GLOBAL_CSS = `
     --surface:#FFFFFF; --surface-2:#F0EEE9;
     --line:rgba(14,19,32,.10); --line-strong:rgba(14,19,32,.17);
     --text:#0E1320; --text-dim:#5A6270; --text-faint:#8A909C;
+    /* ── OWNER ORDER 2026-07-24: white and orange ONLY. ────────────────────────────────────────
+       The mapping is deliberate, so orange still MEANS something instead of becoming wallpaper:
+         ORANGE  = act on this, or you are here — the one CTA, the active tab, the current step,
+                   the filled part of a progress bar. Nothing else.
+         NEUTRAL = everything else — warm off-white ground, white cards, near-black type, grey
+                   secondary text, hairline borders, icons, links, focus rings.
+       So --accent (which was blue and carried "structure") becomes INK, not a second hue. Blue
+       survives nowhere inside the shell; it is not repainted orange, it is de-coloured. */
+    --accent:#0E1320; --accent-2:#3A4150; --accent-dim:rgba(14,19,32,.35);
+    --player:#0E1320; --player-2:#3A4150; --player-glow:rgba(14,19,32,.18);
+    --boss:#D9541A;   --boss-2:#E8703A;   --boss-glow:rgba(217,84,26,.28);
+    --good:#0E1320; --warn:#D9541A; --violet:#0E1320;
+    --grad-ring:conic-gradient(from 220deg,#D9541A,#E8703A,transparent 70%);
+    --ring-focus:0 0 0 1px #0E1320, 0 0 0 4px rgba(14,19,32,.14);
+    --glow-accent:0 0 0 1px rgba(14,19,32,.12);
+    --glow-player:none; --glow-boss:none;
     --action:#D9541A; --action-2:#E8703A; --action-deep:#B8430F;
     --grad-action:#D9541A;                       /* solid, machined — no gradient, no glow */
     --shadow-action:0 1px 2px rgba(18,22,31,.2);
@@ -1220,8 +1236,8 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--acc
           boxShadow:`0 0 ${Math.round(28 * glow + 12)}px ${color}${speaking ? 'aa' : '55'}, inset 0 0 22px ${color}22`,
           transition:'box-shadow 0.6s var(--ease), border-color 0.6s' }} />
         <div style={{ position:'absolute', inset:10, borderRadius:'50%',
-          background:'radial-gradient(120% 120% at 30% 25%, rgba(255,255,255,0.09), rgba(6,10,18,0.92) 60%)',
-          border:'1px solid rgba(255,255,255,0.08)', display:'grid', placeItems:'center' }}>
+          background:'radial-gradient(120% 120% at 30% 25%, var(--surface-2), rgba(6,10,18,0.92) 60%)',
+          border:'1px solid var(--surface-2)', display:'grid', placeItems:'center' }}>
           {/* Elite pass: weight 800 + white glow read as a placeholder shouting. A lighter, smaller
               glyph with air around it reads as a deliberate monogram (fashion-house rule: negative
               space is the luxury). */}
@@ -1301,8 +1317,8 @@ function HpBar({ label, value, isPlayer, reason }) {
           instrument voice: a 5px hairline meter, flat fill, quiet dim label. Color still carries
           the state (blue → orange → red), the low-pulse warning stays (genuine alarm). */}
       <div className={low ? 'hp-low-pulse' : ''} style={{ height:5, borderRadius:99,
-        background:'rgba(255,255,255,0.07)', overflow:'hidden', position:'relative',
-        border:'1px solid rgba(255,255,255,0.05)' }}>
+        background:'var(--surface-2)', overflow:'hidden', position:'relative',
+        border:'1px solid var(--surface-2)' }}>
         <div style={{ position:'absolute', inset:0, width:`${pct}%`, borderRadius:'inherit',
           background:solid,
           transition:'width 0.55s var(--ease-spring), background 0.4s var(--ease)' }} />
@@ -1442,7 +1458,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
         border:`2px solid ${ringCol}`, fontSize:34, userSelect:'none',
         background: active
           ? 'radial-gradient(circle at 50% 32%, rgba(59,130,246,0.20), rgba(59,130,246,0.04) 70%)'
-          : 'rgba(255,255,255,0.02)',
+          : 'var(--surface-2)',
         boxShadow: active
           ? `0 0 30px ${ringCol}55, inset 0 0 24px ${ringCol}33`
           : 'inset 0 0 18px rgba(14,19,32,0.16)',
@@ -1579,7 +1595,7 @@ function CatBar({ label, value, color }) {
         <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, color, fontVariantNumeric:'tabular-nums' }}>{v}</span>
       </div>
       <div style={{ height:9, borderRadius:'var(--r-pill)', overflow:'hidden',
-        background: 'var(--surface)', border:'1px solid rgba(255,255,255,0.06)' }}>
+        background: 'var(--surface)', border:'1px solid var(--surface-2)' }}>
         <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, value || 0))}%`, borderRadius:'inherit',
           background:`linear-gradient(90deg, ${color}99, ${color})`, boxShadow:`0 0 10px ${color}66`,
           transition:'width 0.7s var(--ease-out)' }} />
@@ -1605,18 +1621,18 @@ function RankLadder({ rank }) {
         {rank.ranks.map((r, i) => (
           <div key={r} style={{ display:'flex', alignItems:'center', flex: i < rank.ranks.length - 1 ? 1 : '0 0 auto' }}>
             <div title={r} style={{ width:9, height:9, borderRadius:'50%', flexShrink:0, boxSizing:'border-box',
-              background: i < tier ? 'var(--accent-dim)' : i === tier ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+              background: i < tier ? 'var(--accent-dim)' : i === tier ? 'var(--accent)' : 'var(--surface-2)',
               border: i === tier ? '1.5px solid var(--accent-2)' : '1px solid rgba(255,255,255,0.10)' }} />
             {i < rank.ranks.length - 1 && (
               <div style={{ flex:1, height:1, margin:'0 4px',
-                background: i < tier ? 'var(--accent-dim)' : 'rgba(255,255,255,0.08)' }} />
+                background: i < tier ? 'var(--accent-dim)' : 'var(--surface-2)' }} />
             )}
           </div>
         ))}
       </div>
       {rank.nextLabel ? (
         <div style={{ marginTop:9 }}>
-          <div style={{ height:3, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(255,255,255,0.07)' }}>
+          <div style={{ height:3, borderRadius:'var(--r-pill)', overflow:'hidden', background:'var(--surface-2)' }}>
             <div style={{ height:'100%', width:`${rank.toNextPct}%`, borderRadius:'inherit',
               background:'var(--accent)', transition:'width 0.7s var(--ease-out)' }} />
           </div>
@@ -1661,7 +1677,7 @@ function HireVerdict({ h, compact = false }) {
     // Advisory lever only on the home progress card. On the debrief the Salma panel directly
     // below owns the measured bottleneck — naming the same skill twice on one screen reads
     // as two competing diagnoses.
-    v = { label: 'DEIN GRÖSSTER HEBEL', color: 'var(--text-dim)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
+    v = { label: 'DEIN GRÖSSTER HEBEL', color: 'var(--text-dim)', bg: 'var(--surface-2)', border: 'rgba(255,255,255,0.15)',
           de: SKILL.de, ar: SKILL.ar };
   }
   if (!v) return null;   // no verdict AND no measurable lever → say nothing rather than guess
@@ -1753,7 +1769,7 @@ function BottleneckCard({ bn, compact = false }) {
         <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:7 }}>
           {bn.runnerUps.map((r, ri) => (
             <span key={ri} style={{ fontSize:9, padding:'2px 7px', borderRadius:20, color:'var(--text-dim)',
-              border:'1px solid var(--line)', background:'rgba(255,255,255,0.03)' }}>
+              border:'1px solid var(--line)', background:'var(--surface-2)' }}>
               danach: {DEEP_CAT_DE[r.category] || r.category} · {r.score}
             </span>
           ))}
@@ -1793,7 +1809,7 @@ function DeepAnalysisSection({ state = { status: 'pending' }, ar, rtl, hideBottl
         <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10 }}>
           {cats.map(([c, n]) => (
             <span key={c} style={{ fontSize:9.5, padding:'3px 8px', borderRadius:20, color:'var(--text-dim)',
-              border:'1px solid var(--line-strong)', background:'rgba(255,255,255,0.03)' }}>
+              border:'1px solid var(--line-strong)', background:'var(--surface-2)' }}>
               {DEEP_CAT_DE[c] || c} · {n}
             </span>
           ))}
@@ -1804,7 +1820,7 @@ function DeepAnalysisSection({ state = { status: 'pending' }, ar, rtl, hideBottl
         return (
           <div key={ai} style={{ marginBottom: ai < state.answers.length - 1 ? 14 : 0,
             paddingBottom: ai < state.answers.length - 1 ? 12 : 0,
-            borderBottom: ai < state.answers.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            borderBottom: ai < state.answers.length - 1 ? '1px solid var(--surface-2)' : 'none' }}>
             {a.frage && <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:4, ...rtl }}>❓ {a.frage}</div>}
             <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.8, overflowWrap:'anywhere' }}>
               {segs.map((s, si) => s.errIdx == null
@@ -2073,7 +2089,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginBottom:4 }}>
                     Dein Weg zum Interview-Niveau: {revealJourney.entryDone ?? 0}/{revealJourney.entryTotal ?? 0} Schritte geschafft{/* OWNER-AR slot */}
                   </div>
-                  <div style={{ height:8, borderRadius:6, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
+                  <div style={{ height:8, borderRadius:6, background:'var(--surface-2)', overflow:'hidden' }}>
                     <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, revealJourney.pctToApply || 0))}%`,
                       background:'linear-gradient(90deg,var(--accent),var(--accent-2))' }} />
                   </div>
@@ -2146,11 +2162,11 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               : rank === 'B2'
                 ? { icon:'📋', label:'SOLIDE BASIS', de:'In dieser Simulation wurden B2-Signale gemessen. Der nächste Hebel steht unten.', ar:'في المحاكاة دي اتقاست إشارات B2. أهم خطوة جاية موجودة تحت.', color:'var(--action)', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.4)' }
               : rank === 'B1'
-                ? { icon:'⏸', label:'BASIS VORHANDEN', de:'In dieser Simulation wurden B1-Signale gemessen. Trainiere jetzt den größten Hebel.', ar:'في المحاكاة دي اتقاست إشارات B1. درّب أهم نقطة دلوقتي.', color:'var(--text-dim)', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'⏸', label:'BASIS VORHANDEN', de:'In dieser Simulation wurden B1-Signale gemessen. Trainiere jetzt den größten Hebel.', ar:'في المحاكاة دي اتقاست إشارات B1. درّب أهم نقطة دلوقتي.', color:'var(--text-dim)', bg:'var(--surface-2)', border:'rgba(255,255,255,0.15)' }
               : rank === 'A2'
-                ? { icon:'', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'var(--text-dim)', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'var(--text-dim)', bg:'var(--surface-2)', border:'rgba(255,255,255,0.15)' }
               // A1/unknown → match the server jobLabel's gentle tone, NOT a harsh red "DIESMAL NICHT".
-              : { icon:'', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'var(--text-dim)', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
+              : { icon:'', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'var(--text-dim)', bg:'var(--surface-2)', border:'rgba(255,255,255,0.15)' };
             return (
               <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
                 animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
@@ -2279,7 +2295,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               {data.interviewReview.map((r, i) => (
                 <div key={i} style={{ marginBottom:i < data.interviewReview.length-1 ? 12 : 0,
                   paddingBottom:i < data.interviewReview.length-1 ? 12 : 0,
-                  borderBottom:i < data.interviewReview.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                  borderBottom:i < data.interviewReview.length-1 ? '1px solid var(--surface-2)' : 'none' }}>
                   {r.frage && <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:4, ...rtl }}>❓ {r.frage}</div>}
                   <div style={{ fontSize:12, color:'var(--text)', fontStyle:'italic', lineHeight:1.5, marginBottom:6, overflowWrap:'anywhere', ...rtl }}>„{r.deinSatz}“</div>
                   {(ar ? r.stark_ar : r.stark) && <div style={{ fontSize:11.5, color:'var(--accent-2)', lineHeight:1.5, marginBottom:4, ...rtl }}>✓ {ar && r.stark_ar ? r.stark_ar : r.stark}</div>}
@@ -2394,7 +2410,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               )}
               {data.progress.levelProgress && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
-                  <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background: 'var(--surface)', border:'1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background: 'var(--surface)', border:'1px solid var(--surface-2)' }}>
                     <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, data.progress.levelProgress.pct || 0))}%`, borderRadius:'inherit',
                       background:'linear-gradient(90deg, var(--accent-2)99, var(--accent))', boxShadow:'0 0 8px rgba(59,130,246,0.35)', transition:'width 0.7s var(--ease-out)' }} />
                   </div>
@@ -2407,21 +2423,21 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 </div>
               )}
               {data.progress.trainingDelta && (
-                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid var(--surface-2)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? data.progress.trainingDelta.title_ar : data.progress.trainingDelta.title_de}</b>:{' '}
                   {ar ? 'الجولة اللي فاتت' : 'letzte Simulation'} {data.progress.trainingDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
                   <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
                 </div>
               )}
               {data.progress.weakRuleDelta && (
-                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid var(--surface-2)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? 'نقطة ضعفك المستهدفة' : 'Gezielt getestete Schwäche'}</b> — {data.progress.weakRuleDelta.rule}:{' '}
                   {ar ? 'الجولة اللي فاتت' : 'letzte Sitzung'} {data.progress.weakRuleDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
                   <b style={{ color: data.progress.weakRuleDelta.after <= data.progress.weakRuleDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.weakRuleDelta.after}</b>
                 </div>
               )}
               {data.progress.weekTrend && (
-                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid var(--surface-2)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? 'الأسبوع ده مقابل اللي فات' : 'Diese Woche vs. letzte Woche'}</b>:{' '}
                   {ar ? 'الطلاقة' : 'Flüssigkeit'} {data.progress.weekTrend.fluency.last} → <b style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? 'var(--accent)' : '#f87171' }}>{data.progress.weekTrend.fluency.this}</b>{' '}
                   <span style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? 'var(--accent)' : '#f87171' }}>({data.progress.weekTrend.fluency.delta >= 0 ? '+' : ''}{data.progress.weekTrend.fluency.delta})</span>
@@ -2744,13 +2760,13 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             {onRevanche && !win && data?.revancheMoment?.quote && (
               <button onClick={onRevanche} style={{ minHeight:48, fontFamily:'var(--font-display)', fontWeight:700,
                 fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
-                border:'1px solid var(--line)', color:'var(--text-dim)', background:'rgba(255,255,255,0.04)' }}>
+                border:'1px solid var(--line)', color:'var(--text-dim)', background:'var(--surface-2)' }}>
                 SCHWÄCHSTE ANTWORT NOCH EINMAL ÜBEN
               </button>
             )}
             <button onClick={onRestart} style={{ minHeight:48, fontFamily:'var(--font-display)', fontWeight:700,
               fontSize:12, letterSpacing:'0.06em', padding:'12px', borderRadius:'var(--r-md)', cursor:'pointer',
-              border:'1px solid var(--line)', color:'var(--text-dim)', background:'rgba(255,255,255,0.04)' }}>
+              border:'1px solid var(--line)', color:'var(--text-dim)', background:'var(--surface-2)' }}>
               FREIES INTERVIEW WIEDERHOLEN{/* OWNER-AR slot */}
             </button>
           </div>
@@ -3010,7 +3026,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
           {/* Level + boss ladder */}
           <Section title={`LEVEL ${lp.level}`} color="var(--accent)" right={
             <span style={{ fontSize:9, color:'var(--text-dim)' }}>{lp.intoLevel}/{lp.perLevel} XP</span>}>
-            <div style={{ height:9, borderRadius:5, background:'rgba(255,255,255,0.06)', overflow:'hidden', marginBottom:8 }}>
+            <div style={{ height:9, borderRadius:5, background:'var(--surface-2)', overflow:'hidden', marginBottom:8 }}>
               <div style={{ height:'100%', width:`${lp.pct}%`,
                 background:'linear-gradient(90deg,var(--accent),var(--accent))', boxShadow:'0 0 10px rgba(59,130,246,0.6)',
                 transition:'width 0.6s' }} />
@@ -3094,7 +3110,7 @@ function ProductHomePreview() {
       <div style={{ position:'relative', overflow:'hidden', padding:'22px 20px 20px',
         borderRadius:24, border:'1px solid rgba(148,163,184,0.2)',
         background:'linear-gradient(160deg,#0b1422 0%,#050a12 58%,#080b10 100%)',
-        boxShadow:'0 24px 64px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)' }}>
+        boxShadow:'0 24px 64px rgba(0,0,0,0.42), inset 0 1px 0 var(--surface-2)' }}>
         <div aria-hidden="true" style={{ position:'absolute', width:260, height:260, borderRadius:'50%',
           top:-150, right:-100, background:'radial-gradient(circle,rgba(59,130,246,0.22),transparent 68%)' }} />
         <div aria-hidden="true" style={{ position:'absolute', width:220, height:220, borderRadius:'50%',
@@ -3150,7 +3166,7 @@ function ProductHomePreview() {
           gap:8, marginTop:12 }}>
           {[['1','Sprechen'],['2','Korrektur'],['3','Nächster Schritt']].map(([n, label]) => (
             <div key={n} style={{ minWidth:0, padding:'9px 7px', borderRadius:11, textAlign:'center',
-              background:'rgba(255,255,255,0.035)', border:'1px solid rgba(255,255,255,0.07)' }}>
+              background:'var(--surface-2)', border:'1px solid var(--surface-2)' }}>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:750, fontSize:10, color:'#60a5fa' }}>{n}</div>
               <div style={{ marginTop:3, color:'#a6b2c2', fontSize:9.5, lineHeight:1.25 }}>{label}</div>
             </div>
@@ -3918,7 +3934,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             </div>
           </div>
         ) : (
-        <div aria-label="Anmeldung oder Registrierung" style={{ display:'flex', gap:0, marginBottom:18, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3 }}>
+        <div aria-label="Anmeldung oder Registrierung" style={{ display:'flex', gap:0, marginBottom:18, background:'var(--surface-2)', borderRadius:'var(--r-pill)', padding:3 }}>
           {['login','signup'].map((m) => (
             <button key={m} type="button" aria-pressed={mode === m} onClick={() => { setMode(m); setErr(''); }}
               style={{ flex:1, padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)',
@@ -3948,7 +3964,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           <button type="button" onClick={() => setShowPw((value) => !value)}
             aria-label={showPw ? 'Passwort verbergen' : 'Passwort anzeigen'} aria-pressed={showPw}
             style={{ position:'absolute', insetInlineEnd:5, top:4, minWidth:80, minHeight:44, borderRadius:8,
-              border:'1px solid var(--line)', background:'rgba(255,255,255,0.04)', color:'var(--text-dim)',
+              border:'1px solid var(--line)', background:'var(--surface-2)', color:'var(--text-dim)',
               cursor:'pointer', fontFamily:'var(--font-body)', fontWeight:700, fontSize:11 }}>
             {showPw ? 'VERBERGEN' : 'ANZEIGEN'}
           </button>
@@ -4174,7 +4190,7 @@ function EmailVerificationGate({ auth, onLogout, onVerifiedElsewhere, linkState 
 
 const inputStyle = {
   width:'100%', padding:'14px 16px', minHeight:52, borderRadius:12, fontSize:15, fontFamily:'var(--font-body)',
-  background:'rgba(255,255,255,0.05)', color:'var(--text)', border:'1px solid var(--line)', outline:'none',
+  background:'var(--surface-2)', color:'var(--text)', border:'1px solid var(--line)', outline:'none',
   letterSpacing:'0.01em', transition:'box-shadow 120ms var(--ease), border-color 120ms var(--ease)',
 };
 
@@ -4858,9 +4874,9 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           // action is standard premium pricing design and it was already right here).
           return (
             <div key={p.id} style={{ borderRadius:18, padding:'20px 18px', position:'relative',
-              background: elite ? 'linear-gradient(160deg, rgba(249,115,22,0.07), rgba(0,0,0,0.42) 60%)' : 'rgba(255,255,255,0.035)',
+              background: elite ? 'linear-gradient(160deg, rgba(249,115,22,0.07), rgba(0,0,0,0.42) 60%)' : 'var(--surface-2)',
               border:`1px solid ${elite ? 'rgba(249,115,22,0.45)' : 'var(--line)'}`,
-              boxShadow: elite ? '0 18px 50px -20px rgba(249,115,22,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+              boxShadow: elite ? '0 18px 50px -20px rgba(249,115,22,0.35), inset 0 1px 0 var(--surface-2)' : 'inset 0 1px 0 var(--surface-2)' }}>
               {elite && (
                 <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em',
                   background:'var(--action)', color:'#04070d', padding:'2px 8px', borderRadius:99, fontWeight:700 }}>
@@ -6826,7 +6842,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               alignItems:'flex-start', padding:'0 6px', marginBottom:9 }}>
               {/* connecting track */}
               <div style={{ position:'absolute', left:18, right:18, top:11, height:3, borderRadius:2,
-                background:'rgba(255,255,255,0.08)' }} />
+                background:'var(--surface-2)' }} />
               {/* animated progress fill — grows as rounds are cleared */}
               <div style={{ position:'absolute', left:18, top:11, height:3, borderRadius:2,
                 width:`calc((100% - 36px) * ${funnel.stages.length > 1 ? funnel.idx / (funnel.stages.length - 1) : 0})`,
@@ -6842,7 +6858,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                       display:'flex', alignItems:'center', justifyContent:'center',
                       fontFamily:'var(--font-display)', fontWeight:700, fontSize:11,
                       color: (cur || done) ? '#04070d' : 'var(--text-dim)',
-                      background: cur ? 'var(--accent)' : done ? 'var(--player)' : 'rgba(255,255,255,0.05)',
+                      background: cur ? 'var(--accent)' : done ? 'var(--player)' : 'var(--surface-2)',
                       border:`2px solid ${cur ? 'var(--accent)' : done ? 'var(--player)' : '#334155'}`,
                       boxShadow: cur ? '0 0 12px var(--accent-dim)' : 'none',
                       animation: cur ? 'node-pop 0.5s var(--ease-spring)' : 'none',
@@ -7028,7 +7044,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 users rarely change them (auto-detect + auto-boss exist), so the home keeps ONE job.
                 D2: open doors, one tap away, never locked. */}
               {/* Level — segmented control (was three shouting cards) */}
-              <div style={{ display:'flex', gap:0, background:'rgba(255,255,255,0.05)', borderRadius:'var(--r-pill)', padding:3, marginBottom:8 }}>
+              <div style={{ display:'flex', gap:0, background:'var(--surface-2)', borderRadius:'var(--r-pill)', padding:3, marginBottom:8 }}>
                 {[['a2-b1','A2–B1'],['b2','B2'],['c1','C1']].map(([id, lbl]) => {
                   const sel = level === id;
                   return (
@@ -7052,7 +7068,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 visible and aspirational instead of vanishing. (owner: "why is Frau Mona Adel (C1) open as an
                 option for an A2/B1 user?") */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap',
-              padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
+              padding:'10px 12px', minHeight:44, borderRadius:12, background:'var(--surface-2)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
               <select aria-label="Interviewer auswählen" value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'var(--surface)',
@@ -7081,7 +7097,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {/* Legacy industry fallback. A genuinely active, entitled vacancy target supersedes it;
                 disabled, ineligible, failed, Free, and Basic states keep this control available. */}
             {!vacancyLiveActive && <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap', marginTop:8,
-              padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
+              padding:'10px 12px', minHeight:44, borderRadius:12, background:'var(--surface-2)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>
                 Ziel-Stelle{/* OWNER-AR slot: masri label */}{billing && !billing.zielStelle && <span style={{ color:'var(--action)', fontWeight:700 }}> · mit Elite</span>}
               </span>
@@ -7113,7 +7129,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {billing?.customQuestions && <button type="button" disabled={!canStart}
               onClick={() => setCustomQuestionsOpen(true)}
               style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, width:'100%', marginTop:8,
-                padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)',
+                padding:'10px 12px', minHeight:44, borderRadius:12, background:'var(--surface-2)',
                 border:'1px solid var(--line)', color:'var(--text)', textAlign:'left', fontFamily:'inherit',
                 cursor: canStart ? 'pointer' : 'default' }}>
               <span style={{ display:'flex', flexDirection:'column', gap:2 }}>
@@ -7300,7 +7316,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               {[({ yasmin:'GEDULDIG', karim:'SACHLICH', hana:'SKEPTISCH', tarek:'HOCHDRUCK', 'frau-mona-adel':'STRENG', lukas:'LOCKER' })[funnel?.bossId] || 'PROFESSIONELL', `NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`, 'NUR DEUTSCH'].map((t) => (
                 <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 10px',
                   borderRadius:'var(--r-pill)', letterSpacing:'0.12em',
-                  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.13)', color:'var(--text-dim)' }}>
+                  background:'var(--surface-2)', border:'1px solid rgba(255,255,255,0.13)', color:'var(--text-dim)' }}>
                   {t}
                 </span>
               ))}
@@ -7968,7 +7984,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             ].map((r, i) => (
               <button key={i} onClick={r.open} style={{ width:'100%', minHeight:48, padding:'12px 14px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:11, textAlign:'left', background:'none', border:'none',
-                borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                borderTop: i > 0 ? '1px solid var(--surface-2)' : 'none' }}>
                 <span style={{ color:'var(--text-dim)', display:'flex' }}><Icon name={r.icon} size={17} /></span>
                 <span style={{ flex:1, fontSize:'var(--fs-label)', color:'var(--text)', fontFamily:'var(--font-display)', fontWeight:500 }}>
                   {r.de} {r.ar && <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginRight:4 }}> · {r.ar}</span>}
@@ -8001,8 +8017,8 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {[['training','Training','mic'],['ueben','Übungen','bolt'],['fortschritt','Fortschritt','chartUp']].map(([id,label,icon]) => (
               <button key={id} onClick={() => { setHomeTab(id); window.scrollTo(0, 0); }} style={{ flex:1, minHeight:56, cursor:'pointer',
                 display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3,
-                background:'none', border:'none', borderTop: homeTab === id ? '2px solid var(--accent)' : '2px solid transparent',
-                color: homeTab === id ? 'var(--accent-2)' : 'var(--text-dim)',
+                background:'none', border:'none', borderTop: homeTab === id ? '2px solid var(--action)' : '2px solid transparent',
+                color: homeTab === id ? 'var(--action)' : 'var(--text-dim)',
                 fontFamily:'var(--font-display)', fontSize:11, fontWeight:600 }}>
                 <Icon name={icon} size={18} />{label}
               </button>
@@ -8341,7 +8357,7 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
 
           {/* progress bar + elapsed */}
           <div style={{ width:'100%', maxWidth:300 }}>
-            <div style={{ height:8, borderRadius:99, overflow:'hidden', background:'rgba(255,255,255,0.07)',
+            <div style={{ height:8, borderRadius:99, overflow:'hidden', background:'var(--surface-2)',
               border:'1px solid rgba(59,130,246,0.2)' }}>
               <div style={{ height:'100%', width:`${pct}%`, borderRadius:99,
                 background:'linear-gradient(90deg,var(--accent-2),var(--accent))', boxShadow:'0 0 10px rgba(59,130,246,0.5)',

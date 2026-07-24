@@ -225,7 +225,7 @@ function OpportunityCard({ opportunity, tracker = false, busy, onPack, onOpenApp
     || opportunity.status === 'interview_proposed';
   const [outcome, setOutcome] = useState('');
   return (
-    <article id={`cmc-opportunity-${opportunity.id}`} tabIndex={-1} style={{ padding: 15, borderRadius: 13, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'rgba(255,255,255,0.018)' }}>
+    <article id={`cmc-opportunity-${opportunity.id}`} tabIndex={-1} style={{ padding: 15, borderRadius: 13, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface-2)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: '1 1 250px' }}>
           <div style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>{opportunity.employerDisplay}</div>

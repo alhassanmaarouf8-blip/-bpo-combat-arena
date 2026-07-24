@@ -625,7 +625,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
       <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
         {qShuffled.map((_, i) => (
           <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-            background: i < qIdx ? '#f97316' : i === qIdx ? 'rgba(251,146,60,0.55)' : 'rgba(255,255,255,0.08)' }} />
+            background: i < qIdx ? '#f97316' : i === qIdx ? 'rgba(251,146,60,0.55)' : 'var(--surface-2)' }} />
         ))}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--text-faint)', marginBottom: 20, letterSpacing: '0.08em' }}>
@@ -707,7 +707,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
     <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
       {lesson.slides.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? '#3b82f6' : i === idx ? 'rgba(96,165,250,0.55)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? '#3b82f6' : i === idx ? 'rgba(96,165,250,0.55)' : 'var(--surface-2)' }} />
       ))}
     </div>
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--text-faint)', marginBottom: 22, letterSpacing: '0.08em' }}>
@@ -782,7 +782,7 @@ const cardBtn = { display: 'block', width: '100%', textAlign: 'left', cursor: 'p
   minHeight: 44, borderRadius: 12, border: '1px solid rgba(96,165,250,0.25)', background: 'var(--surface)',
   color: 'var(--text)', marginBottom: 12, boxSizing: 'border-box' };
 const ctlBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 50, height: 50, borderRadius: 12,
-  border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-dim)', lineHeight: 1 };
+  border: '1px solid rgba(148,163,184,0.35)', background: 'var(--surface-2)', color: 'var(--text-dim)', lineHeight: 1 };
 const playBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 64, height: 64, borderRadius: 16, fontWeight: 600,
   border: '1px solid #f97316', background: 'linear-gradient(135deg,#fb923c,#f97316)', color: '#04070d', lineHeight: 1 };
 

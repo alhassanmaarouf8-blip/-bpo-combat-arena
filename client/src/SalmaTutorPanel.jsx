@@ -315,7 +315,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   const questionId = `salma-question-${generatedQuestionId.replace(/:/g, '')}`;
   return (
     <section className="salma-tutor" dir="ltr" lang={screen === 'home' ? 'de' : undefined} aria-label="Salma, persönliche Interviewtrainerin" aria-busy={busy} style={{ marginTop: 12, padding: '12px 0 2px',
-      borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
+      borderTop: '1px solid var(--surface-2)', textAlign: 'left' }}>
       <style>{`.salma-tutor button:focus-visible,.salma-tutor input:focus-visible,.salma-tutor select:focus-visible,.salma-tutor summary:focus-visible{outline:3px solid rgba(147,197,253,.95);outline-offset:3px}.salma-tutor summary{border-radius:6px}@media(prefers-reduced-motion:reduce){.salma-tutor *{animation:none!important;transition:none!important}}`}</style>
       {bottleneck && <div role="status" style={{ marginBottom: 10 }}>
         <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', color: '#93c5fd' }}>

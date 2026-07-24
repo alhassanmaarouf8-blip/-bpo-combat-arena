@@ -272,7 +272,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {sentences.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent-2)' : i === idx ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.08)' }} />
+          background: i < idx ? 'var(--accent-2)' : i === idx ? 'rgba(96,165,250,0.5)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
