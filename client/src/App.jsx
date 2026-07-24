@@ -4870,19 +4870,19 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           const period = once ? (ar ? 'مرة واحدة' : 'einmalig') : yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
           const saving = (p.priceEGP * 12) - p.yearlyEGP;
           const elite  = p.id === 'elite';
-          const accent = elite ? 'var(--action)' : 'var(--accent-2)';
+          const accent = elite ? 'var(--action)' : 'var(--text-dim)';
           // PREMIUM PASS: this is the screen where money happens, so it gets the most air.
           // Flat rgba(14,19,32,0.16) black → a real layered surface; 14px padding → 20px; radius
           // 12 → 18. The recommended plan keeps the single orange treatment (one recommended
           // action is standard premium pricing design and it was already right here).
           return (
             <div key={p.id} style={{ borderRadius:18, padding:'20px 18px', position:'relative',
-              background: elite ? 'linear-gradient(160deg, rgba(249,115,22,0.07), rgba(0,0,0,0.42) 60%)' : 'var(--surface-2)',
-              border:`1px solid ${elite ? 'rgba(249,115,22,0.45)' : 'var(--line)'}`,
-              boxShadow: elite ? '0 18px 50px -20px rgba(249,115,22,0.35), inset 0 1px 0 var(--surface-2)' : 'inset 0 1px 0 var(--surface-2)' }}>
+              background: elite ? 'var(--surface)' : 'var(--surface-2)',
+              border:`1.5px solid ${elite ? 'var(--action)' : 'var(--line)'}`,
+              boxShadow: elite ? '0 18px 44px -22px rgba(14,19,32,0.26)' : 'none' }}>
               {elite && (
                 <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em',
-                  background:'var(--action)', color:'#04070d', padding:'2px 8px', borderRadius:99, fontWeight:700 }}>
+                  background:'var(--action)', color:'#FFFFFF', padding:'3px 9px', borderRadius:99, fontWeight:700, fontSize:9.5 }}>
                   {ar ? 'الأنسب للإنترفيو' : 'Beliebt für Interview-Prep'}
                 </div>
               )}
