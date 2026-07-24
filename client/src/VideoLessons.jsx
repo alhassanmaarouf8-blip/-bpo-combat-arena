@@ -595,10 +595,10 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
         const recommended = les.id === rec.recId;
         return (
           <button key={les.id} onClick={() => startSlide(les, 0)}
-            style={{ ...cardBtn, ...(recommended ? { border: '1px solid rgba(249,115,22,0.6)', background: 'rgba(249,115,22,0.06)' } : {}) }}>
+            style={{ ...cardBtn, ...(recommended ? { border: '1px solid var(--action)', background: 'var(--surface)' } : {}) }}>
             {recommended && (
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: '#f97316', marginBottom: 8 }}>
-                ★ FÜR DICH{/* OWNER-AR slot */}
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--action)', marginBottom: 8 }}>
+                FÜR DICH{/* OWNER-AR slot */}
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
