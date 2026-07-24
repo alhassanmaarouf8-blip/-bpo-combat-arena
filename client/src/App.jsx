@@ -4593,11 +4593,15 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
   // ── PLAN CARDS VIEW ──
   const toggleBtn = (on, label, sub) => (
-    <button onClick={() => setYearly(on)} style={{ flex:1, padding:'8px 6px', cursor:'pointer', borderRadius:8,
-      fontFamily:'var(--font-display)', fontSize:10, letterSpacing:'0.06em', lineHeight:1.3,
-      border:`1px solid ${yearly===on ? 'var(--action)' : 'rgba(148,163,184,0.3)'}`,
-      background: yearly===on ? 'rgba(249,115,22,0.14)' : 'transparent', color: yearly===on ? 'var(--action)' : '#94a3b8' }}>
-      {label}{sub && <div style={{ fontSize:8, color:'var(--accent)', marginTop:2 }}>{sub}</div>}
+    /* The active toggle was ORANGE, so the paywall had two oranges — this switch and the
+       recommended plan's pay button — and they competed. Orange belongs to the ONE action that
+       takes money; a billing-period switch is structure, so it goes blue. Also 10px → 12.5px and
+       a 44px target: this is a real control, not a caption. */
+    <button onClick={() => setYearly(on)} style={{ flex:1, padding:'11px 8px', minHeight:44, cursor:'pointer', borderRadius:10,
+      fontFamily:'var(--font-display)', fontSize:12.5, letterSpacing:'0.02em', lineHeight:1.3, fontWeight:600,
+      border:`1px solid ${yearly===on ? 'var(--accent)' : 'var(--line)'}`,
+      background: yearly===on ? 'rgba(59,130,246,0.12)' : 'transparent', color: yearly===on ? 'var(--accent-2)' : '#94a3b8' }}>
+      {label}{sub && <div style={{ fontSize:10.5, color:'var(--text-faint)', marginTop:3 }}>{sub}</div>}
     </button>
   );
 
