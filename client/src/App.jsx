@@ -4738,9 +4738,9 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
        a 44px target: this is a real control, not a caption. */
     <button onClick={() => setYearly(on)} style={{ flex:1, padding:'11px 8px', minHeight:44, cursor:'pointer', borderRadius:10,
       fontFamily:'var(--font-display)', fontSize:12.5, letterSpacing:'0.02em', lineHeight:1.3, fontWeight:600,
-      border:`1px solid ${yearly===on ? 'var(--accent)' : 'var(--line)'}`,
-      background: yearly===on ? 'rgba(14,19,32,0.12)' : 'transparent', color: yearly===on ? 'var(--accent-2)' : 'var(--text-dim)' }}>
-      {label}{sub && <div style={{ fontSize:10.5, color:'var(--text-faint)', marginTop:3 }}>{sub}</div>}
+      border:`1px solid ${yearly===on ? 'var(--text)' : 'var(--line-strong)'}`,
+      background: yearly===on ? 'var(--text)' : 'var(--surface)', color: yearly===on ? '#FFFFFF' : 'var(--text-dim)' }}>
+      {label}{sub && <div style={{ fontSize:10.5, color: yearly===on ? 'rgba(255,255,255,.72)' : 'var(--text-faint)', marginTop:3 }}>{sub}</div>}
     </button>
   );
 
@@ -4748,8 +4748,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       <div style={{ textAlign:'center', marginBottom:10 }}>
         {/* was a 🥊 emoji — emoji is never chrome (design law); Icon renders in the accent like everywhere else */}
         <div style={{ marginBottom:6, color:'var(--accent)' }}><Icon name="fileBadge" size={30} /></div>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, letterSpacing:2,
-          color:'var(--action)', textShadow:'0 0 18px rgba(249,115,22,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:26, fontWeight:800, letterSpacing:'-0.03em',
+          lineHeight:1.1, color:'var(--text)' }}>Plan wählen · اختار خطتك</div>
         {/* Outcome first (value-prop law): the buyer pays for the JOB, not for features. */}
         <div style={{ fontSize:12.5, color:'var(--text)', marginTop:6, lineHeight:1.6, fontWeight:600 }}>
           Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}
@@ -4843,9 +4843,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         const daysLeft = Math.max(1, Math.ceil((offer.endsAt - Date.now()) / 86400000));
         return (
           <div style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, textAlign:'center',
-            background:'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(249,115,22,0.05))',
-            border:'1px solid var(--action)' }}>
-            <div style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:14, letterSpacing:'0.04em', color:'var(--action)' }}>
+            background:'var(--surface-2)', border:'1px solid var(--line-strong)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontWeight:750, fontSize:14, letterSpacing:'0.01em', color:'var(--text)' }}>
               {offer.pct}% RABATT · {offer.label}
             </div>
             <div style={{ fontSize:11, color:'var(--text)', marginTop:3 }}>
