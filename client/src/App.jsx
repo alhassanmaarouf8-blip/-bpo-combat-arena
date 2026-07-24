@@ -6897,13 +6897,24 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 (level + under-review), and it now sits alone with air around it instead of being
                 one half of a label/label pair. Nothing else moved: the interview control below is
                 untouched. */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', marginBottom:14 }}>
+            {/* Header row: state on the left, the plan entry on the right. Reaching pricing used to
+                mean scrolling to the bottom of the Fortschritt tab; a product that wants to be paid
+                for keeps that one tap away, on every screen, without shouting. It stays QUIET
+                (hairline, no fill) so the orange CTA below remains the only loud object. */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:16 }}>
               <span style={{ display:'inline-flex', alignItems:'center', gap:7, fontFamily:'var(--font-display)', fontSize:10.5,
                 fontWeight:600, letterSpacing:'0.06em', color:'var(--text-dim)', border:'1px solid var(--line)',
                 background:'var(--surface)', borderRadius:'var(--r-pill)', padding:'6px 12px' }}>
-                <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--accent-2)' }} />
+                <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--action)' }} />
                 In Prüfung · {({ 'a2-b1':'A2–B1', 'b2':'B2', 'c1':'C1' }[level] || 'A2–B1')}
               </span>
+              <button onClick={() => setPaywall(auth.account?.entitlement || {})}
+                style={{ display:'inline-flex', alignItems:'center', gap:6, minHeight:34, padding:'6px 13px', cursor:'pointer',
+                  fontFamily:'var(--font-display)', fontSize:12, fontWeight:640, letterSpacing:'0.01em',
+                  color:'var(--text)', background:'var(--surface)', border:'1px solid var(--line-strong)',
+                  borderRadius:'var(--r-pill)' }}>
+                {auth.account?.entitlement?.plan && auth.account.entitlement.plan !== 'trial' ? 'Dein Plan' : 'Pläne'}
+              </button>
             </div>
             {/* STATUS STRIP (uplift): one calm 44px row — streak + daily habit entry. Hidden on first-run
                 (a novel user has no streak/habit to repeat yet — it'd be a second CTA above the hero). */}
@@ -6946,9 +6957,17 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {/* HERO CARD "Dein Interview" (uplift) — the one place everything about starting lives:
                 readiness, level, interviewer, options. The glass card + the orange button below read
                 as ONE hero object; nothing else on the page competes. */}
-            <div style={{ borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
-              border:'var(--glass-border)', boxShadow:'var(--e2), var(--glass-highlight)',
-              backdropFilter:'blur(14px) saturate(1.1)' }}>
+            {/* ONE SURFACE PER IDEA. When BrainGuide owns the screen this wrapper goes invisible:
+                it used to be a card wrapping a card — two borders, two shadows and TWO titles
+                ("Deine Mission" directly above a card whose whole job is to state the mission)
+                around a single idea. Boxes-in-boxes is the tell that reads as unfinished no matter
+                how well the inner card is styled. The wrapper and its header survive for the
+                legacy no-BrainGuide path, which genuinely needs its own frame and title. */}
+            <div style={brainGuideAuthority
+              ? { padding:0, background:'none', border:'none', boxShadow:'none' }
+              : { borderRadius:'var(--r-xl)', padding:'18px 16px 16px', background:'var(--glass)',
+                  border:'var(--glass-border)', boxShadow:'var(--e2), var(--glass-highlight)' }}>
+              {!brainGuideAuthority && (
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap', marginBottom:12 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-h1)', color:'var(--text)', lineHeight:1.1 }}>
@@ -6960,6 +6979,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Legacy fallback only. When BrainGuide is active, its evidence-backed mission briefing
                   owns the one primary action, including interview and assessment starts. */}

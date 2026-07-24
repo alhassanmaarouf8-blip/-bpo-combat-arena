@@ -8,15 +8,15 @@
   margin-top: 12px;
   /* PREMIUM: generous padding is the cheapest luxury signal there is. Cramped padding is what
      makes an interface feel like a form; air is what makes it feel like a product. */
-  padding: clamp(20px, 3.4vw, 30px);
+  padding: clamp(22px, 4vw, 28px);
   /* THE ONE glass surface on this screen (see --pane-* in App.jsx). It is the thing the user is
      meant to act on, so it is the only thing allowed to float. The lit top edge (inset highlight)
      is what sells it as a physical pane instead of a grey box — without it this is just a card. */
   border: 1px solid var(--pane-border);
-  border-radius: 26px;
+  border-radius: 22px;
   color: #0E1320;
   background: var(--pane-bg);
-  box-shadow: var(--pane-shadow), inset 0 1px 0 var(--pane-highlight);
+  box-shadow: 0 1px 2px rgba(14,19,32,.04), 0 18px 44px -28px rgba(14,19,32,.22);
   text-align: left;
 }
 /* Blur only where supported; the fallback is a solid, readable surface — never a washed-out
@@ -136,12 +136,15 @@
 
 .brain-guide__confidence--high { border-color: rgba(14,19,32,0.3); color: #0E1320; }
 .brain-guide__title {
-  max-width: 760px;
-  margin: 14px 0 10px;
+  max-width: 18ch;
+  margin: 16px 0 10px;
   color: #0E1320;
   /* One decisive display size. The old scale was flat — everything 11-13px with a single big
      title — so the eye had nowhere to go. Rank is what reads as designed. */
-  font-size: var(--fs-display, clamp(28px, 7.5vw, 40px));
+  font-size: clamp(30px, 8vw, 38px);
+  letter-spacing: -0.033em;
+  line-height: 1.04;
+  text-wrap: balance;
   font-weight: 700;
   line-height: 1.04;
   letter-spacing: -0.035em;
@@ -149,10 +152,10 @@
 }
 
 .brain-guide__dose {
-  margin: 0 0 18px;
+  margin: 0 0 22px;
   color: #5A6270;
-  font-size: var(--fs-lead, 17px);
-  line-height: 1.5;
+  font-size: 15.5px;
+  line-height: 1.55;
   max-width: 60ch;   /* measure: past ~65 characters a line stops being comfortable to read */
 }
 .brain-guide__dose span {
@@ -413,19 +416,27 @@
    beneath the action instead of three labelled boxes competing with it. A hairline rule and a
    type-size drop do the separating that three borders used to do badly. */
 .brain-guide__orient {
-  margin-top: 22px;
-  padding-top: 18px;
+  margin-top: 26px;
+  padding-top: 20px;
   border-top: 1px solid #FFFFFF;
 }
 .brain-guide__orient p {
-  margin: 0 0 7px;
+  margin: 0 0 10px;
   color: #5A6270;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 13.5px;
+  line-height: 1.62;
   max-width: 62ch;
 }
 .brain-guide__orient p > span {
-  color: #8A909C;   /* the connector recedes; the fact carries */
+  /* The connector becomes a small label, so each fact starts with a scannable anchor instead of
+     running together into a paragraph. */
+  display: inline-block;
+  min-width: 62px;
+  color: #0E1320;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 .brain-guide__orient-goal {
   margin-top: 14px !important;
