@@ -14,7 +14,7 @@
      is what sells it as a physical pane instead of a grey box — without it this is just a card. */
   border: 1px solid var(--pane-border);
   border-radius: 26px;
-  color: #eaf2ff;
+  color: #0E1320;
   background: var(--pane-bg);
   box-shadow: var(--pane-shadow), inset 0 1px 0 var(--pane-highlight);
   text-align: left;
@@ -28,7 +28,7 @@
   }
 }
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .brain-guide { background: linear-gradient(145deg, rgba(12, 24, 44, 0.96), rgba(6, 12, 24, 0.97)); }
+  .brain-guide { background: #FFFFFF; }
 }
 
 .brain-guide::before {
@@ -36,13 +36,18 @@
   position: absolute;
   inset: 0;
   z-index: -2;
-  background:
-    radial-gradient(circle at 8% 5%, rgba(60, 139, 255, 0.22), transparent 34%),
-    radial-gradient(circle at 93% 26%, rgba(255, 125, 48, 0.16), transparent 28%);
+  /* ICONIC light: the blue+orange radials were depth over a DARK card. On white they smear the
+     one surface the learner must act on, so the card stays clean and the ORANGE CTA is the only
+     colour event on the screen. */
+  background: none;
   pointer-events: none;
 }
 
 .brain-guide__aurora {
+  /* ICONIC light: a conic glow only reads as depth over a DARK ground. On white it is a muddy
+     wash, and its drift animation spends the screen's one motion budget on decoration.
+     Hidden rather than deleted so the element (and its guard-visible markup) stays intact. */
+  display: none;
   position: absolute;
   z-index: -1;
   top: -130px;
@@ -50,7 +55,7 @@
   width: 330px;
   height: 330px;
   border-radius: 50%;
-  border: 1px solid rgba(102, 174, 255, 0.16);
+  border: 1px solid rgba(37,99,235,.18);
   background: conic-gradient(from 210deg, transparent, rgba(75, 145, 255, 0.12), rgba(255, 132, 58, 0.1), transparent 72%);
   filter: blur(1px);
   animation: brain-guide-drift 14s ease-in-out infinite alternate;
@@ -65,8 +70,8 @@
 }
 
 .brain-guide__coach-copy { line-height: 1.25; }
-.brain-guide__coach-name { color: #f8fbff; font-size: 14px; font-weight: 850; }
-.brain-guide__coach-role { margin-top: 2px; color: #8fa4c0; font-size: 11px; letter-spacing: 0.035em; }
+.brain-guide__coach-name { color: #0E1320; font-size: 14px; font-weight: 850; }
+.brain-guide__coach-role { margin-top: 2px; color: #5A6270; font-size: 11px; letter-spacing: 0.035em; }
 
 .brain-guide__audio {
   display: grid;
@@ -77,7 +82,7 @@
   padding: 8px;
   border: 1px solid rgba(93, 161, 255, 0.42);
   border-radius: 14px;
-  color: #cfe4ff;
+  color: #1E3A8A;
   background: linear-gradient(145deg, rgba(61, 135, 240, 0.16), rgba(23, 67, 128, 0.08));
   cursor: pointer;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -103,7 +108,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #8fc4ff;
+  color: #2563EB;
   font-size: 10.5px;
   font-weight: 850;
   letter-spacing: 0.15em;
@@ -121,19 +126,19 @@
 .brain-guide__confidence {
   margin-left: auto;
   padding: 5px 8px;
-  border: 1px solid rgba(149, 174, 205, 0.18);
+  border: 1px solid rgba(14,19,32,.12);
   border-radius: 999px;
-  color: #aebfd3;
-  background: rgba(255, 255, 255, 0.035);
+  color: #5A6270;
+  background: #FFFFFF;
   font-size: 8.5px;
   letter-spacing: 0.08em;
 }
 
-.brain-guide__confidence--high { border-color: rgba(79, 157, 255, 0.3); color: #a9d2ff; }
+.brain-guide__confidence--high { border-color: rgba(79, 157, 255, 0.3); color: #2563EB; }
 .brain-guide__title {
   max-width: 760px;
   margin: 14px 0 10px;
-  color: #fff;
+  color: #0E1320;
   /* One decisive display size. The old scale was flat — everything 11-13px with a single big
      title — so the eye had nowhere to go. Rank is what reads as designed. */
   font-size: var(--fs-display, clamp(28px, 7.5vw, 40px));
@@ -145,7 +150,7 @@
 
 .brain-guide__dose {
   margin: 0 0 18px;
-  color: #a9bcd4;
+  color: #5A6270;
   font-size: var(--fs-lead, 17px);
   line-height: 1.5;
   max-width: 60ch;   /* measure: past ~65 characters a line stops being comfortable to read */
@@ -155,7 +160,7 @@
   padding: 5px 8px;
   border: 1px solid rgba(79, 157, 255, 0.3);
   border-radius: 999px;
-  color: #9dccff;
+  color: #2563EB;
   background: rgba(79, 157, 255, 0.08);
   font-size: 8px;
   font-weight: 900;
@@ -167,18 +172,18 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
-  border: 1px solid rgba(128, 169, 220, 0.14);
+  border: 1px solid rgba(14,19,32,.12);
   border-radius: 13px;
-  background: rgba(117, 158, 211, 0.14);
+  background: rgba(37,99,235,.08);
 }
 
 .brain-guide__spec {
   min-width: 0;
   padding: 13px 14px;
-  background: rgba(5, 13, 26, 0.82);
+  background: #F0EEE9;
 }
-.brain-guide__spec span { display: block; margin-bottom: 6px; color: #7191b8; font-size: 9px; font-weight: 850; letter-spacing: 0.13em; }
-.brain-guide__spec strong { display: block; color: #dbe9f9; font-size: 12px; font-weight: 680; line-height: 1.45; }
+.brain-guide__spec span { display: block; margin-bottom: 6px; color: #8A909C; font-size: 9px; font-weight: 850; letter-spacing: 0.13em; }
+.brain-guide__spec strong { display: block; color: #0E1320; font-size: 12px; font-weight: 680; line-height: 1.45; }
 
 .brain-guide__cta {
   position: relative;
@@ -198,7 +203,7 @@
      button earns emphasis from colour and size, not from being bold and letter-spaced. */
   border: none;
   border-radius: 13px;
-  color: #081019;
+  color: #ffffff;
   background: var(--grad-action);
   box-shadow: var(--shadow-action);
   cursor: pointer;
@@ -214,7 +219,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 18%, rgba(255, 255, 255, 0.25), transparent 52%);
+  background: none;
   transform: translateX(-120%);
   transition: transform 650ms ease;
   pointer-events: none;
@@ -240,9 +245,9 @@
   min-height: 108px;
   padding: 14px 13px 13px;
   overflow: hidden;
-  border: 1px solid rgba(126, 174, 231, 0.15);
+  border: 1px solid rgba(14,19,32,.10);
   border-radius: 13px;
-  background: linear-gradient(145deg, rgba(10, 29, 54, 0.8), rgba(5, 13, 26, 0.72));
+  background: #FFFFFF;
 }
 .brain-guide__briefing-card::before {
   content: '';
@@ -253,20 +258,20 @@
   height: 2px;
   background: linear-gradient(90deg, var(--guide-blue), transparent);
 }
-.brain-guide__briefing-card--finish::before { background: linear-gradient(90deg, #78b8ff, transparent); }
+.brain-guide__briefing-card--finish::before { background: linear-gradient(90deg, #2563EB, transparent); }
 .brain-guide__briefing-card--next::before { background: linear-gradient(90deg, var(--guide-orange), transparent); }
 .brain-guide__briefing-card > span {
   display: block;
   margin-bottom: 8px;
-  color: #76a9e8;
+  color: #2563EB;
   font-size: 8.5px;
   font-weight: 900;
   letter-spacing: 0.12em;
 }
-.brain-guide__briefing-card--next > span { color: #ffab72; }
+.brain-guide__briefing-card--next > span { color: #D9541A; }
 .brain-guide__briefing-card strong {
   display: block;
-  color: #dce9f8;
+  color: #0E1320;
   font-size: 11.5px;
   font-weight: 650;
   line-height: 1.48;
@@ -280,7 +285,7 @@
   padding: 11px 12px;
   border: 1px solid rgba(255, 138, 61, 0.19);
   border-radius: 13px;
-  background: linear-gradient(100deg, rgba(26, 74, 140, 0.14), rgba(255, 126, 47, 0.08));
+  background: #F7F5F1;
 }
 .brain-guide__north-star-mark {
   display: grid;
@@ -289,29 +294,29 @@
   height: 32px;
   border: 1px solid rgba(255, 153, 85, 0.38);
   border-radius: 50%;
-  color: #ffab72;
+  color: #D9541A;
   box-shadow: inset 0 0 12px rgba(255, 138, 61, 0.1), 0 0 18px rgba(79, 157, 255, 0.08);
 }
 .brain-guide__north-star small {
   display: block;
   margin-bottom: 3px;
-  color: #ffab72;
+  color: #D9541A;
   font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.12em;
 }
-.brain-guide__north-star strong { display: block; color: #dce9f8; font-size: 11.5px; line-height: 1.45; }
-.brain-guide__north-star em { color: #7187a3; font-size: 9px; font-style: normal; text-align: right; }
+.brain-guide__north-star strong { display: block; color: #0E1320; font-size: 11.5px; line-height: 1.45; }
+.brain-guide__north-star em { color: #8A909C; font-size: 9px; font-style: normal; text-align: right; }
 
 .brain-guide__journey {
   margin: 16px 2px 4px;
   padding: 14px;
-  border: 1px solid rgba(126, 174, 231, 0.16);
+  border: 1px solid rgba(14,19,32,.10);
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(10, 28, 50, 0.74), rgba(8, 18, 34, 0.58));
+  background: #FFFFFF;
 }
-.brain-guide__journey-copy { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 7px; color: #8096b1; font-size: 9.5px; font-weight: 780; letter-spacing: 0.09em; }
-.brain-guide__journey-copy strong { color: #b7c8da; font-weight: 700; letter-spacing: 0; }
+.brain-guide__journey-copy { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 7px; color: #8A909C; font-size: 9.5px; font-weight: 780; letter-spacing: 0.09em; }
+.brain-guide__journey-copy strong { color: #5A6270; font-weight: 700; letter-spacing: 0; }
 .brain-guide__phases { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin: 12px 0; }
 .brain-guide__phase {
   display: flex;
@@ -319,21 +324,21 @@
   min-width: 0;
   gap: 8px;
   padding: 9px;
-  border: 1px solid rgba(126, 174, 231, 0.1);
+  border: 1px solid rgba(14,19,32,.10);
   border-radius: 11px;
-  color: #738aa5;
-  background: rgba(4, 12, 24, 0.38);
+  color: #8A909C;
+  background: #F0EEE9;
 }
-.brain-guide__phase.is-current { border-color: rgba(79, 157, 255, 0.58); color: #e8f3ff; background: rgba(30, 92, 171, 0.18); box-shadow: inset 0 0 18px rgba(79, 157, 255, 0.07); }
+.brain-guide__phase.is-current { border-color: rgba(79, 157, 255, 0.58); color: #0E1320; background: rgba(37,99,235,.10); box-shadow: inset 0 0 18px rgba(79, 157, 255, 0.07); }
 .brain-guide__phase-index { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 25px; border-radius: 50%; background: rgba(110, 144, 184, 0.13); color: #9fb5cd; font-size: 11px; font-weight: 850; }
-.brain-guide__phase.is-current .brain-guide__phase-index { background: var(--guide-blue); color: #06111f; box-shadow: 0 0 16px rgba(79, 157, 255, 0.32); }
+.brain-guide__phase.is-current .brain-guide__phase-index { background: var(--guide-blue); color: #fff; box-shadow: 0 0 16px rgba(79, 157, 255, 0.32); }
 .brain-guide__phase > span:last-child { min-width: 0; }
 .brain-guide__phase strong, .brain-guide__phase small { display: block; }
 .brain-guide__phase strong { font-size: 11px; letter-spacing: 0.02em; }
 .brain-guide__phase small { margin-top: 2px; font-size: 9px; line-height: 1.25; color: #7187a2; }
 .brain-guide__phase.is-current small { color: #9fb8d3; }
-.brain-guide__track { height: 5px; overflow: hidden; border-radius: 99px; background: rgba(255, 255, 255, 0.07); }
-.brain-guide__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--guide-blue-deep), var(--guide-blue), var(--guide-orange)); box-shadow: 0 0 16px rgba(79, 157, 255, 0.45); transition: width 440ms cubic-bezier(.2,.8,.2,1); }
+.brain-guide__track { height: 5px; overflow: hidden; border-radius: 99px; background: #FFFFFF; }
+.brain-guide__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--guide-blue-deep), var(--guide-blue), var(--guide-orange));  transition: width 440ms cubic-bezier(.2,.8,.2,1); }
 .brain-guide__journey-caveat { margin: 8px 0 0; color: #637992; font-size: 9.5px; line-height: 1.45; }
 .brain-guide__proof { margin-bottom: 13px; padding: 11px; border: 1px solid rgba(79, 157, 255, 0.3); border-radius: 12px; background: rgba(59, 130, 246, 0.09); }
 
@@ -410,17 +415,17 @@
 .brain-guide__orient {
   margin-top: 22px;
   padding-top: 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid #FFFFFF;
 }
 .brain-guide__orient p {
   margin: 0 0 7px;
-  color: #93a6bf;
+  color: #5A6270;
   font-size: 13px;
   line-height: 1.6;
   max-width: 62ch;
 }
 .brain-guide__orient p > span {
-  color: #6f8299;   /* the connector recedes; the fact carries */
+  color: #8A909C;   /* the connector recedes; the fact carries */
 }
 .brain-guide__orient-goal {
   margin-top: 14px !important;

@@ -969,6 +969,48 @@ const GLOBAL_CSS = `
        so the eye had no path through the screen. Rank is what makes a layout read as designed. */
     --fs-display:clamp(28px,7.5vw,40px); --fs-lead:17px; --fs-sub:14.5px;
   }
+
+  /* ══ ICONIC LIGHT — the logged-in app (owner order 2026-07-24) ═════════════════════════════
+     Scoped to .app-shell, NOT :root. The public landing and the full-screen dark surfaces (the
+     live interview stage, modal scrims) keep their own ground, so this cannot white-out screens
+     that were never converted. Redefining the TOKENS here flips every consumer that already reads
+     var(--…) — which is most of the app — without touching a single call site.
+     Value TYPES are unchanged (colours stay colours, shorthands stay shorthands) — the foot-gun
+     that once deleted every border app-wide. */
+  .app-shell {
+    --bg-0:#F5F3EF; --bg-1:#FFFFFF; --bg-2:#EDEBE6;
+    --surface:#FFFFFF; --surface-2:#F0EEE9;
+    --line:rgba(14,19,32,.10); --line-strong:rgba(14,19,32,.17);
+    --text:#0E1320; --text-dim:#5A6270; --text-faint:#8A909C;
+    --action:#D9541A; --action-2:#E8703A; --action-deep:#B8430F;
+    --grad-action:#D9541A;                       /* solid, machined — no gradient, no glow */
+    --shadow-action:0 1px 2px rgba(18,22,31,.2);
+    --glass:#FFFFFF;
+    --glass-border:1px solid rgba(14,19,32,.10);
+    --glass-highlight:inset 0 1px 0 rgba(255,255,255,.6);
+    --pane-bg:#FFFFFF; --pane-bg-strong:#FFFFFF;
+    --pane-border:rgba(14,19,32,.10); --pane-highlight:rgba(255,255,255,.6);
+    --pane-shadow:0 20px 50px -24px rgba(14,19,32,.22); --pane-blur:0px;
+    --e1:0 1px 2px rgba(14,19,32,.06);
+    --e2:0 10px 26px -12px rgba(14,19,32,.16);
+    --e3:0 24px 60px -20px rgba(14,19,32,.22);
+    --vignette:none;
+    --shadow-card:0 12px 34px -20px rgba(14,19,32,.22);
+    color: var(--text);
+    background: #F5F3EF;
+  }
+  /* The shell paints its own ground so the dark body (and its beams) never show through. A fixed
+     full-viewport layer is used (not just a background on the shell) because the shell can be
+     shorter than the viewport while a child scrolls. */
+  .app-shell::before {
+    content:''; position:fixed; inset:0; z-index:-1; background:#F5F3EF; pointer-events:none;
+  }
+  /* Overscroll / rubber-band would otherwise reveal the dark body behind the light app. */
+  html:has(.app-shell), body:has(.app-shell) { background:#F5F3EF; }
+  /* Buttons that hard-code the old dark ink on the orange CTA become unreadable on a solid
+     burnt-orange fill; the light theme's action ink is white. */
+  .app-shell .cta-ink, .app-shell button[data-action] { color:#fff; }
+
   /* The single premium surface. Used sparingly — see the note above. */
   .surface-premium {
     background: var(--pane-bg);
@@ -6514,7 +6556,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         <button onClick={goBack} aria-label="Zurück" title="Zurück" style={{
           position:'fixed', top:10, left:10, zIndex:400, width:38, height:38, borderRadius:'50%', cursor:'pointer',
           display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, lineHeight:1, paddingBottom:3,
-          color:'#e2e8f0', background:'rgba(2,6,16,0.82)', border:'1px solid var(--line)', backdropFilter:'blur(4px)' }}>
+          color:'var(--text)', background:'var(--surface)', border:'1px solid var(--line)', backdropFilter:'blur(4px)' }}>
           ‹
         </button>
       )}
@@ -7013,7 +7055,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               padding:'10px 12px', minHeight:44, borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid var(--line)' }}>
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
               <select aria-label="Interviewer auswählen" value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
-                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'rgba(2,6,16,0.7)',
+                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'var(--surface)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
                 {[
@@ -7055,7 +7097,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     .catch(() => loadBilling())
                     .finally(() => setTargetIndustrySaving(false));
                 }}
-                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'rgba(2,6,16,0.7)',
+                style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'var(--surface)',
                   color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (gemischt)</option>
                 {[['telecom','Telekommunikation & Internet'],['ecommerce','E-Commerce & Handel'],['fintech','Banken & Fintech'],
@@ -7139,7 +7181,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
           background:'rgba(0,0,0,0.82)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
           <div onClick={e => e.stopPropagation()} style={{
-            width:'min(92vw,440px)', background:'#0d1828', borderRadius:18,
+            width:'min(92vw,440px)', background:'var(--surface)', borderRadius:18,
             border:'1.5px solid rgba(59,130,246,0.45)', boxShadow:'0 0 60px rgba(59,130,246,0.18)',
             padding:'22px 22px 18px', userSelect:'none' }}>
             {/* Header */}
@@ -7322,7 +7364,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
              ALWAYS visible, regardless of screen height) ─────────────────── */}
       <div style={{ padding:'14px 16px 24px', textAlign:'center',
         position:'sticky', bottom:0, zIndex:30,
-        background:'linear-gradient(180deg, rgba(2,4,9,0) 0%, rgba(2,4,9,0.88) 26%, #020409 60%)' }}>
+        background:'linear-gradient(180deg, rgba(245,243,239,0) 0%, rgba(245,243,239,0.92) 26%, #F5F3EF 60%)' }}>
         {error && (
           <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8,
             background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
@@ -7343,7 +7385,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   try { wsRef.current?.send(JSON.stringify({ type: C.REQUEST_TEXT_MODE })); } catch { /* socket closing */ }
                 }}
                   style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
-                    border:'1px solid #64748b', color:'#cbd5e1', background:'rgba(15,23,42,0.8)' }}>
+                    border:'1px solid var(--line-strong)', color:'var(--text-dim)', background:'var(--surface)' }}>
                   Lieber tippen
                 </button>
               </div>
@@ -7363,7 +7405,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   start();
                 }}
                   style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
-                    border:'1px solid #64748b', color:'#cbd5e1', background:'rgba(15,23,42,0.8)' }}>
+                    border:'1px solid var(--line-strong)', color:'var(--text-dim)', background:'var(--surface)' }}>
                   Ohne Mikrofon tippen
                 </button>
               </div>
@@ -7439,7 +7481,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   rows={3}
                   disabled={transcribing}
                   style={{ width:'100%', boxSizing:'border-box', resize:'vertical', padding:'10px 12px',
-                    fontSize:14, lineHeight:1.5, color:'#e2e8f0', background:'rgba(2,6,16,0.7)',
+                    fontSize:14, lineHeight:1.5, color:'var(--text)', background:'var(--surface)',
                     border:'1px solid rgba(59,130,246,0.3)', borderRadius:8, fontFamily:'inherit' }}
                 />
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
@@ -7954,7 +7996,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           <>
           <div style={{ height:64 }} />
           <nav aria-label="Bereiche" style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:200,
-            display:'flex', background:'rgba(6,10,18,0.96)', backdropFilter:'blur(10px)',
+            display:'flex', background:'rgba(245,243,239,0.96)', backdropFilter:'blur(10px)',
             borderTop:'1px solid var(--line-strong)' }}>
             {[['training','Training','mic'],['ueben','Übungen','bolt'],['fortschritt','Fortschritt','chartUp']].map(([id,label,icon]) => (
               <button key={id} onClick={() => { setHomeTab(id); window.scrollTo(0, 0); }} style={{ flex:1, minHeight:56, cursor:'pointer',
