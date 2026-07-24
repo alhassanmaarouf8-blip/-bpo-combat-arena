@@ -12,6 +12,11 @@ const IS_FEEDBACK = /[?&]feedback\b/.test(window.location.search);
 // standalone floor (lazy chunk, main bundle untouched); server-side CALLFLOOR_ENABLED gates it.
 const IS_CALLFLOOR = /[?&]callfloor\b/.test(window.location.search);
 const CallFloor = lazy(() => import('./CallFloor.jsx'));
+// Phase-1 redesign prototype (?preview=light) — a standalone light Training home rendered for the
+// owner's approval screenshot. Lazy so it never enters the production bundle; never reached by
+// real users. Delete once the light direction is approved and merged into the real home.
+const IS_PREVIEW_LIGHT = /[?&]preview=light\b/.test(window.location.search);
+const TrainingHomeLightPreview = lazy(() => import('./preview/TrainingHomeLightPreview.jsx'));
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
@@ -79,6 +84,7 @@ try {
       <RootBoundary>
         {IS_FEEDBACK ? <PublicFeedback />
           : IS_CALLFLOOR ? <Suspense fallback={null}><CallFloor /></Suspense>
+          : IS_PREVIEW_LIGHT ? <Suspense fallback={null}><TrainingHomeLightPreview /></Suspense>
           : <><App /><VoiceLabOverlay /></>}
       </RootBoundary>
     </StrictMode>,
