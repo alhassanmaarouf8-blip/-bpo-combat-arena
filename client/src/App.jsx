@@ -7526,8 +7526,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           const flu = realFluencyTrend(trends?.fluency);   // strips fabricated ?? 0 zeros (same honesty helper as the debrief) — never plot a fake nosedive
           const shell = { borderRadius:'var(--r-lg)', padding:'15px 16px 12px', marginBottom:10, background:'var(--glass)',
             border:'var(--glass-border)', boxShadow:'var(--e1), var(--glass-highlight)' };
-          const eyebrow = { fontFamily:'var(--font-display)', fontSize:9.5, fontWeight:800, letterSpacing:'0.16em',
-            textTransform:'uppercase', color:'var(--text-faint)' };
+          // PREMIUM PASS: was a 9.5px uppercase tag. A section this important gets a real
+          // sentence-case heading at a readable size — headings should look like headings.
+          const eyebrow = { fontFamily:'var(--font-display)', fontSize:17, fontWeight:600,
+            letterSpacing:'-0.01em', color:'var(--text)' };
           if (flu.length < 2) {
             return (
               <div style={shell}>
@@ -7572,7 +7574,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   </linearGradient>
                 </defs>
                 <path d={area} fill="url(#ridgeArea)" />
-                <path className="aufstiegLine" d={line} style={{ fill:'none', stroke:'var(--accent)' }} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* The line was 2.5px of --accent against a dark fill and read as nearly invisible
+                    on the live screen — a chart whose data you cannot see is decoration. Brighter
+                    stroke + a soft glow so the curve is the thing you look at. */}
+                <path className="aufstiegLine" d={line} style={{ fill:'none', stroke:'var(--accent-2)', filter:'drop-shadow(0 0 6px rgba(96,165,250,0.45))' }} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 {pts.map((p, i) => (
                   <circle className="aufstiegDot" key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.6 : 2} style={{ fill:'var(--accent)' }} />
                 ))}
@@ -7716,7 +7721,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                       <div style={{ height:'100%', width:`${pct}%`, background:'var(--accent)', borderRadius:'var(--r-pill)' }} />
                     </div>
                     <span style={{ fontFamily:'var(--font-display)', fontSize:'var(--fs-meta)', fontWeight:700,
-                      color:'var(--text-dim)', fontVariantNumeric:'tabular-nums' }}>{done} / {total}</span>
+                      color:'var(--text-dim)', fontVariantNumeric:'tabular-nums' }}
+                      /* BIDI FIX (spotted live 2026-07-24): the app runs dir="rtl" for Arabic-
+                         preferring users — most of this market — and the bidi algorithm reorders
+                         "5 / 9" to display as "9 / 5". The DATA was always right; the direction
+                         flipped it, so learners were shown a fraction where done exceeded total,
+                         which reads as a broken app. `dir="ltr"` isolates the number pair.
+                         Any number-slash-number, date, or ratio needs this in a bilingual UI. */
+                      dir="ltr">{done} / {total}</span>
                   </div>
                 )}
                 <button onClick={() => setPersonalStepOpen(true)} style={{ marginTop:13, width:'100%', padding:'13px', minHeight:48,
