@@ -64,7 +64,7 @@ const CandidateMissionControl = lazy(() => import('./CandidateMissionControl.jsx
 function OverlayLoading() {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', background: '#020409' }}>
+      justifyContent: 'center', background: 'var(--surface)' }}>
       <Spinner size={34} />
     </div>
   );
@@ -87,12 +87,12 @@ class OverlayBoundary extends Component {
     return (
       <div style={{ position:'absolute', inset:0, zIndex:300, display:'flex', flexDirection:'column',
         alignItems:'center', justifyContent:'center', gap:14, padding:24, textAlign:'center',
-        background:'rgba(2,4,9,0.98)', color:'#fca5a5' }}>
+        background: 'var(--surface)', color:'#fca5a5' }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:14, color:'#f87171' }}>Etwas ist schiefgelaufen</div>
-        {!IS_PRODUCTION && <div style={{ fontSize:11, color:'#94a3b8', maxWidth:340, wordBreak:'break-word' }}>
+        {!IS_PRODUCTION && <div style={{ fontSize:11, color:'var(--text-dim)', maxWidth:340, wordBreak:'break-word' }}>
           {String(this.state.error?.message || this.state.error)}
         </div>}
-        <div style={{ fontSize:12, color:'#94a3b8' }}>Bitte die Ansicht schließen oder die Seite neu laden. Konto und Zahlung wurden nicht verändert.</div>
+        <div style={{ fontSize:12, color:'var(--text-dim)' }}>Bitte die Ansicht schließen oder die Seite neu laden. Konto und Zahlung wurden nicht verändert.</div>
         <button onClick={this.props.onClose} style={{ fontFamily:'var(--font-display)', fontSize:11,
           padding:'10px 18px', borderRadius:8, cursor:'pointer', border:'1px solid var(--accent)',
           color:'var(--accent)', background:'rgba(59,130,246,0.06)' }}>SCHLIESSEN</button>
@@ -926,8 +926,8 @@ const GLOBAL_CSS = `
     --glow-accent:0 0 0 1px rgba(59,130,246,0.18);
     --glow-player:0 0 16px var(--player-glow);
     --glow-boss:0 0 16px var(--boss-glow);
-    --shadow-card:0 12px 38px rgba(0,0,0,0.55), inset 0 0 60px rgba(0,0,0,0.45);
-    --vignette:radial-gradient(120% 100% at 50% 32%, transparent 48%, rgba(0,0,0,0.55) 100%);
+    --shadow-card:0 12px 38px rgba(14,19,32,0.16), inset 0 0 60px rgba(14,19,32,0.16);
+    --vignette:radial-gradient(120% 100% at 50% 32%, transparent 48%, rgba(14,19,32,0.16) 100%);
     /* ── "Private Bank Arena" uplift (07-02): premium glass + a real type scale.
        Floor 11px — the 8.5-10.5px micro-caps era is over. One orange object per screen. */
     --fs-hero:clamp(30px,7vw,44px); --fs-h1:24px; --fs-h2:17px;
@@ -935,8 +935,8 @@ const GLOBAL_CSS = `
     --glass:linear-gradient(165deg,rgba(255,255,255,0.055),rgba(255,255,255,0.015));
     --glass-border:1px solid rgba(255,255,255,0.10);
     --glass-highlight:inset 0 1px 0 rgba(255,255,255,0.08);
-    --e1:0 1px 2px rgba(0,0,0,0.35);
-    --e2:0 8px 24px -8px rgba(0,0,0,0.5);
+    --e1:0 1px 2px rgba(14,19,32,0.16);
+    --e2:0 8px 24px -8px rgba(14,19,32,0.16);
     --e3:0 24px 64px -16px rgba(2,6,17,0.7);
     --r-xl:24px;
     --grad-action:linear-gradient(180deg,#fb923c,#f97316);
@@ -963,7 +963,7 @@ const GLOBAL_CSS = `
     --pane-bg-strong: rgba(255,255,255,0.085);
     --pane-border:    rgba(255,255,255,0.13);
     --pane-highlight: rgba(255,255,255,0.22);
-    --pane-shadow:    0 20px 60px -18px rgba(0,0,0,0.65);
+    --pane-shadow:    0 20px 60px -18px rgba(14,19,32,0.16);
     --pane-blur:      18px;
     /* Type scale with real STEPS. The old scale was flat (everything 11-13px + one big title),
        so the eye had no path through the screen. Rank is what makes a layout read as designed. */
@@ -1293,7 +1293,7 @@ function HpBar({ label, value, isPlayer, reason }) {
         </span>
         <span style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, color:solid,
           fontVariantNumeric:'tabular-nums', transition:'color 0.4s' }}>
-          {shown}<span style={{ opacity:0.4, fontSize:10, color:'#94a3b8' }}> / 100</span>
+          {shown}<span style={{ opacity:0.4, fontSize:10, color:'var(--text-dim)' }}> / 100</span>
         </span>
       </div>
       {/* Elite pass (owner: "doesn't feel elite"): the 15px candy gauge — segment ticks, moving
@@ -1334,7 +1334,7 @@ function WpmMeter({ wpm }) {
         </span>
       </div>
       <div style={{ position:'relative', height:8, borderRadius:'var(--r-pill)', overflow:'hidden',
-        background:'rgba(0,0,0,0.45)', border:'1px solid var(--line)' }}>
+        background: 'var(--surface)', border:'1px solid var(--line)' }}>
         {/* green target zone */}
         <div style={{ position:'absolute', top:0, bottom:0, left:`${zoneL}%`, width:`${zoneW}%`,
           background:'linear-gradient(90deg, rgba(59,130,246,0.25), rgba(59,130,246,0.4))',
@@ -1357,7 +1357,7 @@ function FillerCounter({ count }) {
         color:'var(--text-dim)', marginBottom:3 }}>FÜLLWÖRTER</div>
       {/* key=count remounts the number so it replays the pop animation on every change */}
       <div key={count} style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, lineHeight:1,
-        color: hot ? '#f87171' : '#64748b',
+        color: hot ? '#f87171' : 'var(--text-faint)',
         textShadow: hot ? '0 0 10px rgba(248,113,113,0.6)' : 'none',
         animation: hot ? 'tick-pop 0.4s var(--ease-spring)' : 'none' }}>
         {count}
@@ -1374,7 +1374,7 @@ function PerformanceHud({ wpm, fillers }) {
       padding:'8px 12px', borderRadius:'var(--r-md)',
       background:'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))',
       border:'1px solid var(--line)',
-      boxShadow:'inset 0 0 24px rgba(0,0,0,0.5)' }}>
+      boxShadow:'inset 0 0 24px rgba(14,19,32,0.16)' }}>
       <WpmMeter wpm={wpm} />
       <div style={{ width:1, alignSelf:'stretch', background:'var(--line)' }} />
       <FillerCounter count={fillers} />
@@ -1445,7 +1445,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
           : 'rgba(255,255,255,0.02)',
         boxShadow: active
           ? `0 0 30px ${ringCol}55, inset 0 0 24px ${ringCol}33`
-          : 'inset 0 0 18px rgba(0,0,0,0.5)',
+          : 'inset 0 0 18px rgba(14,19,32,0.16)',
         transform: `scale(${scale})`,
         transition:'transform 0.08s linear, box-shadow var(--dur-slow) var(--ease), border-color var(--dur-slow), background var(--dur-slow)',
       }}>
@@ -1467,7 +1467,7 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
       fontFamily:'var(--font-body)',
       background:'linear-gradient(180deg, rgba(0,0,0,0.42), rgba(0,0,0,0.28))',
       borderRadius:'var(--r-md)', border:'1px solid var(--line)',
-      boxShadow:'inset 0 0 30px rgba(0,0,0,0.4)', minHeight:90 }}>
+      boxShadow:'inset 0 0 30px rgba(14,19,32,0.16)', minHeight:90 }}>
       {lines.length === 0 && (
         <span style={{ color:'var(--text-faint)', fontStyle:'italic' }}>Bereit für das Gespräch…</span>
       )}
@@ -1535,14 +1535,14 @@ function GameOver({ winner, onRestart }) {
   const win = winner === 'player';
   return (
     <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
-      background:'rgba(0,0,0,0.88)', backdropFilter:'blur(6px)', flexDirection:'column', padding:24,
+      background: 'var(--surface)', backdropFilter:'blur(6px)', flexDirection:'column', padding:24,
       animation:'flash-in 0.4s ease' }}>
       <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
         color: win ? 'var(--accent)' : '#ef4444',
         textShadow:`0 0 30px ${win ? 'rgba(59,130,246,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
         {win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN'}
       </div>
-      <div style={{ fontSize:12, color:'#94a3b8', marginBottom:28, textAlign:'center', lineHeight:1.6 }}>
+      <div style={{ fontSize:12, color:'var(--text-dim)', marginBottom:28, textAlign:'center', lineHeight:1.6 }}>
         {win ? 'Du hast das Ziel dieser Simulation erreicht.' : 'Die Auswertung zeigt dir den nächsten Trainingsschritt.'}
       </div>
       <button onClick={onRestart} style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em',
@@ -1561,10 +1561,10 @@ function GameOver({ winner, onRestart }) {
 function Metric({ label, value, sub, color = 'var(--accent)' }) {
   return (
     <div style={{ flex:1, minWidth:78, padding:'8px 6px', borderRadius:8, textAlign:'center',
-      background:'rgba(0,0,0,0.35)', border:`1px solid ${color}33` }}>
+      background: 'var(--surface)', border:`1px solid ${color}33` }}>
       <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, color }}>{value}</div>
-      <div style={{ fontSize:8, letterSpacing:'0.08em', color:'#94a3b8', marginTop:2 }}>{label}</div>
-      {sub && <div style={{ fontSize:7.5, color:'#64748b', marginTop:1 }}>{sub}</div>}
+      <div style={{ fontSize:8, letterSpacing:'0.08em', color:'var(--text-dim)', marginTop:2 }}>{label}</div>
+      {sub && <div style={{ fontSize:7.5, color:'var(--text-faint)', marginTop:1 }}>{sub}</div>}
     </div>
   );
 }
@@ -1575,11 +1575,11 @@ function CatBar({ label, value, color }) {
   return (
     <div style={{ marginBottom:8 }}>
       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9.5, letterSpacing:'0.06em', color:'#cbd5e1' }}>{label}</span>
+        <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9.5, letterSpacing:'0.06em', color:'var(--text-dim)' }}>{label}</span>
         <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, color, fontVariantNumeric:'tabular-nums' }}>{v}</span>
       </div>
       <div style={{ height:9, borderRadius:'var(--r-pill)', overflow:'hidden',
-        background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.06)' }}>
+        background: 'var(--surface)', border:'1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, value || 0))}%`, borderRadius:'inherit',
           background:`linear-gradient(90deg, ${color}99, ${color})`, boxShadow:`0 0 10px ${color}66`,
           transition:'width 0.7s var(--ease-out)' }} />
@@ -1596,7 +1596,7 @@ function RankLadder({ rank }) {
   if (!rank?.ranks?.length) return null;
   const tier = rank.tier ?? 0;
   return (
-    <div style={{ padding:'10px 12px', borderRadius:'var(--r-md)', background:'rgba(0,0,0,0.3)', border:'1px solid var(--line)' }}>
+    <div style={{ padding:'10px 12px', borderRadius:'var(--r-md)', background: 'var(--surface)', border:'1px solid var(--line)' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:10, flexWrap:'wrap', marginBottom:9 }}>
         <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-meta)', letterSpacing:'0.1em', color:'var(--text-dim)' }}>SIMULATIONSFORTSCHRITT</span>
         <span style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)' }}>{rank.label}</span>
@@ -1622,8 +1622,8 @@ function RankLadder({ rank }) {
           </div>
           <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', marginTop:5 }}>
             {rank.nextBy === 'sessions'
-              ? <>Score erreicht — noch <b style={{ color:'#cbd5e1' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>
-              : <>{rank.toNextPct}% bis <b style={{ color:'#cbd5e1' }}>{rank.nextLabel}</b></>}
+              ? <>Score erreicht — noch <b style={{ color:'var(--text-dim)' }}>{rank.sessionsToNext}</b> {rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'} bis <b style={{ color:'var(--text-dim)' }}>{rank.nextLabel}</b></>
+              : <>{rank.toNextPct}% bis <b style={{ color:'var(--text-dim)' }}>{rank.nextLabel}</b></>}
           </div>
         </div>
       ) : (
@@ -1661,7 +1661,7 @@ function HireVerdict({ h, compact = false }) {
     // Advisory lever only on the home progress card. On the debrief the Salma panel directly
     // below owns the measured bottleneck — naming the same skill twice on one screen reads
     // as two competing diagnoses.
-    v = { label: 'DEIN GRÖSSTER HEBEL', color: '#94a3b8', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
+    v = { label: 'DEIN GRÖSSTER HEBEL', color: 'var(--text-dim)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.15)',
           de: SKILL.de, ar: SKILL.ar };
   }
   if (!v) return null;   // no verdict AND no measurable lever → say nothing rather than guess
@@ -1671,9 +1671,9 @@ function HireVerdict({ h, compact = false }) {
       <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:v.color, marginBottom:6 }}>
         ZIELINTERVIEW-SIMULATION · {v.label}
       </div>
-      <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{v.de}</div>
-      <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{v.ar}</div>
-      <div style={{ fontSize:10, color:'#64748b', marginTop:7 }}>
+      <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.5 }}>{v.de}</div>
+      <div dir="rtl" style={{ fontSize:12, color:'var(--text-dim)', marginTop:4 }}>{v.ar}</div>
+      <div style={{ fontSize:10, color:'var(--text-faint)', marginTop:7 }}>
         {h.measuredSignals}/{h.totalSignals} Signale gemessen · interne Simulationsreferenz, keine Arbeitgeberentscheidung
       </div>
     </div>
@@ -1742,7 +1742,7 @@ function BottleneckCard({ bn, compact = false }) {
         {DEEP_CAT_DE[bn.category] || bn.category}
         <span style={{ fontWeight:400, fontSize:10.5, color:'var(--text-dim)' }}> · {bn.subcode?.replace(/_/g, ' ')}</span>
       </div>
-      <div style={{ marginTop:5, fontSize:11.5, color:'#e2e8f0', lineHeight:1.55 }}>{bn.why}</div>
+      <div style={{ marginTop:5, fontSize:11.5, color:'var(--text)', lineHeight:1.55 }}>{bn.why}</div>
       {(bn.evidenceQuotes || []).slice(0, 2).map((q, qi) => (
         <div key={qi} style={{ marginTop:5, fontSize:11.5, lineHeight:1.6, overflowWrap:'anywhere' }}>
           <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{q.quote}</span>
@@ -1805,8 +1805,8 @@ function DeepAnalysisSection({ state = { status: 'pending' }, ar, rtl, hideBottl
           <div key={ai} style={{ marginBottom: ai < state.answers.length - 1 ? 14 : 0,
             paddingBottom: ai < state.answers.length - 1 ? 12 : 0,
             borderBottom: ai < state.answers.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-            {a.frage && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4, ...rtl }}>❓ {a.frage}</div>}
-            <div style={{ fontSize:12.5, color:'#e2e8f0', lineHeight:1.8, overflowWrap:'anywhere' }}>
+            {a.frage && <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:4, ...rtl }}>❓ {a.frage}</div>}
+            <div style={{ fontSize:12.5, color:'var(--text)', lineHeight:1.8, overflowWrap:'anywhere' }}>
               {segs.map((s, si) => s.errIdx == null
                 ? <span key={si}>{s.text}</span>
                 : (
@@ -1828,7 +1828,7 @@ function DeepAnalysisSection({ state = { status: 'pending' }, ar, rtl, hideBottl
                       {' '}<span style={{ color:'var(--accent-2)', fontWeight:600 }}>{e.korrektur}</span>
                     </div>
                   )}
-                  <div style={{ color:'#e2e8f0', ...rtl }}>{ar && e.erklaerung_ar ? e.erklaerung_ar : e.erklaerung_de}</div>
+                  <div style={{ color:'var(--text)', ...rtl }}>{ar && e.erklaerung_ar ? e.erklaerung_ar : e.erklaerung_de}</div>
                   <div style={{ marginTop:3, fontSize:9.5, color:'var(--text-dim)' }}>{DEEP_CAT_DE[e.kategorie] || e.kategorie}</div>
                 </div>
               )
@@ -1841,7 +1841,7 @@ function DeepAnalysisSection({ state = { status: 'pending' }, ar, rtl, hideBottl
                 {a.alternativen.map((v, vi) => (
                   <div key={vi} style={{ marginBottom:5, padding:'7px 10px', borderRadius:8,
                     background:'rgba(96,165,250,0.06)', border:'1px solid rgba(96,165,250,0.22)' }}>
-                    <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.55 }}>{v.text}</div>
+                    <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.55 }}>{v.text}</div>
                     {(v.wann_de || v.wann_ar) && (
                       <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:2, lineHeight:1.5, ...rtl }}>
                         {ar && v.wann_ar ? v.wann_ar : v.wann_de}
@@ -1973,8 +1973,8 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       x.fillStyle = g; x.fillRect(0, 0, W, H);
       x.fillStyle = accent; x.fillRect(0, 0, W, 14);
       x.textAlign = 'center';
-      x.fillStyle = '#94a3b8'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('DIE ARENA', W / 2, 130);
-      x.fillStyle = '#e2e8f0'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
+      x.fillStyle = 'var(--text-dim)'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('DIE ARENA', W / 2, 130);
+      x.fillStyle = 'var(--text)'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
       x.fillStyle = (shareVariant === 'conquest' || shareVariant === 'simulation-record') ? '#3b82f6' : '#f97316';
       x.font = 'bold 72px system-ui,sans-serif';
       const heroWords = shareHero.split(' '); let heroLine = '', heroY = 420;
@@ -1983,19 +1983,19 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
         heroLine += `${word} `;
       }
       if (heroLine.trim()) x.fillText(heroLine.trim(), W / 2, heroY);
-      x.fillStyle = '#e2e8f0'; x.font = 'bold 54px system-ui,sans-serif';
+      x.fillStyle = 'var(--text)'; x.font = 'bold 54px system-ui,sans-serif';
       x.fillText(shareVariant === 'simulation-record' && nm ? nm.toUpperCase() : `RANG · ${rank}`, W / 2, 700);
-      x.fillStyle = '#94a3b8'; x.font = '32px system-ui,sans-serif';
+      x.fillStyle = 'var(--text-dim)'; x.font = '32px system-ui,sans-serif';
       x.fillText(shareVariant === 'invitation' ? 'SALMA · PERSÖNLICHE INTERVIEWTRAINERIN'
         : shareVariant === 'simulation-record'
           ? `${data.progress.hireReadiness.measuredSignals}/${data.progress.hireReadiness.totalSignals} SIMULATIONSSIGNALE GEMESSEN · ${new Date().toLocaleDateString('de-DE')}`
           : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
       x.fillStyle = '#f97316'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('DEINE NÄCHSTE RUNDE WARTET', W / 2, 930);
       if (shareVariant === 'simulation-record') {
-        x.fillStyle = '#64748b'; x.font = '24px system-ui,sans-serif';
+        x.fillStyle = 'var(--text-faint)'; x.font = '24px system-ui,sans-serif';
         x.fillText('TRAININGSNACHWEIS · KEIN OFFIZIELLES SPRACH- ODER ARBEITGEBERZERTIFIKAT', W / 2, 970);
       }
-      x.fillStyle = '#64748b'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
+      x.fillStyle = 'var(--text-faint)'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
       return await new Promise((res) => c.toBlob(res, 'image/png'));
     } catch { return null; }
   };
@@ -2013,11 +2013,11 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 
   const LangToggle = onLang ? (
     <div style={{ display:'inline-flex', borderRadius:'var(--r-pill)', overflow:'hidden',
-      border:'1px solid var(--line)', background:'rgba(0,0,0,0.4)' }}>
+      border:'1px solid var(--line)', background: 'var(--surface)' }}>
       {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
         <button key={id} onClick={() => onLang(id)} style={{ cursor:'pointer', padding:'4px 12px',
           fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
-          color: lang === id ? '#04070d' : '#94a3b8',
+          color: lang === id ? '#04070d' : 'var(--text-dim)',
           background: lang === id ? 'var(--accent)' : 'transparent', transition:'background var(--dur), color var(--dur)' }}>
           {lbl}
         </button>
@@ -2027,18 +2027,18 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 
   return (
     <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', flexDirection:'column',
-      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.4s ease', overflow:'hidden' }}>
+      background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.4s ease', overflow:'hidden' }}>
 
       {rankCeremony && (
         <div style={{ position:'absolute', inset:0, zIndex:20, display:'flex', alignItems:'center',
-          justifyContent:'center', padding:24, background:'rgba(2,4,9,0.98)' }}>
+          justifyContent:'center', padding:24, background: 'var(--surface)' }}>
           <div style={{ width:'min(100%,420px)', textAlign:'center', padding:'28px 22px',
             borderRadius:'var(--r-lg)', border:'1px solid var(--accent)', background:'rgba(59,130,246,0.08)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:800,
               letterSpacing:'0.18em', color:'var(--accent)' }}>RANG BESTÄTIGT</div>
             <div style={{ marginTop:16, fontFamily:'var(--font-display)', fontSize:34,
               fontWeight:900, color:'var(--action)' }}>{rankCeremony.to}</div>
-            <div style={{ marginTop:9, fontSize:12, color:'#94a3b8' }}>
+            <div style={{ marginTop:9, fontSize:12, color:'var(--text-dim)' }}>
               Erreicht durch deine gespeicherten Interviews · bleibt als Bestmarke erhalten.
             </div>
             <button onClick={() => setRankCeremony(null)} style={{ width:'100%', minHeight:48, marginTop:20,
@@ -2053,7 +2053,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
         <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
           <div className="spin" style={{ width:34, height:34, borderRadius:'50%',
             border:'3px solid rgba(59,130,246,0.2)', borderTopColor:'var(--accent)' }} />
-          <div style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em', color:'#94a3b8' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em', color:'var(--text-dim)' }}>
             {verdictHold ? 'ENTSCHEIDUNG…' : 'Analyse deiner Antworten läuft…'}
           </div>
         </div>
@@ -2104,7 +2104,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   animation:'rank-pop 0.7s var(--ease-spring)' }}>
                   {rank}
                 </div>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:11, letterSpacing:'0.14em', color:'#94a3b8' }}>
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:11, letterSpacing:'0.14em', color:'var(--text-dim)' }}>
                   RANG · {shownScore}<span style={{ opacity:0.5 }}> / 100</span>
                 </div>
                 {r.jobLabel && (
@@ -2146,19 +2146,19 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               : rank === 'B2'
                 ? { icon:'📋', label:'SOLIDE BASIS', de:'In dieser Simulation wurden B2-Signale gemessen. Der nächste Hebel steht unten.', ar:'في المحاكاة دي اتقاست إشارات B2. أهم خطوة جاية موجودة تحت.', color:'var(--action)', bg:'rgba(249,115,22,0.10)', border:'rgba(249,115,22,0.4)' }
               : rank === 'B1'
-                ? { icon:'⏸', label:'BASIS VORHANDEN', de:'In dieser Simulation wurden B1-Signale gemessen. Trainiere jetzt den größten Hebel.', ar:'في المحاكاة دي اتقاست إشارات B1. درّب أهم نقطة دلوقتي.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'⏸', label:'BASIS VORHANDEN', de:'In dieser Simulation wurden B1-Signale gemessen. Trainiere jetzt den größten Hebel.', ar:'في المحاكاة دي اتقاست إشارات B1. درّب أهم نقطة دلوقتي.', color:'var(--text-dim)', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               : rank === 'A2'
-                ? { icon:'', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
+                ? { icon:'', label:'AUFBAUSTUFE', de:'In dieser Simulation wurden A2-Signale gemessen. Baue dein Fundament Schritt für Schritt aus.', ar:'في المحاكاة دي اتقاست إشارات A2. ابنِ الأساس خطوة بخطوة.', color:'var(--text-dim)', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' }
               // A1/unknown → match the server jobLabel's gentle tone, NOT a harsh red "DIESMAL NICHT".
-              : { icon:'', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'#94a3b8', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
+              : { icon:'', label:'DEIN ANFANG', de:'Jeder Profi hat hier angefangen. Bleib dran — du schaffst das, Schritt für Schritt.', ar:'كل محترف بدأ من هنا. كمّل — هتعملها خطوة بخطوة.', color:'var(--text-dim)', bg:'rgba(255,255,255,0.05)', border:'rgba(255,255,255,0.15)' };
             return (
               <div style={{ padding:'12px 14px', borderRadius:'var(--r-md)', background:d.bg, border:`1px solid ${d.border}`,
                 animation:'result-rise 0.5s var(--ease-out)', textAlign:'center' }}>
                 <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:10, letterSpacing:'0.18em', color:d.color, marginBottom:6 }}>
                   {d.icon} SIMULATIONS-EINSCHÄTZUNG · {d.label}
                 </div>
-                <div style={{ fontSize:13, color:'#e2e8f0', lineHeight:1.5 }}>{d.de}</div>
-                <div dir="rtl" style={{ fontSize:12, color:'#94a3b8', marginTop:4 }}>{d.ar}</div>
+                <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.5 }}>{d.de}</div>
+                <div dir="rtl" style={{ fontSize:12, color:'var(--text-dim)', marginTop:4 }}>{d.ar}</div>
               </div>
             );
           })()}
@@ -2183,15 +2183,15 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 DEIN L1-MUSTER · {data.l1Pattern.count}× IN DIESEM INTERVIEW
               </div>
               <div style={{ fontSize:13.5, color:'#f1f5f9', fontWeight:700, lineHeight:1.5 }}>{data.l1Pattern.title}</div>
-              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.65, marginTop:6 }}>{data.l1Pattern.explain}</div>
+              <div style={{ fontSize:12, color:'var(--text-dim)', lineHeight:1.65, marginTop:6 }}>{data.l1Pattern.explain}</div>
               {ar && data.l1Pattern.note_ar && (
-                <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:6 }}>{data.l1Pattern.note_ar}</div>
+                <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:6 }}>{data.l1Pattern.note_ar}</div>
               )}
               {data.l1Pattern.example && (
                 <div style={{ marginTop:9, paddingTop:8, borderTop:'1px solid rgba(96,165,250,0.2)', fontSize:12.5, lineHeight:1.6 }}>
                   <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{data.l1Pattern.example.quote}</span>
                   {data.l1Pattern.example.better && <>
-                    <span style={{ color:'#64748b' }}> → </span>
+                    <span style={{ color:'var(--text-faint)' }}> → </span>
                     <span style={{ color:'var(--good)' }}>{data.l1Pattern.example.better}</span>
                   </>}
                 </div>
@@ -2210,14 +2210,14 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 DAS SITZT SCHON · {w.count}× IN DIESEM INTERVIEW
               </div>
               <div style={{ fontSize:13.5, color:'#f1f5f9', fontWeight:700, lineHeight:1.5 }}>{w.title}</div>
-              {w.explain && <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.65, marginTop:6 }}>{w.explain}</div>}
+              {w.explain && <div style={{ fontSize:12, color:'var(--text-dim)', lineHeight:1.65, marginTop:6 }}>{w.explain}</div>}
               {ar && w.note_ar && (
-                <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:6 }}>{w.note_ar}</div>
+                <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:6 }}>{w.note_ar}</div>
               )}
               {w.quote && (
                 <div style={{ marginTop:9, paddingTop:8, borderTop:'1px solid rgba(96,165,250,0.2)', fontSize:12.5, lineHeight:1.6 }}>
                   <span style={{ color:'var(--good)' }}>„{w.quote}…"</span>
-                  <span style={{ color:'#64748b' }}> — deine eigenen Worte</span>
+                  <span style={{ color:'var(--text-faint)' }}> — deine eigenen Worte</span>
                 </div>
               )}
             </div>
@@ -2269,7 +2269,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           {!typedPractice && data?.progressNarrative && (data.progressNarrative.de || data.progressNarrative.ar) && (
             <div style={{ padding:'10px 13px', borderRadius:10, background:'rgba(96,165,250,0.07)', border:'1px solid rgba(96,165,250,0.3)' }}>
               <div style={{ fontSize:9, fontFamily:'var(--font-display)', letterSpacing:'0.12em', color:'var(--accent-2)', marginBottom:5 }}>{ar ? 'تقدّمك' : 'DEIN FORTSCHRITT'}</div>
-              <div style={{ fontSize:12, color:'#e0f2fe', lineHeight:1.6, ...rtl }}>{ar && data.progressNarrative.ar ? data.progressNarrative.ar : data.progressNarrative.de}</div>
+              <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.6, ...rtl }}>{ar && data.progressNarrative.ar ? data.progressNarrative.ar : data.progressNarrative.de}</div>
             </div>
           )}
 
@@ -2280,8 +2280,8 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 <div key={i} style={{ marginBottom:i < data.interviewReview.length-1 ? 12 : 0,
                   paddingBottom:i < data.interviewReview.length-1 ? 12 : 0,
                   borderBottom:i < data.interviewReview.length-1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                  {r.frage && <div style={{ fontSize:10, color:'#94a3b8', marginBottom:4, ...rtl }}>❓ {r.frage}</div>}
-                  <div style={{ fontSize:12, color:'#e2e8f0', fontStyle:'italic', lineHeight:1.5, marginBottom:6, overflowWrap:'anywhere', ...rtl }}>„{r.deinSatz}“</div>
+                  {r.frage && <div style={{ fontSize:10, color:'var(--text-dim)', marginBottom:4, ...rtl }}>❓ {r.frage}</div>}
+                  <div style={{ fontSize:12, color:'var(--text)', fontStyle:'italic', lineHeight:1.5, marginBottom:6, overflowWrap:'anywhere', ...rtl }}>„{r.deinSatz}“</div>
                   {(ar ? r.stark_ar : r.stark) && <div style={{ fontSize:11.5, color:'var(--accent-2)', lineHeight:1.5, marginBottom:4, ...rtl }}>✓ {ar && r.stark_ar ? r.stark_ar : r.stark}</div>}
                   {(ar ? r.luecke_ar : r.luecke) && <div style={{ fontSize:11.5, color:'var(--bad)', lineHeight:1.5, marginBottom:4, ...rtl }}>✗ {ar && r.luecke_ar ? r.luecke_ar : r.luecke}</div>}
                   {(ar ? r.fixDerEinstellt_ar : r.fixDerEinstellt) && (
@@ -2297,7 +2297,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           {/* Language toggle (Arabic explanations) */}
           {LangToggle && (
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <span style={{ fontSize:9.5, color:'#64748b', letterSpacing:'0.06em' }}>Erklärungen / الشرح</span>
+              <span style={{ fontSize:9.5, color:'var(--text-faint)', letterSpacing:'0.06em' }}>Erklärungen / الشرح</span>
               {LangToggle}
             </div>
           )}
@@ -2324,7 +2324,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   {data.naturalness.score}/100
                 </span>
               }>
-              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl, marginBottom:8 }}>
+              <div style={{ fontSize:12, color:'var(--text-dim)', lineHeight:1.6, ...rtl, marginBottom:8 }}>
                 {ar && data.naturalness.ar ? data.naturalness.ar : data.naturalness.de}
               </div>
               {data.naturalness.tips?.map((t, i) => (
@@ -2354,7 +2354,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                     <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, letterSpacing:'0.02em' }}>
                       {f.map((v, i) => (
                         <span key={i}>
-                          <span style={{ color: i === f.length - 1 ? 'var(--accent)' : '#94a3b8',
+                          <span style={{ color: i === f.length - 1 ? 'var(--accent)' : 'var(--text-dim)',
                             textShadow: i === f.length - 1 ? '0 0 10px rgba(59,130,246,0.6)' : 'none' }}>{v}</span>
                           {i < f.length - 1 && <span style={{ color:'#475569', margin:'0 7px' }}>→</span>}
                         </span>
@@ -2377,9 +2377,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   ↑ LEVEL UP — LEVEL {data.progress.level ?? '–'}
                 </div>
               )}
-              <div style={{ fontSize:12, color:'#e2e8f0' }}>
+              <div style={{ fontSize:12, color:'var(--text)' }}>
                 <b style={{ color:'var(--accent)' }}>+{data.progress.xpGained ?? 0} XP</b>
-                <span style={{ color:'#94a3b8' }}> · RANG {data.result?.rank ?? '–'} · Level {data.progress.level ?? '–'}</span>
+                <span style={{ color:'var(--text-dim)' }}> · RANG {data.result?.rank ?? '–'} · Level {data.progress.level ?? '–'}</span>
                 {typeof data.progress.dueReviews === 'number' && data.progress.dueReviews > 0 && (
                   <span style={{ color:'var(--action)' }}> · {data.progress.dueReviews} Wiederholung(en) fällig</span>
                 )}
@@ -2394,34 +2394,34 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               )}
               {data.progress.levelProgress && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
-                  <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background:'rgba(0,0,0,0.45)', border:'1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background: 'var(--surface)', border:'1px solid rgba(255,255,255,0.06)' }}>
                     <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, data.progress.levelProgress.pct || 0))}%`, borderRadius:'inherit',
                       background:'linear-gradient(90deg, var(--accent-2)99, var(--accent))', boxShadow:'0 0 8px rgba(59,130,246,0.35)', transition:'width 0.7s var(--ease-out)' }} />
                   </div>
-                  <span style={{ fontSize:9.5, color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{data.progress.levelProgress.pct ?? 0}%</span>
+                  <span style={{ fontSize:9.5, color:'var(--text-dim)', fontVariantNumeric:'tabular-nums' }}>{data.progress.levelProgress.pct ?? 0}%</span>
                 </div>
               )}
               {data.progress.nextBoss && (
-                <div style={{ fontSize:9.5, color:'#64748b', marginTop:4 }}>
+                <div style={{ fontSize:9.5, color:'var(--text-faint)', marginTop:4 }}>
                   Nächster Interviewer ab Level {data.progress.nextBoss.minLevel}: {data.progress.nextBoss.name}
                 </div>
               )}
               {data.progress.trainingDelta && (
-                <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? data.progress.trainingDelta.title_ar : data.progress.trainingDelta.title_de}</b>:{' '}
                   {ar ? 'الجولة اللي فاتت' : 'letzte Simulation'} {data.progress.trainingDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
                   <b style={{ color: data.progress.trainingDelta.after <= data.progress.trainingDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.trainingDelta.after}</b>
                 </div>
               )}
               {data.progress.weakRuleDelta && (
-                <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? 'نقطة ضعفك المستهدفة' : 'Gezielt getestete Schwäche'}</b> — {data.progress.weakRuleDelta.rule}:{' '}
                   {ar ? 'الجولة اللي فاتت' : 'letzte Sitzung'} {data.progress.weakRuleDelta.before} {ar ? '→ النهارده' : 'Fehler → heute'}{' '}
                   <b style={{ color: data.progress.weakRuleDelta.after <= data.progress.weakRuleDelta.before ? 'var(--accent)' : '#f87171' }}>{data.progress.weakRuleDelta.after}</b>
                 </div>
               )}
               {data.progress.weekTrend && (
-                <div style={{ fontSize:10.5, color:'#cbd5e1', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, paddingTop:6, borderTop:'1px solid rgba(255,255,255,0.06)', ...rtl }}>
                   <b style={{ color:'var(--action)' }}>{ar ? 'الأسبوع ده مقابل اللي فات' : 'Diese Woche vs. letzte Woche'}</b>:{' '}
                   {ar ? 'الطلاقة' : 'Flüssigkeit'} {data.progress.weekTrend.fluency.last} → <b style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? 'var(--accent)' : '#f87171' }}>{data.progress.weekTrend.fluency.this}</b>{' '}
                   <span style={{ color: data.progress.weekTrend.fluency.delta >= 0 ? 'var(--accent)' : '#f87171' }}>({data.progress.weekTrend.fluency.delta >= 0 ? '+' : ''}{data.progress.weekTrend.fluency.delta})</span>
@@ -2440,7 +2440,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           </div>
 
           {data?.note && (
-            <div style={{ fontSize:10, color:'#94a3b8', fontStyle:'italic' }}>{data.note}</div>
+            <div style={{ fontSize:10, color:'var(--text-dim)', fontStyle:'italic' }}>{data.note}</div>
           )}
 
           {/* Strengths */}
@@ -2458,7 +2458,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             <Section title={ar ? 'بنية الإجابة · ANTWORT-AUFBAU' : 'ANTWORT-AUFBAU · STRUKTUR'} color="var(--accent-2)"
               right={<span style={{ fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 8px',
                 borderRadius:99, border:'1px solid rgba(96,165,250,0.45)', color:'var(--accent-2)' }}>{String(data.answerArchitecture.label || '').toUpperCase()}</span>}>
-              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl }}>
+              <div style={{ fontSize:12, color:'var(--text-dim)', lineHeight:1.6, ...rtl }}>
                 {ar && data.answerArchitecture.ar ? data.answerArchitecture.ar : data.answerArchitecture.de}
               </div>
             </Section>
@@ -2469,7 +2469,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             <Section title={ar ? 'ثقة الإلقاء · AUFTRETEN' : 'AUFTRETEN · SICHERHEIT'} color="var(--accent)"
               right={<span style={{ fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em', padding:'3px 8px',
                 borderRadius:99, border:'1px solid rgba(59,130,246,0.45)', color:'var(--accent)' }}>{String(data.deliveryConfidence.label || '').toUpperCase()}</span>}>
-              <div style={{ fontSize:12, color:'#cbd5e1', lineHeight:1.6, ...rtl }}>
+              <div style={{ fontSize:12, color:'var(--text-dim)', lineHeight:1.6, ...rtl }}>
                 {ar && data.deliveryConfidence.ar ? data.deliveryConfidence.ar : data.deliveryConfidence.de}
               </div>
             </Section>
@@ -2485,7 +2485,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   {showAll ? 'NUR BEISPIELE' : 'ALLE FEHLER ANZEIGEN'}
                 </button>
               }>
-              <div style={{ fontSize:9, color:'#64748b', marginBottom:7, fontStyle:'italic', ...rtl }}>
+              <div style={{ fontSize:9, color:'var(--text-faint)', marginBottom:7, fontStyle:'italic', ...rtl }}>
                 {ar ? 'فقط أخطاء حقيقية رصدها المدقق. الأحمر = ما قلته · الأزرق = التصحيح.'
                     : 'Nur echte, vom Grammatik-Prüfer erkannte Fehler. Rot = was du gesagt hast · Blau = Korrektur.'}
               </div>
@@ -2497,7 +2497,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                       {g.rule} {g.count ? <span style={{ color:'var(--text-faint)', fontWeight:400 }}>· {g.count}×</span> : null}
                     </div>
                     {(ar && g.explanation_ar) || g.explanation
-                      ? <div style={{ fontSize:11, color:'#94a3b8', margin:'2px 0 5px', lineHeight:1.45, ...rtl }}>
+                      ? <div style={{ fontSize:11, color:'var(--text-dim)', margin:'2px 0 5px', lineHeight:1.45, ...rtl }}>
                           {ar && g.explanation_ar ? g.explanation_ar : g.explanation}
                         </div>
                       : null}
@@ -2509,11 +2509,11 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                             <>
                               <div>
                                 <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{e.wrongWord}</span>
-                                <span style={{ color:'#64748b' }}> → </span>
+                                <span style={{ color:'var(--text-faint)' }}> → </span>
                                 <b style={{ color:'var(--accent)' }}>{e.rightWord}</b>
                               </div>
                               {e.wrongFragment && (
-                                <div style={{ fontSize:10, color:'#64748b', marginTop:2, fontStyle:'italic' }}>{e.wrongFragment}</div>
+                                <div style={{ fontSize:10, color:'var(--text-faint)', marginTop:2, fontStyle:'italic' }}>{e.wrongFragment}</div>
                               )}
                             </>
                           ) : (
@@ -2540,7 +2540,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           {/* ── KORREKTURDRILL — flip-cards built from this session's errors ──── */}
           {!!data?.drills?.length && (
             <Section title={ar ? 'كوّن الجملة الصح · KORREKTURDRILL' : 'KORREKTURDRILL · ÜBEN'} color="var(--action)">
-              <div style={{ fontSize:9.5, color:'#94a3b8', marginBottom:9, fontStyle:'italic' }}>
+              <div style={{ fontSize:9.5, color:'var(--text-dim)', marginBottom:9, fontStyle:'italic' }}>
                 {ar ? 'انقر على كل كارت عشان تشوف الإجابة الصح.'
                     : 'Tippe auf eine Karte, um die korrekte Version aufzudecken.'}
               </div>
@@ -2589,9 +2589,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 const why = ar && u.why_ar ? u.why_ar : u.why;
                 return (
                   <div key={i} style={{ marginBottom:9, fontSize:11.5, lineHeight:1.45, overflowWrap:'anywhere' }}>
-                    <div style={{ color:'#94a3b8' }}>{ar ? 'إنت قلت' : 'Du'}: „{u.original}“</div>
+                    <div style={{ color:'var(--text-dim)' }}>{ar ? 'إنت قلت' : 'Du'}: „{u.original}“</div>
                     <div style={{ color:'var(--accent-2)' }}>{ar ? 'أقوى' : 'Stärker'}: <b style={{ color:'var(--accent-2)' }}>{u.better}</b></div>
-                    {why && <div style={{ color:'#64748b', fontSize:10, marginTop:1, ...rtl }}>{why}</div>}
+                    {why && <div style={{ color:'var(--text-faint)', fontSize:10, marginTop:1, ...rtl }}>{why}</div>}
                   </div>
                 );
               })}
@@ -2605,9 +2605,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 const title  = ar && s.title_ar  ? s.title_ar  : s.title;
                 const detail = ar && s.detail_ar ? s.detail_ar : s.detail;
                 return (
-                  <div key={i} style={{ fontSize:12, color:'#e2e8f0', marginBottom:6, lineHeight:1.45, ...rtl }}>
+                  <div key={i} style={{ fontSize:12, color:'var(--text)', marginBottom:6, lineHeight:1.45, ...rtl }}>
                     <span style={{ color:'var(--accent)' }}>▸ {title}</span>
-                    {detail && <span style={{ color:'#94a3b8' }}> — {detail}</span>}
+                    {detail && <span style={{ color:'var(--text-dim)' }}> — {detail}</span>}
                   </div>
                 );
               })}
@@ -2622,11 +2622,11 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 return (
                   <div key={i} style={{ fontSize:12, marginBottom:4, lineHeight:1.45 }}>
                     <b style={{ color:'var(--accent)' }}>{v.de}</b>
-                    <span style={{ color:'#94a3b8' }}> — {v.en}{note ? ` (${note})` : ''}</span>
+                    <span style={{ color:'var(--text-dim)' }}> — {v.en}{note ? ` (${note})` : ''}</span>
                   </div>
                 );
               })}
-              <div style={{ fontSize:9, color:'#64748b', marginTop:4, fontStyle:'italic' }}>
+              <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:4, fontStyle:'italic' }}>
                 Diese werden in kommenden Sitzungen als Schnell-Wiederholung abgefragt.
               </div>
             </Section>
@@ -2639,12 +2639,12 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               <div style={{ fontFamily:'var(--font-display)', fontSize:10, fontWeight:800,
                 letterSpacing:'0.14em', color:'var(--accent)' }}>NÄCHSTES MAL</div>
               {data.nextTime?.targetWeakRule && (
-                <div style={{ marginTop:6, fontSize:12, color:'#e2e8f0', lineHeight:1.5 }}>
+                <div style={{ marginTop:6, fontSize:12, color:'var(--text)', lineHeight:1.5 }}>
                   Deine Akte bleibt offen: <b>{data.nextTime.targetWeakRule}</b> wird erneut geprüft.
                 </div>
               )}
               {data.progress?.rank?.nextLabel && (
-                <div style={{ marginTop:5, fontSize:11, color:'#94a3b8' }}>
+                <div style={{ marginTop:5, fontSize:11, color:'var(--text-dim)' }}>
                   {data.progress.rank.toNextPct}% bis {data.progress.rank.nextLabel}
                   {data.progress.rank.nextBy === 'sessions' && data.progress.rank.sessionsToNext > 0
                     ? ` · noch ${data.progress.rank.sessionsToNext} ${data.progress.rank.sessionsToNext === 1 ? 'Sitzung' : 'Sitzungen'}` : ''}
@@ -2662,7 +2662,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           {/* Honesty disclaimer: this is training feedback, NOT a recognized German certificate. */}
           <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, ...rtl,
             background:'rgba(148,163,184,0.06)', border:'1px solid rgba(148,163,184,0.16)',
-            fontSize:9.5, color:'#64748b', lineHeight:1.5 }}>
+            fontSize:9.5, color:'var(--text-faint)', lineHeight:1.5 }}>
             {ar
               ? 'ℹ️ ده تدريب وتقييم لمستواك للتمرين بس — مش شهادة ألمانية رسمية ولا معتمدة (زي Goethe / telc).'
               : 'ℹ️ Trainings-Feedback zur Übung — KEIN offizielles oder anerkanntes deutsches Sprachzertifikat (z. B. Goethe / telc).'}
@@ -2763,7 +2763,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 function Section({ title, color, right, children }) {
   return (
     <div style={{ borderRadius:10, padding:'10px 12px',
-      background:'rgba(0,0,0,0.35)', border:`1px solid ${color}2a` }}>
+      background: 'var(--surface)', border:`1px solid ${color}2a` }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
         <span style={{ fontFamily:'var(--font-display)', fontSize:9.5, letterSpacing:'0.12em', color,
           textShadow:`0 0 8px ${color}55` }}>{title}</span>
@@ -2800,7 +2800,7 @@ function DrillCard({ drill, ar }) {
           </div>
         </>
       ) : (
-        <div style={{ fontSize:9, color:'#64748b', textAlign:'center', marginTop:6 }}>
+        <div style={{ fontSize:9, color:'var(--text-faint)', textAlign:'center', marginTop:6 }}>
           ↕ {ar ? 'انقر للحل' : 'Tippe für Lösung'}
         </div>
       )}
@@ -2872,10 +2872,10 @@ function DossierSheet({ token, data, account, onClose }) {
 
   return (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 260, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', padding: 16, background: 'rgba(2,4,9,0.9)', backdropFilter: 'blur(5px)' }}>
+      justifyContent: 'center', padding: 16, background: 'var(--surface)', backdropFilter: 'blur(5px)' }}>
       <div className="dossier-sheet" style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto',
         background: '#fdfdfb', color: '#111827', borderRadius: 10, padding: '26px 26px 20px',
-        boxShadow: '0 22px 70px rgba(0,0,0,0.7)', fontFamily: 'var(--font-body)' }}>
+        boxShadow: '0 22px 70px rgba(14,19,32,0.16)', fontFamily: 'var(--font-body)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
           borderBottom: '2px solid #111827', paddingBottom: 10 }}>
           <div>
@@ -2959,7 +2959,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
   const visibleBosses = dashboardBossPipeline(lp.level, interviewLevel);
   return (
     <div {...overlayProps} style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
-      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+      background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, letterSpacing:2,
           color:'var(--accent)', textShadow:'0 0 20px rgba(59,130,246,0.5)' }}>FORTSCHRITT</div>
@@ -2983,7 +2983,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
       {dossier && <DossierSheet token={token} data={data} account={acc} onClose={() => setDossier(false)} />}
 
       {loading ? (
-        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'#94a3b8', fontSize:12 }}>
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-dim)', fontSize:12 }}>
           Lade Fortschritt…
         </div>
       ) : (
@@ -2992,9 +2992,9 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
           {/* Account + subscription */}
           {acc && (
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-              padding:'8px 12px', borderRadius:8, background:'rgba(0,0,0,0.35)', border:'1px solid rgba(59,130,246,0.18)' }}>
+              padding:'8px 12px', borderRadius:8, background: 'var(--surface)', border:'1px solid rgba(59,130,246,0.18)' }}>
               <div style={{ minWidth:0 }}>
-                <div style={{ fontSize:11, color:'#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
+                <div style={{ fontSize:11, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</div>
                 <div style={{ fontSize:9, color: isFreePlan ? 'var(--action)' : 'var(--accent)', fontFamily:'var(--font-display)', letterSpacing:'0.08em', marginTop:2 }}>
                   {tierLabel}
                 </div>
@@ -3009,18 +3009,18 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
 
           {/* Level + boss ladder */}
           <Section title={`LEVEL ${lp.level}`} color="var(--accent)" right={
-            <span style={{ fontSize:9, color:'#94a3b8' }}>{lp.intoLevel}/{lp.perLevel} XP</span>}>
+            <span style={{ fontSize:9, color:'var(--text-dim)' }}>{lp.intoLevel}/{lp.perLevel} XP</span>}>
             <div style={{ height:9, borderRadius:5, background:'rgba(255,255,255,0.06)', overflow:'hidden', marginBottom:8 }}>
               <div style={{ height:'100%', width:`${lp.pct}%`,
                 background:'linear-gradient(90deg,var(--accent),var(--accent))', boxShadow:'0 0 10px rgba(59,130,246,0.6)',
                 transition:'width 0.6s' }} />
             </div>
-            <div style={{ fontSize:11, color:'#cbd5e1' }}>
+            <div style={{ fontSize:11, color:'var(--text-dim)' }}>
               Aktueller Interviewer: <b style={{ color:'#fca5a5' }}>{visibleBosses.current?.name}</b>
-              <span style={{ color:'#64748b' }}> · {visibleBosses.current?.tier}</span>
+              <span style={{ color:'var(--text-faint)' }}> · {visibleBosses.current?.tier}</span>
             </div>
             {visibleBosses.next && (
-              <div style={{ fontSize:10, color:'#64748b', marginTop:3 }}>
+              <div style={{ fontSize:10, color:'var(--text-faint)', marginTop:3 }}>
                 Nächster Interviewer ab Level {visibleBosses.next.profileLevel}: {visibleBosses.next.name} ({visibleBosses.next.tier})
               </div>
             )}
@@ -3108,18 +3108,18 @@ function ProductHomePreview() {
             </div>
             <div>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12,
-                letterSpacing:'0.08em', color:'#f8fafc' }}>German Interview Trainer</div>
-              <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:2 }}>Deutsches Interview-Training</div>
+                letterSpacing:'0.08em', color:'var(--text)' }}>German Interview Trainer</div>
+              <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:2 }}>Deutsches Interview-Training</div>
             </div>
           </div>
           <span style={{ padding:'5px 9px', borderRadius:'var(--r-pill)', fontFamily:'var(--font-display)',
-            fontSize:9, fontWeight:700, letterSpacing:'0.1em', color:'#bfdbfe',
+            fontSize:9, fontWeight:700, letterSpacing:'0.1em', color:'var(--accent)',
             border:'1px solid rgba(96,165,250,0.3)', background:'rgba(59,130,246,0.08)' }}>A2–B1</span>
         </div>
 
         <div style={{ position:'relative', marginTop:24 }}>
           <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(24px,7vw,32px)', fontWeight:750,
-            lineHeight:1.08, letterSpacing:'-0.025em', color:'#f8fafc', maxWidth:330 }}>
+            lineHeight:1.08, letterSpacing:'-0.025em', color:'var(--text)', maxWidth:330 }}>
             Trainiere, bis deine Antwort sitzt.
           </div>
           <div style={{ marginTop:10, color:'#aab7c8', fontSize:13, lineHeight:1.6, maxWidth:340 }}>
@@ -3128,7 +3128,7 @@ function ProductHomePreview() {
         </div>
 
         <div style={{ position:'relative', marginTop:20, padding:'14px', borderRadius:16,
-          border:'1px solid rgba(148,163,184,0.16)', background:'rgba(2,6,14,0.66)' }}>
+          border:'1px solid rgba(148,163,184,0.16)', background: 'var(--surface)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:12 }}>
             <div style={{ width:42, height:42, borderRadius:'50%', display:'grid', placeItems:'center',
               fontFamily:'var(--font-display)', fontWeight:750, fontSize:17, color:'#eff6ff',
@@ -3160,8 +3160,8 @@ function ProductHomePreview() {
         <div aria-label="Beispielhafter Trainingsablauf"
           style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14,
           display:'flex', alignItems:'center', justifyContent:'center', gap:9,
-          fontFamily:'var(--font-display)', fontSize:12, fontWeight:750, color:'#cbd5e1',
-          border:'1px solid rgba(148,163,184,0.18)', background:'rgba(15,23,42,0.55)' }}>
+          fontFamily:'var(--font-display)', fontSize:12, fontWeight:750, color:'var(--text-dim)',
+          border:'1px solid rgba(148,163,184,0.18)', background: 'var(--surface)' }}>
           <Icon name="check" size={16} /> Beispiel: Antwort → Korrektur → Trainingsblock
         </div>
         <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
@@ -3261,7 +3261,7 @@ function VoiceReadinessCheck() {
     <div role="status" aria-live="polite" style={{ maxWidth:420, margin:'0 auto 18px', padding:'12px 14px', borderRadius:'var(--r-lg)',
       background: ready ? 'rgba(34,197,94,0.07)' : failed ? 'rgba(239,68,68,0.07)' : 'rgba(59,130,246,0.06)',
       border:`1px solid ${ready ? 'rgba(34,197,94,0.35)' : failed ? 'rgba(239,68,68,0.35)' : 'rgba(59,130,246,0.28)'}` }}>
-      <div dir="rtl" lang="ar-EG" style={{ fontSize:12.5, fontWeight:700, color:ready ? '#bbf7d0' : failed ? '#fecaca' : '#dbeafe' }}>
+      <div dir="rtl" lang="ar-EG" style={{ fontSize:12.5, fontWeight:700, color:ready ? '#bbf7d0' : failed ? '#fecaca' : 'var(--accent)' }}>
         {ready ? '✓ المايك جاهز للتدريب الصوتي'
           : state === 'timeout' ? 'المتصفح ما ردّش على طلب المايك — راجع علامة القفل وجرب تاني'
             : failed ? 'المايك مش متاح هنا — افتح صلاحيات الموقع أو استخدم Chrome'
@@ -3284,13 +3284,13 @@ function VoiceReadinessCheck() {
           color:'var(--accent-2)', fontSize:11.5, fontWeight:700 }}>
           شوف مثال للنتيجة قبل التسجيل · Feedback-Beispiel
         </summary>
-        <div style={{ marginTop:7, padding:'9px 10px', borderRadius:8, background:'rgba(2,6,16,0.55)',
-          border:'1px solid var(--line)', fontSize:11, lineHeight:1.55, color:'#cbd5e1' }}>
+        <div style={{ marginTop:7, padding:'9px 10px', borderRadius:8, background: 'var(--surface)',
+          border:'1px solid var(--line)', fontSize:11, lineHeight:1.55, color:'var(--text-dim)' }}>
           <div><b style={{ color:'var(--accent-2)' }}>HR:</b> Erzählen Sie von einem schwierigen Kunden.</div>
           <div><b>Antwort:</b> „Ich habe den Kunde geholfen und Problem gelöst.“</div>
           <div style={{ marginTop:5 }}><b style={{ color:'var(--action)' }}>Konkretes Feedback:</b> „dem Kunden“ (Dativ),
             „das Problem“ — plus Ergebnis ergänzen: „Danach blieb der Kunde und bestätigte die Lösung.“</div>
-          <div dir="rtl" lang="ar-EG" style={{ marginTop:5, color:'#94a3b8' }}>
+          <div dir="rtl" lang="ar-EG" style={{ marginTop:5, color:'var(--text-dim)' }}>
             المثال توضيحي؛ تقييمك الحقيقي بيتبني من كلامك إنت، من غير نتائج أو شهادات مزيفة.
           </div>
 
@@ -3682,7 +3682,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             headline); everything below steps down. Niche = the BPO industry IN Egypt (owner 07-10). */}
         {validStudyEntry ? <>
           <h1 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(28px, 5vw, 42px)', fontWeight:750,
-            color:'#f8fafc', margin:'22px auto 0', lineHeight:1.22, maxWidth:520 }}>
+            color:'var(--text)', margin:'22px auto 0', lineHeight:1.22, maxWidth:520 }}>
             Finde heute den einen Interviewfehler, der dich am ehesten zurückhält.
           </h1>
           <div style={{ fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:12,
@@ -3691,7 +3691,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             und den passenden Vergleichs- und Drucktest.
           </div>
         </> : <>
-          <h1 dir="rtl" lang="ar-EG" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'#f8fafc', margin:'22px 0 0', lineHeight:1.3 }}>
+          <h1 dir="rtl" lang="ar-EG" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'clamp(30px, 5vw, 44px)', fontWeight:700, color:'var(--text)', margin:'22px 0 0', lineHeight:1.3 }}>
             تدريب إنترفيو ألماني عملي
           </h1>
           <div dir="rtl" lang="ar-EG" style={{ fontFamily:"'IBM Plex Sans Arabic', var(--font-body)", fontSize:'var(--fs-body)', fontWeight:500, color:'var(--text-dim)', marginTop:10, lineHeight:1.8, maxWidth:430, marginInline:'auto' }}>
@@ -3813,7 +3813,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
               <Icon name={b.icon} size={18} />
             </div>
             <div style={{ flex:1 }}>
-              <div dir="rtl" lang="ar-EG" style={{ fontSize:'var(--fs-label)', fontWeight:600, color:'#e2e8f0', textAlign:'right' }}>{b.ar}</div>
+              <div dir="rtl" lang="ar-EG" style={{ fontSize:'var(--fs-label)', fontWeight:600, color:'var(--text)', textAlign:'right' }}>{b.ar}</div>
               <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.5 }}>{b.de}</div>
             </div>
           </div>
@@ -3878,7 +3878,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         {studyEntryChecking && (
           <div role="status" aria-live="polite" style={{ marginBottom:14, padding:'11px 13px', borderRadius:10,
             border:'1px solid rgba(59,130,246,0.38)', background:'rgba(59,130,246,0.08)',
-            color:'#dbeafe', fontSize:12, lineHeight:1.55 }}>
+            color:'var(--accent)', fontSize:12, lineHeight:1.55 }}>
             Studienzugang wird sicher geprüft. Du kannst die Seite schon ansehen; die Anmeldung wird freigegeben, sobald der Zugang bestätigt ist.
           </div>
         )}
@@ -4174,7 +4174,7 @@ function EmailVerificationGate({ auth, onLogout, onVerifiedElsewhere, linkState 
 
 const inputStyle = {
   width:'100%', padding:'14px 16px', minHeight:52, borderRadius:12, fontSize:15, fontFamily:'var(--font-body)',
-  background:'rgba(255,255,255,0.05)', color:'#e2e8f0', border:'1px solid var(--line)', outline:'none',
+  background:'rgba(255,255,255,0.05)', color:'var(--text)', border:'1px solid var(--line)', outline:'none',
   letterSpacing:'0.01em', transition:'box-shadow 120ms var(--ease), border-color 120ms var(--ease)',
 };
 
@@ -4315,7 +4315,7 @@ function WhatsAppOptIn({ token, apiUrl }) {
           <input value={num} onChange={(e) => setNum(e.target.value)} type="tel" inputMode="tel"
             placeholder="01X XXX XXXXX"
             style={{ flex: 1, minWidth: 0, minHeight: 44, padding: '10px 12px', borderRadius: 'var(--r-md)',
-              background: 'rgba(2,6,23,0.5)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 15 }} />
+              background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 15 }} />
           <button onClick={save} disabled={state === 'saving'} style={{ minHeight: 44, padding: '0 16px', cursor: 'pointer',
             borderRadius: 'var(--r-md)', border: '1px solid var(--accent)', color: 'var(--accent-2)',
             background: 'rgba(59,130,246,0.12)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12 }}>
@@ -4561,7 +4561,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
   const shell = (children) => (
     <div {...overlayProps} style={{ position:'absolute', inset:0, zIndex:220, display:'flex', flexDirection:'column',
-      background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
+      background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease', padding:18, overflowY:'auto' }}>
       {children}
     </div>
   );
@@ -4574,13 +4574,13 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <div dir="rtl" style={{ fontSize:14, color:'var(--accent)', fontWeight:700, marginTop:10, lineHeight:1.8 }}>
           تم استلام طلبك ✅ — التفعيل بيتم يدويًا بعد مطابقة المبلغ وآخر ٤ أرقام من محفظتك، وعادة خلال ساعتين في مواعيد العمل. رقم الطلب: <b style={{ color:'var(--action)' }}>{refCode}</b>.
         </div>
-        <div style={{ fontSize:12.5, color:'#cbd5e1', marginTop:14, lineHeight:1.65 }}>
+        <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:14, lineHeight:1.65 }}>
           Anfrage erhalten! Wir gleichen Betrag und Wallet-Endziffern manuell ab. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Vorgang: <b style={{ color:'var(--action)' }}>{refCode}</b>.
         </div>
         {proofActions(refCode)}
       </div>
       <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
-        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
+        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'var(--text-dim)' }}>
         {ar ? 'تمام' : 'OK'}
       </button>
     </>);
@@ -4592,7 +4592,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     return shell(<>
       <div style={{ textAlign:'center', marginBottom:12 }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, letterSpacing:1.2, color:'var(--text)' }}>{pay.label?.toUpperCase()}</div>
-        <div style={{ fontSize:12, color:'#cbd5e1', marginTop:4 }}>
+        <div style={{ fontSize:12, color:'var(--text-dim)', marginTop:4 }}>
           <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'once' ? (ar?'مرة واحدة':'einmalig') : pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
         </div>
       </div>
@@ -4608,17 +4608,17 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         </button>
       )}
       {cardLink && !STORE_MODE && vodafone && (
-        <div style={{ textAlign:'center', fontSize:10.5, color:'#64748b', margin:'8px 0 6px' }}>{ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash'}</div>
+        <div style={{ textAlign:'center', fontSize:10.5, color:'var(--text-faint)', margin:'8px 0 6px' }}>{ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash'}</div>
       )}
 
       {!STORE_MODE && vodafone ? (
         <div style={{ flex:1 }}>
           {/* Step 1 — send the money */}
-          <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(0,0,0,0.4)', border:'1px solid rgba(96,165,250,0.3)' }}>
-            <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
+          <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background: 'var(--surface)', border:'1px solid rgba(96,165,250,0.3)' }}>
+            <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
               <b style={{ color:'var(--accent-2)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
             </div>
-            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
+            <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
             <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700, color:'#fff',
               background:'rgba(96,165,250,0.12)', border:'1px solid rgba(96,165,250,0.4)', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.04em' }}>
               {vodafone}
@@ -4632,22 +4632,22 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
           {/* Step 2 — payer identity; Vodafone Cash has no transfer-note field. */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.4)' }}>
-            <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5 }}>
+            <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
               <b style={{ color:'var(--action)' }}>2)</b> Gib die letzten 4 Ziffern der Wallet ein, von der du sendest:
             </div>
-            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:3 }}>اكتب آخر ٤ أرقام من رقم المحفظة اللي هتحوّل منها:</div>
+            <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>اكتب آخر ٤ أرقام من رقم المحفظة اللي هتحوّل منها:</div>
             <input value={senderLast4} onChange={(e) => setSenderLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
               inputMode="numeric" autoComplete="off" maxLength={4} aria-label="Letzte 4 Ziffern der sendenden Wallet"
               placeholder="••••" style={{ width:'100%', boxSizing:'border-box', textAlign:'center', fontFamily:'Share Tech Mono, monospace',
-                fontSize:26, fontWeight:900, color:'var(--action)', background:'rgba(0,0,0,0.4)', border:'1px dashed var(--action)',
+                fontSize:26, fontWeight:900, color:'var(--action)', background: 'var(--surface)', border:'1px dashed var(--action)',
                 borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.25em' }} />
-            <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:7, lineHeight:1.5 }}>
+            <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:7, lineHeight:1.5 }}>
               Vorgangsnummer: <b style={{ color:'var(--action)' }}>{refCode}</b> · رقم الطلب للدعم فقط، مش بيتكتب في التحويل.
             </div>
           </div>
 
           {/* Step 3 */}
-          <div style={{ fontSize:11.5, color:'#cbd5e1', lineHeight:1.6, marginBottom:6 }}>
+          <div style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginBottom:6 }}>
             <b style={{ color:'var(--accent)' }}>3)</b> Tippe danach unten auf «Ich habe bezahlt».
             <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
           </div>
@@ -4656,7 +4656,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
               receipt promise, and the HONEST basis of trust. No money-back guarantee is promised: the
               3-day free trial IS the try-before-buy, and payments are non-refundable (owner 2026-07-23). */}
           <div style={{ borderRadius:10, padding:'11px 13px', marginBottom:6, background:'rgba(59,130,246,0.07)',
-            border:'1px solid rgba(59,130,246,0.3)', fontSize:11.5, color:'#cbd5e1', lineHeight:1.65 }}>
+            border:'1px solid rgba(59,130,246,0.3)', fontSize:11.5, color:'var(--text-dim)', lineHeight:1.65 }}>
             Du zahlst direkt an <b>Alhassan</b>, den Gründer — kein Zwischenhändler. Du bekommst eine
             Bestätigung per WhatsApp. Du hast 3 Tage gratis getestet, bevor du zahlst — danach ist die
             Zahlung nicht erstattungsfähig (<a href="/refund.html" target="_blank" rel="noopener noreferrer"
@@ -4675,13 +4675,13 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       ) : cardLink ? (
         paymentError ? <div role="alert" style={{ marginTop:10, color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>{paymentError}</div> : null
       ) : (
-        <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'#94a3b8', fontSize:12, padding:20 }}>
+        <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'var(--text-dim)', fontSize:12, padding:20 }}>
           Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span>
         </div>
       )}
 
       <button onClick={() => setPay(null)} style={{ width:'100%', marginTop:12, padding:'11px', minHeight:44, cursor:'pointer',
-        fontFamily:'var(--font-display)', fontSize:10, borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
+        fontFamily:'var(--font-display)', fontSize:10, borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'var(--text-dim)' }}>
         {ar ? '‹ رجوع للخطط' : '‹ ZURÜCK ZU DEN PLÄNEN'}
       </button>
     </>);
@@ -4696,16 +4696,16 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:800, color:'var(--accent)', marginTop:8 }}>
           {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
         </div>
-        <div dir="rtl" style={{ fontSize:13.5, color:'#cbd5e1', marginTop:12, lineHeight:1.85 }}>
+        <div dir="rtl" style={{ fontSize:13.5, color:'var(--text-dim)', marginTop:12, lineHeight:1.85 }}>
           طلبك وصلنا ✅ وبنتأكد من الدفع — التفعيل عادة خلال ساعتين في مواعيد العمل. الكود بتاعك: <b style={{ color:'var(--action)' }}>{code}</b>.
         </div>
-        <div style={{ fontSize:12.5, color:'#94a3b8', marginTop:14, lineHeight:1.65 }}>
+        <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:14, lineHeight:1.65 }}>
           Deine Anfrage ist da ✅ — wir prüfen die Zahlung manuell. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Code: <b style={{ color:'var(--action)' }}>{code}</b>.
         </div>
         {proofActions(code)}
       </div>
       <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
-        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'#cbd5e1' }}>
+        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'var(--text-dim)' }}>
         {ar ? 'تمام' : 'OK'}
       </button>
     </>);
@@ -4720,7 +4720,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     <button onClick={() => setYearly(on)} style={{ flex:1, padding:'11px 8px', minHeight:44, cursor:'pointer', borderRadius:10,
       fontFamily:'var(--font-display)', fontSize:12.5, letterSpacing:'0.02em', lineHeight:1.3, fontWeight:600,
       border:`1px solid ${yearly===on ? 'var(--accent)' : 'var(--line)'}`,
-      background: yearly===on ? 'rgba(59,130,246,0.12)' : 'transparent', color: yearly===on ? 'var(--accent-2)' : '#94a3b8' }}>
+      background: yearly===on ? 'rgba(59,130,246,0.12)' : 'transparent', color: yearly===on ? 'var(--accent-2)' : 'var(--text-dim)' }}>
       {label}{sub && <div style={{ fontSize:10.5, color:'var(--text-faint)', marginTop:3 }}>{sub}</div>}
     </button>
   );
@@ -4732,10 +4732,10 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, letterSpacing:2,
           color:'var(--action)', textShadow:'0 0 18px rgba(249,115,22,0.5)' }}>PLAN WÄHLEN · اختار خطتك</div>
         {/* Outcome first (value-prop law): the buyer pays for the JOB, not for features. */}
-        <div style={{ fontSize:12.5, color:'#e2e8f0', marginTop:6, lineHeight:1.6, fontWeight:600 }}>
+        <div style={{ fontSize:12.5, color:'var(--text)', marginTop:6, lineHeight:1.6, fontWeight:600 }}>
           Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}
         </div>
-        <div style={{ fontSize:10.5, color:'#94a3b8', marginTop:4, lineHeight:1.6 }}>
+        <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:4, lineHeight:1.6 }}>
           Beide Pläne: Live-Interview JEDEN TAG. Die kostenlose Einstufung bleibt immer frei.
           <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
         </div>
@@ -4771,14 +4771,14 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
             <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={38} />
             <div style={{ textAlign:'left' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
+                <div style={{ fontSize:10, color:'var(--text-dim)', letterSpacing:'0.05em' }}>{salmaName(lang)} · {salmaRole(lang)}</div>
                 <button aria-label="Salma anhören" onClick={() => salmaSpeak({ apiUrl: API_URL, token,
                   items: [{ key, slots: { days: info?.trial?.daysLeft ?? 0 } }] })}
                   style={{ minWidth:44, minHeight:44, padding:7, cursor:'pointer', borderRadius:9,
-                    border:'1px solid rgba(59,130,246,0.4)', color:'#bfdbfe',
+                    border:'1px solid rgba(59,130,246,0.4)', color:'var(--accent)',
                     background:'rgba(59,130,246,0.10)' }}><SpeakerIcon /></button>
               </div>
-              <div dir="auto" style={{ fontSize:12, color:'#e2e8f0', lineHeight:1.6, marginTop:3 }}>{text}</div>
+              <div dir="auto" style={{ fontSize:12, color:'var(--text)', lineHeight:1.6, marginTop:3 }}>{text}</div>
             </div>
           </div>
         );
@@ -4792,9 +4792,9 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           <div style={{ fontFamily:'var(--font-display)', fontWeight:800, fontSize:13.5, color:'var(--action)' }}>
             Deine kostenlose Testphase ist vorbei
           </div>
-          <div style={{ fontSize:11, color:'#e2e8f0', marginTop:4, lineHeight:1.55 }}>
+          <div style={{ fontSize:11, color:'var(--text)', marginTop:4, lineHeight:1.55 }}>
             Zahle, um weiter für dein echtes Interview zu trainieren.<br/>
-            <span style={{ color:'#94a3b8' }}>Your free trial ended — pay to keep training.</span>
+            <span style={{ color:'var(--text-dim)' }}>Your free trial ended — pay to keep training.</span>
             {/* OWNER-AR slot: "خلصت الفترة المجانية — ادفع علشان تكمّل تدريب" */}
           </div>
         </div>
@@ -4829,7 +4829,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
             <div style={{ fontFamily:'var(--font-display)', fontWeight:900, fontSize:14, letterSpacing:'0.04em', color:'var(--action)' }}>
               {offer.pct}% RABATT · {offer.label}
             </div>
-            <div style={{ fontSize:11, color:'#e2e8f0', marginTop:3 }}>
+            <div style={{ fontSize:11, color:'var(--text)', marginTop:3 }}>
               Nur noch {daysLeft} {daysLeft === 1 ? 'Tag' : 'Tage'} — endet {endsTxt}.
             </div>
           </div>
@@ -4853,7 +4853,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           const elite  = p.id === 'elite';
           const accent = elite ? 'var(--action)' : 'var(--accent-2)';
           // PREMIUM PASS: this is the screen where money happens, so it gets the most air.
-          // Flat rgba(0,0,0,0.4) black → a real layered surface; 14px padding → 20px; radius
+          // Flat rgba(14,19,32,0.16) black → a real layered surface; 14px padding → 20px; radius
           // 12 → 18. The recommended plan keeps the single orange treatment (one recommended
           // action is standard premium pricing design and it was already right here).
           return (
@@ -4872,10 +4872,10 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   dropped: shouty weight is the machine-made tell, size and colour do the ranking. */}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10, gap:10 }}>
                 <span style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:600, letterSpacing:'0.08em', color:accent }}>{p.label?.toUpperCase()}</span>
-                <span style={{ color:'#e2e8f0', display:'inline-flex', alignItems:'baseline', gap:6 }}>
-                  {on && <span style={{ fontSize:12, fontWeight:600, color:'#64748b', textDecoration:'line-through' }}>{fmt(base)}</span>}
+                <span style={{ color:'var(--text)', display:'inline-flex', alignItems:'baseline', gap:6 }}>
+                  {on && <span style={{ fontSize:12, fontWeight:600, color:'var(--text-faint)', textDecoration:'line-through' }}>{fmt(base)}</span>}
                   <span style={{ fontSize:24, fontWeight:700, letterSpacing:'-0.02em', color: on ? 'var(--good)' : '#f2f6fb' }}>{fmt(price)}</span>
-                  <span style={{ fontSize:12, color:'#94a3b8' }}>EGP{period}</span>
+                  <span style={{ fontSize:12, color:'var(--text-dim)' }}>EGP{period}</span>
                 </span>
               </div>
               {yearly && !once && (
@@ -4895,7 +4895,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   <span style={{ color:accent, flex:'0 0 auto' }}>✓</span><span>{perk}</span>
                 </div>
               ))}
-              <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
+              <div dir="rtl" style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
               <button disabled={submitting || paymentAvailable !== true}
                 onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:16, padding:'14px', minHeight:52, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
@@ -4911,11 +4911,11 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
             </div>
           );
         })}
-        {!plans && !billingError && <div role="status" aria-live="polite" style={{ textAlign:'center', color:'#64748b', fontSize:11, padding:20 }}>…</div>}
+        {!plans && !billingError && <div role="status" aria-live="polite" style={{ textAlign:'center', color:'var(--text-faint)', fontSize:11, padding:20 }}>…</div>}
         {billingError && <div role="alert" style={{ textAlign:'center', color:'#fca5a5', fontSize:12, padding:14 }}>{billingError}</div>}
         {paymentError && <div role="alert" style={{ textAlign:'center', color:'#fca5a5', fontSize:12, padding:14 }}>{paymentError}</div>}
 
-        <div style={{ fontSize:9.5, color:'#64748b', textAlign:'center', lineHeight:1.5 }}>
+        <div style={{ fontSize:9.5, color:'var(--text-faint)', textAlign:'center', lineHeight:1.5 }}>
           Zahlung manuell per Vodafone Cash während der Early-Access-Phase.
           <br /><span dir="rtl">الدفع يدوي عن طريق فودافون كاش في مرحلة الإطلاق المبكر.</span>
         </div>
@@ -4923,7 +4923,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
       <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:'pointer',
         fontFamily:'var(--font-display)', fontSize:10, borderRadius:8,
-        border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'#94a3b8' }}>
+        border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'var(--text-dim)' }}>
         {ar ? 'رجوع' : 'ZURÜCK'}
       </button>
   </>);
@@ -4957,11 +4957,11 @@ function PendingBadge({ pending, whatsapp, lang }) {
       background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.4)' }}>
       <div style={{ fontSize: 10.5, color: 'var(--action)', lineHeight: 1.5, textAlign: 'center' }}>
         {ar ? 'اشتراكك قيد التأكيد — التفعيل عادة خلال ساعتين في مواعيد العمل' : 'Zahlung wird geprüft — meist innerhalb von 2 Stunden während der Geschäftszeiten'}
-        <span style={{ color: '#94a3b8' }}> {open ? '▲' : '▼'}</span>
+        <span style={{ color: 'var(--text-dim)' }}> {open ? '▲' : '▼'}</span>
       </div>
       {open && (
         <div style={{ marginTop: 8, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>
             {ar ? 'كود الدعم — ما تكتبوش في تحويل فودافون كاش؛ ابعته مع إثبات الدفع' : 'Support-Code — NICHT in die Vodafone-Cash-Überweisung schreiben; mit dem Beleg senden'}
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 900, color: 'var(--action)', letterSpacing: '0.15em' }}>{code}</div>
@@ -6743,15 +6743,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {/* One-time "plan activated" celebration after the owner activates the payment */}
       {billing?.justActivated && (
         <div onClick={ackActivation} style={{ position:'absolute', inset:0, zIndex:240, display:'grid', placeItems:'center', padding:20,
-          background:'rgba(2,4,9,0.92)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+          background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
             background:'linear-gradient(180deg, rgba(0,22,44,0.98), rgba(0,8,18,0.99))', border:'1px solid rgba(59,130,246,0.5)', boxShadow:'0 0 40px rgba(59,130,246,0.2)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, color:'var(--accent)', marginTop:6 }}>
               {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
             </div>
-            <div style={{ fontSize:13, color:'#cbd5e1', marginTop:8, lineHeight:1.6 }}>
+            <div style={{ fontSize:13, color:'var(--text-dim)', marginTop:8, lineHeight:1.6 }}>
               {feedbackLang === 'ar' ? 'ابدأ التمرين 🥊' : 'Leg los 🥊'}
-              <br /><span dir={feedbackLang === 'ar' ? 'ltr' : 'rtl'} style={{ color:'#94a3b8', fontSize:11 }}>
+              <br /><span dir={feedbackLang === 'ar' ? 'ltr' : 'rtl'} style={{ color:'var(--text-dim)', fontSize:11 }}>
                 {feedbackLang === 'ar' ? 'Dein Plan ist aktiv!' : 'تم تفعيل اشتراكك!'}
               </span>
             </div>
@@ -6784,15 +6784,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {noSession && !bossSpeak && (
         <div style={{ position:'absolute', inset:0, zIndex:230, display:'flex', flexDirection:'column',
           justifyContent:'center', alignItems:'center', textAlign:'center', padding:28,
-          background:'rgba(2,4,9,0.97)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
+          background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div style={{ fontSize:46 }}>🎙️</div>
           <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, color:'var(--action)', marginTop:10 }}>
             {feedbackLang==='ar' ? 'مفيش مقابلة نقيّمها' : 'Keine Sitzung zum Auswerten'}
           </div>
-          <div style={{ fontSize:13, color:'#cbd5e1', marginTop:10, lineHeight:1.6, maxWidth:340 }}>
+          <div style={{ fontSize:13, color:'var(--text-dim)', marginTop:10, lineHeight:1.6, maxWidth:340 }}>
             Keine Sitzung zum Auswerten — du hast noch nicht angefangen.
           </div>
-          <div dir="rtl" style={{ fontSize:13, color:'#94a3b8', marginTop:8, lineHeight:1.85, maxWidth:340 }}>
+          <div dir="rtl" style={{ fontSize:13, color:'var(--text-dim)', marginTop:8, lineHeight:1.85, maxWidth:340 }}>
             لم تبدأ المقابلة فعليًا — مفيش حاجة نقيّمها. يلا ادخل وابدأ بجد.
           </div>
           <button onClick={() => setNoSession(false)} style={{ marginTop:18, padding:'12px 28px', minHeight:46, cursor:'pointer',
@@ -6813,7 +6813,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             background: isActive ? 'var(--accent)' : 'var(--action)',
             boxShadow: isActive ? '0 0 6px var(--accent)' : 'none',
             animation: isActive ? 'pulse 2s infinite' : 'none' }} />
-          <span style={{ fontSize:10, color:'#94a3b8', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span style={{ fontSize:10, color:'var(--text-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {isActive ? 'VERBUNDEN' : 'VERBINDE…'}
           </span>
         </div>
@@ -6841,7 +6841,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     <div key={cur ? `cur${i}` : `n${i}`} style={{ width:23, height:23, borderRadius:'50%', margin:'0 auto',
                       display:'flex', alignItems:'center', justifyContent:'center',
                       fontFamily:'var(--font-display)', fontWeight:700, fontSize:11,
-                      color: (cur || done) ? '#04070d' : '#94a3b8',
+                      color: (cur || done) ? '#04070d' : 'var(--text-dim)',
                       background: cur ? 'var(--accent)' : done ? 'var(--player)' : 'rgba(255,255,255,0.05)',
                       border:`2px solid ${cur ? 'var(--accent)' : done ? 'var(--player)' : '#334155'}`,
                       boxShadow: cur ? '0 0 12px var(--accent-dim)' : 'none',
@@ -6860,7 +6860,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             <div style={{ textAlign:'center', padding:'7px 10px', borderRadius:'var(--r-md)',
               background:'linear-gradient(90deg,rgba(59,130,246,0.06),rgba(0,200,255,0.1),rgba(59,130,246,0.06))',
               border:'1px solid var(--line)' }}>
-              <span style={{ fontSize:11.5, color:'#cbd5e1', lineHeight:1.45 }}>
+              <span style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.45 }}>
                 {funnel.stages[funnel.idx]?.prompt ?? ''}
               </span>
             </div>
@@ -7018,7 +7018,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {/* ── Secondary settings behind a quiet disclosure (hands-free + feedback language only). ── */}
             <div style={{ textAlign:'center', marginTop:10 }}>
               <button onClick={() => setShowOpts(o => !o)} style={{ cursor:'pointer', background:'none', border:'none',
-                minHeight:44, fontSize:10, color:'#64748b', letterSpacing:'0.06em', padding:'8px 10px', fontFamily:'inherit' }}>
+                minHeight:44, fontSize:10, color:'var(--text-faint)', letterSpacing:'0.06em', padding:'8px 10px', fontFamily:'inherit' }}>
                 {showOpts ? '▾' : '▸'} Optionen · Niveau {({ 'a2-b1':'A2–B1', 'b2':'B2', 'c1':'C1' })[level]} · خيارات
               </button>
             </div>
@@ -7056,7 +7056,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)' }}>Interviewer · اختر المُحاوِر</span>
               <select aria-label="Interviewer auswählen" value={bossPick} onChange={(e) => chooseBoss(e.target.value)} disabled={!canStart}
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'var(--surface)',
-                  color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
+                  color:'var(--text)', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (nach Niveau)</option>
                 {[
                   { id:'yasmin',         label:'Yasmin — warm',           L:1, min:'a2-b1' },
@@ -7098,7 +7098,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     .finally(() => setTargetIndustrySaving(false));
                 }}
                 style={{ fontSize:'var(--fs-label)', padding:'8px 10px', minHeight:44, borderRadius:8, background:'var(--surface)',
-                  color:'#e2e8f0', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
+                  color:'var(--text)', border:'1px solid var(--line-strong)', fontFamily:'inherit', cursor: canStart ? 'pointer' : 'default' }}>
                 <option value="">Auto (gemischt)</option>
                 {[['telecom','Telekommunikation & Internet'],['ecommerce','E-Commerce & Handel'],['fintech','Banken & Fintech'],
                   ['airline','Airlines & Reisen'],['delivery','Lieferdienste'],['logistik','Logistik & Versand'],
@@ -7128,20 +7128,20 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               cursor: canStart ? 'pointer' : 'default', userSelect:'none' }}>
               <input type="checkbox" checked={handsFree} disabled={!canStart}
                 onChange={(e) => { handsFreeRef.current = e.target.checked; setHandsFree(e.target.checked); }} />
-              <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : '#94a3b8', letterSpacing:'0.04em' }}>
+              <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : 'var(--text-dim)', letterSpacing:'0.04em' }}>
                 🎙 Freisprech-Modus · بدون أزرار — تكلم وهو يتفهم
               </span>
             </label>
 
             {/* Feedback explanation language (also switchable on the results screen) */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginTop:10 }}>
-              <span style={{ fontSize:9, color:'#64748b', letterSpacing:'0.06em' }}>Feedback-Sprache · لغة الشرح</span>
+              <span style={{ fontSize:9, color:'var(--text-faint)', letterSpacing:'0.06em' }}>Feedback-Sprache · لغة الشرح</span>
               <div style={{ display:'inline-flex', borderRadius:'var(--r-pill)', overflow:'hidden',
-                border:'1px solid var(--line)', background:'rgba(0,0,0,0.4)' }}>
+                border:'1px solid var(--line)', background: 'var(--surface)' }}>
                 {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
                   <button key={id} onClick={() => chooseFeedbackLang(id)} style={{ cursor:'pointer', minHeight:44, padding:'8px 12px',
                     fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
-                    color: feedbackLang === id ? '#04070d' : '#94a3b8',
+                    color: feedbackLang === id ? '#04070d' : 'var(--text-dim)',
                     background: feedbackLang === id ? 'var(--accent)' : 'transparent',
                     transition:'background var(--dur), color var(--dur)' }}>
                     {lbl}
@@ -7179,7 +7179,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {showBriefing && csBriefing && (
         <div onClick={() => setShowBriefing(false)} style={{
           position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
-          background:'rgba(0,0,0,0.82)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
+          background: 'var(--surface)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
           <div onClick={e => e.stopPropagation()} style={{
             width:'min(92vw,440px)', background:'var(--surface)', borderRadius:18,
             border:'1.5px solid rgba(59,130,246,0.45)', boxShadow:'0 0 60px rgba(59,130,246,0.18)',
@@ -7190,14 +7190,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 <div style={{ fontSize:9, letterSpacing:'0.15em', fontFamily:'var(--font-display)', color:'var(--accent)', marginBottom:3 }}>
                   BRIEFING · {(csBriefing.bossName || 'INTERVIEWER').toUpperCase()}
                 </div>
-                <div style={{ fontSize:13, fontWeight:700, color:'#e2e8f0' }}>{csBriefing.skill || 'Drei Teile · nur Deutsch'}</div>
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{csBriefing.skill || 'Drei Teile · nur Deutsch'}</div>
               </div>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.35)', textAlign:'right', lineHeight:1.4 }}>
                 Antippen<br/>um zu starten
               </div>
             </div>
             {/* Situation */}
-            <div style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.55, marginBottom:14,
+            <div style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.55, marginBottom:14,
               padding:'10px 12px', background:'rgba(59,130,246,0.06)', borderRadius:10,
               borderLeft:'3px solid rgba(59,130,246,0.4)' }}>
               {csBriefing.situation}
@@ -7208,7 +7208,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.12em', color:'var(--action)' }}>
                   HEUTE UNTER BEOBACHTUNG
                 </div>
-                <div style={{ marginTop:4, fontSize:11.5, color:'#e2e8f0' }}>{csBriefing.scrutiny}</div>
+                <div style={{ marginTop:4, fontSize:11.5, color:'var(--text)' }}>{csBriefing.scrutiny}</div>
               </div>
             )}
             {/* Key phrases are practice-only. Missing/unknown modes produce an empty list. */}
@@ -7219,7 +7219,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 <div style={{ width:18, height:18, borderRadius:'50%', background:'rgba(59,130,246,0.15)',
                   border:'1px solid rgba(59,130,246,0.4)', display:'flex', alignItems:'center', justifyContent:'center',
                   flexShrink:0, fontSize:9, color:'var(--accent)', fontFamily:'var(--font-display)' }}>{i+1}</div>
-                <div style={{ fontSize:11.5, color:'#e2e8f0', lineHeight:1.5, fontStyle:'italic' }}>„{phrase}"</div>
+                <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5, fontStyle:'italic' }}>„{phrase}"</div>
               </div>
             ))}
             </>}
@@ -7290,7 +7290,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               letterSpacing:'0.04em', lineHeight:1, textShadow:'0 2px 12px rgba(0,0,0,0.9)' }}>
               {funnel?.displayName ?? 'INTERVIEWER'}
             </div>
-            {!funnel && <div style={{ fontSize:9.5, color:'#94a3b8', marginTop:4 }}>Dein nächster Interviewer wartet.</div>}
+            {!funnel && <div style={{ fontSize:9.5, color:'var(--text-dim)', marginTop:4 }}>Dein nächster Interviewer wartet.</div>}
             <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginTop:7 }}>
               {/* Persona-TRUE trait chip (aesthetic pass 2026-07-10): "HOCHDRUCK" was hardcoded for
                   every boss — under warm Yasmin it directly contradicted the home picker's own
@@ -7300,7 +7300,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               {[({ yasmin:'GEDULDIG', karim:'SACHLICH', hana:'SKEPTISCH', tarek:'HOCHDRUCK', 'frau-mona-adel':'STRENG', lukas:'LOCKER' })[funnel?.bossId] || 'PROFESSIONELL', `NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`, 'NUR DEUTSCH'].map((t) => (
                 <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 10px',
                   borderRadius:'var(--r-pill)', letterSpacing:'0.12em',
-                  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.13)', color:'#cbd5e1' }}>
+                  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.13)', color:'var(--text-dim)' }}>
                   {t}
                 </span>
               ))}
@@ -7318,10 +7318,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       <div style={{ padding:'8px 14px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
         <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', borderRadius:'var(--r-md)',
           background:'linear-gradient(180deg, rgba(0,22,44,0.55), rgba(0,8,18,0.85))',
-          border:'1px solid var(--line)', boxShadow:'inset 0 0 30px rgba(0,0,0,0.45)', overflow:'hidden' }}>
+          border:'1px solid var(--line)', boxShadow:'inset 0 0 30px rgba(14,19,32,0.16)', overflow:'hidden' }}>
           {/* who is speaking + live score flash */}
           <div style={{ padding:'6px 12px', display:'flex', alignItems:'center', gap:8,
-            borderBottom:'1px solid var(--line)', background:'rgba(0,0,0,0.25)' }}>
+            borderBottom:'1px solid var(--line)', background: 'var(--surface)' }}>
             <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.14em',
               color: bossSpeak ? boss.color : userSpeak ? 'var(--player)' : 'var(--text-dim)',
               textShadow: bossSpeak ? `0 0 8px ${boss.color}` : 'none', transition:'color 0.3s' }}>
@@ -7332,7 +7332,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           </div>
           {/* the boss's current line — the prominent subtitle */}
           <div style={{ padding:'9px 13px 5px', fontSize:13.5, lineHeight:1.6, minHeight:34, overflowWrap:'anywhere',
-            color: bossIsCorrection ? 'var(--action-2)' : '#e2e8f0',
+            color: bossIsCorrection ? 'var(--action-2)' : 'var(--text)',
             borderLeft: bossIsCorrection ? '3px solid var(--action)' : '3px solid transparent',
             transition:'border-color 0.3s, color 0.3s' }}>
             {bossIsCorrection && (
@@ -7429,12 +7429,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.28)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
               <span style={{ fontFamily:'var(--font-display)', fontSize:9.5, letterSpacing:'0.12em', color:'var(--accent)' }}>SO FUNKTIONIERT'S · إزّاي تلعب</span>
-              <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'#64748b', background:'none', border:'none', padding:'2px 4px' }}><CloseIcon /></button>
+              <button onClick={dismissHowto} aria-label="dismiss" style={{ cursor:'pointer', fontSize:13, lineHeight:1, color:'var(--text-faint)', background:'none', border:'none', padding:'2px 4px' }}><CloseIcon /></button>
             </div>
-            <div style={{ fontSize:11, color:'#cbd5e1', lineHeight:1.55 }}>
+            <div style={{ fontSize:11, color:'var(--text-dim)', lineHeight:1.55 }}>
               1) „INTERVIEW STARTEN" drücken und laut Deutsch sprechen · 2) dein Niveau wird automatisch erkannt · 3) am Ende sofortiges Feedback.
             </div>
-            <div dir="rtl" style={{ fontSize:11.5, color:'#94a3b8', lineHeight:1.6, marginTop:4 }}>
+            <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:4 }}>
               ١) دوس «ابدأ» واتكلم ألماني بصوت عالي · ٢) مستواك بيتحدد أوتوماتيك · ٣) في الآخر هتاخد تقييم وتصحيح فوري.
             </div>
           </div>
@@ -7489,7 +7489,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     title={ttsMuted ? 'Stimme einschalten' : 'Stimme stummschalten'}
                     style={{ flex:'0 0 auto', padding:'10px 12px', cursor:'pointer', borderRadius:8,
                       fontFamily:'var(--font-display)', fontSize:13, letterSpacing:'0.08em',
-                      border:'1px solid #475569', color:'#94a3b8', background:'rgba(148,163,184,0.06)' }}>
+                      border:'1px solid #475569', color:'var(--text-dim)', background:'rgba(148,163,184,0.06)' }}>
                     {ttsMuted ? <SpeakerMuteIcon /> : <SpeakerIcon />}
                   </button>
                   {/* Manual record (with STOPP) is ONLY for the typing fallback when Freisprech is OFF.
@@ -7500,7 +7500,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     style={{ flex:'0 0 auto', padding:'10px 14px', cursor:'pointer', borderRadius:8,
                       fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.08em',
                       border:`1px solid ${recording ? '#ef4444' : '#475569'}`,
-                      color: recording ? '#fca5a5' : '#94a3b8',
+                      color: recording ? '#fca5a5' : 'var(--text-dim)',
                       background: recording ? 'rgba(239,68,68,0.1)' : 'rgba(148,163,184,0.06)' }}>
                     {transcribing ? '…' : recording ? '■ STOPP' : 'SPRECHEN'}
                   </button>
@@ -8060,8 +8060,8 @@ function InstallCard() {
         <Icon name="chartUp" size={17} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#e2e8f0' }}>App installieren{/* OWNER-AR slot */}</div>
-        <div style={{ fontSize: 10.5, color: '#94a3b8', lineHeight: 1.5, marginTop: 2 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>App installieren{/* OWNER-AR slot */}</div>
+        <div style={{ fontSize: 10.5, color: 'var(--text-dim)', lineHeight: 1.5, marginTop: 2 }}>
           {canPrompt
             ? 'Dein Login bleibt dauerhaft, Start mit einem Tipp.'
             : 'iPhone: Teilen-Symbol → „Zum Home-Bildschirm“ — dein Login bleibt dann dauerhaft.'}
@@ -8077,7 +8077,7 @@ function InstallCard() {
         </button>
       )}
       <button aria-label="Ausblenden" onClick={dismiss} style={{ flexShrink: 0, minWidth: 40, minHeight: 40,
-        background: 'none', border: 'none', color: '#64748b', fontSize: 16, cursor: 'pointer' }}><CloseIcon /></button>
+        background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 16, cursor: 'pointer' }}><CloseIcon /></button>
     </div>
   );
 }
@@ -8318,7 +8318,7 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
       alignItems:'center', justifyContent:'center', gap:18, padding:'28px 22px', textAlign:'center',
       boxSizing:'border-box', overflow:'hidden',
       background:'radial-gradient(120% 90% at 50% 16%, #0a1626 0%, #050a12 55%, #020409 100%)',
-      color:'#e2e8f0', animation:'flash-in 0.4s ease' }}>
+      color:'var(--text)', animation:'flash-in 0.4s ease' }}>
 
       <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:900, letterSpacing:3,
         color:'var(--accent)', textShadow:'0 0 24px rgba(59,130,246,0.55)' }}>German Interview Trainer</div>
@@ -8335,8 +8335,8 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
 
           {/* bilingual status (Arabic prominent, German below) */}
           <div style={{ display:'flex', flexDirection:'column', gap:6, maxWidth:340 }}>
-            <div dir="rtl" style={{ fontSize:15, fontWeight:700, color:'#f8fafc' }}>السيرفر بيصحى… جهّز نفسك 🥊</div>
-            <div style={{ fontSize:13, color:'#cbd5e1' }}>Server wird gestartet…</div>
+            <div dir="rtl" style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>السيرفر بيصحى… جهّز نفسك 🥊</div>
+            <div style={{ fontSize:13, color:'var(--text-dim)' }}>Server wird gestartet…</div>
           </div>
 
           {/* progress bar + elapsed */}
@@ -8347,18 +8347,18 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
                 background:'linear-gradient(90deg,var(--accent-2),var(--accent))', boxShadow:'0 0 10px rgba(59,130,246,0.5)',
                 transition:'width 0.5s ease' }} />
             </div>
-            <div style={{ fontSize:10, color:'#64748b', marginTop:6, fontVariantNumeric:'tabular-nums' }}>~{elapsed}s</div>
+            <div style={{ fontSize:10, color:'var(--text-faint)', marginTop:6, fontVariantNumeric:'tabular-nums' }}>~{elapsed}s</div>
           </div>
 
           {/* reassurance + German vocab tip so the wait feels productive */}
-          <div style={{ maxWidth:330, fontSize:11, color:'#94a3b8', lineHeight:1.6 }}>
+          <div style={{ maxWidth:330, fontSize:11, color:'var(--text-dim)', lineHeight:1.6 }}>
             Der erste Start kann bis zu einer Minute dauern — das ist ganz normal.
             <br /><span dir="rtl">أول تشغيل ممكن ياخد لحد دقيقة، وده طبيعي تمامًا — استنى شوية.</span>
             <div style={{ marginTop:10, padding:'8px 12px', borderRadius:8,
               background:'rgba(59,130,246,0.06)', border:'1px solid rgba(59,130,246,0.15)',
-              fontSize:11.5, color:'#cbd5e1', textAlign:'left' }}>
+              fontSize:11.5, color:'var(--text-dim)', textAlign:'left' }}>
               💡 <b style={{ color:'var(--accent)' }}>Tipp:</b> „Einen Moment, ich schaue kurz nach." — immer höflich, wenn du Zeit brauchst.
-              <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:3 }}>تقدر تقول دي دايمًا لو محتاج وقت تفكر</div>
+              <div dir="rtl" style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:3 }}>تقدر تقول دي دايمًا لو محتاج وقت تفكر</div>
             </div>
           </div>
         </>
@@ -8459,7 +8459,7 @@ function InAppBrowserGate({ onContinue }) {
     minHeight:56, borderRadius:14, textDecoration:'none', fontFamily:'Inter, system-ui, sans-serif',
     fontWeight:700, fontSize:16, cursor:'pointer', border:'none', boxSizing:'border-box' };
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:99999, background:'#060a12', color:'#e2e8f0',
+    <div style={{ position:'fixed', inset:0, zIndex:99999, background: 'var(--surface)', color:'var(--text)',
       display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
       padding:'28px 22px', overflowY:'auto', fontFamily:'Inter, system-ui, sans-serif' }}>
       <div style={{ width:'100%', maxWidth:400, textAlign:'center' }}>
@@ -8474,18 +8474,18 @@ function InAppBrowserGate({ onContinue }) {
             {AR_GATE.headline}{/* OWNER-AR: "To speak: open the page in Chrome (not in Messenger)" */}
           </div>
         )}
-        <div style={{ fontSize:14.5, lineHeight:1.6, color:'#94a3b8', marginBottom:8 }}>
+        <div style={{ fontSize:14.5, lineHeight:1.6, color:'var(--text-dim)', marginBottom:8 }}>
           Der Facebook-/Messenger-Browser blockiert das Mikrofon. Das Interview braucht deine Stimme —
           in Chrome oder Safari läuft alles.
         </div>
-        <div style={{ fontSize:13.5, lineHeight:1.6, color:'#64748b', marginBottom:20 }}>
+        <div style={{ fontSize:13.5, lineHeight:1.6, color:'var(--text-faint)', marginBottom:20 }}>
           The Facebook / Messenger browser blocks the microphone. Open this page in Chrome or Safari.
         </div>
 
         {/* The URL, selectable, so manual copy always works even if the button is blocked */}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 14px', marginBottom:16,
-          borderRadius:12, background:'#0d1424', border:'1px solid #1e293b', userSelect:'all',
-          fontSize:13.5, wordBreak:'break-all', color:'#cbd5e1' }}>{url}</div>
+          borderRadius:12, background: 'var(--surface)', border:'1px solid #1e293b', userSelect:'all',
+          fontSize:13.5, wordBreak:'break-all', color:'var(--text-dim)' }}>{url}</div>
 
         {/* PRIMARY — Copy link. The single orange object on this screen (design law). Works everywhere. */}
         <button onClick={copyLink} style={{ ...btn, marginBottom:12,

@@ -196,8 +196,8 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={52} />
           <div style={{ lineHeight: 1.25, textAlign: 'left' }}>
-            <h2 id="salma-takeover-title" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: '#e2e8f0' }}>{salmaName(lang)}</h2>
-            <div style={{ fontSize: 11, color: '#94a3b8', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
+            <h2 id="salma-takeover-title" style={{ margin: 0, fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>{salmaName(lang)}</h2>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.04em' }}>{salmaRole(lang)}</div>
           </div>
           <button aria-label="Salma anhören" onClick={() => {
             stopSpeech();
@@ -205,12 +205,12 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
               onEnd: () => { speechStopRef.current = null; } });
           }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: '#bfdbfe',
+            borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: 'var(--accent)',
             background: 'rgba(59,130,246,0.10)' }}><SpeakerIcon /></button>
           <button aria-label="Schließen" onClick={() => finish('salma_skipped')}
             style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#64748b', cursor: 'pointer' }}><CloseIcon /></button>
+              color: 'var(--text-faint)', cursor: 'pointer' }}><CloseIcon /></button>
         </div>
 
         {/* her chat bubbles — dir=auto so owner-filled masri renders RTL natively */}
@@ -299,7 +299,7 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
       <style>{SALMA_FACE_CSS}</style>
       <div className="vring" ref={ringRef} aria-hidden="true" />
       <span aria-hidden="true" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', color: '#bfdbfe', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
+        justifyContent: 'center', color: 'var(--accent)', fontWeight: 800, fontSize: Math.round(size * 0.42) }}>{fallback}</span>
       <div className="stack">
         <img className="face base" src="/salma.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
         <img className="face lids" src="/salma-blink.jpg" alt="" aria-hidden="true" decoding="async" width="200" height="200" onError={hideOnErr} />
@@ -311,24 +311,24 @@ export function SalmaPortrait({ fallback = 'S', size = 44, speaking = false }) {
 function skipLink(label, onClick) {
   return (
     <button onClick={onClick} style={{ display: 'block', margin: '10px auto 0', minHeight: 44, padding: '4px 16px',
-      background: 'none', border: 'none', color: '#64748b', fontSize: 12.5, cursor: 'pointer',
+      background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 12.5, cursor: 'pointer',
       textDecoration: 'underline', textUnderlineOffset: 3 }}>{label}</button>
   );
 }
 
 // ── styles (blue+orange system; the ONE orange per beat is the primary CTA) ──────────────────
 const backdrop = { position: 'fixed', inset: 0, zIndex: 240, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', padding: 18, background: 'rgba(2,4,9,0.92)', backdropFilter: 'blur(6px)',
+  justifyContent: 'center', padding: 18, background: 'var(--surface)', backdropFilter: 'blur(6px)',
   WebkitBackdropFilter: 'blur(6px)', animation: 'flash-in 0.3s var(--ease)' };
 const card = { width: '100%', maxWidth: 400, maxHeight: '86vh', overflowY: 'auto', padding: 18,
   borderRadius: 16, background: 'linear-gradient(180deg, rgba(13,24,40,0.97), rgba(7,14,26,0.97))',
-  border: '1px solid rgba(59,130,246,0.30)', boxShadow: '0 18px 60px rgba(0,0,0,0.6)' };
+  border: '1px solid rgba(59,130,246,0.30)', boxShadow: '0 18px 60px rgba(14,19,32,0.16)' };
 const portrait = { position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
   overflow: 'hidden', background: 'linear-gradient(145deg, #172554, #0f172a)',
   border: '2px solid rgba(96,165,250,0.72)', boxShadow: '0 0 14px rgba(59,130,246,0.35)' };
 const portraitFallback = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' };
 const bubble = { padding: '10px 12px', borderRadius: '4px 12px 12px 12px', fontSize: 13.5, lineHeight: 1.6,
-  color: '#e2e8f0', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.22)',
+  color: 'var(--text)', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.22)',
   animation: 'result-rise 0.45s var(--ease) both', textAlign: 'left' };
 const btnBlue = { width: '100%', minHeight: 46, padding: '12px 14px', borderRadius: 10, border: 'none',
   cursor: 'pointer', fontWeight: 800, fontSize: 14.5, color: '#04110b',

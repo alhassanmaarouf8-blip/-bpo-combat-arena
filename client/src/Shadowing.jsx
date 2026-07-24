@@ -206,7 +206,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
-      color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
+      color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
@@ -222,7 +222,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         personal reason THIS student is here (owner law 5: all surfaces one organism). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -246,12 +246,12 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {header}
     <div style={{ textAlign: 'center', padding: '26px 0' }}>
       <div style={{ fontSize: 40 }}>{truth.complete ? '✅' : '↻'}</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+      <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>
         {truth.complete
           ? T(lang, 'Runde sauber abgeschlossen', 'الجولة اتعملت صح')
           : T(lang, 'Runde beendet — noch nicht bestanden', 'الجولة خلصت — لسه محتاجة تدريب')}
       </div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.6 }}>
         {T(lang,
           `${truth.passed}/${truth.total} Sätze wurden zu mindestens 80% erkannt.`,
           `${truth.passed}/${truth.total} جمل اتعرفت بنسبة 80% على الأقل.`)}
@@ -266,7 +266,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   return shell(<>
     {header}
     <DrillIntro drillKey="shadowing" />
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'SATZ', 'جملة')} {idx + 1} / {sentences.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
@@ -277,16 +277,16 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     </div>
 
     {/* the model sentence */}
-    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(96,165,250,0.22)' }}>
-      <div style={{ fontSize: 16, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{s?.de}</div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(96,165,250,0.22)' }}>
+      <div style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{s?.de}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
-        <span style={{ fontSize: 10, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>{T(lang, 'TEMPO', 'السرعة')}</span>
+        <span style={{ fontSize: 10, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>{T(lang, 'TEMPO', 'السرعة')}</span>
         <button onClick={() => setSpeed(1)}   style={speedBtn(rate === 1)}>1,0×</button>
         <button onClick={() => setSpeed(0.8)} style={speedBtn(rate === 0.8)}>0,8×</button>
       </div>
       {rate === 0.8 && (
-        <div style={{ fontSize: 9.5, color: '#64748b', marginTop: 5, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 9.5, color: 'var(--text-faint)', marginTop: 5, lineHeight: 1.4 }}>
           {T(lang, 'Langsamer zum Mithören — kann leicht künstlich klingen. 1,0× ist die echte Stimme.',
                    'أبطأ عشان تسمع كويس — ممكن يبان صناعي شوية. 1,0× هو الصوت الطبيعي.')}
         </div>
@@ -322,13 +322,13 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= MAX_SEC - 5 ? 'var(--action)' : 'var(--accent-2)', fontVariantNumeric: 'tabular-nums' }}>
             00:{String(seconds).padStart(2, '0')}
           </div>
-          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
           <button onClick={stopRec} style={{ ...actionBtn }}>
             ⏹ {T(lang, 'Stopp', 'إيقاف')}
           </button>
         </>
       ) : busy ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>{T(lang, 'Wird ausgewertet…', 'بنحلّل…')}</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: 14 }}>{T(lang, 'Wird ausgewertet…', 'بنحلّل…')}</div>
       ) : result ? (
         <>
           {result.retry ? (
@@ -343,7 +343,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
                     Number.isFinite(Number(result.match ?? result.accuracy)) ? `${Number(result.match ?? result.accuracy)}%` : 'nicht verfügbar'
                   }
                 </div>
-                <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{result.transcript}</div>
+                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{result.transcript}</div>
               </div>
               {Array.isArray(result.missed) && result.missed.length > 0 && (
                 <div style={{ padding: '11px 13px', borderRadius: 10, marginTop: 8, background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.3)' }}>
@@ -351,7 +351,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
                   <div style={{ fontSize: 13, color: 'var(--action)', lineHeight: 1.6 }}>{result.missed.join(' · ')}</div>
                 </div>
               )}
-              <div style={{ fontSize: 9.5, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 9.5, color: 'var(--text-faint)', marginTop: 8, lineHeight: 1.5 }}>
                 {T(lang,
                   'Misst, welche Wörter erkannt wurden — nicht deinen Akzent. Hör den Satz an und vergleiche selbst.',
                   'بيقيس الكلمات اللي اتعرفت — مش نطقك. اسمع الجملة وقارن بنفسك.')}
@@ -368,7 +368,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
       ) : (
         <>
           <button onClick={startRec} style={{ ...actionBtn, fontSize: 14 }}>● {T(lang, 'Nachsprechen aufnehmen', 'سجّل وانت بتكرّر')}</button>
-          <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 10, lineHeight: 1.5 }}>
             {T(lang, 'Hör den Satz an, dann sprich ihn nach.', 'اسمع الجملة، وبعدين كرّرها.')}
           </div>
         </>
@@ -381,4 +381,4 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 // ── shared button styles (match the Assessment screen) ──
 const speedBtn = (on) => ({ cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '5px 9px', borderRadius: 7,
   fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent-2)' : 'rgba(148,163,184,0.3)'}`,
-  background: on ? 'rgba(96,165,250,0.15)' : 'transparent', color: on ? 'var(--accent-2)' : '#94a3b8' });
+  background: on ? 'rgba(96,165,250,0.15)' : 'transparent', color: on ? 'var(--accent-2)' : 'var(--text-dim)' });

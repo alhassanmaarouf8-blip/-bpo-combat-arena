@@ -196,7 +196,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
-      color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
+      color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
@@ -211,7 +211,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -220,8 +220,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
   if (phase === 'loading') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 8 }}>{T(lang, 'Hör-Übungen werden erstellt …', 'بنجهّزلك تمارين استماع …')}</div>
-      <div style={{ fontSize: 13, color: '#94a3b8' }}>{T(lang, 'Frische Anrufe für dich — einen Moment.', 'مكالمات جديدة ليك — لحظة واحدة.')}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{T(lang, 'Hör-Übungen werden erstellt …', 'بنجهّزلك تمارين استماع …')}</div>
+      <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>{T(lang, 'Frische Anrufe für dich — einen Moment.', 'مكالمات جديدة ليك — لحظة واحدة.')}</div>
       <div style={{ marginTop: 18, fontSize: 22, letterSpacing: 6, color: 'var(--accent-2)', animation: 'pulse 1.2s infinite' }}>● ● ●</div>
     </div></>);
 
@@ -238,8 +238,8 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {header}
     <div style={{ textAlign: 'center', padding: '26px 0' }}>
       <div style={{ fontSize: 40 }}>✅</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Geschafft!', 'خلّصت!')}</div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Geschafft!', 'خلّصت!')}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.6 }}>
         {T(lang, 'Verstehen am Telefon ist die halbe Miete im echten Job.', 'إنك تفهم في التليفون ده نص الشغل الحقيقي.')}
       </div>
       <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
@@ -251,7 +251,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
   return shell(<>
     {header}
     <DrillIntro drillKey="listening" />
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {T(lang, 'ANRUF', 'مكالمة')} {idx + 1} / {items.length}
     </div>
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
@@ -262,13 +262,13 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     </div>
 
     {/* Play card — NO text shown; the whole point is to catch it by ear */}
-    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
       <button onClick={play} disabled={!canPlay} style={{ ...actionBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
         <SpeakerIcon style={{ marginRight: 6 }} /> {playing
           ? T(lang, 'Audio wird vorbereitet…', 'بنجهّز الصوت…')
           : (played === 0 ? T(lang, 'Anruf abspielen', 'شغّل المكالمة') : T(lang, `Nochmal (${maxPlays - played} übrig)`, `كمان مرة (فاضل ${maxPlays - played})`))}
       </button>
-      <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 10, lineHeight: 1.5 }}>
         {T(lang, 'Echtes Tempo. Hör genau hin — du siehst den Text nicht.', 'سرعة حقيقية. ركّز كويس — مش هتشوف النص.')}
       </div>
       {!ttsOk && (
@@ -281,7 +281,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {/* Question + capture input */}
     {played > 0 && (
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 8, ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
+        <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 8, ...(lang === 'ar' ? { direction: 'rtl', textAlign: 'right' } : {}) }}>
           {T(lang, item.question_de, item.question_ar)}
         </div>
         {item.kind === 'verstehen' ? (
@@ -306,7 +306,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
             placeholder={T(lang, 'Tippe, was du gehört hast…', 'اكتب اللي سمعته…')}
             style={{ width: '100%', boxSizing: 'border-box', padding: '12px', borderRadius: 9, fontSize: 15,
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.35)', color: '#f8fafc', outline: 'none' }} />
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,184,0.35)', color: 'var(--text)', outline: 'none' }} />
         )}
       </div>
     )}
@@ -330,7 +330,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
           </div>
           {/* comprehension already highlights the right option green; only the detail path needs the answer echoed */}
           {!result.correct && item.kind !== 'verstehen' && (
-            <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 6 }}>
               {T(lang, 'Richtig war: ', 'الصح كان: ')}<b style={{ color: 'var(--action)' }}>{result.expected}</b>
             </div>
           )}

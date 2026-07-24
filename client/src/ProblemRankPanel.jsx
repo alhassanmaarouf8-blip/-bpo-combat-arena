@@ -54,7 +54,7 @@ export function ProblemRankPanel({ ranked, lang = 'de' }) {
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 13,
               color: i === 0 ? 'var(--accent)' : 'var(--text-faint)', minWidth: 18 }}>{i + 1}.</span>
             <span style={{ flex: 1 }}>
-              <span style={{ fontSize: 13, color: '#e2e8f0', fontWeight: i === 0 ? 600 : 400 }}>
+              <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: i === 0 ? 600 : 400 }}>
                 {label(r.ruleId, lang)}
               </span>
               <span style={{ display: 'block', fontSize: 'var(--fs-meta)', color: 'var(--text-faint)', lineHeight: 1.5 }}>

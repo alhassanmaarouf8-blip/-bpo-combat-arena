@@ -230,7 +230,7 @@ export default function CallFloor() {
 
   const shell = (children) => (
     <div dir="ltr" style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg, #04070d)',
-      color: '#e2e8f0', padding: '20px 16px 48px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      color: 'var(--text)', padding: '20px 16px 48px', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>{children}</div>
     </div>
   );

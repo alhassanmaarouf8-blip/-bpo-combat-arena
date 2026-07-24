@@ -6,7 +6,7 @@ import { consumeAutomaticTutorCue, createTutorDrillSession, stopTutorWhenDocumen
 
 const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, cursor: 'pointer',
   border: '1px solid rgba(96,165,250,0.34)', background: 'rgba(59,130,246,0.08)',
-  color: '#bfdbfe', fontSize: 12.5, fontWeight: 650 };
+  color: 'var(--accent)', fontSize: 12.5, fontWeight: 650 };
 
 function auth(token, extra = {}) { return { Authorization: `Bearer ${token}`, ...extra }; }
 function microphoneErrorMessage(code) {
@@ -325,21 +325,21 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
               ? 'MEHRFACH BEOBACHTETER ENGPASS'
               : 'BEOBACHTETES RISIKO · NOCH ZU BESTÄTIGEN'}
         </div>
-        <div style={{ marginTop: 4, color: '#e2e8f0', fontSize: 13.5, fontWeight: 750 }}>{bottleneck}</div>
-        {risk?.state === 'measure_first' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 4, color: 'var(--text)', fontSize: 13.5, fontWeight: 750 }}>{bottleneck}</div>
+        {risk?.state === 'measure_first' && <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.5 }}>
           Beende zuerst das Diagnose-Interview. Ein kurzes Interview reicht — danach bekommst du deinen ersten klaren Schritt.
         </div>}
-        {forecast?.state === 'historical_only' && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 12, lineHeight: 1.5 }}>
+        {forecast?.state === 'historical_only' && <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 12, lineHeight: 1.5 }}>
           Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht automatisch auf heute.
         </div>}
       </div>}
       {p && <div style={{ padding: '10px 11px', borderRadius: 10, background: 'rgba(59,130,246,0.07)',
-        border: '1px solid rgba(96,165,250,0.20)', color: '#cbd5e1', fontSize: 12.5, lineHeight: 1.55 }}>
-        <div style={{ color: '#e2e8f0', fontWeight: 750 }}>
+        border: '1px solid rgba(96,165,250,0.20)', color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.55 }}>
+        <div style={{ color: 'var(--text)', fontWeight: 750 }}>
           {DRILL_LABELS[p.drillId] || 'Dein Trainingsblock'} · {p.repetitions} Wiederholungen · {Math.ceil(p.durationSeconds / 60)} Minuten
           {p.timesPerDay > 1 ? ` · ${p.timesPerDay} Blöcke mit mindestens ${Math.round(p.minimumSpacingMinutes / 60)} Stunden Abstand` : ''}
         </div>
-        <div style={{ color: '#94a3b8', marginTop: 4 }}><strong style={{ color: '#cbd5e1' }}>Fertig, wenn:</strong> {p.successGate}</div>
+        <div style={{ color: 'var(--text-dim)', marginTop: 4 }}><strong style={{ color: 'var(--text-dim)' }}>Fertig, wenn:</strong> {p.successGate}</div>
       </div>}
       {coach.intervention && coach.feature.voiceEnabled && !coach.preferences.muted && (
         <button type="button" onClick={() => speaking ? stopSpeech() : speak(`${coach.intervention.text} ${coach.intervention.nextAction}`, coach.intervention.id)}
@@ -347,33 +347,33 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
           {speaking ? 'Unterbrechen' : 'Anhören'}
         </button>
       )}
-      {cue?.text && <div role="status" style={{ marginTop: 10, color: '#dbeafe', fontSize: 12.5, lineHeight: 1.55 }}>
+      {cue?.text && <div role="status" style={{ marginTop: 10, color: 'var(--accent)', fontSize: 12.5, lineHeight: 1.55 }}>
         <strong>Nächster Versuch:</strong> {cue.text}
       </div>}
-      {hasEvidenceDetails && <details style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
+      {hasEvidenceDetails && <details style={{ marginTop: 10, color: 'var(--text-dim)', fontSize: 12 }}>
         <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>Warum genau das?</summary>
         <div style={{ paddingTop: 4 }}>
           {forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: '#dbeafe' }}>
+            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: 'var(--accent)' }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>{forecastHeading}</div>
             <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[forecast.riskId]}</div>
-            <div style={{ marginTop: 3, color: '#cbd5e1', fontSize: 11.5, lineHeight: 1.5 }}>
+            <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.5 }}>
               {ROLE_LABELS[forecast.target?.roleType] || 'Kundenservice'} · {INDUSTRY_LABELS[forecast.target?.industryKey] || 'allgemeines deutsches BPO'} ·{' '}
               {STAGE_LABELS[forecast.criterion?.stageId] || 'Interview'}
             </div>
-            {forecast.criterion && <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
+            {forecast.criterion && <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.5 }}>
               {CRITERION_LABELS[forecast.criterion.criterionId] || forecast.criterion.criterionId}: gemessen {forecast.criterion.observed}{' '}
               {UNIT_LABELS[forecast.criterion.unit] || forecast.criterion.unit}; interne Referenz{' '}
               {forecast.criterion.direction === 'at_least' ? 'mindestens' : 'höchstens'} {forecast.criterion.reference}.
             </div>}
-            <div style={{ marginTop: 3, color: '#94a3b8', fontSize: 11.5, lineHeight: 1.5 }}>
+            <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.5 }}>
               {forecast.confidence === 'high' ? 'Hohe Evidenz innerhalb deiner Simulation.' : 'Mittlere Evidenz; der nächste Retest prüft die Übertragbarkeit.'}
               {' '}Interne Trainingsreferenz, keine Vorhersage einer Arbeitgeberentscheidung.
             </div>
           </div>}
           {['repeated_pattern', 'provisional_pattern', 'conflicted_pattern'].includes(truth?.state) && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-            background: 'rgba(15,23,42,0.55)', border: '1px solid rgba(148,163,184,0.24)', color: '#cbd5e1' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#e2e8f0' }}>WAS DIE MESSUNG WEISS — UND WAS NICHT</div>
+            background: 'var(--surface)', border: '1px solid rgba(148,163,184,0.24)', color: 'var(--text-dim)' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text)' }}>WAS DIE MESSUNG WEISS — UND WAS NICHT</div>
             <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.55 }}>
               {truth.state === 'repeated_pattern'
                 ? `Das Muster wurde in ${truth.supportCount} passenden Simulationen beobachtet.`
@@ -382,20 +382,20 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
                   : 'Das Muster wurde einmal zuverlässig beobachtet und bleibt eine Arbeitshypothese.'}
               {' '}Die Ursache ist damit nicht bewiesen.
             </div>
-            {truth.possibleExplanations?.length > 0 && <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.55, color: '#94a3b8' }}>
-              <strong style={{ color: '#cbd5e1' }}>Mögliche Erklärungen:</strong>{' '}
+            {truth.possibleExplanations?.length > 0 && <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.55, color: 'var(--text-dim)' }}>
+              <strong style={{ color: 'var(--text-dim)' }}>Mögliche Erklärungen:</strong>{' '}
               {truth.possibleExplanations.map((id) => TRUTH_EXPLANATION_LABELS[id]).filter(Boolean).join(' · ')}
             </div>}
-            {TRUTH_DISCRIMINATOR_LABELS[truth.nextDiscriminatorId] && <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.55, color: '#94a3b8' }}>
-              <strong style={{ color: '#cbd5e1' }}>So unterscheiden wir sie:</strong>{' '}
+            {TRUTH_DISCRIMINATOR_LABELS[truth.nextDiscriminatorId] && <div style={{ marginTop: 6, fontSize: 11.5, lineHeight: 1.55, color: 'var(--text-dim)' }}>
+              <strong style={{ color: 'var(--text-dim)' }}>So unterscheiden wir sie:</strong>{' '}
               {TRUTH_DISCRIMINATOR_LABELS[truth.nextDiscriminatorId]}
             </div>}
-            <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5, color: '#64748b' }}>
+            <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.5, color: 'var(--text-faint)' }}>
               Keine psychologische Diagnose und keine Vorhersage einer Arbeitgeberentscheidung.
             </div>
           </div>}
-          {listeningRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', lineHeight: 1.55 }}>
-            <strong style={{ color: '#e2e8f0' }}>Hörnachweis: </strong>
+          {listeningRetest && <div role="status" style={{ marginBottom: 10, color: 'var(--text-dim)', lineHeight: 1.55 }}>
+            <strong style={{ color: 'var(--text)' }}>Hörnachweis: </strong>
             {listeningRetest.trainingComplete === false && 'Dein persönlicher Trainingsblock läuft noch. Erst nach mindestens vier richtigen Antworten in den letzten fünf Aufgaben beginnt die Retest-Wartezeit.'}
             {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'baseline' && 'Fünf neue Aufgaben bilden zuerst deine servergeprüfte Ausgangsmessung.'}
             {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'dose' && 'Der Trainingsblock ist noch nicht als vollständige Dosis bestätigt.'}
@@ -407,8 +407,8 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
             {listeningRetest.trainingComplete !== false && listeningRetest.phase === 'failed' && 'Der Retest ist vollständig, aber die Erfolgsschwelle wurde nicht erreicht. BrainGuide passt den nächsten Trainingsschritt an.'}
             {listeningRetest.trainingComplete !== false && !['complete', 'failed'].includes(listeningRetest.phase) && <span> Übung vor der Freigabe hilft, gilt aber nicht als Retest.</span>}
           </div>}
-          {speakingRetest && <div role="status" style={{ marginBottom: 10, color: '#cbd5e1', lineHeight: 1.55 }}>
-            <strong style={{ color: '#e2e8f0' }}>Sprechnachweis: </strong>
+          {speakingRetest && <div role="status" style={{ marginBottom: 10, color: 'var(--text-dim)', lineHeight: 1.55 }}>
+            <strong style={{ color: 'var(--text)' }}>Sprechnachweis: </strong>
             {speakingRetest.phase === 'matched' && <>Der passende Vergleichstest zählt frühestens am {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
             {speakingRetest.phase === 'transfer' && <>Der Test in einer neuen Situation zählt frühestens am {formatCairoRetest(speakingRetest.nextEligibleAt)} Uhr (Kairo).</>}
             {speakingRetest.phase === 'complete' && (speakingRetest.transfer
@@ -417,7 +417,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
             {speakingRetest.phase !== 'complete' && <span> Frühere Übung hilft, gilt aber nicht als Retest.</span>}
           </div>}
           {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-            background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: '#dbeafe' }}>
+            background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: 'var(--accent)' }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>
               {proof.phase === 'transfer' ? 'VERIFIZIERTER TRANSFER' : 'VERIFIZIERTER VERGLEICHSTEST'}
             </div>
@@ -426,7 +426,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
               {proof.metricLabel}: <strong>{proof.before}</strong> → <strong>{proof.after}</strong> {proof.unit}. {proofOutcome}
             </div>
           </div>}
-          {p && coach.progress && <div style={{ color: '#94a3b8', lineHeight: 1.55 }}>
+          {p && coach.progress && <div style={{ color: 'var(--text-dim)', lineHeight: 1.55 }}>
             Saubere Wiederholungen: {coach.progress.successfulRepetitions}/{coach.progress.requiredSuccessfulRepetitions}
             {coach.progress.blockNominatedComplete
               ? (p.baseline ? (speakingRetest?.phase === 'transfer'
@@ -437,27 +437,27 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
           </div>}
         </div>
       </details>}
-      <details style={{ marginTop: 6, color: '#94a3b8', fontSize: 12 }}>
-        <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#bfdbfe', fontWeight: 700 }}>
+      <details style={{ marginTop: 6, color: 'var(--text-dim)', fontSize: 12 }}>
+        <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', color: 'var(--accent)', fontWeight: 700 }}>
           Salma fragen
         </summary>
         <div style={{ paddingTop: 4 }}>
-          {answer && <div role="status" style={{ marginBottom: 10, padding: 10, borderRadius: 10, color: '#dbeafe',
+          {answer && <div role="status" style={{ marginBottom: 10, padding: 10, borderRadius: 10, color: 'var(--accent)',
             background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.2)', fontSize: 13, lineHeight: 1.55 }}>
-            {lastQuestion && <div style={{ marginBottom: 6, color: '#94a3b8', fontSize: 11.5 }}>
+            {lastQuestion && <div style={{ marginBottom: 6, color: 'var(--text-dim)', fontSize: 11.5 }}>
               <strong>Verstanden:</strong> „{lastQuestion}“
             </div>}
             {answer}
           </div>}
           <form onSubmit={(event) => { event.preventDefault(); ask(question); }}>
-            <label htmlFor={questionId} style={{ display: 'block', color: '#94a3b8', fontSize: 11.5, marginBottom: 5 }}>
+            <label htmlFor={questionId} style={{ display: 'block', color: 'var(--text-dim)', fontSize: 11.5, marginBottom: 5 }}>
               Frage zu deinem aktuellen Schritt
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <input id={questionId} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={400}
                 placeholder="Was bedeutet die Aufgabe?" disabled={busy || recording}
                 style={{ flex: '1 1 190px', minHeight: 44, borderRadius: 10, border: '1px solid rgba(148,163,184,0.28)',
-                  background: 'rgba(2,6,16,0.72)', color: '#e2e8f0', padding: '10px 12px', fontSize: 13 }} />
+                  background: 'var(--surface)', color: 'var(--text)', padding: '10px 12px', fontSize: 13 }} />
               <button type="button" onClick={toggleRecording} disabled={busy} aria-pressed={recording} style={quietButton}>
                 {recording ? 'Aufnahme beenden' : 'Sprechen'}
               </button>
@@ -465,19 +465,19 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
                 {busy ? 'Einen Moment …' : 'Fragen'}
               </button>
             </div>
-            {recording && <div role="status" aria-live="polite" style={{ marginTop: 8, color: microphoneHeard ? '#86efac' : '#bfdbfe', fontSize: 12.5 }}>
+            {recording && <div role="status" aria-live="polite" style={{ marginTop: 8, color: microphoneHeard ? '#86efac' : 'var(--accent)', fontSize: 12.5 }}>
               {microphoneHeard ? 'Stimme erkannt. Sprich zu Ende und wähle dann „Aufnahme beenden“.' : 'Mikrofon aktiv. Sprich jetzt; danach „Aufnahme beenden“ wählen.'}
             </div>}
           </form>
         </div>
       </details>
-      <details style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
+      <details style={{ marginTop: 10, color: 'var(--text-dim)', fontSize: 12 }}>
         <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>Tutor-Einstellungen</summary>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', paddingTop: 6 }}>
           <label htmlFor={`salma-minutes-${drillId || screen}`}>Zeit pro Tag</label>
           <select id={`salma-minutes-${drillId || screen}`} value={coach.preferences.dailyMinutes} disabled={busy}
             onChange={(event) => savePreference({ dailyMinutes: Number(event.target.value) })}
-            style={{ minHeight: 44, borderRadius: 9, background: '#07101e', color: '#e2e8f0', border: '1px solid rgba(148,163,184,0.3)', padding: '8px 10px' }}>
+            style={{ minHeight: 44, borderRadius: 9, background: 'var(--surface)', color: 'var(--text)', border: '1px solid rgba(148,163,184,0.3)', padding: '8px 10px' }}>
             <option value={5}>5 Minuten</option><option value={10}>10 Minuten</option><option value={20}>20 Minuten</option>
           </select>
           <button type="button" disabled={busy || !coach.feature.voiceEnabled}

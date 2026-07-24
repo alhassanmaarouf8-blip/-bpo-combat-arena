@@ -287,7 +287,7 @@ function ScheduleList({ record, busy, onComplete, canLive }) {
 
 const fieldStyle = {
   width:'100%', minHeight:44, boxSizing:'border-box', borderRadius:10,
-  border:'1px solid var(--line-strong)', background:'rgba(2,6,16,0.78)',
+  border:'1px solid var(--line-strong)', background: 'var(--surface)',
   color:'var(--text)', font:'inherit', fontSize:14, padding:'10px 12px',
 };
 
@@ -715,7 +715,7 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
               <span style={{ color:'var(--text-faint)', fontSize:10, textAlign:'right' }}>{countdown.detail}</span>
             </div>
             {due && (
-              <div style={{ padding:'9px 10px', borderRadius:10, background:'rgba(2,6,16,0.45)', border:'1px solid var(--line)' }}>
+              <div style={{ padding:'9px 10px', borderRadius:10, background: 'var(--surface)', border:'1px solid var(--line)' }}>
                 <div style={{ color:'var(--text-faint)', fontSize:9.5, letterSpacing:'0.06em' }}>NÄCHSTER SCHRITT</div>
                 <div style={{ marginTop:3, color:'var(--text)', fontSize:12, fontWeight:750 }}>{due.title}</div>
               </div>
@@ -729,13 +729,13 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
         <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }} style={{
           position:'fixed', inset:0, zIndex:420, display:'flex', alignItems:'center', justifyContent:'center',
           padding:'max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom))',
-          background:'rgba(2,4,9,0.88)', backdropFilter:'blur(6px)',
+          background: 'var(--surface)', backdropFilter:'blur(6px)',
           isolation:'isolate', overscrollBehavior:'contain', touchAction:'pan-y',
         }}>
           <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="vacancy-target-title" aria-describedby="vacancy-target-privacy" aria-busy={busy} style={{
             width:'min(100%, 500px)', maxHeight:'min(780px, 94svh)', overflowY:'auto', boxSizing:'border-box',
             borderRadius:18, border:'1px solid var(--line-strong)', background:'var(--bg-1)',
-            boxShadow:'0 24px 80px rgba(0,0,0,0.55)', padding:'18px 16px',
+            boxShadow:'0 24px 80px rgba(14,19,32,0.16)', padding:'18px 16px',
           }}>
             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, marginBottom:15 }}>
               <div>

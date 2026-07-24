@@ -74,12 +74,12 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
     direction: ar ? 'rtl' : 'ltr', textAlign: ar ? 'right' : 'left',
     background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.25)',
   };
-  const title = { fontSize: 13, fontWeight: 700, color: '#e0f2fe', marginBottom: 8 };
+  const title = { fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 };
 
   if (view === 'done') {
     return (
       <div style={card}>
-        <div style={{ fontSize: 12.5, color: '#bae6fd' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--accent)' }}>
           {ar ? 'تمام، اتسجّل ✅ بالتوفيق — وكمّل تدريب.' : 'Gespeichert ✅ Viel Erfolg — und weiter trainieren!'}
         </div>
       </div>
@@ -99,12 +99,12 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
             value={employer} onChange={(e) => setEmployer(e.target.value)}
             placeholder={ar ? '…' : 'Name der Firma'}
             style={{ flex: 1, minWidth: 160, padding: '8px 10px', borderRadius: 8,
-              background: 'rgba(2,6,23,0.5)', border: '1px solid rgba(148,163,184,0.3)',
-              color: '#e2e8f0', fontSize: 12, direction: ar ? 'rtl' : 'ltr' }}
+              background: 'var(--surface)', border: '1px solid rgba(148,163,184,0.3)',
+              color: 'var(--text)', fontSize: 12, direction: ar ? 'rtl' : 'ltr' }}
           />
           <button onClick={() => submit(stage.id, employer)} disabled={busy}
             style={{ padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: '#0ea5e9', color: '#04121f', fontWeight: 700, fontSize: 12 }}>
+              background: 'var(--surface)', color: '#04121f', fontWeight: 700, fontSize: 12 }}>
             {ar ? 'تسجيل' : 'Speichern'}
           </button>
         </div>
@@ -124,14 +124,14 @@ export default function PlacementPrompt({ token, apiUrl, lang = 'de' }) {
             style={{ padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11.5,
               background: s.id === 'hired' ? 'rgba(59,130,246,0.18)' : 'rgba(15,23,42,0.6)',
               border: `1px solid ${s.id === 'hired' ? 'rgba(59,130,246,0.5)' : 'rgba(148,163,184,0.28)'}`,
-              color: s.id === 'hired' ? '#86efac' : '#cbd5e1', fontWeight: s.id === 'hired' ? 700 : 500 }}>
+              color: s.id === 'hired' ? '#86efac' : 'var(--text-dim)', fontWeight: s.id === 'hired' ? 700 : 500 }}>
             {ar ? s.ar : s.de}
           </button>
         ))}
       </div>
       <button onClick={dismiss}
         style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer',
-          color: '#64748b', fontSize: 10.5, textDecoration: 'underline' }}>
+          color: 'var(--text-faint)', fontSize: 10.5, textDecoration: 'underline' }}>
         {ar ? 'مش دلوقتي' : 'Später'}
       </button>
     </div>

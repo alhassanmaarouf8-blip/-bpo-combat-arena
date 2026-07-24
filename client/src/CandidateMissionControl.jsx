@@ -66,12 +66,12 @@ const PASS_STEP_COPY = Object.freeze({
 });
 
 const panelStyle = {
-  border: '1px solid rgba(96,165,250,0.24)', borderRadius: 17, background: 'rgba(4,10,20,0.94)',
-  color: 'var(--text, #e2e8f0)', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', overflow: 'hidden',
+  border: '1px solid rgba(96,165,250,0.24)', borderRadius: 17, background: 'var(--surface)',
+  color: 'var(--text, #e2e8f0)', boxShadow: 'var(--e3)', overflow: 'hidden',
 };
 const fieldStyle = {
   width: '100%', minHeight: 46, boxSizing: 'border-box', borderRadius: 10,
-  border: '1px solid var(--line-strong, rgba(148,163,184,0.32))', background: 'rgba(2,6,16,0.84)',
+  border: '1px solid var(--line-strong, rgba(148,163,184,0.32))', background: 'var(--surface)',
   color: 'var(--text, #e2e8f0)', font: 'inherit', fontSize: 13.5, padding: '10px 11px',
 };
 const quietButton = {
@@ -179,13 +179,13 @@ function Dialog({ open, title, titleAr, description, busy = false, onClose, chil
   return createPortal(
     <div className="cmc-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose?.(); }}
       style={{ position: 'fixed', inset: 0, zIndex: 12000, display: 'grid', placeItems: 'center', padding: 16,
-        background: 'rgba(1,5,12,0.84)', backdropFilter: 'blur(7px)' }}>
+        background: 'var(--surface)', backdropFilter: 'blur(7px)' }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="cmc-dialog-title" aria-describedby={description ? 'cmc-dialog-description' : undefined}
         aria-busy={busy} tabIndex={-1} style={{ ...panelStyle, width: '100%', maxWidth: width, maxHeight: 'min(92svh,900px)', overflowY: 'auto' }}>
         <header style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'start', padding: '17px 18px',
-          background: 'rgba(5,12,23,0.98)', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))' }}>
+          background: 'var(--surface)', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))' }}>
           <div style={{ minWidth: 0 }}>
-            <h2 id="cmc-dialog-title" style={{ margin: 0, color: '#f8fafc', fontSize: 18, lineHeight: 1.3 }}>{title}</h2>
+            <h2 id="cmc-dialog-title" style={{ margin: 0, color: 'var(--text)', fontSize: 18, lineHeight: 1.3 }}>{title}</h2>
             {titleAr && <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>{titleAr}</div>}
             {description && <p id="cmc-dialog-description" style={{ margin: '6px 0 0', color: 'var(--text-faint, #64748b)', fontSize: 11.5, lineHeight: 1.5 }}>{description}</p>}
           </div>
@@ -229,7 +229,7 @@ function OpportunityCard({ opportunity, tracker = false, busy, onPack, onOpenApp
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: '1 1 250px' }}>
           <div style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>{opportunity.employerDisplay}</div>
-          <h3 style={{ margin: '4px 0 0', color: '#f8fafc', fontSize: 15.5, lineHeight: 1.35 }}>{opportunity.title}</h3>
+          <h3 style={{ margin: '4px 0 0', color: 'var(--text)', fontSize: 15.5, lineHeight: 1.35 }}>{opportunity.title}</h3>
           <div style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5 }}>
             {[opportunity.location, opportunity.sourceHost, opportunity.postedDate].filter(Boolean).join(' · ')}
           </div>
@@ -767,11 +767,11 @@ export function CandidateMissionControl({
       <style>{`
         .cmc *{box-sizing:border-box}.cmc button:focus-visible,.cmc a:focus-visible,.cmc input:focus-visible,.cmc textarea:focus-visible,.cmc select:focus-visible,.cmc-overlay button:focus-visible,.cmc-overlay a:focus-visible,.cmc-overlay input:focus-visible,.cmc-overlay textarea:focus-visible,.cmc-overlay select:focus-visible{outline:3px solid rgba(96,165,250,.85);outline-offset:3px}.cmc button:disabled,.cmc-overlay button:disabled{cursor:not-allowed;opacity:.48}.cmc-tab{transition:background 140ms ease,border-color 140ms ease}.cmc-tab:hover{border-color:rgba(96,165,250,.48)!important}@media(max-width:620px){.cmc-head{padding:16px!important}.cmc-body{padding:14px!important}.cmc-two{grid-template-columns:1fr!important}.cmc-actions{flex-direction:column!important}.cmc-actions>button,.cmc-actions>a{width:100%}.cmc-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important}.cmc-tab{padding-inline:5px!important;font-size:10.5px!important}}@media(prefers-reduced-motion:reduce){.cmc *,.cmc-overlay *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
       `}</style>
-      <header className="cmc-head" style={{ padding: '19px 20px 16px', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'rgba(7,15,28,0.9)' }}>
+      <header className="cmc-head" style={{ padding: '19px 20px 16px', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'start', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-display, inherit)', color: 'var(--accent, #3b82f6)', fontSize: 9.5, letterSpacing: '0.17em', fontWeight: 850 }}>BEWERBUNGEN</div>
-            <h2 id="cmc-title" style={{ margin: '7px 0 0', color: '#f8fafc', fontSize: 'clamp(18px,3vw,23px)', lineHeight: 1.25 }}>Passende Stellen und dein Bewerbungs-Tracker</h2>
+            <h2 id="cmc-title" style={{ margin: '7px 0 0', color: 'var(--text)', fontSize: 'clamp(18px,3vw,23px)', lineHeight: 1.25 }}>Passende Stellen und dein Bewerbungs-Tracker</h2>
             <div dir="rtl" style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 13 }}>الوظائف المناسبة ومتابعة التقديم — داخل German Interview Trainer</div>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -807,7 +807,7 @@ export function CandidateMissionControl({
               <section aria-labelledby="cmc-interview-pack-title" style={{ marginBottom:14, padding:'14px 15px', borderRadius:12,
                 border:'1px solid rgba(249,115,22,0.3)', background:'rgba(249,115,22,0.045)' }}>
                 <div style={{ color:'var(--action, #f97316)', fontSize:9.5, fontWeight:850, letterSpacing:'0.13em' }}>INTERVIEW-TAG PACK</div>
-                <h3 id="cmc-interview-pack-title" style={{ margin:'5px 0 0', color:'#f8fafc', fontSize:15.5 }}>
+                <h3 id="cmc-interview-pack-title" style={{ margin:'5px 0 0', color:'var(--text)', fontSize:15.5 }}>
                   {interviewDayOpportunity.title} · {interviewDayOpportunity.interviewDate}
                   {interviewDayOpportunity.interviewTime ? ` · ${interviewDayOpportunity.interviewTime}` : ''}
                 </h3>
@@ -839,7 +839,7 @@ export function CandidateMissionControl({
                 <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'start', flexWrap:'wrap' }}>
                   <div>
                     <div style={{ color:'var(--accent-2, #93c5fd)', fontSize:9.5, fontWeight:850, letterSpacing:'0.13em' }}>INTERVIEW PASS</div>
-                    <h3 id="cmc-pass-title" style={{ margin:'5px 0 0', color:'#f8fafc', fontSize:15.5 }}>Dein gespeicherter Vorbereitungsplan</h3>
+                    <h3 id="cmc-pass-title" style={{ margin:'5px 0 0', color:'var(--text)', fontSize:15.5 }}>Dein gespeicherter Vorbereitungsplan</h3>
                     <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #64748b)', fontSize:11.5 }}>خطة التحضير المحفوظة داخل حسابك</div>
                   </div>
                   <Chip tone={interviewPass.planAccess === 'full' ? 'blue' : 'orange'}>
@@ -939,7 +939,7 @@ export function CandidateMissionControl({
 
       <Dialog open={dialog === 'pack'} title="Faktengebundener Bewerbungs-Pack" titleAr="حزمة تقديم مرتبطة بالحقائق" busy={busy} onClose={closeDialog} description="Kein Text darf mehr behaupten als dein bestätigter Passport und die öffentliche Anzeige.">
         {!pack ? <div role="status" style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>Pack wird vorbereitet…</div> : <div style={{ display: 'grid', gap: 13 }}>
-          <div><div style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>{pack.employerDisplay}</div><h3 style={{ margin: '4px 0 0', color: '#f8fafc', fontSize: 16 }}>{pack.title}</h3></div>
+          <div><div style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>{pack.employerDisplay}</div><h3 style={{ margin: '4px 0 0', color: 'var(--text)', fontSize: 16 }}>{pack.title}</h3></div>
           {!!pack.warnings.length && <div style={{ padding: '10px 11px', borderRadius: 9, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.045)' }}><div style={{ color: 'var(--action, #f97316)', fontSize: 10.5, fontWeight: 800 }}>VOR PRÜFUNG KLÄREN</div><ul style={{ margin: '6px 0 0', paddingLeft: 18, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5 }}>{pack.warnings.map((item) => <li key={item}>{item}</li>)}</ul></div>}
           {!!pack.facts.length && <section><h3 style={{ margin: 0, color: 'var(--text, #e2e8f0)', fontSize: 13 }}>Gesperrte Fakten</h3><div style={{ display: 'grid', gap: 6, marginTop: 8 }}>{pack.facts.map((fact) => <div key={fact.id} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(96,165,250,0.2)' }}><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 9.5, fontWeight: 800 }}>{fact.label}{fact.source ? ` · ${fact.source}` : ''}</div><div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, marginTop: 3 }}>{fact.value}</div></div>)}</div></section>}
           {pack.summary && <section><Label htmlFor="cmc-pack-summary" de="Editierbares Kurzprofil" ar="ملخص مهني قابل للتعديل"/><textarea id="cmc-pack-summary" rows={5} maxLength={1600} value={pack.summary} onChange={(event) => updatePackText('summary', event.target.value)} style={{ ...fieldStyle, minHeight:110, resize:'vertical' }}/></section>}
@@ -960,7 +960,7 @@ export function CandidateMissionControl({
       </Dialog>
 
       <Dialog open={dialog === 'response'} title="Arbeitgeber-Antwort einordnen" titleAr="تصنيف رد صاحب العمل" busy={busy} onClose={closeDialog} width={620} description="Der eingefügte Text wird nur zur Einordnung gesendet und danach sofort aus dem Eingabefeld gelöscht.">
-        {!classification ? <><Label htmlFor="cmc-response" de="Relevanten Antworttext einfügen" ar="ألصق الجزء المهم من الرد"/><textarea id="cmc-response" data-autofocus rows={9} maxLength={10_000} value={responseText} onChange={(event) => setResponseText(event.target.value)} autoComplete="off" style={{ ...fieldStyle, minHeight: 170, resize: 'vertical' }}/><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={classifyResponse} disabled={busy || responseText.trim().length < 8} style={dialogPrimary}>EINORDNEN UND TEXT LÖSCHEN</button></div></> : <div><div style={{ padding: '12px 13px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.28)', background: 'rgba(59,130,246,0.055)' }}><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 10, fontWeight: 850 }}>STRUKTURIERTES ERGEBNIS</div><div style={{ color: '#f8fafc', fontSize: 16, fontWeight: 800, marginTop: 5 }}>{classification.classification.replaceAll('_', ' ')}</div>{classification.proposedDate && <div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12, marginTop: 5 }}>{classification.proposedDate}{classification.proposedTime ? ` · ${classification.proposedTime}` : ''} · noch nicht bestätigt</div>}</div>{classification.classification === 'interview_invitation' && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={() => openInterview({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl, response: classification }, classification)} style={dialogPrimary}>INTERVIEW BESTÄTIGEN</button></div>}</div>}
+        {!classification ? <><Label htmlFor="cmc-response" de="Relevanten Antworttext einfügen" ar="ألصق الجزء المهم من الرد"/><textarea id="cmc-response" data-autofocus rows={9} maxLength={10_000} value={responseText} onChange={(event) => setResponseText(event.target.value)} autoComplete="off" style={{ ...fieldStyle, minHeight: 170, resize: 'vertical' }}/><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={classifyResponse} disabled={busy || responseText.trim().length < 8} style={dialogPrimary}>EINORDNEN UND TEXT LÖSCHEN</button></div></> : <div><div style={{ padding: '12px 13px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.28)', background: 'rgba(59,130,246,0.055)' }}><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 10, fontWeight: 850 }}>STRUKTURIERTES ERGEBNIS</div><div style={{ color: 'var(--text)', fontSize: 16, fontWeight: 800, marginTop: 5 }}>{classification.classification.replaceAll('_', ' ')}</div>{classification.proposedDate && <div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12, marginTop: 5 }}>{classification.proposedDate}{classification.proposedTime ? ` · ${classification.proposedTime}` : ''} · noch nicht bestätigt</div>}</div>{classification.classification === 'interview_invitation' && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={() => openInterview({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl, response: classification }, classification)} style={dialogPrimary}>INTERVIEW BESTÄTIGEN</button></div>}</div>}
       </Dialog>
 
       <Dialog open={dialog === 'interview'} title="Interviewtermin bestätigen" titleAr="تأكيد موعد المقابلة" busy={busy} onClose={closeDialog} width={560} description="Erst deine Bestätigung aktiviert die zielgenaue Vorbereitung in BrainGuide.">

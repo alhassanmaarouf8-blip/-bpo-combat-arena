@@ -23,7 +23,7 @@ export function ConnectionNotice() {
   return (
     <div role="status" aria-live="polite" style={{ position: 'fixed', zIndex: 260, left: 12, right: 12, bottom: 12,
       maxWidth: 560, margin: '0 auto', padding: '12px 14px', borderRadius: 12,
-      background: 'rgba(15,22,38,0.98)', border: '1px solid var(--action)', boxShadow: 'var(--e2)', color: 'var(--text)' }}>
+      background: 'var(--surface)', border: '1px solid var(--action)', boxShadow: 'var(--e2)', color: 'var(--text)' }}>
       <div style={{ fontSize: 13, fontWeight: 750, lineHeight: 1.45 }}>Du bist gerade offline.</div>
       <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.55 }}>
         Dein gespeicherter Stand bleibt erhalten. Für Sprachtraining und neue Ergebnisse brauchst du wieder eine Verbindung.

@@ -361,12 +361,12 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
         <SalmaPortrait fallback={salmaName(lang).charAt(0)} size={42} />
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontWeight:800, fontSize:13, color:'#e2e8f0' }}>
+          <div style={{ fontWeight:800, fontSize:13, color:'var(--text)' }}>
             {loadState === 'auth' ? 'Deine Sitzung ist abgelaufen.'
               : loadState === 'error' ? 'Dein persönlicher Schritt konnte noch nicht geladen werden.'
               : 'Dein persönlicher Schritt wird berechnet…'}
           </div>
-          <div style={{ marginTop:3, fontSize:11.5, color:'#94a3b8', lineHeight:1.5 }}>
+          <div style={{ marginTop:3, fontSize:11.5, color:'var(--text-dim)', lineHeight:1.5 }}>
             {loadState === 'auth' ? 'Deine Messdaten bleiben erhalten. Melde dich erneut an, um genau hier weiterzumachen.'
               : loadState === 'error' ? 'Deine Messdaten bleiben erhalten. Lade nur die Empfehlung erneut.'
               : 'BrainGuide prüft deine letzte verlässliche Messung.'}
@@ -375,13 +375,13 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
       </div>
       {loadState === 'auth' && (
         <button type="button" onClick={onSessionExpired}
-          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'#bfdbfe' }}>
+          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'var(--accent)' }}>
           ERNEUT ANMELDEN
         </button>
       )}
       {loadState === 'error' && (
         <button type="button" onClick={() => setCoachRevision((value) => value + 1)}
-          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'#bfdbfe' }}>
+          style={{ ...cta, marginTop:12, background:'rgba(59,130,246,0.12)', color:'var(--accent)' }}>
           ERNEUT LADEN
         </button>
       )}
@@ -572,12 +572,12 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
       {/* Secondary simulation history. Filled = passed rungs (level-derived, server-decided),
           ring = the current training simulation, dim = still locked. */}
       {curLevel != null && (
-        <details dir="ltr" style={{ margin: '10px 0 2px', textAlign: 'left', color: '#94a3b8' }}>
+        <details dir="ltr" style={{ margin: '10px 0 2px', textAlign: 'left', color: 'var(--text-dim)' }}>
           <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 12 }}>
             Deine Interview-Simulationen
           </summary>
           <div style={{ paddingTop: 4 }}>
-          <div style={{ fontSize: 10, color: '#94a3b8', letterSpacing: '0.06em', marginBottom: 6 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.06em', marginBottom: 6 }}>
             {salmaLine('pipeline_label', lang)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
@@ -588,7 +588,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
                 <div key={b.id} style={{ display: 'flex', alignItems: 'center', flex: i < LADDER.length - 1 ? 1 : 'none' }}>
                   <div title={`${b.name} · ${b.tier}`} style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9.5, fontWeight: 800,
-                    color: passed ? '#04110b' : current ? '#dbeafe' : '#475569',
+                    color: passed ? '#04110b' : current ? 'var(--accent)' : '#475569',
                     background: passed ? 'linear-gradient(135deg,var(--accent),var(--accent-2))'
                       : current ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.04)',
                     border: current ? '2px solid rgba(59,130,246,0.85)' : '1px solid rgba(255,255,255,0.12)',
@@ -603,7 +603,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
             })}
           </div>
           {pipeline?.nextBoss?.name && (
-            <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.55, marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.55, marginTop: 6 }}>
               {salmaLine('pipeline_next', lang, { name: pipeline.nextBoss.name, tier: pipeline.nextBoss.tier || '' })}
             </div>
           )}

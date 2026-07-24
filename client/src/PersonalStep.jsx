@@ -217,7 +217,7 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
                 );
               })}
               {a && (
-                <div style={{ marginTop: 7, fontSize: 11.5, lineHeight: 1.6, color: '#e2e8f0', ...rtl }}>
+                <div style={{ marginTop: 7, fontSize: 11.5, lineHeight: 1.6, color: 'var(--text)', ...rtl }}>
                   {a.correct ? '✓ ' : ''}{ar && a.why_ar ? a.why_ar : a.why_de}
                   {!a.correct && <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 10.5 }}>Nicht gezählt — gleich nochmal im Sprechen.{/* OWNER-AR slot */}</div>}
                 </div>

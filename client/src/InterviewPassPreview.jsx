@@ -56,14 +56,14 @@ function errorCopy(error) {
 const shellStyle = {
   width: '100%', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box',
   border: '1px solid rgba(96,165,250,0.28)', borderRadius: 18,
-  background: 'rgba(4,10,20,0.94)', boxShadow: '0 28px 70px rgba(0,0,0,0.35)',
+  background: 'var(--surface)', boxShadow: '0 28px 70px rgba(14,19,32,0.16)',
   color: 'var(--text, #e2e8f0)', overflow: 'hidden',
 };
 
 const fieldStyle = {
   width: '100%', minHeight: 48, boxSizing: 'border-box', borderRadius: 11,
   border: '1px solid var(--line-strong, rgba(148,163,184,0.32))',
-  background: 'rgba(2,6,16,0.82)', color: 'var(--text, #e2e8f0)',
+  background: 'var(--surface)', color: 'var(--text, #e2e8f0)',
   font: 'inherit', fontSize: 14, padding: '11px 12px',
 };
 
@@ -271,11 +271,11 @@ export function InterviewPassPreview({
       <style>{`
         .ipx *{box-sizing:border-box}.ipx button:focus-visible,.ipx textarea:focus-visible,.ipx select:focus-visible,.ipx input:focus-visible{outline:3px solid rgba(96,165,250,.85);outline-offset:3px}.ipx button:disabled{cursor:not-allowed;opacity:.48}.ipx-choice{transition:border-color 140ms ease,background 140ms ease}.ipx-choice:hover{border-color:rgba(96,165,250,.58)!important}.ipx-result{animation:ipx-rise 240ms ease-out both}@keyframes ipx-rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@media(max-width:560px){.ipx-body{padding:18px!important}.ipx-grid{grid-template-columns:1fr!important}.ipx-actions{align-items:stretch!important;flex-direction:column!important}.ipx-actions>button{width:100%}.ipx-step-row{gap:5px!important}.ipx-step-row li{padding:8px 6px!important}}@media(prefers-reduced-motion:reduce){.ipx *{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
-      <header style={{ padding: '20px 22px 17px', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'rgba(7,15,28,0.88)' }}>
+      <header style={{ padding: '20px 22px 17px', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface)' }}>
         <div style={{ fontFamily: 'var(--font-display, inherit)', fontSize: 10, fontWeight: 850, letterSpacing: '0.17em', color: 'var(--accent, #3b82f6)' }}>
           INTERVIEW X-RAY
         </div>
-        <h2 id="ipx-title" style={{ margin: '8px 0 0', fontFamily: 'var(--font-display, inherit)', fontSize: 'clamp(22px,4vw,31px)', lineHeight: 1.2, color: '#f8fafc' }}>
+        <h2 id="ipx-title" style={{ margin: '8px 0 0', fontFamily: 'var(--font-display, inherit)', fontSize: 'clamp(22px,4vw,31px)', lineHeight: 1.2, color: 'var(--text)' }}>
           Dein Interview Pass vor der Anmeldung
         </h2>
         <div dir="rtl" style={{ marginTop: 7, color: 'var(--text-dim, #94a3b8)', fontSize: 14, lineHeight: 1.65 }}>
@@ -393,7 +393,7 @@ export function InterviewPassPreview({
           <div ref={resultRef} tabIndex={-1} className="ipx-result" style={{ marginTop: 20 }}>
             <div style={{ padding: '14px 15px', borderRadius: 12, border: '1px solid rgba(96,165,250,0.38)', background: 'rgba(59,130,246,0.085)' }}>
               <div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 11, letterSpacing: '0.12em', fontWeight: 850 }}>PRIVATE VORSCHAU</div>
-              <div style={{ marginTop: 6, color: '#f8fafc', fontSize: 18, fontWeight: 850 }}>{preview.roleTitle || optionLabel(ROLE_OPTIONS, roleType)?.de || 'Deine Zielrolle'}</div>
+              <div style={{ marginTop: 6, color: 'var(--text)', fontSize: 18, fontWeight: 850 }}>{preview.roleTitle || optionLabel(ROLE_OPTIONS, roleType)?.de || 'Deine Zielrolle'}</div>
               <div dir="rtl" style={{ marginTop: 4, color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>معاينة تدريبية خاصة بك وليست أسئلة مؤكدة من صاحب العمل</div>
             </div>
 

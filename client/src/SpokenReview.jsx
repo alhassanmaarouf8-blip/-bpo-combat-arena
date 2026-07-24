@@ -119,7 +119,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
-      color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
+      color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
@@ -135,7 +135,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -147,10 +147,10 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
 
   if (phase === 'empty' && prescription?.missingTarget) return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
-      <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+      <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>
         {'Damit du keinen falschen Satz trainierst, wartet dieser Schwerpunkt auf ein sicher gemessenes Beispiel.'}
       </div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.6 }}>
         Deine nächste Messung liefert den passenden Übungssatz.
       </div>
       <button onClick={onClose} style={{ ...actionBtn, marginTop: 18 }}>{'Schlie\u00dfen'}</button>
@@ -159,10 +159,10 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   if (phase === 'empty' && prescription?.targeted && prescription?.completed) return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 40 }}>✓</div>
-      <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+      <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>
         Deine verordnete Wiederholung ist vollständig abgeschlossen.
       </div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.6 }}>
         BrainGuide zeigt dir, wann der passende Live-Retest fällig ist.
       </div>
       <button onClick={onClose} style={{ ...actionBtn, marginTop: 18 }}>Schließen</button>
@@ -171,15 +171,15 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   if (phase === 'empty') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 40 }}></div>
-      <div style={{ fontSize: 15, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Nichts fällig — alles aufgeholt!', 'مفيش حاجة مستحقة — كله متعمل!')}</div>
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>{T(lang, 'Mach ein Interview — neue Fehler werden hier zum Laut-Üben.', 'اعمل مقابلة — الأخطاء الجديدة هتظهر هنا علشان تتمرن عليها بصوتك.')}</div>
+      <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Nichts fällig — alles aufgeholt!', 'مفيش حاجة مستحقة — كله متعمل!')}</div>
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.6 }}>{T(lang, 'Mach ein Interview — neue Fehler werden hier zum Laut-Üben.', 'اعمل مقابلة — الأخطاء الجديدة هتظهر هنا علشان تتمرن عليها بصوتك.')}</div>
       <button onClick={onClose} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Fertig', 'تمام')}</button>
     </div></>);
 
   if (phase === 'done') return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '26px 0' }}>
       <div style={{ fontSize: 40 }}>✅</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>
+      <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>
         {prescription?.targeted && prescription?.completed
           ? 'Verordnete Wiederholung abgeschlossen.'
           : T(lang, 'Laut geübt — so wird es automatisch.', 'اتمرنت بصوتك — كده بيبقى تلقائي.')}
@@ -194,7 +194,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   return shell(<>
     {header}
     <DrillIntro drillKey={item?.type === 'grammar' ? 'spokenreview' : 'spokenreview_phrase'} />
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
+    <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8 }}>
       {item?.type === 'grammar' ? T(lang, 'DEINE FEHLER', 'أخطاؤك') : 'CALL-CENTER-SÄTZE'/* OWNER-AR slot */} · {idx + 1} / {items.length}
     </div>
     {doseProgress?.targeted && !doseProgress.missingTarget && (
@@ -208,12 +208,12 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'rgba(255,255,255,0.08)' }} />))}
     </div>
 
-    <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.25)' }}>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.25)' }}>
       {item?.type === 'grammar' ? (
         <>
           {/* Stage A withholds the rule chip (server sends rule:'') — noticing is the exercise. */}
           {item?.rule && <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item.rule}</div>}
-          <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
+          <div style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
           {item?.wrong && (
             <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
               {/* Clarified 2026-07-02 (owner: "just a crossed-out line that doesn't represent
@@ -222,9 +222,9 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
                   Explaining that explicitly closes the "why am I looking at this" gap. */}
               {/* German only — OWNER-AR slot (never authoring Arabic here); falls back to German
                   under the Arabic toggle until the owner writes the masri translation. */}
-              <span style={{ fontSize: 9, color: '#64748b' }}>DAS HAST DU FRÜHER FALSCH GESAGT (durchgestrichen):</span><br />
+              <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>DAS HAST DU FRÜHER FALSCH GESAGT (durchgestrichen):</span><br />
               <span style={{ textDecoration: 'line-through', opacity: 0.85 }}>{item.wrong}</span>
-              <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 6 }}>
+              <div style={{ fontSize: 10.5, color: 'var(--text-dim)', marginTop: 6 }}>
                 → Sag jetzt die richtige Version aus dem Gedächtnis — nicht ablesen, sondern erinnern.
               </div>
             </div>
@@ -237,8 +237,8 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
               is nothing to read off — the task is to SAY it in German from the meaning. German-only
               labels; Arabic is an OWNER-AR slot (never authored here). */}
           <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 8 }}>AUF DEUTSCH SAGEN</div>
-          <div style={{ fontSize: 9, color: '#64748b', letterSpacing: '0.1em', marginBottom: 4 }}>BEDEUTUNG (ENGLISCH):</div>
-          <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.5 }}>{item?.prompt}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-faint)', letterSpacing: '0.1em', marginBottom: 4 }}>BEDEUTUNG (ENGLISCH):</div>
+          <div style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.5 }}>{item?.prompt}</div>
         </>
       )}
     </div>
@@ -255,7 +255,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
           <button onClick={stopRec} style={{ ...actionBtn, marginTop: 8,  }}>⏹ {T(lang, 'Fertig', 'خلصت')}</button>
         </>
       ) : busy ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>{T(lang, 'Wird geprüft…', 'بصحّح…')}</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: 14 }}>{T(lang, 'Wird geprüft…', 'بصحّح…')}</div>
       ) : result ? (
         <>
           {result.retry ? (
@@ -266,8 +266,8 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
                 <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
                   {result.correct ? T(lang, '✓ Richtig gesagt!', '✓ قلتها صح!') : T(lang, '✗ Noch nicht ganz', '✗ لسه مش مظبوط')}
                 </div>
-                <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>{T(lang, 'Richtig: ', 'الصح: ')}<b style={{ color: 'var(--good)' }}>{result.expected}</b></div>
-                {result.heard && <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 6 }}>{T(lang, 'Gehört: ', 'اتسمع: ')}„{result.heard}"</div>}
+                <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 6 }}>{T(lang, 'Richtig: ', 'الصح: ')}<b style={{ color: 'var(--good)' }}>{result.expected}</b></div>
+                {result.heard && <div style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 6 }}>{T(lang, 'Gehört: ', 'اتسمع: ')}„{result.heard}"</div>}
               </div>
             </div>
           )}
@@ -287,7 +287,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       ) : (
         <>
           <button onClick={startRec} style={{ ...actionBtn, fontSize: 14 }}>● {T(lang, 'Korrekt sagen — aufnehmen', 'سجّلها صح')}</button>
-          <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>{T(lang, 'Sag den ganzen, korrekten Satz laut.', 'قول الجملة الصح كلها بصوت عالي.')}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 10, lineHeight: 1.5 }}>{T(lang, 'Sag den ganzen, korrekten Satz laut.', 'قول الجملة الصح كلها بصوت عالي.')}</div>
         </>
       )}
     </div>

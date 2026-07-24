@@ -181,7 +181,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
-      color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
+      color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
@@ -199,10 +199,10 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   // ── INTRO ──
   if (phase === 'intro') return shell(<>
     {header}
-    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#f8fafc', margin: '8px 0' }}>
+    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)', margin: '8px 0' }}>
       {T(lang, 'Kostenlose Einstufung', 'تقييم مستواك المجاني')}
     </h2>
-    <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.7 }}>
+    <p style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.7 }}>
       {/* Adaptive: honest count (3–7, server-routed). OWNER-AR pending for the adaptive line —
           until filled, ar-mode keeps the shipped sentence (its "5" is the one known mismatch). */}
       {firstAQ
@@ -213,7 +213,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
           '5 kurze Fragen auf Deutsch. Antworte per Stimme oder Text. Am Ende bekommst du eine ehrliche Einschätzung deines Niveaus und deiner größten Blocker. Dauert ~5 Minuten.',
           '٥ أسئلة قصيرة بالألماني. جاوب بصوتك أو بالكتابة. في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
     </p>
-    <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
+    <div dir="rtl" style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>
       {T(lang, 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.', 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.')}
     </div>
     <button onClick={begin} style={{ ...primaryBtn, marginTop: 18 }}>
@@ -227,8 +227,8 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
       <div style={{ width: 60, height: 60, margin: '0 auto 18px', borderRadius: '50%',
         border: '3px solid rgba(59,130,246,0.16)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
-      <div style={{ fontSize: 14, color: '#f8fafc' }}>{T(lang, 'Deine Antworten werden ausgewertet…', 'بنحلّل إجاباتك…')}</div>
-      <div dir="rtl" style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>استنى لحظة</div>
+      <div style={{ fontSize: 14, color: 'var(--text)' }}>{T(lang, 'Deine Antworten werden ausgewertet…', 'بنحلّل إجاباتك…')}</div>
+      <div dir="rtl" style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>استنى لحظة</div>
     </div>
   </>);
 
@@ -254,7 +254,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   return shell(<>
     {header}
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-      <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
+      <span style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
         {T(lang, 'FRAGE', 'سؤال')} {idx + 1} {adaptive ? T(lang, '· max. 7', '· الأقصى ٧') : `/ ${QUESTIONS.length}`}
       </span>
       <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
@@ -268,10 +268,10 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     </div>
 
     {/* the German prompt + Arabic translation so they understand the task */}
-    <div style={{ padding: '13px 14px', borderRadius: 12, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(59,130,246,0.22)' }}>
-      <div style={{ fontSize: 15, color: '#f8fafc', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{q.de}</div>
+    <div style={{ padding: '13px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.22)' }}>
+      <div style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{q.de}</div>
       {/* New adaptive questions ship with empty OWNER-AR slots — render nothing, never a blank row. */}
-      {q.ar ? <div dir="rtl" style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 7, lineHeight: 1.6 }}>{q.ar}</div> : null}
+      {q.ar ? <div dir="rtl" style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 7, lineHeight: 1.6 }}>{q.ar}</div> : null}
     </div>
 
     {err && (
@@ -287,13 +287,13 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: seconds >= MAX_SEC - 10 ? 'var(--action)' : 'var(--accent)', fontVariantNumeric: 'tabular-nums' }}>
             00:{String(seconds).padStart(2, '0')}
           </div>
-          <div style={{ fontSize: 10, color: '#64748b', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
           <button onClick={stopRec} style={{ ...primaryBtn, background: 'var(--bad)', boxShadow: 'none', color: '#081019' }}>
             ⏹ {T(lang, 'Aufnahme stoppen', 'إيقاف التسجيل')}
           </button>
         </>
       ) : busy ? (
-        <div style={{ color: '#94a3b8', fontSize: 13, padding: 14 }}>{T(lang, 'Wird verarbeitet…', 'بنحوّل صوتك لنص…')}</div>
+        <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: 14 }}>{T(lang, 'Wird verarbeitet…', 'بنحوّل صوتك لنص…')}</div>
       ) : answer ? (
         <>
           <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' }}>
@@ -302,8 +302,8 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
               aria-label={T(lang, 'Erkannten Text korrigieren', 'صحّح النص اللي اتسمع')}
               onChange={(e) => setAns((prev) => { const n = [...prev]; n[idx] = { ...n[idx], transcript: e.target.value, transcriptCorrected: true }; return n; })}
               style={{ width:'100%', minHeight:72, boxSizing:'border-box', resize:'vertical', padding:9, borderRadius:8,
-                background:'rgba(0,0,0,0.25)', border:'1px solid rgba(148,163,184,0.3)', color:'#e2e8f0', fontSize:13, lineHeight:1.5 }} />
-            <div style={{ fontSize:10, color:'#94a3b8', marginTop:5, lineHeight:1.45 }}>
+                background: 'var(--surface)', border:'1px solid rgba(148,163,184,0.3)', color:'var(--text)', fontSize:13, lineHeight:1.5 }} />
+            <div style={{ fontSize:10, color:'var(--text-dim)', marginTop:5, lineHeight:1.45 }}>
               {T(lang, 'Korrigiere nur Erkennungsfehler — formuliere deine Antwort nicht neu.', 'صحّح بس أخطاء السماع — ما تعيدش صياغة إجابتك.')}
             </div>
           </div>
@@ -320,7 +320,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       ) : (
         <>
           <button onClick={startRec} style={{ ...primaryBtn, fontSize: 14 }}>● {T(lang, 'Aufnahme starten', 'ابدأ التسجيل')}</button>
-          <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 10.5, color: 'var(--text-faint)', marginTop: 10, lineHeight: 1.5 }}>
             {T(lang, 'Sprich deine Antwort — oder tippe sie.', 'رُد بصوتك — أو اكتب إجابتك.')}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'stretch' }}>
@@ -328,7 +328,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
               lang="de" dir="ltr" aria-label={T(lang, 'Antwort auf Deutsch tippen', 'اكتب إجابتك بالألماني')}
               placeholder={T(lang, 'Antwort auf Deutsch tippen…', 'اكتب إجابتك بالألماني…')}
               style={{ flex: 1, minHeight: 72, resize: 'vertical', padding: 10, borderRadius: 9,
-                border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.04)', color: '#e2e8f0', fontSize: 14 }} />
+                border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(255,255,255,0.04)', color: 'var(--text)', fontSize: 14 }} />
             <button onClick={saveTyped} disabled={typed.trim().length < 2}
               style={{ ...ghostBtn, minWidth: 82, opacity: typed.trim().length < 2 ? 0.45 : 1 }}>
               {T(lang, 'Speichern', 'حفظ')}
@@ -346,12 +346,12 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
   return (
     <div>
       <div style={{ textAlign: 'center', marginBottom: 10 }}>
-        <div style={{ fontSize: 12, color: '#94a3b8' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
         <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 600, color: 'var(--accent)', textShadow: '0 0 22px rgba(59,130,246,0.5)' }}>~{lvl}</div>
-        <div style={{ fontSize: 10, color: '#64748b' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
       </div>
 
-      <div style={{ fontSize: 10, color: '#64748b', textAlign: 'center', lineHeight: 1.5, marginBottom: 16 }}>
+      <div style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.5, marginBottom: 16 }}>
         {T(lang, 'Eine ehrliche Schätzung als Startpunkt — kein offizielles Zertifikat.', 'ده تقدير تقريبي عشان تعرف تبدأ منين — مش شهادة رسمية.')}
         <br />{T(lang, 'Aussprache und Sprechtempo wurden in dieser Textauswertung nicht bewertet.', 'النطق وسرعة الكلام ما اتقاسوش في التقييم النصي ده.')}
       </div>
@@ -359,7 +359,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
       {Array.isArray(result.dials) && result.dials.length > 0 && (
         <Section title={T(lang, 'Dein Profil — sechs Messwerte', 'ملفك — ست قياسات')} color="var(--accent)">
           {result.dials.map((d) => <DialRow key={d.key} d={d} lang={lang} />)}
-          <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.5, marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.5, marginTop: 4 }}>
             {T(lang, 'Jeder Wert ist direkt aus deinen Antworten gemessen — was wir nicht sicher messen können, lassen wir offen.',
               'كل قيمة متقاسة من إجاباتك مباشرة — واللي مش نقدر نقيسه بدقة بنسيبه مفتوح.')}
           </div>
@@ -369,7 +369,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
       {/* Honest-when-thin: on a short/low-confidence sample we deliberately do NOT list many
           weaknesses (that would be invented). Say so, and point to the real read: a full interview. */}
       {result.measured?.evidenceThin && (
-        <div style={{ fontSize: 11.5, color: '#cbd5e1', textAlign: 'center', lineHeight: 1.55, marginBottom: 16,
+        <div style={{ fontSize: 11.5, color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.55, marginBottom: 16,
           padding: '10px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
           {T(lang,
             'Das waren noch wenige Wörter — für ein genaues Bild reicht das nicht. Wir raten hier bewusst nichts zusammen. Ein vollständiges Interview gibt dir die echte Auswertung.',
@@ -382,9 +382,9 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
           {result.blockers.map((b, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 12.5, color: '#fca5a5', fontWeight: 700 }}>{b.rule}</div>
-              <div style={{ fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.5, marginTop: 2 }}>{T(lang, b.explanation_de, b.explanation_ar)}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.5, marginTop: 2 }}>{T(lang, b.explanation_de, b.explanation_ar)}</div>
               {b.example_from_their_own_answer && (
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, fontStyle: 'italic', overflowWrap: 'anywhere' }}>„{b.example_from_their_own_answer}"</div>
+                <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, fontStyle: 'italic', overflowWrap: 'anywhere' }}>„{b.example_from_their_own_answer}"</div>
               )}
             </div>
           ))}
@@ -401,7 +401,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
 
       {(result.recommendedFocus?.de || result.recommendedFocus?.ar) && (
         <Section title={T(lang, 'Fang hier an', 'ابدأ من هنا')} color="var(--accent)">
-          <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.55 }}>{T(lang, result.recommendedFocus.de, result.recommendedFocus.ar)}</div>
+          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>{T(lang, result.recommendedFocus.de, result.recommendedFocus.ar)}</div>
         </Section>
       )}
 
@@ -416,7 +416,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
 
 function Section({ title, color, children }) {
   return (
-    <div style={{ borderRadius: 10, padding: '11px 13px', marginBottom: 10, background: 'rgba(0,0,0,0.32)', border: `1px solid ${color}33` }}>
+    <div style={{ borderRadius: 10, padding: '11px 13px', marginBottom: 10, background: 'var(--surface)', border: `1px solid ${color}33` }}>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.12em', color, marginBottom: 8 }}>{title}</div>
       {children}
     </div>
@@ -458,7 +458,7 @@ function DialRow({ d, lang }) {
   return (
     <div style={{ marginBottom: 9 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 12, color: '#e2e8f0' }}>{label}</span>
+        <span style={{ fontSize: 12, color: 'var(--text)' }}>{label}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {d.measurable && (
             <span style={{ fontSize: 11, color: 'var(--accent-2)' }}>{copy.bands[d.level]}</span>
@@ -471,7 +471,7 @@ function DialRow({ d, lang }) {
           </span>
         </span>
       </div>
-      <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, lineHeight: 1.45 }}>
+      <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2, lineHeight: 1.45 }}>
         {d.measurable
           ? `${dialMetricLine(d)} · basiert auf ${d.evidence?.answers ?? 0} Antworten`
           : (reason ? (lang === 'ar' && reason.ar ? reason.ar : reason.de) : '')}

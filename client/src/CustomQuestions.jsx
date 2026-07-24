@@ -128,7 +128,7 @@ export default function CustomQuestions({ token, apiUrl, lang = 'de', onClose, o
   const label = { fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 800, letterSpacing: '0.14em', color: 'var(--accent)' };
   const thumb = { width: 54, height: 54, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line-strong)' };
   const qInput = { flex: 1, minHeight: 44, padding: '10px 12px', borderRadius: 8, resize: 'vertical',
-    background: 'rgba(2,6,16,0.7)', color: 'var(--text)', border: '1px solid var(--line-strong)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.4 };
+    background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--line-strong)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.4 };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',

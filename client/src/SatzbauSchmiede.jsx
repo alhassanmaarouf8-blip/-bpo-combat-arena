@@ -156,7 +156,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
   const shell = (children) => (
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
       background: 'radial-gradient(120% 90% at 50% 12%, var(--bg-2) 0%, var(--bg-0) 65%)',
-      color: '#e2e8f0', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
+      color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
   );
@@ -171,7 +171,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: '#cbd5e1', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -193,8 +193,8 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     {header}
     <div style={{ textAlign: 'center', padding: '26px 0' }}>
       <div style={{ fontSize: 40 }}>✅</div>
-      <div style={{ fontSize: 16, color: '#f8fafc', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Geschafft!', '')}</div>{/* OWNER-AR slot */}
-      <div style={{ fontSize: 12.5, color: '#94a3b8', marginTop: 6, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 16, color: 'var(--text)', fontWeight: 700, marginTop: 8 }}>{T(lang, 'Geschafft!', '')}</div>{/* OWNER-AR slot */}
+      <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 6, lineHeight: 1.6 }}>
         {T(lang, 'Das Verb am Satzende sitzt jetzt schneller im Kopf.', '')}{/* OWNER-AR slot */}
       </div>
       <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Neue Runde', 'جولة جديدة')} ▸</button>
@@ -206,7 +206,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
   return shell(<>
     {header}
     <DrillIntro drillKey="satzbau" />
-    <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8,
+    <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', marginBottom: 8,
       display: 'flex', justifyContent: 'space-between' }}>
       <span>{T(lang, 'SATZ', '')} {idx + 1} / {items.length} · {item?.connector}</span>{/* OWNER-AR slot */}
       <span style={{ color: seconds <= 5 ? 'var(--action)' : 'var(--text-faint)' }}>{seconds}s</span>
@@ -219,14 +219,14 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     </div>
 
     {/* Communicative cue — what the sentence must accomplish */}
-    <div style={{ fontSize: 13, color: '#e2e8f0', lineHeight: 1.5, marginBottom: 12 }}>
+    <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, marginBottom: 12 }}>
       {T(lang, item?.cue_de, item?.cue_ar)}
     </div>
 
     {/* Assembled sentence-so-far */}
-    <div style={{ minHeight: 56, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.35)',
+    <div style={{ minHeight: 56, padding: '10px 12px', borderRadius: 10, background: 'var(--surface)',
       border: '1px solid rgba(59,130,246,0.25)', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-      {chosen.length === 0 && <span style={{ fontSize: 12, color: '#64748b' }}>{T(lang, 'Tippe die Wörter in der richtigen Reihenfolge…', '')}</span>}{/* OWNER-AR slot */}
+      {chosen.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{T(lang, 'Tippe die Wörter in der richtigen Reihenfolge…', '')}</span>}{/* OWNER-AR slot */}
       {chosen.map((i, pos) => (
         <span key={pos} style={{ padding: '6px 10px', borderRadius: 7, fontSize: 13.5,
           background: 'rgba(59,130,246,0.16)', border: '1px solid rgba(59,130,246,0.4)', color: '#f1f5f9' }}>
@@ -268,7 +268,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
             {result.correct ? T(lang, '✓ Richtige Reihenfolge!', '') : T(lang, `✗ ${result.matchedCount}/${result.total} richtig platziert`, '')}{/* OWNER-AR slots */}
           </div>
           {!result.correct && (
-            <div style={{ fontSize: 13, color: '#e2e8f0', marginTop: 6 }}>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 6 }}>
               {T(lang, 'Richtig war: ', '')}<b style={{ color: 'var(--action)' }}>{result.target}</b>{/* OWNER-AR slot */}
             </div>
           )}
