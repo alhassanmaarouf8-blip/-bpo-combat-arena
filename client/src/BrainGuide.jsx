@@ -477,9 +477,20 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
           Hidden entirely when the graph reports no steps (audit S14: a "0/0" line is a
           screenshot-able zero-state that reads as broken). */}
       <div className="brain-guide__mission">
+        {/* PREMIUM PASS (owner order 2026-07-24: "extremely simple to navigate", "extremely
+            premium"). This screen carried NINE uppercase micro-labels — one on the masthead, one on
+            the mission, one above the title, one on the dose, one on the confidence chip, three
+            numbered ones on the briefing cards, and one on the north star. Labelling every region
+            is the loudest machine-made tell there is: expensive interfaces say what a thing is with
+            position, size and space, and a label is a confession that the layout failed to
+            communicate. The kicker above the title was pure narration — the title already IS the
+            next step — so it is deleted, not restyled.
+            The confidence chip STAYS: it is the honest strength-of-evidence signal, not decoration.
+            NOTE: a ratchet in oneNextActionUi.test.mjs forbids the retired label strings, so this
+            comment deliberately describes them instead of quoting them (see god-verification A2 —
+            a source-scanning guard is defeated by your own prose about the thing it forbids). */}
         <div className="brain-guide__mission-kicker">
           <span className="brain-guide__pulse" aria-hidden="true" />
-          DEIN NÄCHSTER SCHRITT
           <span className={`brain-guide__confidence brain-guide__confidence--${d.confidence || 'low'}`}>
             {d.confidence === 'high' && d.state === 'POST_FIGHT' ? 'WIEDERHOLT GEMESSEN'
               : d.confidence === 'low' ? 'ERSTE MESSUNG' : 'DEIN PLAN'}
@@ -490,7 +501,7 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
             capped at 20px while nine uppercase micro-labels competed with it. The stylesheet was
             right; the inline override was the bug. Removed, so the task title reads as the title. */}
         <h2 id="brain-guide-title" className="brain-guide__title" style={{ margin: '4px 0 6px' }}>{primaryTitle}</h2>
-        <p className="brain-guide__dose"><span>DEIN AUFTRAG</span>{primaryDose}</p>
+        <p className="brain-guide__dose">{primaryDose}</p>
         {showCta && (
           <button className="brain-guide__cta" onClick={onPrimary}>
             <span>{primaryCta}</span><span aria-hidden="true">→</span>
@@ -509,21 +520,19 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
             <span style={{ textDecoration: 'underline', textUnderlineOffset: 3 }}>Interview direkt starten</span>{/* OWNER-AR slot */}
           </button>
         )}
-        <div className="brain-guide__briefing" aria-label="Dein persönliches Missionsbriefing">
-          <article className="brain-guide__briefing-card brain-guide__briefing-card--why">
-            <span>01 · WARUM JETZT</span><strong>{reason}</strong>
-          </article>
-          <article className="brain-guide__briefing-card brain-guide__briefing-card--finish">
-            <span>02 · FERTIG, WENN</span><strong>{brief.done}</strong>
-          </article>
-          <article className="brain-guide__briefing-card brain-guide__briefing-card--next">
-            <span>03 · DANACH</span><strong>{brief.after}</strong>
-          </article>
-        </div>
-        <div className="brain-guide__north-star">
-          <span className="brain-guide__north-star-mark" aria-hidden="true">◎</span>
-          <span><small>DAS GRÖSSERE ZIEL</small><strong>{biggerGoal(d)}</strong></span>
-          <em>Interne Simulation · keine Arbeitgeberentscheidung</em>
+        {/* ORIENTATION — still ALWAYS VISIBLE (that contract is kept, see oneNextActionUi.test),
+            but as three quiet sentences instead of three numbered, individually-labelled cards
+            competing with the action above them. Same information, a third of the ink, and it
+            finally reads like a person wrote it. Prose connectors ("Fertig, wenn") are not the
+            problem — UPPERCASE PILLS ON EVERY BOX were. */}
+        <div className="brain-guide__orient" aria-label="Dein persönliches Missionsbriefing">
+          <p>{reason}</p>
+          <p><span>Fertig, wenn</span> {brief.done}</p>
+          <p><span>Danach</span> {brief.after}</p>
+          <p className="brain-guide__orient-goal">
+            {biggerGoal(d)}
+            <em>Interne Simulation · keine Arbeitgeberentscheidung</em>
+          </p>
         </div>
       </div>
 

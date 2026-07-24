@@ -6,20 +6,38 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('BrainGuide keeps one visible action and an always-visible orientation contract', async () => {
   const source = await read('client/src/BrainGuide.jsx');
-  assert.match(source, /DEIN NÄCHSTER SCHRITT/u);
+  // CONTRACT UNCHANGED, PRESENTATION CHANGED (owner order 2026-07-24: "extremely simple to
+  // navigate", "extremely premium"). What this test has always protected is that the learner can
+  // see, WITHOUT tapping anything, why this step / what counts as done / what comes next. That is
+  // still enforced below. What it used to ALSO pin was the specific chrome — the uppercase kicker
+  // "DEIN NÄCHSTER SCHRITT" and three numbered, individually-labelled cards. Nine uppercase
+  // micro-labels on one screen is what made the app read as machine-made, so the labels are gone
+  // and the same three facts are now quiet prose. The anti-collapse guard below is deliberately
+  // KEPT: hiding orientation behind a disclosure is still forbidden.
   assert.match(source, /\{primaryTitle\}/u);
   assert.match(source, /\{primaryDose\}/u);
   // Resume-aware primary (owner 2026-07-23): an UNFINISHED interview exercise set supersedes the drill
   // as the next step — but when NOT resuming, title/dose still come from the server brief, never fabricated.
   assert.match(source, /primaryTitle\s*=\s*resuming\s*\?[^;]*:\s*brief\.title/u);
   assert.match(source, /primaryDose\s*=\s*resuming\s*\?[^;]*:\s*brief\.dose/u);
-  assert.match(source, /01 · WARUM JETZT/u);
-  assert.match(source, /02 · FERTIG, WENN/u);
-  assert.match(source, /03 · DANACH/u);
+  // The three orientation facts must still be RENDERED, and rendered unconditionally — no state,
+  // no toggle, no `showX &&` in front of them.
+  assert.match(source, /<div className="brain-guide__orient"/u);
+  assert.match(source, /<p>\{reason\}<\/p>/u);
   assert.match(source, /\{brief\.done\}/u);
   assert.match(source, /\{brief\.after\}/u);
-  assert.match(source, /DAS GRÖSSERE ZIEL/u);
+  assert.match(source, /\{biggerGoal\(d\)\}/u);
+  assert.match(source, /Interne Simulation · keine Arbeitgeberentscheidung/u);
+  // ANTI-COLLAPSE, KEPT FROM THE ORIGINAL CONTRACT: orientation may be made quieter, never hidden.
+  // A previous session tried collapsing it behind a disclosure and it was rejected; that verdict
+  // stands, and restyling is not a licence to revisit it.
   assert.doesNotMatch(source, /<details className="brain-guide__why"/u);
+  assert.doesNotMatch(source, /<details[^>]*brain-guide__orient/u);
+  // And the label cull must not quietly reverse: these were the machine-made tell.
+  for (const label of ['01 · WARUM JETZT', '02 · FERTIG, WENN', '03 · DANACH', 'DAS GRÖSSERE ZIEL']) {
+    assert.equal(source.includes(label), false,
+      `uppercase micro-label "${label}" is back — nine of these on one screen is what made the UI read as AI-made`);
+  }
   assert.match(source, /className="brain-guide__cta"/u);
   assert.equal((source.match(/className="brain-guide__cta"/gu) || []).length, 1,
     'the guide must render exactly one primary action implementation');

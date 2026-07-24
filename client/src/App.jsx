@@ -944,6 +944,35 @@ const GLOBAL_CSS = `
     --grad-ring:conic-gradient(from 220deg,#3b82f6,#60a5fa,transparent 70%);
     --ring-focus:0 0 0 1px var(--accent), 0 0 0 4px rgba(59,130,246,0.18);
     --sp-6:32px; --sp-7:48px;
+    /* ── PREMIUM SURFACE LAYER (2026-07-24, owner: "extremely premium, extremely simple").
+       ONE focal glass surface per screen — the thing the user is meant to act on. Everything
+       else stays opaque and quiet. Glass reads as expensive only when it is RARE and has a real
+       backdrop behind it (this app has the ambient beams), and only when the lit top edge is
+       present — that inset highlight is what sells it as a physical pane rather than a grey box.
+       Nested blurs are banned: they stack GPU cost and break on Android WebView, which is where
+       most of this audience is. One layer, per stacking context. */
+    --glass-bg:        rgba(255,255,255,0.055);
+    --glass-bg-strong: rgba(255,255,255,0.085);
+    --glass-border:    rgba(255,255,255,0.13);
+    --glass-highlight: rgba(255,255,255,0.22);
+    --glass-shadow:    0 20px 60px -18px rgba(0,0,0,0.65);
+    --glass-blur:      18px;
+    /* Type scale with real STEPS. The old scale was flat (everything 11-13px + one big title),
+       so the eye had no path through the screen. Rank is what makes a layout read as designed. */
+    --fs-display:clamp(28px,7.5vw,40px); --fs-lead:17px; --fs-sub:14.5px;
+  }
+  /* The single premium surface. Used sparingly — see the note above. */
+  .surface-premium {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-xl);
+    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .surface-premium {
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      backdrop-filter: blur(var(--glass-blur));
+    }
   }
 
   /* Respect the OS "reduce motion" setting — all juice becomes instant. */
@@ -6696,12 +6725,17 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 Purely additive — it never touches the protected interview control below. Orange belongs
                 to the interview (see 6421), so this header is neutral/blue. Level is real (localStorage /
                 assessment); status = "In Prüfung" (the file is under review until einstellungsreif). */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-              <div style={{ fontFamily:'var(--font-display)', fontSize:9.5, fontWeight:800, letterSpacing:'0.16em',
-                textTransform:'uppercase', color:'var(--text-faint)' }}>Deine Akte{/* OWNER-AR slot */}</div>
-              <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontFamily:'var(--font-display)', fontSize:9.5,
-                fontWeight:700, letterSpacing:'0.08em', color:'var(--accent-2)', border:'1px solid var(--line-strong)',
-                borderRadius:'var(--r-pill)', padding:'4px 9px' }}>
+            {/* PREMIUM PASS 2026-07-24: the uppercase "Deine Akte" eyebrow is gone. It was a label
+                with no referent — nothing on the screen explained what an Akte was, so it read as
+                institutional decoration, and it was one of nine uppercase labels that made this
+                app look machine-made. The status pill survives because it carries actual state
+                (level + under-review), and it now sits alone with air around it instead of being
+                one half of a label/label pair. Nothing else moved: the interview control below is
+                untouched. */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', marginBottom:14 }}>
+              <span style={{ display:'inline-flex', alignItems:'center', gap:7, fontFamily:'var(--font-display)', fontSize:10.5,
+                fontWeight:600, letterSpacing:'0.06em', color:'var(--text-dim)', border:'1px solid var(--line)',
+                background:'var(--surface)', borderRadius:'var(--r-pill)', padding:'6px 12px' }}>
                 <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--accent-2)' }} />
                 In Prüfung · {({ 'a2-b1':'A2–B1', 'b2':'B2', 'c1':'C1' }[level] || 'A2–B1')}
               </span>
@@ -7705,10 +7739,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   // explains nothing. Dimmed + badged + tappable teaches the boundary and offers
                   // the way past it. Tiles are never removed, hidden or relabeled (PROTECTED).
                   aria-label={drillsLocked ? `${t.de} — ab Basic verfügbar` : undefined}
-                  style={{ minHeight:92, padding:'12px', cursor:'pointer', textAlign:'left',
-                  borderRadius:14, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
+                  /* PREMIUM PASS: the tiles were 92px boxes with 12px padding — cramped reads as a
+                     form, air reads as a product. Bigger target, softer radius, a hairline border
+                     instead of a hard one, and a real type step between the name and its purpose
+                     line so the eye lands on the name first. */
+                  style={{ minHeight:118, padding:'16px 15px', cursor:'pointer', textAlign:'left',
+                  borderRadius:18, background:'var(--surface)', border:'1px solid var(--line)', position:'relative',
                   opacity: drillsLocked ? 0.5 : 1,
-                  display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
+                  display:'flex', flexDirection:'column', justifyContent:'space-between', gap:12,
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
                   {/* RTL COLLISION FIX (verified live 2026-07-24, prod screenshot at 390px): the badge
                       slot was pinned to the PHYSICAL `right:9`, but the app runs `dir="rtl"` for
@@ -7743,11 +7781,18 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                       {t.badge}
                     </span>
                   )}
-                  <span style={{ color:'var(--accent)', display:'flex' }}><Icon name={t.icon} size={22} /></span>
+                  {/* The icon sits in its own quiet chip rather than floating loose — it reads as a
+                      deliberate object instead of a stray glyph, and it gives the tile a fixed
+                      optical anchor so the five tiles line up even with different-width names. */}
+                  <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                    width:38, height:38, borderRadius:12, color:'var(--accent)',
+                    background:'rgba(59,130,246,0.10)', border:'1px solid rgba(59,130,246,0.16)' }}>
+                    <Icon name={t.icon} size={20} />
+                  </span>
                   <span>
-                    <span style={{ display:'block', fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-label)', color:'var(--text)' }}>{t.de}</span>
-                    <span style={{ display:'block', fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:2, lineHeight:1.35 }}>{t.hint}</span>
-                    {t.ar && <span dir="rtl" style={{ display:'block', fontSize:9.5, color:'var(--text-faint)', marginTop:1 }}>{t.ar}</span>}
+                    <span style={{ display:'block', fontFamily:'var(--font-display)', fontWeight:600, fontSize:15, letterSpacing:'-0.01em', color:'var(--text)' }}>{t.de}</span>
+                    <span style={{ display:'block', fontSize:12, color:'var(--text-dim)', marginTop:3, lineHeight:1.4 }}>{t.hint}</span>
+                    {t.ar && <span dir="rtl" style={{ display:'block', fontSize:10.5, color:'var(--text-faint)', marginTop:2 }}>{t.ar}</span>}
                   </span>
                 </button>
               ))}

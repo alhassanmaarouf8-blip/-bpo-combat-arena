@@ -6,15 +6,29 @@
   isolation: isolate;
   overflow: hidden;
   margin-top: 12px;
-  padding: clamp(14px, 2.4vw, 22px);
-  border: 1px solid rgba(111, 174, 255, 0.23);
-  border-radius: 22px;
+  /* PREMIUM: generous padding is the cheapest luxury signal there is. Cramped padding is what
+     makes an interface feel like a form; air is what makes it feel like a product. */
+  padding: clamp(20px, 3.4vw, 30px);
+  /* THE ONE glass surface on this screen (see --glass-* in App.jsx). It is the thing the user is
+     meant to act on, so it is the only thing allowed to float. The lit top edge (inset highlight)
+     is what sells it as a physical pane instead of a grey box — without it this is just a card. */
+  border: 1px solid var(--glass-border);
+  border-radius: 26px;
   color: #eaf2ff;
-  background:
-    linear-gradient(145deg, rgba(10, 21, 39, 0.97), rgba(5, 10, 20, 0.98)),
-    #07101f;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34), inset 0 1px rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
   text-align: left;
+}
+/* Blur only where supported; the fallback is a solid, readable surface — never a washed-out
+   transparent card. Most of this audience is on Android WebView, where this matters. */
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .brain-guide {
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+  }
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .brain-guide { background: linear-gradient(145deg, rgba(12, 24, 44, 0.96), rgba(6, 12, 24, 0.97)); }
 }
 
 .brain-guide::before {
@@ -72,27 +86,17 @@
 .brain-guide__audio:hover { transform: translateY(-1px); border-color: rgba(119, 181, 255, 0.75); }
 .brain-guide__audio.is-speaking { box-shadow: 0 0 0 5px rgba(61, 139, 255, 0.1), 0 0 28px rgba(61, 139, 255, 0.25); }
 
+/* FLATTENED. This was a bordered, gradient-filled, glowing card INSIDE the bordered gradient card
+   above it — card-in-card, so nothing outranked anything and the screen read as a pile of boxes.
+   The parent is now the single premium surface; the mission is just its content. Removing a border
+   is a design decision, not a deletion: rank now comes from type size and space, which is how
+   expensive interfaces do it. */
 .brain-guide__mission {
   position: relative;
-  overflow: hidden;
-  padding: clamp(16px, 3vw, 26px);
-  border: 1px solid rgba(97, 165, 255, 0.32);
-  border-radius: 19px;
-  background:
-    linear-gradient(128deg, rgba(30, 76, 145, 0.26), rgba(9, 19, 36, 0.9) 55%, rgba(102, 48, 19, 0.18)),
-    rgba(7, 16, 31, 0.84);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.055), 0 15px 38px rgba(0, 0, 0, 0.22);
-}
-
-.brain-guide__mission::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 38%;
-  height: 2px;
-  background: linear-gradient(90deg, var(--guide-blue), transparent);
-  box-shadow: 0 0 18px rgba(79, 157, 255, 0.9);
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
 }
 
 .brain-guide__mission-kicker {
@@ -128,22 +132,23 @@
 .brain-guide__confidence--high { border-color: rgba(79, 157, 255, 0.3); color: #a9d2ff; }
 .brain-guide__title {
   max-width: 760px;
-  margin: 12px 0 16px;
+  margin: 14px 0 10px;
   color: #fff;
-  font-size: clamp(23px, 4vw, 38px);
-  line-height: 1.05;
+  /* One decisive display size. The old scale was flat — everything 11-13px with a single big
+     title — so the eye had nowhere to go. Rank is what reads as designed. */
+  font-size: var(--fs-display, clamp(28px, 7.5vw, 40px));
+  font-weight: 700;
+  line-height: 1.04;
   letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
 .brain-guide__dose {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
-  color: #c8d7e9;
-  font-size: 13.5px;
-  line-height: 1.55;
+  margin: 0 0 18px;
+  color: #a9bcd4;
+  font-size: var(--fs-lead, 17px);
+  line-height: 1.5;
+  max-width: 60ch;   /* measure: past ~65 characters a line stops being comfortable to read */
 }
 .brain-guide__dose span {
   flex: 0 0 auto;
@@ -397,3 +402,34 @@
 .brain-guide__why-body p strong { color: var(--text, #e8eef6); font-weight: 600; }
 .brain-guide__why-goal { color: #9aa7bd !important; }
 .brain-guide__why-body em { color: #64748b; font-size: 11px; font-style: normal; }
+
+/* ── ORIENTATION (replaces the three numbered briefing cards + the north-star block) ──────────
+   Still always visible — that contract is deliberate and kept — but it now reads as quiet prose
+   beneath the action instead of three labelled boxes competing with it. A hairline rule and a
+   type-size drop do the separating that three borders used to do badly. */
+.brain-guide__orient {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.brain-guide__orient p {
+  margin: 0 0 7px;
+  color: #93a6bf;
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 62ch;
+}
+.brain-guide__orient p > span {
+  color: #6f8299;   /* the connector recedes; the fact carries */
+}
+.brain-guide__orient-goal {
+  margin-top: 14px !important;
+  color: #8fa4bd !important;
+}
+.brain-guide__orient-goal em {
+  display: block;
+  margin-top: 4px;
+  color: #5d6f86;
+  font-size: 11px;
+  font-style: normal;
+}

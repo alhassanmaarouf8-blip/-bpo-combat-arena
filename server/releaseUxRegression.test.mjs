@@ -143,13 +143,21 @@ test('the live home exposes one creative orientation contract and one primary ac
   assert.match(app, /Ein klarer Schritt auf dem Weg zum deutschen Jobinterview/u);
   assert.doesNotMatch(app, /<BrainGuide[^>]*externalInterviewCta/u);
   assert.match(policy, /showGenericInterview: false/u);
-  assert.match(brain, /01 · WARUM JETZT/u);
-  assert.match(brain, /02 · FERTIG, WENN/u);
-  assert.match(brain, /03 · DANACH/u);
-  assert.match(brain, /DAS GRÖSSERE ZIEL/u);
+  // Orientation contract (premium pass 2026-07-24): the three facts — why now, what counts as
+  // done, what comes next — plus the north-star goal must still render, and must still render
+  // WITHOUT a discovery click. Only their chrome changed: they were three numbered, individually
+  // labelled cards; nine uppercase micro-labels on one screen is what made this app read as
+  // machine-made, so the same facts are now quiet prose under the action.
+  assert.match(brain, /<div className="brain-guide__orient"/u);
+  assert.match(brain, /<p>\{reason\}<\/p>/u);
+  assert.match(brain, /\{brief\.done\}/u);
+  assert.match(brain, /\{brief\.after\}/u);
+  assert.match(brain, /\{biggerGoal\(d\)\}/u);
   assert.match(brain, /DEIN WEG ZUM DEUTSCHEN JOBINTERVIEW/u);
   assert.doesNotMatch(brain, /<details className="brain-guide__why"/u,
     'the reason and completion contract must be visible without discovery clicks');
+  assert.doesNotMatch(brain, /<details[^>]*brain-guide__orient/u,
+    'orientation may be made quieter, never hidden behind a toggle');
 });
 
 test('BrainGuide renders useful loading and recoverable error states instead of disappearing', async () => {
