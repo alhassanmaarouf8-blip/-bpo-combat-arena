@@ -950,28 +950,36 @@ const GLOBAL_CSS = `
        backdrop behind it (this app has the ambient beams), and only when the lit top edge is
        present — that inset highlight is what sells it as a physical pane rather than a grey box.
        Nested blurs are banned: they stack GPU cost and break on Android WebView, which is where
-       most of this audience is. One layer, per stacking context. */
-    --glass-bg:        rgba(255,255,255,0.055);
-    --glass-bg-strong: rgba(255,255,255,0.085);
-    --glass-border:    rgba(255,255,255,0.13);
-    --glass-highlight: rgba(255,255,255,0.22);
-    --glass-shadow:    0 20px 60px -18px rgba(0,0,0,0.65);
-    --glass-blur:      18px;
+       most of this audience is. One layer, per stacking context.
+       NAMESPACED --pane-*, NOT --glass-*. The pre-existing --glass-border and --glass-highlight
+       above are full CSS SHORTHANDS (1px solid rgba(...) and inset 0 1px 0 rgba(...)), consumed
+       by nine call sites as border: var(--glass-border). Redefining them as bare colours silently
+       emitted border: rgba(...) — invalid — so those borders disappeared app-wide. Shipped and
+       caught the same session: never reuse an existing token name for a different VALUE TYPE.
+       NOTE: this whole block is a JS template literal, so backticks are forbidden in these
+       comments — they terminate the string and the parse error points at the literal's opening
+       line, not at the backtick. */
+    --pane-bg:        rgba(255,255,255,0.055);
+    --pane-bg-strong: rgba(255,255,255,0.085);
+    --pane-border:    rgba(255,255,255,0.13);
+    --pane-highlight: rgba(255,255,255,0.22);
+    --pane-shadow:    0 20px 60px -18px rgba(0,0,0,0.65);
+    --pane-blur:      18px;
     /* Type scale with real STEPS. The old scale was flat (everything 11-13px + one big title),
        so the eye had no path through the screen. Rank is what makes a layout read as designed. */
     --fs-display:clamp(28px,7.5vw,40px); --fs-lead:17px; --fs-sub:14.5px;
   }
   /* The single premium surface. Used sparingly — see the note above. */
   .surface-premium {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--pane-bg);
+    border: 1px solid var(--pane-border);
     border-radius: var(--r-xl);
-    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+    box-shadow: var(--pane-shadow), inset 0 1px 0 var(--pane-highlight);
   }
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     .surface-premium {
-      -webkit-backdrop-filter: blur(var(--glass-blur));
-      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--pane-blur));
+      backdrop-filter: blur(var(--pane-blur));
     }
   }
 

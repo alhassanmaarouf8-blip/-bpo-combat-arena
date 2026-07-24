@@ -29,14 +29,21 @@ const label = (ruleId, lang) => {
 
 export function ProblemRankPanel({ ranked, lang = 'de' }) {
   if (!Array.isArray(ranked) || ranked.length === 0) return null;
+  // PREMIUM PASS 2026-07-24: flat black box → a real layered surface with a lit top edge;
+  // 13px padding → 20px. The uppercase eyebrow becomes a proper sentence-case heading with its
+  // own size: this is the most valuable list in the app (the learner's ranked weaknesses) and it
+  // was labelled like a form section. Headings should look like headings, not like tags.
+  // (A `{/* */}` here rather than a `//` above the return parses as an object literal — twice
+  // today. JSX comments only work INSIDE JSX.)
   return (
-    <div style={{ borderRadius: 12, padding: '13px 14px', marginTop: 10, background: 'rgba(0,0,0,0.32)',
-      border: '1px solid rgba(59,130,246,0.22)' }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 'var(--fs-meta)',
-        letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 2 }}>
-        DEINE GRÖSSTEN BAUSTELLEN
+    <div style={{ borderRadius: 18, padding: '20px 18px', marginTop: 12,
+      background: 'rgba(255,255,255,0.035)', border: '1px solid var(--line)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 17,
+        letterSpacing: '-0.01em', color: 'var(--text)', marginBottom: 3 }}>
+        Deine größten Baustellen{/* OWNER-AR slot */}
       </div>
-      <div style={{ fontSize: 'var(--fs-meta)', color: 'var(--text-faint)', marginBottom: 10 }}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-faint)', marginBottom: 14 }}>
         gereiht nach Wirkung — nicht nach Anzahl{/* OWNER-AR slot */}
       </div>
       {ranked.map((r, i) => {

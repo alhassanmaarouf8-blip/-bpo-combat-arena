@@ -9,22 +9,22 @@
   /* PREMIUM: generous padding is the cheapest luxury signal there is. Cramped padding is what
      makes an interface feel like a form; air is what makes it feel like a product. */
   padding: clamp(20px, 3.4vw, 30px);
-  /* THE ONE glass surface on this screen (see --glass-* in App.jsx). It is the thing the user is
+  /* THE ONE glass surface on this screen (see --pane-* in App.jsx). It is the thing the user is
      meant to act on, so it is the only thing allowed to float. The lit top edge (inset highlight)
      is what sells it as a physical pane instead of a grey box — without it this is just a card. */
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--pane-border);
   border-radius: 26px;
   color: #eaf2ff;
-  background: var(--glass-bg);
-  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  background: var(--pane-bg);
+  box-shadow: var(--pane-shadow), inset 0 1px 0 var(--pane-highlight);
   text-align: left;
 }
 /* Blur only where supported; the fallback is a solid, readable surface — never a washed-out
    transparent card. Most of this audience is on Android WebView, where this matters. */
 @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   .brain-guide {
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--pane-blur));
+    backdrop-filter: blur(var(--pane-blur));
   }
 }
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
