@@ -3463,6 +3463,64 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
     focusAuth('signup');
   }, [focusAuth]);
 
+  // ── GOOGLE SIGN-IN — the fix for the measured signup wall ──────────────────────────────────
+  // Of 11 real accounts, SIX had activeDays:0 / lastActive:null (measured 2026-07-24): they signed
+  // up and never returned, because e-mail verification makes a phone user LEAVE the app to find a
+  // mail. Google proves the address in one tap, so those users reach the interview immediately.
+  // Rendered only when the server says GOOGLE_CLIENT_ID exists AND the build has one, so this is
+  // invisible until both are set. E-mail+password below is untouched.
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const googleClientId = (import.meta.env?.VITE_GOOGLE_CLIENT_ID || '').trim();
+  const googleReady = !!googleClientId && pricing?.googleSignIn === true && !resetToken;
+  const googleBtnRef = useRef(null);
+  useEffect(() => {
+    if (!googleReady || !googleBtnRef.current) return undefined;
+    let cancelled = false;
+    const onCredential = async (response) => {
+      if (cancelled) return;
+      setErr(''); setGoogleBusy(true);
+      try {
+        const r = await fetch(`${API_URL}/api/auth/google`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: response?.credential, ref: getRefCode() }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          // google_unreachable is OUR outage — never tell a legitimate user their login is wrong.
+          setErr(data.error === 'google_unreachable'
+            ? { de: 'Google ist gerade nicht erreichbar — bitte nutze E-Mail und Passwort.', ar: '' }
+            : authErrText(data.error));
+          setGoogleBusy(false);
+          return;
+        }
+        beacon('signup_google_ok');
+        onAuth(data.token, data.account);
+      } catch {
+        setErr({ de: 'Anmeldung fehlgeschlagen — bitte nutze E-Mail und Passwort.', ar: '' });
+        setGoogleBusy(false);
+      }
+    };
+    const render = () => {
+      const g = window.google?.accounts?.id;
+      if (!g || cancelled || !googleBtnRef.current) return false;
+      g.initialize({ client_id: googleClientId, callback: onCredential });
+      g.renderButton(googleBtnRef.current, {
+        theme: 'outline', size: 'large', width: 320, text: 'continue_with', shape: 'pill',
+      });
+      return true;
+    };
+    if (render()) return () => { cancelled = true; };
+    // Load Google's script once, on demand. Failure is silent by design: the e-mail form below is
+    // fully functional, so a blocked script must degrade to today's behaviour, never to a dead end.
+    const existing = document.getElementById('gsi-script');
+    const script = existing || Object.assign(document.createElement('script'), {
+      id: 'gsi-script', src: 'https://accounts.google.com/gsi/client', async: true, defer: true,
+    });
+    script.addEventListener('load', render, { once: true });
+    if (!existing) document.head.appendChild(script);
+    return () => { cancelled = true; };
+  }, [googleReady, googleClientId, onAuth]);
+
   const submit = async () => {
     if (busy) return;
     if (!email || !pw) {
@@ -3918,6 +3976,26 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
           <div style={{ marginTop:12, padding:'12px 14px', borderRadius:12, background:'var(--surface)',
             border:'1px solid var(--line)', fontSize:'var(--fs-meta)', lineHeight:1.6, color:'var(--text-dim)' }}>
             Der automatische Reset ist gerade nicht verfügbar — bitte versuch es in Kürze noch einmal.
+          </div>
+        )}
+
+        {/* ONE TAP IN — placed ABOVE the e-mail form on purpose. Six of eleven real users signed up
+            and never returned because verification makes them leave the app to find a mail; the
+            fastest door has to be the first one they see. Renders only when the server reports
+            GOOGLE_CLIENT_ID and the build has one — otherwise this block does not exist and the
+            form below is exactly today's form. Neutral by design: the single orange on this screen
+            stays on the primary submit button. */}
+        {googleReady && (
+          <div style={{ marginTop:16 }}>
+            <div ref={googleBtnRef} style={{ display:'flex', justifyContent:'center', minHeight:44,
+              opacity: googleBusy ? 0.5 : 1, pointerEvents: googleBusy ? 'none' : 'auto' }} />
+            <div style={{ display:'flex', alignItems:'center', gap:10, margin:'16px 0 4px' }}>
+              <span style={{ flex:1, height:1, background:'var(--line)' }} />
+              <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)' }}>
+                oder mit E-Mail{/* OWNER-AR slot */}
+              </span>
+              <span style={{ flex:1, height:1, background:'var(--line)' }} />
+            </div>
           </div>
         )}
 

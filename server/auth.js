@@ -23,6 +23,7 @@ import { PLANS, OFFER, offerActive, offerPrice } from './plans.config.js';
 import { paymentStatusFor }            from './paymentsStore.js';
 import { loadUser }                    from './store.js';
 import { dayKey }                      from './time.js';
+import { googleAuthConfigured, verifyGoogleIdToken } from './googleAuth.js';
 import { STUDY_COHORT_DAYS, STUDY_COHORT_ID, studyCohortConfig,
   validateStudyCohortInvite, inspectStudyCohortInvite } from './studyCohortInvite.js';
 
@@ -97,6 +98,10 @@ async function hashPassword(pw) {
   return `${salt}:${Buffer.from(await scryptAsync(pw, salt, 64)).toString('hex')}`;
 }
 async function verifyPassword(pw, stored) {
+  // EXPLICIT: a Google-only account stores passwordHash:null. The parse below already throws into
+  // the catch and returns false for a null hash — but "safe because it throws" is not a property
+  // an auth path should rely on. State the invariant: no stored hash means no password login, ever.
+  if (typeof stored !== 'string' || !stored.includes(':')) return false;
   try {
     const [salt, hash] = String(stored).split(':');
     const test = Buffer.from(await scryptAsync(pw, salt, 64)).toString('hex');
@@ -745,6 +750,77 @@ authRouter.post('/signup',
   } catch (e) { res.status(e.code || 500).json({ error: e.message }); }
 });
 
+// ── GOOGLE SIGN-IN — the fix for the measured signup wall ────────────────────────────────────
+// Measured 2026-07-24: of 11 real accounts, SIX have activeDays:0 / lastActive:null. They signed up
+// and never came back. That is what the e-mail-verification round trip does to a phone user who
+// arrived from a Facebook/WhatsApp link — leave the app, find a mail, click, come back.
+//
+// A Google identity is ALREADY PROVEN, so this path sets emailVerificationRequired:false rather
+// than weakening the gate for everyone. E-mail+password is untouched: still verified, still gated.
+//
+// DARK BY DEFAULT: needs GOOGLE_CLIENT_ID. Without it this 503s and the client never shows the
+// button, so deploying this changes nothing until the owner sets the env var.
+//
+// One account per e-mail, whichever door they came through: if the address already exists (created
+// by password signup), this signs them in rather than colliding — and, because Google just proved
+// the address, it also RETIRES a pending verification on that existing account. A user stuck behind
+// the wall can escape it simply by tapping "Continue with Google".
+authRouter.post('/google',
+  rateLimit({ windowMs: 24 * 60 * 60 * 1000, max: 250, tag: 'google-global', global: true }),
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 60, tag: 'google' }),
+  async (req, res) => {
+  try {
+    if (!googleAuthConfigured()) return res.status(503).json({ error: 'google_not_configured' });
+    const { email } = await verifyGoogleIdToken(req.body?.idToken);
+    const ref = req.body?.ref;
+
+    const session = await withStoreLock(async () => {
+      const s = await load();
+      const existingId = s.emailIndex[email];
+      if (existingId && s.accounts[existingId]) {
+        const acc = s.accounts[existingId];
+        // Google vouched for this mailbox just now, so a pending verification is satisfied. Same
+        // reasoning the password-reset path already uses ("a valid link reached this mailbox").
+        if (acc.emailVerificationRequired === true && !emailOwnershipVerified(acc)) {
+          acc.emailVerifiedAt = Date.now();
+          delete acc.emailVerification;
+          if (activatePendingStudyCohort(acc)) { /* cohort activation persists below */ }
+          await persist();
+        }
+        return { account: acc, token: signToken(acc), created: false };
+      }
+
+      // New account. No password is stored — this identity is Google's, and there is nothing to
+      // brute-force. The account keeps every other default (trial, entitlement, referral) so it is
+      // indistinguishable downstream from a password account.
+      const id = 'a_' + randomBytes(8).toString('hex');
+      const now = Date.now();
+      const account = {
+        id, email,
+        phone: null,
+        passwordHash: null,          // Google-only identity; /login rejects a null hash
+        authProvider: 'google',
+        sessionVersion: 0,
+        createdAt: now,
+        emailVerificationRequired: false,   // Google proved it — no round trip, no wall
+        emailVerifiedAt: now,
+        subscription: { tier: 'trial', trialStartedAt: null, trialSessionsUsed: 0 },
+        ...(ref && s.accounts[ref] && ref !== id ? { referredBy: ref } : {}),
+      };
+      s.accounts[id] = account;
+      s.emailIndex[email] = id;
+      await persist();
+      return { account, token: signToken(account), created: true };
+    });
+
+    console.log(`[google] ${session.created ? 'created' : 'signed in'} user=${session.account.id}`);
+    res.json({ token: session.token, account: publicAccount(session.account), created: session.created });
+  } catch (e) {
+    if (!e.code) console.error('[google] unexpected:', e.message);
+    res.status(e.code || 500).json({ error: e.message });
+  }
+});
+
 // Login keeps brute-force protection but must survive CGNAT (see signup note): the per-IP cap is
 // generous (80/10min — a burst of REAL users on one carrier IP), while a second, strict limiter is
 // keyed per IP+account (8/10min) so credential-stuffing any one mailbox is still blocked.
@@ -929,6 +1005,12 @@ billingRouter.get('/pricing', async (req, res) => {
   try {
     res.json({
       available: true,   // fail-closed contract: the client renders a price ONLY when this is true
+      // Whether "Continue with Google" can work at all. Public and boolean-only — never the client
+      // ID itself from here; the client gets that from its own build env. The sign-in button is
+      // rendered ONLY when this is true, so the feature stays invisible until the owner sets
+      // GOOGLE_CLIENT_ID on Render. Lives on this route because it is the one public, unauthed,
+      // pre-signup payload the landing page already fetches.
+      googleSignIn: googleAuthConfigured(),
       plans: [PLANS.basic, PLANS.elite].map((pl) => ({
         id:             pl.id,
         label:          pl.label,

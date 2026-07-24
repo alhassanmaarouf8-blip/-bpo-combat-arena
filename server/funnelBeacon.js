@@ -71,6 +71,14 @@ const ALLOWED = new Set([
   'price_seen_public', 'price_expand_public', 'drill_locked_tap',
   'evidence_lead_shown', 'paywall_evidence_shown',
   'trial_grant_shown', 'trial_lastday_shown',
+  // ENTRY FUNNEL (2026-07-24). Until now the drop we could SEE was inferred from `activeDays: 0`
+  // on 6 of 11 real accounts — i.e. "they never came back", with the reason assumed. These name the
+  // actual steps so the verification wall stops being a hypothesis: how many start a signup, how
+  // many finish it, how many are told to go find an e-mail, how many ever return from that, and how
+  // many reach the interview. `signup_google_ok` is the one-tap path that skips the wall entirely —
+  // comparing it against `verification_required` is how we prove whether the fix worked.
+  'signup_started', 'signup_completed', 'signup_google_ok',
+  'verification_required', 'verification_completed', 'first_interview_started',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)
