@@ -46,7 +46,38 @@ Delete the label and fix the layout instead.
 > (layout? type? restraint? colour? motion?), and the screenshot path if saved under
 > `docs/design-refs/`. Screenshots are better than links — Mobbin links are paywalled and rot.
 
-_(empty — awaiting the owner's references; see "Why this file exists" above)_
+### HOW TO ACTUALLY GET REFERENCES (the mistake that cost a session)
+
+**Mobbin's MCP is paid, but mobbin.com in a browser is NOT — and the owner is already logged in
+there.** On 2026-07-24 a session tested the MCP, got `requires a paid plan`, and concluded "no
+references available" — while a browser was open the entire time. Do not repeat this. Open
+`mobbin.com/search/apps/ios?content_type=flows&filter=flowActions.Subscribing+%26+Upgrading`
+(484 subscription/upgrade flows) or the Onboarding / Creating Account flow filters, and LOOK.
+Screens lazy-load; wait ~4s before screenshotting or you capture grey skeletons.
+Do NOT commit Mobbin screenshots into this repo (their content, not ours) — write the
+observations down instead, which is what the rest of this file is for.
+
+### OBSERVED 2026-07-24 — Headspace, "Onboarding" flow (21 screens), iOS 393×852
+
+The single most important finding, and it is not a visual one:
+
+- **Account creation offers `Continue with Apple / Google / Facebook / Email / SSO`.** There is no
+  email-verification wall between signing up and using the product. One tap, you are in.
+  This is the direct answer to our measured killer: 6 of 11 real accounts have `activeDays: 0`
+  and `lastActive: null` — they created an account and never came back, which is the signature of
+  our hard `emailVerificationRequired: true` gate (auth.js) forcing them to leave the app, find an
+  email, and return. Google/Apple identities arrive pre-verified, so the gate disappears entirely
+  rather than being weakened.
+- Visual patterns worth copying (all consistent with our existing laws):
+  - **One message per screen.** "Breathe in." "Welcome to Headspace." Nothing else competes.
+  - **Enormous whitespace.** Roughly half of each screen is empty. Air is the premium signal.
+  - **One filled primary button + one quiet secondary** ("Create an account" / "Log in"). Never
+    two things fighting to be primary.
+  - **Zero uppercase micro-labels.** Consistent with the label cull we shipped the same day.
+  - Warm illustration carries the brand; the UI chrome itself is almost invisible.
+
+_(Owner's own references still welcome here — paste screenshots and one line each on what you
+like about them.)_
 
 ### What is already known about his taste (from memory, not guesses)
 
