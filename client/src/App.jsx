@@ -4892,8 +4892,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                 <span style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:600, letterSpacing:'0.08em', color:accent }}>{p.label?.toUpperCase()}</span>
                 <span style={{ color:'var(--text)', display:'inline-flex', alignItems:'baseline', gap:6 }}>
                   {on && <span style={{ fontSize:12, fontWeight:600, color:'var(--text-faint)', textDecoration:'line-through' }}>{fmt(base)}</span>}
-                  <span style={{ fontSize:24, fontWeight:700, letterSpacing:'-0.02em', color: on ? 'var(--good)' : '#f2f6fb' }}>{fmt(price)}</span>
-                  <span style={{ fontSize:12, color:'var(--text-dim)' }}>EGP{period}</span>
+                  <span style={{ fontSize:34, fontWeight:800, letterSpacing:'-0.03em', color:'var(--text)' }}>{fmt(price)}</span>
+                  <span style={{ fontSize:13, fontWeight:600, color:'var(--text-dim)' }}>EGP{period}</span>
                 </span>
               </div>
               {yearly && !once && (
@@ -4909,7 +4909,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
               {(PERKS_DE[p.id]?.(p) || []).map((perk) => (
                 /* Perks were 11px at 3px spacing — a wall of grey. Readable size + real leading,
                    and the tick is dimmed so the WORDS carry, not the punctuation. */
-                <div key={perk} style={{ display:'flex', gap:8, fontSize:12.5, color:'#c3d0e0', marginBottom:7, lineHeight:1.5 }}>
+                <div key={perk} style={{ display:'flex', gap:8, fontSize:12.5, color:'var(--text-dim)', marginBottom:7, lineHeight:1.5 }}>
                   <span style={{ color:accent, flex:'0 0 auto' }}>✓</span><span>{perk}</span>
                 </div>
               ))}
@@ -4918,9 +4918,9 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                 onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:16, padding:'14px', minHeight:52, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
                   fontFamily:'var(--font-display)', fontSize:13.5, letterSpacing:'0.02em', borderRadius:12, fontWeight:700,
-                  border: elite ? 'none' : `1px solid ${accent}`, color: elite ? '#081019' : accent,
-                  background: elite ? 'var(--grad-action)' : 'transparent',
-                  boxShadow: elite ? 'var(--shadow-action)' : 'none',
+                  border:'none', color:'#FFFFFF',
+                  background:'var(--action)',
+                  boxShadow:'0 1px 2px rgba(18,22,31,0.2)',
                   opacity:(submitting || paymentAvailable !== true) ? 0.45 : 1 }}>
                 {paymentAvailable === false
                   ? (ar ? 'الدفع غير متاح حاليًا' : 'ZAHLUNG DERZEIT NICHT VERFÜGBAR')

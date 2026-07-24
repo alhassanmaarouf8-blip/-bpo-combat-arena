@@ -318,22 +318,22 @@ function skipLink(label, onClick) {
 
 // ── styles (blue+orange system; the ONE orange per beat is the primary CTA) ──────────────────
 const backdrop = { position: 'fixed', inset: 0, zIndex: 240, display: 'flex', alignItems: 'center',
-  justifyContent: 'center', padding: 18, background: 'var(--surface)', backdropFilter: 'blur(6px)',
+  justifyContent: 'center', padding: 18, background: 'rgba(14,19,32,0.42)', backdropFilter: 'blur(6px)',
   WebkitBackdropFilter: 'blur(6px)', animation: 'flash-in 0.3s var(--ease)' };
 const card = { width: '100%', maxWidth: 400, maxHeight: '86vh', overflowY: 'auto', padding: 18,
-  borderRadius: 16, background: 'linear-gradient(180deg, rgba(13,24,40,0.97), rgba(7,14,26,0.97))',
-  border: '1px solid rgba(59,130,246,0.30)', boxShadow: '0 18px 60px rgba(14,19,32,0.16)' };
+  borderRadius: 20, background: 'var(--surface)',
+  border: '1px solid var(--line)', boxShadow: '0 24px 60px -20px rgba(14,19,32,0.28)' };
 const portrait = { position: 'relative', width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-  overflow: 'hidden', background: 'linear-gradient(145deg, #172554, #0f172a)',
+  overflow: 'hidden', background: 'var(--surface-2)',
   border: '2px solid rgba(14,19,32,0.14)', boxShadow: '0 2px 10px rgba(14,19,32,0.14)' };
 const portraitFallback = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' };
 const bubble = { padding: '10px 12px', borderRadius: '4px 12px 12px 12px', fontSize: 13.5, lineHeight: 1.6,
-  color: 'var(--text)', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.22)',
+  color: 'var(--text)', background: 'var(--surface-2)', border: '1px solid var(--line)',
   animation: 'result-rise 0.45s var(--ease) both', textAlign: 'left' };
 const btnBlue = { width: '100%', minHeight: 46, padding: '12px 14px', borderRadius: 10, border: 'none',
-  cursor: 'pointer', fontWeight: 800, fontSize: 14.5, color: '#04110b',
-  background: 'linear-gradient(90deg, var(--accent), var(--accent-2))' };
+  cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#FFFFFF',
+  background: 'var(--text)' };
 const btnOrange = { width: '100%', minHeight: 46, padding: '12px 14px', borderRadius: 10, border: 'none',
-  cursor: 'pointer', fontWeight: 800, fontSize: 14.5, color: '#1a0d02',
-  background: 'linear-gradient(90deg, var(--action, #f97316), #fb923c)',
-  boxShadow: '0 6px 22px rgba(249,115,22,0.35)' };
+  cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#FFFFFF',
+  background: 'var(--action, #D9541A)',
+  boxShadow: '0 1px 2px rgba(18,22,31,0.2)' };
