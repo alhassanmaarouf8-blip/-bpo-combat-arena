@@ -7628,26 +7628,35 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   opacity: drillsLocked ? 0.5 : 1,
                   display:'flex', flexDirection:'column', justifyContent:'space-between', gap:8,
                   transition:'background 150ms var(--ease), transform 150ms var(--ease)' }}>
-                  {/* Badge priority: the lock OUTRANKS "N fällig" and "NEU". Showing "3 fällig" on a
+                  {/* RTL COLLISION FIX (verified live 2026-07-24, prod screenshot at 390px): the badge
+                      slot was pinned to the PHYSICAL `right:9`, but the app runs `dir="rtl"` for
+                      Arabic-preferring users — i.e. most of this market — where the tile's first flex
+                      child (the icon) also lands on the physical right. Badge and icon overlapped
+                      (measured: badge x124-180 vs icon x155-177). Latent for the "N fällig"/"NEU"
+                      badges all along; the lock badge made it visible on all five tiles at once.
+                      `insetInlineEnd` is the logical edge: identical to `right` in LTR, flips to the
+                      left in RTL so it always sits opposite the icon. Never use physical left/right
+                      for an absolutely-positioned element in this app.
+                      Badge priority: the lock OUTRANKS "N fällig" and "NEU". Showing "3 fällig" on a
                       tile the user cannot open is a tease that can't be acted on; "ab Basic" is the
                       one true, actionable fact. One badge per tile. Same slot, same grammar as the
                       Call-Floor seat badges (CallFloor.jsx) so a locked seat and a locked drill read
                       as ONE rule, not two different refusals. Blue — never red, never a padlock shout. */}
                   {drillsLocked ? (
-                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:600, letterSpacing:'0.05em',
+                    <span style={{ position:'absolute', top:9, insetInlineEnd:9, fontSize:9, fontWeight:600, letterSpacing:'0.05em',
                       color:'var(--accent)', border:'1px solid var(--accent-dim)',
                       borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       ab Basic{/* OWNER-AR slot */}
                     </span>
                   ) : t.due > 0 ? (
-                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
+                    <span style={{ position:'absolute', top:9, insetInlineEnd:9, fontSize:9, fontWeight:700, letterSpacing:'0.04em',
                       color: resumeStep ? 'var(--text-dim)' : 'var(--action)',
                       border: resumeStep ? '1px solid var(--line-strong)' : '1px solid rgba(249,115,22,0.5)',
                       borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       {t.due} fällig
                     </span>
                   ) : t.badge && (
-                    <span style={{ position:'absolute', top:9, right:9, fontSize:9, fontWeight:600, letterSpacing:'0.06em',
+                    <span style={{ position:'absolute', top:9, insetInlineEnd:9, fontSize:9, fontWeight:600, letterSpacing:'0.06em',
                       color:'var(--text-dim)', border:'1px solid var(--line-strong)', borderRadius:'var(--r-pill)', padding:'2px 7px' }}>
                       {t.badge}
                     </span>
