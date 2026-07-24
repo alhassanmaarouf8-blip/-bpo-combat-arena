@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useReducer, Component, lazy, 
 import { AudioRecorder, checkAudioSupport } from './audioRecorder.js';
 import { ClipRecorder } from './clipRecorder.js';
 import { realFluencyTrend } from './progressTrend.js';
+import { useDeepAnalysis } from './deepAnalysisClient.js';
 import { SpeakerIcon, SpeakerMuteIcon, CloseIcon } from './icons/AudioIcons';
 import { GeminiVoicePlayer, emitBossLevel, subscribeBossLevel } from './geminiVoice.js';
 import PlacementPrompt from './PlacementPrompt.jsx';
@@ -1638,28 +1639,57 @@ function segmentAnswer(original, errors) {
   return { segs, unplaced: errors.map((_, i) => i).filter((i) => !inline.has(i)) };
 }
 
-function DeepAnalysisSection({ token, apiUrl, sessionId, ar, rtl }) {
-  const [state, setState] = useState({ status: 'pending' });
-  const [openErr, setOpenErr] = useState(null);
-  useEffect(() => {
-    if (!sessionId || !token) return undefined;
-    let stopped = false, tries = 0, timer = null;
-    const tick = async () => {
-      try {
-        const r = await fetch(`${apiUrl}/api/analysis/${sessionId}`, { headers: { Authorization: `Bearer ${token}` } });
-        const j = r.ok ? await r.json() : { status: r.status === 404 ? 'failed' : 'pending' };
-        if (stopped) return;
-        if (j.status === 'ready' || j.status === 'failed') { setState(j); return; }
-        setState({ status: j.status });
-      } catch { /* transient — keep polling */ }
-      if (!stopped && ++tries < 36) timer = setTimeout(tick, 5000);
-      else if (!stopped) setState((s) => (s.status === 'ready' ? s : { status: 'failed' }));
-    };
-    tick();
-    return () => { stopped = true; if (timer) clearTimeout(timer); };
-  }, [sessionId, token, apiUrl]);
+/* The ONE deliberately chosen bottleneck: named, evidence-backed, with the server's own `why`
+   (built by bottleneckSelector.buildWhy from REAL counts — frequency, mean severity, mean impact,
+   prior sessions, the runner-up it beat and by what score). Never paraphrase `why`: paraphrasing
+   is how a measured sentence turns into a marketing one.
+   Extracted so the debrief's evidence lead and the full analysis render the SAME card instead of
+   drifting apart. `compact` drops the runner-up chips — in the lead they are detail; the point
+   there is the ONE thing to fix. The screen's single orange stays on the rank; this card is
+   quiet blue by design. */
+function BottleneckCard({ bn, compact = false }) {
+  if (!bn) return null;
+  return (
+    <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:'var(--r-md)',
+      background:'rgba(59,130,246,0.08)', border:'1px solid var(--accent)' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <span style={{ fontFamily:'var(--font-display)', fontSize:10, fontWeight:800,
+          letterSpacing:'0.14em', color:'var(--accent)' }}>DEIN ENGPASS{/* OWNER-AR slot */}</span>
+        <span style={{ fontSize:9, color:'var(--text-dim)' }}>
+          {bn.repeat ? `Tag-Serie ×${bn.dayStreak}` : bn.lowConfidence ? 'dünne Datenlage' : ''}
+        </span>
+      </div>
+      <div style={{ marginTop:5, fontSize:13, fontWeight:700, color:'var(--text)' }}>
+        {DEEP_CAT_DE[bn.category] || bn.category}
+        <span style={{ fontWeight:400, fontSize:10.5, color:'var(--text-dim)' }}> · {bn.subcode?.replace(/_/g, ' ')}</span>
+      </div>
+      <div style={{ marginTop:5, fontSize:11.5, color:'#e2e8f0', lineHeight:1.55 }}>{bn.why}</div>
+      {(bn.evidenceQuotes || []).slice(0, 2).map((q, qi) => (
+        <div key={qi} style={{ marginTop:5, fontSize:11.5, lineHeight:1.6, overflowWrap:'anywhere' }}>
+          <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{q.quote}</span>
+          {q.corrected && <>{' '}<span style={{ color:'var(--accent-2)', fontWeight:600 }}>{q.corrected}</span></>}
+        </div>
+      ))}
+      {!compact && !!(bn.runnerUps || []).length && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:7 }}>
+          {bn.runnerUps.map((r, ri) => (
+            <span key={ri} style={{ fontSize:9, padding:'2px 7px', borderRadius:20, color:'var(--text-dim)',
+              border:'1px solid var(--line)', background:'rgba(255,255,255,0.03)' }}>
+              danach: {DEEP_CAT_DE[r.category] || r.category} · {r.score}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-  if (!sessionId) return null;
+/* The full analysis. The poll now lives in the debrief (deepAnalysisClient.useDeepAnalysis) and the
+   result arrives as `state`, so the evidence lead above the toggle and this section share ONE
+   request. `hideBottleneck` prevents the same card appearing twice on one screen. */
+function DeepAnalysisSection({ state = { status: 'pending' }, ar, rtl, hideBottleneck = false }) {
+  const [openErr, setOpenErr] = useState(null);
+
   const title = ar ? 'التحليل الكامل' : 'KOMPLETTE ANALYSE';
   if (state.status !== 'ready') {
     return (
@@ -1678,41 +1708,8 @@ function DeepAnalysisSection({ token, apiUrl, sessionId, ar, rtl }) {
   return (
     <Section title={title} color="var(--accent)"
       right={<span style={{ fontSize:9.5, color:'var(--text-dim)' }}>{agg.totalErrors ?? 0} {ar ? 'ملاحظة' : 'Funde'}</span>}>
-      {/* Phase 3 — the ONE deliberately chosen bottleneck: named, evidence-backed, with the why.
-          The screen's single orange stays on the rank; this card is quiet blue by design. */}
-      {bn && (
-        <div style={{ marginBottom:12, padding:'11px 13px', borderRadius:'var(--r-md)',
-          background:'rgba(59,130,246,0.08)', border:'1px solid var(--accent)' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontFamily:'var(--font-display)', fontSize:10, fontWeight:800,
-              letterSpacing:'0.14em', color:'var(--accent)' }}>DEIN ENGPASS{/* OWNER-AR slot */}</span>
-            <span style={{ fontSize:9, color:'var(--text-dim)' }}>
-              {bn.repeat ? `Tag-Serie ×${bn.dayStreak}` : bn.lowConfidence ? 'dünne Datenlage' : ''}
-            </span>
-          </div>
-          <div style={{ marginTop:5, fontSize:13, fontWeight:700, color:'var(--text)' }}>
-            {DEEP_CAT_DE[bn.category] || bn.category}
-            <span style={{ fontWeight:400, fontSize:10.5, color:'var(--text-dim)' }}> · {bn.subcode?.replace(/_/g, ' ')}</span>
-          </div>
-          <div style={{ marginTop:5, fontSize:11.5, color:'#e2e8f0', lineHeight:1.55 }}>{bn.why}</div>
-          {(bn.evidenceQuotes || []).slice(0, 2).map((q, qi) => (
-            <div key={qi} style={{ marginTop:5, fontSize:11.5, lineHeight:1.6, overflowWrap:'anywhere' }}>
-              <span style={{ color:'var(--bad)', textDecoration:'line-through' }}>{q.quote}</span>
-              {q.corrected && <>{' '}<span style={{ color:'var(--accent-2)', fontWeight:600 }}>{q.corrected}</span></>}
-            </div>
-          ))}
-          {!!(bn.runnerUps || []).length && (
-            <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:7 }}>
-              {bn.runnerUps.map((r, ri) => (
-                <span key={ri} style={{ fontSize:9, padding:'2px 7px', borderRadius:20, color:'var(--text-dim)',
-                  border:'1px solid var(--line)', background:'rgba(255,255,255,0.03)' }}>
-                  danach: {DEEP_CAT_DE[r.category] || r.category} · {r.score}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Suppressed when the evidence lead above the toggle already showed it — one card per screen. */}
+      {!hideBottleneck && <BottleneckCard bn={bn} />}
       {!!cats.length && (
         <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:10 }}>
           {cats.map(([c, n]) => (
@@ -1832,6 +1829,33 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
     && Number(r?.spokenEvidence?.excludedUntrustedTurns || 0) > 0;
   const cats  = r.categories ?? {};
   const accent = win ? 'var(--accent)' : 'var(--action)';
+  // ONE poll for the whole debrief (see deepAnalysisClient.js). Starting it here rather than inside
+  // the collapsed details section means the learner who never expands anything still gets their
+  // evidence — and, because this endpoint IS the analysis retry queue, gets it sooner.
+  const deep = useDeepAnalysis(token, apiUrl, data?.deepAnalysis?.sessionId);
+  // THE EVIDENCE LEAD — what the buyer is actually paying for, shown BEFORE the details toggle.
+  // Honesty ladder, in order:
+  //   • not 'ready'          → render nothing. No skeleton promising value that may never arrive.
+  //   • gradeUnavailable /
+  //     typedPractice        → render nothing. We never quote a mis-heard or typed turn back at
+  //                            the learner as if it were their speech (feedback-accuracy-doctrine).
+  //   • no bottleneck        → render nothing. The selector always names a lever when there is any
+  //                            evidence at all, so an absent one means there is genuinely nothing.
+  //   • lowConfidence        → keep the card (it carries its own "dünne Datenlage" marker) but DROP
+  //                            the count: a precise number on a thin sample claims precision the
+  //                            evidence does not have.
+  const evidence = (() => {
+    if (deep?.status !== 'ready' || gradeUnavailable || typedPractice) return null;
+    const bn = deep.bottleneck;
+    if (!bn) return null;
+    const total = Number(deep.aggregates?.totalErrors);
+    return { bn, count: (Number.isFinite(total) && total > 0 && !bn.lowConfidence) ? total : null };
+  })();
+  // Counted only once the lead has actually rendered — so `evidence_lead_shown` vs `debrief_shown`
+  // measures how often the product manages to show a learner their own evidence, which is the whole
+  // point of this phase. Never fired on mount or on a suppressed/thin debrief.
+  const evidenceSeen = !!evidence;
+  useEffect(() => { if (evidenceSeen) beacon('evidence_lead_shown'); }, [evidenceSeen]);
 
   // Salma never auto-speaks from the debrief. Only the event-ID/acknowledged tutor channel may
   // trigger a proactive intervention; rank changes, sales copy, reloads and generic follow-ups do
@@ -2120,6 +2144,30 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             </div>
           ))}
 
+          {/* THE EVIDENCE LEAD — the single most valuable thing this product makes, shown WITHOUT
+              a tap. It used to sit behind the details toggle, so a first-timer left with a rank and
+              one sentence while the ~14-16 verbatim findings and the named bottleneck stayed hidden.
+              Every element is measured, not asserted: `count` is code-counted server-side, `why` is
+              the selector's own sentence built from real frequencies/severities, and the quotes are
+              the learner's OWN sentences (verbatim-gated — deepDiagnosis drops any quote it cannot
+              find in the transcript). Blue; the screen's single orange stays on the rank. */}
+          {evidence && (
+            <div style={{ marginBottom:12 }}>
+              {evidence.count && (
+                <div style={{ fontFamily:'var(--font-display)', fontSize:12.5, fontWeight:700,
+                  color:'var(--text)', marginBottom:7, ...rtl }}>
+                  {evidence.count} Funde aus deinen eigenen Sätzen{/* OWNER-AR slot */}
+                </div>
+              )}
+              <BottleneckCard bn={evidence.bn} compact />
+              {/* True by construction: analysisRunner hands the SELECTED bottleneck straight to
+                  generateExerciseSet({ bottleneck, evidence }) — the step is built from this. */}
+              <div style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:-4, ...rtl }}>
+                Dein persönlicher Schritt trainiert genau diesen Engpass.{/* OWNER-AR slot */}
+              </div>
+            </div>
+          )}
+
           {/* Progressive disclosure (owner: "never give a million advice"): the full analysis —
               every metric, exchange review, grammar group, drill and vocab list — sits behind ONE
               toggle. The learner leaves with a verdict and a plan, not a wall. */}
@@ -2135,7 +2183,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           {showDetails && (<>
           {/* KOMPLETTE ANALYSE — the Deep Diagnostic Engine: every answer, every error, alternatives */}
           {data?.deepAnalysis?.sessionId && (
-            <DeepAnalysisSection token={token} apiUrl={apiUrl} sessionId={data.deepAnalysis.sessionId} ar={ar} rtl={rtl} />
+            <DeepAnalysisSection state={deep} ar={ar} rtl={rtl} hideBottleneck={!!evidence} />
           )}
 
           {/* PROGRESS — deterministic, from the user's OWN past sessions (never the model's opinion) */}
@@ -2551,14 +2599,30 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       {onSeePlans && ent && (ent.plan || 'free') === 'free' && !pending && data && (
         <div style={{ margin:'2px 16px 0', padding:'13px 15px', borderRadius:'var(--r-md)',
           background:'rgba(59,130,246,0.08)', border:'1px solid var(--accent)' }}>
+          {/* Cite the file they just read, not a slogan. "Bleib dran" is true of any app; the
+              findings count + the named engpass are true of THIS interview and nothing else, which
+              is the entire argument for paying. Falls back to the original line whenever the
+              evidence isn't available (thin sample, analysis still running, typed practice) — the
+              upsell must never imply findings that were not shown. */}
           <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, color:'var(--text)', lineHeight:1.5 }}>
             {typeof data.progress?.sessionCount === 'number' && data.progress.sessionCount > 0
               ? `Das war Interview Nr. ${data.progress.sessionCount}.` : 'Das war dein Interview.'}{' '}
-            Bleib dran bis zur nächsten Bewerbung.
+            {evidence
+              ? <>{evidence.count ? `${evidence.count} Funde, ` : ''}ein benannter Engpass: {DEEP_CAT_DE[evidence.bn.category] || evidence.bn.category}.</>
+              : 'Bleib dran bis zur nächsten Bewerbung.'}
           </div>
-          <div dir="rtl" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.6 }}>
-            كمّل تدريب — انت في السكة الصح.
-          </div>
+          {evidence ? (
+            // The mechanism, verifiable in bottleneckSelector: a file closes only on a cleanStreak
+            // of 2 (or drilled/retested + 1 clean) — precisely because ONE clean day is avoidance,
+            // not mastery. That rule is the product, so it is what the offer should say.
+            <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4, lineHeight:1.6 }}>
+              Deine Akte schließt erst, wenn du es in zwei sauberen Interviews zeigst.{/* OWNER-AR slot */}
+            </div>
+          ) : (
+            <div dir="rtl" style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:3, lineHeight:1.6 }}>
+              كمّل تدريب — انت في السكة الصح.
+            </div>
+          )}
           {ent.trial?.active && ent.trial.daysLeft > 0 && (
             <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:4 }}>
               Testphase: noch {ent.trial.daysLeft} {ent.trial.daysLeft === 1 ? 'Tag' : 'Tage'} — danach entscheidest du.
