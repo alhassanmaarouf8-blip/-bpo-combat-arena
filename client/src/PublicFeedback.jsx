@@ -17,9 +17,12 @@ import { API_URL as BACKEND } from './config.js';
 const APP_URL = window.location.origin;
 
 // Brand palette (mirrors App.jsx :root — kept literal so this page renders without the app).
+// ICONIC light + the white/orange order: this standalone ?feedback page carried its own DARK
+// literals, so it stayed navy after the rest of the product went light. Blue is de-coloured to ink
+// here for the same reason it is everywhere else — orange is reserved for the one action.
 const C = {
-  bg0: '#0a0f1a', bg1: '#0f1626', bg2: '#172033',
-  blue: '#3b82f6', blue2: '#60a5fa', orange: '#f97316', orange2: '#fb923c',
+  bg0: '#F5F3EF', bg1: '#FFFFFF', bg2: '#EDEBE6',
+  blue: '#0E1320', blue2: '#3A4150', orange: '#D9541A', orange2: '#E8703A',
   text: 'var(--text)', dim: 'var(--text-dim)', faint: 'var(--text-faint)',
   line: 'var(--surface-2)', surface: 'var(--surface-2)',
   font: "'Inter',system-ui,sans-serif",
