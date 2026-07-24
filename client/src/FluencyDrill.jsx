@@ -182,7 +182,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     {header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
+      <div style={{ fontSize: 13, color: 'var(--bad)', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
       <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
     </div>
   </>);
@@ -435,7 +435,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
 
       <div style={{ padding: '12px 14px', borderRadius: 11, background: wpmGood ? 'rgba(59,130,246,0.08)' : 'rgba(96,165,250,0.07)',
         border: `1px solid ${wpmGood ? 'rgba(59,130,246,0.35)' : 'rgba(96,165,250,0.3)'}` }}>
-        <div style={{ fontSize: 13.5, color: '#f1f5f9', lineHeight: 1.6 }}>{wpmLine}</div>
+        <div style={{ fontSize: 13.5, color: 'var(--text)', lineHeight: 1.6 }}>{wpmLine}</div>
         {fillerLine && <div style={{ fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.6, marginTop: 8 }}>{fillerLine}</div>}
       </div>
 
@@ -479,7 +479,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
                 <div style={{ fontSize: 12.5, color: 'var(--text)', fontWeight: 600 }}>{g.rule}{g.count > 1 ? ` ·${g.count}×` : ''}</div>
                 {ex && (
                   <div style={{ fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>
-                    <span style={{ color: '#f87171', textDecoration: 'line-through' }}>{ex.wrongFragment || ex.wrong}</span>
+                    <span style={{ color: 'var(--bad)', textDecoration: 'line-through' }}>{ex.wrongFragment || ex.wrong}</span>
                     <span style={{ color: 'var(--text-faint)' }}> → </span>
                     <span style={{ color: 'var(--good)' }}>{ex.rightFragment || ex.right}</span>
                   </div>
@@ -554,7 +554,7 @@ function StatRow({ lang, m }) {
 
 function ErrBox({ err }) {
   return (
-    <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: '#fca5a5' }}>
+    <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: 'var(--bad)' }}>
       {err.de}<br /><span dir="rtl">{err.ar}</span>
     </div>
   );
@@ -746,7 +746,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
     {header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}{err?.ar ? <><br /><span dir="rtl">{err.ar}</span></> : null}</div>
+      <div style={{ fontSize: 13, color: 'var(--bad)', lineHeight: 1.6, marginTop: 8 }}>{err?.de}{err?.ar ? <><br /><span dir="rtl">{err.ar}</span></> : null}</div>
       <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
     </div>
   </>);
@@ -835,7 +835,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
       <div style={{ padding: '16px 14px', borderRadius: 12, textAlign: 'center',
         background: good ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
         border: `1px solid ${good ? 'rgba(59,130,246,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-        <div style={{ fontSize: 16, color: good ? 'var(--good)' : '#fca5a5', fontWeight: 700, lineHeight: 1.5 }}>{title}</div>
+        <div style={{ fontSize: 16, color: good ? 'var(--good)' : 'var(--bad)', fontWeight: 700, lineHeight: 1.5 }}>{title}</div>
         {!good && (
           <div style={{ marginTop: 12, textAlign: 'left' }}>
             <div style={{ fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.1em' }}>DIE FORMEL</div>

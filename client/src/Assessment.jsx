@@ -237,7 +237,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     {header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>
+      <div style={{ fontSize: 13, color: 'var(--bad)', lineHeight: 1.6, marginTop: 8 }}>
         {err?.de}<br /><span dir="rtl">{err?.ar}</span>
       </div>
       <button onClick={submit} style={{ ...primaryBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
@@ -275,7 +275,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     </div>
 
     {err && (
-      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: '#fca5a5' }}>
+      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: 'var(--bad)' }}>
         {err.de}<br /><span dir="rtl">{err.ar}</span>
       </div>
     )}
@@ -381,7 +381,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
         <Section title={T(lang, 'Deine größten Blocker', 'أكبر الحاجات اللي بتوقفك')} color="#f87171">
           {result.blockers.map((b, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12.5, color: '#fca5a5', fontWeight: 700 }}>{b.rule}</div>
+              <div style={{ fontSize: 12.5, color: 'var(--bad)', fontWeight: 700 }}>{b.rule}</div>
               <div style={{ fontSize: 11.5, color: 'var(--text-dim)', lineHeight: 1.5, marginTop: 2 }}>{T(lang, b.explanation_de, b.explanation_ar)}</div>
               {b.example_from_their_own_answer && (
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, fontStyle: 'italic', overflowWrap: 'anywhere' }}>„{b.example_from_their_own_answer}"</div>

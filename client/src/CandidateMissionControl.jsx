@@ -786,8 +786,8 @@ export function CandidateMissionControl({
           <div role={error ? 'alert' : 'status'} style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10,
             border: `1px solid ${error ? 'rgba(248,113,113,0.45)' : 'rgba(96,165,250,0.3)'}`,
             background: error ? 'rgba(127,29,29,0.14)' : 'rgba(59,130,246,0.055)' }}>
-            <div style={{ color: error ? '#fecaca' : 'var(--accent-2, #93c5fd)', fontSize: 12 }}>{(error || notice)[0]}</div>
-            <div dir="rtl" style={{ color: error ? '#fca5a5' : 'var(--text-dim, #94a3b8)', fontSize: 11.5, marginTop: 3 }}>{(error || notice)[1]}</div>
+            <div style={{ color: error ? 'var(--bad)' : 'var(--accent-2, #93c5fd)', fontSize: 12 }}>{(error || notice)[0]}</div>
+            <div dir="rtl" style={{ color: error ? 'var(--bad)' : 'var(--text-dim, #94a3b8)', fontSize: 11.5, marginTop: 3 }}>{(error || notice)[1]}</div>
           </div>
         )}
         <nav aria-label="Bewerbungsbereiche" className="cmc-tabs" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,180px))', gap: 7 }}>

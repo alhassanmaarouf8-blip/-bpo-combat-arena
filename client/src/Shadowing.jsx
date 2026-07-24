@@ -235,7 +235,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
+      <div style={{ fontSize: 13, color: 'var(--bad)', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
       <button onClick={loadSession} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut versuchen', 'حاول تاني')}</button>
     </div>
   </>);
@@ -310,7 +310,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     </div>
 
     {err && (
-      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: '#fca5a5' }}>
+      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: 'var(--bad)' }}>
         {err.de}<br /><span dir="rtl">{err.ar}</span>
       </div>
     )}

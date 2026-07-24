@@ -229,7 +229,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
+      <div style={{ fontSize: 13, color: 'var(--bad)', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
       <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'حاول تاني')}</button>
     </div>
   </>);
@@ -293,7 +293,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
               return (
                 <button key={oi} disabled={busy || playing || !!result} onClick={() => submit(oi)}
                   style={{ textAlign: lang === 'ar' ? 'right' : 'left', direction: lang === 'ar' ? 'rtl' : 'ltr',
-                    padding: '11px 13px', borderRadius: 9, fontSize: 13.5, cursor: result ? 'default' : 'pointer', color: '#f1f5f9',
+                    padding: '11px 13px', borderRadius: 9, fontSize: 13.5, cursor: result ? 'default' : 'pointer', color: 'var(--text)',
                     background: result && isRight ? 'rgba(34,197,94,0.12)' : (result && chose ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)'),
                     border: `1px solid ${result ? (isRight ? 'rgba(34,197,94,0.6)' : (chose ? 'rgba(239,68,68,0.6)' : 'rgba(148,163,184,0.2)')) : 'rgba(148,163,184,0.35)'}` }}>
                   {result && isRight ? '✓ ' : ''}{T(lang, o.de, o.ar)}
@@ -312,7 +312,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     )}
 
     {err && (
-      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: '#fca5a5' }}>
+      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: 'var(--bad)' }}>
         {err.de}<br /><span dir="rtl">{err.ar}</span>
       </div>
     )}
@@ -323,7 +323,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 11,
           background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
           border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-          <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
+          <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : 'var(--bad)', fontWeight: 700 }}>
             {result.correct
               ? (item.kind === 'verstehen' ? T(lang, '✓ Richtig verstanden!', '✓ فهمتها صح!') : T(lang, '✓ Richtig erfasst!', '✓ صح كده!'))
               : T(lang, '✗ Nicht ganz', '✗ مش مظبوط')}

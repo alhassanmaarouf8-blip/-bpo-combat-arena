@@ -143,7 +143,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
   );
 
   if (phase === 'loading') return shell(<>{header}<LoadingPane /></>);
-  if (phase === 'error') return shell(<>{header}<div style={{ textAlign: 'center', padding: '30px 0' }}><div style={{ fontSize: 36 }}>⚠</div><div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div><button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'تاني')}</button></div></>);
+  if (phase === 'error') return shell(<>{header}<div style={{ textAlign: 'center', padding: '30px 0' }}><div style={{ fontSize: 36 }}>⚠</div><div style={{ fontSize: 13, color: 'var(--bad)', marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div><button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'تاني')}</button></div></>);
 
   if (phase === 'empty' && prescription?.missingTarget) return shell(<>{header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
@@ -215,7 +215,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
           {item?.rule && <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 6 }}>{item.rule}</div>}
           <div style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.5 }}>{T(lang, item?.prompt, item?.prompt)}</div>
           {item?.wrong && (
-            <div style={{ fontSize: 13, color: '#fca5a5', marginTop: 8, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: 'var(--bad)', marginTop: 8, lineHeight: 1.5 }}>
               {/* Clarified 2026-07-02 (owner: "just a crossed-out line that doesn't represent
                   anything"): the strikethrough sentence is the learner's OWN past error, resurfaced
                   for active recall — say the CORRECTED version from memory, not read this aloud.
@@ -243,7 +243,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
       )}
     </div>
 
-    {err && <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: '#fca5a5' }}>{err.de}<br /><span dir="rtl">{err.ar}</span></div>}
+    {err && <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: 'var(--bad)' }}>{err.de}<br /><span dir="rtl">{err.ar}</span></div>}
 
     <div style={{ marginTop: 16, textAlign: 'center' }}>
       {recording ? (
@@ -263,7 +263,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
           ) : (
             <div style={{ textAlign: 'left' }}>
               <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'rgba(59,130,246,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-                <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
+                <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : 'var(--bad)', fontWeight: 700 }}>
                   {result.correct ? T(lang, '✓ Richtig gesagt!', '✓ قلتها صح!') : T(lang, '✗ Noch nicht ganz', '✗ لسه مش مظبوط')}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 6 }}>{T(lang, 'Richtig: ', 'الصح: ')}<b style={{ color: 'var(--good)' }}>{result.expected}</b></div>

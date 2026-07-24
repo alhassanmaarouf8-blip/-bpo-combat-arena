@@ -124,7 +124,7 @@ export default function PublicFeedback() {
             <input value={hp} onChange={(e) => setHp(e.target.value)} tabIndex={-1} autoComplete="off"
               aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
 
-            {err && <div style={{ color: '#f87171', fontSize: 12.5, marginTop: 12 }}>{err}</div>}
+            {err && <div style={{ color: 'var(--bad)', fontSize: 12.5, marginTop: 12 }}>{err}</div>}
 
             <button type="button" onClick={submit} disabled={busy || !canSend}
               style={{ ...S.btn, marginTop: 18, opacity: (busy || !canSend) ? 0.45 : 1, cursor: (busy || !canSend) ? 'default' : 'pointer' }}>

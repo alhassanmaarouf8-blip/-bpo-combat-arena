@@ -247,7 +247,7 @@ function ScheduleList({ record, busy, onComplete, canLive }) {
       <div>
         <div id="vacancy-plan-title" style={{ color:'var(--text)', fontWeight:800, fontSize:13 }}>Dein Vorbereitungsplan</div>
         {omitted > 0 && (
-          <div style={{ marginTop:3, color:'#fdba74', fontSize:10.5, lineHeight:1.45 }}>
+          <div style={{ marginTop:3, color:'var(--action)', fontSize:10.5, lineHeight:1.45 }}>
             Der Termin ist nah. {omitted} reguläre Schritte wurden ehrlich ausgelassen und die wichtigsten Inhalte verdichtet.
           </div>
         )}
@@ -753,7 +753,7 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
             </div>
 
             {error && (
-              <div role="alert" style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, border:'1px solid rgba(248,113,113,0.35)', background:'rgba(248,113,113,0.08)', color:'#fca5a5', fontSize:12, lineHeight:1.5 }}>
+              <div role="alert" style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, border:'1px solid rgba(248,113,113,0.35)', background:'rgba(248,113,113,0.08)', color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>
                 {error}
               </div>
             )}
@@ -903,7 +903,7 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
                   </button>
                 )}
                 <button type="button" onClick={removeTarget} disabled={busy} style={{
-                  minHeight:40, border:0, background:'transparent', color:'#fca5a5', font:'inherit', fontSize:11, cursor:busy ? 'wait' : 'pointer',
+                  minHeight:40, border:0, background:'transparent', color:'var(--bad)', font:'inherit', fontSize:11, cursor:busy ? 'wait' : 'pointer',
                 }}>
                   Ziel-Stelle entfernen
                 </button>

@@ -184,7 +184,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     {header}
     <div style={{ textAlign: 'center', padding: '30px 0' }}>
       <div style={{ fontSize: 36 }}>⚠</div>
-      <div style={{ fontSize: 13, color: '#fca5a5', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
+      <div style={{ fontSize: 13, color: 'var(--bad)', lineHeight: 1.6, marginTop: 8 }}>{err?.de}<br /><span dir="rtl">{err?.ar}</span></div>
       <button onClick={load} style={{ ...actionBtn, marginTop: 18 }}>{T(lang, 'Erneut', 'حاول تاني')}</button>
     </div>
   </>);
@@ -229,7 +229,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
       {chosen.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{T(lang, 'Tippe die Wörter in der richtigen Reihenfolge…', '')}</span>}{/* OWNER-AR slot */}
       {chosen.map((i, pos) => (
         <span key={pos} style={{ padding: '6px 10px', borderRadius: 7, fontSize: 13.5,
-          background: 'rgba(59,130,246,0.16)', border: '1px solid rgba(59,130,246,0.4)', color: '#f1f5f9' }}>
+          background: 'rgba(59,130,246,0.16)', border: '1px solid rgba(59,130,246,0.4)', color: 'var(--text)' }}>
           {tiles[i]?.text}
         </span>
       ))}
@@ -239,7 +239,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
       {tiles.map((t, i) => !t.used && (
         <button key={i} onClick={() => tapTile(i)} disabled={!!result || busy}
-          style={{ padding: '9px 13px', borderRadius: 8, fontSize: 13.5, cursor: 'pointer', color: '#f1f5f9',
+          style={{ padding: '9px 13px', borderRadius: 8, fontSize: 13.5, cursor: 'pointer', color: 'var(--text)',
             background: 'var(--surface-2)', border: '1px solid rgba(148,163,184,0.35)' }}>
           {t.text}
         </button>
@@ -254,7 +254,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     )}
 
     {err && (
-      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: '#fca5a5' }}>
+      <div style={{ marginTop: 12, padding: '8px 11px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', fontSize: 11, color: 'var(--bad)' }}>
         {err.de}{err.ar ? <><br /><span dir="rtl">{err.ar}</span></> : null}
       </div>
     )}
@@ -264,7 +264,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 11,
           background: result.correct ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
           border: `1px solid ${result.correct ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
-          <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : '#fca5a5', fontWeight: 700 }}>
+          <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : 'var(--bad)', fontWeight: 700 }}>
             {result.correct ? T(lang, '✓ Richtige Reihenfolge!', '') : T(lang, `✗ ${result.matchedCount}/${result.total} richtig platziert`, '')}{/* OWNER-AR slots */}
           </div>
           {!result.correct && (

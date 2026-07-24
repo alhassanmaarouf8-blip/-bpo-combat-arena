@@ -383,7 +383,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
         <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('standard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'#60a5fa' }}>
           <strong>STANDARD</strong><span>3 Stufen · ruhig bis direkt</span>
         </button>
-        <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('hard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'#f87171' }}>
+        <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('hard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'var(--bad)' }}>
           <strong>HART</strong><span>5 Stufen · kurze Zeit und harte Unterbrechungen</span>
         </button>
       </div>
@@ -483,7 +483,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     </div>
     <div style={{ fontSize: 12, color: 'var(--text-dim)', margin: '2px 0 14px', padding: '12px', background: 'rgba(59,130,246,0.07)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.25)' }}>
       <div style={{ fontSize: 10, color: 'var(--good)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>{T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
-      <div style={{ color: '#f1f5f9', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
+      <div style={{ color: 'var(--text)', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
       <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}><SpeakerIcon style={{ marginRight: 6 }} /> {T(lang, 'Anhören', 'اسمع')}</button>
     </div>
     <div style={{ display: 'flex', gap: 8 }}>

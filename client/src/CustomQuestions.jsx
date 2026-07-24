@@ -196,7 +196,7 @@ export default function CustomQuestions({ token, apiUrl, lang = 'de', onClose, o
           </div>
         )}
 
-        {err && <p role="alert" style={{ margin: 0, fontSize: 12, color: '#fca5a5', lineHeight: 1.5 }}>{err}</p>}
+        {err && <p role="alert" style={{ margin: 0, fontSize: 12, color: 'var(--bad)', lineHeight: 1.5 }}>{err}</p>}
       </div>
     </div>
   );

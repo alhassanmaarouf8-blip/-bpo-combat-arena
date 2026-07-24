@@ -279,7 +279,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
                 <div className="flash" style={{ marginTop: 10, padding: '9px 11px', borderRadius: 'var(--r-sm)',
                   background: result.correct ? 'rgba(59,130,246,0.12)' : 'rgba(239,68,68,0.12)',
                   border: `1px solid ${result.correct ? 'rgba(59,130,246,0.33)' : 'rgba(239,68,68,0.33)'}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? 'var(--accent)' : '#f87171' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? 'var(--accent)' : 'var(--bad)' }}>
                     {result.correct ? '✓ Richtig' : '✗ Noch nicht richtig'}
                   </div>
                   {!result.correct && result.expected && (
@@ -341,5 +341,5 @@ const inputSt = { width: '100%', padding: '11px', borderRadius: 'var(--r-sm)', b
 const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.35)', background: 'rgba(59,130,246,0.07)', color: 'var(--accent-dim)' };
 const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, var(--action), var(--warn))' };
 const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
-const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5' };
+const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: 'var(--bad)' };
 const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.06)', color: 'var(--accent-dim)', lineHeight: 1 };

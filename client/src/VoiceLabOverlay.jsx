@@ -32,7 +32,7 @@ export function VoiceLabOverlay() {
       catch { setFixture(null); setError('Use a WAV from http://127.0.0.1:8787/voice-fixtures/.'); }
     }} style={{ minHeight: 44, width: '100%', marginTop: 6 }}>Load local WAV</button>
     {fixture && <div role="status" style={{ color: '#86efac', overflowWrap: 'anywhere' }}>Armed: {fixture.name}</div>}
-    {error && <div role="alert" style={{ color: '#fca5a5' }}>{error}</div>}
+    {error && <div role="alert" style={{ color: 'var(--bad)' }}>{error}</div>}
   </aside>;
 }
 

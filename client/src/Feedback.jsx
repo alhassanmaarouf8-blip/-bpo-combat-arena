@@ -181,7 +181,7 @@ function GrantPro({ token, apiUrl }) {
         {btn('free', 'FREE', 'var(--text-dim)')}
       </div>
       {busy && <div style={{ fontSize: 10, marginTop: 6, color: 'var(--text-dim)' }}>…</div>}
-      {msg && <div style={{ fontSize: 10.5, marginTop: 6, color: msg.ok ? 'var(--accent)' : '#f87171' }}>{msg.t}</div>}
+      {msg && <div style={{ fontSize: 10.5, marginTop: 6, color: msg.ok ? 'var(--accent)' : 'var(--bad)' }}>{msg.t}</div>}
     </div>
   );
 }
@@ -224,13 +224,13 @@ export function AdminFeedback({ token, apiUrl }) {
             <GrantPro token={token} apiUrl={apiUrl} />
 
             {busy && <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>Lädt…</div>}
-            {err && <div style={{ color: '#f87171', fontSize: 12 }}>{err}</div>}
+            {err && <div style={{ color: 'var(--bad)', fontSize: 12 }}>{err}</div>}
 
             {data && (
               <>
                 <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, marginBottom: 12 }}>
                   <div><b>{data.summary.total}</b> Rückmeldungen · Ø {data.summary.avgRating ?? '—'} ({data.summary.ratingCount})</div>
-                  <div>Wirkte echt: <span style={{ color: 'var(--accent)' }}>{data.summary.feltRealYes} ✓</span> · <span style={{ color: '#f87171' }}>{data.summary.feltRealNo} ✗</span></div>
+                  <div>Wirkte echt: <span style={{ color: 'var(--accent)' }}>{data.summary.feltRealYes} ✓</span> · <span style={{ color: 'var(--bad)' }}>{data.summary.feltRealNo} ✗</span></div>
                   <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-dim)' }}>Zahlungsbereitschaft:</div>
                   {priceRows.length === 0
                     ? <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>noch keine</div>

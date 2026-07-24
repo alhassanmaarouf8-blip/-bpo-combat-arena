@@ -489,7 +489,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
             aria-pressed={coach.preferences.muted} style={quietButton}>Stumm: {coach.preferences.muted ? 'An' : 'Aus'}</button>
         </div>
       </details>
-      {error && <div role="alert" style={{ color: '#fca5a5', fontSize: 12, lineHeight: 1.5, marginTop: 8 }}>{error}</div>}
+      {error && <div role="alert" style={{ color: 'var(--bad)', fontSize: 12, lineHeight: 1.5, marginTop: 8 }}>{error}</div>}
     </section>
   );
 }

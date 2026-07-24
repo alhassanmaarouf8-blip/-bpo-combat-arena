@@ -291,8 +291,8 @@ export function InterviewPassPreview({
 
         {error && (
           <div role="alert" style={{ marginTop: 16, padding: '11px 13px', borderRadius: 10, border: '1px solid rgba(248,113,113,0.5)', background: 'rgba(127,29,29,0.16)' }}>
-            <div style={{ color: '#fecaca', fontSize: 12.5, lineHeight: 1.5 }}>{error[0]}</div>
-            <div dir="rtl" style={{ color: '#fca5a5', fontSize: 12, lineHeight: 1.6, marginTop: 3 }}>{error[1]}</div>
+            <div style={{ color: 'var(--bad)', fontSize: 12.5, lineHeight: 1.5 }}>{error[0]}</div>
+            <div dir="rtl" style={{ color: 'var(--bad)', fontSize: 12, lineHeight: 1.6, marginTop: 3 }}>{error[1]}</div>
           </div>
         )}
 

@@ -88,7 +88,7 @@ export function PushReminder({ token, apiUrl, reminderState }) {
           color: on ? 'var(--accent)' : 'var(--text-dim)', background: on ? 'rgba(59,130,246,0.08)' : 'var(--surface-2)' }}>
         {state === 'busy' ? '…' : on ? ' ERINNERUNG AN ✓ — TIPPEN ZUM AUSSCHALTEN' : ' TÄGLICHE ERINNERUNG AKTIVIEREN'}
       </button>
-      {err && <div style={{ fontSize: 10.5, color: '#f87171', marginTop: 5, lineHeight: 1.4 }}>{err}</div>}
+      {err && <div style={{ fontSize: 10.5, color: 'var(--bad)', marginTop: 5, lineHeight: 1.4 }}>{err}</div>}
     </div>
   );
 }
