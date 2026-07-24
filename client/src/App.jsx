@@ -4622,7 +4622,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <button onClick={() => payWithCard(pay)}
           style={{ width:'100%', padding:'13px', minHeight:50, cursor:'pointer',
             fontFamily:'var(--font-display)', fontSize:13, fontWeight:800, letterSpacing:'0.02em', borderRadius:10,
-            border:'1px solid var(--accent-2)', color:'#04121f', background:'var(--accent-2)' }}>
+            border:'none', color:'#FFFFFF', background:'var(--action)',
+            boxShadow:'0 1px 2px rgba(18,22,31,0.2)' }}>
           {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
         </button>
       )}
@@ -4633,18 +4634,18 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       {!STORE_MODE && vodafone ? (
         <div style={{ flex:1 }}>
           {/* Step 1 — send the money */}
-          <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background: 'var(--surface)', border:'1px solid rgba(14,19,32,0.3)' }}>
+          <div style={{ borderRadius:12, padding:'14px', marginBottom:10, background: 'var(--surface)', border:'1px solid var(--line)' }}>
             <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
-              <b style={{ color:'var(--accent-2)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
+              <b style={{ color:'var(--text)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
             <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700, color:'#fff',
-              background:'rgba(14,19,32,0.12)', border:'1px solid rgba(14,19,32,0.4)', borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.04em' }}>
+              background:'var(--surface-2)', border:'1px solid var(--line-strong)', color:'var(--text)', borderRadius:8, padding:'12px', marginTop:8, letterSpacing:'0.08em' }}>
               {vodafone}
             </div>
             <button type="button" onClick={() => copyText(vodafone, 'wallet')}
               style={{ width:'100%', marginTop:7, padding:'9px', minHeight:42, cursor:'pointer', borderRadius:8,
-                border:'1px solid rgba(14,19,32,0.35)', background:'rgba(14,19,32,0.08)', color:'var(--accent-2)', fontWeight:700 }}>
+                border:'1px solid var(--line-strong)', background:'var(--surface)', color:'var(--text)', fontWeight:700 }}>
               {copied === 'wallet' ? (ar ? 'تم نسخ الرقم ✓' : 'Nummer kopiert ✓') : (ar ? 'انسخ رقم المحفظة' : 'Wallet-Nummer kopieren')}
             </button>
           </div>
@@ -4652,16 +4653,16 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           {/* Step 2 — payer identity; Vodafone Cash has no transfer-note field. */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.4)' }}>
             <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
-              <b style={{ color:'var(--action)' }}>2)</b> Gib die letzten 4 Ziffern der Wallet ein, von der du sendest:
+              <b style={{ color:'var(--text)' }}>2)</b> Gib die letzten 4 Ziffern der Wallet ein, von der du sendest:
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>اكتب آخر ٤ أرقام من رقم المحفظة اللي هتحوّل منها:</div>
             <input value={senderLast4} onChange={(e) => setSenderLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
               inputMode="numeric" autoComplete="off" maxLength={4} aria-label="Letzte 4 Ziffern der sendenden Wallet"
               placeholder="••••" style={{ width:'100%', boxSizing:'border-box', textAlign:'center', fontFamily:'Share Tech Mono, monospace',
-                fontSize:26, fontWeight:900, color:'var(--action)', background: 'var(--surface)', border:'1px dashed var(--action)',
+                fontSize:26, fontWeight:800, color:'var(--text)', background: 'var(--surface)', border:'1px solid var(--line-strong)',
                 borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.25em' }} />
             <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:7, lineHeight:1.5 }}>
-              Vorgangsnummer: <b style={{ color:'var(--action)' }}>{refCode}</b> · رقم الطلب للدعم فقط، مش بيتكتب في التحويل.
+              Vorgangsnummer: <b style={{ color:'var(--text)' }}>{refCode}</b> · رقم الطلب للدعم فقط، مش بيتكتب في التحويل.
             </div>
           </div>
 
