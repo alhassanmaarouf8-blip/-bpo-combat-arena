@@ -58,6 +58,19 @@ const ALLOWED = new Set([
   // Verified Improvement Loop. Event names only: no skill, score, account, session, or prescription ids.
   'salma_prescription_shown', 'salma_block_completed',
   'salma_retest_improved', 'salma_retest_held', 'salma_retest_regressed',
+  // Subscribe-conversion funnel (2026-07-24). The whole vocabulary lands in ONE commit even though
+  // the emitting UI ships across several phases — this whitelist is a hard gate, and shipping the
+  // client half first would silently 400 every event exactly as it did on Salma's launch day (see
+  // the note above). Counts only: no plan, price, account, bottleneck, or session data.
+  // price_seen_public   — the landing stated the price to an anonymous visitor (vs `open`: the leak
+  //                       being fixed is that only 8 of ~120 openers ever saw one).
+  // drill_locked_tap    — a locked Übungen tile was tapped (paid boundary made visible).
+  // evidence_lead_shown — the debrief led with the user's own quoted findings.
+  // paywall_evidence_shown — the paywall rendered the user's own open case file.
+  // trial_grant_shown / trial_lastday_shown — the trial arc's two named moments.
+  'price_seen_public', 'price_expand_public', 'drill_locked_tap',
+  'evidence_lead_shown', 'paywall_evidence_shown',
+  'trial_grant_shown', 'trial_lastday_shown',
 ]);
 const DAY_CAP = 50_000;   // abuse/runaway ceiling per event per day
 const MAX_KEYS = 200;     // distinct-counter ceiling per day (src slugs can't explode the row)

@@ -898,6 +898,54 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
   });
 });
 
+// PUBLIC pricing — so the LANDING PAGE can state the offer BEFORE signup.
+// Why this exists: the measured leak recorded at App.jsx "THE OFFER AT THE PEAK" (elite-marketer
+// teardown 2026-07-10) — only 8 of ~120 openers ever SAW a price, because price lived behind
+// signup + e-mail verification + the paywall. Owner decision 2026-07-24: state it publicly.
+// This changes DISPLAY ONLY — no billing logic, no entitlement, nobody pays earlier.
+//
+// No auth, no account lookup, no PII, zero I/O (plans.config.js values are module constants), so
+// it is as cheap as /health and safe to cache. Fields are EXPLICITLY PROJECTED — never `...pl` the
+// way /status does above: that route is authed, this one is anonymous, so internal plan shape
+// (callFloor, trackedApplications, jobRadarDaily, vacancy*) must not leak.
+billingRouter.get('/pricing', async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');   // 5 min — public marketing data, cheap to cache
+  try {
+    res.json({
+      available: true,   // fail-closed contract: the client renders a price ONLY when this is true
+      plans: [PLANS.basic, PLANS.elite].map((pl) => ({
+        id:             pl.id,
+        label:          pl.label,
+        priceEGP:       pl.priceEGP,
+        yearlyEGP:      pl.yearlyEGP ?? null,
+        dailySessions:  pl.dailySessions,
+        sessionMinutes: pl.sessionMinutes,
+        // offerPrice() returns the ORIGINAL price when no offer is live, so the landing shows the
+        // discount automatically the moment OFFER flips on — and can never advertise a stale one.
+        offerPriceEGP:  offerPrice(pl.priceEGP),
+        offerYearlyEGP: pl.yearlyEGP != null ? offerPrice(pl.yearlyEGP) : null,
+      })),
+      offer: offerActive()
+        ? { active: true, pct: OFFER.pct, endsAt: OFFER.endsAt, label: OFFER.label }
+        : { active: false },
+      // What the trial ACTUALLY grants — from the same constants dailyMinutesFor()/entitlement() use
+      // above, so the landing can never repeat the old "3 Tage Basic" line while the code hands a
+      // trial user Elite-level dailySessions (4/day, not Basic's 2), all drills, and Ziel-Stelle.
+      trial: {
+        days:             FREE_TRIAL_DAYS,
+        dailySessions:    PLANS.elite.dailySessions || 0,
+        dailyLiveMinutes: PLANS.elite.dailyLiveMinutes || 0,
+        drills:           true,
+        zielStelle:       true,
+      },
+      free: { assessments: PLANS.free.assessments, freeInterviews: 1 },
+    });
+  } catch (err) {
+    console.error('[billing] public pricing error:', err.message);
+    res.json({ available: false });   // never break the landing page over this
+  }
+});
+
 // Lightweight live state for the HOME screen: daily minutes left, pending payment, and a
 // one-time "just activated" flag. All server-side truth.
 billingRouter.get('/state', requireAuth, async (req, res) => {

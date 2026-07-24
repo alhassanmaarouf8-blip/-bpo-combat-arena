@@ -158,6 +158,12 @@ const beacon = (e) => {
   } catch { /* telemetry must never break the app */ }
 };
 beacon(IN_APP_BROWSER ? 'open_inapp' : 'open');
+// German price formatting (1999 → "1.999"). Module-scope so the LANDING and the PAYWALL render the
+// same price string — a buyer who reads "1999 EGP" before signup and "1.999 EGP" at the paywall is
+// being shown two different-looking numbers for one price. PaywallScreen still has its own local
+// `fmt`; it adopts this one in the paywall phase (that screen is where money happens, so it is not
+// edited in a landing-page ship).
+const fmtEgp = (n) => Number(n || 0).toLocaleString('de-DE');
 // ── PWA install capture ───────────────────────────────────────────────────────────────────
 // beforeinstallprompt fires ONCE and often before React mounts, so the listener lives at module
 // scope. Why installing matters beyond convenience: an INSTALLED app is exempt from iOS/Safari's
@@ -3268,12 +3274,25 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
   // displaying an enabled form during flags-off, paused, beta-only, or failed probes.
   const [interviewPassFeatureState, setInterviewPassFeatureState] = useState('off');
   const interviewPassUnavailableRef = useRef(false);
+  // Public pricing for the landing offer block (owner decision 2026-07-24 — state the price BEFORE
+  // signup). Fail-closed exactly like publicRatings above: without `available` the offer block
+  // renders only its "always free" line and NEVER a fallback price. A wrong price is worse than
+  // no price, and every figure must come from the server (plans.config.js is the single source).
+  const [pricing, setPricing] = useState(null);
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_URL}/api/feedback/public`).then((r) => r.json())
       .then((d) => { if (!cancelled && d?.available) setPublicRatings(d); }).catch(() => {});
+    fetch(`${API_URL}/api/billing/pricing`).then((r) => r.json())
+      .then((d) => { if (!cancelled && d?.available) setPricing(d); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
+  // Counted ONLY when a price was actually put in front of an anonymous visitor — this is the exact
+  // quantity the "8 of ~120 openers ever SAW a price" leak was measured against, so it must not fire
+  // on mount, on a failed fetch, or on the study-cohort landing (which shows no price at all).
+  useEffect(() => {
+    if (pricing?.plans?.length && !validStudyEntry) beacon('price_seen_public');
+  }, [pricing, validStudyEntry]);
   useEffect(() => {
     let active = true;
     let monitor = null;
@@ -3494,10 +3513,53 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             color:'#071018', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
           {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'KOSTENLOSE DIAGNOSE FREISCHALTEN'}
         </button>
-        <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7 }}>
+        {/* THE OFFER, STATED BEFORE SIGNUP (owner decision 2026-07-24). The leak this fixes is
+            recorded at "THE OFFER AT THE PEAK" further down: only 8 of ~120 openers ever SAW a
+            price, because price lived behind signup + e-mail verification + the paywall.
+            DISPLAY ONLY — the free path, the 3-day trial and every entitlement are untouched.
+            Every figure comes from GET /api/billing/pricing (→ plans.config.js, the same constants
+            entitlement() actually grants), so this block can never drift from what the paywall
+            charges, and a future price change needs no client edit.
+            Honest-when-thin: no `pricing` (Render cold start / offline) → ONLY the always-free line
+            renders. Never a fallback price — a wrong price is worse than no price.
+            This also retires the old landing line that named the trial as a *Basic* trial, which
+            UNDERSTATED the real grant: auth.js gives trial users Elite-level dailySessions
+            (4 interviews/day, not Basic's 2), all drills, and Ziel-Stelle. A regression test in
+            server/studyCohortClientRegression.test.mjs now forbids that claim returning — the
+            wording here deliberately avoids the forbidden literal so the ratchet stays strict.
+            Blue/neutral by design — the single orange on this screen stays on the CTA above. */}
+        <div style={{ fontSize:11.5, color:'var(--text-faint)', marginTop:7, lineHeight:1.75 }}>
           {validStudyEntry
             ? 'Bestätigter Studienzugang: 21 Tage kostenlos · keine Karte · Training, keine Jobvermittlung'
-            : 'Nach E-Mail-Bestätigung: Einstufung + erstes Interview kostenlos; danach 3 Tage Basic ab Interviewstart · keine Karte nötig'}
+            : <>
+              <div>
+                <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Immer kostenlos:</strong>{' '}
+                Einstufung + dein erstes Interview + dein persönlicher Schritt.
+                {/* OWNER-AR slot */}
+              </div>
+              {pricing?.trial?.dailySessions > 0 && (
+                <div style={{ marginTop:2 }}>
+                  <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>
+                    Deine {pricing.trial.days} Testtage (ab dem ersten Interview):
+                  </strong>{' '}
+                  {pricing.trial.dailySessions} Interviews/Tag · alle Übungen · Ziel-Stelle.
+                  {/* OWNER-AR slot */}
+                </div>
+              )}
+              {pricing?.plans?.length > 0 && (
+                <div style={{ marginTop:2 }}>
+                  <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Danach:</strong>{' '}
+                  {pricing.plans.map((pl, i) => (
+                    <span key={pl.id}>
+                      {i > 0 ? ' · ' : ''}{pl.label}{' '}
+                      <strong style={{ color:'var(--accent-2)', fontWeight:700 }}>{fmtEgp(pl.offerPriceEGP)} EGP/Monat</strong>
+                    </span>
+                  ))}
+                  . Keine Karte nötig, um zu starten.
+                  {/* OWNER-AR slot */}
+                </div>
+              )}
+            </>}
         </div>
         {!validStudyEntry && <section aria-label="Beispiel für konkretes Feedback"
           style={{ maxWidth:420, margin:'14px auto 0', padding:'12px 14px', borderRadius:12, textAlign:'left',

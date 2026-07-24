@@ -81,9 +81,24 @@ test('cohort verification has a bounded offline fallback instead of hanging fore
   assert.ok(Date.now() - started < 1000);
 });
 
-test('generic landing remains three days while valid study state alone selects a user-gesture diagnostic CTA', async () => {
+test('generic landing states the real offer (free-forever + true trial grant + price) while valid study state alone selects a user-gesture diagnostic CTA', async () => {
   const source = await readFile(new URL('../client/src/App.jsx', import.meta.url), 'utf8');
-  assert.match(source, /danach 3 Tage Basic ab Interviewstart · keine Karte nötig/);
+  // The generic landing must still state the trial — but as of 2026-07-24 it also states the PRICE
+  // before signup (owner decision; the measured leak was that only 8 of ~120 openers ever saw one),
+  // and every number is now server-driven from GET /api/billing/pricing → plans.config.js. No
+  // hardcoded literal, so the page can never drift from what entitlement() actually grants.
+  assert.match(source, /Immer kostenlos:/);
+  assert.match(source, /Deine \{pricing\.trial\.days\} Testtage \(ab dem ersten Interview\)/);
+  assert.match(source, /\{pricing\.trial\.dailySessions\} Interviews\/Tag/);
+  assert.match(source, /\{fmtEgp\(pl\.offerPriceEGP\)\} EGP\/Monat/);
+  // RATCHET: the retired line promised "3 Tage Basic" while auth.js grants a trial user Elite-level
+  // dailySessions (4 interviews/day, not Basic's 2), all drills and Ziel-Stelle — it under-sold the
+  // trial by 2x AND named the wrong tier. A false claim about what the buyer gets must never return.
+  assert.doesNotMatch(source, /3 Tage Basic/);
+  // Honest-when-thin: price and trial detail render ONLY behind real server data. If this gate is
+  // ever removed, a cold start would paint a fallback/undefined price — worse than showing none.
+  assert.match(source, /\{pricing\?\.plans\?\.length > 0 && \(/);
+  assert.match(source, /\{pricing\?\.trial\?\.dailySessions > 0 && \(/);
   assert.match(source, /Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus/);
   assert.match(source, /const activeStudyStart = firstRun && auth\.account\?\.studyAccess\?\.active === true/);
   assert.match(source, /activeStudyStart \? '8-MIN-DIAGNOSE STARTEN' : 'Interview starten'/);
