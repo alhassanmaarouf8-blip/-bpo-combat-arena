@@ -17,6 +17,9 @@ const CallFloor = lazy(() => import('./CallFloor.jsx'));
 // real users. Delete once the light direction is approved and merged into the real home.
 const IS_PREVIEW_LIGHT = /[?&]preview=light\b/.test(window.location.search);
 const TrainingHomeLightPreview = lazy(() => import('./preview/TrainingHomeLightPreview.jsx'));
+// Same preview lane for the rebuilt debrief (?preview=debrief).
+const IS_PREVIEW_DEBRIEF = /[?&]preview=debrief\b/.test(window.location.search);
+const DebriefLightPreview = lazy(() => import('./preview/DebriefLightPreview.jsx'));
 
 // Paint a readable error into the page instead of leaving a blank/black screen, so a
 // runtime crash is never invisible. Covers both render errors (boundary) and async /
@@ -85,6 +88,7 @@ try {
         {IS_FEEDBACK ? <PublicFeedback />
           : IS_CALLFLOOR ? <Suspense fallback={null}><CallFloor /></Suspense>
           : IS_PREVIEW_LIGHT ? <Suspense fallback={null}><TrainingHomeLightPreview /></Suspense>
+          : IS_PREVIEW_DEBRIEF ? <Suspense fallback={null}><DebriefLightPreview /></Suspense>
           : <><App /><VoiceLabOverlay /></>}
       </RootBoundary>
     </StrictMode>,
