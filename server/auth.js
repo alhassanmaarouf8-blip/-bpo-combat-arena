@@ -439,7 +439,9 @@ export function entitlement(account) {
     dailyLiveMinutes:      mins,
     dailySessions:         sessions,
     drillsUnlocked:        drillsUnlocked(account),
-    trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0 },
+    // `days` = the FULL trial length, so the client can tell "day 1" from "day 2" without
+    // hardcoding 3 (a literal there would silently lie the moment FREE_TRIAL_DAYS changes).
+    trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0, days: FREE_TRIAL_DAYS },
     zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — trial gives the full taste
     // "Meine eigenen Fragen": armed only when the server flag is on AND the user is entitled (trial or
     // paid — same gate as drills). Drives whether the client shows the entry at all (dark by default).
@@ -458,6 +460,20 @@ export async function consumeFreeFight(account) {
     account.subscription.trialStartedAt ||= Date.now();
     await persist();
   }
+}
+
+// ONE trial-ending notice per account, EVER. Claim-then-send: the flag is written and persisted
+// BEFORE the mail is dispatched and this returns false if it was already set, so a retry, a double
+// self-trigger, or two instances racing can never mail the same person twice. Mailing a learner
+// twice about the same expiry is the kind of thing that gets a sender domain reported.
+// Cost of the trade: if delivery then fails, that account silently gets no notice. That is the
+// correct side to fail on — a missed nudge is recoverable, a spam complaint is not.
+export async function claimTrialNotice(account) {
+  if (!account?.subscription) account.subscription = {};
+  if (account.subscription.trialNoticeSentAt) return false;
+  account.subscription.trialNoticeSentAt = Date.now();
+  await persist();
+  return true;
 }
 
 export function emailOwnershipVerified(account) {

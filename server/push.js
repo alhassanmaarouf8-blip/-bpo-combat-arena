@@ -23,8 +23,11 @@ import crypto from 'crypto';
 import { adminRequestOk } from './adminAuth.js';
 import { dayKey } from './time.js';
 import { loadUser, saveUser } from './store.js';
-import { requireAuth, listAllAccounts } from './auth.js';
+import { requireAuth, listAllAccounts, trialActive, trialDaysLeft, claimTrialNotice } from './auth.js';
 import { dbEnabled, kvGet, kvSet } from './db.js';
+import { mailerConfigured, sendTrialEndingMail } from './mailer.js';
+import { loadBottlenecks, latestActiveRecord } from './bottleneckStore.js';
+import { CATEGORIES } from './scoring/errorTaxonomy.js';
 
 export const pushRouter = express.Router();
 
@@ -188,6 +191,61 @@ export async function runDailyReminders({ force = false } = {}) {
   return { ok: true, sent, skipped, pruned };
 }
 
+// ── Trial-ending notice ──────────────────────────────────────────────────────────────────────
+// The 3-day trial used to die in complete silence: day 3 looked identical to day 1, and there was
+// no mail and no push at any point. Every learner who got busy for two days simply lapsed without
+// ever being told the trial was ending — the largest pool of already-convinced people in the funnel.
+//
+// DARK BY DEFAULT (TRIAL_NOTICE_ENABLED=1 arms it). This is the house pattern for anything that
+// reaches real users unprompted, and it matters more here than usual: a deploy must never start
+// mailing people as a side effect. Force the admin endpoint against ONE account first, read the
+// mail yourself, then arm it.
+//
+// Zero new infrastructure and zero spend: it rides the existing self-triggered daily window and
+// the existing mailer.
+export function trialNoticeEnabled() { return process.env.TRIAL_NOTICE_ENABLED === '1'; }
+
+export async function runTrialNotices({ force = false, onlyEmail = null } = {}) {
+  if (!force && !trialNoticeEnabled()) return { ok: false, reason: 'trial_notice_disabled' };
+  if (!mailerConfigured()) return { ok: false, reason: 'mailer_unconfigured' };
+  const today = dayKey();
+  // Per-day guard, separate key from the push reminder so one cannot suppress the other.
+  if (!force) {
+    try { if (dbEnabled() && (await kvGet('config', 'lastTrialNotice')) === today) return { ok: true, alreadySent: true }; } catch {}
+  }
+  const accounts = (await listAllAccounts() || [])
+    .filter((a) => a && a.email && !/@example\.com$/i.test(a.email))
+    .filter((a) => !onlyEmail || String(a.email).toLowerCase() === String(onlyEmail).toLowerCase());
+
+  let sent = 0, skipped = 0, failed = 0;
+  for (const a of accounts) {
+    // Exactly the last day of a still-active trial. Not 0 (already over — a mail then is just noise),
+    // not 2+ (nothing has been decided yet).
+    if (!trialActive(a) || trialDaysLeft(a) !== 1) { skipped++; continue; }
+    // Claim BEFORE sending — see auth.claimTrialNotice. Returns false if this account was ever
+    // notified, which is what makes "at most one, ever" hold across retries and restarts.
+    if (!(await claimTrialNotice(a))) { skipped++; continue; }
+    try {
+      // Their own evidence, or nothing. A learner with no analysed interview gets the short mail
+      // rather than an invented bottleneck.
+      let label = '', quote = '', corrected = '';
+      try {
+        const rec = latestActiveRecord(await loadBottlenecks(a.id));
+        if (rec) {
+          label = CATEGORIES[rec.category]?.de || rec.category || '';
+          const ev = (rec.evidenceQuotes || [])[0];
+          if (ev?.quote && ev?.corrected) { quote = ev.quote; corrected = ev.corrected; }
+        }
+      } catch { /* evidence is a bonus, never a blocker */ }
+      await sendTrialEndingMail(a.email, { label, quote, corrected, plansUrl: process.env.APP_URL || '' });
+      sent++;
+    } catch (e) { failed++; console.error('[trial-notice] send failed:', e.message); }
+  }
+  try { if (dbEnabled() && !onlyEmail) await kvSet('config', 'lastTrialNotice', today); } catch {}
+  console.log(`[trial-notice] → sent=${sent} skipped=${skipped} failed=${failed}`);
+  return { ok: true, sent, skipped, failed };
+}
+
 // Self-trigger: fired (fire-and-forget) on incoming requests. The keep-warm cron pings /health every
 // ~10 min, so during the reminder window the server is awake and this runs — NO GitHub secret, no
 // external cron needed. Throttled to one check/minute; the per-day guard above does the real work.
@@ -202,7 +260,22 @@ export function maybeRunDaily() {
   _dailyRunning = true;
   runDailyReminders({ force: false }).catch((e) => console.error('[push] self-trigger failed:', e.message))
     .finally(() => { _dailyRunning = false; });
+  // Rides the same window. Its own per-day key and its own kill switch, so it can never delay or
+  // suppress the push reminder, and a failure in one does not take out the other.
+  runTrialNotices({ force: false }).catch((e) => console.error('[trial-notice] self-trigger failed:', e.message));
 }
+
+// Force the trial notice, optionally at ONE address — the safe first run before arming the flag.
+// `?force=1` bypasses both the kill switch and the per-day guard, but NOT the one-per-account-ever
+// claim, so even a forced run cannot mail somebody a second time.
+pushRouter.post('/admin/trial-notice', async (req, res) => {
+  if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });
+  const r = await runTrialNotices({
+    force: String(req.query.force || '') === '1',
+    onlyEmail: req.query.email ? String(req.query.email) : null,
+  });
+  res.json(r);
+});
 
 pushRouter.post('/admin/push/daily', async (req, res) => {
   if (!adminKeyOk(req)) return res.status(403).json({ error: 'forbidden' });

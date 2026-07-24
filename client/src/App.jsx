@@ -4031,6 +4031,82 @@ const inputStyle = {
 // once saved (the server flag hides it on other devices too). The "persönlich vom Coach,
 // kein Spam" promise is honest by construction: the owner messages by hand — nothing sends
 // automatically anywhere.
+/**
+ * THE TRIAL ARC. The 3-day trial had no shape at all: day 3 rendered byte-identically to day 1
+ * (only a numeral changed), and it then ended in silence — no in-app notice, no mail, no push.
+ * Learners who had already FELT the product simply lapsed without ever being told it was ending.
+ *
+ * Two moments, and deliberately nothing in between:
+ *  • Day 1  — name what they were actually given. The landing used to under-sell this as a "Basic"
+ *    trial while the server grants Elite-level sessions; a learner who doesn't know they have four
+ *    interviews a day won't use four. Dismissible, because it is information, not a nag.
+ *  • Last day — a statement of fact, and what SURVIVES the trial. No clock, no countdown, no
+ *    "letzte Chance", no discount. Manufactured urgency is the slop move; the honest version is
+ *    more persuasive because it is checkable — the Einstufung, the Befund and the persönlicher
+ *    Schritt genuinely do stay (personalStep has no entitlement gate).
+ *
+ * Every number comes from the server entitlement, never a literal, so it cannot drift from the grant.
+ * PLACEMENT LAW: this renders LOW on the page, never above the interview control — pushing the
+ * INTERVIEW out of the first Training viewport is the exact regression that shipped three times.
+ */
+function TrialArc({ ent, onSeePlans }) {
+  const t = ent?.trial;
+  const daysLeft = Number(t?.daysLeft);
+  const isLast = !!t?.active && daysLeft === 1;
+  // Day 1 = daysLeft still at the full trial length (trialDaysLeft ceils, so day 1 reads 3 of 3).
+  // Falls back to "never show" rather than guessing a length if the server didn't send one.
+  const isFirst = !!t?.active && daysLeft > 1 && Number.isFinite(Number(t?.days)) && daysLeft >= Number(t.days);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem('trial_grant_seen') === '1'; } catch { return false; }
+  });
+  const show = isLast || (isFirst && !dismissed);
+  useEffect(() => {
+    if (!show) return;
+    beacon(isLast ? 'trial_lastday_shown' : 'trial_grant_shown');
+  }, [show, isLast]);
+  if (!show) return null;
+
+  if (isLast) {
+    return (
+      <div style={{ margin:'10px 16px 0', padding:'12px 14px', borderRadius:'var(--r-md)',
+        background:'rgba(59,130,246,0.08)', border:'1px solid var(--accent)' }}>
+        <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12.5, color:'var(--text)' }}>
+          Letzter Tag deiner Testphase.{/* OWNER-AR slot */}
+        </div>
+        <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', lineHeight:1.65, marginTop:4 }}>
+          Danach bleiben sichtbar: deine Einstufung, dein Befund und dein persönlicher Schritt.
+          Interviews und Übungen gehören zum Plan.{/* OWNER-AR slot */}
+        </div>
+        <button onClick={onSeePlans} style={{ marginTop:9, width:'100%', minHeight:44, cursor:'pointer',
+          fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.06em',
+          padding:'11px', borderRadius:'var(--r-md)', border:'1px solid var(--accent)',
+          color:'var(--accent)', background:'transparent' }}>
+          PLÄNE ANSEHEN →{/* OWNER-AR slot */}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div style={{ margin:'10px 16px 0', padding:'12px 14px', borderRadius:'var(--r-md)',
+      background:'var(--surface)', border:'1px solid var(--line)' }}>
+      <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12.5, color:'var(--text)' }}>
+        Deine Testphase läuft — {daysLeft} Tage.{/* OWNER-AR slot */}
+      </div>
+      <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', lineHeight:1.65, marginTop:4 }}>
+        {/* EXACTLY the three things the server grants a trial (auth.js). Not "voller Elite-Zugang":
+            vacancyLive, interviewPass:'full' and applicationPacks are NOT trial-boosted. */}
+        Freigeschaltet: {ent?.dailySessions ?? ''} Interviews pro Tag, alle Übungen, Ziel-Stelle.{/* OWNER-AR slot */}
+      </div>
+      <button onClick={() => { try { localStorage.setItem('trial_grant_seen', '1'); } catch {} setDismissed(true); }}
+        style={{ marginTop:8, minHeight:44, padding:'8px 14px', cursor:'pointer', borderRadius:'var(--r-md)',
+          border:'1px solid var(--line-strong)', background:'transparent',
+          fontFamily:'var(--font-display)', fontSize:11.5, color:'var(--text-dim)' }}>
+        Verstanden{/* OWNER-AR slot */}
+      </button>
+    </div>
+  );
+}
+
 function WhatsAppOptIn({ token, apiUrl }) {
   const [state, setState] = useState('idle');   // idle | saving | saved | error
   const [num, setNum] = useState('');
@@ -7501,6 +7577,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               </span>
             )}
           </button>
+        )}
+
+        {/* Trial arc — rendered HERE, low on the page, deliberately: the interview control must
+            stay in the first Training viewport (owner law; this regression shipped three times). */}
+        {canStart && (
+          <TrialArc ent={auth.account?.entitlement} onSeePlans={() => setPaywall(auth.account?.entitlement || {})} />
         )}
 
         {/* WhatsApp opt-in — after interview #1 only, hidden once opted in (server flag covers

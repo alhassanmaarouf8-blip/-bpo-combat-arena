@@ -125,19 +125,31 @@
          horizontal scrollbar. */
       .app-shell, .auth-shell{ width:100%; max-width:440px; margin:0 auto; }
       @media (min-width:900px){
-        .app-shell{ max-width:none; width:80vw; zoom:1.15; }   /* rendered ≈ 92vw — fills the laptop */
+        /* DESKTOP FRAME, rebuilt 2026-07-24 after looking at the actual pixels.
+           Two things were making the app read as broken on a laptop, and both were deliberate:
+           1. `zoom:1.15/1.2` — a non-standard property that inflates every element (and silently
+              breaks coordinate math for anything measuring the page). It was chosen so vw×zoom
+              stayed under 100vw; the honest fix is a max-width, not a scale factor.
+           2. `column-count:2/3` — CSS newspaper columns on an ordered app UI. Multi-column flows
+              content top-to-bottom then jumps to the next column, so the reading order was
+              destroyed: Fortschritt rendered as three disconnected panels, and cards landed beside
+              things they had nothing to do with. Masonry is for galleries, not for a screen where
+              step 1 must come before step 2.
+           Replaced by one ordered column at a readable measure. This is a MOBILE product (the
+           overwhelming majority of sessions are phones); the desktop job is to look calm and
+           intentional, not to fill 92vw with stretched cards. Cards that genuinely want to sit
+           side by side already do it with their own internal grid (e.g. the briefing row), which
+           keeps the decision local instead of imposing it on every child.
+           Phones are untouched (this whole block is min-width:900px). */
+        .app-shell{ max-width:1000px; width:100%; padding-inline:24px; }
         /* Landing/auth gets a REAL desktop layout (aesthetic pass 2026-07-10). The old 560px+zoom
            clamp squeezed the already-existing two-column .landing-grid into a phone column: the
            Arabic hero shattered into 1-2 words per line, the ★-rating and legal links scattered
            into stray grid cells, and input placeholders truncated. Wide shell + zoom 1 lets the
            grid do its job: hero left, ratings/signup right. */
-        .auth-shell{ max-width:1160px; zoom:1; padding-inline:36px; }
-        .home-grid{ column-count:2; column-gap:16px; }
-        .home-grid > *{ break-inside:avoid; }                  /* keep each card whole across columns */
-      }
-      @media (min-width:1500px){
-        .app-shell{ width:74vw; zoom:1.2; }
-        .home-grid{ column-count:3; }
+        .auth-shell{ max-width:1160px; padding-inline:36px; }
+        /* Explicitly neutralise the old multi-column rules: one ordered stack, always. */
+        .home-grid{ column-count:1; column-gap:0; }
       }
     </style>
   </head>

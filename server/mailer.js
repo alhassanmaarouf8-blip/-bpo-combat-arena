@@ -93,4 +93,31 @@ export async function sendVerificationMail(to, link) {
   await deliver({ to, subject: 'E-Mail bestätigen · OMNI-PERFORM', text });
 }
 
-export default { mailerConfigured, sendResetMail, sendVerificationMail };
+/**
+ * The ONE trial-ending notice. Sent at most once per account, ever (see auth.claimTrialNotice).
+ *
+ * It leads with the learner's OWN measured bottleneck and one of their OWN corrected sentences,
+ * because that is the only thing in this product nobody else can send them. Deliberately absent:
+ * countdown language, "last chance", a discount, and any invented statistic — the trial simply
+ * ends, and stating what stays free is more honest and more persuasive than manufacturing urgency.
+ * `label`/`quote` are optional: a learner who never produced evidence gets the short version
+ * rather than a fabricated one.
+ */
+export async function sendTrialEndingMail(to, { label = '', quote = '', corrected = '', plansUrl = '' } = {}) {
+  const lines = ['Hallo,', '', 'deine kostenlose Testphase endet morgen.', ''];
+  if (label) {
+    lines.push(`Dein gemessener Engpass ist gerade: ${label}.`);
+    if (quote && corrected) lines.push('', `Aus deinem eigenen Interview:`, `  „${quote}“  →  „${corrected}“`);
+    lines.push('');
+  }
+  lines.push(
+    'Was dir bleibt, auch ohne Plan: deine Einstufung, dein Befund und dein persönlicher Schritt.',
+    'Was zum Plan gehört: das tägliche Interview, das den nächsten Befund erzeugt, und die Übungen dazu.',
+    '',
+  );
+  if (plansUrl) lines.push('Pläne ansehen:', plansUrl, '');
+  lines.push('تجربتك المجانية بتخلص بكرة. تقييمك وخطوتك الشخصية هيفضلوا متاحين.');
+  await deliver({ to, subject: 'Deine Testphase endet morgen · German Interview Trainer', text: lines.join('\n') });
+}
+
+export default { mailerConfigured, sendResetMail, sendVerificationMail, sendTrialEndingMail };
