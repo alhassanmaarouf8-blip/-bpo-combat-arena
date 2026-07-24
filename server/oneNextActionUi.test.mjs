@@ -25,7 +25,10 @@ test('BrainGuide keeps one visible action and an always-visible orientation cont
   assert.match(source, /<div className="brain-guide__orient"/u);
   assert.match(source, /<p>\{reason\}<\/p>/u);
   assert.match(source, /\{brief\.done\}/u);
-  assert.match(source, /\{brief\.after\}/u);
+  // `brief.after` is wrapped (several server briefs already start with "Danach", which rendered
+  // as "Danach Danach berechnet …" on production — the duplicate is stripped at render). Assert
+  // the SOURCE of the fact, not one particular expression around it.
+  assert.match(source, /brief\.after/u);
   assert.match(source, /\{biggerGoal\(d\)\}/u);
   assert.match(source, /Interne Simulation · keine Arbeitgeberentscheidung/u);
   // ANTI-COLLAPSE, KEPT FROM THE ORIGINAL CONTRACT: orientation may be made quieter, never hidden.

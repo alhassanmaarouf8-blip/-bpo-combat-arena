@@ -151,7 +151,7 @@ test('the live home exposes one creative orientation contract and one primary ac
   assert.match(brain, /<div className="brain-guide__orient"/u);
   assert.match(brain, /<p>\{reason\}<\/p>/u);
   assert.match(brain, /\{brief\.done\}/u);
-  assert.match(brain, /\{brief\.after\}/u);
+  assert.match(brain, /brief\.after/u);   // wrapped to strip a duplicated leading "Danach"
   assert.match(brain, /\{biggerGoal\(d\)\}/u);
   assert.match(brain, /DEIN WEG ZUM DEUTSCHEN JOBINTERVIEW/u);
   assert.doesNotMatch(brain, /<details className="brain-guide__why"/u,

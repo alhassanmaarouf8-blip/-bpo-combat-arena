@@ -4720,22 +4720,30 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           const saving = (p.priceEGP * 12) - p.yearlyEGP;
           const elite  = p.id === 'elite';
           const accent = elite ? 'var(--action)' : 'var(--accent-2)';
+          // PREMIUM PASS: this is the screen where money happens, so it gets the most air.
+          // Flat rgba(0,0,0,0.4) black → a real layered surface; 14px padding → 20px; radius
+          // 12 → 18. The recommended plan keeps the single orange treatment (one recommended
+          // action is standard premium pricing design and it was already right here).
           return (
-            <div key={p.id} style={{ borderRadius:12, padding:14, position:'relative',
-              background:'rgba(0,0,0,0.4)', border:`1px solid ${elite ? 'rgba(249,115,22,0.5)' : 'rgba(96,165,250,0.3)'}`,
-              boxShadow: elite ? '0 0 20px rgba(249,115,22,0.12)' : 'none' }}>
+            <div key={p.id} style={{ borderRadius:18, padding:'20px 18px', position:'relative',
+              background: elite ? 'linear-gradient(160deg, rgba(249,115,22,0.07), rgba(0,0,0,0.42) 60%)' : 'rgba(255,255,255,0.035)',
+              border:`1px solid ${elite ? 'rgba(249,115,22,0.45)' : 'var(--line)'}`,
+              boxShadow: elite ? '0 18px 50px -20px rgba(249,115,22,0.35), inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
               {elite && (
                 <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em',
                   background:'var(--action)', color:'#04070d', padding:'2px 8px', borderRadius:99, fontWeight:700 }}>
                   {ar ? 'الأنسب للإنترفيو' : 'Beliebt für Interview-Prep'}
                 </div>
               )}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-                <span style={{ fontFamily:'var(--font-display)', fontSize:16, fontWeight:900, color:accent }}>{p.label?.toUpperCase()}</span>
-                <span style={{ fontSize:14, color:'#e2e8f0', fontWeight:700, display:'inline-flex', alignItems:'baseline', gap:6 }}>
-                  {on && <span style={{ fontSize:11, fontWeight:600, color:'#64748b', textDecoration:'line-through' }}>{fmt(base)}</span>}
-                  <span style={{ color: on ? 'var(--good)' : '#e2e8f0' }}>{fmt(price)} EGP</span>
-                  <span style={{ fontSize:10, color:'#94a3b8' }}>{period}</span>
+              {/* The PRICE is the thing being decided, so it gets the display size — it was 14px,
+                  the same weight as everything else on the card. Weight 900 on the plan name is
+                  dropped: shouty weight is the machine-made tell, size and colour do the ranking. */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10, gap:10 }}>
+                <span style={{ fontFamily:'var(--font-display)', fontSize:13, fontWeight:600, letterSpacing:'0.08em', color:accent }}>{p.label?.toUpperCase()}</span>
+                <span style={{ color:'#e2e8f0', display:'inline-flex', alignItems:'baseline', gap:6 }}>
+                  {on && <span style={{ fontSize:12, fontWeight:600, color:'#64748b', textDecoration:'line-through' }}>{fmt(base)}</span>}
+                  <span style={{ fontSize:24, fontWeight:700, letterSpacing:'-0.02em', color: on ? 'var(--good)' : '#f2f6fb' }}>{fmt(price)}</span>
+                  <span style={{ fontSize:12, color:'#94a3b8' }}>EGP{period}</span>
                 </span>
               </div>
               {yearly && !once && (
@@ -4749,14 +4757,20 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                 </div>
               )}
               {(PERKS_DE[p.id]?.(p) || []).map((perk) => (
-                <div key={perk} style={{ fontSize:11, color:'#cbd5e1', marginBottom:3 }}>✓ {perk}</div>
+                /* Perks were 11px at 3px spacing — a wall of grey. Readable size + real leading,
+                   and the tick is dimmed so the WORDS carry, not the punctuation. */
+                <div key={perk} style={{ display:'flex', gap:8, fontSize:12.5, color:'#c3d0e0', marginBottom:7, lineHeight:1.5 }}>
+                  <span style={{ color:accent, flex:'0 0 auto' }}>✓</span><span>{perk}</span>
+                </div>
               ))}
               <div dir="rtl" style={{ fontSize:10.5, color:'#94a3b8', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
               <button disabled={submitting || paymentAvailable !== true}
                 onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
-                style={{ width:'100%', marginTop:11, padding:'12px', minHeight:46, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
-                  fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.1em', borderRadius:8, fontWeight:700,
-                  border:`1px solid ${accent}`, color:'#04070d', background:accent,
+                style={{ width:'100%', marginTop:16, padding:'14px', minHeight:52, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
+                  fontFamily:'var(--font-display)', fontSize:13.5, letterSpacing:'0.02em', borderRadius:12, fontWeight:700,
+                  border: elite ? 'none' : `1px solid ${accent}`, color: elite ? '#081019' : accent,
+                  background: elite ? 'var(--grad-action)' : 'transparent',
+                  boxShadow: elite ? 'var(--shadow-action)' : 'none',
                   opacity:(submitting || paymentAvailable !== true) ? 0.45 : 1 }}>
                 {paymentAvailable === false
                   ? (ar ? 'الدفع غير متاح حاليًا' : 'ZAHLUNG DERZEIT NICHT VERFÜGBAR')

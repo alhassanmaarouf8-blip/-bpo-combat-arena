@@ -527,8 +527,14 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
             problem — UPPERCASE PILLS ON EVERY BOX were. */}
         <div className="brain-guide__orient" aria-label="Dein persönliches Missionsbriefing">
           <p>{reason}</p>
-          <p><span>Fertig, wenn</span> {brief.done}</p>
-          <p><span>Danach</span> {brief.after}</p>
+          {/* "Fertig:" not "Fertig, wenn" — the server sentences are full sentences starting with a
+              capitalised noun, so a subordinate-clause opener produced broken German
+              ("Fertig, wenn Der Abschluss ist ..."). A colon takes a full sentence cleanly. */}
+          <p><span>Fertig:</span> {brief.done}</p>
+          {/* Several server briefs already begin with "Danach", which rendered as "Danach Danach
+              berechnet ..." live. Strip the duplicate rather than dropping the connector, so briefs
+              that DON'T start with it still get framed. */}
+          <p><span>Danach</span> {String(brief.after || '').replace(/^danach\s+/i, '')}</p>
           <p className="brain-guide__orient-goal">
             {biggerGoal(d)}
             <em>Interne Simulation · keine Arbeitgeberentscheidung</em>
