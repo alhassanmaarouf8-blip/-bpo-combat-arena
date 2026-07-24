@@ -19,7 +19,7 @@ const CSS = `
 .iv{position:fixed;inset:0;overflow-y:auto;background:#0A0E1A;color:#E9EFF7;
   font-family:'Inter','system-ui',sans-serif;-webkit-font-smoothing:antialiased}
 .iv *{box-sizing:border-box}
-.iv-in{max-width:440px;margin:0 auto;padding:18px 20px 92px;min-height:100%;display:flex;flex-direction:column}
+.iv-in{max-width:440px;margin:0 auto;padding:18px 20px 118px;min-height:100%;display:flex;flex-direction:column}
 .iv-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .iv-back{background:none;border:0;color:#7F94B2;font-size:20px;cursor:pointer;padding:4px 8px 4px 0;min-height:44px}
 .iv-who{font-size:12.5px;font-weight:640;color:#B9C8DC}

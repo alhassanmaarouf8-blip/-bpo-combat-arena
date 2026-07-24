@@ -73,6 +73,15 @@ async function load() {
     try { _store = JSON.parse(await readFile(ACCT_FILE, 'utf8')); }
     catch { _store = { accounts: {}, emailIndex: {} }; }
   }
+  // A truncated or half-written store file can parse to a NON-OBJECT without throwing —
+  // JSON.parse('null') returns null, and JSON.parse('123')/'"x"' return primitives. The catch
+  // above only covers malformed JSON, so those values used to flow straight into the property
+  // writes below and crashed every authenticated route with
+  // "Cannot read properties of null (reading 'accounts')". Fail safe to an empty store instead:
+  // an unreadable file must never take auth down.
+  if (!_store || typeof _store !== 'object' || Array.isArray(_store)) {
+    _store = { accounts: {}, emailIndex: {} };
+  }
   _store.accounts   ??= {};
   _store.emailIndex ??= {};
   return _store;

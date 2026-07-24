@@ -15,7 +15,7 @@ export const BASE_CSS = `
 .pv{position:fixed;inset:0;overflow-y:auto;background:#F5F3EF;color:#0E1320;
   font-family:'Inter','system-ui',sans-serif;-webkit-font-smoothing:antialiased}
 .pv *{box-sizing:border-box}
-.pv-in{max-width:440px;margin:0 auto;padding:24px 22px 96px;min-height:100%}
+.pv-in{max-width:440px;margin:0 auto;padding:24px 22px 118px;min-height:100%}
 .pv-kick{font-size:12px;font-weight:640;color:#8A909C;margin:0 0 10px}
 .pv-kick.blue{color:#2563EB}
 .pv-h{font-size:34px;line-height:1.04;letter-spacing:-.035em;font-weight:820;margin:0 0 14px;text-wrap:balance}
@@ -36,14 +36,16 @@ export const BASE_CSS = `
 
 // The tap-through switcher, so the seven screens can be walked on a real phone.
 export const NAV_CSS = `
-.pv-nav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:4px;overflow-x:auto;
-  padding:9px 12px calc(9px + env(safe-area-inset-bottom));background:rgba(245,243,239,.94);
-  backdrop-filter:blur(12px);border-top:1px solid rgba(14,19,32,.10);scrollbar-width:none}
-.pv-nav::-webkit-scrollbar{display:none}
-.pv-nav a{flex:0 0 auto;text-decoration:none;font-size:12.5px;font-weight:620;color:#8A909C;
-  padding:8px 13px;border-radius:999px;white-space:nowrap;min-height:36px;display:flex;align-items:center}
+/* Wraps to two rows so all seven screens are reachable at 390px. A single scrolling row cut the
+   last three links off the viewport — they existed but could not be found, which is the same bug
+   class as an off-screen control. */
+.pv-nav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;flex-wrap:wrap;gap:5px;
+  justify-content:center;padding:9px 10px calc(9px + env(safe-area-inset-bottom));
+  background:rgba(245,243,239,.95);backdrop-filter:blur(12px);border-top:1px solid rgba(14,19,32,.10)}
+.pv-nav a{flex:0 0 auto;text-decoration:none;font-size:12px;font-weight:620;color:#8A909C;
+  padding:7px 12px;border-radius:999px;white-space:nowrap;min-height:34px;display:flex;align-items:center}
 .pv-nav a.on{background:#0E1320;color:#fff}
-.pv-nav.dark{background:rgba(10,14,26,.94);border-top-color:rgba(255,255,255,.10)}
+.pv-nav.dark{background:rgba(10,14,26,.95);border-top-color:rgba(255,255,255,.10)}
 .pv-nav.dark a{color:#8FA3BE}
 .pv-nav.dark a.on{background:#fff;color:#0A0E1A}
 `;

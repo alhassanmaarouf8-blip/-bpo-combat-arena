@@ -50,7 +50,7 @@ const CSS = `
 .dbf{position:fixed;inset:0;overflow-y:auto;background:#F5F3EF;color:#0E1320;
   font-family:'Inter','system-ui',sans-serif;-webkit-font-smoothing:antialiased}
 .dbf *{box-sizing:border-box}
-.dbf-in{max-width:440px;margin:0 auto;padding:24px 22px 96px}
+.dbf-in{max-width:440px;margin:0 auto;padding:24px 22px 118px}
 .dbf-k{font-size:12px;font-weight:640;color:#8A909C;margin:0 0 10px}
 .dbf-h{font-size:34px;line-height:1.04;letter-spacing:-.035em;font-weight:820;margin:0 0 12px;text-wrap:balance}
 .dbf-s{font-size:14.5px;line-height:1.55;color:#5A6270;margin:0 0 28px}
