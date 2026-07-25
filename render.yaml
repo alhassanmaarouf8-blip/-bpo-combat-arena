@@ -42,6 +42,18 @@ services:
         sync: false
       - key: WHATSAPP_NUMBER
         sync: false
+      # Owner alert on every claimed payment (mailer.js sendOwnerPaymentAlert). Without this the
+      # payment still records, but nobody is told — and the buyer's screen promises activation in
+      # minutes. Set here so a Blueprint-linked service applies it on sync without dashboard work.
+      - key: ADMIN_EMAIL
+        value: alhassanmaarouf8@gmail.com
+      # InstaPay destination. Unset → the checkout uses VODAFONE_CASH_NUMBER, which is correct when
+      # the owner's InstaPay is registered against that same mobile number. Set only to override.
+      - key: INSTAPAY_ADDRESS
+        sync: false
+      # Bank/IBAN line. Set it and a third "Bank" rail appears in the checkout by itself.
+      - key: BANK_ACCOUNT_INFO
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: bpo-combat-db

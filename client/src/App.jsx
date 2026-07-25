@@ -2058,6 +2058,58 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
     </div>
   ) : null;
 
+  // ── RESULTS LOCKED (owner order 2026-07-25) ──────────────────────────────────────────────────
+  // The interview ran and is saved; the measured verdict needs a plan. The server already withheld
+  // every number, so there is nothing here to leak — this screen states plainly what is waiting and
+  // puts the plan one tap away. Placed after every hook so hook order never changes.
+  if (data?.resultsLocked) {
+    const answered = Number(data.answersRecorded) || 0;
+    return (
+      <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', flexDirection:'column',
+        background:'var(--surface)', animation:'flash-in 0.4s ease', overflowY:'auto', padding:'22px 18px 20px' }}>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center' }}>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, letterSpacing:'0.16em',
+            color:'var(--text-dim)' }}>INTERVIEW ABGESCHLOSSEN</div>
+          <div style={{ fontFamily:'var(--font-display)', fontSize:'clamp(26px,7.5vw,34px)', fontWeight:800,
+            letterSpacing:'-0.03em', lineHeight:1.1, color:'var(--text)', marginTop:10 }}>
+            Deine Auswertung ist fertig.
+          </div>
+          <div style={{ fontSize:14, color:'var(--text-dim)', lineHeight:1.65, marginTop:10, maxWidth:420, marginLeft:'auto', marginRight:'auto' }}>
+            {answered > 0
+              ? <>Wir haben {answered} {answered === 1 ? 'Antwort' : 'Antworten'} gemessen und gespeichert: dein Niveau, dein größter Engpass und dein nächster Schritt. Mit einem Plan siehst du alles sofort.</>
+              : <>Deine Sitzung ist gespeichert: dein Niveau, dein größter Engpass und dein nächster Schritt. Mit einem Plan siehst du alles sofort.</>}
+          </div>
+          <div dir="rtl" style={{ fontSize:13, color:'var(--text-dim)', lineHeight:1.7, marginTop:8 }}>
+            تقييمك جاهز ومحفوظ — مستواك، أكبر نقطة بتوقفك، وخطوتك الجاية. اختار خطتك وشوفهم على طول.
+          </div>
+          <div style={{ marginTop:22, padding:'14px 15px', borderRadius:14, background:'var(--surface-2)',
+            border:'1px solid var(--line)', textAlign:'left', maxWidth:420, marginLeft:'auto', marginRight:'auto' }}>
+            {['Dein gemessenes Niveau (A2–C1)', 'Dein größter Engpass — mit Beispiel aus deiner eigenen Antwort',
+              'Dein nächster Trainingsschritt', 'Tägliche Live-Interviews + alle Übungen'].map((t) => (
+              <div key={t} style={{ display:'flex', gap:9, fontSize:12.5, color:'var(--text)', marginBottom:7, lineHeight:1.5 }}>
+                <span style={{ color:'var(--action)', flex:'0 0 auto' }}>✓</span><span>{t}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={onSeePlans} style={{ width:'100%', maxWidth:420, marginLeft:'auto', marginRight:'auto',
+            marginTop:20, padding:'15px', minHeight:54, cursor:'pointer', fontFamily:'var(--font-display)',
+            fontSize:14, fontWeight:700, borderRadius:12, border:'none', color:'#FFFFFF',
+            background:'var(--action)', boxShadow:'var(--shadow-action)' }}>
+            Auswertung freischalten ▸
+          </button>
+          <div style={{ fontSize:11, color:'var(--text-faint)', marginTop:10 }}>
+            Keine automatische Abbuchung — du verlängerst selbst.
+          </div>
+        </div>
+        <button onClick={onDone} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
+          fontFamily:'var(--font-display)', fontSize:12, borderRadius:10, border:'1px solid var(--line-strong)',
+          background:'var(--surface)', color:'var(--text-dim)' }}>
+          Zurück
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', flexDirection:'column',
       background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.4s ease', overflow:'hidden' }}>
@@ -3741,14 +3793,14 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         <div style={{ fontSize:'var(--fs-meta)', color:'var(--text-dim)', marginTop:14, lineHeight:1.7 }}>
           {validStudyEntry
             ? 'Nach Anmeldung und E-Mail-Bestätigung: direkt zur etwa achtminütigen Sprachdiagnose.'
-            : <>Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus.
+            : <>Nach Anmeldung und E-Mail-Bestätigung startest du kostenlos: alle Übungen und dein erstes Interview.
               {' '}<span dir="rtl" lang="ar-EG">بعد التسجيل وتأكيد الإيميل: تقييم مجاني لمستواك.</span></>}
         </div>
         <button onClick={() => focusAuth('signup')}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
             border:'none', background:'var(--action)', boxShadow:'var(--shadow-action)',
             color:'#FFFFFF', fontFamily:'var(--font-display)', fontWeight:700, fontSize:14 }}>
-          {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'KOSTENLOSE DIAGNOSE FREISCHALTEN'}
+          {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'KOSTENLOS ANFANGEN'}
         </button>
         {/* THE OFFER, STATED BEFORE SIGNUP (owner decision 2026-07-24). The leak this fixes is
             recorded at "THE OFFER AT THE PEAK" further down: only 8 of ~120 openers ever SAW a
@@ -3771,8 +3823,9 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             : <>
               <div>
                 <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Kostenlos:</strong>{' '}
-                deine Einstufung + dein persönlicher Schritt. Die Live-Interviews gehören zum Plan.
-                <br /><span dir="rtl">مجانًا: تقييم مستواك وخطوتك الشخصية. الإنترفيو المباشر بيجي مع الخطة.</span>
+                alle Übungen und dein erstes Interview. Die Auswertung — dein Niveau, dein Engpass,
+                dein nächster Schritt — gehört zum Plan.
+                <br /><span dir="rtl">مجانًا: كل التمارين وأول إنترفيو. التقييم — مستواك، نقطة ضعفك، وخطوتك الجاية — بيجي مع الخطة.</span>
               </div>
               {pricing?.trial?.dailySessions > 0 && (
                 <div style={{ marginTop:2 }}>
@@ -4090,7 +4143,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             ? validStudyEntry
               ? <>Bestätigungslink öffnen; danach geht es direkt zur Sprachdiagnose. Dein bestätigter Studienzugang umfasst 21 kostenlose Tage.</>
               : <>Bestätigungslink per E-Mail öffnen, dann kostenlos starten · افتح لينك تأكيد الإيميل وبعدها ابدأ مجانًا</>
-            : <>Kostenlos starten: deine Einstufung · شرح عربي في الخطوات الأساسية · تقييم مستواك مجانًا</>}
+            : <>Kostenlos starten: alle Übungen + dein erstes Interview · شرح عربي في الخطوات الأساسية</>}
         </div>
         </form>
       </div>
@@ -4810,8 +4863,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           Ein Ziel: dass du dein echtes Interview bestehst.{/* OWNER-AR slot */}
         </div>
         <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:4, lineHeight:1.6 }}>
-          Beide Pläne: Live-Interview JEDEN TAG. Die kostenlose Einstufung bleibt immer frei.
-          <br /><span dir="rtl">الخطتين فيهم إنترفيو مباشر كل يوم — وتقييم مستواك بيفضل مجاني.</span>
+          Beide Pläne: Live-Interview JEDEN TAG + die vollständige Auswertung jeder Sitzung.
+          <br /><span dir="rtl">الخطتين فيهم إنترفيو مباشر كل يوم + التقييم الكامل لكل جلسة.</span>
         </div>
       </div>
 
@@ -7739,6 +7792,21 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {activeStudyStart
               ? 'Heute: 1 gemessenes Interviewrisiko → 1 genauer Trainingsblock → Vergleichs- und Drucktest.'
               : '⏱ ~8 Min · dein Niveau wird automatisch erkannt — einfach anfangen.'}
+          </div>
+        )}
+
+        {/* UPFRONT, before a free account speaks a word (owner order 2026-07-25: "you have to tell
+            them upfront"). Nobody may discover the paywall only after investing eight minutes. */}
+        {auth.account?.entitlement && auth.account.entitlement.interviewResults === false && homeTab === 'training' && (
+          <div style={{ marginTop:10, padding:'11px 13px', borderRadius:12, background:'var(--surface)',
+            border:'1px solid var(--line-strong)', textAlign:'center' }}>
+            <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.55 }}>
+              Das Interview ist kostenlos. Die <b>Auswertung</b> — dein Niveau, dein Engpass, dein
+              nächster Schritt — gehört zum Plan.
+            </div>
+            <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:4 }}>
+              الإنترفيو مجاني. التقييم — مستواك ونقطة ضعفك وخطوتك الجاية — بيجي مع الخطة.
+            </div>
           </div>
         )}
 

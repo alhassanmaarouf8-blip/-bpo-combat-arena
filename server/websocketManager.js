@@ -32,7 +32,7 @@ import { loadGuide, saveGuide } from './guideStore.js';
 import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER, RANKS } from './progression.js';
-import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight } from './auth.js';
+import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight, interviewResultsUnlocked } from './auth.js';
 import { weekStudyStatus } from './studyWeek.js';
 import { studyDaysPerWeekFor } from './plans.config.js';
 import { classifyGrammar }       from './errorTags.js';
@@ -1530,12 +1530,38 @@ export class WebSocketManager {
     try { structureWins = debriefStructureWins(ctx.utterances); } catch (e) { console.error('[wsManager] structureWins debrief failed:', e.message); }
 
     console.log(`[wsManager] Debrief ready  generated=${debrief.generated}  outcome=${result.outcome}  rank=${result.rank}  bossHp=${result.bossHp}  answers=${metrics.answers}  l1=${l1Pattern?.key || 'none'}  session=${ctx.sessionId}`);
-    this._send(ctx, {
-      type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress,
-      revancheMoment: result.outcome === 'loss' ? ctx.revancheMoment : null,
-      nextTime: { targetWeakRule: ctx.targetWeakRule || null, nextBoss: progress?.nextBoss || null },
-      deepAnalysis: ctx.userId !== 'anon' ? { sessionId: ctx.sessionId } : null,
-    });
+    // THE MONEY GATE (owner order 2026-07-25). A free account ran the interview knowing the verdict
+    // needs a plan, so the verdict is WITHHELD HERE — not hidden by the client. Nothing measured
+    // crosses the wire: no score, rank, verdict, weakness, categories or metrics. What it does carry
+    // is honest proof of effort (how many answers were recorded) so the locked screen can say what
+    // is waiting. Everything is already persisted server-side, so paying reveals the real analysis
+    // rather than re-running anything.
+    // Re-read the account here rather than trusting anything cached on ctx: a plan bought DURING
+    // the interview must unlock the verdict immediately. Fails CLOSED — if the lookup fails we
+    // withhold, because showing a paid verdict for free is the only unrecoverable mistake.
+    let resultsUnlocked = false;
+    try {
+      const acc = ctx.userId && ctx.userId !== 'anon' ? await getAccountById(ctx.userId) : null;
+      resultsUnlocked = acc ? interviewResultsUnlocked(acc) : false;
+    } catch (e) { console.error('[wsManager] results gate lookup failed:', e.message); }
+    if (!resultsUnlocked) {
+      this._send(ctx, {
+        type: S.DEBRIEF,
+        resultsLocked: true,
+        answersRecorded: Number(metrics?.answers) || 0,
+        result: {}, progress: {}, metrics: {},
+        l1Pattern: null, structureWins: [], revancheMoment: null,
+        nextTime: { targetWeakRule: null, nextBoss: null },
+        deepAnalysis: null,
+      });
+    } else {
+      this._send(ctx, {
+        type: S.DEBRIEF, ...debrief, l1Pattern, structureWins, result, progress,
+        revancheMoment: result.outcome === 'loss' ? ctx.revancheMoment : null,
+        nextTime: { targetWeakRule: ctx.targetWeakRule || null, nextBoss: progress?.nextBoss || null },
+        deepAnalysis: ctx.userId !== 'anon' ? { sessionId: ctx.sessionId } : null,
+      });
+    }
 
     // ── Deep Diagnostic Engine (v2 Phase 2) — STRICTLY after the debrief is sent. Fire-and-forget:
     // the record persists the full transcript input, so a crash/restart/retry can never lose it,

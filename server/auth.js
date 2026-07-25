@@ -423,21 +423,33 @@ export function dailyMinutesFor(account) {
   if (trialActive(account)) return PLANS.elite.dailyLiveMinutes || 0;
   return PLANS[planOf(account)]?.dailyLiveMinutes || 0;
 }
-// Drills (listening, fluency, spoken-review, shadowing) — unlocked for any paid plan OR an active trial.
-export function drillsUnlocked(account) {
-  return planOf(account) !== 'free' || trialActive(account);
+// Drills (listening, fluency, spoken-review, shadowing, Satzbau …) — FREE FOR EVERYONE
+// (owner order 2026-07-25: "all the drills must be used without having to pay"). They are the
+// $0-marginal-cost half of the product: deterministic graders, cached TTS, no live voice session.
+// Letting every visitor train for free is the acquisition engine; the money gate lives on the
+// live interview's RESULTS instead (see interviewResultsUnlocked).
+export function drillsUnlocked() {
+  return true;
 }
 
-// FREE INTERVIEW — REMOVED (owner order 2026-07-25: "there is no trial free, anyone that will use
-// the app must pay to get access to the interviews"). Interviews are a paid capability, full stop:
-// entitlement().allowed now depends on paid daily minutes alone, and websocketManager refuses a
-// session and shows the paywall. The owner's own ADMIN_EMAIL account keeps access so he can test
-// production. What stays free is the level assessment (Einstufung) — a separate mechanism, and the
-// thing that sells the plan. Restore by returning the old expression.
+// THE MONEY GATE (owner order 2026-07-25): a free account may RUN the live interview — it is told
+// upfront that the verdict needs a plan — but the measured results are withheld until it pays.
+// They invest the eight minutes first, then decide. Verified server-side: websocketManager strips
+// the analysis from the debrief payload, so a locked verdict never reaches the browser at all.
+export function interviewResultsUnlocked(account) {
+  if (isAdminAccount(account)) return true;
+  return planOf(account) !== 'free';
+}
+
+// ONE runnable interview for a free account, ever (owner order 2026-07-25: "they could do
+// interview, and then when they want to see the results, they have to pay"). It stays ONE because a
+// live voice session costs real money per minute — an unlimited free interview would let a stranger
+// spend the owner's balance without ever paying. The close is not the interview, it is the locked
+// verdict afterwards (interviewResultsUnlocked).
 const FREE_FIGHT_SEC = 7 * 60;
 export function freeFightAvailable(account) {
   if (isAdminAccount(account)) return true;
-  return false;
+  return (dailyMinutesFor(account) || 0) <= 0 && !account?.subscription?.freeFightUsed;
 }
 
 // Entitlement = the plan's capabilities. `allowed` = may start an interview: a paid plan with live
@@ -458,6 +470,7 @@ export function entitlement(account) {
     dailyLiveMinutes:      mins,
     dailySessions:         sessions,
     drillsUnlocked:        drillsUnlocked(account),
+    interviewResults:      interviewResultsUnlocked(account),   // false → verdict locked until paid
     // `days` = the FULL trial length, so the client can tell "day 1" from "day 2" without
     // hardcoding 3 (a literal there would silently lie the moment FREE_TRIAL_DAYS changes).
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0, days: FREE_TRIAL_DAYS },

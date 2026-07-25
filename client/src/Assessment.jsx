@@ -67,7 +67,14 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     let cancel = false;
     fetch(`${apiUrl}/api/assessment/status`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((d) => { if (cancel) return; if (d.used && d.result) { setResult(d.result); setPhase('verdict'); } else setPhase('intro'); })
+      .then((d) => {
+        if (cancel) return;
+        if (d.used && d.result) { setResult(d.result); setPhase('verdict'); }
+        // Paid-only (owner order 2026-07-25). A free account must land on the plan route, never on
+        // an intro that ends in a 403 after it already recorded answers.
+        else if (d.requiresPlan) setPhase('plan');
+        else setPhase('intro');
+      })
       .catch(() => { if (!cancel) setPhase('intro'); });
     return () => { cancel = true; };
   }, [token, apiUrl]);
@@ -199,10 +206,31 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   if (phase === 'loading') return shell(<LoadingPane />);
 
   // ── INTRO ──
+  // PLAN REQUIRED (owner order 2026-07-25: the Einstufung is paid). Honest dead-end-free route:
+  // say what it is, say it needs a plan, and put the plan one tap away.
+  if (phase === 'plan') return shell(<>
+    {header}
+    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em',
+      color: 'var(--text)', margin: '10px 0 0' }}>
+      {T(lang, 'Einstufung gehört zum Plan', 'التقييم بيجي مع الخطة')}
+    </h2>
+    <p style={{ fontSize: 13.5, color: 'var(--text-dim)', lineHeight: 1.7, marginTop: 8 }}>
+      {T(lang,
+        'Die Einstufung misst dein Niveau und deine größten Blocker — und beides gehört zum Plan, wie die Live-Interviews. Wähle deinen Plan und starte direkt danach.',
+        'التقييم بيقيس مستواك وأكبر الحاجات اللي بتوقفك — وهو جزء من الخطة زي الإنترفيو المباشر. اختار خطتك وابدأ على طول.')}
+    </p>
+    <button onClick={onGoPricing} style={{ ...primaryBtn, marginTop: 20 }}>
+      {T(lang, 'Plan wählen', 'اختار خطتك')} ▸
+    </button>
+    <button onClick={onClose} style={{ ...ghostBtnWide, marginTop: 10 }}>
+      {T(lang, 'Später', 'بعدين')}
+    </button>
+  </>);
+
   if (phase === 'intro') return shell(<>
     {header}
     <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)', margin: '8px 0' }}>
-      {T(lang, 'Kostenlose Einstufung', 'تقييم مستواك المجاني')}
+      {T(lang, 'Deine Einstufung', 'تقييم مستواك')}
     </h2>
     <p style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.7 }}>
       {/* Adaptive: honest count (3–7, server-routed). OWNER-AR pending for the adaptive line —
@@ -216,7 +244,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
           '٥ أسئلة قصيرة بالألماني. جاوب بصوتك أو بالكتابة. في الآخر هتعرف مستواك التقريبي وأكبر الحاجات اللي بتوقفك. بياخد ٥ دقايق تقريبًا.')}
     </p>
     <div dir="rtl" style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>
-      {T(lang, 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.', 'كل ده مجاني للبداية — والمشتركين بيقدروا يعيدوه كل شهر.')}
+      {T(lang, 'المشتركين بيقدروا يعيدوا التقييم كل شهر.', 'المشتركين بيقدروا يعيدوا التقييم كل شهر.')}
     </div>
     <button onClick={begin} style={{ ...primaryBtn, marginTop: 18 }}>
       {T(lang, 'Los geht’s', 'يلا نبدأ')} ▸

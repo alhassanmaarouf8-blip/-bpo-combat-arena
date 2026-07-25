@@ -75,7 +75,7 @@ test('the landing has one truthful registration action and keeps the preview non
   assert.match(auth, /prefers-reduced-motion: reduce/u,
     'the transition must respect reduced-motion preferences');
   assert.match(auth, /<button onClick=\{\(\) => focusAuth\('signup'\)\}/u);
-  assert.match(auth, /KOSTENLOSE DIAGNOSE FREISCHALTEN/u);
+  assert.match(auth, /KOSTENLOS ANFANGEN/u);
   assert.match(auth, /<ProductHomePreview \/>/u);
   assert.match(auth, /onLogin=\{\(\) => focusAuth\('login'\)\}/u);
   assert.doesNotMatch(preview, /onClick=\{\(\) => document\.getElementById\('signup-card'\)/u);
@@ -197,7 +197,23 @@ test('BrainGuide suppresses the legacy how-to card that can describe a different
 
 test('debrief uses the canonical tutor and one personal next-step action; interview retries stay secondary', async () => {
   const app = await read('client/src/App.jsx');
-  const debrief = section(app, 'function Debrief(', 'function Section(');
+  const whole = section(app, 'function Debrief(', 'function Section(');
+  // The LOCKED-results screen (owner order 2026-07-25: a free account runs the interview, the
+  // measured Auswertung needs a plan) is a distinct screen with no personal-step CTA to compete
+  // with — the invariants below describe the UNLOCKED debrief, so they are scoped to it. The
+  // locked screen gets its own, stricter assertion further down.
+  const lockedAt = whole.indexOf('if (data?.resultsLocked)');
+  assert.ok(lockedAt > 0, 'the locked-results branch must exist and be reachable before the debrief render');
+  const topLevelReturn = whole.indexOf('\n  return (', lockedAt);
+  assert.ok(topLevelReturn > lockedAt, 'the unlocked debrief render must follow the locked branch');
+  const locked = whole.slice(lockedAt, topLevelReturn);
+  const debrief = whole.slice(0, lockedAt) + whole.slice(topLevelReturn);
+
+  // LOCKED SCREEN: exactly one primary action, and it routes to the plans — never to a verdict.
+  assert.equal((locked.match(/onClick=\{onSeePlans\}/gu) || []).length, 1,
+    'the locked screen must offer exactly one primary route, and it must be the plans');
+  assert.doesNotMatch(locked, /r\.(?:score|rank|verdict|stark|luecke)|m\.wpm|cats\./u,
+    'the locked screen must never read a measured field — the server does not send one');
 
   assert.match(debrief, /<SalmaTutorPanel[^>]*screen="debrief"/u,
     'the measured prescription must come from the canonical coach endpoint');

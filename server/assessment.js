@@ -64,8 +64,10 @@ const GROQ_CHAT      = 'https://api.groq.com/openai/v1/chat/completions';
 const analysisInFlight = new Set();
 
 // Re-assessment: an ACTIVE PAID plan gets a fresh assessment roughly every month (this is the
-// Elite "monatliche Neu-Einstufung"); the free tier stays one-per-account-ever. planOf() already
+// Elite "monatliche Neu-Einstufung"); a free account keeps one-per-account-ever. planOf() already
 // reverts an expired plan to free, so an expired user can't re-assess.
+// (Owner order 2026-07-25 settled the money model as run-free / pay-for-results, so the assessment
+// is NOT blocked at the door — the gate that matters is the interview verdict.)
 const REASSESS_DAYS = 28;
 function canStartAssessment(profile, account) {
   if (!profile.assessmentUsed) return true;                 // never taken → allowed
@@ -119,7 +121,11 @@ assessmentRouter.get('/assessment/status', requireAuth, async (req, res) => {
   try {
     const p = await loadUser(req.account.id);
     const eligible = canStartAssessment(p, req.account);
-    res.json({ used: !eligible, result: p.assessmentResult || null, limit: FREE_ASSESSMENTS, canReassess: eligible && !!p.assessmentUsed });
+    // requiresPlan: a free account that has SPENT its one assessment is routed to the plan screen
+    // instead of an intro that would end in a 403 after it already recorded answers.
+    res.json({ used: !eligible, result: p.assessmentResult || null, limit: FREE_ASSESSMENTS,
+      canReassess: eligible && !!p.assessmentUsed,
+      requiresPlan: !eligible && !p.assessmentResult && planOf(req.account) === 'free' });
   } catch (err) {
     console.error('[assessment] status error:', err.message);
     res.status(500).json({ error: 'status_failed' });

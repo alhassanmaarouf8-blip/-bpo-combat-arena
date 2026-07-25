@@ -93,6 +93,11 @@ test('generic landing states the real offer (free-forever + true trial grant + p
   // claim returns while freeFightAvailable() denies it, the page lies to every new visitor.
   assert.doesNotMatch(source, /Einstufung \+ dein erstes Interview/);
   assert.doesNotMatch(source, /Kostenlos starten: Einstufung \+ erstes Interview/);
+  // Owner order 2026-07-25 settled the money model: drills and the first interview are FREE, the
+  // measured AUSWERTUNG is what needs a plan. The landing must say exactly that, and must never
+  // again promise a free verdict the server withholds.
+  assert.match(source, /Die Auswertung — dein Niveau, dein Engpass,/);
+  assert.doesNotMatch(source, /kostenlose Einstufung bleibt immer frei/);
   assert.match(source, /Deine \{pricing\.trial\.days\} Testtage \(ab dem ersten Interview\)/);
   assert.match(source, /\{pricing\.trial\.dailySessions\} Interviews\/Tag/);
   assert.match(source, /\{fmtEgp\(pl\.offerPriceEGP\)\} EGP\/Monat/);
@@ -104,7 +109,7 @@ test('generic landing states the real offer (free-forever + true trial grant + p
   // ever removed, a cold start would paint a fallback/undefined price — worse than showing none.
   assert.match(source, /\{pricing\?\.plans\?\.length > 0 && \(/);
   assert.match(source, /\{pricing\?\.trial\?\.dailySessions > 0 && \(/);
-  assert.match(source, /Nach Anmeldung und E-Mail-Bestätigung: kostenlose Einstufung deines Niveaus/);
+  assert.match(source, /Nach Anmeldung und E-Mail-Bestätigung startest du kostenlos: alle Übungen und dein erstes Interview/);
   assert.match(source, /const activeStudyStart = firstRun && auth\.account\?\.studyAccess\?\.active === true/);
   assert.match(source, /activeStudyStart \? '8-MIN-DIAGNOSE STARTEN' : 'Interview starten'/);
   assert.match(source, /onClick=\{beginSession\}/);
