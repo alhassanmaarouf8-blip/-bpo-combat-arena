@@ -816,11 +816,14 @@ function renderPending(rows){
   var box=document.getElementById('pending');box.innerHTML='';
   if(!rows.length){box.innerHTML='<div class="empty">Keine offenen Zahlungen.</div>';return;}
   var t=document.createElement('table');
-  t.innerHTML='<tr><th>Vorgang</th><th>User</th><th>Wallet Ende</th><th>Plan</th><th>Zeitraum</th><th>Betrag</th><th>Bestätigt am</th><th>Status</th><th></th></tr>';
+  t.innerHTML='<tr><th>Vorgang</th><th>User</th><th>Weg</th><th>Sender Ende</th><th>Plan</th><th>Zeitraum</th><th>Betrag</th><th>Bestätigt am</th><th>Status</th><th></th></tr>';
   rows.forEach(function(p){
     var tr=document.createElement('tr');
     var c=document.createElement('td');c.innerHTML='<code></code>';c.firstChild.textContent=p.referenceCode;tr.appendChild(c);
     tr.appendChild(cell(p.email||p.userId));
+    // WHICH RAIL the buyer says they used — so the owner opens the right app to find the money
+    // (wallet app vs InstaPay/bank) instead of checking both. Older records have no rail.
+    tr.appendChild(cell(p.rail==='instapay'?'INSTAPAY':p.rail==='bank'?'BANK':p.rail==='vodafone'?'WALLET':'—'));
     tr.appendChild(cell(p.senderLast4 ? '•••• '+p.senderLast4 : 'FEHLT'));
     tr.appendChild(cell((p.plan||'').toUpperCase()));
     tr.appendChild(cell(p.billingPeriod==='yearly'?'Jahr':'Monat'));
