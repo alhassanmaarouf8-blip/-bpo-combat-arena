@@ -117,6 +117,22 @@ plans.config/auth; wsManager gate + pass-through; `POST /api/progress/target-ind
 Elite perk restored, now TRUE. 7 unit tests (industry-first, fallback, cycle, no-target contract,
 prompt injection).
 
+### 5c. QUEUED — Camera analysis (Phase B) → Elite add-on, +300 EGP/Monat
+**Owner order 2026-07-25 (pricing decided upfront):** "after everything is finished, the camera
+analysis thing will be sold for an extra 300 LE" — an optional add-on ON TOP of Elite, not a new
+tier. Do NOT sell or render any purchase UI before the feature itself is finished and validated.
+**What (scope fixed by the approved camera plan in this repo's session of 2026-07-25):**
+opt-in camera during the live interview measuring GEOMETRIC FACTS ONLY — gaze-on-camera %,
+framing/lighting, head stability, smile-present frames — via MediaPipe Face Landmarker in-browser
+(WASM). Video NEVER leaves the device; only numeric per-answer aggregates are posted. 5–8 fps cap.
+HARD LINE: no emotion/mood/nervousness/confidence inference — prohibited for workplace/education
+use by EU AI Act Art. 5(1)(f) (in force since 02/2025, fines to 7% of turnover), and fabricated
+metrics are banned by owner doctrine. Prerequisite: Phase A (released prosody feedback) shipped.
+Kill criterion: any measured audio-path regression on a CPU-throttled profile → abandon, not ship.
+**DoD:** consent flow (default OFF, German + OWNER-AR masri), local-only proven (no request body
+ever contains image data — asserted in a test), audio-health measurements attached, the +300
+add-on purchasable through the existing manual rails only once ALL of the above is done.
+
 ### 6. QUEUED — Rückfrage-Reflex: the repair-language drill
 **Why (elite-conversationalist review 07-02):** real German phone work is ~a third clarification
 and repair — „Habe ich Sie richtig verstanden, dass …?", „Meinen Sie damit …?", „Könnten Sie mir
