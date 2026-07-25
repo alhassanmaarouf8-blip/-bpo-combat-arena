@@ -28,7 +28,7 @@ function MoodFace({ mood = 3, size = 72 }) {
     'M 22 46 Q 32 38 42 46', 'M 22 45 Q 32 40 42 45', 'M 23 44 L 41 44',
     'M 22 42 Q 32 48 42 42', 'M 21 41 Q 32 52 43 41',
   ][m - 1];
-  const color = m <= 2 ? 'var(--bad)' : m === 3 ? '#7d93b8' : 'var(--accent, #3b82f6)';
+  const color = m <= 2 ? 'var(--bad)' : m === 3 ? 'var(--text-dim)' : 'var(--accent)';
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{ color, transition: 'color 400ms' }}>
       <circle cx="32" cy="32" r="27" fill="none" stroke="currentColor" strokeWidth="2.5" />
@@ -69,7 +69,7 @@ const api = async (path, opts = {}) => {
 function ScoreDelta({ d }) {
   if (!d || d.after == null) return null;
   const up = d.delta != null && d.delta > 0, down = d.delta != null && d.delta < 0;
-  const color = up ? 'var(--accent, #3b82f6)' : down ? 'var(--bad)' : '#7d93b8';
+  const color = up ? 'var(--accent)' : down ? 'var(--bad)' : 'var(--text-dim)';
   return (
     <div style={{ ...cardSurface, padding: 14, marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ opacity: 0.8, fontSize: 14 }}>Floor-Score{/* OWNER-AR slot */}</span>
@@ -239,12 +239,12 @@ export default function CallFloor() {
   if (gate === 'off') return shell(
     <div style={{ ...cardSurface, padding: 24, textAlign: 'center', marginTop: 60 }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>Der Anruf-Floor ist noch nicht freigeschaltet.</div>
-      <a href="/" style={{ color: 'var(--accent, #3b82f6)' }}>Zurück zur App</a>
+      <a href="/" style={{ color: 'var(--accent)' }}>Zurück zur App</a>
     </div>);
   if (gate === 'noauth') return shell(
     <div style={{ ...cardSurface, padding: 24, textAlign: 'center', marginTop: 60 }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>Bitte zuerst in der App anmelden und die E-Mail bestätigen.</div>
-      <a href="/" style={{ color: 'var(--accent, #3b82f6)' }}>Zur App</a>
+      <a href="/" style={{ color: 'var(--accent)' }}>Zur App</a>
     </div>);
 
   // ── Shift report ────────────────────────────────────────────────────────────────────────────
@@ -286,10 +286,10 @@ export default function CallFloor() {
       </div>
       {seats.map((s) => (
         <div key={s.quadrant} style={{ ...cardSurface, padding: 14, marginBottom: 8,
-          borderColor: s.quadrant === p?.bestSeat ? 'var(--accent, #3b82f6)' : undefined }}>
+          borderColor: s.quadrant === p?.bestSeat ? 'var(--accent, var(--line-strong))' : undefined }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontWeight: 600 }}>{s.label_ar || s.label_de}</span>
-            <span style={{ fontSize: 14, color: s.avgOverall == null ? '#7d93b8' : s.avgOverall >= 70 ? 'var(--accent, #3b82f6)' : s.avgOverall < 45 ? 'var(--bad)' : '#7d93b8' }}>
+            <span style={{ fontSize: 14, color: s.avgOverall == null ? 'var(--text-dim)' : s.avgOverall >= 70 ? 'var(--accent)' : s.avgOverall < 45 ? 'var(--bad)' : 'var(--text-dim)' }}>
               {s.tested ? `${s.avgOverall}/100` : `${s.calls}/2 Anrufe`}</span>
           </div>
           <div style={{ opacity: 0.7, fontSize: 13, marginTop: 4 }}>
@@ -347,7 +347,7 @@ export default function CallFloor() {
           <div key={s.key} style={{ ...cardSurface, padding: 14, marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
               <span style={{ fontWeight: 600 }}>{skillName(s.key)}</span>
-              <span style={{ color: s.score >= 4 ? 'var(--accent, #3b82f6)' : s.score <= 2 ? 'var(--bad)' : '#7d93b8' }}>{s.score}/5</span>
+              <span style={{ color: s.score >= 4 ? 'var(--accent)' : s.score <= 2 ? 'var(--bad)' : 'var(--text-dim)' }}>{s.score}/5</span>
             </div>
             {s.why_de && <div style={{ opacity: 0.75, fontSize: 13.5, marginTop: 4 }}>{s.why_de}</div>}
             {s.quote && <div style={{ opacity: 0.6, fontSize: 13, marginTop: 4, fontStyle: 'italic' }}>„{s.quote}"</div>}
@@ -424,11 +424,11 @@ export default function CallFloor() {
       <button key={q.id} disabled={!q.unlocked}
         style={{ ...ghostBtn, width: '100%', textAlign: 'left', padding: 14, marginBottom: 8, minHeight: 56,
           opacity: q.unlocked ? 1 : 0.5, cursor: q.unlocked ? 'pointer' : 'not-allowed',
-          borderColor: picked === q.id ? 'var(--accent, #3b82f6)' : undefined }}
+          borderColor: picked === q.id ? 'var(--accent, var(--line-strong))' : undefined }}
         onClick={() => q.unlocked && setPicked(q.id)}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={{ fontWeight: 600 }}>{q.label_ar || q.label_de}</span>
-          {!q.unlocked && <span style={{ fontSize: 12, color: 'var(--accent, #3b82f6)' }}>ab {q.requiredPlan === 'elite' ? 'Elite' : 'Basic'}{/* OWNER-AR slot */}</span>}
+          {!q.unlocked && <span style={{ fontSize: 12, color: 'var(--accent)' }}>ab {q.requiredPlan === 'elite' ? 'Elite' : 'Basic'}{/* OWNER-AR slot */}</span>}
         </div>
         <div style={{ opacity: 0.7, fontSize: 13, marginTop: 2 }}>{q.skill_de}</div>
       </button>
@@ -445,6 +445,6 @@ export default function CallFloor() {
       </button>
     )}
     <button style={{ ...ghostBtn, width: '100%', marginTop: 10, minHeight: 44 }} onClick={openProfile}>MEIN KARRIERE-PROFIL</button>
-    <a href="/" style={{ display: 'block', textAlign: 'center', marginTop: 18, color: '#7d93b8', fontSize: 14 }}>Zurück zur App</a>
+    <a href="/" style={{ display: 'block', textAlign: 'center', marginTop: 18, color: 'var(--text-dim)', fontSize: 14 }}>Zurück zur App</a>
   </>);
 }

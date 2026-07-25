@@ -135,7 +135,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -199,16 +199,16 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
     </div>
     {doseProgress?.targeted && !doseProgress.missingTarget && (
       <div role="status" aria-live="polite"
-        style={{ margin: '-2px 0 10px', fontSize: 11, color: '#93c5fd', lineHeight: 1.5 }}>
+        style={{ margin: '-2px 0 10px', fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.5 }}>
         {'Damit der Satz im Interview sicher sitzt: noch '}{doseProgress.remainingRepetitions}{doseProgress.remainingRepetitions === 1 ? ' korrekte Wiederholung' : ' korrekte Wiederholungen'}
         {doseProgress.repairsRemaining > 0 ? ` \u00b7 ${doseProgress.repairsRemaining} gezielte Korrekturen offen` : ''}
       </div>
     )}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
-      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />))}
+      {items.map((_, i) => (<div key={i} style={{ flex: 1, height: 4, borderRadius: 99, background: i < idx ? 'var(--accent)' : i === idx ? 'var(--action)' : 'var(--surface-2)' }} />))}
     </div>
 
-    <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.25)' }}>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)' }}>
       {item?.type === 'grammar' ? (
         <>
           {/* Stage A withholds the rule chip (server sends rule:'') — noticing is the exercise. */}
@@ -262,7 +262,7 @@ export function SpokenReview({ token, apiUrl, lang = 'de', onClose, onGoPricing,
             <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.3)', fontSize: 12.5, color: 'var(--action-2)' }}>{T(lang, 'Nichts erkannt — sag es bitte noch einmal.', 'مفيش كلام اتسمع — قولها تاني.')}</div>
           ) : (
             <div style={{ textAlign: 'left' }}>
-              <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'rgba(59,130,246,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
+              <div style={{ padding: '12px 14px', borderRadius: 11, background: result.correct ? 'var(--surface-2)' : 'rgba(239,68,68,0.1)', border: `1px solid ${result.correct ? 'var(--line-strong)' : 'rgba(239,68,68,0.4)'}` }}>
                 <div style={{ fontSize: 13.5, color: result.correct ? 'var(--accent-2)' : 'var(--bad)', fontWeight: 700 }}>
                   {result.correct ? T(lang, '✓ Richtig gesagt!', '✓ قلتها صح!') : T(lang, '✗ Noch nicht ganz', '✗ لسه مش مظبوط')}
                 </div>

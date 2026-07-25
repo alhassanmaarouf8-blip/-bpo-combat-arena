@@ -257,8 +257,8 @@ function ScheduleList({ record, busy, onComplete, canLive }) {
           const complete = !!row.completedAt;
           const live = isLiveMilestone(row.id);
           return (
-            <li key={row.id} style={{ display:'grid', gridTemplateColumns:'28px minmax(0,1fr) auto', gap:9, alignItems:'start', padding:'10px', borderRadius:10, border:'1px solid var(--line)', background:complete ? 'rgba(59,130,246,0.08)' : 'var(--surface-2)' }}>
-              <span aria-hidden="true" style={{ width:26, height:26, display:'grid', placeItems:'center', borderRadius:'50%', background:complete ? 'var(--accent)' : 'rgba(59,130,246,0.14)', color:complete ? '#03111f' : 'var(--accent-2)', fontSize:11, fontWeight:600 }}>
+            <li key={row.id} style={{ display:'grid', gridTemplateColumns:'28px minmax(0,1fr) auto', gap:9, alignItems:'start', padding:'10px', borderRadius:10, border:'1px solid var(--line)', background:complete ? 'var(--surface-2)' : 'var(--surface-2)' }}>
+              <span aria-hidden="true" style={{ width:26, height:26, display:'grid', placeItems:'center', borderRadius:'50%', background:complete ? 'var(--accent)' : 'var(--surface-2)', color:complete ? '#03111f' : 'var(--accent-2)', fontSize:11, fontWeight:600 }}>
                 {complete ? '✓' : row.day}
               </span>
               <span style={{ minWidth:0 }}>
@@ -299,7 +299,7 @@ const quietButtonStyle = {
 
 const primaryButtonStyle = {
   minHeight:46, borderRadius:10, border:'1px solid var(--accent)',
-  background:'rgba(59,130,246,0.16)', color:'var(--accent-2)', font:'inherit',
+  background:'var(--surface-2)', color:'var(--accent-2)', font:'inherit',
   fontWeight:800, fontSize:12, letterSpacing:'0.02em', padding:'11px 16px', cursor:'pointer',
 };
 
@@ -668,7 +668,7 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
     <>
       <section aria-label="Private Ziel-Stelle" style={{
         marginTop:10, padding:'13px 14px', borderRadius:14,
-        border:'1px solid rgba(59,130,246,0.28)', background:'rgba(59,130,246,0.07)',
+        border:'1px solid var(--line-strong)', background:'var(--surface-2)',
       }}>
         {!target ? (
           <div style={{ display:'grid', gap:10 }}>
@@ -758,7 +758,7 @@ export function VacancyTargetCard({ apiUrl, token, onBeacon, onActiveChange, ope
               </div>
             )}
             {notice && (
-              <div role="status" style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, border:'1px solid rgba(59,130,246,0.28)', background:'rgba(59,130,246,0.08)', color:'var(--accent-2)', fontSize:12 }}>
+              <div role="status" style={{ marginBottom:12, padding:'10px 12px', borderRadius:10, border:'1px solid var(--line-strong)', background:'var(--surface-2)', color:'var(--accent-2)', fontSize:12 }}>
                 {notice}
               </div>
             )}

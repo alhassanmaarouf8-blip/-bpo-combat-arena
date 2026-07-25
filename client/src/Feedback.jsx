@@ -108,7 +108,7 @@ export function FirstFightCard({ token, apiUrl }) {
 
   const pill = (active) => ({ cursor: 'pointer', padding: '7px 12px', borderRadius: 'var(--r-pill)',
     fontFamily: 'var(--font-body)', fontSize: 12, border: `1px solid ${active ? 'var(--accent)' : 'var(--line)'}`,
-    background: active ? 'rgba(59,130,246,0.14)' : 'var(--surface-2)', color: active ? 'var(--accent)' : 'var(--text-dim)' });
+    background: active ? 'var(--surface-2)' : 'var(--surface-2)', color: active ? 'var(--accent)' : 'var(--text-dim)' });
 
   return (
     <div style={{ ...card, direction: 'rtl', textAlign: 'right' }}>
@@ -165,13 +165,13 @@ function GrantPro({ token, apiUrl }) {
   const btn = (plan, label, color) => (
     <button onClick={() => grant(plan)} disabled={busy || !email.trim()}
       style={{ flex: 1, padding: '9px 6px', minHeight: 40, borderRadius: 7, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 9.5,
-        border: `1px solid ${color}`, color: '#04070d', background: color, opacity: (busy || !email.trim()) ? 0.5 : 1 }}>
+        border: `1px solid ${color}`, color: '#FFFFFF', background: color, opacity: (busy || !email.trim()) ? 0.5 : 1 }}>
       {label}
     </button>
   );
 
   return (
-    <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.3)' }}>
+    <div style={{ marginBottom: 14, padding: '10px 11px', borderRadius: 9, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 7 }}>PLAN SETZEN · ZAHLUNG ERFÜLLEN / TEST</div>
       <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kunde@email.com" type="email"
         style={{ width: '100%', boxSizing: 'border-box', padding: '9px', borderRadius: 7, fontSize: 12, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--line)', outline: 'none', marginBottom: 7 }} />
@@ -209,7 +209,7 @@ export function AdminFeedback({ token, apiUrl }) {
     <>
       <button onClick={load} style={{ width: '100%', marginTop: 8, padding: '12px 10px', minHeight: 44,
         cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.14em',
-        borderRadius: 8, border: '1px solid rgba(59,130,246,0.4)', color: 'var(--accent)', background: 'rgba(59,130,246,0.06)' }}>
+        borderRadius: 8, border: '1px solid var(--line-strong)', color: 'var(--accent)', background: 'var(--surface-2)' }}>
         🛠  FEEDBACK-DATEN (ADMIN)
       </button>
 
@@ -264,8 +264,8 @@ export function AdminFeedback({ token, apiUrl }) {
 // ── shared styles ──
 const overlay = { position: 'absolute', inset: 0, zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'var(--surface)', backdropFilter: 'blur(4px)' };
 const modal   = { width: '100%', maxWidth: 360, padding: '18px 16px', borderRadius: 'var(--r-lg)', background: 'linear-gradient(180deg, rgba(10,18,30,0.98), rgba(4,8,14,0.99))', border: '1px solid var(--line)', boxShadow: 'var(--shadow-card)' };
-const card    = { padding: '13px 14px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.92), rgba(4,8,14,0.95))', border: '1px solid rgba(59,130,246,0.3)', boxShadow: '0 0 18px rgba(59,130,246,0.1)' };
+const card    = { padding: '13px 14px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.92), rgba(4,8,14,0.95))', border: '1px solid var(--line-strong)', boxShadow: '0 0 18px rgba(14,19,32,0.18)' };
 const thanks  = { textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--player-2)', padding: '14px 0' };
 const textarea = { width: '100%', minHeight: 64, padding: 10, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'var(--surface-2)', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 13, border: '1px solid var(--line)', outline: 'none' };
 const btnGhost = { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 11, padding: '9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
-const btnPrimary = { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, padding: '9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--accent)', color: '#04070d', background: 'linear-gradient(135deg, var(--accent-2), var(--accent))' };
+const btnPrimary = { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, padding: '9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--accent)', color: 'var(--text)', background: 'linear-gradient(135deg, var(--accent-2), var(--accent))' };

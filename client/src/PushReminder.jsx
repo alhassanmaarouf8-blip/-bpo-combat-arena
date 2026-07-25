@@ -84,8 +84,8 @@ export function PushReminder({ token, apiUrl, reminderState }) {
       <button onClick={on ? disable : enable} disabled={state === 'busy'}
         style={{ width: '100%', padding: '11px 10px', minHeight: 44, cursor: 'pointer', fontFamily: 'var(--font-display)',
           fontSize: 10, letterSpacing: '0.12em', borderRadius: 8,
-          border: `1px solid ${on ? 'rgba(59,130,246,0.5)' : 'rgba(148,163,184,0.35)'}`,
-          color: on ? 'var(--accent)' : 'var(--text-dim)', background: on ? 'rgba(59,130,246,0.08)' : 'var(--surface-2)' }}>
+          border: `1px solid ${on ? 'var(--line-strong)' : 'rgba(148,163,184,0.35)'}`,
+          color: on ? 'var(--accent)' : 'var(--text-dim)', background: on ? 'var(--surface-2)' : 'var(--surface-2)' }}>
         {state === 'busy' ? '…' : on ? ' ERINNERUNG AN ✓ — TIPPEN ZUM AUSSCHALTEN' : ' TÄGLICHE ERINNERUNG AKTIVIEREN'}
       </button>
       {err && <div style={{ fontSize: 10.5, color: 'var(--bad)', marginTop: 5, lineHeight: 1.4 }}>{err}</div>}

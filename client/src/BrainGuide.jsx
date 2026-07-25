@@ -588,15 +588,17 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
                 <div key={b.id} style={{ display: 'flex', alignItems: 'center', flex: i < LADDER.length - 1 ? 1 : 'none' }}>
                   <div title={`${b.name} · ${b.tier}`} style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9.5, fontWeight: 800,
-                    color: passed ? '#04110b' : current ? 'var(--accent)' : '#475569',
-                    background: passed ? 'linear-gradient(135deg,var(--accent),var(--accent-2))'
-                      : current ? 'rgba(59,130,246,0.18)' : 'var(--surface-2)',
-                    border: current ? '2px solid rgba(59,130,246,0.85)' : '1px solid rgba(255,255,255,0.12)',
-                    boxShadow: current ? '0 0 10px rgba(59,130,246,0.5)' : 'none' }}>
+                    color: passed ? '#FFFFFF' : current ? 'var(--action)' : 'var(--text-faint)',
+                    background: passed ? 'var(--accent)'
+                      : current ? 'var(--surface)' : 'var(--surface-2)',
+                    // WHERE YOU ARE gets the orange ring; what you PASSED is filled ink; what is
+                    // ahead is a quiet hairline. No glow — the ring alone carries "you are here".
+                    border: current ? '2px solid var(--action)' : '1px solid var(--line)',
+                    boxShadow: 'none' }}>
                     {b.name.charAt(0)}
                   </div>
                   {i < LADDER.length - 1 && (
-                    <div style={{ flex: 1, height: 2, background: passed ? 'rgba(59,130,246,0.55)' : 'var(--surface-2)' }} />
+                    <div style={{ flex: 1, height: 2, background: passed ? 'var(--accent)' : 'var(--surface-2)' }} />
                   )}
                 </div>
               );
@@ -615,4 +617,4 @@ export function BrainGuide({ token, apiUrl, onAction, onDirectiveState, onSessio
 }
 
 const card   = { marginTop: 12, padding: 14, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--surface-2)', textAlign: 'right' };
-const cta    = { width: '100%', minHeight: 44, marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: '#04110b', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };
+const cta    = { width: '100%', minHeight: 44, marginTop: 6, padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontWeight: 800, color: 'var(--text)', background: 'linear-gradient(90deg,var(--accent),var(--accent-2))' };

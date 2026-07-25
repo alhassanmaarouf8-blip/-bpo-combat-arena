@@ -205,8 +205,8 @@ export function SalmaTakeover({ token, apiUrl, lang, ctx, resumeTick, brainDirec
               onEnd: () => { speechStopRef.current = null; } });
           }} style={{ marginLeft: 'auto', minWidth: 44, minHeight: 44, padding: 8, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: 10, border: '1px solid rgba(59,130,246,0.45)', color: 'var(--accent)',
-            background: 'rgba(59,130,246,0.10)' }}><SpeakerIcon /></button>
+            borderRadius: 10, border: '1px solid var(--line-strong)', color: 'var(--accent)',
+            background: 'var(--surface-2)' }}><SpeakerIcon /></button>
           <button aria-label="Schließen" onClick={() => finish('salma_skipped')}
             style={{ minWidth: 44, minHeight: 44, background: 'none', border: 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

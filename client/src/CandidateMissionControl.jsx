@@ -66,25 +66,25 @@ const PASS_STEP_COPY = Object.freeze({
 });
 
 const panelStyle = {
-  border: '1px solid rgba(96,165,250,0.24)', borderRadius: 17, background: 'var(--surface)',
-  color: 'var(--text, #e2e8f0)', boxShadow: 'var(--e3)', overflow: 'hidden',
+  border: '1px solid var(--line-strong)', borderRadius: 17, background: 'var(--surface)',
+  color: 'var(--text, #0E1320)', boxShadow: 'var(--e3)', overflow: 'hidden',
 };
 const fieldStyle = {
   width: '100%', minHeight: 46, boxSizing: 'border-box', borderRadius: 10,
   border: '1px solid var(--line-strong, rgba(148,163,184,0.32))', background: 'var(--surface)',
-  color: 'var(--text, #e2e8f0)', font: 'inherit', fontSize: 13.5, padding: '10px 11px',
+  color: 'var(--text, #0E1320)', font: 'inherit', fontSize: 13.5, padding: '10px 11px',
 };
 const quietButton = {
-  minHeight: 44, borderRadius: 10, border: '1px solid rgba(96,165,250,0.38)',
-  background: 'rgba(59,130,246,0.07)', color: 'var(--accent-2, #93c5fd)', cursor: 'pointer',
+  minHeight: 44, borderRadius: 10, border: '1px solid var(--line-strong)',
+  background: 'var(--surface-2)', color: 'var(--accent-2, var(--text-dim))', cursor: 'pointer',
   font: 'inherit', fontSize: 12, fontWeight: 750, padding: '9px 13px',
 };
 const neutralButton = {
-  ...quietButton, border: '1px solid var(--line, rgba(148,163,184,0.2))',
-  background: 'transparent', color: 'var(--text-dim, #94a3b8)',
+  ...quietButton, border: '1px solid var(--line, var(--line))',
+  background: 'transparent', color: 'var(--text-dim, #5A6270)',
 };
 const dialogPrimary = {
-  ...quietButton, borderColor: 'var(--accent, #3b82f6)', background: 'var(--accent, #3b82f6)', color: '#06101d', fontWeight: 850,
+  ...quietButton, borderColor: 'var(--accent, var(--line-strong))', background: 'var(--accent)', color: '#FFFFFF', fontWeight: 850,
 };
 
 function text(value, max = 500) {
@@ -136,8 +136,8 @@ function toggleArray(current, id, max = 20) {
 function Label({ htmlFor, de, ar }) {
   return (
     <label htmlFor={htmlFor} style={{ display: 'block', marginBottom: 6 }}>
-      <span style={{ display: 'block', color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>{de}</span>
-      <span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', fontSize: 10.5, marginTop: 2 }}>{ar}</span>
+      <span style={{ display: 'block', color: 'var(--text, #0E1320)', fontSize: 12.5, fontWeight: 750 }}>{de}</span>
+      <span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', fontSize: 10.5, marginTop: 2 }}>{ar}</span>
     </label>
   );
 }
@@ -183,11 +183,11 @@ function Dialog({ open, title, titleAr, description, busy = false, onClose, chil
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="cmc-dialog-title" aria-describedby={description ? 'cmc-dialog-description' : undefined}
         aria-busy={busy} tabIndex={-1} style={{ ...panelStyle, width: '100%', maxWidth: width, maxHeight: 'min(92svh,900px)', overflowY: 'auto' }}>
         <header style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'start', padding: '17px 18px',
-          background: 'var(--surface)', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))' }}>
+          background: 'var(--surface)', borderBottom: '1px solid var(--line, var(--line))' }}>
           <div style={{ minWidth: 0 }}>
             <h2 id="cmc-dialog-title" style={{ margin: 0, color: 'var(--text)', fontSize: 18, lineHeight: 1.3 }}>{title}</h2>
-            {titleAr && <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>{titleAr}</div>}
-            {description && <p id="cmc-dialog-description" style={{ margin: '6px 0 0', color: 'var(--text-faint, #64748b)', fontSize: 11.5, lineHeight: 1.5 }}>{description}</p>}
+            {titleAr && <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-dim, #5A6270)', fontSize: 12.5 }}>{titleAr}</div>}
+            {description && <p id="cmc-dialog-description" style={{ margin: '6px 0 0', color: 'var(--text-faint, #8A909C)', fontSize: 11.5, lineHeight: 1.5 }}>{description}</p>}
           </div>
           <button type="button" onClick={onClose} disabled={busy} aria-label="Dialog schließen" style={{ ...neutralButton, flex: '0 0 auto', paddingInline: 12 }}>SCHLIESSEN</button>
         </header>
@@ -199,16 +199,16 @@ function Dialog({ open, title, titleAr, description, busy = false, onClose, chil
 }
 
 function Chip({ children, tone = 'neutral' }) {
-  const color = tone === 'orange' ? 'var(--action, #f97316)' : tone === 'blue' ? 'var(--accent-2, #93c5fd)' : 'var(--text-dim, #94a3b8)';
-  const border = tone === 'orange' ? 'rgba(249,115,22,0.35)' : tone === 'blue' ? 'rgba(96,165,250,0.35)' : 'rgba(148,163,184,0.2)';
+  const color = tone === 'orange' ? 'var(--action, #D9541A)' : tone === 'blue' ? 'var(--accent-2, var(--text-dim))' : 'var(--text-dim, #5A6270)';
+  const border = tone === 'orange' ? 'rgba(249,115,22,0.35)' : tone === 'blue' ? 'var(--line-strong)' : 'var(--line)';
   return <span style={{ display: 'inline-flex', alignItems: 'center', minHeight: 27, padding: '4px 8px', borderRadius: 999, border: `1px solid ${border}`, color, fontSize: 10.5, fontWeight: 750 }}>{children}</span>;
 }
 
 function EmptyState({ de, ar }) {
   return (
-    <div style={{ padding: '24px 16px', textAlign: 'center', borderRadius: 12, border: '1px dashed rgba(148,163,184,0.25)' }}>
-      <div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 13 }}>{de}</div>
-      <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 12, marginTop: 4 }}>{ar}</div>
+    <div style={{ padding: '24px 16px', textAlign: 'center', borderRadius: 12, border: '1px dashed var(--line-strong)' }}>
+      <div style={{ color: 'var(--text-dim, #5A6270)', fontSize: 13 }}>{de}</div>
+      <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 12, marginTop: 4 }}>{ar}</div>
     </div>
   );
 }
@@ -225,12 +225,12 @@ function OpportunityCard({ opportunity, tracker = false, busy, onPack, onOpenApp
     || opportunity.status === 'interview_proposed';
   const [outcome, setOutcome] = useState('');
   return (
-    <article id={`cmc-opportunity-${opportunity.id}`} tabIndex={-1} style={{ padding: 15, borderRadius: 13, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface-2)' }}>
+    <article id={`cmc-opportunity-${opportunity.id}`} tabIndex={-1} style={{ padding: 15, borderRadius: 13, border: '1px solid var(--line, var(--line))', background: 'var(--surface-2)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: '1 1 250px' }}>
-          <div style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>{opportunity.employerDisplay}</div>
+          <div style={{ color: 'var(--text-faint, #8A909C)', fontSize: 10.5 }}>{opportunity.employerDisplay}</div>
           <h3 style={{ margin: '4px 0 0', color: 'var(--text)', fontSize: 15.5, lineHeight: 1.35 }}>{opportunity.title}</h3>
-          <div style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5 }}>
+          <div style={{ marginTop: 5, color: 'var(--text-dim, #5A6270)', fontSize: 11.5 }}>
             {[opportunity.location, opportunity.sourceHost, opportunity.postedDate].filter(Boolean).join(' · ')}
           </div>
         </div>
@@ -243,22 +243,22 @@ function OpportunityCard({ opportunity, tracker = false, busy, onPack, onOpenApp
       </div>
 
       <div className="cmc-two" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10, marginTop: 13 }}>
-        <div style={{ padding: '10px 11px', borderRadius: 10, background: 'rgba(59,130,246,0.045)', border: '1px solid rgba(96,165,250,0.16)' }}>
-          <div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 10.5, fontWeight: 800 }}>WARUM PASSEND</div>
-          <ul style={{ margin: '7px 0 0', paddingLeft: 17, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.55 }}>
+        <div style={{ padding: '10px 11px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
+          <div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 10.5, fontWeight: 800 }}>WARUM PASSEND</div>
+          <ul style={{ margin: '7px 0 0', paddingLeft: 17, color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.55 }}>
             {(opportunity.fitReasons.length ? opportunity.fitReasons : ['Noch keine bestätigten Fit-Gründe.']).map((item) => <li key={item}>{FIT_LABELS[item] || item}</li>)}
           </ul>
         </div>
         <div style={{ padding: '10px 11px', borderRadius: 10, background: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.16)' }}>
-          <div style={{ color: 'var(--action, #f97316)', fontSize: 10.5, fontWeight: 800 }}>LÜCKEN / VORBEHALTE</div>
-          <ul style={{ margin: '7px 0 0', paddingLeft: 17, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.55 }}>
+          <div style={{ color: 'var(--action, #D9541A)', fontSize: 10.5, fontWeight: 800 }}>LÜCKEN / VORBEHALTE</div>
+          <ul style={{ margin: '7px 0 0', paddingLeft: 17, color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.55 }}>
             {(opportunity.fitGaps.length ? opportunity.fitGaps : ['Keine harte Lücke aus den bestätigten Daten erkannt.']).map((item) => <li key={item}>{GAP_LABELS[item] || item}</li>)}
           </ul>
         </div>
       </div>
       {!!opportunity.readinessReasons.length && (
-        <div style={{ marginTop: 9, color: 'var(--text-faint, #64748b)', fontSize: 11.5, lineHeight: 1.5 }}>
-          <b style={{ color: 'var(--text-dim, #94a3b8)' }}>Readiness:</b> {opportunity.readinessReasons.map((item) => READINESS_REASON_LABELS[item] || item).join(' · ')}
+        <div style={{ marginTop: 9, color: 'var(--text-faint, #8A909C)', fontSize: 11.5, lineHeight: 1.5 }}>
+          <b style={{ color: 'var(--text-dim, #5A6270)' }}>Readiness:</b> {opportunity.readinessReasons.map((item) => READINESS_REASON_LABELS[item] || item).join(' · ')}
         </div>
       )}
 
@@ -274,9 +274,9 @@ function OpportunityCard({ opportunity, tracker = false, busy, onPack, onOpenApp
       </div>
 
       {tracker && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap', marginTop: 13, paddingTop: 12, borderTop: '1px solid var(--line, rgba(148,163,184,0.16))' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'end', flexWrap: 'wrap', marginTop: 13, paddingTop: 12, borderTop: '1px solid var(--line, var(--surface-2))' }}>
           <div style={{ flex: '1 1 190px' }}>
-            <label htmlFor={`cmc-outcome-${opportunity.id}`} style={{ display: 'block', color: 'var(--text-faint, #64748b)', fontSize: 10.5, marginBottom: 5 }}>Abschlussstatus</label>
+            <label htmlFor={`cmc-outcome-${opportunity.id}`} style={{ display: 'block', color: 'var(--text-faint, #8A909C)', fontSize: 10.5, marginBottom: 5 }}>Abschlussstatus</label>
             <select id={`cmc-outcome-${opportunity.id}`} value={outcome} onChange={(event) => setOutcome(event.target.value)} style={{ ...fieldStyle, minHeight: 44 }}>
               <option value="">Keine Änderung</option>
               {APPLICATION_OUTCOME_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.de}</option>)}
@@ -722,8 +722,8 @@ export function CandidateMissionControl({
   if (visibility === 'locked') {
     return (
       <section className={`cmc ${className}`.trim()} style={{ ...panelStyle, padding: 16 }}>
-        <div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>Mission Control ist für dieses Konto noch nicht verfügbar.</div>
-        <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 11.5, marginTop: 4 }}>مركز التحكم غير متاح في هذه الخطة حالياً.</div>
+        <div style={{ color: 'var(--text-dim, #5A6270)', fontSize: 12.5 }}>Mission Control ist für dieses Konto noch nicht verfügbar.</div>
+        <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 11.5, marginTop: 4 }}>مركز التحكم غير متاح في هذه الخطة حالياً.</div>
         {typeof onRequestUpgrade === 'function' && <button type="button" onClick={() => { emit('mission_paywall_shown'); onRequestUpgrade(); }} style={{ ...neutralButton, marginTop: 10 }}>PLÄNE ANSEHEN</button>}
       </section>
     );
@@ -745,11 +745,11 @@ export function CandidateMissionControl({
         style={{ ...panelStyle, padding: '13px 14px', marginTop: 10 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
           <div style={{ minWidth:0 }}>
-            <div style={{ color:'var(--accent, #3b82f6)', fontSize:9.5, fontWeight:850, letterSpacing:'0.14em' }}>BEWERBUNGS-MISSION</div>
-            <h2 id="cmc-compact-title" style={{ margin:'4px 0 0', color:'var(--text, #e2e8f0)', fontSize:14.5 }}>
+            <div style={{ color:'var(--accent)', fontSize:9.5, fontWeight:850, letterSpacing:'0.14em' }}>BEWERBUNGS-MISSION</div>
+            <h2 id="cmc-compact-title" style={{ margin:'4px 0 0', color:'var(--text, #0E1320)', fontSize:14.5 }}>
               {currentPassCopy?.[0] || 'Dein Bewerbungsprofil, passende Stellen und dein Tracker'}
             </h2>
-            <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #64748b)', fontSize:10.5 }}>
+            <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #8A909C)', fontSize:10.5 }}>
               {currentPassCopy?.[1] || 'ملفك والوظائف الأنسب وتتبع التقديم — داخل German Interview Trainer'}
             </div>
           </div>
@@ -765,14 +765,14 @@ export function CandidateMissionControl({
   return (
     <section ref={rootRef} className={`cmc ${className}`.trim()} aria-labelledby="cmc-title" aria-busy={busy} style={panelStyle}>
       <style>{`
-        .cmc *{box-sizing:border-box}.cmc button:focus-visible,.cmc a:focus-visible,.cmc input:focus-visible,.cmc textarea:focus-visible,.cmc select:focus-visible,.cmc-overlay button:focus-visible,.cmc-overlay a:focus-visible,.cmc-overlay input:focus-visible,.cmc-overlay textarea:focus-visible,.cmc-overlay select:focus-visible{outline:3px solid rgba(96,165,250,.85);outline-offset:3px}.cmc button:disabled,.cmc-overlay button:disabled{cursor:not-allowed;opacity:.48}.cmc-tab{transition:background 140ms ease,border-color 140ms ease}.cmc-tab:hover{border-color:rgba(96,165,250,.48)!important}@media(max-width:620px){.cmc-head{padding:16px!important}.cmc-body{padding:14px!important}.cmc-two{grid-template-columns:1fr!important}.cmc-actions{flex-direction:column!important}.cmc-actions>button,.cmc-actions>a{width:100%}.cmc-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important}.cmc-tab{padding-inline:5px!important;font-size:10.5px!important}}@media(prefers-reduced-motion:reduce){.cmc *,.cmc-overlay *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+        .cmc *{box-sizing:border-box}.cmc button:focus-visible,.cmc a:focus-visible,.cmc input:focus-visible,.cmc textarea:focus-visible,.cmc select:focus-visible,.cmc-overlay button:focus-visible,.cmc-overlay a:focus-visible,.cmc-overlay input:focus-visible,.cmc-overlay textarea:focus-visible,.cmc-overlay select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.cmc button:disabled,.cmc-overlay button:disabled{cursor:not-allowed;opacity:.48}.cmc-tab{transition:background 140ms ease,border-color 140ms ease}.cmc-tab:hover{border-color:var(--line-strong)!important}@media(max-width:620px){.cmc-head{padding:16px!important}.cmc-body{padding:14px!important}.cmc-two{grid-template-columns:1fr!important}.cmc-actions{flex-direction:column!important}.cmc-actions>button,.cmc-actions>a{width:100%}.cmc-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important}.cmc-tab{padding-inline:5px!important;font-size:10.5px!important}}@media(prefers-reduced-motion:reduce){.cmc *,.cmc-overlay *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
       `}</style>
-      <header className="cmc-head" style={{ padding: '19px 20px 16px', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface)' }}>
+      <header className="cmc-head" style={{ padding: '19px 20px 16px', borderBottom: '1px solid var(--line, var(--line))', background: 'var(--surface)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'start', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-display, inherit)', color: 'var(--accent, #3b82f6)', fontSize: 9.5, letterSpacing: '0.17em', fontWeight: 850 }}>BEWERBUNGEN</div>
+            <div style={{ fontFamily: 'var(--font-display, inherit)', color: 'var(--accent)', fontSize: 9.5, letterSpacing: '0.17em', fontWeight: 850 }}>BEWERBUNGEN</div>
             <h2 id="cmc-title" style={{ margin: '7px 0 0', color: 'var(--text)', fontSize: 'clamp(18px,3vw,23px)', lineHeight: 1.25 }}>Passende Stellen und dein Bewerbungs-Tracker</h2>
-            <div dir="rtl" style={{ marginTop: 5, color: 'var(--text-dim, #94a3b8)', fontSize: 13 }}>الوظائف المناسبة ومتابعة التقديم — داخل German Interview Trainer</div>
+            <div dir="rtl" style={{ marginTop: 5, color: 'var(--text-dim, #5A6270)', fontSize: 13 }}>الوظائف المناسبة ومتابعة التقديم — داخل German Interview Trainer</div>
           </div>
           <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             <button type="button" onClick={openPassport} style={neutralButton}>PROFIL BEARBEITEN</button>
@@ -784,10 +784,10 @@ export function CandidateMissionControl({
       <div className="cmc-body" style={{ padding: 18 }}>
         {(error || notice) && (
           <div role={error ? 'alert' : 'status'} style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10,
-            border: `1px solid ${error ? 'rgba(248,113,113,0.45)' : 'rgba(96,165,250,0.3)'}`,
-            background: error ? 'rgba(127,29,29,0.14)' : 'rgba(59,130,246,0.055)' }}>
-            <div style={{ color: error ? 'var(--bad)' : 'var(--accent-2, #93c5fd)', fontSize: 12 }}>{(error || notice)[0]}</div>
-            <div dir="rtl" style={{ color: error ? 'var(--bad)' : 'var(--text-dim, #94a3b8)', fontSize: 11.5, marginTop: 3 }}>{(error || notice)[1]}</div>
+            border: `1px solid ${error ? 'rgba(248,113,113,0.45)' : 'var(--line-strong)'}`,
+            background: error ? 'rgba(127,29,29,0.14)' : 'var(--surface-2)' }}>
+            <div style={{ color: error ? 'var(--bad)' : 'var(--accent-2, var(--text-dim))', fontSize: 12 }}>{(error || notice)[0]}</div>
+            <div dir="rtl" style={{ color: error ? 'var(--bad)' : 'var(--text-dim, #5A6270)', fontSize: 11.5, marginTop: 3 }}>{(error || notice)[1]}</div>
           </div>
         )}
         <nav aria-label="Bewerbungsbereiche" className="cmc-tabs" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,180px))', gap: 7 }}>
@@ -795,8 +795,8 @@ export function CandidateMissionControl({
             ['today', 'HEUTE', 'اليوم'], ['tracker', 'TRACKER', 'المتابعة'],
           ].map(([id, de, ar]) => (
             <button key={id} type="button" onClick={() => setView(id)} aria-current={view === id ? 'page' : undefined}
-              className="cmc-tab" style={{ ...neutralButton, borderColor: view === id ? 'rgba(96,165,250,0.58)' : 'rgba(148,163,184,0.18)', background: view === id ? 'rgba(59,130,246,0.11)' : 'transparent' }}>
-              {de}<span dir="rtl" style={{ display: 'block', marginTop: 2, fontSize: 9.5, fontWeight: 500, color: 'var(--text-faint, #64748b)' }}>{ar}</span>
+              className="cmc-tab" style={{ ...neutralButton, borderColor: view === id ? 'var(--accent)' : 'var(--line)', background: view === id ? 'var(--surface-2)' : 'transparent' }}>
+              {de}<span dir="rtl" style={{ display: 'block', marginTop: 2, fontSize: 9.5, fontWeight: 500, color: 'var(--text-faint, #8A909C)' }}>{ar}</span>
             </button>
           ))}
         </nav>
@@ -806,25 +806,25 @@ export function CandidateMissionControl({
             {interviewDayOpportunity && (
               <section aria-labelledby="cmc-interview-pack-title" style={{ marginBottom:14, padding:'14px 15px', borderRadius:12,
                 border:'1px solid rgba(249,115,22,0.3)', background:'rgba(249,115,22,0.045)' }}>
-                <div style={{ color:'var(--action, #f97316)', fontSize:9.5, fontWeight:850, letterSpacing:'0.13em' }}>INTERVIEW-TAG PACK</div>
+                <div style={{ color:'var(--action, #D9541A)', fontSize:9.5, fontWeight:850, letterSpacing:'0.13em' }}>INTERVIEW-TAG PACK</div>
                 <h3 id="cmc-interview-pack-title" style={{ margin:'5px 0 0', color:'var(--text)', fontSize:15.5 }}>
                   {interviewDayOpportunity.title} · {interviewDayOpportunity.interviewDate}
                   {interviewDayOpportunity.interviewTime ? ` · ${interviewDayOpportunity.interviewTime}` : ''}
                 </h3>
-                <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #64748b)', fontSize:11.5 }}>
+                <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #8A909C)', fontSize:11.5 }}>
                   حزمة يوم المقابلة مبنية فقط على البيانات التي أكّدتها
                 </div>
                 <div className="cmc-two" style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:10, marginTop:12 }}>
-                  <div style={{ padding:'10px 11px', borderRadius:10, border:'1px solid rgba(148,163,184,0.16)' }}>
-                    <div style={{ color:'var(--text-dim, #94a3b8)', fontSize:10.5, fontWeight:800 }}>DEINE BELEGE</div>
-                    <ul style={{ margin:'7px 0 0', paddingLeft:17, color:'var(--text, #e2e8f0)', fontSize:11.5, lineHeight:1.55 }}>
+                  <div style={{ padding:'10px 11px', borderRadius:10, border:'1px solid var(--surface-2)' }}>
+                    <div style={{ color:'var(--text-dim, #5A6270)', fontSize:10.5, fontWeight:800 }}>DEINE BELEGE</div>
+                    <ul style={{ margin:'7px 0 0', paddingLeft:17, color:'var(--text, #0E1320)', fontSize:11.5, lineHeight:1.55 }}>
                       {(passport?.facts || []).filter((fact) => fact.shareAllowed).slice(0, 3).map((fact) => <li key={fact.id}>{fact.value}</li>)}
                       {!(passport?.facts || []).some((fact) => fact.shareAllowed) && <li>Vor dem Gespräch bestätigte Belege ergänzen.</li>}
                     </ul>
                   </div>
-                  <div style={{ padding:'10px 11px', borderRadius:10, border:'1px solid rgba(148,163,184,0.16)' }}>
-                    <div style={{ color:'var(--text-dim, #94a3b8)', fontSize:10.5, fontWeight:800 }}>LETZTER CHECK</div>
-                    <ul style={{ margin:'7px 0 0', paddingLeft:17, color:'var(--text, #e2e8f0)', fontSize:11.5, lineHeight:1.55 }}>
+                  <div style={{ padding:'10px 11px', borderRadius:10, border:'1px solid var(--surface-2)' }}>
+                    <div style={{ color:'var(--text-dim, #5A6270)', fontSize:10.5, fontWeight:800 }}>LETZTER CHECK</div>
+                    <ul style={{ margin:'7px 0 0', paddingLeft:17, color:'var(--text, #0E1320)', fontSize:11.5, lineHeight:1.55 }}>
                       <li>Zeit, Zeitzone und Zugang bestätigen</li>
                       <li>60-Sekunden-Vorstellung einmal laut sprechen</li>
                       <li>Zwei ehrliche Arbeitgeberfragen bereithalten</li>
@@ -835,12 +835,12 @@ export function CandidateMissionControl({
             )}
             {interviewPass && (
               <section aria-labelledby="cmc-pass-title" style={{ marginBottom:14, padding:'14px 15px', borderRadius:12,
-                border:'1px solid rgba(96,165,250,0.24)', background:'rgba(59,130,246,0.045)' }}>
+                border:'1px solid var(--line-strong)', background:'var(--surface-2)' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'start', flexWrap:'wrap' }}>
                   <div>
-                    <div style={{ color:'var(--accent-2, #93c5fd)', fontSize:9.5, fontWeight:850, letterSpacing:'0.13em' }}>INTERVIEW PASS</div>
+                    <div style={{ color:'var(--accent-2, var(--text-dim))', fontSize:9.5, fontWeight:850, letterSpacing:'0.13em' }}>INTERVIEW PASS</div>
                     <h3 id="cmc-pass-title" style={{ margin:'5px 0 0', color:'var(--text)', fontSize:15.5 }}>Dein gespeicherter Vorbereitungsplan</h3>
-                    <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #64748b)', fontSize:11.5 }}>خطة التحضير المحفوظة داخل حسابك</div>
+                    <div dir="rtl" style={{ marginTop:3, color:'var(--text-faint, #8A909C)', fontSize:11.5 }}>خطة التحضير المحفوظة داخل حسابك</div>
                   </div>
                   <Chip tone={interviewPass.planAccess === 'full' ? 'blue' : 'orange'}>
                     {interviewPass.planAccess === 'full' ? 'VOLLSTÄNDIG' : 'TAG 1'}
@@ -849,9 +849,9 @@ export function CandidateMissionControl({
                 <ol style={{ margin:'12px 0 0', paddingLeft:22, display:'grid', gap:8 }}>
                   {interviewPass.schedule.map((step) => {
                     const copy = PASS_STEP_COPY[step.id] || [step.title, 'خطوة تحضير'];
-                    return <li key={step.id} style={{ color:'var(--text, #e2e8f0)', fontSize:12.5, lineHeight:1.45 }}>
+                    return <li key={step.id} style={{ color:'var(--text, #0E1320)', fontSize:12.5, lineHeight:1.45 }}>
                       <span>{copy[0]}</span>
-                      <span dir="rtl" style={{ display:'block', color:'var(--text-faint, #64748b)', fontSize:10.5 }}>{copy[1]}</span>
+                      <span dir="rtl" style={{ display:'block', color:'var(--text-faint, #8A909C)', fontSize:10.5 }}>{copy[1]}</span>
                     </li>;
                   })}
                 </ol>
@@ -862,7 +862,7 @@ export function CandidateMissionControl({
                 )}
               </section>
             )}
-            <div style={{ marginBottom: 11, color: 'var(--text-faint, #64748b)', fontSize: 11.5, lineHeight: 1.55 }}>
+            <div style={{ marginBottom: 11, color: 'var(--text-faint, #8A909C)', fontSize: 11.5, lineHeight: 1.55 }}>
               Maximal fünf erklärte Chancen. Keine automatische Bewerbung, keine erfundenen Fakten.
               <span dir="rtl" style={{ display: 'block', marginTop: 2 }}>خمس فرص بحد أقصى، مع أسباب واضحة. لا يوجد تقديم تلقائي أو معلومات مختلقة.</span>
             </div>
@@ -879,8 +879,8 @@ export function CandidateMissionControl({
           <div style={{ marginTop: 15 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 11 }}>
               <div>
-                <div style={{ color: 'var(--text, #e2e8f0)', fontSize: 13, fontWeight: 750 }}>Bewerbungs-Tracker</div>
-                <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 11, marginTop: 2 }}>متابعة طلبات التوظيف</div>
+                <div style={{ color: 'var(--text, #0E1320)', fontSize: 13, fontWeight: 750 }}>Bewerbungs-Tracker</div>
+                <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 11, marginTop: 2 }}>متابعة طلبات التوظيف</div>
               </div>
               <button type="button" onClick={openImport} style={neutralButton}>STELLE HINZUFÜGEN</button>
             </div>
@@ -898,11 +898,11 @@ export function CandidateMissionControl({
         description="Hier bestätigst du Zieljob, Erfahrung und Verfügbarkeit. Die App nutzt nur deine bestätigten Angaben für passende Stellen und Bewerbungshilfen.">
         {passportDraft && <div style={{ display: 'grid', gap: 15 }}>
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend style={{ color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>Zielrollen <span dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontWeight: 500 }}>الوظائف المستهدفة</span></legend>
+            <legend style={{ color: 'var(--text, #0E1320)', fontSize: 12.5, fontWeight: 750 }}>Zielrollen <span dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontWeight: 500 }}>الوظائف المستهدفة</span></legend>
             <div className="cmc-two" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 7, marginTop: 8 }}>
-              {ROLE_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 48, display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.18)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={passportDraft.roleTypes.includes(item.id)} onChange={() => updateDraft('roleTypes', toggleArray(passportDraft.roleTypes, item.id, 5))} style={{ width: 19, height: 19, accentColor: 'var(--accent, #3b82f6)' }} />
-                <span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5 }}>{item.de}<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', fontSize: 9.5 }}>{item.ar}</span></span>
+              {ROLE_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 48, display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 9, border: '1px solid var(--line)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={passportDraft.roleTypes.includes(item.id)} onChange={() => updateDraft('roleTypes', toggleArray(passportDraft.roleTypes, item.id, 5))} style={{ width: 19, height: 19, accentColor: 'var(--accent, var(--action))' }} />
+                <span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5 }}>{item.de}<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', fontSize: 9.5 }}>{item.ar}</span></span>
               </label>)}
             </div>
           </fieldset>
@@ -916,17 +916,17 @@ export function CandidateMissionControl({
             <div><Label htmlFor="cmc-salary" de="Gehaltsuntergrenze EGP (optional)" ar="الحد الأدنى للراتب بالجنيه (اختياري)"/><input id="cmc-salary" type="number" min="0" step="500" inputMode="numeric" value={passportDraft.salaryFloorEGP} onChange={(event) => updateDraft('salaryFloorEGP', event.target.value)} style={fieldStyle}/></div>
           </div>
 
-          <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>Zielbranchen <span dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontWeight: 500 }}>المجالات المستهدفة</span></legend><div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>{INDUSTRY_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.18)', cursor: 'pointer' }}><input type="checkbox" checked={passportDraft.industryKeys.includes(item.id)} onChange={() => updateDraft('industryKeys', toggleArray(passportDraft.industryKeys, item.id, 10))} style={{ width: 18, height: 18, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11 }}>{item.de}<span dir="rtl" style={{ display: 'block', fontSize: 9, color: 'var(--text-faint, #64748b)' }}>{item.ar}</span></span></label>)}</div></fieldset>
-          <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>Schichten <span dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontWeight: 500 }}>الشيفتات</span></legend><div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>{SHIFT_PREFERENCE_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.18)', cursor: 'pointer' }}><input type="checkbox" checked={passportDraft.shiftPreferences.includes(item.id)} onChange={() => updateDraft('shiftPreferences', toggleArray(passportDraft.shiftPreferences, item.id, 5))} style={{ width: 18, height: 18, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11 }}>{item.de}<span dir="rtl" style={{ display: 'block', fontSize: 9, color: 'var(--text-faint, #64748b)' }}>{item.ar}</span></span></label>)}</div></fieldset>
-          <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>Bestätigte Skills <span dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontWeight: 500 }}>المهارات المؤكدة</span></legend><div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>{PASSPORT_SKILL_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.18)', cursor: 'pointer' }}><input type="checkbox" checked={passportDraft.skillIds.includes(item.id)} onChange={() => updateDraft('skillIds', toggleArray(passportDraft.skillIds, item.id, 8))} style={{ width: 18, height: 18, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11 }}>{item.de}<span dir="rtl" style={{ display: 'block', fontSize: 9, color: 'var(--text-faint, #64748b)' }}>{item.ar}</span></span></label>)}</div></fieldset>
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #0E1320)', fontSize: 12.5, fontWeight: 750 }}>Zielbranchen <span dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontWeight: 500 }}>المجالات المستهدفة</span></legend><div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>{INDUSTRY_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 9, border: '1px solid var(--line)', cursor: 'pointer' }}><input type="checkbox" checked={passportDraft.industryKeys.includes(item.id)} onChange={() => updateDraft('industryKeys', toggleArray(passportDraft.industryKeys, item.id, 10))} style={{ width: 18, height: 18, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11 }}>{item.de}<span dir="rtl" style={{ display: 'block', fontSize: 9, color: 'var(--text-faint, #8A909C)' }}>{item.ar}</span></span></label>)}</div></fieldset>
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #0E1320)', fontSize: 12.5, fontWeight: 750 }}>Schichten <span dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontWeight: 500 }}>الشيفتات</span></legend><div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>{SHIFT_PREFERENCE_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 9, border: '1px solid var(--line)', cursor: 'pointer' }}><input type="checkbox" checked={passportDraft.shiftPreferences.includes(item.id)} onChange={() => updateDraft('shiftPreferences', toggleArray(passportDraft.shiftPreferences, item.id, 5))} style={{ width: 18, height: 18, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11 }}>{item.de}<span dir="rtl" style={{ display: 'block', fontSize: 9, color: 'var(--text-faint, #8A909C)' }}>{item.ar}</span></span></label>)}</div></fieldset>
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #0E1320)', fontSize: 12.5, fontWeight: 750 }}>Bestätigte Skills <span dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontWeight: 500 }}>المهارات المؤكدة</span></legend><div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>{PASSPORT_SKILL_OPTIONS.map((item) => <label key={item.id} style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 9, border: '1px solid var(--line)', cursor: 'pointer' }}><input type="checkbox" checked={passportDraft.skillIds.includes(item.id)} onChange={() => updateDraft('skillIds', toggleArray(passportDraft.skillIds, item.id, 8))} style={{ width: 18, height: 18, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11 }}>{item.de}<span dir="rtl" style={{ display: 'block', fontSize: 9, color: 'var(--text-faint, #8A909C)' }}>{item.ar}</span></span></label>)}</div></fieldset>
 
-          <section aria-labelledby="cmc-facts-title" style={{ paddingTop: 13, borderTop: '1px solid var(--line, rgba(148,163,184,0.16))' }}>
-            <h3 id="cmc-facts-title" style={{ margin: 0, color: 'var(--text, #e2e8f0)', fontSize: 13 }}>Bestätigte Faktenkarten</h3>
-            <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5, marginTop: 2 }}>حقائق لا تدخل ملف التقديم إلا بعد تأكيدك</div>
-            <div style={{ display: 'grid', gap: 7, marginTop: 9 }}>{passportDraft.facts.map((fact) => <div key={fact.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 9, alignItems: 'center', padding: '9px 10px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.17)' }}><div><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 9.5, fontWeight: 800 }}>{FACT_TYPE_OPTIONS.find((item) => item.id === fact.type)?.de || fact.type}{fact.shareAllowed ? ' · SHARE ALLOWED' : ' · PRIVATE'}</div><div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.45, marginTop: 3 }}>{fact.value}</div></div><button type="button" onClick={() => updateDraft('facts', passportDraft.facts.filter((item) => item.id !== fact.id))} style={{ ...neutralButton, minWidth: 44, paddingInline: 9 }}>ENTFERNEN</button></div>)}</div>
-            {passportDraft.facts.length < 12 && <div className="cmc-two" style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr)', gap: 8, marginTop: 9 }}><select aria-label="Faktentyp" value={factDraft.type} onChange={(event) => setFactDraft((current) => ({ ...current, type: event.target.value }))} style={fieldStyle}>{FACT_TYPE_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.de}</option>)}</select><input aria-label="Bestätigte Tatsache" maxLength={240} value={factDraft.value} onChange={(event) => setFactDraft((current) => ({ ...current, value: event.target.value }))} placeholder="Nur eine konkrete, wahre Tatsache" style={fieldStyle}/><label style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-dim, #94a3b8)', fontSize: 11 }}><input type="checkbox" checked={factDraft.shareAllowed} onChange={(event) => setFactDraft((current) => ({ ...current, shareAllowed: event.target.checked }))} style={{ width: 18, height: 18, accentColor: 'var(--accent, #3b82f6)' }}/>Darf in einen Bewerbungs-Pack</label><button type="button" onClick={addFact} disabled={!factDraft.value.trim()} style={neutralButton}>FAKT HINZUFÜGEN</button></div>}
+          <section aria-labelledby="cmc-facts-title" style={{ paddingTop: 13, borderTop: '1px solid var(--line, var(--surface-2))' }}>
+            <h3 id="cmc-facts-title" style={{ margin: 0, color: 'var(--text, #0E1320)', fontSize: 13 }}>Bestätigte Faktenkarten</h3>
+            <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 10.5, marginTop: 2 }}>حقائق لا تدخل ملف التقديم إلا بعد تأكيدك</div>
+            <div style={{ display: 'grid', gap: 7, marginTop: 9 }}>{passportDraft.facts.map((fact) => <div key={fact.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 9, alignItems: 'center', padding: '9px 10px', borderRadius: 9, border: '1px solid var(--line)' }}><div><div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 9.5, fontWeight: 800 }}>{FACT_TYPE_OPTIONS.find((item) => item.id === fact.type)?.de || fact.type}{fact.shareAllowed ? ' · SHARE ALLOWED' : ' · PRIVATE'}</div><div style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.45, marginTop: 3 }}>{fact.value}</div></div><button type="button" onClick={() => updateDraft('facts', passportDraft.facts.filter((item) => item.id !== fact.id))} style={{ ...neutralButton, minWidth: 44, paddingInline: 9 }}>ENTFERNEN</button></div>)}</div>
+            {passportDraft.facts.length < 12 && <div className="cmc-two" style={{ display: 'grid', gridTemplateColumns: '150px minmax(0,1fr)', gap: 8, marginTop: 9 }}><select aria-label="Faktentyp" value={factDraft.type} onChange={(event) => setFactDraft((current) => ({ ...current, type: event.target.value }))} style={fieldStyle}>{FACT_TYPE_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.de}</option>)}</select><input aria-label="Bestätigte Tatsache" maxLength={240} value={factDraft.value} onChange={(event) => setFactDraft((current) => ({ ...current, value: event.target.value }))} placeholder="Nur eine konkrete, wahre Tatsache" style={fieldStyle}/><label style={{ minHeight: 44, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-dim, #5A6270)', fontSize: 11 }}><input type="checkbox" checked={factDraft.shareAllowed} onChange={(event) => setFactDraft((current) => ({ ...current, shareAllowed: event.target.checked }))} style={{ width: 18, height: 18, accentColor: 'var(--accent, var(--action))' }}/>Darf in einen Bewerbungs-Pack</label><button type="button" onClick={addFact} disabled={!factDraft.value.trim()} style={neutralButton}>FAKT HINZUFÜGEN</button></div>}
           </section>
-          <label style={{ minHeight: 48, display: 'flex', alignItems: 'start', gap: 9, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.26)', cursor: 'pointer' }}><input type="checkbox" checked={passportConsent} onChange={(event) => setPassportConsent(event.target.checked)} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.5 }}>Ich bestätige, dass diese Angaben wahr sind. Nur Karten mit „Darf in einen Bewerbungs-Pack“ dürfen geteilt werden.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', marginTop: 3 }}>أؤكد أن البيانات صحيحة، ولا تُستخدم إلا الحقائق التي سمحت بمشاركتها.</span></span></label>
+          <label style={{ minHeight: 48, display: 'flex', alignItems: 'start', gap: 9, padding: '10px 11px', borderRadius: 10, border: '1px solid var(--line-strong)', cursor: 'pointer' }}><input type="checkbox" checked={passportConsent} onChange={(event) => setPassportConsent(event.target.checked)} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.5 }}>Ich bestätige, dass diese Angaben wahr sind. Nur Karten mit „Darf in einen Bewerbungs-Pack“ dürfen geteilt werden.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', marginTop: 3 }}>أؤكد أن البيانات صحيحة، ولا تُستخدم إلا الحقائق التي سمحت بمشاركتها.</span></span></label>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button type="button" onClick={savePassport} disabled={busy || !passportConsent} style={dialogPrimary}>PROFIL SPEICHERN</button></div>
         </div>}
       </Dialog>
@@ -938,35 +938,35 @@ export function CandidateMissionControl({
       </Dialog>
 
       <Dialog open={dialog === 'pack'} title="Faktengebundener Bewerbungs-Pack" titleAr="حزمة تقديم مرتبطة بالحقائق" busy={busy} onClose={closeDialog} description="Kein Text darf mehr behaupten als dein bestätigter Passport und die öffentliche Anzeige.">
-        {!pack ? <div role="status" style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>Pack wird vorbereitet…</div> : <div style={{ display: 'grid', gap: 13 }}>
-          <div><div style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>{pack.employerDisplay}</div><h3 style={{ margin: '4px 0 0', color: 'var(--text)', fontSize: 16 }}>{pack.title}</h3></div>
-          {!!pack.warnings.length && <div style={{ padding: '10px 11px', borderRadius: 9, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.045)' }}><div style={{ color: 'var(--action, #f97316)', fontSize: 10.5, fontWeight: 800 }}>VOR PRÜFUNG KLÄREN</div><ul style={{ margin: '6px 0 0', paddingLeft: 18, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5 }}>{pack.warnings.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-          {!!pack.facts.length && <section><h3 style={{ margin: 0, color: 'var(--text, #e2e8f0)', fontSize: 13 }}>Gesperrte Fakten</h3><div style={{ display: 'grid', gap: 6, marginTop: 8 }}>{pack.facts.map((fact) => <div key={fact.id} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(96,165,250,0.2)' }}><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 9.5, fontWeight: 800 }}>{fact.label}{fact.source ? ` · ${fact.source}` : ''}</div><div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, marginTop: 3 }}>{fact.value}</div></div>)}</div></section>}
+        {!pack ? <div role="status" style={{ color: 'var(--text-dim, #5A6270)', fontSize: 12.5 }}>Pack wird vorbereitet…</div> : <div style={{ display: 'grid', gap: 13 }}>
+          <div><div style={{ color: 'var(--text-faint, #8A909C)', fontSize: 10.5 }}>{pack.employerDisplay}</div><h3 style={{ margin: '4px 0 0', color: 'var(--text)', fontSize: 16 }}>{pack.title}</h3></div>
+          {!!pack.warnings.length && <div style={{ padding: '10px 11px', borderRadius: 9, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.045)' }}><div style={{ color: 'var(--action, #D9541A)', fontSize: 10.5, fontWeight: 800 }}>VOR PRÜFUNG KLÄREN</div><ul style={{ margin: '6px 0 0', paddingLeft: 18, color: 'var(--text-dim, #5A6270)', fontSize: 11.5 }}>{pack.warnings.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+          {!!pack.facts.length && <section><h3 style={{ margin: 0, color: 'var(--text, #0E1320)', fontSize: 13 }}>Gesperrte Fakten</h3><div style={{ display: 'grid', gap: 6, marginTop: 8 }}>{pack.facts.map((fact) => <div key={fact.id} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line-strong)' }}><div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 9.5, fontWeight: 800 }}>{fact.label}{fact.source ? ` · ${fact.source}` : ''}</div><div style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, marginTop: 3 }}>{fact.value}</div></div>)}</div></section>}
           {pack.summary && <section><Label htmlFor="cmc-pack-summary" de="Editierbares Kurzprofil" ar="ملخص مهني قابل للتعديل"/><textarea id="cmc-pack-summary" rows={5} maxLength={1600} value={pack.summary} onChange={(event) => updatePackText('summary', event.target.value)} style={{ ...fieldStyle, minHeight:110, resize:'vertical' }}/></section>}
           {pack.coverNote && <section><Label htmlFor="cmc-pack-note" de="Editierbarer Anschreiben-Entwurf" ar="مسودة رسالة تقديم قابلة للتعديل"/><textarea id="cmc-pack-note" rows={7} maxLength={3000} value={pack.coverNote} onChange={(event) => updatePackText('coverNote', event.target.value)} style={{ ...fieldStyle, minHeight:145, resize:'vertical' }}/><button type="button" onClick={copyApplicationNote} style={{ ...neutralButton, marginTop:7 }}>ANSCHREIBEN KOPIEREN</button></section>}
-          {!!pack.answers.length && <section><h3 style={{ margin: 0, color: 'var(--text, #e2e8f0)', fontSize: 13 }}>Editierbare Antwortentwürfe</h3><div style={{ display: 'grid', gap: 7, marginTop: 7 }}>{pack.answers.map((answer) => <div key={answer.id} style={{ padding: '9px 10px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.17)' }}><Label htmlFor={`cmc-answer-${answer.id}`} de={answer.question} ar="راجع الإجابة واكتبها بطريقتك"/><textarea id={`cmc-answer-${answer.id}`} rows={4} maxLength={1200} value={answer.answer} onChange={(event) => updatePackAnswer(answer.id, event.target.value)} style={{ ...fieldStyle, minHeight:96, resize:'vertical' }}/></div>)}</div></section>}
-          {!pack.trackingOnly && <section style={{ padding:'12px 13px', borderRadius:10, border:'1px solid rgba(96,165,250,0.25)', background:'rgba(59,130,246,0.045)' }}><h3 style={{ margin:0, color:'var(--accent-2, #93c5fd)', fontSize:13 }}>ATS-lesbaren CV lokal erstellen</h3><div dir="rtl" style={{ color:'var(--text-faint, #64748b)', fontSize:10.5, marginTop:3 }}>هذه البيانات تبقى في المتصفح ولا تُرسل إلى الخادم</div><div className="cmc-two" style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:8, marginTop:10 }}><input aria-label="Vollständiger Name" autoComplete="name" placeholder="Vollständiger Name" maxLength={100} value={cvIdentity.fullName} onChange={(event) => setCvIdentity((current) => ({ ...current, fullName:event.target.value }))} style={fieldStyle}/><input aria-label="E-Mail nur für lokalen CV" autoComplete="email" type="email" placeholder="E-Mail" maxLength={160} value={cvIdentity.email} onChange={(event) => setCvIdentity((current) => ({ ...current, email:event.target.value }))} style={fieldStyle}/><input aria-label="Telefon nur für lokalen CV" autoComplete="tel" type="tel" placeholder="Telefon" maxLength={60} value={cvIdentity.phone} onChange={(event) => setCvIdentity((current) => ({ ...current, phone:event.target.value }))} style={fieldStyle}/><input aria-label="Ort nur für lokalen CV" autoComplete="address-level2" placeholder="Ort" maxLength={100} value={cvIdentity.city} onChange={(event) => setCvIdentity((current) => ({ ...current, city:event.target.value }))} style={fieldStyle}/></div><p style={{ margin:'8px 0 0', color:'var(--text-faint, #64748b)', fontSize:10.5, lineHeight:1.5 }}>Der Export ist bewusst reiner Text: gut lesbar für ATS und leicht in Word zu vervollständigen. Prüfe Zeiträume und Ausbildung vor dem Upload.</p><button type="button" onClick={downloadAtsCv} style={{ ...neutralButton, marginTop:8 }}>ATS-CV-TEXT HERUNTERLADEN</button></section>}
-          {pack.trackingOnly ? <div style={{ padding: '12px 13px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.25)', background: 'rgba(59,130,246,0.05)' }}><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 11, fontWeight: 800 }}>KOSTENLOSER BEWERBUNGS-TRACKER</div><p style={{ margin: '6px 0 0', color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.55 }}>Du reichst selbst auf der offiziellen Seite ein. Ein faktengebundener Schreib-Pack gehört zu Basic oder Elite.</p><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>{safeOfficialUrl(pack.applyUrl) && <button type="button" onClick={() => openOfficial({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl })} style={neutralButton}>OFFIZIELLE SEITE ÖFFNEN</button>}{pack.status !== 'submitted' && <button type="button" onClick={() => { setSubmissionConfirmed(false); setDialog('submitted'); }} style={neutralButton}>ICH HABE ES EINGEREICHT</button>}</div></div> : pack.status !== 'approved' && pack.status !== 'submitted' ? <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #e2e8f0)', fontSize: 12.5, fontWeight: 750 }}>Freigabe vor jeder externen Verwendung</legend><div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{[
+          {!!pack.answers.length && <section><h3 style={{ margin: 0, color: 'var(--text, #0E1320)', fontSize: 13 }}>Editierbare Antwortentwürfe</h3><div style={{ display: 'grid', gap: 7, marginTop: 7 }}>{pack.answers.map((answer) => <div key={answer.id} style={{ padding: '9px 10px', borderRadius: 9, border: '1px solid var(--line)' }}><Label htmlFor={`cmc-answer-${answer.id}`} de={answer.question} ar="راجع الإجابة واكتبها بطريقتك"/><textarea id={`cmc-answer-${answer.id}`} rows={4} maxLength={1200} value={answer.answer} onChange={(event) => updatePackAnswer(answer.id, event.target.value)} style={{ ...fieldStyle, minHeight:96, resize:'vertical' }}/></div>)}</div></section>}
+          {!pack.trackingOnly && <section style={{ padding:'12px 13px', borderRadius:10, border:'1px solid var(--line-strong)', background:'var(--surface-2)' }}><h3 style={{ margin:0, color:'var(--accent-2, var(--text-dim))', fontSize:13 }}>ATS-lesbaren CV lokal erstellen</h3><div dir="rtl" style={{ color:'var(--text-faint, #8A909C)', fontSize:10.5, marginTop:3 }}>هذه البيانات تبقى في المتصفح ولا تُرسل إلى الخادم</div><div className="cmc-two" style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:8, marginTop:10 }}><input aria-label="Vollständiger Name" autoComplete="name" placeholder="Vollständiger Name" maxLength={100} value={cvIdentity.fullName} onChange={(event) => setCvIdentity((current) => ({ ...current, fullName:event.target.value }))} style={fieldStyle}/><input aria-label="E-Mail nur für lokalen CV" autoComplete="email" type="email" placeholder="E-Mail" maxLength={160} value={cvIdentity.email} onChange={(event) => setCvIdentity((current) => ({ ...current, email:event.target.value }))} style={fieldStyle}/><input aria-label="Telefon nur für lokalen CV" autoComplete="tel" type="tel" placeholder="Telefon" maxLength={60} value={cvIdentity.phone} onChange={(event) => setCvIdentity((current) => ({ ...current, phone:event.target.value }))} style={fieldStyle}/><input aria-label="Ort nur für lokalen CV" autoComplete="address-level2" placeholder="Ort" maxLength={100} value={cvIdentity.city} onChange={(event) => setCvIdentity((current) => ({ ...current, city:event.target.value }))} style={fieldStyle}/></div><p style={{ margin:'8px 0 0', color:'var(--text-faint, #8A909C)', fontSize:10.5, lineHeight:1.5 }}>Der Export ist bewusst reiner Text: gut lesbar für ATS und leicht in Word zu vervollständigen. Prüfe Zeiträume und Ausbildung vor dem Upload.</p><button type="button" onClick={downloadAtsCv} style={{ ...neutralButton, marginTop:8 }}>ATS-CV-TEXT HERUNTERLADEN</button></section>}
+          {pack.trackingOnly ? <div style={{ padding: '12px 13px', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}><div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 11, fontWeight: 800 }}>KOSTENLOSER BEWERBUNGS-TRACKER</div><p style={{ margin: '6px 0 0', color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.55 }}>Du reichst selbst auf der offiziellen Seite ein. Ein faktengebundener Schreib-Pack gehört zu Basic oder Elite.</p><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>{safeOfficialUrl(pack.applyUrl) && <button type="button" onClick={() => openOfficial({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl })} style={neutralButton}>OFFIZIELLE SEITE ÖFFNEN</button>}{pack.status !== 'submitted' && <button type="button" onClick={() => { setSubmissionConfirmed(false); setDialog('submitted'); }} style={neutralButton}>ICH HABE ES EINGEREICHT</button>}</div></div> : pack.status !== 'approved' && pack.status !== 'submitted' ? <fieldset style={{ border: 0, padding: 0, margin: 0 }}><legend style={{ color: 'var(--text, #0E1320)', fontSize: 12.5, fontWeight: 750 }}>Freigabe vor jeder externen Verwendung</legend><div style={{ display: 'grid', gap: 7, marginTop: 8 }}>{[
             ['Alle Aussagen über meine Erfahrung sind wahr.', 'كل ما يخص خبرتي صحيح.'],
             ['Sprache, Verfügbarkeit und Gehalt sind korrekt.', 'اللغة والتوفر والراتب صحيحة.'],
             ['Ich reiche selbst auf der offiziellen Arbeitgeberseite ein.', 'سأقدّم بنفسي على صفحة صاحب العمل الرسمية.'],
-          ].map(([de, ar], index) => <label key={de} style={{ minHeight: 48, display: 'flex', alignItems: 'start', gap: 9, padding: '9px 10px', borderRadius: 9, border: '1px solid rgba(148,163,184,0.18)', cursor: 'pointer' }}><input type="checkbox" checked={packChecks[index]} onChange={(event) => setPackChecks((current) => current.map((value, i) => i === index ? event.target.checked : value))} style={{ width: 19, height: 19, marginTop: 1, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.45 }}>{de}<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', marginTop: 2 }}>{ar}</span></span></label>)}</div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 11 }}><button type="button" onClick={approvePack} disabled={busy || !packChecks.every(Boolean)} style={dialogPrimary}>FAKTEN BESTÄTIGEN</button></div></fieldset> : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}><Chip tone="blue">PACK FREIGEGEBEN</Chip>{safeOfficialUrl(pack.applyUrl) && <button type="button" onClick={() => openOfficial({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl })} style={neutralButton}>OFFIZIELLE SEITE ÖFFNEN</button>}{pack.status !== 'submitted' && <button type="button" onClick={() => { setSubmissionConfirmed(false); setDialog('submitted'); }} style={neutralButton}>ICH HABE ES EINGEREICHT</button>}</div>}
+          ].map(([de, ar], index) => <label key={de} style={{ minHeight: 48, display: 'flex', alignItems: 'start', gap: 9, padding: '9px 10px', borderRadius: 9, border: '1px solid var(--line)', cursor: 'pointer' }}><input type="checkbox" checked={packChecks[index]} onChange={(event) => setPackChecks((current) => current.map((value, i) => i === index ? event.target.checked : value))} style={{ width: 19, height: 19, marginTop: 1, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.45 }}>{de}<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', marginTop: 2 }}>{ar}</span></span></label>)}</div><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 11 }}><button type="button" onClick={approvePack} disabled={busy || !packChecks.every(Boolean)} style={dialogPrimary}>FAKTEN BESTÄTIGEN</button></div></fieldset> : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}><Chip tone="blue">PACK FREIGEGEBEN</Chip>{safeOfficialUrl(pack.applyUrl) && <button type="button" onClick={() => openOfficial({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl })} style={neutralButton}>OFFIZIELLE SEITE ÖFFNEN</button>}{pack.status !== 'submitted' && <button type="button" onClick={() => { setSubmissionConfirmed(false); setDialog('submitted'); }} style={neutralButton}>ICH HABE ES EINGEREICHT</button>}</div>}
         </div>}
       </Dialog>
 
       <Dialog open={dialog === 'submitted'} title="Einreichung bestätigen" titleAr="تأكيد التقديم" busy={busy} onClose={closeDialog} width={540} description="German Interview Trainer reicht nichts automatisch ein.">
-        <label style={{ minHeight: 52, display: 'flex', alignItems: 'start', gap: 10, padding: '11px 12px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.26)', cursor: 'pointer' }}><input data-autofocus type="checkbox" checked={submissionConfirmed} onChange={(event) => setSubmissionConfirmed(event.target.checked)} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12, lineHeight: 1.5 }}>Ich habe diese Bewerbung selbst auf der offiziellen Arbeitgeberseite eingereicht.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', marginTop: 3 }}>أنا قدّمت هذا الطلب بنفسي على الصفحة الرسمية لصاحب العمل.</span></span></label>
+        <label style={{ minHeight: 52, display: 'flex', alignItems: 'start', gap: 10, padding: '11px 12px', borderRadius: 10, border: '1px solid var(--line-strong)', cursor: 'pointer' }}><input data-autofocus type="checkbox" checked={submissionConfirmed} onChange={(event) => setSubmissionConfirmed(event.target.checked)} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 12, lineHeight: 1.5 }}>Ich habe diese Bewerbung selbst auf der offiziellen Arbeitgeberseite eingereicht.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', marginTop: 3 }}>أنا قدّمت هذا الطلب بنفسي على الصفحة الرسمية لصاحب العمل.</span></span></label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 13 }}><button type="button" onClick={markSubmitted} disabled={busy || !submissionConfirmed} style={dialogPrimary}>ALS EINGEREICHT MARKIEREN</button></div>
       </Dialog>
 
       <Dialog open={dialog === 'response'} title="Arbeitgeber-Antwort einordnen" titleAr="تصنيف رد صاحب العمل" busy={busy} onClose={closeDialog} width={620} description="Der eingefügte Text wird nur zur Einordnung gesendet und danach sofort aus dem Eingabefeld gelöscht.">
-        {!classification ? <><Label htmlFor="cmc-response" de="Relevanten Antworttext einfügen" ar="ألصق الجزء المهم من الرد"/><textarea id="cmc-response" data-autofocus rows={9} maxLength={10_000} value={responseText} onChange={(event) => setResponseText(event.target.value)} autoComplete="off" style={{ ...fieldStyle, minHeight: 170, resize: 'vertical' }}/><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={classifyResponse} disabled={busy || responseText.trim().length < 8} style={dialogPrimary}>EINORDNEN UND TEXT LÖSCHEN</button></div></> : <div><div style={{ padding: '12px 13px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.28)', background: 'rgba(59,130,246,0.055)' }}><div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 10, fontWeight: 850 }}>STRUKTURIERTES ERGEBNIS</div><div style={{ color: 'var(--text)', fontSize: 16, fontWeight: 800, marginTop: 5 }}>{classification.classification.replaceAll('_', ' ')}</div>{classification.proposedDate && <div style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 12, marginTop: 5 }}>{classification.proposedDate}{classification.proposedTime ? ` · ${classification.proposedTime}` : ''} · noch nicht bestätigt</div>}</div>{classification.classification === 'interview_invitation' && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={() => openInterview({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl, response: classification }, classification)} style={dialogPrimary}>INTERVIEW BESTÄTIGEN</button></div>}</div>}
+        {!classification ? <><Label htmlFor="cmc-response" de="Relevanten Antworttext einfügen" ar="ألصق الجزء المهم من الرد"/><textarea id="cmc-response" data-autofocus rows={9} maxLength={10_000} value={responseText} onChange={(event) => setResponseText(event.target.value)} autoComplete="off" style={{ ...fieldStyle, minHeight: 170, resize: 'vertical' }}/><div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={classifyResponse} disabled={busy || responseText.trim().length < 8} style={dialogPrimary}>EINORDNEN UND TEXT LÖSCHEN</button></div></> : <div><div style={{ padding: '12px 13px', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}><div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 10, fontWeight: 850 }}>STRUKTURIERTES ERGEBNIS</div><div style={{ color: 'var(--text)', fontSize: 16, fontWeight: 800, marginTop: 5 }}>{classification.classification.replaceAll('_', ' ')}</div>{classification.proposedDate && <div style={{ color: 'var(--text-dim, #5A6270)', fontSize: 12, marginTop: 5 }}>{classification.proposedDate}{classification.proposedTime ? ` · ${classification.proposedTime}` : ''} · noch nicht bestätigt</div>}</div>{classification.classification === 'interview_invitation' && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}><button type="button" onClick={() => openInterview({ id: pack.opportunityId, title: pack.title, employerDisplay: pack.employerDisplay, applyUrl: pack.applyUrl, response: classification }, classification)} style={dialogPrimary}>INTERVIEW BESTÄTIGEN</button></div>}</div>}
       </Dialog>
 
       <Dialog open={dialog === 'interview'} title="Interviewtermin bestätigen" titleAr="تأكيد موعد المقابلة" busy={busy} onClose={closeDialog} width={560} description="Erst deine Bestätigung aktiviert die zielgenaue Vorbereitung in BrainGuide.">
         <div className="cmc-two" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 11 }}><div><Label htmlFor="cmc-interview-date" de="Datum" ar="التاريخ"/><input id="cmc-interview-date" data-autofocus type="date" value={interviewForm.interviewDate} onChange={(event) => setInterviewForm((current) => ({ ...current, interviewDate: event.target.value }))} style={fieldStyle}/></div><div><Label htmlFor="cmc-interview-time" de="Uhrzeit (optional)" ar="الوقت (اختياري)"/><input id="cmc-interview-time" type="time" value={interviewForm.interviewTime} onChange={(event) => setInterviewForm((current) => ({ ...current, interviewTime: event.target.value }))} style={fieldStyle}/></div></div>
-        <div style={{ marginTop: 8, color: 'var(--text-faint, #64748b)', fontSize: 10.5 }}>Zeitzone: Africa/Cairo</div>
-        <label style={{ minHeight: 50, display: 'flex', alignItems: 'start', gap: 9, marginTop: 13, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.25)', cursor: 'pointer' }}><input type="checkbox" checked={interviewForm.confirmed} onChange={(event) => setInterviewForm((current) => ({ ...current, confirmed: event.target.checked }))} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, #3b82f6)' }}/><span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.5 }}>Ich habe Datum und Uhrzeit selbst geprüft.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', marginTop: 3 }}>راجعت التاريخ والوقت بنفسي.</span></span></label>
+        <div style={{ marginTop: 8, color: 'var(--text-faint, #8A909C)', fontSize: 10.5 }}>Zeitzone: Africa/Cairo</div>
+        <label style={{ minHeight: 50, display: 'flex', alignItems: 'start', gap: 9, marginTop: 13, padding: '10px 11px', borderRadius: 10, border: '1px solid var(--line-strong)', cursor: 'pointer' }}><input type="checkbox" checked={interviewForm.confirmed} onChange={(event) => setInterviewForm((current) => ({ ...current, confirmed: event.target.checked }))} style={{ width: 20, height: 20, marginTop: 1, accentColor: 'var(--accent, var(--action))' }}/><span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.5 }}>Ich habe Datum und Uhrzeit selbst geprüft.<span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', marginTop: 3 }}>راجعت التاريخ والوقت بنفسي.</span></span></label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 13 }}><button type="button" onClick={confirmInterview} disabled={busy || !interviewForm.confirmed || !interviewForm.interviewDate} style={dialogPrimary}>TERMIN BESTÄTIGEN</button></div>
       </Dialog>
     </section>

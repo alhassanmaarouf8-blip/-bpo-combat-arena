@@ -30,7 +30,7 @@ export function ConnectionNotice() {
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
         <button type="button" onClick={retry} style={{ minHeight: 44, padding: '9px 12px', cursor: 'pointer',
-          borderRadius: 8, border: '1px solid var(--accent)', background: 'rgba(59,130,246,0.12)',
+          borderRadius: 8, border: '1px solid var(--accent)', background: 'var(--surface-2)',
           color: 'var(--accent-2)', fontWeight: 750 }}>
           ERNEUT PRÜFEN
         </button>

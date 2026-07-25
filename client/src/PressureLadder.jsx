@@ -352,7 +352,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -380,7 +380,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     <fieldset aria-describedby="pressure-aftercare" style={{ margin:'14px 0 0', padding:0, border:0 }}>
       <legend style={{ color:'var(--text)', fontSize:13, fontWeight:750 }}>Wie intensiv soll die Übung sein?</legend>
       <div role="radiogroup" aria-label="Trainingsintensität" style={{ display:'grid', gap:8, marginTop:9 }}>
-        <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('standard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'#60a5fa' }}>
+        <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('standard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'var(--line-strong)' }}>
           <strong>STANDARD</strong><span>3 Stufen · ruhig bis direkt</span>
         </button>
         <button type="button" role="radio" aria-checked="false" onClick={() => { setIntensity('hard'); setIdx(0); setPhase('ready'); }} style={{ ...intensityButton, borderColor:'var(--bad)' }}>
@@ -458,7 +458,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
     {header}{ladder}
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '48px 0' }}>
       <div className="spin" style={{ width: 34, height: 34, borderRadius: '50%',
-        border: '3px solid rgba(59,130,246,0.2)', borderTopColor: 'var(--accent)' }} />
+        border: '3px solid var(--line-strong)', borderTopColor: 'var(--accent)' }} />
       <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{T(lang, 'Deine Antwort wird ausgewertet…', 'Deine Antwort wird ausgewertet…' /* OWNER-AR slot */)}</div>
     </div>
   </>);
@@ -481,7 +481,7 @@ export function PressureLadder({ lang = 'de', onClose, token, apiUrl, why = null
             : T(lang, `Stufe ${L.n} unter diesen Trainingsbedingungen überstanden. Weiter nach oben.`, `عديت مستوى ${L.n} تحت ظروف التدريب دي. كمّل لفوق.`)}
       </div>
     </div>
-    <div style={{ fontSize: 12, color: 'var(--text-dim)', margin: '2px 0 14px', padding: '12px', background: 'rgba(59,130,246,0.07)', borderRadius: 10, border: '1px solid rgba(59,130,246,0.25)' }}>
+    <div style={{ fontSize: 12, color: 'var(--text-dim)', margin: '2px 0 14px', padding: '12px', background: 'var(--surface-2)', borderRadius: 10, border: '1px solid var(--line-strong)' }}>
       <div style={{ fontSize: 10, color: 'var(--good)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>{T(lang, 'SO KONTERT EIN PROFI', 'كده بيرد المحترف')}</div>
       <div style={{ color: 'var(--text)', lineHeight: 1.5, fontStyle: 'italic' }}>„{konterFor(L).phrase}"</div>
       <button onClick={() => playModel(konterFor(L).phrase)} style={{ ...ghostBtn, marginTop: 8 }}><SpeakerIcon style={{ marginRight: 6 }} /> {T(lang, 'Anhören', 'اسمع')}</button>

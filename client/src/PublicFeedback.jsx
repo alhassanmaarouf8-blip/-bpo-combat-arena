@@ -8,8 +8,8 @@
  * On submit it POSTs to /api/feedback/public for private product review. Public ratings are
  * drawn only from separately reviewed and approved feedback; this form never auto-publishes
  * a person's name or comments. Self-contained: defines its own palette (the app's CSS
- * vars live inside App.jsx, which is NOT mounted on this route) using the brand pair —
- * blue #3b82f6 + orange #f97316 — and Inter, matching the app.
+ * vars live inside App.jsx, which is NOT mounted on this route) mirroring the app's light
+ * palette — warm white ground, ink #0E1320, one orange #D9541A action — and Inter.
  */
 import { useEffect, useState } from 'react';
 import { API_URL as BACKEND } from './config.js';
@@ -23,8 +23,11 @@ const APP_URL = window.location.origin;
 const C = {
   bg0: '#F5F3EF', bg1: '#FFFFFF', bg2: '#EDEBE6',
   blue: '#0E1320', blue2: '#3A4150', orange: '#D9541A', orange2: '#E8703A',
-  text: 'var(--text)', dim: 'var(--text-dim)', faint: 'var(--text-faint)',
-  line: 'var(--surface-2)', surface: 'var(--surface-2)',
+  // LITERAL, as the note above says: App.jsx (and therefore the whole token layer) never mounts on
+  // this route, so a var(--…) here resolves to nothing — which makes every declaration using it
+  // invalid at computed-value time, and borders fall back to currentColor instead of a hairline.
+  text: '#0E1320', dim: '#5A6270', faint: '#8A909C',
+  line: 'rgba(14,19,32,0.10)', surface: '#FFFFFF', bad: '#B42318',
   font: "'Inter',system-ui,sans-serif",
 };
 
@@ -105,8 +108,12 @@ export default function PublicFeedback() {
                 <button key={n} type="button" aria-label={`${n} Sterne`}
                   onClick={() => setRating(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 34, lineHeight: 1, padding: 2,
+                    minWidth: 44, minHeight: 44, color: C.orange,
                     filter: (hover || rating) >= n ? 'none' : 'grayscale(1) opacity(0.35)', transition: 'filter .15s', transform: (hover || rating) >= n ? 'scale(1.05)' : 'none' }}>
-                 
+                  {/* The glyph was missing, so all five rating buttons rendered blank while the code
+                      around them styled a star that was never there (grayscale when unpicked, a
+                      slight scale when picked). A text ★ keeps it in the two-colour palette. */}
+                  ★
                 </button>
               ))}
             </div>
@@ -127,7 +134,7 @@ export default function PublicFeedback() {
             <input value={hp} onChange={(e) => setHp(e.target.value)} tabIndex={-1} autoComplete="off"
               aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
 
-            {err && <div style={{ color: 'var(--bad)', fontSize: 12.5, marginTop: 12 }}>{err}</div>}
+            {err && <div style={{ color: C.bad, fontSize: 12.5, marginTop: 12 }}>{err}</div>}
 
             <button type="button" onClick={submit} disabled={busy || !canSend}
               style={{ ...S.btn, marginTop: 18, opacity: (busy || !canSend) ? 0.45 : 1, cursor: (busy || !canSend) ? 'default' : 'pointer' }}>
@@ -176,9 +183,10 @@ const S = {
   },
   btn: {
     width: '100%', boxSizing: 'border-box', padding: '14px', borderRadius: 12, border: 'none',
-    fontFamily: C.font, fontSize: 15, fontWeight: 800, color: '#04070d',
-    background: `linear-gradient(180deg, ${C.orange2}, ${C.orange})`,
-    boxShadow: '0 8px 24px -6px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
+    fontFamily: C.font, fontSize: 15, fontWeight: 800, color: '#FFFFFF',
+    // Machined, not inflated: solid fill, white label, a tight shadow instead of an orange bloom.
+    background: C.orange,
+    boxShadow: '0 1px 2px rgba(18,22,31,0.2)',
   },
   appLink: { fontSize: 13, color: C.blue2, textDecoration: 'none', fontWeight: 600 },
 };

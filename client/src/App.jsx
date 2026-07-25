@@ -1291,7 +1291,7 @@ function HpBar({ label, value, isPlayer, reason }) {
   // blue (composed) → orange (you're breaking through) — progress feels warm, not alarming.
   // Player keeps red ONLY at critical (<25) — that IS a genuine warning.
   const solid = isPlayer
-    ? (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : '#ef4444')
+    ? (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : 'var(--bad)')
     : (pct > 50 ? 'var(--accent)' : pct > 25 ? '#f97316' : '#fb923c');
   const rColor = isPlayer ? 'var(--bad)' : 'var(--accent)';   // player loss = red, gain = green
   const rSign  = isPlayer ? '−' : '+';
@@ -1341,7 +1341,7 @@ function WpmMeter({ wpm }) {
   const pos   = Math.max(0, Math.min(100, (wpm / WPM_MAX) * 100));
   const inZone = wpm >= 140 && wpm <= 160;
   const near   = wpm >= 110 && wpm < 140;
-  const mColor = inZone ? 'var(--accent)' : near || (wpm > 160 && wpm <= 185) ? 'var(--action)' : wpm === 0 ? '#475569' : 'var(--bad)';
+  const mColor = inZone ? 'var(--accent)' : near || (wpm > 160 && wpm <= 185) ? 'var(--action)' : wpm === 0 ? 'var(--text-faint)' : 'var(--bad)';
   const zoneL  = (140 / WPM_MAX) * 100;
   const zoneW  = ((160 - 140) / WPM_MAX) * 100;
   return (
@@ -1424,7 +1424,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
   const baseHue = bossSpeak ? 185 : (active ? 160 : 220);
   // The orb breathes with the mic amplitude — transform: scale only (GPU-cheap, no reflow).
   const scale   = active ? (1 + volume * 0.3).toFixed(3) : '1';
-  const ringCol = bossSpeak ? 'var(--accent-2)' : active ? 'var(--accent)' : '#475569';
+  const ringCol = bossSpeak ? 'var(--accent-2)' : active ? 'var(--accent)' : 'var(--text-faint)';
 
   return (
     <div style={{ position:'relative', width:154, height:154, margin:'0 auto',
@@ -1499,7 +1499,7 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
             {line.speaker === 'boss' ? (bossName || 'INTERVIEWER') : 'DU'}
           </span>
           {_renderLine(line)}
-          {line.partial && <span style={{ color:'#475569', animation:'pulse 1s infinite' }}> ▋</span>}
+          {line.partial && <span style={{ color:'var(--text-faint)', animation:'pulse 1s infinite' }}> ▋</span>}
         </div>
       ))}
       {userSpeak && lines.length === 0 && (
@@ -1556,8 +1556,8 @@ function GameOver({ winner, onRestart }) {
     <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
       background: 'var(--surface)', backdropFilter:'blur(6px)', flexDirection:'column', padding:24,
       animation:'flash-in 0.4s ease' }}>
-      <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:900, letterSpacing:4, marginBottom:10,
-        color: win ? 'var(--accent)' : '#ef4444',
+      <div style={{ fontFamily:'var(--font-display)', fontSize:28, fontWeight:700, letterSpacing:4, marginBottom:10,
+        color: win ? 'var(--accent)' : 'var(--bad)',
         textShadow:`0 0 30px ${win ? 'rgba(14,19,32,0.7)' : 'rgba(239,68,68,0.7)'}` }}>
         {win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN'}
       </div>
@@ -1566,8 +1566,8 @@ function GameOver({ winner, onRestart }) {
       </div>
       <button onClick={onRestart} style={{ fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.14em',
         padding:'12px 32px', borderRadius:8, cursor:'pointer',
-        border:`1px solid ${win ? 'var(--accent)' : '#ef4444'}`,
-        color:  win ? 'var(--accent)' : '#ef4444',
+        border:`1px solid ${win ? 'var(--accent)' : 'var(--bad)'}`,
+        color:  win ? 'var(--accent)' : 'var(--bad)',
         background:'transparent',
         boxShadow:`0 0 20px ${win ? 'rgba(14,19,32,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
         NEU STARTEN
@@ -1581,7 +1581,7 @@ function Metric({ label, value, sub, color = 'var(--accent)' }) {
   return (
     <div style={{ flex:1, minWidth:78, padding:'8px 6px', borderRadius:8, textAlign:'center',
       background: 'var(--surface)', border:`1px solid ${color}33` }}>
-      <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, color }}>{value}</div>
+      <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color }}>{value}</div>
       <div style={{ fontSize:8, letterSpacing:'0.08em', color:'var(--text-dim)', marginTop:2 }}>{label}</div>
       {sub && <div style={{ fontSize:7.5, color:'var(--text-faint)', marginTop:1 }}>{sub}</div>}
     </div>
@@ -1916,7 +1916,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
   const rtl  = ar ? { direction:'rtl', textAlign:'right' } : null;
   const [lo, hi] = m.wpmTarget ?? [140, 160];
   const wpmColor = m.wpm >= lo && m.wpm <= hi ? 'var(--accent)'
-                 : (m.wpm >= lo - 30 && m.wpm <= hi + 25) ? 'var(--action)' : '#ef4444';
+                 : (m.wpm >= lo - 30 && m.wpm <= hi + 25) ? 'var(--action)' : 'var(--bad)';
   const win   = r.outcome === 'win';
   const score = Number.isFinite(r.score) ? r.score : (m.avgScore ?? 0);
   const shownScore = useAnimatedNumber(score, 900);
@@ -2056,14 +2056,14 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             <div style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:800,
               letterSpacing:'0.18em', color:'var(--accent)' }}>RANG BESTÄTIGT</div>
             <div style={{ marginTop:16, fontFamily:'var(--font-display)', fontSize:34,
-              fontWeight:900, color:'var(--action)' }}>{rankCeremony.to}</div>
+              fontWeight:700, color:'var(--action)' }}>{rankCeremony.to}</div>
             <div style={{ marginTop:9, fontSize:12, color:'var(--text-dim)' }}>
               Erreicht durch deine gespeicherten Interviews · bleibt als Bestmarke erhalten.
             </div>
             <button onClick={() => setRankCeremony(null)} style={{ width:'100%', minHeight:48, marginTop:20,
               cursor:'pointer', borderRadius:'var(--r-md)', border:'1px solid var(--accent)',
-              background:'var(--accent)', color:'#020409', fontFamily:'var(--font-display)',
-              fontWeight:900, letterSpacing:'0.1em' }}>WEITER ZUR AUSWERTUNG</button>
+              background:'var(--accent)', color:'#FFFFFF', fontFamily:'var(--font-display)',
+              fontWeight:700, letterSpacing:'0.1em' }}>WEITER ZUR AUSWERTUNG</button>
           </div>
         </div>
       )}
@@ -2145,7 +2145,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             {data?.progress?.personalBest && (
               <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
                 fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em',
-                color:'#04070d', background:'linear-gradient(135deg,var(--action-2),var(--action))', boxShadow:'0 0 22px rgba(249,115,22,0.55)',
+                color:'#FFFFFF', background:'linear-gradient(135deg,var(--action-2),var(--action))', boxShadow:'0 0 22px rgba(249,115,22,0.55)',
                 animation:'rank-pop 0.7s var(--ease-spring)' }}>
                 BESTLEISTUNG!
               </div>
@@ -2375,7 +2375,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                         <span key={i}>
                           <span style={{ color: i === f.length - 1 ? 'var(--accent)' : 'var(--text-dim)',
                             textShadow: i === f.length - 1 ? '0 0 10px rgba(14,19,32,0.6)' : 'none' }}>{v}</span>
-                          {i < f.length - 1 && <span style={{ color:'#475569', margin:'0 7px' }}>→</span>}
+                          {i < f.length - 1 && <span style={{ color:'var(--text-faint)', margin:'0 7px' }}>→</span>}
                         </span>
                       ))}
                     </div>
@@ -2391,7 +2391,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               background: data.progress.leveledUp ? 'rgba(14,19,32,0.14)' : 'rgba(14,19,32,0.06)',
               border:`1px solid ${data.progress.leveledUp ? 'var(--accent)' : 'rgba(14,19,32,0.25)'}` }}>
               {data.progress.leveledUp && (
-                <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:900, color:'var(--accent)',
+                <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, color:'var(--accent)',
                   letterSpacing:'0.1em', marginBottom:4, textShadow:'0 0 12px rgba(14,19,32,0.7)' }}>
                   ↑ LEVEL UP — LEVEL {data.progress.level ?? '–'}
                 </div>
@@ -2680,7 +2680,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 
           {/* Honesty disclaimer: this is training feedback, NOT a recognized German certificate. */}
           <div style={{ marginTop:6, padding:'8px 10px', borderRadius:8, ...rtl,
-            background:'rgba(148,163,184,0.06)', border:'1px solid rgba(148,163,184,0.16)',
+            background:'rgba(148,163,184,0.06)', border:'1px solid var(--surface-2)',
             fontSize:9.5, color:'var(--text-faint)', lineHeight:1.5 }}>
             {ar
               ? 'ℹ️ ده تدريب وتقييم لمستواك للتمرين بس — مش شهادة ألمانية رسمية ولا معتمدة (زي Goethe / telc).'
@@ -2740,7 +2740,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             exercise block) — it stopped being a plain route-home in v2 Phase 4. */}
         <button onClick={onPersonalStep || onDone} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
           letterSpacing:'0.1em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
-          border:'1px solid var(--accent)', color:'#04070d',
+          border:'1px solid var(--accent)', color:'#FFFFFF',
           background:'linear-gradient(135deg, var(--accent-2), var(--accent))',
           boxShadow:'0 0 22px rgba(14,19,32,0.4)' }}>
           PERSÖNLICHEN SCHRITT ÖFFNEN
@@ -2831,7 +2831,7 @@ function DrillCard({ drill, ar }) {
 function Sparkline({ data, color = 'var(--accent)', invert = false, height = 34 }) {
   const pts = (data || []).filter((n) => Number.isFinite(n));
   if (pts.length < 2) {
-    return <div style={{ height, display:'flex', alignItems:'center', fontSize:9, color:'#475569' }}>
+    return <div style={{ height, display:'flex', alignItems:'center', fontSize:9, color:'var(--text-faint)' }}>
       Noch nicht genug Daten</div>;
   }
   const w = 100, h = height, max = Math.max(...pts, 1), min = Math.min(...pts, 0);
@@ -2893,12 +2893,12 @@ function DossierSheet({ token, data, account, onClose }) {
     <div {...overlayProps} style={{ position: 'fixed', inset: 0, zIndex: 260, display: 'flex', alignItems: 'center',
       justifyContent: 'center', padding: 16, background: 'var(--surface)', backdropFilter: 'blur(5px)' }}>
       <div className="dossier-sheet" style={{ width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto',
-        background: '#fdfdfb', color: '#111827', borderRadius: 10, padding: '26px 26px 20px',
+        background: '#fdfdfb', color: 'var(--text)', borderRadius: 10, padding: '26px 26px 20px',
         boxShadow: '0 22px 70px rgba(14,19,32,0.16)', fontFamily: 'var(--font-body)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
           borderBottom: '2px solid #111827', paddingBottom: 10 }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 15, letterSpacing: '0.1em' }}>German Interview Trainer</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, letterSpacing: '0.1em' }}>German Interview Trainer</div>
             <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '0.06em', marginTop: 2 }}>DEUTSCH-INTERVIEW-TRAINING · KAIRO</div>
           </div>
           <div style={{ fontSize: 10, color: '#6b7280' }}>{today}</div>
@@ -2980,7 +2980,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
     <div {...overlayProps} style={{ position:'absolute', inset:0, zIndex:210, display:'flex', flexDirection:'column',
       background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:900, letterSpacing:2,
+        <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, letterSpacing:2,
           color:'var(--accent)', textShadow:'0 0 20px rgba(14,19,32,0.5)' }}>FORTSCHRITT</div>
         <div style={{ display:'flex', gap:8 }}>
           {/* The real artifact: a printable evidence one-pager for real applications. */}
@@ -3111,7 +3111,7 @@ function ProductHomePreview() {
         PRODUKTVORSCHAU · DEIN ERSTES INTERVIEW
       </div>
       <div style={{ position:'relative', overflow:'hidden', padding:'22px 20px 20px',
-        borderRadius:24, border:'1px solid rgba(148,163,184,0.2)',
+        borderRadius:24, border:'1px solid var(--line)',
         background:'var(--surface)',
         boxShadow:'0 24px 64px rgba(0,0,0,0.42), inset 0 1px 0 var(--surface-2)' }}>
         <div aria-hidden="true" style={{ position:'absolute', width:260, height:260, borderRadius:'50%',
@@ -3147,7 +3147,7 @@ function ProductHomePreview() {
         </div>
 
         <div style={{ position:'relative', marginTop:20, padding:'14px', borderRadius:16,
-          border:'1px solid rgba(148,163,184,0.16)', background: 'var(--surface)' }}>
+          border:'1px solid var(--surface-2)', background: 'var(--surface)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:12 }}>
             <div style={{ width:42, height:42, borderRadius:'50%', display:'grid', placeItems:'center',
               fontFamily:'var(--font-display)', fontWeight:750, fontSize:17, color:'var(--text)',
@@ -3160,7 +3160,7 @@ function ProductHomePreview() {
               boxShadow:'0 0 0 4px rgba(14,19,32,0.1)' }} />
           </div>
           <div style={{ padding:'12px 13px', borderRadius:12, color:'#dbe5f2', fontSize:12.5, lineHeight:1.55,
-            borderLeft:'2px solid #60a5fa', background:'rgba(14,19,32,0.07)' }}>
+            borderLeft:'2px solid var(--line-strong)', background:'rgba(14,19,32,0.07)' }}>
             „Erzählen Sie mir kurz, warum Sie im Kundenservice arbeiten möchten.“
           </div>
         </div>
@@ -3180,7 +3180,7 @@ function ProductHomePreview() {
           style={{ position:'relative', width:'100%', marginTop:14, minHeight:50, borderRadius:14,
           display:'flex', alignItems:'center', justifyContent:'center', gap:9,
           fontFamily:'var(--font-display)', fontSize:12, fontWeight:750, color:'var(--text-dim)',
-          border:'1px solid rgba(148,163,184,0.18)', background: 'var(--surface)' }}>
+          border:'1px solid var(--line)', background: 'var(--surface)' }}>
           <Icon name="check" size={16} /> Beispiel: Antwort → Korrektur → Trainingsblock
         </div>
         <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
@@ -3231,7 +3231,7 @@ function StudyBrowserHandoff({ invite }) {
           <li>Beweise die Verbesserung im Vergleichs- und Drucktest.</li>
         </ol>
         <button type="button" onClick={copy} style={{ ...buttonStyle,
-          border:'1px solid var(--accent)', color:'#081019', background:'var(--grad-action)' }}>
+          border:'1px solid var(--accent)', color:'#FFFFFF', background:'var(--grad-action)' }}>
           {copied ? '✓ KOPIERT — JETZT IN CHROME/SAFARI EINFÜGEN' : 'LINK KOPIEREN & IN CHROME/SAFARI ÖFFNEN'}
         </button>
         <div style={{ marginTop:12, color:'var(--text-faint)', fontSize:11.5, lineHeight:1.55 }}>
@@ -3730,7 +3730,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         <button onClick={() => focusAuth('signup')}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
             border:'1px solid var(--action)', background:'linear-gradient(135deg,var(--action-2),var(--action))',
-            color:'#071018', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
+            color:'#FFFFFF', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
           {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'KOSTENLOSE DIAGNOSE FREISCHALTEN'}
         </button>
         {/* THE OFFER, STATED BEFORE SIGNUP (owner decision 2026-07-24). The leak this fixes is
@@ -4064,7 +4064,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         <button type="submit" disabled={busy || studyEntryChecking}
           style={{ width:'100%', marginTop:18, padding:'15px', minHeight:52, cursor:(busy || studyEntryChecking)?'wait':'pointer',
             fontFamily:'var(--font-display)', fontSize:15, fontWeight:700, letterSpacing:'0.04em', borderRadius:11,
-            border:'none', color:'#081019', background:'var(--action)',
+            border:'none', color:'#FFFFFF', background:'var(--action)',
             opacity:(busy || studyEntryChecking)?0.6:1, transition:'transform 100ms var(--ease)' }}>
           {studyEntryChecking ? 'ZUGANG WIRD GEPRÜFT…' : busy ? (busyHint ? 'Server wird gestartet… · السيرفر بيفتح…' : 'Wird gesendet…') : resetToken ? 'Passwort speichern' : mode==='login' ? 'Anmelden' : validStudyEntry ? 'STUDIENPLATZ SICHERN' : 'Konto erstellen'}
         </button>
@@ -4118,7 +4118,7 @@ function VerificationLinkScreen({ state = 'working', onRetry }) {
               اللينك لسه محفوظ هنا. جرّب تاني من غير ما تطلب لينك جديد.
             </div>
             <button type="button" onClick={onRetry} style={{ width:'100%', minHeight:48, marginTop:18, border:0,
-              borderRadius:11, cursor:'pointer', background:'var(--action)', color:'#081019',
+              borderRadius:11, cursor:'pointer', background:'var(--action)', color:'#FFFFFF',
               fontFamily:'var(--font-display)', fontWeight:700 }}>
               ERNEUT VERSUCHEN · جرّب تاني
             </button>
@@ -4172,7 +4172,7 @@ function EmailVerificationGate({ auth, onLogout, onVerifiedElsewhere, linkState 
         {linkState === 'invalid' && <div style={{ marginTop:13, color:'var(--bad)', fontSize:12 }}>Der Link ist abgelaufen oder wurde bereits benutzt — fordere unten einen neuen an.</div>}
         {message && <div role="status" style={{ marginTop:13, color:state === 'error' || state === 'unavailable' ? 'var(--bad)' : '#bbf7d0', fontSize:12 }}>{message}</div>}
         <button type="button" onClick={resend} disabled={state === 'sending'} style={{ width:'100%', minHeight:50, marginTop:18,
-          border:0, borderRadius:11, cursor:state === 'sending'?'wait':'pointer', background:'var(--action)', color:'#081019',
+          border:0, borderRadius:11, cursor:state === 'sending'?'wait':'pointer', background:'var(--action)', color:'#FFFFFF',
           fontFamily:'var(--font-display)', fontWeight:700, opacity:state === 'sending'?0.65:1 }}>
           {state === 'sending' ? 'Wird gesendet…' : 'NEUEN LINK SENDEN'}
         </button>
@@ -4544,7 +4544,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <a href={waLink(code)} target="_blank" rel="noopener noreferrer"
           style={{ display:'block', textAlign:'center', textDecoration:'none', padding:'13px', minHeight:48, lineHeight:'22px',
             fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.06em', borderRadius:9, fontWeight:700,
-            color:'#04130c', background:'linear-gradient(135deg,var(--accent),var(--accent))', border:'1px solid var(--accent)' }}>
+            color:'#FFFFFF', background:'linear-gradient(135deg,var(--accent),var(--accent))', border:'1px solid var(--accent)' }}>
           {ar ? 'ابعت إثبات الدفع على واتساب' : 'Zahlungsbeleg per WhatsApp senden'}
         </a>
       )}
@@ -4639,7 +4639,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
               <b style={{ color:'var(--text)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
-            <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700, color:'#fff',
+            <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700,
               background:'var(--surface-2)', border:'1px solid var(--line-strong)', color:'var(--text)', borderRadius:8, padding:'12px', marginTop:8, letterSpacing:'0.08em' }}>
               {vodafone}
             </div>
@@ -4686,7 +4686,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
           <button onClick={onPaid} disabled={submitting || !/^\d{4}$/.test(senderLast4)}
             style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
-              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid var(--accent)', color:'#04130c',
+              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid var(--accent)', color:'#FFFFFF',
               background:'linear-gradient(135deg,var(--accent),var(--accent))', opacity: (submitting || !/^\d{4}$/.test(senderLast4)) ? 0.5 : 1 }}>
             {submitting ? '…' : 'دفعت · ICH HABE BEZAHLT'}
           </button>
@@ -4701,7 +4701,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       )}
 
       <button onClick={() => setPay(null)} style={{ width:'100%', marginTop:12, padding:'11px', minHeight:44, cursor:'pointer',
-        fontFamily:'var(--font-display)', fontSize:10, borderRadius:8, border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'var(--text-dim)' }}>
+        fontFamily:'var(--font-display)', fontSize:10, borderRadius:8, border:'1px solid var(--line-strong)', background:'transparent', color:'var(--text-dim)' }}>
         {ar ? '‹ رجوع للخطط' : '‹ ZURÜCK ZU DEN PLÄNEN'}
       </button>
     </>);
@@ -4915,7 +4915,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
               border:`1.5px solid ${elite ? 'var(--action)' : 'var(--line)'}`,
               boxShadow: elite ? '0 18px 44px -22px rgba(14,19,32,0.26)' : 'none' }}>
               {elite && (
-                <div style={{ position:'absolute', top:-9, right:12, fontSize:8.5, fontFamily:'var(--font-display)', letterSpacing:'0.06em',
+                <div style={{ position:'absolute', top:-9, right:12, fontFamily:'var(--font-display)', letterSpacing:'0.06em',
                   background:'var(--action)', color:'#FFFFFF', padding:'3px 9px', borderRadius:99, fontWeight:700, fontSize:9.5 }}>
                   {ar ? 'الأنسب للإنترفيو' : 'Beliebt für Interview-Prep'}
                 </div>
@@ -4976,7 +4976,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
       <button onClick={onClose} style={{ width:'100%', marginTop:10, padding:'11px', minHeight:44, cursor:'pointer',
         fontFamily:'var(--font-display)', fontSize:10, borderRadius:8,
-        border:'1px solid rgba(148,163,184,0.3)', background:'transparent', color:'var(--text-dim)' }}>
+        border:'1px solid var(--line-strong)', background:'transparent', color:'var(--text-dim)' }}>
         {ar ? 'رجوع' : 'ZURÜCK'}
       </button>
   </>);
@@ -5017,10 +5017,10 @@ function PendingBadge({ pending, whatsapp, lang }) {
           <div style={{ fontSize: 9.5, color: 'var(--text-dim)', lineHeight: 1.5 }}>
             {ar ? 'كود الدعم — ما تكتبوش في تحويل فودافون كاش؛ ابعته مع إثبات الدفع' : 'Support-Code — NICHT in die Vodafone-Cash-Überweisung schreiben; mit dem Beleg senden'}
           </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 900, color: 'var(--action)', letterSpacing: '0.15em' }}>{code}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--action)', letterSpacing: '0.15em' }}>{code}</div>
           {waLink && (
             <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 8, fontSize: 10.5,
-              color: '#04130c', background: '#25D366', borderRadius: 7, padding: '7px 12px', fontWeight: 700, textDecoration: 'none' }}>
+              color: '#FFFFFF', background: 'var(--accent)', borderRadius: 7, padding: '7px 12px', fontWeight: 700, textDecoration: 'none' }}>
               {ar ? '📤 ابعت الإيصال على واتساب' : '📤 Beleg per WhatsApp senden'}
             </a>
           )}
@@ -6645,7 +6645,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     onClick={() => beacon('inapp_escape_tap')}
                     style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, marginTop:12,
                       minHeight:48, borderRadius:'var(--r-md)', textDecoration:'none',
-                      background:'linear-gradient(135deg, var(--accent-2), var(--accent))', color:'#04070d',
+                      background:'linear-gradient(135deg, var(--accent-2), var(--accent))', color:'#FFFFFF',
                       fontFamily:'var(--font-display)', fontWeight:600, fontSize:13.5 }}>
                     In Chrome öffnen <Icon name="chevronRight" size={16} />
                   </a>
@@ -6799,7 +6799,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
             background:'linear-gradient(180deg, rgba(0,22,44,0.98), rgba(0,8,18,0.99))', border:'1px solid rgba(14,19,32,0.5)', boxShadow:'0 0 40px rgba(14,19,32,0.2)' }}>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:900, color:'var(--accent)', marginTop:6 }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:700, color:'var(--accent)', marginTop:6 }}>
               {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
             </div>
             <div style={{ fontSize:13, color:'var(--text-dim)', marginTop:8, lineHeight:1.6 }}>
@@ -6810,7 +6810,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             </div>
             <button onClick={ackActivation} style={{ width:'100%', marginTop:18, padding:'13px', minHeight:48, cursor:'pointer',
               fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700,
-              border:'1px solid var(--accent)', color:'#04130c', background:'linear-gradient(135deg,var(--accent),var(--accent))' }}>
+              border:'1px solid var(--accent)', color:'#FFFFFF', background:'linear-gradient(135deg,var(--accent),var(--accent))' }}>
               {feedbackLang === 'ar' ? 'يلا نبدأ ▸' : 'Los geht’s ▸'}
             </button>
           </div>
@@ -6888,7 +6888,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 transition:'width 0.6s var(--ease-out)' }} />
               {funnel.stages.map((st, i) => {
                 const done = i < funnel.idx, cur = i === funnel.idx;
-                const c = cur ? 'var(--accent)' : done ? 'var(--player)' : '#475569';
+                const c = cur ? 'var(--accent)' : done ? 'var(--player)' : 'var(--text-faint)';
                 return (
                   <div key={st.id} style={{ position:'relative', zIndex:2, flex:1, textAlign:'center' }}>
                     <div key={cur ? `cur${i}` : `n${i}`} style={{ width:23, height:23, borderRadius:'50%', margin:'0 auto',
@@ -7037,7 +7037,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     width:'100%', marginBottom:12, padding:'16px 20px', minHeight:56, cursor: isConnecting ? 'wait' : 'pointer',
                     display:'flex', alignItems:'center', justifyContent:'center', gap:10,
                     fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em',
-                    borderRadius:16, border:'none', color:'#081019',
+                    borderRadius:16, border:'none', color:'#FFFFFF',
                     background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
                     transition:'transform 100ms var(--ease)',
                     opacity: isConnecting ? 0.55 : 1,
@@ -7416,7 +7416,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             {bossText
               ? bossText
               : isActive
-                ? <span style={{ color:'#475569', animation:'pulse 1.2s infinite' }}>{funnel?.displayName ?? 'Der Interviewer'} spricht…</span>
+                ? <span style={{ color:'var(--text-faint)', animation:'pulse 1.2s infinite' }}>{funnel?.displayName ?? 'Der Interviewer'} spricht…</span>
                 : <span style={{ color:'#334155' }}>Interview noch nicht gestartet.</span>}
           </div>
           {/* transcript log */}
@@ -7447,7 +7447,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:10 }}>
                 <button onClick={() => startGeminiMic()}
                   style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
-                    border:'1px solid var(--accent)', color:'#020409', fontWeight:800,
+                    border:'1px solid var(--accent)', color:'#FFFFFF', fontWeight:800,
                     background:'linear-gradient(135deg,var(--accent-2),var(--accent))' }}>
                   MIKROFON ERNEUT AKTIVIEREN
                 </button>
@@ -7467,7 +7467,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               <div style={{ display:'flex', justifyContent:'center', gap:8, flexWrap:'wrap', marginTop:10 }}>
                 <button onClick={() => beginSession()}
                   style={{ minHeight:40, padding:'8px 13px', borderRadius:8, cursor:'pointer',
-                    border:'1px solid var(--accent)', color:'#020409', fontWeight:800,
+                    border:'1px solid var(--accent)', color:'#FFFFFF', fontWeight:800,
                     background:'linear-gradient(135deg,var(--accent-2),var(--accent))' }}>
                   MIKROFON ERLAUBEN &amp; STARTEN
                 </button>
@@ -7562,7 +7562,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     title={ttsMuted ? 'Stimme einschalten' : 'Stimme stummschalten'}
                     style={{ flex:'0 0 auto', padding:'10px 12px', cursor:'pointer', borderRadius:8,
                       fontFamily:'var(--font-display)', fontSize:13, letterSpacing:'0.08em',
-                      border:'1px solid #475569', color:'var(--text-dim)', background:'rgba(148,163,184,0.06)' }}>
+                      border:'1px solid var(--line-strong)', color:'var(--text-dim)', background:'rgba(148,163,184,0.06)' }}>
                     {ttsMuted ? <SpeakerMuteIcon /> : <SpeakerIcon />}
                   </button>
                   {/* Manual record (with STOPP) is ONLY for the typing fallback when Freisprech is OFF.
@@ -7572,7 +7572,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   <button onClick={toggleRecord} disabled={transcribing}
                     style={{ flex:'0 0 auto', padding:'10px 14px', cursor:'pointer', borderRadius:8,
                       fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.08em',
-                      border:`1px solid ${recording ? '#ef4444' : '#475569'}`,
+                      border:`1px solid ${recording ? 'var(--bad)' : 'var(--line-strong)'}`,
                       color: recording ? 'var(--bad)' : 'var(--text-dim)',
                       background: recording ? 'rgba(239,68,68,0.1)' : 'rgba(148,163,184,0.06)' }}>
                     {transcribing ? '…' : recording ? '■ STOPP' : 'SPRECHEN'}
@@ -7581,7 +7581,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   <button onClick={sendAnswer} disabled={!answerText.trim() || transcribing}
                     style={{ flex:1, padding:'10px 14px', cursor: answerText.trim() ? 'pointer' : 'not-allowed',
                       borderRadius:8, fontFamily:'var(--font-display)', fontSize:11, letterSpacing:'0.12em',
-                      border:'1px solid var(--accent)', color:'#04070d', fontWeight:700,
+                      border:'1px solid var(--accent)', color:'#FFFFFF', fontWeight:700,
                       background: answerText.trim() ? 'linear-gradient(135deg,var(--accent-2),var(--accent))' : 'rgba(14,19,32,0.15)',
                       opacity: answerText.trim() ? 1 : 0.5 }}>
                     SENDEN ▶
@@ -7623,7 +7623,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             </div>
           )}
           {isActive && !bossThinking && (
-            <div style={{ fontSize:9, color:'#475569', marginTop:3 }}>
+            <div style={{ fontSize:9, color:'var(--text-faint)', marginTop:3 }}>
               {handsFree && !typeOpen
                 ? 'Sprich einfach auf Deutsch — ich höre zu und sende automatisch.'
                 : 'Tippe deine Antwort auf Deutsch — oder sprich sie ein.'}
@@ -7850,7 +7850,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         )}
 
         {/* ÜBUNGEN GRID (uplift): the 7-button drill wall becomes one titled card with icon tiles —
-            2 columns, real SVG icons, every tile the same quiet weight (the #ef4444 red is gone;
+            2 columns, real SVG icons, every tile the same quiet weight (the old alarm red is gone;
             Druck-Leiter carries a neutral SCHWER badge instead). Hidden on first-run — an 8-tile drill
             wall before the first interview is choice-overload; the interview routes them to the right
             drill afterwards. */}
@@ -7930,7 +7930,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 )}
                 <button onClick={() => setPersonalStepOpen(true)} style={{ marginTop:13, width:'100%', padding:'13px', minHeight:48,
                   cursor:'pointer', fontFamily:'var(--font-display)', fontSize:'var(--fs-label)', fontWeight:700, letterSpacing:'0.02em',
-                  borderRadius:12, border:'none', color:'#081019', background:'var(--grad-action)', boxShadow:'var(--shadow-action)' }}>
+                  borderRadius:12, border:'none', color:'#FFFFFF', background:'var(--grad-action)', boxShadow:'var(--shadow-action)' }}>
                   Weiter an der Akte arbeiten{/* OWNER-AR slot */}
                 </button>
               </div>
@@ -8390,11 +8390,11 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
     <div style={{ position:'fixed', inset:0, zIndex:9000, display:'flex', flexDirection:'column',
       alignItems:'center', justifyContent:'center', gap:18, padding:'28px 22px', textAlign:'center',
       boxSizing:'border-box', overflow:'hidden',
-      background:'radial-gradient(120% 90% at 50% 16%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      background:'var(--bg-0)',
       color:'var(--text)', animation:'flash-in 0.4s ease' }}>
 
-      <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:900, letterSpacing:3,
-        color:'var(--accent)', textShadow:'0 0 24px rgba(14,19,32,0.55)' }}>German Interview Trainer</div>
+      <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:700, letterSpacing:'-0.01em',
+        color:'var(--text)' }}>German Interview Trainer</div>
 
       {!failed ? (
         <>
@@ -8443,7 +8443,7 @@ function ColdStartScreen({ phase, elapsed, onRetry }) {
           </div>
           <button onClick={onRetry} style={{ marginTop:4, padding:'14px 24px', minHeight:48, cursor:'pointer',
             fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.1em', borderRadius:10, fontWeight:700,
-            border:'1px solid var(--accent)', color:'#020409', background:'var(--accent)', boxShadow:'0 0 18px rgba(14,19,32,0.35)' }}>
+            border:'1px solid var(--accent)', color:'#FFFFFF', background:'var(--accent)', boxShadow:'0 0 18px rgba(14,19,32,0.35)' }}>
             ERNEUT VERSUCHEN · حاول تاني
           </button>
         </>
@@ -8562,7 +8562,7 @@ function InAppBrowserGate({ onContinue }) {
 
         {/* PRIMARY — Copy link. The single orange object on this screen (design law). Works everywhere. */}
         <button onClick={copyLink} style={{ ...btn, marginBottom:12,
-          background: copied ? 'linear-gradient(135deg,#60a5fa,#3b82f6)' : 'linear-gradient(135deg,#fb923c,#f97316)', color:'#0a0f1a' }}>
+          background: copied ? 'var(--accent)' : 'var(--grad-action)', color:'#FFFFFF' }}>
           {copied ? '✓ Kopiert! Jetzt Chrome öffnen & einfügen' : '📋 Link kopieren'}
         </button>
         {copied && (
@@ -8576,7 +8576,7 @@ function InAppBrowserGate({ onContinue }) {
         {isAndroid && (
           <a href={`intent://${url.replace(/^https?:\/\//,'')}#Intent;scheme=https;package=com.android.chrome;end`}
             onClick={() => beacon('inapp_escape_tap')}
-            style={{ ...btn, marginBottom:12, background:'linear-gradient(135deg,#60a5fa,#3b82f6)', color:'#04070d' }}>
+            style={{ ...btn, marginBottom:12, background:'linear-gradient(135deg,var(--accent),var(--accent))', color:'#FFFFFF' }}>
             🌐 Direkt in Chrome öffnen
           </a>
         )}
@@ -8591,7 +8591,7 @@ function InAppBrowserGate({ onContinue }) {
 
         {/* Safety valve — never hard-trap a false-positive whose mic actually works */}
         <button onClick={() => { beacon('inapp_gate_bypass'); onContinue(); }}
-          style={{ background:'none', border:'none', color:'#475569', fontSize:12, marginTop:10,
+          style={{ background:'none', border:'none', color:'var(--text-faint)', fontSize:12, marginTop:10,
             cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
           Trotzdem hier fortfahren / continue anyway
         </button>

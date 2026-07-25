@@ -55,41 +55,41 @@ function errorCopy(error) {
 
 const shellStyle = {
   width: '100%', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box',
-  border: '1px solid rgba(96,165,250,0.28)', borderRadius: 18,
+  border: '1px solid var(--line-strong)', borderRadius: 18,
   background: 'var(--surface)', boxShadow: '0 28px 70px rgba(14,19,32,0.16)',
-  color: 'var(--text, #e2e8f0)', overflow: 'hidden',
+  color: 'var(--text, #0E1320)', overflow: 'hidden',
 };
 
 const fieldStyle = {
   width: '100%', minHeight: 48, boxSizing: 'border-box', borderRadius: 11,
   border: '1px solid var(--line-strong, rgba(148,163,184,0.32))',
-  background: 'var(--surface)', color: 'var(--text, #e2e8f0)',
+  background: 'var(--surface)', color: 'var(--text, #0E1320)',
   font: 'inherit', fontSize: 14, padding: '11px 12px',
 };
 
 const primaryStyle = {
-  minHeight: 48, borderRadius: 11, border: '1px solid var(--action, #f97316)',
-  background: 'var(--action, #f97316)', color: '#071018', cursor: 'pointer',
+  minHeight: 48, borderRadius: 11, border: '1px solid var(--action, #D9541A)',
+  background: 'var(--action, #D9541A)', color: '#FFFFFF', cursor: 'pointer',
   font: 'inherit', fontSize: 13, fontWeight: 850, padding: '11px 18px',
 };
 
 const secondaryStyle = {
-  minHeight: 44, borderRadius: 11, border: '1px solid rgba(96,165,250,0.42)',
-  background: 'rgba(59,130,246,0.09)', color: 'var(--accent-2, #93c5fd)', cursor: 'pointer',
+  minHeight: 44, borderRadius: 11, border: '1px solid var(--line-strong)',
+  background: 'var(--surface-2)', color: 'var(--accent-2, var(--text-dim))', cursor: 'pointer',
   font: 'inherit', fontSize: 12.5, fontWeight: 750, padding: '10px 15px',
 };
 
 const quietStyle = {
-  minHeight: 44, borderRadius: 11, border: '1px solid var(--line, rgba(148,163,184,0.2))',
-  background: 'transparent', color: 'var(--text-dim, #94a3b8)', cursor: 'pointer',
+  minHeight: 44, borderRadius: 11, border: '1px solid var(--line, var(--line))',
+  background: 'transparent', color: 'var(--text-dim, #5A6270)', cursor: 'pointer',
   font: 'inherit', fontSize: 12, fontWeight: 700, padding: '10px 14px',
 };
 
 function BilingualLabel({ de, ar, htmlFor }) {
   return (
     <label htmlFor={htmlFor} style={{ display: 'block', marginBottom: 7 }}>
-      <span style={{ display: 'block', color: 'var(--text, #e2e8f0)', fontSize: 13, fontWeight: 750 }}>{de}</span>
-      <span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', fontSize: 11.5, marginTop: 2 }}>{ar}</span>
+      <span style={{ display: 'block', color: 'var(--text, #0E1320)', fontSize: 13, fontWeight: 750 }}>{de}</span>
+      <span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', fontSize: 11.5, marginTop: 2 }}>{ar}</span>
     </label>
   );
 }
@@ -107,13 +107,13 @@ function StepHeader({ step }) {
         const done = index + 1 < step;
         return (
           <li key={id} aria-current={active ? 'step' : undefined} style={{ minWidth: 0, padding: '9px 10px', borderRadius: 10,
-            border: `1px solid ${active ? 'rgba(96,165,250,0.65)' : 'rgba(148,163,184,0.16)'}`,
-            background: active ? 'rgba(59,130,246,0.12)' : done ? 'rgba(59,130,246,0.06)' : 'var(--surface-2)' }}>
+            border: `1px solid ${active ? 'var(--accent)' : 'var(--surface-2)'}`,
+            background: active ? 'var(--surface-2)' : done ? 'var(--surface-2)' : 'var(--surface-2)' }}>
             <span aria-hidden="true" style={{ display: 'inline-grid', placeItems: 'center', width: 22, height: 22, borderRadius: '50%',
-              background: active || done ? 'var(--accent, #3b82f6)' : 'rgba(148,163,184,0.16)',
-              color: active || done ? '#06101d' : 'var(--text-faint, #64748b)', fontSize: 11, fontWeight: 600 }}>{done ? '✓' : id}</span>
-            <span style={{ display: 'block', marginTop: 5, fontSize: 11.5, fontWeight: 750, color: active ? 'var(--accent-2, #93c5fd)' : 'var(--text-dim, #94a3b8)' }}>{de}</span>
-            <span dir="rtl" style={{ display: 'block', marginTop: 2, fontSize: 10.5, color: 'var(--text-faint, #64748b)' }}>{ar}</span>
+              background: active || done ? 'var(--accent)' : 'var(--surface-2)',
+              color: active || done ? '#06101d' : 'var(--text-faint, #8A909C)', fontSize: 11, fontWeight: 600 }}>{done ? '✓' : id}</span>
+            <span style={{ display: 'block', marginTop: 5, fontSize: 11.5, fontWeight: 750, color: active ? 'var(--accent-2, var(--text-dim))' : 'var(--text-dim, #5A6270)' }}>{de}</span>
+            <span dir="rtl" style={{ display: 'block', marginTop: 2, fontSize: 10.5, color: 'var(--text-faint, #8A909C)' }}>{ar}</span>
           </li>
         );
       })}
@@ -269,19 +269,19 @@ export function InterviewPassPreview({
   return (
     <section className={`ipx ${className}`.trim()} aria-labelledby="ipx-title" aria-busy={busy} style={shellStyle}>
       <style>{`
-        .ipx *{box-sizing:border-box}.ipx button:focus-visible,.ipx textarea:focus-visible,.ipx select:focus-visible,.ipx input:focus-visible{outline:3px solid rgba(96,165,250,.85);outline-offset:3px}.ipx button:disabled{cursor:not-allowed;opacity:.48}.ipx-choice{transition:border-color 140ms ease,background 140ms ease}.ipx-choice:hover{border-color:rgba(96,165,250,.58)!important}.ipx-result{animation:ipx-rise 240ms ease-out both}@keyframes ipx-rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@media(max-width:560px){.ipx-body{padding:18px!important}.ipx-grid{grid-template-columns:1fr!important}.ipx-actions{align-items:stretch!important;flex-direction:column!important}.ipx-actions>button{width:100%}.ipx-step-row{gap:5px!important}.ipx-step-row li{padding:8px 6px!important}}@media(prefers-reduced-motion:reduce){.ipx *{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
+        .ipx *{box-sizing:border-box}.ipx button:focus-visible,.ipx textarea:focus-visible,.ipx select:focus-visible,.ipx input:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.ipx button:disabled{cursor:not-allowed;opacity:.48}.ipx-choice{transition:border-color 140ms ease,background 140ms ease}.ipx-choice:hover{border-color:var(--accent)!important}.ipx-result{animation:ipx-rise 240ms ease-out both}@keyframes ipx-rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}@media(max-width:560px){.ipx-body{padding:18px!important}.ipx-grid{grid-template-columns:1fr!important}.ipx-actions{align-items:stretch!important;flex-direction:column!important}.ipx-actions>button{width:100%}.ipx-step-row{gap:5px!important}.ipx-step-row li{padding:8px 6px!important}}@media(prefers-reduced-motion:reduce){.ipx *{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
       `}</style>
-      <header style={{ padding: '20px 22px 17px', borderBottom: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface)' }}>
-        <div style={{ fontFamily: 'var(--font-display, inherit)', fontSize: 10, fontWeight: 850, letterSpacing: '0.17em', color: 'var(--accent, #3b82f6)' }}>
+      <header style={{ padding: '20px 22px 17px', borderBottom: '1px solid var(--line, var(--line))', background: 'var(--surface)' }}>
+        <div style={{ fontFamily: 'var(--font-display, inherit)', fontSize: 10, fontWeight: 850, letterSpacing: '0.17em', color: 'var(--accent)' }}>
           INTERVIEW X-RAY
         </div>
         <h2 id="ipx-title" style={{ margin: '8px 0 0', fontFamily: 'var(--font-display, inherit)', fontSize: 'clamp(22px,4vw,31px)', lineHeight: 1.2, color: 'var(--text)' }}>
           Dein Interview Pass vor der Anmeldung
         </h2>
-        <div dir="rtl" style={{ marginTop: 7, color: 'var(--text-dim, #94a3b8)', fontSize: 14, lineHeight: 1.65 }}>
+        <div dir="rtl" style={{ marginTop: 7, color: 'var(--text-dim, #5A6270)', fontSize: 14, lineHeight: 1.65 }}>
           شاهد دليلاً مخصصاً لك قبل إنشاء الحساب
         </div>
-        <p style={{ margin: '8px 0 0', color: 'var(--text-faint, #64748b)', fontSize: 12.5, lineHeight: 1.6 }}>
+        <p style={{ margin: '8px 0 0', color: 'var(--text-faint, #8A909C)', fontSize: 12.5, lineHeight: 1.6 }}>
           60–90 Sekunden. Drei realistische Übungsprognosen, ein Antwortaufbau und eine ehrliche Lücke.
         </p>
       </header>
@@ -303,13 +303,13 @@ export function InterviewPassPreview({
               autoComplete="off" spellCheck="false" rows={10} maxLength={CV_MAX_CHARS + 1}
               placeholder="Berufserfahrung, Aufgaben, messbare Ergebnisse, Sprachen…"
               style={{ ...fieldStyle, minHeight: 190, resize: 'vertical', lineHeight: 1.55 }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 7, color: 'var(--text-faint, #64748b)', fontSize: 11 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 7, color: 'var(--text-faint, #8A909C)', fontSize: 11 }}>
               <span>{cvText.length.toLocaleString('de-DE')} / {CV_MAX_CHARS.toLocaleString('de-DE')}</span>
               <span dir="rtl">لا تضع رقم البطاقة أو بيانات مالية</span>
             </div>
-            <div style={{ marginTop: 13, padding: '11px 12px', borderRadius: 10, border: '1px solid rgba(96,165,250,0.22)', background: 'rgba(59,130,246,0.055)' }}>
-              <div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 12, fontWeight: 750 }}>Dein CV bleibt auf diesem Gerät.</div>
-              <div dir="rtl" style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.65, marginTop: 3 }}>
+            <div style={{ marginTop: 13, padding: '11px 12px', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}>
+              <div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 12, fontWeight: 750 }}>Dein CV bleibt auf diesem Gerät.</div>
+              <div dir="rtl" style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.65, marginTop: 3 }}>
                 نص السيرة لا يُرسل ولا يُحفظ. نرسل فقط اختيارات عامة تؤكدها بنفسك.
               </div>
             </div>
@@ -354,10 +354,10 @@ export function InterviewPassPreview({
             </div>
 
             <fieldset style={{ margin: '18px 0 0', padding: 0, border: 0 }}>
-              <legend style={{ padding: 0, color: 'var(--text, #e2e8f0)', fontSize: 13, fontWeight: 750 }}>
+              <legend style={{ padding: 0, color: 'var(--text, #0E1320)', fontSize: 13, fontWeight: 750 }}>
                 Welche Belege kannst du im Interview ehrlich erklären?
               </legend>
-              <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 11.5, marginTop: 3 }}>
+              <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 11.5, marginTop: 3 }}>
                 اختر فقط ما يمكنك شرحه بصدق في المقابلة
               </div>
               <div className="ipx-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 8, marginTop: 10 }}>
@@ -366,13 +366,13 @@ export function InterviewPassPreview({
                   const hinted = suggested.includes(item.id);
                   return (
                     <label key={item.id} className="ipx-choice" style={{ minHeight: 54, display: 'flex', gap: 10, alignItems: 'center', padding: '9px 11px', cursor: 'pointer', borderRadius: 10,
-                      border: `1px solid ${checked ? 'rgba(96,165,250,0.68)' : 'rgba(148,163,184,0.19)'}`,
-                      background: checked ? 'rgba(59,130,246,0.11)' : 'var(--surface-2)' }}>
-                      <input type="checkbox" checked={checked} onChange={() => toggleEvidence(item.id)} style={{ width: 20, height: 20, accentColor: 'var(--accent, #3b82f6)', flex: '0 0 auto' }} />
+                      border: `1px solid ${checked ? 'var(--accent)' : 'rgba(148,163,184,0.19)'}`,
+                      background: checked ? 'var(--surface-2)' : 'var(--surface-2)' }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleEvidence(item.id)} style={{ width: 20, height: 20, accentColor: 'var(--accent, var(--action))', flex: '0 0 auto' }} />
                       <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', color: 'var(--text, #e2e8f0)', fontSize: 12.5, lineHeight: 1.35 }}>{item.de}</span>
-                        <span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #64748b)', fontSize: 10.5, lineHeight: 1.5, marginTop: 2 }}>{item.ar}</span>
-                        {hinted && <span style={{ display: 'block', color: 'var(--accent-2, #93c5fd)', fontSize: 9.5, marginTop: 3 }}>Im CV erkannt — bitte selbst bestätigen</span>}
+                        <span style={{ display: 'block', color: 'var(--text, #0E1320)', fontSize: 12.5, lineHeight: 1.35 }}>{item.de}</span>
+                        <span dir="rtl" style={{ display: 'block', color: 'var(--text-faint, #8A909C)', fontSize: 10.5, lineHeight: 1.5, marginTop: 2 }}>{item.ar}</span>
+                        {hinted && <span style={{ display: 'block', color: 'var(--accent-2, var(--text-dim))', fontSize: 9.5, marginTop: 3 }}>Im CV erkannt — bitte selbst bestätigen</span>}
                       </span>
                     </label>
                   );
@@ -391,19 +391,19 @@ export function InterviewPassPreview({
 
         {step === 3 && preview && (
           <div ref={resultRef} tabIndex={-1} className="ipx-result" style={{ marginTop: 20 }}>
-            <div style={{ padding: '14px 15px', borderRadius: 12, border: '1px solid rgba(96,165,250,0.38)', background: 'rgba(59,130,246,0.085)' }}>
-              <div style={{ color: 'var(--accent-2, #93c5fd)', fontSize: 11, letterSpacing: '0.12em', fontWeight: 850 }}>PRIVATE VORSCHAU</div>
+            <div style={{ padding: '14px 15px', borderRadius: 12, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}>
+              <div style={{ color: 'var(--accent-2, var(--text-dim))', fontSize: 11, letterSpacing: '0.12em', fontWeight: 850 }}>PRIVATE VORSCHAU</div>
               <div style={{ marginTop: 6, color: 'var(--text)', fontSize: 18, fontWeight: 850 }}>{preview.roleTitle || optionLabel(ROLE_OPTIONS, roleType)?.de || 'Deine Zielrolle'}</div>
-              <div dir="rtl" style={{ marginTop: 4, color: 'var(--text-dim, #94a3b8)', fontSize: 12.5 }}>معاينة تدريبية خاصة بك وليست أسئلة مؤكدة من صاحب العمل</div>
+              <div dir="rtl" style={{ marginTop: 4, color: 'var(--text-dim, #5A6270)', fontSize: 12.5 }}>معاينة تدريبية خاصة بك وليست أسئلة مؤكدة من صاحب العمل</div>
             </div>
 
             <section aria-labelledby="ipx-predictions" style={{ marginTop: 17 }}>
-              <h3 id="ipx-predictions" style={{ margin: 0, fontSize: 14, color: 'var(--text, #e2e8f0)' }}>3 passende Übungsprognosen</h3>
-              <p dir="rtl" style={{ margin: '3px 0 0', color: 'var(--text-faint, #64748b)', fontSize: 11.5 }}>توقعات للتدريب وليست أسئلة حقيقية مؤكدة</p>
+              <h3 id="ipx-predictions" style={{ margin: 0, fontSize: 14, color: 'var(--text, #0E1320)' }}>3 passende Übungsprognosen</h3>
+              <p dir="rtl" style={{ margin: '3px 0 0', color: 'var(--text-faint, #8A909C)', fontSize: 11.5 }}>توقعات للتدريب وليست أسئلة حقيقية مؤكدة</p>
               <ol style={{ margin: '10px 0 0', paddingLeft: 20, display: 'grid', gap: 8 }}>
                 {preview.practicePredictions.slice(0, 3).map((question) => (
-                  <li key={question.id} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface-2)', color: 'var(--text-dim, #94a3b8)', fontSize: 13, lineHeight: 1.55 }}>
-                    <span style={{ display: 'block', color: 'var(--accent-2, #93c5fd)', fontSize: 9.5, fontWeight: 800, letterSpacing: '0.1em', marginBottom: 4 }}>{question.label.toUpperCase()}</span>
+                  <li key={question.id} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line, var(--line))', background: 'var(--surface-2)', color: 'var(--text-dim, #5A6270)', fontSize: 13, lineHeight: 1.55 }}>
+                    <span style={{ display: 'block', color: 'var(--accent-2, var(--text-dim))', fontSize: 9.5, fontWeight: 800, letterSpacing: '0.1em', marginBottom: 4 }}>{question.label.toUpperCase()}</span>
                     {question.text}
                   </li>
                 ))}
@@ -411,39 +411,39 @@ export function InterviewPassPreview({
             </section>
 
             <section className="ipx-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,.9fr)', gap: 12, marginTop: 16 }}>
-              <div style={{ padding: '13px', borderRadius: 11, border: '1px solid var(--line, rgba(148,163,184,0.18))', background: 'var(--surface-2)' }}>
-                <h3 style={{ margin: 0, fontSize: 13.5, color: 'var(--text, #e2e8f0)' }}>60-Sekunden-Antwort</h3>
-                <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-faint, #64748b)', fontSize: 11 }}>هيكل إجابة في 60 ثانية</div>
+              <div style={{ padding: '13px', borderRadius: 11, border: '1px solid var(--line, var(--line))', background: 'var(--surface-2)' }}>
+                <h3 style={{ margin: 0, fontSize: 13.5, color: 'var(--text, #0E1320)' }}>60-Sekunden-Antwort</h3>
+                <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-faint, #8A909C)', fontSize: 11 }}>هيكل إجابة في 60 ثانية</div>
                 <ol style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}>
                   {preview.answerStructure.map((row, index) => (
                     <li key={`${row.seconds}-${index}`} style={{ display: 'grid', gridTemplateColumns: '56px minmax(0,1fr)', gap: 9, alignItems: 'start' }}>
-                      <span style={{ color: 'var(--action, #f97316)', fontFamily: 'var(--font-mono, monospace)', fontSize: 10.5, fontWeight: 800 }}>{row.seconds}</span>
-                      <span style={{ color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.5 }}><b style={{ color: 'var(--text, #e2e8f0)' }}>{row.title}:</b> {row.detail}</span>
+                      <span style={{ color: 'var(--action, #D9541A)', fontFamily: 'var(--font-mono, monospace)', fontSize: 10.5, fontWeight: 800 }}>{row.seconds}</span>
+                      <span style={{ color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.5 }}><b style={{ color: 'var(--text, #0E1320)' }}>{row.title}:</b> {row.detail}</span>
                     </li>
                   ))}
                 </ol>
               </div>
               <div style={{ display: 'grid', gap: 10 }}>
-                <div style={{ padding: '13px', borderRadius: 11, border: '1px solid rgba(96,165,250,0.25)', background: 'rgba(59,130,246,0.055)' }}>
-                  <h3 style={{ margin: 0, fontSize: 13, color: 'var(--accent-2, #93c5fd)' }}>Bestätigte Belege</h3>
-                  <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5, marginTop: 2 }}>الأدلة التي أكّدتها بنفسك</div>
-                  <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.55 }}>
+                <div style={{ padding: '13px', borderRadius: 11, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}>
+                  <h3 style={{ margin: 0, fontSize: 13, color: 'var(--accent-2, var(--text-dim))' }}>Bestätigte Belege</h3>
+                  <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 10.5, marginTop: 2 }}>الأدلة التي أكّدتها بنفسك</div>
+                  <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.55 }}>
                     {confirmedEvidence.map((item) => <li key={item}>{item}</li>)}
                   </ul>
                 </div>
                 <div style={{ padding: '13px', borderRadius: 11, border: '1px solid rgba(249,115,22,0.3)', background: 'rgba(249,115,22,0.055)' }}>
-                  <h3 style={{ margin: 0, fontSize: 13, color: 'var(--action, #f97316)' }}>{preview.gap?.title || 'Ehrliche Lücke'}</h3>
-                  <div dir="rtl" style={{ color: 'var(--text-faint, #64748b)', fontSize: 10.5, marginTop: 2 }}>النقطة التي تحتاج دليلاً أقوى</div>
-                  <p style={{ margin: '7px 0 0', color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.55 }}>{gapDetail}</p>
+                  <h3 style={{ margin: 0, fontSize: 13, color: 'var(--action, #D9541A)' }}>{preview.gap?.title || 'Ehrliche Lücke'}</h3>
+                  <div dir="rtl" style={{ color: 'var(--text-faint, #8A909C)', fontSize: 10.5, marginTop: 2 }}>النقطة التي تحتاج دليلاً أقوى</div>
+                  <p style={{ margin: '7px 0 0', color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.55 }}>{gapDetail}</p>
                 </div>
               </div>
             </section>
 
             {!!preview.dayOne?.actions?.length && (
-              <section style={{ marginTop: 13, padding: '13px 14px', borderRadius: 11, border: '1px solid rgba(96,165,250,0.28)', background: 'rgba(59,130,246,0.05)' }}>
-                <h3 style={{ margin: 0, color: 'var(--accent-2, #93c5fd)', fontSize: 13.5 }}>Dein kostenloser Tag 1</h3>
-                <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-faint, #64748b)', fontSize: 11 }}>خطتك المجانية لليوم الأول</div>
-                <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--text-dim, #94a3b8)', fontSize: 11.5, lineHeight: 1.6 }}>
+              <section style={{ marginTop: 13, padding: '13px 14px', borderRadius: 11, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}>
+                <h3 style={{ margin: 0, color: 'var(--accent-2, var(--text-dim))', fontSize: 13.5 }}>Dein kostenloser Tag 1</h3>
+                <div dir="rtl" style={{ marginTop: 3, color: 'var(--text-faint, #8A909C)', fontSize: 11 }}>خطتك المجانية لليوم الأول</div>
+                <ul style={{ margin: '8px 0 0', paddingLeft: 18, color: 'var(--text-dim, #5A6270)', fontSize: 11.5, lineHeight: 1.6 }}>
                   {preview.dayOne.actions.slice(0, 4).map((action) => <li key={action}>{DAY_ONE_ACTIONS[action] || action}</li>)}
                 </ul>
               </section>
@@ -455,7 +455,7 @@ export function InterviewPassPreview({
                 PASS SPEICHERN · KONTO ERSTELLEN
               </button>
             </div>
-            <div dir="rtl" style={{ textAlign: 'right', marginTop: 8, color: 'var(--text-faint, #64748b)', fontSize: 11 }}>
+            <div dir="rtl" style={{ textAlign: 'right', marginTop: 8, color: 'var(--text-faint, #8A909C)', fontSize: 11 }}>
               الحساب المجاني يحفظ هذه المعاينة ويفتح الخطوة الأولى فقط
             </div>
           </div>

@@ -171,7 +171,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -214,7 +214,7 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'var(--action)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
@@ -225,11 +225,11 @@ export function SatzbauSchmiede({ token, apiUrl, lang = 'de', onClose, onGoPrici
 
     {/* Assembled sentence-so-far */}
     <div style={{ minHeight: 56, padding: '10px 12px', borderRadius: 10, background: 'var(--surface)',
-      border: '1px solid rgba(59,130,246,0.25)', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+      border: '1px solid var(--line-strong)', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
       {chosen.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>{T(lang, 'Tippe die Wörter in der richtigen Reihenfolge…', '')}</span>}{/* OWNER-AR slot */}
       {chosen.map((i, pos) => (
         <span key={pos} style={{ padding: '6px 10px', borderRadius: 7, fontSize: 13.5,
-          background: 'rgba(59,130,246,0.16)', border: '1px solid rgba(59,130,246,0.4)', color: 'var(--text)' }}>
+          background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--text)' }}>
           {tiles[i]?.text}
         </span>
       ))}

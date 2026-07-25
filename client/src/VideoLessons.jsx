@@ -563,15 +563,15 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
   // ── shells ──
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
-      color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', fontFamily: FONT,
+      background: 'var(--bg-0, #F5F3EF)',
+      color: 'var(--text, #0E1320)', padding: '20px 16px 32px', boxSizing: 'border-box', fontFamily: FONT,
       animation: reducedMotion ? 'none' : 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 520, margin: '0 auto' }}>{children}</div>
     </div>
   );
   const header = (backBtn) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 8 }}>
-      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.02em', color: '#60a5fa' }}>
+      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.02em', color: 'var(--accent)' }}>
         VIDEO-LEKTIONEN{/* OWNER-AR slot: header label */}
       </span>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -603,7 +603,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', lineHeight: 1.35 }}>{les.title}</span>
-              <span style={{ fontSize: 11, color: '#60a5fa', whiteSpace: 'nowrap', fontWeight: 700 }}>▶ ≈ {estMinutes(les)} Min.</span>
+              <span style={{ fontSize: 11, color: 'var(--accent)', whiteSpace: 'nowrap', fontWeight: 700 }}>▶ ≈ {estMinutes(les)} Min.</span>
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.55, marginTop: 6 }}>
               {recommended && rec.reason ? rec.reason : les.hook}
@@ -639,10 +639,12 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
         {qz.options.map((opt, i) => {
           const isCorrect = i === qz.correct;
           const isPicked  = i === qPicked;
-          let bg = 'rgba(14,19,32,0.16)', border = 'rgba(96,165,250,0.25)';
+          // Unanswered options are white cards with a hairline, NOT a 16%-ink slab: on the light
+          // ground that slab rendered as a row of grey blocks and read as disabled.
+          let bg = 'var(--surface)', border = 'var(--line-strong)';
           if (qPicked !== null) {
-            if (isCorrect) { bg = 'rgba(59,130,246,0.12)'; border = 'rgba(59,130,246,0.5)'; }
-            else if (isPicked) { bg = 'rgba(239,68,68,0.12)'; border = 'rgba(239,68,68,0.5)'; }
+            if (isCorrect) { bg = 'var(--surface-2)'; border = 'var(--accent)'; }
+            else if (isPicked) { bg = 'rgba(180,35,24,0.07)'; border = 'var(--bad)'; }
           }
           return (
             <button key={i} onClick={() => pickAnswer(i)} disabled={qPicked !== null}
@@ -657,7 +659,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
 
       {qPicked !== null && (
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, animation: reducedMotion ? 'none' : 'flash-in 0.35s ease',
-          background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.3)' }}>
+          background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
           <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6 }}>{qz.why}</div>
           <button onClick={nextQuestion} style={{ ...primaryBtn, marginTop: 14 }}>
             {qIdx + 1 < qShuffled.length ? 'Nächste Frage ▸' : 'Ergebnis ▸'}{/* OWNER-AR slot */}
@@ -707,7 +709,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
     <div style={{ display: 'flex', gap: 5, marginBottom: 6 }}>
       {lesson.slides.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? '#3b82f6' : i === idx ? 'rgba(96,165,250,0.55)' : 'var(--surface-2)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'var(--accent)' : 'var(--surface-2)' }} />
       ))}
     </div>
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--text-faint)', marginBottom: 22, letterSpacing: '0.08em' }}>
@@ -718,7 +720,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
     {/* the slide — kinetic typography */}
     <div key={`${lesson.id}-${idx}`} style={{ minHeight: 300 }}>
       {slide.kicker && (
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.2em', color: '#60a5fa', marginBottom: 10, animation: riseIn }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.2em', color: 'var(--accent)', marginBottom: 10, animation: riseIn }}>
           {slide.kicker}
         </div>
       )}
@@ -735,7 +737,7 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
 
       {shown >= lines.length && slide.falsch && (
         <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, animation: riseIn,
-          background: 'rgba(148,163,184,0.06)', border: '1px solid rgba(148,163,184,0.3)' }}>
+          background: 'rgba(148,163,184,0.06)', border: '1px solid var(--line-strong)' }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: 'var(--text-dim)', marginBottom: 6 }}>
             ✗ FALSCH — so nicht{/* OWNER-AR slot */}
           </div>
@@ -747,8 +749,8 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
 
       {shown >= lines.length && slide.example && (
         <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 10, animation: riseIn,
-          background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.4)', borderLeft: '3px solid #3b82f6' }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: '#60a5fa', marginBottom: 6 }}>
+          background: 'var(--surface-2)', border: '1px solid var(--line-strong)', borderLeft: '3px solid var(--line-strong)' }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', color: 'var(--accent)', marginBottom: 6 }}>
             {slide.falsch ? '✓ RICHTIG' : 'BEISPIEL'}{/* OWNER-AR slot */}
           </div>
           <div style={{ fontSize: 19, fontWeight: 700, color: 'var(--text)', lineHeight: 1.5 }}>{slide.example}</div>
@@ -779,11 +781,11 @@ export function VideoLessons({ token, apiUrl, lang = 'de', onClose }) {   // esl
 // ── styles (shared atoms from ui/primitives; locals below are screen-specific, tokens only) ──
 const FONT = "'Inter', system-ui, sans-serif";
 const cardBtn = { display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: FONT, padding: '16px',
-  minHeight: 44, borderRadius: 12, border: '1px solid rgba(96,165,250,0.25)', background: 'var(--surface)',
+  minHeight: 44, borderRadius: 12, border: '1px solid var(--line-strong)', background: 'var(--surface)',
   color: 'var(--text)', marginBottom: 12, boxSizing: 'border-box' };
 const ctlBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 50, height: 50, borderRadius: 12,
   border: '1px solid rgba(148,163,184,0.35)', background: 'var(--surface-2)', color: 'var(--text-dim)', lineHeight: 1 };
 const playBtn = { cursor: 'pointer', fontFamily: FONT, fontSize: 20, width: 64, height: 64, borderRadius: 16, fontWeight: 600,
-  border: '1px solid #f97316', background: 'linear-gradient(135deg,#fb923c,#f97316)', color: '#04070d', lineHeight: 1 };
+  border: '1px solid #f97316', background: 'linear-gradient(135deg,#fb923c,#f97316)', color: 'var(--text)', lineHeight: 1 };
 
 export default VideoLessons;

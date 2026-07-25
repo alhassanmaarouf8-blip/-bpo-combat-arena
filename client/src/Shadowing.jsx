@@ -222,7 +222,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
         personal reason THIS student is here (owner law 5: all surfaces one organism). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -272,12 +272,12 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {sentences.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent-2)' : i === idx ? 'rgba(96,165,250,0.5)' : 'var(--surface-2)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'var(--action)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
     {/* the model sentence */}
-    <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(96,165,250,0.22)' }}>
+    <div style={{ padding: '14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)' }}>
       <div style={{ fontSize: 16, color: 'var(--text)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{s?.de}</div>
       <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 7, lineHeight: 1.6 }}>{s?.en}</div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 12 }}>
@@ -337,7 +337,7 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
             </div>
           ) : (
             <div style={{ textAlign: 'left' }}>
-              <div style={{ padding: '11px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.3)' }}>
+              <div style={{ padding: '11px 13px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
                 <div style={{ fontSize: 9, color: 'var(--accent-2)', letterSpacing: '0.1em', marginBottom: 5 }}>
                   {T(lang, 'WORTGENAUIGKEIT', 'دقة الكلمات')} · {
                     Number.isFinite(Number(result.match ?? result.accuracy)) ? `${Number(result.match ?? result.accuracy)}%` : 'nicht verfügbar'
@@ -380,5 +380,5 @@ export function Shadowing({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
 
 // ── shared button styles (match the Assessment screen) ──
 const speedBtn = (on) => ({ cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 10, padding: '5px 9px', borderRadius: 7,
-  fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent-2)' : 'rgba(148,163,184,0.3)'}`,
-  background: on ? 'rgba(96,165,250,0.15)' : 'transparent', color: on ? 'var(--accent-2)' : 'var(--text-dim)' });
+  fontWeight: on ? 700 : 400, border: `1px solid ${on ? 'var(--accent-2)' : 'var(--line-strong)'}`,
+  background: on ? 'var(--surface-2)' : 'transparent', color: on ? 'var(--accent-2)' : 'var(--text-dim)' });

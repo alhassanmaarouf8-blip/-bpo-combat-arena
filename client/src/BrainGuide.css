@@ -124,7 +124,11 @@
 }
 
 .brain-guide__confidence {
-  margin-left: auto;
+  /* Sits beside its own pulse dot, at EVERY width. This used to be margin-left:auto with a
+     max-width:680px override back to 0 — so the pair only read as a pair on phones. On desktop
+     the kicker row is 862px wide, which flung the chip 786px away from the dot it belongs to
+     and looked broken. The mobile override was the intended look; make it the base rule. */
+  margin-left: 0;
   padding: 5px 8px;
   border: 1px solid rgba(14,19,32,.12);
   border-radius: 999px;
@@ -166,7 +170,7 @@
   color: #0E1320;
   background: rgba(14,19,32,0.08);
   font-size: 8px;
-  font-weight: 900;
+  font-weight: 750;
   letter-spacing: 0.11em;
 }
 
@@ -195,6 +199,10 @@
   justify-content: space-between;
   gap: 14px;
   width: 100%;
+  /* A button is sized to its label, not to its container. Unbounded, this stretched to 862px on
+     desktop and read as an orange banner rather than a control — the inflated look. Phones are
+     narrower than the cap, so their full-width CTA is unchanged. */
+  max-width: 420px;
   min-height: 54px;
   margin-top: 14px;
   padding: 14px 18px;
@@ -227,7 +235,9 @@
   transition: transform 650ms ease;
   pointer-events: none;
 }
-.brain-guide__cta:hover { transform: translateY(-2px); filter: saturate(1.08); box-shadow: 0 15px 38px rgba(35, 116, 227, 0.35); }
+/* Hover lifts, it does not bloom: the old 38px spread was a BLUE (35,116,227) glow — both a
+   leftover from the dark theme in a white+orange-only app, and the glow bloom the craft law bans. */
+.brain-guide__cta:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(14, 19, 32, 0.18); }
 .brain-guide__cta:hover::before { transform: translateX(125%); }
 
 .brain-guide__audio:focus-visible,
@@ -268,7 +278,7 @@
   margin-bottom: 8px;
   color: #0E1320;
   font-size: 8.5px;
-  font-weight: 900;
+  font-weight: 750;
   letter-spacing: 0.12em;
 }
 .brain-guide__briefing-card--next > span { color: #D9541A; }
@@ -305,7 +315,7 @@
   margin-bottom: 3px;
   color: #D9541A;
   font-size: 8px;
-  font-weight: 900;
+  font-weight: 750;
   letter-spacing: 0.12em;
 }
 .brain-guide__north-star strong { display: block; color: #5A6270; font-size: 11.5px; line-height: 1.45; }
@@ -343,7 +353,7 @@
 .brain-guide__track { height: 5px; overflow: hidden; border-radius: 99px; background: #FFFFFF; }
 .brain-guide__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--guide-blue-deep), var(--guide-blue), var(--guide-orange));  transition: width 440ms cubic-bezier(.2,.8,.2,1); }
 .brain-guide__journey-caveat { margin: 8px 0 0; color: #637992; font-size: 9.5px; line-height: 1.45; }
-.brain-guide__proof { margin-bottom: 13px; padding: 11px; border: 1px solid rgba(14,19,32,0.3); border-radius: 12px; background: rgba(59, 130, 246, 0.09); }
+.brain-guide__proof { margin-bottom: 13px; padding: 11px; border: 1px solid rgba(14,19,32,0.3); border-radius: 12px; background: var(--surface-2); }
 
 @keyframes brain-guide-pulse {
   0%, 100% { box-shadow: 0 0 0 4px rgba(14,19,32,0.12), 0 0 18px rgba(14,19,32,0.65); }
@@ -355,7 +365,6 @@
   .brain-guide { border-radius: 17px; }
   .brain-guide__mission { padding: 16px; border-radius: 15px; }
   .brain-guide__mission-kicker { flex-wrap: wrap; }
-  .brain-guide__confidence { margin-left: 0; }
   .brain-guide__specs { grid-template-columns: 1fr; }
   .brain-guide__spec { padding: 11px 12px; }
   .brain-guide__dose { align-items: flex-start; flex-direction: column; gap: 7px; }
@@ -393,7 +402,7 @@
   min-height: 44px;
   display: flex;
   align-items: center;
-  color: var(--text-dim, #9aa7bd);
+  color: var(--text-dim, #5A6270);
   font-size: 12.5px;
   list-style: none;
 }
@@ -407,9 +416,9 @@
   font-size: 12.5px;
   line-height: 1.6;
 }
-.brain-guide__why-body p strong { color: var(--text, #e8eef6); font-weight: 600; }
+.brain-guide__why-body p strong { color: var(--text, #0E1320); font-weight: 600; }
 .brain-guide__why-goal { color: #9aa7bd !important; }
-.brain-guide__why-body em { color: #64748b; font-size: 11px; font-style: normal; }
+.brain-guide__why-body em { color: #8A909C; font-size: 11px; font-style: normal; }
 
 /* ── ORIENTATION (replaces the three numbered briefing cards + the north-star block) ──────────
    Still always visible — that contract is deliberate and kept — but it now reads as quiet prose

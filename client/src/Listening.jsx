@@ -211,7 +211,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -257,12 +257,12 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {items.map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'var(--action)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
     {/* Play card — NO text shown; the whole point is to catch it by ear */}
-    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'center' }}>
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)', textAlign: 'center' }}>
       <button onClick={play} disabled={!canPlay} style={{ ...actionBtn, opacity: canPlay ? 1 : 0.45, cursor: canPlay ? 'pointer' : 'default' }}>
         <SpeakerIcon style={{ marginRight: 6 }} /> {playing
           ? T(lang, 'Audio wird vorbereitet…', 'بنجهّز الصوت…')
@@ -295,7 +295,7 @@ export function Listening({ token, apiUrl, lang = 'de', onClose, onGoPricing, wh
                   style={{ textAlign: lang === 'ar' ? 'right' : 'left', direction: lang === 'ar' ? 'rtl' : 'ltr',
                     padding: '11px 13px', borderRadius: 9, fontSize: 13.5, cursor: result ? 'default' : 'pointer', color: 'var(--text)',
                     background: result && isRight ? 'rgba(34,197,94,0.12)' : (result && chose ? 'rgba(239,68,68,0.1)' : 'var(--surface-2)'),
-                    border: `1px solid ${result ? (isRight ? 'rgba(34,197,94,0.6)' : (chose ? 'rgba(239,68,68,0.6)' : 'rgba(148,163,184,0.2)')) : 'rgba(148,163,184,0.35)'}` }}>
+                    border: `1px solid ${result ? (isRight ? 'rgba(34,197,94,0.6)' : (chose ? 'rgba(239,68,68,0.6)' : 'var(--line)')) : 'rgba(148,163,184,0.35)'}` }}>
                   {result && isRight ? '✓ ' : ''}{T(lang, o.de, o.ar)}
                 </button>
               );

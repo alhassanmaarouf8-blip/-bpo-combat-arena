@@ -160,7 +160,7 @@ export function FluencyDrill({ token, apiUrl, lang = 'de', level = 'a2-b1', onCl
     {/* WHY-YOU framing: set only when the brain/debrief prescribed this drill (owner law 5). */}
     {why && (
       <div style={{ margin: '0 0 12px', padding: '9px 11px', borderRadius: 8, fontSize: 12, lineHeight: 1.55,
-        color: 'var(--text-dim)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', textAlign: 'left' }}>
+        color: 'var(--text-dim)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)', textAlign: 'left' }}>
         {why}
       </div>
     )}
@@ -433,16 +433,16 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
           warn={relevancyWarn} />
       </div>
 
-      <div style={{ padding: '12px 14px', borderRadius: 11, background: wpmGood ? 'rgba(59,130,246,0.08)' : 'rgba(96,165,250,0.07)',
-        border: `1px solid ${wpmGood ? 'rgba(59,130,246,0.35)' : 'rgba(96,165,250,0.3)'}` }}>
+      <div style={{ padding: '12px 14px', borderRadius: 11, background: wpmGood ? 'var(--surface-2)' : 'var(--surface-2)',
+        border: `1px solid ${wpmGood ? 'var(--line-strong)' : 'var(--line-strong)'}` }}>
         <div style={{ fontSize: 13.5, color: 'var(--text)', lineHeight: 1.6 }}>{wpmLine}</div>
         {fillerLine && <div style={{ fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.6, marginTop: 8 }}>{fillerLine}</div>}
       </div>
 
       {relevancyLine && (
         <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10,
-          background: relevancyWarn ? 'rgba(249,115,22,0.08)' : 'rgba(59,130,246,0.07)',
-          border: `1px solid ${relevancyWarn ? 'rgba(249,115,22,0.4)' : 'rgba(59,130,246,0.3)'}` }}>
+          background: relevancyWarn ? 'rgba(249,115,22,0.08)' : 'var(--surface-2)',
+          border: `1px solid ${relevancyWarn ? 'rgba(249,115,22,0.4)' : 'var(--line-strong)'}` }}>
           <div style={{ fontSize: 12.5, color: relevancyWarn ? 'var(--action-2)' : 'var(--text-dim)', lineHeight: 1.6 }}>{relevancyLine}</div>
         </div>
       )}
@@ -451,24 +451,24 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
           German-only (OWNER-AR slots, not authored here); each is its own small card so a missing
           signal (e.g. subClauseRate null on a short answer) never leaves an empty gap. */}
       {pauseLine && (
-        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.25)' }}>
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6 }}>{pauseLine}</div>
         </div>
       )}
       {vocabLine && (
-        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.25)' }}>
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6 }}>{vocabLine}</div>
         </div>
       )}
       {complexityLine && (
-        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.25)' }}>
+        <div style={{ marginTop: 8, padding: '10px 13px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6 }}>{complexityLine}</div>
         </div>
       )}
 
       {/* Authoritative grammar — LanguageTool only. Clearly separated from the fluency win. */}
       {grammar.length > 0 && (
-        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 11, background: 'var(--surface)', border: '1px solid rgba(148,163,184,0.25)' }}>
+        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 11, background: 'var(--surface)', border: '1px solid var(--line-strong)' }}>
           <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.12em', marginBottom: 8 }}>
             {T(lang, 'GRAMMATIK AUS RUNDE 3 (separat üben)', 'نحو من الجولة 3 (اتدرّب عليه لوحده)')}
           </div>
@@ -506,7 +506,7 @@ function Debrief({ lang, prompt, rounds, results, onAgain, onClose }) {
 // otherwise neutral. A dash value stays neutral (not measurable this round).
 function MatrixCell({ label, value, unit, good, warn }) {
   const color = warn ? 'var(--action)' : good ? 'var(--good)' : 'var(--text-dim)';
-  const border = warn ? 'rgba(249,115,22,0.4)' : good ? 'rgba(59,130,246,0.35)' : 'rgba(148,163,184,0.2)';
+  const border = warn ? 'rgba(249,115,22,0.4)' : good ? 'var(--line-strong)' : 'var(--line)';
   return (
     <div style={{ flex: 1, padding: '10px 8px', borderRadius: 10, textAlign: 'center',
       background: 'var(--surface-2)', border: `1px solid ${border}` }}>
@@ -522,7 +522,7 @@ function RoundCard({ lang, label, m, dim }) {
   return (
     <div style={{ flex: 1, padding: '12px 10px', borderRadius: 11, textAlign: 'center',
       background: dim ? 'var(--surface-2)' : 'rgba(249,115,22,0.1)',
-      border: `1px solid ${dim ? 'rgba(148,163,184,0.2)' : 'rgba(249,115,22,0.45)'}` }}>
+      border: `1px solid ${dim ? 'var(--line)' : 'rgba(249,115,22,0.45)'}` }}>
       <div style={{ fontSize: 8.5, color: dim ? 'var(--text-dim)' : 'var(--action)', letterSpacing: '0.12em' }}>{label}</div>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: dim ? 'var(--text-dim)' : 'var(--action)', fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{m.wpm ?? 0}</div>
       <div style={{ fontSize: 8.5, color: 'var(--text-faint)' }}>{T(lang, 'W/Min', 'كلمة/د')}</div>
@@ -767,7 +767,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
         <MatrixCell label="AUTOMATISCH" value={`${autos}`} unit="unter 1,5 s" good={autos > 0} />
         <MatrixCell label="REAKTION" value={avgLat != null ? `${(avgLat / 1000).toFixed(1)}s` : '—'} unit="im Schnitt" good={avgLat != null && avgLat <= 1500} />
       </div>
-      <div style={{ padding: '12px 14px', borderRadius: 11, background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.3)' }}>
+      <div style={{ padding: '12px 14px', borderRadius: 11, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
         <div style={{ fontSize: 12.5, color: 'var(--text-dim)', lineHeight: 1.6 }}>
           Getroffene Formeln kommen nach dem 1-3-7-14-30-Tage-Plan wieder; verpasste schon morgen.
           So wird aus Wissen ein Reflex — genau das, was am Telefon zählt.
@@ -789,7 +789,7 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
         Profis rufen feste Formeln ohne Nachdenken ab. Hör die Formel einmal — dann kommt die Situation, und du sagst sie sofort aus dem Kopf.
       </div>
     )}
-    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(96,165,250,0.3)' }}>
+    <div style={{ padding: '16px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)' }}>
       <div style={{ fontSize: 9, color: 'var(--accent-2)', letterSpacing: '0.12em', marginBottom: 8 }}>MERK DIR DIE FORMEL</div>
       <div style={{ fontSize: 19, color: 'var(--text)', lineHeight: 1.55, fontWeight: 600, overflowWrap: 'anywhere' }}>{item.chunk}</div>
       {item.note_ar && <div dir="rtl" style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 7 }}>{item.note_ar}</div>}
@@ -833,8 +833,8 @@ function ChunkMode({ token, apiUrl, lang, shell, onBack, onClose, blocked }) {
       {header}
       {progress}
       <div style={{ padding: '16px 14px', borderRadius: 12, textAlign: 'center',
-        background: good ? 'rgba(59,130,246,0.08)' : 'rgba(239,68,68,0.08)',
-        border: `1px solid ${good ? 'rgba(59,130,246,0.4)' : 'rgba(239,68,68,0.4)'}` }}>
+        background: good ? 'var(--surface-2)' : 'rgba(239,68,68,0.08)',
+        border: `1px solid ${good ? 'var(--line-strong)' : 'rgba(239,68,68,0.4)'}` }}>
         <div style={{ fontSize: 16, color: good ? 'var(--good)' : 'var(--bad)', fontWeight: 700, lineHeight: 1.5 }}>{title}</div>
         {!good && (
           <div style={{ marginTop: 12, textAlign: 'left' }}>

@@ -180,7 +180,9 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
   // ── shells ──
   const shell = (children) => (
     <div style={{ position: 'fixed', inset: 0, zIndex: 240, overflowY: 'auto',
-      background: 'radial-gradient(120% 90% at 50% 12%, #0a1626 0%, #050a12 55%, #020409 100%)',
+      // Was a near-black radial while color stayed var(--text) — i.e. ink on black, so the whole
+      // Einstufung rendered unreadable once the tokens went light. Flat light ground, no gradient.
+      background: 'var(--bg-0)',
       color: 'var(--text)', padding: '20px 16px 32px', boxSizing: 'border-box', animation: 'flash-in 0.3s ease' }}>
       <div style={{ maxWidth: 460, margin: '0 auto' }}>{children}</div>
     </div>
@@ -226,7 +228,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
     {header}
     <div style={{ textAlign: 'center', padding: '40px 0' }}>
       <div style={{ width: 60, height: 60, margin: '0 auto 18px', borderRadius: '50%',
-        border: '3px solid rgba(59,130,246,0.16)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
+        border: '3px solid var(--line)', borderTopColor: 'var(--accent)', animation: 'spin 0.9s linear infinite' }} />
       <div style={{ fontSize: 14, color: 'var(--text)' }}>{T(lang, 'Deine Antworten werden ausgewertet…', 'بنحلّل إجاباتك…')}</div>
       <div dir="rtl" style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>استنى لحظة</div>
     </div>
@@ -257,18 +259,18 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
       <span style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
         {T(lang, 'FRAGE', 'سؤال')} {idx + 1} {adaptive ? T(lang, '· max. 7', '· الأقصى ٧') : `/ ${QUESTIONS.length}`}
       </span>
-      <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
+      <span style={{ fontSize: 10, color: 'var(--accent)', border: '1px solid var(--line-strong)', borderRadius: 99, padding: '2px 9px' }}>{q.band}</span>
     </div>
     {/* progress dots */}
     <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
       {(adaptive ? Array.from({ length: 7 }) : QUESTIONS).map((_, i) => (
         <div key={i} style={{ flex: 1, height: 4, borderRadius: 99,
-          background: i < idx ? 'var(--accent)' : i === idx ? 'rgba(59,130,246,0.5)' : 'var(--surface-2)' }} />
+          background: i < idx ? 'var(--accent)' : i === idx ? 'var(--action)' : 'var(--surface-2)' }} />
       ))}
     </div>
 
     {/* the German prompt + Arabic translation so they understand the task */}
-    <div style={{ padding: '13px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.22)' }}>
+    <div style={{ padding: '13px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)' }}>
       <div style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{q.de}</div>
       {/* New adaptive questions ship with empty OWNER-AR slots — render nothing, never a blank row. */}
       {q.ar ? <div dir="rtl" style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 7, lineHeight: 1.6 }}>{q.ar}</div> : null}
@@ -288,7 +290,7 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
             00:{String(seconds).padStart(2, '0')}
           </div>
           <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 12 }}>{T(lang, `max. ${MAX_SEC} Sek.`, `الأقصى ${MAX_SEC} ثانية`)}</div>
-          <button onClick={stopRec} style={{ ...primaryBtn, background: 'var(--bad)', boxShadow: 'none', color: '#081019' }}>
+          <button onClick={stopRec} style={{ ...primaryBtn, background: 'var(--bad)', boxShadow: 'none', color: '#FFFFFF' }}>
             ⏹ {T(lang, 'Aufnahme stoppen', 'إيقاف التسجيل')}
           </button>
         </>
@@ -296,13 +298,13 @@ export function Assessment({ token, apiUrl, lang = 'de', onClose, onGoPricing, o
         <div style={{ color: 'var(--text-dim)', fontSize: 13, padding: 14 }}>{T(lang, 'Wird verarbeitet…', 'بنحوّل صوتك لنص…')}</div>
       ) : answer ? (
         <>
-          <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' }}>
+          <div style={{ textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
             <div style={{ fontSize: 9, color: 'var(--accent)', letterSpacing: '0.1em', marginBottom: 5 }}>{T(lang, 'DEINE ANTWORT', 'إجابتك')}</div>
             <textarea value={answer.transcript || ''} maxLength={4000} lang="de" dir="ltr"
               aria-label={T(lang, 'Erkannten Text korrigieren', 'صحّح النص اللي اتسمع')}
               onChange={(e) => setAns((prev) => { const n = [...prev]; n[idx] = { ...n[idx], transcript: e.target.value, transcriptCorrected: true }; return n; })}
               style={{ width:'100%', minHeight:72, boxSizing:'border-box', resize:'vertical', padding:9, borderRadius:8,
-                background: 'var(--surface)', border:'1px solid rgba(148,163,184,0.3)', color:'var(--text)', fontSize:13, lineHeight:1.5 }} />
+                background: 'var(--surface)', border:'1px solid var(--line-strong)', color:'var(--text)', fontSize:13, lineHeight:1.5 }} />
             <div style={{ fontSize:10, color:'var(--text-dim)', marginTop:5, lineHeight:1.45 }}>
               {T(lang, 'Korrigiere nur Erkennungsfehler — formuliere deine Antwort nicht neu.', 'صحّح بس أخطاء السماع — ما تعيدش صياغة إجابتك.')}
             </div>
@@ -347,7 +349,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
     <div>
       <div style={{ textAlign: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 600, color: 'var(--accent)', textShadow: '0 0 22px rgba(59,130,246,0.5)' }}>~{lvl}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 600, color: 'var(--accent)', textShadow: '0 0 22px rgba(14,19,32,0.18)' }}>~{lvl}</div>
         <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
       </div>
 
@@ -370,7 +372,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
           weaknesses (that would be invented). Say so, and point to the real read: a full interview. */}
       {result.measured?.evidenceThin && (
         <div style={{ fontSize: 11.5, color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.55, marginBottom: 16,
-          padding: '10px 13px', borderRadius: 10, background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
+          padding: '10px 13px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
           {T(lang,
             'Das waren noch wenige Wörter — für ein genaues Bild reicht das nicht. Wir raten hier bewusst nichts zusammen. Ein vollständiges Interview gibt dir die echte Auswertung.',
             'الكلام كان قليل لسه — مش كفاية لتقييم دقيق. إحنا مش بنخمّن حاجة من عندنا. إنترفيو كامل هيديك التقييم الحقيقي.')}
@@ -378,7 +380,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
       )}
 
       {result.blockers?.length > 0 && (
-        <Section title={T(lang, 'Deine größten Blocker', 'أكبر الحاجات اللي بتوقفك')} color="#f87171">
+        <Section title={T(lang, 'Deine größten Blocker', 'أكبر الحاجات اللي بتوقفك')} color="var(--bad)">
           {result.blockers.map((b, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 12.5, color: 'var(--bad)', fontWeight: 700 }}>{b.rule}</div>

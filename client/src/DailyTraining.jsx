@@ -200,7 +200,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
           {questions.some((x) => x && Object.prototype.hasOwnProperty.call(x, 'source')) && (
             /* OWNER-AR slot */
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-2)', padding: '6px 14px',
-              borderRadius: 'var(--r-pill)', background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.30)' }}>
+              borderRadius: 'var(--r-pill)', background: 'var(--surface-2)', border: '1px solid var(--line-strong)' }}>
               {tally.correct} in dieser Runde richtig beantwortet
               {tally.mistakeFixed > 0 ? ` · ${tally.mistakeFixed} frühere Fehler heute korrekt` : ''}
             </div>
@@ -218,7 +218,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Phrase of the day */}
           {data.phrase && (
-            <div style={{ ...card, borderColor: 'rgba(59,130,246,0.3)' }}>
+            <div style={{ ...card, borderColor: 'var(--line-strong)' }}>
               <div style={{ ...secTitle, color: 'var(--accent)' }}>ZUSATZ · SATZ FÜR DEN JOB</div>
               <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 7 }}>
                 Unabhängig von deinem Reparaturblock unten: anhören und einmal laut nachsprechen.
@@ -277,8 +277,8 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 
               {result && (
                 <div className="flash" style={{ marginTop: 10, padding: '9px 11px', borderRadius: 'var(--r-sm)',
-                  background: result.correct ? 'rgba(59,130,246,0.12)' : 'rgba(239,68,68,0.12)',
-                  border: `1px solid ${result.correct ? 'rgba(59,130,246,0.33)' : 'rgba(239,68,68,0.33)'}` }}>
+                  background: result.correct ? 'var(--surface-2)' : 'rgba(239,68,68,0.12)',
+                  border: `1px solid ${result.correct ? 'var(--line-strong)' : 'rgba(239,68,68,0.33)'}` }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: result.correct ? 'var(--accent)' : 'var(--bad)' }}>
                     {result.correct ? '✓ Richtig' : '✗ Noch nicht richtig'}
                   </div>
@@ -338,8 +338,8 @@ const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'l
 const secTitle = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-dim)', marginBottom: 6 };
 const inputSt = { width: '100%', padding: '11px', borderRadius: 'var(--r-sm)', background: 'var(--surface-2)', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, border: '1px solid var(--line)', outline: 'none', boxSizing: 'border-box' };
 // minWidth/minHeight 44 = the mobile touch-target floor — these are tap-mid-drill buttons.
-const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.35)', background: 'rgba(59,130,246,0.07)', color: 'var(--accent-dim)' };
-const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: '#04070d', background: 'linear-gradient(135deg, var(--action), var(--warn))' };
+const cueBtn = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', padding: '4px 9px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line-strong)', background: 'var(--surface-2)', color: 'var(--accent-dim)' };
+const primary = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', padding: '11px 16px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--warn)', color: 'var(--text)', background: 'linear-gradient(135deg, var(--action), var(--warn))' };
 const ghost = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 12, padding: '7px 11px', minWidth: 44, minHeight: 44, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };
 const errBox = { margin: '0 16px 8px', padding: '8px 12px', borderRadius: 8, fontSize: 11, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: 'var(--bad)' };
-const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid rgba(59,130,246,0.25)', background: 'rgba(59,130,246,0.06)', color: 'var(--accent-dim)', lineHeight: 1 };
+const speakBtnSt = { flexShrink: 0, fontSize: 14, padding: '2px 5px', minWidth: 44, minHeight: 44, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line-strong)', background: 'var(--surface-2)', color: 'var(--accent-dim)', lineHeight: 1 };

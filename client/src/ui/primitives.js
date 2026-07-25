@@ -14,7 +14,9 @@
 export const actionBtn = {
   width: '100%', padding: '14px', minHeight: 50, cursor: 'pointer',
   fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, letterSpacing: '0.02em',
-  borderRadius: 12, border: 'none', color: '#081019',
+  // White on orange. This was #081019 — near-black on orange, the dark-theme convention — and since
+  // this is THE shared action atom, that one value set the label colour on every drill's primary button.
+  borderRadius: 12, border: 'none', color: '#FFFFFF',
   background: 'var(--grad-action)', boxShadow: 'var(--shadow-action)',
 };
 
@@ -29,7 +31,9 @@ export const ghostBtn = {
 export const ghostBtnWide = {
   flex: 1, cursor: 'pointer', fontFamily: 'var(--font-display)', fontSize: 12.5, padding: '12px',
   minHeight: 44, borderRadius: 'var(--r-md)', border: '1px solid var(--line-strong)',
-  background: 'rgba(255,255,255,0.03)', color: 'var(--text-dim)',
+  // 3% white was a lift on a dark ground; on the light ground it is invisible, so the button had
+  // no surface at all — just a hairline. An explicit white surface reads as a real control.
+  background: 'var(--surface)', color: 'var(--text-dim)',
 };
 
 // Screen title (drill headers): calm weight-600 sentence case — never caps-900/letterSpacing:2.

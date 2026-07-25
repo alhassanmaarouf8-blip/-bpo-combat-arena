@@ -6,9 +6,9 @@
 export function Spinner({ size = 30 }) {
   return (
     <span role="status" aria-label="Lädt…" style={{ display: 'inline-block', width: size, height: size,
-      borderRadius: '50%', border: '2.5px solid rgba(59,130,246,0.22)', borderTopColor: '#3b82f6',
+      borderRadius: '50%', border: '2.5px solid var(--line-strong)', borderTopColor: 'var(--line-strong)',
       animation: 'omni-spin 0.8s linear infinite' }}>
-      <style>{`@keyframes omni-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){[role=status]{animation:none!important;border-color:rgba(59,130,246,0.5)!important}}`}</style>
+      <style>{`@keyframes omni-spin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){[role=status]{animation:none!important;border-color:var(--line-strong)!important}}`}</style>
     </span>
   );
 }

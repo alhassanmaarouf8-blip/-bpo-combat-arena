@@ -34,13 +34,17 @@ function paintError(title, detail) {
   if (!root) return;
   root.innerHTML = '';
   const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:24px;text-align:center;background:#0a0f1a;color:#fca5a5;font-family:monospace;z-index:99999';
-  const technical = IS_PRODUCTION ? '' : `<pre style="max-width:560px;max-height:50vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;color:#fb923c;text-align:left;background:#020409;padding:14px;border-radius:8px;border:1px solid #f8717155">${String(detail || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre>`;
+  // Literal values, not var(--…): this screen exists precisely for the case where the app — and
+  // therefore App.jsx's token layer — never mounted, so a token here would resolve to nothing.
+  // They mirror the light palette exactly, because a dark slab here is the ONE screen a broken
+  // load shows, and it used to be the last dark surface left in the product.
+  box.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:24px;text-align:center;background:#F5F3EF;color:#5A6270;font-family:Inter,system-ui,sans-serif;z-index:99999';
+  const technical = IS_PRODUCTION ? '' : `<pre style="max-width:560px;max-height:50vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;color:#B8430F;text-align:left;background:#FFFFFF;padding:14px;border-radius:8px;border:1px solid rgba(14,19,32,0.10)">${String(detail || '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))}</pre>`;
   box.innerHTML =
-    `<div style="font-size:20px;font-weight:700;color:#f8fafc">German Interview Trainer</div>` +
-    `<div style="font-size:15px;color:#cbd5e1">Die App konnte gerade nicht geladen werden. Deine Zahlung oder dein Konto wurden dadurch nicht verändert.</div>` +
+    `<div style="font-size:20px;font-weight:700;color:#0E1320">German Interview Trainer</div>` +
+    `<div style="font-size:15px;color:#5A6270">Die App konnte gerade nicht geladen werden. Deine Zahlung oder dein Konto wurden dadurch nicht verändert.</div>` +
     technical +
-    `<button id="omni-reload" style="padding:12px 18px;border:0;border-radius:10px;background:#f97316;color:#081019;font-weight:800;cursor:pointer">SEITE NEU LADEN</button>`;
+    `<button id="omni-reload" style="padding:12px 18px;border:0;border-radius:10px;background:#D9541A;color:#FFFFFF;font-weight:800;cursor:pointer">SEITE NEU LADEN</button>`;
   root.appendChild(box);
   box.querySelector('#omni-reload')?.addEventListener('click', () => location.reload());
 }

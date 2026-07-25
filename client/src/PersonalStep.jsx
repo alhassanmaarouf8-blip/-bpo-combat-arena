@@ -161,7 +161,7 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
 
   return shell(<>
     {/* ── The brief: today's #1, the evidence, the why ── */}
-    <div style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', background: 'rgba(59,130,246,0.08)', border: '1px solid var(--accent)' }}>
+    <div style={{ padding: '12px 14px', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--accent)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={stageTitle}>ENGPASS NR. 1 HEUTE{/* OWNER-AR slot */}</span>
         {bn?.repeat && <span style={{ fontSize: 9, color: 'var(--text-dim)' }}>Tag-Serie ×{bn.dayStreak}</span>}
@@ -304,7 +304,7 @@ export default function PersonalStep({ token, apiUrl, lang = 'de', onClose, onSt
     {/* ── Completion → the RE-INTERVIEW unlock (server-confirmed) ── */}
     <div style={{ marginTop: 18 }}>
       {completed ? (
-        <div style={{ padding: '13px 15px', borderRadius: 'var(--r-md)', background: 'rgba(59,130,246,0.08)', border: '1px solid var(--accent)' }}>
+        <div style={{ padding: '13px 15px', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--accent)' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.5 }}>
             Block abgeschlossen — serverseitig bestätigt.{/* OWNER-AR slot */}
           </div>

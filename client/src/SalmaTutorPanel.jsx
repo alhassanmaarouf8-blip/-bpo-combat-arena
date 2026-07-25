@@ -5,7 +5,7 @@ import { consumeAutomaticTutorCue, createTutorDrillSession, stopTutorWhenDocumen
   tutorDrillSessionMatches } from './salmaAudioSafety.js';
 
 const quietButton = { minHeight: 44, padding: '9px 12px', borderRadius: 10, cursor: 'pointer',
-  border: '1px solid rgba(96,165,250,0.34)', background: 'rgba(59,130,246,0.08)',
+  border: '1px solid var(--line-strong)', background: 'var(--surface-2)',
   color: 'var(--accent)', fontSize: 12.5, fontWeight: 650 };
 
 function auth(token, extra = {}) { return { Authorization: `Bearer ${token}`, ...extra }; }
@@ -316,9 +316,9 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
   return (
     <section className="salma-tutor" dir="ltr" lang={screen === 'home' ? 'de' : undefined} aria-label="Salma, persönliche Interviewtrainerin" aria-busy={busy} style={{ marginTop: 12, padding: '12px 0 2px',
       borderTop: '1px solid var(--surface-2)', textAlign: 'left' }}>
-      <style>{`.salma-tutor button:focus-visible,.salma-tutor input:focus-visible,.salma-tutor select:focus-visible,.salma-tutor summary:focus-visible{outline:3px solid rgba(147,197,253,.95);outline-offset:3px}.salma-tutor summary{border-radius:6px}@media(prefers-reduced-motion:reduce){.salma-tutor *{animation:none!important;transition:none!important}}`}</style>
+      <style>{`.salma-tutor button:focus-visible,.salma-tutor input:focus-visible,.salma-tutor select:focus-visible,.salma-tutor summary:focus-visible{outline:3px solid var(--accent);outline-offset:3px}.salma-tutor summary{border-radius:6px}@media(prefers-reduced-motion:reduce){.salma-tutor *{animation:none!important;transition:none!important}}`}</style>
       {bottleneck && <div role="status" style={{ marginBottom: 10 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', color: '#93c5fd' }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.07em', color: 'var(--text-dim)' }}>
           {risk?.state === 'measure_first' || forecast?.state === 'historical_only'
             ? 'ZUERST SAUBER MESSEN'
             : forecast?.confidence === 'high'
@@ -333,8 +333,8 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
           Beende eine neue passende Simulation. Salma überträgt alte oder entfernte Stellenziele nicht automatisch auf heute.
         </div>}
       </div>}
-      {p && <div style={{ padding: '10px 11px', borderRadius: 10, background: 'rgba(59,130,246,0.07)',
-        border: '1px solid rgba(96,165,250,0.20)', color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.55 }}>
+      {p && <div style={{ padding: '10px 11px', borderRadius: 10, background: 'var(--surface-2)',
+        border: '1px solid var(--line-strong)', color: 'var(--text-dim)', fontSize: 12.5, lineHeight: 1.55 }}>
         <div style={{ color: 'var(--text)', fontWeight: 750 }}>
           {DRILL_LABELS[p.drillId] || 'Dein Trainingsblock'} · {p.repetitions} Wiederholungen · {Math.ceil(p.durationSeconds / 60)} Minuten
           {p.timesPerDay > 1 ? ` · ${p.timesPerDay} Blöcke mit mindestens ${Math.round(p.minimumSpacingMinutes / 60)} Stunden Abstand` : ''}
@@ -354,8 +354,8 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         <summary style={{ minHeight: 44, display: 'flex', alignItems: 'center', cursor: 'pointer' }}>Warum genau das?</summary>
         <div style={{ paddingTop: 4 }}>
           {forecast?.state === 'observed_simulation_risk' && RISK_LABELS[forecast.riskId] && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.24)', color: 'var(--accent)' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>{forecastHeading}</div>
+            background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--accent)' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-dim)' }}>{forecastHeading}</div>
             <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{RISK_LABELS[forecast.riskId]}</div>
             <div style={{ marginTop: 3, color: 'var(--text-dim)', fontSize: 11.5, lineHeight: 1.5 }}>
               {ROLE_LABELS[forecast.target?.roleType] || 'Kundenservice'} · {INDUSTRY_LABELS[forecast.target?.industryKey] || 'allgemeines deutsches BPO'} ·{' '}
@@ -417,8 +417,8 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
             {speakingRetest.phase !== 'complete' && <span> Frühere Übung hilft, gilt aber nicht als Retest.</span>}
           </div>}
           {proof && <div role="status" style={{ marginBottom: 10, padding: 11, borderRadius: 10,
-            background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(96,165,250,0.30)', color: 'var(--accent)' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#93c5fd' }}>
+            background: 'var(--surface-2)', border: '1px solid var(--line-strong)', color: 'var(--accent)' }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--text-dim)' }}>
               {proof.phase === 'transfer' ? 'VERIFIZIERTER TRANSFER' : 'VERIFIZIERTER VERGLEICHSTEST'}
             </div>
             <div style={{ marginTop: 5, fontSize: 13, fontWeight: 750 }}>{proof.skillLabel}</div>
@@ -443,7 +443,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
         </summary>
         <div style={{ paddingTop: 4 }}>
           {answer && <div role="status" style={{ marginBottom: 10, padding: 10, borderRadius: 10, color: 'var(--accent)',
-            background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(96,165,250,0.2)', fontSize: 13, lineHeight: 1.55 }}>
+            background: 'var(--surface-2)', border: '1px solid var(--line-strong)', fontSize: 13, lineHeight: 1.55 }}>
             {lastQuestion && <div style={{ marginBottom: 6, color: 'var(--text-dim)', fontSize: 11.5 }}>
               <strong>Verstanden:</strong> „{lastQuestion}“
             </div>}
@@ -477,7 +477,7 @@ export function SalmaTutorPanel({ token, apiUrl, screen = 'home', drillId = '', 
           <label htmlFor={`salma-minutes-${drillId || screen}`}>Zeit pro Tag</label>
           <select id={`salma-minutes-${drillId || screen}`} value={coach.preferences.dailyMinutes} disabled={busy}
             onChange={(event) => savePreference({ dailyMinutes: Number(event.target.value) })}
-            style={{ minHeight: 44, borderRadius: 9, background: 'var(--surface)', color: 'var(--text)', border: '1px solid rgba(148,163,184,0.3)', padding: '8px 10px' }}>
+            style={{ minHeight: 44, borderRadius: 9, background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--line-strong)', padding: '8px 10px' }}>
             <option value={5}>5 Minuten</option><option value={10}>10 Minuten</option><option value={20}>20 Minuten</option>
           </select>
           <button type="button" disabled={busy || !coach.feature.voiceEnabled}
