@@ -994,7 +994,7 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     // owner's published phone number, so the proof lands where the money does. Set WHATSAPP_NUMBER
     // explicitly to receive WhatsApp on a different number.
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
-    paymentAvailable: !!(process.env.VODAFONE_CASH_NUMBER || process.env.INSTAPAY_ADDRESS),
+    paymentAvailable: !!(process.env.VODAFONE_CASH_NUMBER || process.env.INSTAPAY_ADDRESS || process.env.BANK_ACCOUNT_INFO),
     // Paymob card + wallet checkout available (env-only check, no import → no circular dep).
     cardPayment: process.env.PAYMOB_ENABLED === '1' && !!process.env.PAYMOB_SECRET_KEY
       && !!process.env.PAYMOB_PUBLIC_KEY && !!process.env.PAYMOB_HMAC,

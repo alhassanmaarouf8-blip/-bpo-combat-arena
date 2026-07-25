@@ -21,10 +21,11 @@ export { PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
 
 export function supportedPaymentRailAvailable() {
   // Only create a durable payment intent for a rail the customer can actually see and use.
-  // The buyer UI implements Vodafone Cash AND InstaPay (owner order 2026-07-25) — either
-  // configured address makes manual payment available.
+  // The buyer UI implements wallet, InstaPay AND bank transfer (owner order 2026-07-25: "give my
+  // students as much variety as possible to pay") — any configured destination opens payment.
   return !!String(process.env.VODAFONE_CASH_NUMBER || '').trim()
-    || !!String(process.env.INSTAPAY_ADDRESS || '').trim();
+    || !!String(process.env.INSTAPAY_ADDRESS || '').trim()
+    || !!String(process.env.BANK_ACCOUNT_INFO || '').trim();
 }
 
 function paymentShape(acc, body = {}) {
@@ -65,7 +66,7 @@ export function applyPaymentConfirmation(all, { userId, intentId, senderLast4, r
   found.senderLast4 ||= senderLast4;
   // Which rail the buyer says they used — tells the owner WHERE to look for the incoming
   // transfer (Vodafone Cash app vs bank/InstaPay). Whitelisted; verification stays manual.
-  if (rail === 'instapay' || rail === 'vodafone') found.rail ||= rail;
+  if (rail === 'instapay' || rail === 'vodafone' || rail === 'bank') found.rail ||= rail;
   return { kind: 'ok', record: found };
 }
 
