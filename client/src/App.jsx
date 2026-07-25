@@ -1481,7 +1481,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
         transform: `scale(${scale})`,
         transition:'transform 0.08s linear, box-shadow var(--dur-slow) var(--ease), border-color var(--dur-slow), background var(--dur-slow)',
       }}>
-        {/* SVG icon, not the 🎙️ emoji that used to sit here: an emoji renders as a different
+        {/* SVG icon, not the mic emoji that used to sit here: an emoji renders as a different
             picture on every OS (and in colour), which is the cheapest-looking thing a UI can do —
             especially at 34px in the centre of the interview's focal object. */}
         <Icon name="mic" size={30} />
@@ -6958,7 +6958,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         <div style={{ position:'absolute', inset:0, zIndex:230, display:'flex', flexDirection:'column',
           justifyContent:'center', alignItems:'center', textAlign:'center', padding:28,
           background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
-          {/* SVG, not the 🎙️ emoji: an empty state is where a product looks cheapest, and a
+          {/* SVG, not the mic emoji: an empty state is where a product looks cheapest, and a
               cross-platform-inconsistent colour emoji at 46px was the loudest thing on the screen. */}
           <div style={{ color:'var(--text-faint)', display:'flex' }}><Icon name="mic" size={40} /></div>
           <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, color:'var(--action)', marginTop:10 }}>
@@ -8527,83 +8527,6 @@ function AuthedApp() {
     hasClaimedInterviewPass={wasInterviewPassClaimed(auth.account?.id)} /></>;
 }
 
-// ── Cold-start gate ───────────────────────────────────────────────────────────
-// Render's free tier sleeps after ~15 min idle, so the FIRST request can take up to
-// ~50s to wake the server. This gate pings /health before revealing the app: warm starts
-// pass through invisibly (<700ms); cold starts get a branded, animated, bilingual
-// "waking up" screen with live progress + a retry path — never a frozen/dead screen.
-function ColdStartScreen({ phase, elapsed, onRetry }) {
-  const failed = phase === 'error';
-  // Simulated progress that always moves but never claims "done" before the server answers:
-  // eases from 6% toward 92% over ~50s.
-  const pct = Math.min(92, 6 + (elapsed / 50) * 86);
-
-  return (
-    <div style={{ position:'fixed', inset:0, zIndex:9000, display:'flex', flexDirection:'column',
-      alignItems:'center', justifyContent:'center', gap:18, padding:'28px 22px', textAlign:'center',
-      boxSizing:'border-box', overflow:'hidden',
-      background:'var(--bg-0)',
-      color:'var(--text)', animation:'flash-in 0.4s ease' }}>
-
-      <div style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:700, letterSpacing:'-0.01em',
-        color:'var(--text)' }}>German Interview Trainer</div>
-
-      {!failed ? (
-        <>
-          {/* spinner ring + mic (was a pulsing 🥊 — emoji is never chrome; the product is an interview, not a match) */}
-          <div style={{ position:'relative', width:74, height:74, display:'grid', placeItems:'center' }}>
-            <div style={{ position:'absolute', inset:0, borderRadius:'50%',
-              border:'3px solid rgba(14,19,32,0.16)', borderTopColor:'var(--accent)',
-              animation:'spin 0.9s linear infinite' }} />
-            <div style={{ color:'var(--accent)', animation:'pulse 1.4s ease-in-out infinite', display:'grid', placeItems:'center' }}><Icon name="mic" size={28} /></div>
-          </div>
-
-          {/* bilingual status (Arabic prominent, German below) */}
-          <div style={{ display:'flex', flexDirection:'column', gap:6, maxWidth:340 }}>
-            <div dir="rtl" style={{ fontSize:15, fontWeight:700, color:'var(--text)' }}>السيرفر بيصحى… جهّز نفسك 🥊</div>
-            <div style={{ fontSize:13, color:'var(--text-dim)' }}>Server wird gestartet…</div>
-          </div>
-
-          {/* progress bar + elapsed */}
-          <div style={{ width:'100%', maxWidth:300 }}>
-            <div style={{ height:8, borderRadius:99, overflow:'hidden', background:'var(--surface-2)',
-              border:'1px solid rgba(14,19,32,0.2)' }}>
-              <div style={{ height:'100%', width:`${pct}%`, borderRadius:99,
-                background:'linear-gradient(90deg,var(--accent-2),var(--accent))', boxShadow:'0 0 10px rgba(14,19,32,0.5)',
-                transition:'width 0.5s ease' }} />
-            </div>
-            <div style={{ fontSize:10, color:'var(--text-faint)', marginTop:6, fontVariantNumeric:'tabular-nums' }}>~{elapsed}s</div>
-          </div>
-
-          {/* reassurance + German vocab tip so the wait feels productive */}
-          <div style={{ maxWidth:330, fontSize:11, color:'var(--text-dim)', lineHeight:1.6 }}>
-            Der erste Start kann bis zu einer Minute dauern — das ist ganz normal.
-            <br /><span dir="rtl">أول تشغيل ممكن ياخد لحد دقيقة، وده طبيعي تمامًا — استنى شوية.</span>
-            <div style={{ marginTop:10, padding:'8px 12px', borderRadius:8,
-              background:'rgba(14,19,32,0.06)', border:'1px solid rgba(14,19,32,0.15)',
-              fontSize:11.5, color:'var(--text-dim)', textAlign:'left' }}>
-              💡 <b style={{ color:'var(--accent)' }}>Tipp:</b> „Einen Moment, ich schaue kurz nach." — immer höflich, wenn du Zeit brauchst.
-              <div dir="rtl" style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:3 }}>تقدر تقول دي دايمًا لو محتاج وقت تفكر</div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div style={{ maxWidth:330, fontSize:13, color:'var(--bad)', lineHeight:1.6 }}>
-            Der Server braucht länger als erwartet. Bitte erneut versuchen.
-            <br /><span dir="rtl">السيرفر بياخد وقت أطول من المعتاد. من فضلك حاول تاني.</span>
-          </div>
-          <button onClick={onRetry} style={{ marginTop:4, padding:'14px 24px', minHeight:48, cursor:'pointer',
-            fontFamily:'var(--font-display)', fontSize:12, letterSpacing:'0.1em', borderRadius:10, fontWeight:700,
-            border:'1px solid var(--accent)', color:'#FFFFFF', background:'var(--accent)', boxShadow:'0 0 18px rgba(14,19,32,0.35)' }}>
-            ERNEUT VERSUCHEN · حاول تاني
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
 function BackendGate({ children }) {
   const [phase, setPhase]     = useState('checking'); // checking | waking | ready | error
   const [elapsed, setElapsed] = useState(0);
@@ -8648,10 +8571,51 @@ function BackendGate({ children }) {
     return () => clearInterval(id);
   }, [phase]);
 
-  // Availability must never hide the offer, signup, or typed practice. The wake loop is
-  // background-only; live actions already surface their own retryable connection state.
-  const legacyBlockingScreen = false;
-  return <>{children}{legacyBlockingScreen && <ColdStartScreen phase={phase} elapsed={elapsed} onRetry={wake} />}</>;
+  // Availability must never hide the offer, signup, or typed practice — so the old full-screen
+  // ColdStartScreen stays gone. But silence was the wrong opposite: the wake loop ran for up to 60s
+  // driving a UI that never rendered, so on a cold free dyno the app painted normally and then the
+  // first real action stalled with no explanation. A non-blocking strip tells the truth without
+  // hiding anything.
+  return <>{children}<WakingNotice phase={phase} elapsed={elapsed} onRetry={wake} /></>;
+}
+
+// Honest, non-blocking cold-start state. Clones ConnectionNotice.jsx's anatomy (fixed bottom card,
+// role=status/aria-live, 44px targets) so the app has ONE vocabulary for "something is off". Blue,
+// never orange: the screen's single orange belongs to the interview action behind this strip.
+function WakingNotice({ phase, elapsed, onRetry }) {
+  if (phase !== 'waking' && phase !== 'error') return null;
+  const failed = phase === 'error';
+  return (
+    <div role="status" aria-live="polite" style={{ position:'fixed', zIndex:260, left:12, right:12, bottom:12,
+      maxWidth:560, margin:'0 auto', padding:'12px 14px', borderRadius:12,
+      background:'var(--surface)', border:'1px solid var(--accent)', boxShadow:'var(--e2)', color:'var(--text)' }}>
+      {/* Arabic is the owner's own masri, carried over verbatim from the retired ColdStartScreen
+          (only its 🥊 emoji was dropped — emoji is never chrome). Nothing here was model-authored. */}
+      <div style={{ fontSize:13, fontWeight:750, lineHeight:1.45 }}>
+        {failed ? 'Server nicht erreichbar.' : `Server startet… ${elapsed}s`}
+        <br /><span dir="rtl" style={{ fontWeight:700 }}>
+          {failed ? 'السيرفر بياخد وقت أطول من المعتاد.' : 'السيرفر بيصحى…'}
+        </span>
+      </div>
+      <div style={{ marginTop:3, fontSize:11.5, color:'var(--text-dim)', lineHeight:1.55 }}>
+        {failed
+          ? 'Lesen und Anmelden funktionieren weiter. Für das Sprachtraining brauchen wir den Server.'
+          : 'Der erste Start kann bis zu einer Minute dauern — du kannst schon lesen und dich anmelden.'}
+        <br /><span dir="rtl">
+          {failed ? 'من فضلك حاول تاني.' : 'أول تشغيل ممكن ياخد لحد دقيقة، وده طبيعي تمامًا.'}
+        </span>
+      </div>
+      {failed && (
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
+          <button type="button" onClick={onRetry} style={{ minHeight:44, padding:'9px 12px', cursor:'pointer',
+            borderRadius:8, border:'1px solid var(--accent)', background:'var(--surface-2)',
+            color:'var(--accent-2)', fontWeight:750 }}>
+            ERNEUT VERSUCHEN · حاول تاني
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Root: cold-start gate → auth gate → arena ─────────────────────────────────
