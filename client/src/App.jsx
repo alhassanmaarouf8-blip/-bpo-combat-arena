@@ -6733,10 +6733,14 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:'var(--fs-h2)',
                 color:'var(--text)', marginBottom:4 }}>
-                Zum Sprechen: in Chrome öffnen{/* OWNER-AR slot */}
+                Zum Sprechen: in Chrome öffnen
+                {/* OWNER-AR, owner-written 2026-07-25. The actionable instruction, in masri: this card
+                    is the only thing between a Messenger arrival and a dead mic, and the audience are
+                    A2–B1 German learners who cannot be relied on to parse the German line above. */}
+                <br /><span dir="rtl">علشان تتكلم، افتح الصفحة في كروم</span>
               </div>
               <div style={{ fontSize:'var(--fs-label)', lineHeight:1.55, color:'var(--text-dim)' }}>
-                Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR slot */}
+                Der Facebook- oder Messenger-Browser blockiert das Mikrofon — das Live-Interview braucht es.{/* OWNER-AR slot — body line still awaiting owner masri */}
               </div>
               {/Android/i.test(navigator.userAgent || '') ? (
                 <>
