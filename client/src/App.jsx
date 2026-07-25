@@ -3851,17 +3851,39 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
                   {/* OWNER-AR slot */}
                 </div>
               )}
+              {/* Two prices in one run-on sentence made the buyer read "999 or 1999" with NO stated
+                  difference — and a buyer who cannot tell what doubling the money buys picks neither.
+                  Side-by-side cards make the ONE real difference legible: interviews per day.
+                  Deliberately NO "recommended" badge — that is a sales assertion the payload cannot
+                  support, and this screen's single orange belongs to KOSTENLOS ANFANGEN, so these
+                  cards stay blue/neutral. Only fields the server actually returns are printed
+                  (label, offerPriceEGP, dailySessions, sessionMinutes) — copy-claim guard. */}
               {pricing?.plans?.length > 0 && (
-                <div style={{ marginTop:2 }}>
-                  <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Danach:</strong>{' '}
-                  {pricing.plans.map((pl, i) => (
-                    <span key={pl.id}>
-                      {i > 0 ? ' · ' : ''}{pl.label}{' '}
-                      <strong style={{ color:'var(--accent-2)', fontWeight:700 }}>{fmtEgp(pl.offerPriceEGP)} EGP/Monat</strong>
-                    </span>
-                  ))}
-                  . Keine Karte nötig, um zu starten.
-                  {/* OWNER-AR slot */}
+                <div style={{ marginTop:8 }}>
+                  <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Danach:</strong>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
+                    {pricing.plans.map((pl) => (
+                      <div key={pl.id} style={{ flex:'1 1 148px', minWidth:0, textAlign:'left',
+                        padding:'10px 12px', borderRadius:'var(--r-md)',
+                        background:'var(--surface)', border:'1px solid var(--line)' }}>
+                        <div style={{ fontFamily:'var(--font-display)', fontWeight:700,
+                          fontSize:'var(--fs-label)', color:'var(--text)' }}>{pl.label}</div>
+                        <div style={{ marginTop:2 }}>
+                          <strong style={{ color:'var(--accent-2)', fontWeight:700 }}>{fmtEgp(pl.offerPriceEGP)} EGP/Monat</strong>
+                        </div>
+                        {pl.dailySessions > 0 && (
+                          <div style={{ marginTop:4, fontSize:'var(--fs-meta)', color:'var(--text-dim)', lineHeight:1.5 }}>
+                            {pl.dailySessions} Interviews/Tag
+                            {pl.sessionMinutes > 0 && <> · je {String(pl.sessionMinutes).replace('.', ',')} Min</>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop:6 }}>
+                    Keine Karte nötig, um zu starten.
+                    {/* OWNER-AR slot */}
+                  </div>
                 </div>
               )}
             </>}
