@@ -1,5 +1,36 @@
 # STATE.md — session continuity (read FIRST; rewrite at the END of every session)
 
+## 💳 PAYWALL TERM + TOTAL-AT-THE-BUTTON — PR #26 DRAFT, GUARDIAN GREEN (2026-07-25) — ⏳ OWNER MERGE
+- Owner pasted the "The Real World" funnel (pricing / login / urgency modal / loading / checkout) and
+  asked what could be learned. Teardown given against `design-system` craft law; he picked items 3+4.
+  Branch `claude/design-learning-zmdie5` @ 41783e2, PR #26 (DRAFT), `verify` check = SUCCESS,
+  Vercel preview Ready. Client-only — `client/src/App.jsx` alone, +53/-5.
+- (3) TERM SENTENCE ON EVERY PLAN CARD (was Elite-only): `{price} EGP einmalig für {days} Tage
+  Zugang. Keine automatische Abbuchung — danach endet der Zugang, bis du selbst verlängerst.`
+  The cheap-card buyer is the one most afraid of a hidden recurring charge and he was told nothing.
+- (4) `GESAMT FÄLLIG` row + the same sentence immediately ABOVE the orange `ICH HABE BEZAHLT` on the
+  payment sheet. The figure was only in the sheet header + transfer line, both of which scroll away
+  above the rail picker / copy control / 4-digit input on a phone.
+- TRUTH ANCHOR: `termDaysFor()` mirrors `server/auth.js` activatePlan() exactly (monthly 30*DAY,
+  yearly 365*DAY, once onceDurationDays||365) → says "30 Tage", never "1 Monat". The no-auto-debit
+  half is true by construction: manual rails, no stored instrument, no recurring path in the server,
+  planOf() lapses to 'free' on billingPeriodEnd. NO server change needed — /billing/status already
+  spreads the whole plan object, so `once`/`onceDurationDays` reach the client.
+- Gates: lint ✓ · design-lint ✓ (2-color holds) · client build ✓ · german-check ✓ on both new
+  sentences (the 10 App.jsx hits are pre-existing strings, none from this diff).
+- ⚠ DOCTRINE CONFLICT SURFACED, NOT RESOLVED: `SUB_AR` (App.jsx ~4466) carries a comment recording
+  an owner grant dated 2026-07-25 — "write the arabic yourself i give you permission" — and authored
+  masri now ships there. CLAUDE.md + INTENT.md still say NEVER author masri. I followed CLAUDE.md and
+  left `OWNER-AR` slots on all three new strings. Owner: either update CLAUDE.md/INTENT.md to record
+  the grant, or fill the slots.
+- ⏳ OWNER PROVE-IT (live, after merge): (a) both plan cards carry the term line, not just Elite;
+  (b) MONATLICH↔JÄHRLICH flips 30↔365 Tage and the price in the sentence matches the card;
+  (c) payment sheet shows GESAMT FÄLLIG + amount in the SAME viewport as ICH HABE BEZAHLT, matching
+  the card tapped; (d) still exactly ONE orange object on the sheet.
+- PARKED (item 1 of the same teardown, not built): the auth screen's symmetric `Anmelden|Registrieren`
+  segmented control (App.jsx ~4025) should flip to signup-as-primary + login-as-quiet-link, since
+  almost every visitor pre-launch is new. Needs its own bounded ship.
+
 ## 📅 "STUDY 5, REST 2" CAP + USAGE-GATED REFUND — BOTH BUILT+PUSHED (2026-07-22) — ⏳ OWNER MERGE
 - Two features on ONE branch `feature/study-week-cap`, pushed, NOT merged: 8dbfc10 (study cap) +
   b447881 (usage-gated refund). Both ADDITIVE, gates green, prices/quotas UNCHANGED.
