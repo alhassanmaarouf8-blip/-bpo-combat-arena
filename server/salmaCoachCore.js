@@ -1011,7 +1011,29 @@ export function answerSalmaQuestion(question, context, state) {
   const text = boundedString(question, 400).replace(/[\u202A-\u202E\u2066-\u2069]/gu, ' ');
   if (text.length < 2) throw Object.assign(new Error('question_required'), { code: 400 });
   const p = state?.activePrescription;
-  if (!p) return { answer: 'Ich habe noch nicht genug verlässliche Daten für eine persönliche Diagnose. Führe zuerst das nächste Diagnose-Interview vollständig durch.', source: 'deterministic' };
+  if (!p) {
+    // PRE-DIAGNOSIS Q&A (owner order 2026-07-25: "make salma answer general questions before
+    // diagnosis"). Deterministic keyword routes about the PRODUCT and the PROCESS — every claim
+    // below is a fixed fact of the app, so nothing personal is invented. Questions that ask for a
+    // personal judgement still get the honest guard: no measurement, no verdict.
+    const q = text.toLocaleLowerCase('de-DE');
+    if (/mein niveau|wie gut bin ich|meine fehler|meine schwäche|bin ich bereit|note|bewert/u.test(q)) {
+      return { answer: 'Dein Niveau kann ich erst nach einer echten Messung beurteilen — alles andere wäre geraten. Starte das Diagnose-Interview; danach sage ich dir genau, wo du stehst und was als Erstes zu trainieren ist.', source: 'deterministic' };
+    }
+    if (/was kostet|preis|plan|bezahl|zahlung|abo|kostenlos|gratis/u.test(q)) {
+      return { answer: 'Die Einstufung und dein erstes Interview sind kostenlos. Danach gibt es zwei Pläne mit täglichen Live-Interviews — tippe oben rechts auf „Pläne“ für die Preise.', source: 'deterministic' };
+    }
+    if (/übung|drill|training(?!s-interview)|satzbau|shadowing|hör/u.test(q)) {
+      return { answer: 'Die Übungen schalten sich nach deinem ersten Interview frei und richten sich dann nach deinen gemessenen Fehlern — du trainierst genau das, was dich wirklich aufhält.', source: 'deterministic' };
+    }
+    if (/diagnose|einstufung|interview|messung|ablauf|dauert/u.test(q)) {
+      return { answer: 'Das Diagnose-Interview ist ein vollständiges gesprochenes Gespräch von ungefähr acht Minuten. Dein Niveau wird automatisch erkannt — sprich einfach frei. Danach bekommst du deinen ersten klaren Trainingsschritt.', source: 'deterministic' };
+    }
+    if (/wer bist|was bist|salma|was kannst du|hilfst du|hilfe/u.test(q)) {
+      return { answer: 'Ich bin Salma, deine Interviewtrainerin. Ich erkläre dir jeden Schritt und begleite dein Training — sobald deine erste Messung da ist, wird jede Antwort persönlich.', source: 'deterministic' };
+    }
+    return { answer: 'Der Weg hat vier Stationen: Messen, Trainieren, Beweisen, Bewerben. Dein erster Schritt ist das Diagnose-Interview auf dem Training-Tab — starte es, und ich führe dich danach Schritt für Schritt.', source: 'deterministic' };
+  }
   const lower = text.toLocaleLowerCase('de-DE'); const skill = SKILL_LABELS[p.skillId] || p.skillId;
   if (/warum|weshalb|wieso/u.test(lower)) return { answer: `Du hast dieses Training bekommen, weil ${skill} in deiner letzten verlässlichen Messung der begrenzende Faktor war. Mache jetzt genau den verordneten Block; erst das nächste Live-Interview bestätigt die Verbesserung.`, source: 'deterministic' };
   if (/wie oft|wiederholung|dauer|wie lange|wann/u.test(lower)) return { answer: `Mache ${p.repetitions} Wiederholungen in ungefähr ${Math.ceil(p.durationSeconds / 60)} Minuten. ${p.timesPerDay > 1 ? `Der zweite Block beginnt frühestens nach ${Math.round(p.minimumSpacingMinutes / 60)} Stunden.` : 'Heute reicht ein vollständiger Block.'}`, source: 'deterministic' };
