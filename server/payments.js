@@ -15,6 +15,7 @@ import { randomBytes } from 'crypto';
 import { requireAuth, rateLimit } from './auth.js';
 import { PLANS, offerPrice } from './plans.config.js';
 import { mutatePayments, maintainPaymentRecords, PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
+import { sendOwnerPaymentAlert, mailerConfigured } from './mailer.js';
 
 export const paymentsRouter = express.Router();
 export { PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
@@ -143,7 +144,17 @@ paymentsRouter.post('/billing/pay', requireAuth,
     if (result.kind === 'conflict') return res.status(409).json({ error: 'sender_last4_conflict' });
     if (result.kind === 'under_review') return res.status(409).json({ error: 'payment_under_review' });
     const rec = result.record;
-    console.log(`[payments] pending confirmed id=${rec.id} user=${acc.id}`);
+    console.log(`[payments] pending confirmed id=${rec.id} user=${acc.id} rail=${rec.rail || '-'}`);
+    // Alert the owner NOW. The buyer's screen promises activation in minutes, and that promise is
+    // only honest if he is told the moment it happens. Fire-and-forget: a mail failure must never
+    // turn a real payment into an error for the person who just sent money.
+    if (mailerConfigured() && process.env.ADMIN_EMAIL) {
+      sendOwnerPaymentAlert(process.env.ADMIN_EMAIL, {
+        referenceCode: rec.referenceCode, amountEGP: rec.amountEGP, plan: rec.plan,
+        billingPeriod: rec.billingPeriod, rail: rec.rail, senderLast4: rec.senderLast4,
+        email: rec.email, adminUrl: `${process.env.APP_URL ? '' : ''}${(process.env.BACKEND_URL || '').replace(/\/$/, '')}/admin`,
+      }).catch((err) => console.warn('[payments] owner alert failed:', err.message));
+    }
     return res.json({ ok: true, referenceCode: rec.referenceCode, amountEGP: rec.amountEGP,
       baseEGP: rec.baseEGP, offerApplied: rec.offerApplied, plan: rec.plan, billingPeriod: rec.billingPeriod });
   } catch (err) {

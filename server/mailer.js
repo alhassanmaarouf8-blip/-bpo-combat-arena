@@ -120,4 +120,38 @@ export async function sendTrialEndingMail(to, { label = '', quote = '', correcte
   await deliver({ to, subject: 'Deine Testphase endet morgen · German Interview Trainer', text: lines.join('\n') });
 }
 
-export default { mailerConfigured, sendResetMail, sendVerificationMail, sendTrialEndingMail };
+/**
+ * OWNER PAYMENT ALERT — the thing that makes a fast activation promise TRUE.
+ *
+ * The buyer's screen says the plan goes live within minutes. That can only be honest if the
+ * owner learns about the payment the moment it is claimed, instead of discovering it the next
+ * time he happens to open the admin panel. Sent to ADMIN_EMAIL over the SMTP that already
+ * powers verification mail ($0, no new dependency). Fails soft: a mail problem must never
+ * break the buyer's confirmation, which is why the caller does not await a rejection.
+ *
+ * Carries exactly what is needed to verify and activate — reference, amount, rail, sender's
+ * last 4 — and no card data (there is none: every rail here is a manual transfer).
+ */
+export async function sendOwnerPaymentAlert(to, { referenceCode = '', amountEGP = 0, plan = '', billingPeriod = '', rail = '', senderLast4 = '', email = '', adminUrl = '' } = {}) {
+  const railLabel = rail === 'instapay' ? 'InstaPay (Bankkonto)'
+    : rail === 'bank' ? 'Banküberweisung'
+    : rail === 'vodafone' ? 'Wallet (Vodafone Cash)'
+    : 'unbekannt';
+  const lines = [
+    `ZAHLUNG GEMELDET · ${plan.toUpperCase()} ${billingPeriod === 'yearly' ? '(Jahr)' : '(Monat)'}`,
+    '',
+    `Betrag:    ${amountEGP} EGP`,
+    `Weg:       ${railLabel}`,
+    `Absender:  •••• ${senderLast4 || '????'}`,
+    `Konto:     ${email || '—'}`,
+    `Vorgang:   ${referenceCode}`,
+    '',
+    'Prüfen und freischalten:',
+    adminUrl || '(ADMIN panel)',
+    '',
+    'Der Käufer sieht gerade: Freischaltung in wenigen Minuten.',
+  ];
+  await deliver({ to, subject: `Zahlung ${referenceCode} · ${amountEGP} EGP · ${railLabel}`, text: lines.join('\n') });
+}
+
+export default { mailerConfigured, sendResetMail, sendVerificationMail, sendTrialEndingMail, sendOwnerPaymentAlert };

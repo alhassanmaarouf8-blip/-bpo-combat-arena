@@ -4635,7 +4635,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           Anfrage erhalten{/* OWNER-AR slot */}
         </div>
         <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:8, lineHeight:1.6 }}>
-          Aktivierung nach Prüfung, meist unter 2 Stunden. Vorgang: <b style={{ color:'var(--text)' }}>{refCode}</b>.{/* OWNER-AR slot */}
+          Wir prüfen deine Zahlung und schalten frei — meist in wenigen Minuten. Vorgang: <b style={{ color:'var(--text)' }}>{refCode}</b>.
         </div>
         {proofActions(refCode)}
       </div>
@@ -4727,7 +4727,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           )}
 
           <div style={{ fontSize:10.5, color:'var(--text-faint)', textAlign:'center', marginTop:14, lineHeight:1.6 }}>
-            Vorgang {refCode} · Bestätigung per WhatsApp · Aktivierung meist unter 2 Stunden{/* OWNER-AR slot */}
+            Vorgang {refCode} · Bestätigung per WhatsApp · Freischaltung meist in wenigen Minuten
           </div>
         </div>
       ) : cardLink ? (<>
@@ -4755,21 +4755,33 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   if (pendingPayment) {
     const code = pendingPayment.referenceCode || refCode;
     return shell(<>
-      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
-        <div style={{ marginBottom:6 }}><Spinner size={38} /></div>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:800, color:'var(--accent)', marginTop:8 }}>
-          {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
+      {/* The screen a customer sees right after parting with money. One display line, one live
+          status row, one quiet code — the same premium voice as the rest of the product. */}
+      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 6px' }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:26, fontWeight:800, letterSpacing:'-0.02em',
+          lineHeight:1.15, color:'var(--text)' }}>
+          Zahlung eingegangen
         </div>
-        <div dir="rtl" style={{ fontSize:13, color:'var(--text-dim)', marginTop:10, lineHeight:1.8 }}>
-          طلبك وصلنا وبنراجع الدفع — التفعيل عادة خلال ساعتين في أوقات الشغل. الكود بتاعك: <b style={{ color:'var(--text)' }}>{code}</b>.
+        <div dir="rtl" style={{ fontSize:14, color:'var(--text-dim)', marginTop:8, lineHeight:1.7 }}>
+          دفعتك وصلت — بنراجعها دلوقتي.
         </div>
-        <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:14, lineHeight:1.65 }}>
-          Deine Anfrage ist da ✅ — wir prüfen die Zahlung manuell. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Code: <b style={{ color:'var(--action)' }}>{code}</b>.
+        <div style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', gap:9, alignSelf:'center',
+          marginTop:18, padding:'11px 16px', borderRadius:'var(--r-pill)',
+          background:'var(--surface)', border:'1px solid var(--line-strong)' }}>
+          <Spinner size={16} />
+          <span style={{ fontFamily:'var(--font-display)', fontSize:12.5, fontWeight:700, color:'var(--text)' }}>
+            {ar ? 'التفعيل في دقايق' : 'Freischaltung in wenigen Minuten'}
+          </span>
+        </div>
+        <div style={{ fontSize:12, color:'var(--text-faint)', marginTop:14, lineHeight:1.6 }}>
+          Vorgang <b style={{ color:'var(--text-dim)' }}>{code}</b> · du brauchst nichts weiter zu tun
+          <br /><span dir="rtl">رقم الطلب فوق · مش محتاج تعمل أي حاجة تانية</span>
         </div>
         {proofActions(code)}
       </div>
-      <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'12px', minHeight:46, cursor:'pointer',
-        fontFamily:'var(--font-display)', fontSize:11, borderRadius:8, border:'1px solid rgba(148,163,184,0.4)', background:'transparent', color:'var(--text-dim)' }}>
+      <button onClick={onClose} style={{ width:'100%', marginTop:14, padding:'13px', minHeight:48, cursor:'pointer',
+        fontFamily:'var(--font-display)', fontSize:12.5, fontWeight:700, borderRadius:12,
+        border:'1px solid var(--line-strong)', background:'var(--surface)', color:'var(--text)' }}>
         {ar ? 'تمام' : 'OK'}
       </button>
     </>);
@@ -5073,7 +5085,7 @@ function PendingBadge({ pending, whatsapp, lang }) {
     <div onClick={() => setOpen((o) => !o)} style={{ marginBottom: 8, padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
       background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.4)' }}>
       <div style={{ fontSize: 10.5, color: 'var(--action)', lineHeight: 1.5, textAlign: 'center' }}>
-        {ar ? 'اشتراكك قيد التأكيد — التفعيل عادة خلال ساعتين في مواعيد العمل' : 'Zahlung wird geprüft — meist innerhalb von 2 Stunden während der Geschäftszeiten'}
+        {ar ? 'بنراجع دفعتك — التفعيل عادة في دقايق' : 'Zahlung wird geprüft — Freischaltung meist in wenigen Minuten'}
         <span style={{ color: 'var(--text-dim)' }}> {open ? '▲' : '▼'}</span>
       </div>
       {open && (
