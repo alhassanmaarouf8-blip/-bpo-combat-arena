@@ -87,7 +87,12 @@ test('generic landing states the real offer (free-forever + true trial grant + p
   // before signup (owner decision; the measured leak was that only 8 of ~120 openers ever saw one),
   // and every number is now server-driven from GET /api/billing/pricing → plans.config.js. No
   // hardcoded literal, so the page can never drift from what entitlement() actually grants.
-  assert.match(source, /Immer kostenlos:/);
+  assert.match(source, /Kostenlos:/);
+  // RATCHET (owner order 2026-07-25: "anyone that will use the app must pay to get access to the
+  // interviews"): the landing may advertise the free Einstufung, never a free interview. If this
+  // claim returns while freeFightAvailable() denies it, the page lies to every new visitor.
+  assert.doesNotMatch(source, /Einstufung \+ dein erstes Interview/);
+  assert.doesNotMatch(source, /Kostenlos starten: Einstufung \+ erstes Interview/);
   assert.match(source, /Deine \{pricing\.trial\.days\} Testtage \(ab dem ersten Interview\)/);
   assert.match(source, /\{pricing\.trial\.dailySessions\} Interviews\/Tag/);
   assert.match(source, /\{fmtEgp\(pl\.offerPriceEGP\)\} EGP\/Monat/);

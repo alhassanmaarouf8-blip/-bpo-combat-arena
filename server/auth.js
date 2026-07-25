@@ -428,12 +428,16 @@ export function drillsUnlocked(account) {
   return planOf(account) !== 'free' || trialActive(account);
 }
 
-// ONE free 7-minute interview for a free account, ever — the acquisition hook. Available when the plan
-// has no paid live minutes AND the free fight hasn't been spent yet (or for admins, always).
+// FREE INTERVIEW — REMOVED (owner order 2026-07-25: "there is no trial free, anyone that will use
+// the app must pay to get access to the interviews"). Interviews are a paid capability, full stop:
+// entitlement().allowed now depends on paid daily minutes alone, and websocketManager refuses a
+// session and shows the paywall. The owner's own ADMIN_EMAIL account keeps access so he can test
+// production. What stays free is the level assessment (Einstufung) — a separate mechanism, and the
+// thing that sells the plan. Restore by returning the old expression.
 const FREE_FIGHT_SEC = 7 * 60;
 export function freeFightAvailable(account) {
   if (isAdminAccount(account)) return true;
-  return (dailyMinutesFor(account) || 0) <= 0 && !account?.subscription?.freeFightUsed;
+  return false;
 }
 
 // Entitlement = the plan's capabilities. `allowed` = may start an interview: a paid plan with live

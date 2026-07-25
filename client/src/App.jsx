@@ -3125,7 +3125,7 @@ function ProductHomePreview() {
       style={{ maxWidth:420, margin:'24px auto 4px', padding:0 }}>
       <div style={{ fontFamily:'var(--font-display)', fontSize:9, letterSpacing:'0.16em',
         color:'var(--accent)', marginBottom:8 }}>
-        PRODUKTVORSCHAU · DEIN ERSTES INTERVIEW
+        PRODUKTVORSCHAU · SO LÄUFT EIN INTERVIEW
       </div>
       <div style={{ position:'relative', overflow:'hidden', padding:'22px 20px 20px',
         borderRadius:24, border:'1px solid var(--line)',
@@ -3770,9 +3770,9 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             ? 'Bestätigter Studienzugang: 21 Tage kostenlos · keine Karte · Training, keine Jobvermittlung'
             : <>
               <div>
-                <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Immer kostenlos:</strong>{' '}
-                Einstufung + dein erstes Interview + dein persönlicher Schritt.
-                {/* OWNER-AR slot */}
+                <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>Kostenlos:</strong>{' '}
+                deine Einstufung + dein persönlicher Schritt. Die Live-Interviews gehören zum Plan.
+                <br /><span dir="rtl">مجانًا: تقييم مستواك وخطوتك الشخصية. الإنترفيو المباشر بيجي مع الخطة.</span>
               </div>
               {pricing?.trial?.dailySessions > 0 && (
                 <div style={{ marginTop:2 }}>
@@ -4090,7 +4090,7 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             ? validStudyEntry
               ? <>Bestätigungslink öffnen; danach geht es direkt zur Sprachdiagnose. Dein bestätigter Studienzugang umfasst 21 kostenlose Tage.</>
               : <>Bestätigungslink per E-Mail öffnen, dann kostenlos starten · افتح لينك تأكيد الإيميل وبعدها ابدأ مجانًا</>
-            : <>Kostenlos starten: Einstufung + erstes Interview · شرح عربي في الخطوات الأساسية · مجاني للبداية</>}
+            : <>Kostenlos starten: deine Einstufung · شرح عربي في الخطوات الأساسية · تقييم مستواك مجانًا</>}
         </div>
         </form>
       </div>

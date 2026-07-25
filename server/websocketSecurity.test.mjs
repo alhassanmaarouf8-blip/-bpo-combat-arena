@@ -67,7 +67,8 @@ test('invalid and unverified WebSocket starts close promptly without clearing au
 test('paywalled and duplicate WebSocket starts close instead of retaining capacity', async () => {
   const paywalledAccount = await auth.createAccount(uniq('ws-paywall'), 'password1234', null);
   paywalledAccount.emailVerifiedAt = Date.now();
-  paywalledAccount.subscription.freeFightUsed = true;
+  // A brand-new free account is paywalled outright: there is no free interview any more
+  // (owner order 2026-07-25). No freeFightUsed flag needed to reach this state.
   const paywalled = contextHarness();
   await managerHarness()._handleStartFight(paywalled.ctx, { token: auth.signToken(paywalledAccount) });
   assert.equal(paywalled.closed[0].code, 4403);
@@ -77,6 +78,9 @@ test('paywalled and duplicate WebSocket starts close instead of retaining capaci
 
   const duplicateAccount = await auth.createAccount(uniq('ws-duplicate'), 'password1234', null);
   duplicateAccount.emailVerifiedAt = Date.now();
+  // Paid: interviews are a paid capability now, so only a subscriber can reach the duplicate check.
+  duplicateAccount.subscription.plan = 'elite';
+  duplicateAccount.subscription.billingPeriodEnd = Date.now() + 30 * 24 * 60 * 60 * 1000;
   const duplicate = contextHarness();
   await managerHarness(new Set([duplicateAccount.id]))
     ._handleStartFight(duplicate.ctx, { token: auth.signToken(duplicateAccount) });
