@@ -33,6 +33,7 @@ import { addItem, dueCount, seedBPOPhrases } from './srs.js';
 import { BPO_PHRASES } from './scenarios.js';
 import { levelFor, xpForSession, levelProgress, nextBoss, computeStreak, computeRank, BOSS_LADDER, RANKS } from './progression.js';
 import { verifyToken, getAccountById, tokenMatchesAccount, emailOwnershipVerified, entitlement, planOf, dailyMinutesFor, freeFightAvailable, consumeFreeFight, interviewResultsUnlocked } from './auth.js';
+import { observeProsody } from './prosodyObservations.js';
 import { weekStudyStatus } from './studyWeek.js';
 import { studyDaysPerWeekFor } from './plans.config.js';
 import { classifyGrammar }       from './errorTags.js';
@@ -1707,9 +1708,14 @@ export class WebSocketManager {
       const _latencyS = ctx.latCount ? ctx.latSum / ctx.latCount : null;
       const _evidenceQuality = evidenceQuality;
 
+      // Raw prosody observations (Phase A, owner-approved 2026-07-25). STORED ONLY — nothing
+      // learner-facing until speech_rate_clarity / excessive_pausing pass their expert-gold
+      // release (pronunciationReleases.js). null = the observer abstained on thin speech.
+      const _prosody = observeProsody(ctx.utterances);
       p.sessions.push({
         date: now, sessionId: ctx.sessionId, level: ctx.level, bossId: ctx.bossId,
         fluency: metrics.fluency, wpm: metrics.wpm, fillers: metrics.fillers,
+        ...(_prosody ? { prosody: _prosody } : {}),
         ...(_tf.subClauseRate != null ? { subClauseRate: _tf.subClauseRate, vocabDiversity: _tf.vocabDiversity } : {}),
         ...(_giveUpRate != null ? { giveUpRate: _giveUpRate } : {}),
         ...(_deescalation != null ? {
