@@ -123,11 +123,6 @@ const STORE_MODE = (() => {
     return sessionStorage.getItem('ctx_store') === '1';
   } catch { return false; }
 })();
-// Paymob hosted payment links (card + wallet) per plan. Tapping "pay by card" opens the plan's link;
-// the owner confirms + activates after payment (same manual step as Vodafone Cash). These are TEST-mode
-// links — swap for the live-mode links once Paymob KYC is approved. The full auto-activation path
-// (server Intention API + webhook, server/paymob.js) is built and dormant behind PAYMOB_ENABLED.
-const PAYMOB_LINKS = { basic: 'https://paymob.link/VMG7A', elite: 'https://paymob.link/bFa0s' };
 // A getUserMedia failure means different things in different shells, so the message must match the
 // real cause. In an in-app browser (Messenger/Facebook/Instagram/WebView) the mic can NEVER be
 // granted — sending the user to "allow it in browser settings" (mic_denied) is a dead end. Some of
@@ -4576,16 +4571,6 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     setSubmitting(false);
   };
 
-  // Card + wallet: open the plan's Paymob hosted payment link. The customer pays there; the owner
-  // confirms + activates after (same manual step as Vodafone Cash). New tab so the app isn't lost;
-  // falls back to same-tab navigation if a popup blocker intervenes.
-  const payWithCard = (choice) => {
-    const link = PAYMOB_LINKS[choice.planId];
-    if (!link) return;
-    const w = window.open(link, '_blank', 'noopener');
-    if (!w) window.location.href = link;
-  };
-
   // Post-payment "send proof" actions: copy the reference code, and (if a WhatsApp number is
   // configured) one-tap open WhatsApp prefilled with the code so the customer isn't stranded
   // during the manual-activation wait. Copy works always; the WhatsApp button appears once
@@ -4701,7 +4686,6 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
   // ── PAYMENT-INSTRUCTIONS VIEW ──
   if (pay) {
-    const cardLink = PAYMOB_LINKS[pay.planId];   // Paymob hosted link for this plan (card + wallet)
     const railDest = railInfo?.dest || '';
     return shell(<>
       <div style={{ textAlign:'center', margin:'8px 0 18px' }}>
@@ -4770,28 +4754,11 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           </button>
           {paymentError && <div role="alert" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>{paymentError}</div>}
 
-          {cardLink && (
-            <button onClick={() => payWithCard(pay)}
-              style={{ width:'100%', marginTop:10, padding:'12px', minHeight:48, cursor:'pointer',
-                fontFamily:'var(--font-display)', fontSize:12.5, fontWeight:700, borderRadius:12,
-                border:'1px solid var(--line-strong)', color:'var(--text)', background:'var(--surface)' }}>
-              {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
-            </button>
-          )}
-
           <div style={{ fontSize:10.5, color:'var(--text-faint)', textAlign:'center', marginTop:14, lineHeight:1.6 }}>
             Vorgang {refCode} · Bestätigung per WhatsApp · Freischaltung meist in wenigen Minuten
           </div>
         </div>
-      ) : cardLink ? (<>
-        <button onClick={() => payWithCard(pay)}
-          style={{ width:'100%', padding:'14px', minHeight:52, cursor:'pointer',
-            fontFamily:'var(--font-display)', fontSize:13.5, fontWeight:700, borderRadius:12,
-            border:'none', color:'#FFFFFF', background:'var(--action)', boxShadow:'0 1px 2px rgba(18,22,31,0.2)' }}>
-          {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
-        </button>
-        {paymentError ? <div role="alert" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>{paymentError}</div> : null}
-      </>) : (
+      ) : (
         <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'var(--text-dim)', fontSize:12, padding:20 }}>
           Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span>
         </div>
