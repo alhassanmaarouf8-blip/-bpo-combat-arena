@@ -377,7 +377,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
     <div>
       <div style={{ textAlign: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{T(lang, 'Dein geschätztes Niveau', 'مستواك التقريبي')}</div>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 600, color: 'var(--accent)', textShadow: '0 0 22px rgba(14,19,32,0.18)' }}>~{lvl}</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 44, fontWeight: 600, color: 'var(--accent)' }}>~{lvl}</div>
         <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{T(lang, 'Konfidenz', 'مستوى الثقة')}: {result.confidence}</div>
       </div>
 

@@ -31,6 +31,10 @@ import {
 import { buildStudyBrowserHandoffUrl, captureStudyCohortEntry, forgetStudyCohortEntry,
   verifyStudyCohortEntry } from './studyCohortEntry.js';
 import { useAccessibleOverlay } from './useAccessibleOverlay.js';
+// The design law's shared atoms. App.jsx re-declared every button inline for 8k lines while the
+// satellite screens (Assessment, CallFloor, …) consumed these — which is exactly how three different
+// "primary" buttons with radii 10/12/16 ended up shipping. Consume, don't restate.
+import { actionBtn } from './ui/primitives.js';
 
 // Bearer capability hygiene: capture once and remove it from history during module initialization,
 // before the app's pre-warm request, telemetry, or first React render can run.
@@ -1477,7 +1481,10 @@ function WaveformRing({ volRef, active, bossSpeak }) {
         transform: `scale(${scale})`,
         transition:'transform 0.08s linear, box-shadow var(--dur-slow) var(--ease), border-color var(--dur-slow), background var(--dur-slow)',
       }}>
-        🎙️
+        {/* SVG icon, not the 🎙️ emoji that used to sit here: an emoji renders as a different
+            picture on every OS (and in colour), which is the cheapest-looking thing a UI can do —
+            especially at 34px in the centre of the interview's focal object. */}
+        <Icon name="mic" size={30} />
       </div>
     </div>
   );
@@ -2196,7 +2203,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                   RANG · {shownScore}<span style={{ opacity:0.5 }}> / 100</span>
                 </div>
                 {r.jobLabel && (
-                  <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'var(--action)', textShadow:'0 0 10px rgba(249,115,22,0.35)', marginTop:4 }}>
+                  <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:'var(--action)', marginTop:4 }}>
                     {r.jobLabel.toUpperCase()}
                   </div>
                 )}
@@ -2214,7 +2221,10 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             {data?.progress?.personalBest && (
               <div style={{ marginTop:11, display:'inline-block', padding:'6px 15px', borderRadius:'var(--r-pill)',
                 fontFamily:'var(--font-display)', fontWeight:700, fontSize:12, letterSpacing:'0.08em',
-                color:'#FFFFFF', background:'linear-gradient(135deg,var(--action-2),var(--action))', boxShadow:'0 0 22px rgba(249,115,22,0.55)',
+                /* No glow bloom (CRAFT LAW). A 22px orange halo behind a gradient pill is the arcade
+                   tell the design system exists to kill — the achievement is carried by the orange
+                   fill and the word, not by making it radioactive. Token elevation instead. */
+                color:'#FFFFFF', background:'linear-gradient(135deg,var(--action-2),var(--action))', boxShadow:'var(--e2)',
                 animation:'rank-pop 0.7s var(--ease-spring)' }}>
                 BESTLEISTUNG!
               </div>
@@ -2461,7 +2471,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
               border:`1px solid ${data.progress.leveledUp ? 'var(--accent)' : 'rgba(14,19,32,0.25)'}` }}>
               {data.progress.leveledUp && (
                 <div style={{ fontFamily:'var(--font-display)', fontSize:12, fontWeight:700, color:'var(--accent)',
-                  letterSpacing:'0.1em', marginBottom:4, textShadow:'0 0 12px rgba(14,19,32,0.7)' }}>
+                  letterSpacing:'0.1em', marginBottom:4 }}>
                   ↑ LEVEL UP — LEVEL {data.progress.level ?? '–'}
                 </div>
               )}
@@ -3050,7 +3060,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
       background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 16px 8px' }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, letterSpacing:2,
-          color:'var(--accent)', textShadow:'0 0 20px rgba(14,19,32,0.5)' }}>FORTSCHRITT</div>
+          color:'var(--accent)' }}>FORTSCHRITT</div>
         <div style={{ display:'flex', gap:8 }}>
           {/* The real artifact: a printable evidence one-pager for real applications. */}
           {!loading && data && (
@@ -3100,7 +3110,7 @@ function Dashboard({ data, loading, account, onClose, onReview, onLogout, token,
             <span style={{ fontSize:9, color:'var(--text-dim)' }}>{lp.intoLevel}/{lp.perLevel} XP</span>}>
             <div style={{ height:9, borderRadius:5, background:'var(--surface-2)', overflow:'hidden', marginBottom:8 }}>
               <div style={{ height:'100%', width:`${lp.pct}%`,
-                background:'linear-gradient(90deg,var(--accent),var(--accent))', boxShadow:'0 0 10px rgba(14,19,32,0.6)',
+                background:'linear-gradient(90deg,var(--accent),var(--accent))',
                 transition:'width 0.6s' }} />
             </div>
             <div style={{ fontSize:11, color:'var(--text-dim)' }}>
@@ -6948,7 +6958,9 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         <div style={{ position:'absolute', inset:0, zIndex:230, display:'flex', flexDirection:'column',
           justifyContent:'center', alignItems:'center', textAlign:'center', padding:28,
           background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
-          <div style={{ fontSize:46 }}>🎙️</div>
+          {/* SVG, not the 🎙️ emoji: an empty state is where a product looks cheapest, and a
+              cross-platform-inconsistent colour emoji at 46px was the loudest thing on the screen. */}
+          <div style={{ color:'var(--text-faint)', display:'flex' }}><Icon name="mic" size={40} /></div>
           <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, color:'var(--action)', marginTop:10 }}>
             {feedbackLang==='ar' ? 'مفيش مقابلة نقيّمها' : 'Keine Sitzung zum Auswerten'}
           </div>
@@ -7066,14 +7078,19 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             <button onClick={() => setDailyOpen(true)} style={{ flex:1, minWidth:0, textAlign:'left', cursor:'pointer',
               display:'flex', alignItems:'center', gap:10, padding:'10px 14px', minHeight:44,
               borderRadius:'var(--r-pill)', background:'var(--surface)',
-              border:`1px solid ${daily.completedToday ? 'rgba(14,19,32,0.35)' : streak > 0 ? 'rgba(249,115,22,0.4)' : 'var(--line)'}`,
+              border:`1px solid ${daily.completedToday ? 'rgba(14,19,32,0.35)' : 'var(--line)'}`,
               transition:'all var(--dur-slow)' }}>
-              <span style={{ color: streak > 0 ? 'var(--action)' : 'var(--text-faint)', display:'flex' }}>
+              {/* ONE ORANGE PER SCREEN: a live streak used to paint the flame, the label AND this
+                  border orange, so the home showed three orange objects competing with the interview
+                  CTA — the home's single orange belongs to the interview. The chip below was already
+                  neutralised for exactly this reason; the flame and count were missed. Blue carries
+                  "you have a streak" perfectly well. */}
+              <span style={{ color: streak > 0 ? 'var(--accent-2)' : 'var(--text-faint)', display:'flex' }}>
                 <Icon name="flame" size={18} />
               </span>
               <div style={{ flex:1, minWidth:0, display:'flex', alignItems:'baseline', gap:8 }}>
                 <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:'var(--fs-label)',
-                  color: streak > 0 ? 'var(--action)' : 'var(--text-dim)' }}>
+                  color: streak > 0 ? 'var(--accent-2)' : 'var(--text-dim)' }}>
                   Serie: {streak} {streak === 1 ? 'Tag' : 'Tage'}
                 </span>
                 <span style={{ fontSize:'var(--fs-meta)', color:'var(--text-faint)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -7144,11 +7161,15 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                   onClick={beginSession}
                   disabled={isConnecting}
                   style={{
-                    width:'100%', marginBottom:12, padding:'16px 20px', minHeight:56, cursor: isConnecting ? 'wait' : 'pointer',
+                    /* THE screen's single orange action — so it consumes the shared atom rather than
+                       restating it. This button hard-coded radius 16 while ui/primitives.js and every
+                       drill's primary say 12, which is why the app read as several products.
+                       Override only size and the connecting state. */
+                    ...actionBtn,
+                    marginBottom:12, padding:'16px 20px', minHeight:56,
+                    cursor: isConnecting ? 'wait' : 'pointer',
                     display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-                    fontFamily:'var(--font-display)', fontSize:16, fontWeight:700, letterSpacing:'0.02em',
-                    borderRadius:16, border:'none', color:'#FFFFFF',
-                    background:'var(--grad-action)', boxShadow:'var(--shadow-action)',
+                    fontSize:16,
                     transition:'transform 100ms var(--ease)',
                     opacity: isConnecting ? 0.55 : 1,
                   }}>
@@ -7311,8 +7332,11 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               cursor: canStart ? 'pointer' : 'default', userSelect:'none' }}>
               <input type="checkbox" checked={handsFree} disabled={!canStart}
                 onChange={(e) => { handsFreeRef.current = e.target.checked; setHandsFree(e.target.checked); }} />
-              <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : 'var(--text-dim)', letterSpacing:'0.04em' }}>
-                🎙 Freisprech-Modus · بدون أزرار — تكلم وهو يتفهم
+              <span style={{ fontSize:10, color: handsFree ? 'var(--accent)' : 'var(--text-dim)', letterSpacing:'0.04em',
+                display:'inline-flex', alignItems:'center', gap:5 }}>
+                {/* SVG glyph — every other labelled control on this screen uses the Icon set. */}
+                <Icon name="mic" size={11} />
+                Freisprech-Modus · بدون أزرار — تكلم وهو يتفهم
               </span>
             </label>
 
@@ -7365,7 +7389,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           background:'rgba(14,19,32,0.42)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
           <div onClick={e => e.stopPropagation()} style={{
             width:'min(92vw,440px)', background:'var(--surface)', borderRadius:18,
-            border:'1.5px solid rgba(14,19,32,0.45)', boxShadow:'0 0 60px rgba(14,19,32,0.18)',
+            border:'1.5px solid rgba(14,19,32,0.45)', boxShadow:'var(--e2)',
             padding:'22px 22px 18px', userSelect:'none' }}>
             {/* Header */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>

@@ -176,7 +176,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, letterSpacing: '0.1em',
-            color: 'var(--warn)', textShadow: '0 0 14px rgba(249,115,22,0.5)' }}>TÄGLICHES TRAINING</div>
+            color: 'var(--warn)' }}>TÄGLICHES TRAINING</div>
           <div style={{ fontSize: 9, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>HEUTIGER AKTIVER ABRUF</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
