@@ -20,9 +20,11 @@ export const paymentsRouter = express.Router();
 export { PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
 
 export function supportedPaymentRailAvailable() {
-  // The current buyer UI implements Vodafone Cash only. Do not create a durable payment intent
-  // for a rail the customer cannot actually see or use.
-  return !!String(process.env.VODAFONE_CASH_NUMBER || '').trim();
+  // Only create a durable payment intent for a rail the customer can actually see and use.
+  // The buyer UI implements Vodafone Cash AND InstaPay (owner order 2026-07-25) — either
+  // configured address makes manual payment available.
+  return !!String(process.env.VODAFONE_CASH_NUMBER || '').trim()
+    || !!String(process.env.INSTAPAY_ADDRESS || '').trim();
 }
 
 function paymentShape(acc, body = {}) {
@@ -42,7 +44,7 @@ function uniqueReference(all) {
   throw new Error('reference_generation_failed');
 }
 
-export function applyPaymentConfirmation(all, { userId, intentId, senderLast4, now = Date.now() }) {
+export function applyPaymentConfirmation(all, { userId, intentId, senderLast4, rail, now = Date.now() }) {
   const found = all.find((p) => p.id === intentId && p.userId === userId);
   if (!found) return { kind: 'not_found', record: null };
   if (found.status === 'expired') return { kind: 'expired', record: found };
@@ -61,6 +63,9 @@ export function applyPaymentConfirmation(all, { userId, intentId, senderLast4, n
   found.status = 'pending';
   found.confirmedAt ||= now;
   found.senderLast4 ||= senderLast4;
+  // Which rail the buyer says they used — tells the owner WHERE to look for the incoming
+  // transfer (Vodafone Cash app vs bank/InstaPay). Whitelisted; verification stays manual.
+  if (rail === 'instapay' || rail === 'vodafone') found.rail ||= rail;
   return { kind: 'ok', record: found };
 }
 
@@ -127,6 +132,7 @@ paymentsRouter.post('/billing/pay', requireAuth,
       const maintained = maintainPaymentRecords(all);
       const next = applyPaymentConfirmation(all, {
         userId: acc.id, intentId: req.body.intentId, senderLast4,
+        rail: req.body?.rail === 'instapay' ? 'instapay' : 'vodafone',
       });
       return { save: maintained || (next.kind !== 'not_found' && next.kind !== 'conflict'
         && next.kind !== 'under_review'), value: next };

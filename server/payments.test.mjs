@@ -27,7 +27,7 @@ test('payment confirmation is idempotent and cannot rewrite the sender fingerpri
   const now = Date.now();
   const all = [{ id: 'pay_new', userId: 'u1', status: 'intent', createdAt: now - 1000 }];
   const first = applyPaymentConfirmation(all, {
-    userId: 'u1', intentId: 'pay_new', senderLast4: '1234', now,
+    userId: 'u1', intentId: 'pay_new', senderLast4: '1234', rail: 'instapay', now,
   });
   const replay = applyPaymentConfirmation(all, {
     userId: 'u1', intentId: 'pay_new', senderLast4: '1234', now: now + 1000,
@@ -40,20 +40,33 @@ test('payment confirmation is idempotent and cannot rewrite the sender fingerpri
   assert.equal(conflict.kind, 'conflict');
   assert.equal(all[0].senderLast4, '1234');
   assert.equal(all[0].confirmedAt, now);
+  // The rail the buyer declared is recorded once (whitelisted) so the owner knows where to look.
+  assert.equal(all[0].rail, 'instapay');
 });
 
-test('payment rail availability follows the supported Vodafone Cash configuration', () => {
-  const previous = process.env.VODAFONE_CASH_NUMBER;
+test('payment rail availability follows the supported Vodafone Cash / InstaPay configuration', () => {
+  const previousVodafone = process.env.VODAFONE_CASH_NUMBER;
+  const previousInstapay = process.env.INSTAPAY_ADDRESS;
   try {
     delete process.env.VODAFONE_CASH_NUMBER;
+    delete process.env.INSTAPAY_ADDRESS;
     assert.equal(supportedPaymentRailAvailable(), false);
     process.env.VODAFONE_CASH_NUMBER = '   ';
     assert.equal(supportedPaymentRailAvailable(), false);
     process.env.VODAFONE_CASH_NUMBER = '201000000000';
     assert.equal(supportedPaymentRailAvailable(), true);
+    // InstaPay ALONE is a valid rail (owner order 2026-07-25): the buyer UI renders whichever
+    // address the server provides, so either env var opens manual payment.
+    delete process.env.VODAFONE_CASH_NUMBER;
+    process.env.INSTAPAY_ADDRESS = 'owner@instapay';
+    assert.equal(supportedPaymentRailAvailable(), true);
+    process.env.INSTAPAY_ADDRESS = '   ';
+    assert.equal(supportedPaymentRailAvailable(), false);
   } finally {
-    if (previous === undefined) delete process.env.VODAFONE_CASH_NUMBER;
-    else process.env.VODAFONE_CASH_NUMBER = previous;
+    if (previousVodafone === undefined) delete process.env.VODAFONE_CASH_NUMBER;
+    else process.env.VODAFONE_CASH_NUMBER = previousVodafone;
+    if (previousInstapay === undefined) delete process.env.INSTAPAY_ADDRESS;
+    else process.env.INSTAPAY_ADDRESS = previousInstapay;
   }
 });
 

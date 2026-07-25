@@ -4413,6 +4413,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
   const [yearly, setYearly] = useState(false);
   const [vodafone, setVodafone] = useState(null);
+  const [instapay, setInstapay] = useState(null);   // InstaPay address (env-only, server-provided)
+  const [payRail, setPayRail]   = useState('vodafone');   // which manual rail the buyer is following
   const [paymentAvailable, setPaymentAvailable] = useState(null);
   const [whatsapp, setWhatsapp] = useState(null);
   useEffect(() => { beacon('paywall_shown'); }, []);   // funnel: how many people ever SEE a price
@@ -4438,9 +4440,11 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       if (Array.isArray(d.plans)) setPlans(d.plans);
       setOffer(d.offer?.active ? d.offer : null);   // deal shows ONLY when the server honors it
       setVodafone(d.vodafoneNumber || null);
+      setInstapay(d.instapayAddress || null);
+      // Manual payment is available when EITHER rail has a destination (owner order 2026-07-25).
       setPaymentAvailable(d.paymentAvailable === undefined
-        ? !!d.vodafoneNumber
-        : !!d.paymentAvailable && !!d.vodafoneNumber);
+        ? !!(d.vodafoneNumber || d.instapayAddress)
+        : !!d.paymentAvailable && !!(d.vodafoneNumber || d.instapayAddress));
       setWhatsapp(d.whatsappNumber || null);
       setPendingPayment(d.pendingPayment || null); setPaymentRejected(!!d.paymentRejected);
       if (d.pendingPayment) paymentWatchRef.current = true;
@@ -4493,7 +4497,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
   const preparePayment = async (choice) => {
     if (submitting) return;
-    if (paymentAvailable !== true || !vodafone) {
+    if (paymentAvailable !== true || (!vodafone && !instapay)) {
       setPaymentError(ar ? 'الدفع غير متاح حاليًا. ما تحوّلش أي مبلغ.' : 'Zahlung ist gerade nicht verfügbar. Bitte nichts überweisen.');
       return;
     }
@@ -4574,6 +4578,9 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   );
 
   // Tap "I paid": record a PENDING request. Grants NO access — the owner verifies & activates.
+  // The buyer's chosen manual rail, clamped to what the server actually configured.
+  const rail = payRail === 'instapay' && instapay ? 'instapay' : vodafone ? 'vodafone' : instapay ? 'instapay' : 'vodafone';
+
   const onPaid = async () => {
     if (submitting || !pay) return;
     if (!/^\d{4}$/.test(senderLast4)) {
@@ -4584,7 +4591,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     try {
       const r = await fetch(`${API_URL}/api/billing/pay`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ intentId: pay.intentId, senderLast4 }),
+        body: JSON.stringify({ intentId: pay.intentId, senderLast4, rail }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || `pay ${r.status}`);
@@ -4625,6 +4632,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   // ── PAYMENT-INSTRUCTIONS VIEW ──
   if (pay) {
     const cardLink = PAYMOB_LINKS[pay.planId];   // Paymob hosted link for this plan (card + wallet)
+    const railDest = rail === 'instapay' ? instapay : vodafone;
     return shell(<>
       <div style={{ textAlign:'center', marginBottom:12 }}>
         <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, letterSpacing:1.2, color:'var(--text)' }}>{pay.label?.toUpperCase()}</div>
@@ -4644,33 +4652,61 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
         </button>
       )}
-      {cardLink && !STORE_MODE && vodafone && (
-        <div style={{ textAlign:'center', fontSize:10.5, color:'var(--text-faint)', margin:'8px 0 6px' }}>{ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash'}</div>
+      {cardLink && !STORE_MODE && (vodafone || instapay) && (
+        <div style={{ textAlign:'center', fontSize:10.5, color:'var(--text-faint)', margin:'8px 0 6px' }}>
+          {vodafone && instapay ? (ar ? 'أو Vodafone Cash / InstaPay' : 'oder Vodafone Cash / InstaPay')
+            : instapay ? (ar ? 'أو InstaPay' : 'oder InstaPay')
+            : (ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash')}
+        </div>
       )}
 
-      {!STORE_MODE && vodafone ? (
+      {!STORE_MODE && (vodafone || instapay) ? (
         <div style={{ flex:1 }}>
+          {/* Manual-rail choice — only when BOTH destinations are configured. Same segmented voice
+              as the monthly/yearly toggle: selected = solid ink, unselected = quiet white. */}
+          {vodafone && instapay && (
+            <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+              {[['vodafone','Vodafone Cash'],['instapay','InstaPay']].map(([id,label]) => (
+                <button key={id} type="button" onClick={() => setPayRail(id)}
+                  style={{ flex:1, minHeight:44, padding:'10px', cursor:'pointer', borderRadius:10,
+                    fontFamily:'var(--font-display)', fontWeight:700, fontSize:12.5,
+                    border: rail === id ? 'none' : '1px solid var(--line-strong)',
+                    background: rail === id ? 'var(--accent)' : 'var(--surface)',
+                    color: rail === id ? '#FFFFFF' : 'var(--text-dim)' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {/* Step 1 — send the money */}
           <div style={{ borderRadius:12, padding:'14px', marginBottom:10, background: 'var(--surface)', border:'1px solid var(--line)' }}>
+            {rail === 'vodafone' ? (<>
             <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
               <b style={{ color:'var(--text)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
-            <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize:22, fontWeight:700,
-              background:'var(--surface-2)', border:'1px solid var(--line-strong)', color:'var(--text)', borderRadius:8, padding:'12px', marginTop:8, letterSpacing:'0.08em' }}>
-              {vodafone}
+            </>) : (<>
+            <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
+              <b style={{ color:'var(--text)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per InstaPay an diese Adresse:{/* OWNER-AR slot */}
             </div>
-            <button type="button" onClick={() => copyText(vodafone, 'wallet')}
+            </>)}
+            <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize: rail === 'instapay' && String(railDest).length > 14 ? 17 : 22, fontWeight:700,
+              background:'var(--surface-2)', border:'1px solid var(--line-strong)', color:'var(--text)', borderRadius:8, padding:'12px', marginTop:8, letterSpacing:'0.08em', overflowWrap:'anywhere' }}>
+              {railDest}
+            </div>
+            <button type="button" onClick={() => copyText(railDest, 'wallet')}
               style={{ width:'100%', marginTop:7, padding:'9px', minHeight:42, cursor:'pointer', borderRadius:8,
                 border:'1px solid var(--line-strong)', background:'var(--surface)', color:'var(--text)', fontWeight:700 }}>
-              {copied === 'wallet' ? (ar ? 'تم نسخ الرقم ✓' : 'Nummer kopiert ✓') : (ar ? 'انسخ رقم المحفظة' : 'Wallet-Nummer kopieren')}
+              {copied === 'wallet'
+                ? (ar ? 'تم النسخ ✓' : rail === 'instapay' ? 'Adresse kopiert ✓' : 'Nummer kopiert ✓')
+                : rail === 'instapay' ? (ar ? 'انسخ العنوان' : 'InstaPay-Adresse kopieren') : (ar ? 'انسخ رقم المحفظة' : 'Wallet-Nummer kopieren')}
             </button>
           </div>
 
           {/* Step 2 — payer identity; Vodafone Cash has no transfer-note field. */}
           <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.4)' }}>
             <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
-              <b style={{ color:'var(--text)' }}>2)</b> Gib die letzten 4 Ziffern der Wallet ein, von der du sendest:
+              <b style={{ color:'var(--text)' }}>2)</b> Gib die letzten 4 Ziffern der {rail === 'instapay' ? 'Handynummer ein, mit der du sendest' : 'Wallet ein, von der du sendest'}:{/* OWNER-AR slot (instapay) */}
             </div>
             <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>اكتب آخر ٤ أرقام من رقم المحفظة اللي هتحوّل منها:</div>
             <input value={senderLast4} onChange={(e) => setSenderLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
@@ -4989,7 +5025,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         {paymentError && <div role="alert" style={{ textAlign:'center', color:'var(--bad)', fontSize:12, padding:14 }}>{paymentError}</div>}
 
         <div style={{ fontSize:9.5, color:'var(--text-faint)', textAlign:'center', lineHeight:1.5 }}>
-          Zahlung manuell per Vodafone Cash während der Early-Access-Phase.
+          Zahlung manuell per {instapay && vodafone ? 'Vodafone Cash oder InstaPay' : instapay ? 'InstaPay' : 'Vodafone Cash'} während der Early-Access-Phase.{/* OWNER-AR slot (instapay) */}
           <br /><span dir="rtl">الدفع يدوي عن طريق فودافون كاش في مرحلة الإطلاق المبكر.</span>
         </div>
       </div>
