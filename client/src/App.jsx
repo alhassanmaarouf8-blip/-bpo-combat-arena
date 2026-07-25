@@ -880,10 +880,15 @@ const POSTURE = {
 };
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+// NOTE: the Inter/Share-Tech-Mono @import that used to head this string now lives in
+// client/index.html as a real <link>. This string is injected by a useEffect, so an @import here
+// was invisible to the browser's preload scanner: the font fetch could not begin until the bundle
+// parsed and mounted, and every visitor painted in system-ui and then reflowed. Do not reintroduce
+// it here — add font links to index.html beside the Arabic face. (Kept as a JS comment rather than
+// a CSS one so the explanation does not ship inside the injected stylesheet.)
 const GLOBAL_CSS = `
   /* Direction A = calm/premium/trust. ONE clean type family (Inter — full ä ö ü ß + good Latin),
      no gaming display face. Share Tech Mono kept only for any monospace numerics. */
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
 
   /* ── German Interview Trainer design tokens ─────────────────────────────────────────────
      Single source of truth for colour, type, spacing, radius, motion, depth.

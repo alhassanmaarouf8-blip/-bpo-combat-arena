@@ -10,6 +10,12 @@
     <link rel="preconnect" href="https://bpo-combat-arena.onrender.com" crossorigin />
     <link rel="dns-prefetch" href="https://bpo-combat-arena.onrender.com" />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;700&display=swap" rel="stylesheet" />
+    <!-- Inter is the PRIMARY UI face. It used to be pulled by an @import inside the GLOBAL_CSS
+         string in App.jsx, which the browser's preload scanner cannot see: the fetch could not
+         start until the JS bundle parsed, mounted, and a useEffect injected the <style>. Every
+         visitor painted in system-ui and then reflowed. Declared here — beside the Arabic face,
+         which always did this correctly — it is discovered while the HTML is still being parsed. -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <meta name="description" content="درّب على إنترفيو شغل خدمة عملاء ألماني بالصوت وخُد تقييم محدد على إجاباتك علشان تجهّز لشغل الكول سنتر الألماني في مصر أو شغل ريموت بالألماني. Übe dein deutsches BPO-Job-Interview per Sprache mit konkretem Feedback." />
     <link rel="canonical" href="https://omni-perform.vercel.app/" />
 
