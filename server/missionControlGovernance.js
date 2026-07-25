@@ -12,7 +12,11 @@ function enabledFlag(value) {
 
 export function trackerLimitForMissionFlags(flags) {
   if (!flags || typeof flags !== 'object') return 0;
-  if (flags.admin || flags.trial) return trackedApplicationsFor('elite');
+  if (flags.admin) return trackedApplicationsFor('elite');
+  // The trial is ONE day of BASIC (owner order 2026-07-25), so it gets Basic's tracker ceiling.
+  // Grouping it with `admin` handed every trial account Elite's 250 — an Elite-only allowance
+  // leaking to free users the moment the trial was switched on.
+  if (flags.trial) return trackedApplicationsFor('basic');
   return trackedApplicationsFor(
     flags.plan === 'basic' || flags.plan === 'elite' ? flags.plan : 'free',
   );

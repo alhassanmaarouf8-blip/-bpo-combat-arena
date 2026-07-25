@@ -313,8 +313,10 @@ export function missionControlFlagsFor(account, options = {}) {
   const plan = account ? planOf(account, now) : 'free';
   const trial = account ? trialActive(account, now) : false;
   const admin = account ? isAdminAccount(account) : false;
+  // Trial = BASIC (owner order 2026-07-25): full tracker view, but the Elite-only live tier stays
+  // closed. `|| trial` on `live` would have leaked an Elite capability to every free account.
   const full = plan === 'basic' || plan === 'elite' || trial || admin;
-  const live = plan === 'elite' || trial || admin;
+  const live = plan === 'elite' || admin;
   const vacancyLive = account ? vacancyFlagsFor(account, { env, now }).live : false;
   return {
     paused,

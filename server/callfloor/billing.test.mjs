@@ -41,13 +41,17 @@ test('entitlement: free gets a taste (2 seats), Basic adds outbound_cs, Elite th
   assert.equal(e.freeTalk, true);
 });
 
-test('entitlement: the trial is REMOVED — a trialStartedAt account stays plain free', () => {
-  // Owner order 2026-07-25 ("ok remove trial"): FREE_TRIAL_DAYS=0, so trialActive() is always
-  // false and no account may inherit Elite through a trial stamp.
+test('entitlement: the trial mirrors BASIC — never Elite (no free-talk, no outbound_sales seat)', () => {
+  // Owner order 2026-07-25 (supersedes the same-day "ok remove trial"): one free day of BASIC, with
+  // Elite-only capabilities closed and paid. This file previously mirrored Elite during the trial,
+  // which would have handed every free account free-talk and the outbound_sales seat the moment the
+  // trial was switched back on. THAT is what this test exists to prevent — never relax it to
+  // 'elite'. planId is asserted explicitly so a silent downgrade to 'free' also fails.
   const trial = { id: 'u', subscription: { plan: 'free', trialStartedAt: Date.now() - 1000 } };
   const ent = callFloorEntitlement(trial);
-  assert.equal(ent.planId, 'free');
+  assert.equal(ent.planId, 'basic');
   assert.equal(ent.freeTalk, false);
+  assert.equal(ent.quadrants.includes('outbound_sales'), false);
 });
 
 test('seat gate: outbound_sales is Elite-only; required plan resolves per seat', () => {

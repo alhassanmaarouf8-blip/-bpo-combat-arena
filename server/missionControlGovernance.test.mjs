@@ -65,11 +65,12 @@ test('tracker entitlement follows the plan source of truth (trial REMOVED: stamp
     ['free', { id:'governance-free', subscription:{ plan:'free' } }, 1],
     ['basic', { id:'governance-basic', subscription:{ plan:'basic' } }, 100],
     ['elite', { id:'governance-elite', subscription:{ plan:'elite' } }, 250],
-    // Owner order 2026-07-25: the trial is removed — a trial stamp grants nothing beyond free.
+    // Owner order 2026-07-25: the trial is ONE day of BASIC, so a trial stamp gets Basic's tracker
+    // ceiling (100) — never Elite's 250.
     ['trial', {
       id:'governance-trial',
       subscription:{ plan:'free', trialStartedAt:NOW - 60_000 },
-    }, 1],
+    }, 100],
   ];
 
   for (const [label, account, expected] of cases) {

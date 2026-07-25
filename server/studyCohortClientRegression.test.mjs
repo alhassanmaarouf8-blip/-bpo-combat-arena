@@ -98,7 +98,13 @@ test('generic landing states the real offer (free-forever + true trial grant + p
   // again promise a free verdict the server withholds.
   assert.match(source, /Die Auswertung — dein Niveau, dein Engpass,/);
   assert.doesNotMatch(source, /kostenlose Einstufung bleibt immer frei/);
-  assert.match(source, /Deine \{pricing\.trial\.days\} Testtage \(ab dem ersten Interview\)/);
+  // RATCHET (2026-07-25): the trial became ONE day of BASIC, so this line is now plural-aware and
+  // names the tier. Two things it must never do again: print "1 Testtage" (a plural with 1, in an
+  // app that teaches German), and promise Ziel-Stelle — that is Elite-only now, so the landing
+  // renders it only when the payload says the trial grants it.
+  assert.match(source, /Dein 1 Testtag/);
+  assert.match(source, /pricing\.trial\.tierLabel/);
+  assert.doesNotMatch(source, /alle Übungen · Ziel-Stelle\./);
   assert.match(source, /\{pricing\.trial\.dailySessions\} Interviews\/Tag/);
   assert.match(source, /\{fmtEgp\(pl\.offerPriceEGP\)\} EGP\/Monat/);
   // RATCHET: the retired line promised "3 Tage Basic" while auth.js grants a trial user Elite-level

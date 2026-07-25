@@ -77,15 +77,18 @@ test('public pricing NEVER leaks internal plan shape to anonymous callers', asyn
 test('public pricing states the trial grant the code ACTUALLY gives (not the old "3 Tage Basic")', async () => {
   const { body } = await getPricing();
   assert.equal(body.trial.days, FREE_TRIAL_DAYS);
-  // dailyMinutesFor()/entitlement() hand an active trial the ELITE allowance (auth.js) — so the
-  // landing must advertise Elite's numbers. Asserting against PLANS.elite (not a literal) means a
-  // future plan change moves the promise and this test together, never one without the other.
-  assert.equal(body.trial.dailySessions, PLANS.elite.dailySessions);
-  assert.equal(body.trial.dailyLiveMinutes, PLANS.elite.dailyLiveMinutes);
-  assert.notEqual(body.trial.dailySessions, PLANS.basic.dailySessions,
-    'the trial is NOT a Basic trial — advertising it as one under-sells the product and is false');
+  // Owner order 2026-07-25: the free day is a BASIC day. dailyMinutesFor()/entitlement() hand an
+  // active trial the BASIC allowance, so the landing must advertise Basic's numbers and nothing
+  // more. Asserting against PLANS.basic (not literals) means a future plan change moves the code
+  // and the promise together, never one without the other — the copy-claim guard as a test.
+  assert.equal(body.trial.tier, PLANS.basic.id);
+  assert.equal(body.trial.dailySessions, PLANS.basic.dailySessions);
+  assert.equal(body.trial.dailyLiveMinutes, PLANS.basic.dailyLiveMinutes);
+  assert.notEqual(body.trial.dailySessions, PLANS.elite.dailySessions,
+    'the trial is NOT an Elite trial — advertising Elite numbers promises what the server withholds');
   assert.equal(body.trial.drills, true);
-  assert.equal(body.trial.zielStelle, true);
+  // Ziel-Stelle is Elite-only: the landing must NOT promise it during a Basic trial.
+  assert.equal(body.trial.zielStelle, false);
   // The always-free promise on the landing must match the free plan's real allowance.
   assert.equal(body.free.assessments, PLANS.free.assessments);
   assert.equal(body.free.freeInterviews, 1);

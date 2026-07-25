@@ -52,9 +52,16 @@ test('entitlement exposes the trial length (0 = removed) so the client never har
   const ent = entitlement(trialAccount);
   assert.equal(ent.trial.days, FREE_TRIAL_DAYS,
     'the client renders trial UI from trial.days — a literal would lie the moment it changes');
-  // Owner order 2026-07-25: the trial is removed — a trial stamp never activates anything.
-  assert.equal(FREE_TRIAL_DAYS, 0);
-  assert.equal(ent.trial.active, false);
+  // Owner order 2026-07-25 (supersedes the same-day "ok remove trial"): ONE day of BASIC.
+  assert.equal(FREE_TRIAL_DAYS, 1);
+  assert.equal(ent.trial.active, true);
+  // The free day must be a BASIC day, never an Elite one — these are the guards that keep it so.
+  assert.equal(ent.trialTier, 'basic');
+  assert.equal(ent.dailySessions, 2, 'Basic = 2 interviews/day, not Elite 4');
+  assert.equal(ent.dailyLiveMinutes, 15, 'Basic = 15 live min/day, not Elite 30');
+  assert.equal(ent.zielStelle, false, 'Ziel-Stelle is Elite-only and must stay closed in the trial');
+  // The point of the free day: the verdict is visible without paying.
+  assert.equal(ent.interviewResults, true);
 });
 
 test('the notice mail carries evidence but NO manufactured urgency', async () => {

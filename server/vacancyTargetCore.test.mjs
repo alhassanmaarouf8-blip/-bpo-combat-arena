@@ -128,8 +128,9 @@ test('feature policy is fail-closed and enforces free/basic/elite/beta (trial RE
   assert.equal(core.vacancyFlagsFor(basic, { env, now }).fullPlan, true);
   assert.equal(core.vacancyFlagsFor(basic, { env, now }).live, false);
   assert.equal(core.vacancyFlagsFor(elite, { env, now }).live, true);
-  // Owner order 2026-07-25: the trial is removed — a trial stamp behaves as plain free.
-  assert.equal(core.vacancyFlagsFor(trial, { env, now }).fullPlan, false);
+  // Owner order 2026-07-25: the trial is ONE day of BASIC — so it earns the full plan view, and the
+  // Elite-only live tailoring stays closed. Never relax `live` to true for a trial.
+  assert.equal(core.vacancyFlagsFor(trial, { env, now }).fullPlan, true);
   assert.equal(core.vacancyFlagsFor(trial, { env, now }).live, false);
 
   const betaEnv = { VACANCY_MODE: 'beta', VACANCY_BETA_ACCOUNT_IDS: 'other, free-1' };

@@ -16,11 +16,15 @@ const invite = (id) => createStudyCohortInvite({
   inviteId:id, expiresAt:Date.now() + 60 * 60 * 1000, secret:SECRET,
 });
 
-test('generic accounts have NO free trial and expose no study state', async (t) => {
+test('a fresh account has NOT started its trial, and exposes no study state', async (t) => {
   const account = await auth.createAccount(uniq('generic-study-control'), 'password1234', null);
   t.after(() => auth.deleteAccount(account));
   const view = auth.publicAccount(account);
-  assert.equal(auth.FREE_TRIAL_DAYS, 0);   // owner order 2026-07-25: trial removed
+  assert.equal(auth.FREE_TRIAL_DAYS, 1);   // owner order 2026-07-25: ONE free day of Basic
+  // The clock starts on the first ACCEPTED interview (consumeFreeFight), never at signup — so
+  // registering and reading the landing can never burn the free day.
+  assert.equal(auth.trialActive(account), false);
+  assert.equal(auth.trialDaysLeft(account), 0);
   assert.equal(Object.hasOwn(view, 'studyAccess'), false);
   assert.equal(Object.hasOwn(view.subscription, 'studyCohort'), false);
 });
@@ -85,8 +89,8 @@ test('kill switch makes reserved access fail closed without changing generic ent
   process.env.STUDY_COHORT_MODE = 'off';
   try {
     assert.equal(Object.hasOwn(auth.publicAccount(account), 'studyAccess'), false);
-    assert.equal(auth.FREE_TRIAL_DAYS, 0);   // owner order 2026-07-25: trial removed
-    assert.equal(auth.trialDaysLeft(account), 0);
+    assert.equal(auth.FREE_TRIAL_DAYS, 1);   // owner order 2026-07-25: ONE free day of Basic
+    assert.equal(auth.trialDaysLeft(account), 0);   // never started → nothing to count down
   } finally {
     process.env.STUDY_COHORT_MODE = previous;
   }

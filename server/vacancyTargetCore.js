@@ -589,8 +589,11 @@ export function vacancyFlagsFor(account, options = {}) {
   const enabled = mode === 'on' || (mode === 'beta' && betaAllowed);
   const plan = planOf(account, now);
   const trial = trialActive(account, now);
+  // Trial = BASIC (owner order 2026-07-25): it earns the full plan view, but NOT the Elite-only
+  // live tailoring. `|| trial` on liveEligible would have opened an Elite capability to every free
+  // account the moment the trial was switched back on.
   const fullPlan = plan === 'basic' || plan === 'elite' || trial || admin;
-  const liveEligible = plan === 'elite' || trial || admin;
+  const liveEligible = plan === 'elite' || admin;
   const aiEnabled = enabled && flagEnabled(env.VACANCY_AI_ENABLED) && !!String(env.GROQ_API_KEY || '').trim();
   return {
     mode,

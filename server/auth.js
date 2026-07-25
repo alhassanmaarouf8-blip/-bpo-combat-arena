@@ -394,11 +394,16 @@ export function planOf(account, now = Date.now()) {
   if (s.tier === 'pro' || s.tier === 'team') return 'elite'; // legacy paid grants keep access
   return 'free';
 }
-// FREE TRIAL — REMOVED (owner order 2026-07-25: "ok remove trial"). 0 days = trialActive() is
-// always false and every trial banner/timeline disappears (all UI reads this value from the server).
-// The free acquisition hooks that remain are SEPARATE mechanisms: the one free Einstufung and
-// the single free first interview. Set back >0 to resurrect the trial.
-export const FREE_TRIAL_DAYS = 0;
+// FREE TRIAL — ONE DAY OF **BASIC** (owner order 2026-07-25, superseding the same-day "ok remove
+// trial"): "I want a full day of the basic tier, and for the things that are only allowed for the
+// Elite to be closed and to require payment, and for that to be clear."
+//
+// So the trial is a Basic trial, NOT an Elite one. Everything below that is trial-aware reads
+// PLANS.basic — allowance (15 min/day), interviews (2/day) — and Ziel-Stelle is deliberately NOT
+// granted (Elite-only; see entitlement()). The clock starts on the first accepted interview
+// (consumeFreeFight), never at signup, so reading the landing does not burn the day.
+// Set to 0 to remove the trial again; every banner and timeline reads this value from the server.
+export const FREE_TRIAL_DAYS = 1;
 const FREE_TRIAL_DAY_MS = 86400000;
 export function trialActive(account, now = Date.now()) {
   if (!account || isAdminAccount(account)) return false;   // admins are already elite
@@ -416,11 +421,10 @@ export function trialDaysLeft(account, now = Date.now()) {
   const days = FREE_TRIAL_DAYS;
   return Math.max(0, Math.ceil((days * FREE_TRIAL_DAY_MS - (now - start)) / FREE_TRIAL_DAY_MS));
 }
-// During the trial a free user gets the complete Elite experience promised by the
-// current offer, including the same live-session allowance. Otherwise use the
-// account's paid/free plan value.
+// During the trial a free user gets BASIC's live allowance (15 min/day = 2 interviews), not
+// Elite's 30. Owner order 2026-07-25: the free day is a Basic day; Elite stays closed and paid.
 export function dailyMinutesFor(account) {
-  if (trialActive(account)) return PLANS.elite.dailyLiveMinutes || 0;
+  if (trialActive(account)) return PLANS.basic.dailyLiveMinutes || 0;
   return PLANS[planOf(account)]?.dailyLiveMinutes || 0;
 }
 // Drills (listening, fluency, spoken-review, shadowing, Satzbau …) — FREE FOR EVERYONE
@@ -438,6 +442,11 @@ export function drillsUnlocked() {
 // the analysis from the debrief payload, so a locked verdict never reaches the browser at all.
 export function interviewResultsUnlocked(account) {
   if (isAdminAccount(account)) return true;
+  // The trial's whole purpose is an unpaid FIRST EXPERIENCE (owner order 2026-07-25). trialActive()
+  // requires planOf() === 'free', so without this line a trial user would get the interviews and the
+  // voice minutes and still hit the paywall at the verdict — the one screen the free day exists to
+  // show. Basic-level results only; Elite-only capabilities are gated separately in entitlement().
+  if (trialActive(account)) return true;
   return planOf(account) !== 'free';
 }
 
@@ -461,7 +470,8 @@ export function entitlement(account) {
   const freeFight = freeFightAvailable(account);
   const trial = trialActive(account);
   // Interviews/day for display — plans are SOLD as full daily interviews (owner quota law 07-11).
-  const sessions = trial ? (PLANS.elite.dailySessions || 0) : (feat.dailySessions || 0);
+  // BASIC's interview count during the trial (2/day), not Elite's 4 — the free day is a Basic day.
+  const sessions = trial ? (PLANS.basic.dailySessions || 0) : (feat.dailySessions || 0);
   return {
     allowed:               mins > 0 || freeFight,
     freeFight,                                   // true → client shows "1 kostenloses Interview"
@@ -474,7 +484,13 @@ export function entitlement(account) {
     // `days` = the FULL trial length, so the client can tell "day 1" from "day 2" without
     // hardcoding 3 (a literal there would silently lie the moment FREE_TRIAL_DAYS changes).
     trial:                 { active: trial, daysLeft: trial ? trialDaysLeft(account) : 0, days: FREE_TRIAL_DAYS },
-    zielStelle:            !!feat.zielStelle || trial,                // Ziel-Stelle matching — trial gives the full taste
+    // Ziel-Stelle is ELITE-ONLY (plans.config.js: only elite sets zielStelle:true). The trial no
+    // longer grants it — owner order 2026-07-25: the free day is Basic, and Elite capabilities stay
+    // closed and paid. The client renders this as an explicitly labelled Elite lock, not a mystery.
+    zielStelle:            !!feat.zielStelle,
+    // True while the free Basic day is running — lets the client say WHICH tier is active and why
+    // an Elite-only control is locked, instead of showing a generic padlock.
+    trialTier:             trial ? PLANS.basic.id : null,
     // "Meine eigenen Fragen": armed only when the server flag is on AND the user is entitled (trial or
     // paid — same gate as drills). Drives whether the client shows the entry at all (dark by default).
     customQuestions:       (process.env.CUSTOM_QUESTIONS_ENABLED === '1') && drillsUnlocked(account),
@@ -1058,15 +1074,19 @@ billingRouter.get('/pricing', async (req, res) => {
       offer: offerActive()
         ? { active: true, pct: OFFER.pct, endsAt: OFFER.endsAt, label: OFFER.label }
         : { active: false },
-      // What the trial ACTUALLY grants — from the same constants dailyMinutesFor()/entitlement() use
-      // above, so the landing can never repeat the old "3 Tage Basic" line while the code hands a
-      // trial user Elite-level dailySessions (4/day, not Basic's 2), all drills, and Ziel-Stelle.
+      // What the trial ACTUALLY grants — read from the SAME PLANS.basic constants that
+      // dailyMinutesFor() and entitlement() use, so the landing can never advertise something the
+      // server does not hand over. Owner order 2026-07-25: the free day is BASIC, so these are
+      // Basic's numbers (2 interviews, 15 min) and zielStelle is FALSE — it is Elite-only and the
+      // landing must not promise it. Copy-claim guard.
       trial: {
         days:             FREE_TRIAL_DAYS,
-        dailySessions:    PLANS.elite.dailySessions || 0,
-        dailyLiveMinutes: PLANS.elite.dailyLiveMinutes || 0,
+        tier:             PLANS.basic.id,
+        tierLabel:        PLANS.basic.label,
+        dailySessions:    PLANS.basic.dailySessions || 0,
+        dailyLiveMinutes: PLANS.basic.dailyLiveMinutes || 0,
         drills:           true,
-        zielStelle:       true,
+        zielStelle:       false,
       },
       free: { assessments: PLANS.free.assessments, freeInterviews: 1 },
     });

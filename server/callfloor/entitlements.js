@@ -3,9 +3,11 @@
  * allowance: metered daily voice minutes, which seats are unlocked, and free-talk access.
  *
  * The single source of truth for plans stays server/plans.config.js (owner decision 2026-07-21:
- * Call Floor EXTENDS Basic/Elite, no parallel plan system). A trial mirrors Elite, exactly like
- * the interview meter (auth.dailyMinutesFor). Fail-closed: an unknown/lapsed plan → zero minutes,
- * no seats — voice never runs un-entitled.
+ * Call Floor EXTENDS Basic/Elite, no parallel plan system). A trial mirrors BASIC, exactly like the
+ * interview meter (auth.dailyMinutesFor) — owner order 2026-07-25: the free day is a Basic day and
+ * Elite-only capabilities stay closed and paid. Mirroring Elite here would have handed every free
+ * account the outbound_sales seat and free-talk. Fail-closed: an unknown/lapsed plan → zero
+ * minutes, no seats — voice never runs un-entitled.
  */
 
 import { PLANS, callFloorFor, CALLFLOOR_OVERAGE_BLOCK_MIN } from '../plans.config.js';
@@ -13,7 +15,7 @@ import { planOf, trialActive } from '../auth.js';
 
 /** The resolved Call Floor entitlement for an account. */
 export function callFloorEntitlement(account) {
-  const planId = trialActive(account) ? 'elite' : planOf(account);
+  const planId = trialActive(account) ? 'basic' : planOf(account);
   const cf = callFloorFor(planId);
   return {
     planId,

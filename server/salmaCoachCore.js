@@ -370,7 +370,10 @@ export function salmaCoachFlags(env = process.env, account = null) {
 }
 
 export function salmaCoachCapabilities(account) {
-  const trial = trialActive(account); const plan = planOf(account); const depth = trial ? 'elite' : plan;
+  // The free day is a BASIC day (owner order 2026-07-25), so the trial resolves to 'basic', never
+  // 'elite'. Mirroring Elite here would have handed every trial account vacancyCoaching and
+  // urgentMode — Elite-only capabilities that must stay closed and paid.
+  const trial = trialActive(account); const plan = planOf(account); const depth = trial ? 'basic' : plan;
   return Object.freeze({ plan, trial, questionsUnlimited: true,
     fullTutor: depth === 'basic' || depth === 'elite', vacancyCoaching: depth === 'elite', urgentMode: depth === 'elite' });
 }

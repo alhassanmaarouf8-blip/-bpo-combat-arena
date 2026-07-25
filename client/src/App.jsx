@@ -3845,9 +3845,15 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
               {pricing?.trial?.days > 0 && pricing?.trial?.dailySessions > 0 && (
                 <div style={{ marginTop:2 }}>
                   <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>
-                    Deine {pricing.trial.days} Testtage (ab dem ersten Interview):
+                    {pricing.trial.days === 1
+                      ? 'Dein 1 Testtag'
+                      : `Deine ${pricing.trial.days} Testtage`} ({pricing.trial.tierLabel || 'Basic'}, ab dem ersten Interview):
                   </strong>{' '}
-                  {pricing.trial.dailySessions} Interviews/Tag · alle Übungen · Ziel-Stelle.
+                  {pricing.trial.dailySessions} Interviews/Tag · alle Übungen · dein volles Ergebnis
+                  {/* Ziel-Stelle is Elite-only since the trial became a BASIC day — render it ONLY if
+                      the server still says the trial grants it. Hard-coding it here is what produced
+                      the "0 Testtage / 4 Interviews" lie: copy must follow the payload, never lead it. */}
+                  {pricing.trial.zielStelle && <> · Ziel-Stelle</>}.
                   {/* OWNER-AR slot */}
                 </div>
               )}
