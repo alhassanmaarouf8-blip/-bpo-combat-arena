@@ -1027,6 +1027,10 @@ const GLOBAL_CSS = `
   }
   /* The whole product is light now, logged in or not. */
   html, body { background:#F5F3EF !important; color:var(--text); }
+  /* Keyboard/programmatic focus shows the BRAND ring, not Chromium's default blue halo —
+     the Salma modal focuses its first button on open, which painted a blue UA ring in a
+     white+orange-only product. Same visibility for keyboard users, right colour. */
+  :focus-visible { outline: 2px solid var(--accent-2, #3A4150); outline-offset: 2px; }
   body::before, body::after { display:none !important; }
   /* Overscroll / rubber-band would otherwise reveal the dark body behind the light app. */
   html:has(.app-shell), body:has(.app-shell) { background:#F5F3EF; }
@@ -1380,7 +1384,7 @@ function FillerCounter({ count }) {
         color:'var(--text-dim)', marginBottom:3 }}>FÜLLWÖRTER</div>
       {/* key=count remounts the number so it replays the pop animation on every change */}
       <div key={count} style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, lineHeight:1,
-        color: hot ? 'var(--bad)' : 'var(--text-faint)',
+        color: hot ? 'var(--warn)' : 'var(--text-faint)',
         animation: hot ? 'tick-pop 0.4s var(--ease-spring)' : 'none' }}>
         {count}
       </div>
@@ -2046,7 +2050,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
         <button key={id} onClick={() => onLang(id)} style={{ cursor:'pointer', padding:'4px 12px',
           fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
-          color: lang === id ? '#04070d' : 'var(--text-dim)',
+          color: lang === id ? '#FFFFFF' : 'var(--text-dim)',
           background: lang === id ? 'var(--accent)' : 'transparent', transition:'background var(--dur), color var(--dur)' }}>
           {lbl}
         </button>
@@ -2753,9 +2757,9 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
             exercise block) — it stopped being a plain route-home in v2 Phase 4. */}
         <button onClick={onPersonalStep || onDone} style={{ flex:2, fontFamily:'var(--font-display)', fontWeight:700, fontSize:13,
           letterSpacing:'0.1em', padding:'14px', borderRadius:'var(--r-md)', cursor:'pointer',
-          border:'1px solid var(--accent)', color:'#FFFFFF',
-          background:'linear-gradient(135deg, var(--accent-2), var(--accent))',
-          boxShadow:'0 0 22px rgba(14,19,32,0.4)' }}>
+          border:'none', color:'#FFFFFF',
+          background:'var(--accent)',
+          boxShadow:'var(--e1)' }}>
           PERSÖNLICHEN SCHRITT ÖFFNEN
         </button>
         {canShareArtifact && (
@@ -3154,7 +3158,7 @@ function ProductHomePreview() {
             lineHeight:1.08, letterSpacing:'-0.025em', color:'var(--text)', maxWidth:330 }}>
             Trainiere, bis deine Antwort sitzt.
           </div>
-          <div style={{ marginTop:10, color:'#aab7c8', fontSize:13, lineHeight:1.6, maxWidth:340 }}>
+          <div style={{ marginTop:10, color:'var(--text-dim)', fontSize:13, lineHeight:1.6, maxWidth:340 }}>
             Realistische Fragen. Direkte Korrekturen. Ein klarer nächster Schritt.
           </div>
         </div>
@@ -3163,16 +3167,16 @@ function ProductHomePreview() {
           border:'1px solid var(--surface-2)', background: 'var(--surface)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:11, marginBottom:12 }}>
             <div style={{ width:42, height:42, borderRadius:'50%', display:'grid', placeItems:'center',
-              fontFamily:'var(--font-display)', fontWeight:750, fontSize:17, color:'var(--text)',
-              border:'1px solid rgba(14,19,32,0.5)', background:'linear-gradient(145deg,#172338,#0b111d)' }}>Y</div>
+              fontFamily:'var(--font-display)', fontWeight:750, fontSize:17, color:'#FFFFFF',
+              border:'1px solid var(--line)', background:'var(--accent)' }}>Y</div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ color:'var(--text)', fontWeight:700, fontSize:13 }}>Yasmin · HR-Interviewerin</div>
-              <div style={{ color:'#7f8da1', fontSize:10.5, marginTop:2 }}>Geduldig · nur Deutsch</div>
+              <div style={{ color:'var(--text-dim)', fontSize:10.5, marginTop:2 }}>Geduldig · nur Deutsch</div>
             </div>
             <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--accent)',
               boxShadow:'0 0 0 4px rgba(14,19,32,0.1)' }} />
           </div>
-          <div style={{ padding:'12px 13px', borderRadius:12, color:'#dbe5f2', fontSize:12.5, lineHeight:1.55,
+          <div style={{ padding:'12px 13px', borderRadius:12, color:'var(--text)', fontSize:12.5, lineHeight:1.55,
             borderLeft:'2px solid var(--line-strong)', background:'rgba(14,19,32,0.07)' }}>
             „Erzählen Sie mir kurz, warum Sie im Kundenservice arbeiten möchten.“
           </div>
@@ -3184,7 +3188,7 @@ function ProductHomePreview() {
             <div key={n} style={{ minWidth:0, padding:'9px 7px', borderRadius:11, textAlign:'center',
               background:'var(--surface-2)', border:'1px solid var(--surface-2)' }}>
               <div style={{ fontFamily:'var(--font-display)', fontWeight:750, fontSize:10, color:'var(--accent)' }}>{n}</div>
-              <div style={{ marginTop:3, color:'#a6b2c2', fontSize:9.5, lineHeight:1.25 }}>{label}</div>
+              <div style={{ marginTop:3, color:'var(--text-dim)', fontSize:9.5, lineHeight:1.25 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -3196,7 +3200,7 @@ function ProductHomePreview() {
           border:'1px solid var(--line)', background: 'var(--surface)' }}>
           <Icon name="check" size={16} /> Beispiel: Antwort → Korrektur → Trainingsblock
         </div>
-        <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'#778599', fontSize:10.5 }}>
+        <div style={{ position:'relative', textAlign:'center', marginTop:9, color:'var(--text-faint)', fontSize:10.5 }}>
           Etwa 8 Minuten · sofortiges, persönliches Feedback
         </div>
       </div>
@@ -3307,7 +3311,7 @@ function VoiceReadinessCheck() {
       {!ready && (
         <button type="button" onClick={run} disabled={state === 'checking'}
           style={{ width:'100%', minHeight:44, marginTop:9, borderRadius:9, cursor:state === 'checking' ? 'wait' : 'pointer',
-            border:'1px solid var(--accent)', background:'rgba(14,19,32,0.14)', color:'var(--accent-2)', fontWeight:800 }}>
+            border:'1px solid var(--line-strong)', background:'var(--surface)', color:'var(--text)', fontWeight:700 }}>
           {state === 'checking' ? 'PRÜFE…' : <><span lang="ar-EG" dir="rtl">المايك</span> · MIKROFON TESTEN</>}
         </button>
       )}
@@ -3742,8 +3746,8 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
         </div>
         <button onClick={() => focusAuth('signup')}
           style={{ marginTop:18, width:'100%', maxWidth:420, minHeight:50, borderRadius:12, cursor:'pointer',
-            border:'1px solid var(--action)', background:'linear-gradient(135deg,var(--action-2),var(--action))',
-            color:'#FFFFFF', fontFamily:'var(--font-display)', fontWeight:800, fontSize:14 }}>
+            border:'none', background:'var(--action)', boxShadow:'var(--shadow-action)',
+            color:'#FFFFFF', fontFamily:'var(--font-display)', fontWeight:700, fontSize:14 }}>
           {validStudyEntry ? '21-TAGE-STUDIE STARTEN' : 'KOSTENLOSE DIAGNOSE FREISCHALTEN'}
         </button>
         {/* THE OFFER, STATED BEFORE SIGNUP (owner decision 2026-07-24). The leak this fixes is
@@ -4349,8 +4353,8 @@ function WhatsAppOptIn({ token, apiUrl }) {
             style={{ flex: 1, minWidth: 0, minHeight: 44, padding: '10px 12px', borderRadius: 'var(--r-md)',
               background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', fontSize: 15 }} />
           <button onClick={save} disabled={state === 'saving'} style={{ minHeight: 44, padding: '0 16px', cursor: 'pointer',
-            borderRadius: 'var(--r-md)', border: '1px solid var(--accent)', color: 'var(--accent-2)',
-            background: 'rgba(14,19,32,0.12)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12 }}>
+            borderRadius: 'var(--r-md)', border: 'none', color: '#FFFFFF',
+            background: 'var(--accent)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12 }}>
             {state === 'saving' ? '…' : 'SPEICHERN'}
           </button>
         </div>
@@ -4699,8 +4703,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
           <button onClick={onPaid} disabled={submitting || !/^\d{4}$/.test(senderLast4)}
             style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
-              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'1px solid var(--accent)', color:'#FFFFFF',
-              background:'linear-gradient(135deg,var(--accent),var(--accent))', opacity: (submitting || !/^\d{4}$/.test(senderLast4)) ? 0.5 : 1 }}>
+              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'none', color:'#FFFFFF',
+              background:'var(--accent)', opacity: (submitting || !/^\d{4}$/.test(senderLast4)) ? 0.62 : 1 }}>
             {submitting ? '…' : 'دفعت · ICH HABE BEZAHLT'}
           </button>
           {paymentError && <div role="alert" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>{paymentError}</div>}
@@ -4966,9 +4970,12 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                 onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:16, padding:'14px', minHeight:52, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
                   fontFamily:'var(--font-display)', fontSize:13.5, letterSpacing:'0.02em', borderRadius:12, fontWeight:700,
-                  border:'none', color:'#FFFFFF',
-                  background:'var(--action)',
-                  boxShadow:'0 1px 2px rgba(18,22,31,0.2)',
+                  // ONE orange on the money screen: the recommended plan. Two identical orange CTAs
+                  // meant neither read as the default; Basic now takes the quiet secondary voice.
+                  border: elite ? 'none' : '1px solid var(--line-strong)',
+                  color: elite ? '#FFFFFF' : 'var(--text)',
+                  background: elite ? 'var(--action)' : 'var(--surface)',
+                  boxShadow: elite ? '0 1px 2px rgba(18,22,31,0.2)' : 'none',
                   opacity:(submitting || paymentAvailable !== true) ? 0.45 : 1 }}>
                 {paymentAvailable === false
                   ? (ar ? 'الدفع غير متاح حاليًا' : 'ZAHLUNG DERZEIT NICHT VERFÜGBAR')
@@ -7227,7 +7234,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 {[['de','DE'],['ar','العربية']].map(([id, lbl]) => (
                   <button key={id} onClick={() => chooseFeedbackLang(id)} style={{ cursor:'pointer', minHeight:44, padding:'8px 12px',
                     fontFamily:'var(--font-display)', fontWeight:600, fontSize:10, letterSpacing:'0.06em', border:'none',
-                    color: feedbackLang === id ? '#04070d' : 'var(--text-dim)',
+                    color: feedbackLang === id ? '#FFFFFF' : 'var(--text-dim)',
                     background: feedbackLang === id ? 'var(--accent)' : 'transparent',
                     transition:'background var(--dur), color var(--dur)' }}>
                     {lbl}
@@ -7858,11 +7865,6 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           <TrialArc ent={auth.account?.entitlement} onSeePlans={() => setPaywall(auth.account?.entitlement || {})} />
         )}
 
-        {/* WhatsApp opt-in — after interview #1 only, hidden once opted in (server flag covers
-            other devices). The only $0 comeback channel this product has. */}
-        {canStart && !firstRun && !auth.account?.whatsapp && (
-          <WhatsAppOptIn token={auth.token} apiUrl={API_URL} />
-        )}
 
         {/* ÜBUNGEN GRID (uplift): the 7-button drill wall becomes one titled card with icon tiles —
             2 columns, real SVG icons, every tile the same quiet weight (the old alarm red is gone;
@@ -8045,6 +8047,12 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             </div>
           </div>
           </>
+        )}
+        {/* WhatsApp opt-in — after interview #1 only, hidden once opted in (server flag covers
+            other devices). The only $0 comeback channel this product has. Rendered AFTER the drill
+            grid: Übungen must open on the drills (protected feature), not on a phone-number ask. */}
+        {canStart && !firstRun && !auth.account?.whatsapp && (
+          <WhatsAppOptIn token={auth.token} apiUrl={API_URL} />
         )}
 
         {/* FOOTER LIST (uplift): the check-in-later rows — one card, hairline dividers, no shouting.
