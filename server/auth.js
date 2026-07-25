@@ -395,9 +395,9 @@ export function planOf(account, now = Date.now()) {
   return 'free';
 }
 // FREE TRIAL — the acquisition engine. New free users live the full Fokus product (daily interview
-// minutes + ALL drills) for their first FREE_TRIAL_DAYS, so they FEEL the benefit before the paywall —
-// not just one cold interview. Bounded per account (a few days), so cost exposure is capped. Tunable.
-export const FREE_TRIAL_DAYS = 3;
+// minutes + ALL drills) for their first FREE_TRIAL_DAYS, so they FEEL the benefit before the paywall.
+// ONE day (owner order 2026-07-25, down from 3): taste it today, pay to keep it. Tunable.
+export const FREE_TRIAL_DAYS = 1;
 const FREE_TRIAL_DAY_MS = 86400000;
 export function trialActive(account, now = Date.now()) {
   if (!account || isAdminAccount(account)) return false;   // admins are already elite
@@ -983,7 +983,11 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
       : { active: false },
     // Manual payment details — ONLY from env (never hardcoded). Each is null/hidden if unset.
     vodafoneNumber: process.env.VODAFONE_CASH_NUMBER || null,
-    instapayAddress: process.env.INSTAPAY_ADDRESS || null,
+    // InstaPay: the owner's transfer identity IS his published mobile number (owner order
+    // 2026-07-25: "my instapay bank transfer number is 01009059224" — the same wallet number).
+    // Same fallback pattern as whatsappNumber below; INSTAPAY_ADDRESS overrides if a distinct
+    // bank handle is ever set. Env only — no destination is hardcoded.
+    instapayAddress: process.env.INSTAPAY_ADDRESS || process.env.VODAFONE_CASH_NUMBER || null,
     bankInfo:       process.env.BANK_ACCOUNT_INFO || null,
     // WhatsApp for payment proof: falls back to the Vodafone Cash number — in Egypt that IS the
     // owner's published phone number, so the proof lands where the money does. Set WHATSAPP_NUMBER

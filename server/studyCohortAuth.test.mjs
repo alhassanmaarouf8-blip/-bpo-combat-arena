@@ -16,11 +16,11 @@ const invite = (id) => createStudyCohortInvite({
   inviteId:id, expiresAt:Date.now() + 60 * 60 * 1000, secret:SECRET,
 });
 
-test('generic accounts retain the exact three-day trial and expose no study state', async (t) => {
+test('generic accounts retain the standard one-day trial and expose no study state', async (t) => {
   const account = await auth.createAccount(uniq('generic-study-control'), 'password1234', null);
   t.after(() => auth.deleteAccount(account));
   const view = auth.publicAccount(account);
-  assert.equal(auth.FREE_TRIAL_DAYS, 3);
+  assert.equal(auth.FREE_TRIAL_DAYS, 1);   // owner-set trial length (2026-07-25)
   assert.equal(Object.hasOwn(view, 'studyAccess'), false);
   assert.equal(Object.hasOwn(view.subscription, 'studyCohort'), false);
 });
@@ -85,7 +85,7 @@ test('kill switch makes reserved access fail closed without changing generic ent
   process.env.STUDY_COHORT_MODE = 'off';
   try {
     assert.equal(Object.hasOwn(auth.publicAccount(account), 'studyAccess'), false);
-    assert.equal(auth.FREE_TRIAL_DAYS, 3);
+    assert.equal(auth.FREE_TRIAL_DAYS, 1);   // owner-set trial length (2026-07-25)
     assert.equal(auth.trialDaysLeft(account), 0);
   } finally {
     process.env.STUDY_COHORT_MODE = previous;

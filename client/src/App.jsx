@@ -4411,7 +4411,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   const [email, setEmail]   = useState('');
   const [plans, setPlans]   = useState(null);
   const [offer, setOffer]   = useState(null);   // { active, pct, endsAt, label } from server, or null
-  const [yearly, setYearly] = useState(false);
+  const [yearly, setYearly] = useState(true);   // annual pre-selected (Duolingo's winning default)
   const [vodafone, setVodafone] = useState(null);
   const [instapay, setInstapay] = useState(null);   // InstaPay address (env-only, server-provided)
   const [payRail, setPayRail]   = useState('vodafone');   // which manual rail the buyer is following
@@ -4711,8 +4711,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           )}
 
           <div style={{ fontSize:10.5, color:'var(--text-faint)', textAlign:'center', marginTop:14, lineHeight:1.6 }}>
-            Vorgang {refCode} · Bestätigung per WhatsApp · Aktivierung meist unter 2 Stunden ·{' '}
-            <a href="/refund.html" target="_blank" rel="noopener noreferrer" style={{ color:'var(--text-dim)' }}>Rückerstattung</a>{/* OWNER-AR slot */}
+            Vorgang {refCode} · Bestätigung per WhatsApp · Aktivierung meist unter 2 Stunden{/* OWNER-AR slot */}
           </div>
         </div>
       ) : cardLink ? (<>
@@ -4776,8 +4775,6 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
 
   return shell(<>
       <div style={{ textAlign:'center', marginBottom:10 }}>
-        {/* was a 🥊 emoji — emoji is never chrome (design law); Icon renders in the accent like everywhere else */}
-        <div style={{ marginBottom:6, color:'var(--accent)' }}><Icon name="fileBadge" size={30} /></div>
         <div style={{ fontFamily:'var(--font-display)', fontSize:26, fontWeight:800, letterSpacing:'-0.03em',
           lineHeight:1.1, color:'var(--text)' }}>Plan wählen · اختار خطتك</div>
         {/* Outcome first (value-prop law): the buyer pays for the JOB, not for features. */}
@@ -4918,6 +4915,12 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         );
       })()}
 
+      {/* Price anchor (Hormozi: state the cost of the alternative). 3.400 EGP/Stufe is the real,
+          documented market price of a classical course in Cairo (see plans.config.js) — no name. */}
+      <div style={{ fontSize:11, color:'var(--text-dim)', textAlign:'center', margin:'0 0 10px', lineHeight:1.5 }}>
+        Ein klassischer Sprachkurs in Kairo: ab <b style={{ color:'var(--text)' }}>3.400 EGP pro Stufe</b> — ohne ein einziges Live-Interview.{/* OWNER-AR slot */}
+      </div>
+
       {/* monthly / yearly toggle */}
       <div style={{ display:'flex', gap:6, marginBottom:12 }}>
         {toggleBtn(false, ar ? 'شهري' : 'MONATLICH')}
@@ -4960,6 +4963,11 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   <span style={{ fontSize:13, fontWeight:600, color:'var(--text-dim)' }}>EGP{period}</span>
                 </span>
               </div>
+              {!once && (
+                <div style={{ fontSize:10.5, color:'var(--text-faint)', margin:'-6px 0 7px', textAlign:'right' }}>
+                  ≈ {fmt(Math.round(price / (yearly ? 365 : 30)))} EGP am Tag{/* OWNER-AR slot */}
+                </div>
+              )}
               {yearly && !once && (
                 <div style={{ fontSize:9.5, color:'var(--accent)', marginBottom:7 }}>
                   {ar ? `شهرين هدية · وفّر ${fmt(saving)} جنيه` : `2 Monate geschenkt · spare ${fmt(saving)} EGP`}
@@ -4993,6 +5001,11 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   ? (ar ? 'الدفع غير متاح حاليًا' : 'ZAHLUNG DERZEIT NICHT VERFÜGBAR')
                   : `${p.label?.toUpperCase()} ${ar ? 'اختار' : 'WÄHLEN'} ▸`}
               </button>
+              {elite && (
+                <div style={{ fontSize:10.5, color:'var(--text-dim)', textAlign:'center', marginTop:8 }}>
+                  Keine automatische Abbuchung — du verlängerst selbst.{/* OWNER-AR slot */}
+                </div>
+              )}
             </div>
           );
         })}
