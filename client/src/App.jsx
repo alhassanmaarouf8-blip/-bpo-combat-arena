@@ -3822,7 +3822,12 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
                 dein nächster Schritt — gehört zum Plan.
                 <br /><span dir="rtl">مجانًا: كل التمارين وأول إنترفيو. التقييم — مستواك، نقطة ضعفك، وخطوتك الجاية — بيجي مع الخطة.</span>
               </div>
-              {pricing?.trial?.dailySessions > 0 && (
+              {/* Both conditions, not just dailySessions: FREE_TRIAL_DAYS is 0 (auth.js:401), yet the
+                  pricing payload still publishes the trial's dailySessions (auth.js:1065). Guarding on
+                  sessions alone rendered "Deine 0 Testtage … 4 Interviews/Tag" on the public landing —
+                  a trial that lasts zero days advertising four interviews a day, sitting directly above
+                  the price. Copy-claim guard: never state an entitlement the server does not grant. */}
+              {pricing?.trial?.days > 0 && pricing?.trial?.dailySessions > 0 && (
                 <div style={{ marginTop:2 }}>
                   <strong style={{ color:'var(--text-dim)', fontWeight:700 }}>
                     Deine {pricing.trial.days} Testtage (ab dem ersten Interview):
