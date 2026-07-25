@@ -13,6 +13,7 @@
 import express from 'express';
 import { randomBytes } from 'crypto';
 import { requireAuth, rateLimit } from './auth.js';
+import { adminRequestOk } from './adminAuth.js';
 import { PLANS, offerPrice } from './plans.config.js';
 import { mutatePayments, maintainPaymentRecords, PAYMENT_INTENT_TTL_MS } from './paymentsStore.js';
 import { sendOwnerPaymentAlert, mailerConfigured } from './mailer.js';
@@ -161,4 +162,35 @@ paymentsRouter.post('/billing/pay', requireAuth,
     console.error('[payments] pay error:', err.message);
     res.status(500).json({ error: 'pay_failed' });
   }
+});
+
+// ── GET /api/diag/payments — "can anyone actually pay me right now?" in one curl ──────────────
+// Owner, 2026-07-25: "I tried to check whether it's set on production, but the billing endpoint
+// sits behind email verification, so I can't see it from here." That is a real gap: whether the
+// money rails are live was only observable by logging in as a verified user and walking to the
+// paywall. Revenue-critical config must be checkable without an account.
+//
+// ADMIN-GATED and BOOLEAN-ONLY. It reports whether each destination is configured — never the
+// wallet number, IBAN or admin address themselves. A leaked read of this tells an attacker
+// nothing except that the owner accepts money, which is already on the public paywall.
+paymentsRouter.get('/diag/payments', (req, res) => {
+  if (!adminRequestOk(req)) return res.status(403).json({ error: 'forbidden' });
+  const set = (v) => !!String(v || '').trim();
+  const vodafone = set(process.env.VODAFONE_CASH_NUMBER);
+  const instapay = set(process.env.INSTAPAY_ADDRESS) || vodafone;   // InstaPay inherits the wallet number
+  const bank     = set(process.env.BANK_ACCOUNT_INFO);
+  const payable  = supportedPaymentRailAvailable();
+  const alerts   = mailerConfigured() && set(process.env.ADMIN_EMAIL);
+  res.json({
+    payable,                       // false => the paywall shows nothing and NOBODY can pay
+    rails: { vodafone, instapay, bank },
+    ownerAlertOnPayment: alerts,   // false => a payment lands silently; you find it by looking
+    // Say what to do rather than making the reader map booleans back onto env var names.
+    todo: [
+      !payable && 'Set VODAFONE_CASH_NUMBER on Render — this alone opens BOTH the wallet and InstaPay rails.',
+      payable && !alerts && (mailerConfigured()
+        ? 'Set ADMIN_EMAIL on Render so a payment e-mails you the moment it is claimed.'
+        : 'Set SMTP_USER + SMTP_PASS (or BREVO_API_KEY) so payment alerts can send at all.'),
+    ].filter(Boolean),
+  });
 });

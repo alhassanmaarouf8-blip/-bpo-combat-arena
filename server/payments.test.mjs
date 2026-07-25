@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 process.env.AUTH_SECRET = process.env.AUTH_SECRET || 'test-secret-not-prod';
 
@@ -136,4 +137,26 @@ test('plan activation preserves prepaid time and is idempotent by payment id', a
 
   await auth.activatePlan(account, 'basic', 'monthly', 'pay_b');
   assert.ok(account.subscription.billingPeriodEnd >= firstEnd + 29 * 24 * 60 * 60 * 1000);
+});
+
+// ── /api/diag/payments — revenue-critical config must be checkable without an account ─────────
+// Owner, 2026-07-25: the paywall sits behind e-mail verification, so "can anyone pay me?" was only
+// answerable by logging in and walking to it. These lock the two properties that make the
+// diagnostic safe to rely on: it is admin-gated, and it never returns the destinations themselves.
+test('payment diagnostic is admin-gated and leaks no payment destination', async () => {
+  const source = await readFile(new URL('./payments.js', import.meta.url), 'utf8');
+  const route = source.slice(source.indexOf("paymentsRouter.get('/diag/payments'"));
+  assert.ok(route, 'the diagnostic route must exist');
+  assert.match(route, /if \(!adminRequestOk\(req\)\) return res\.status\(403\)/,
+    'must refuse without the admin key — this reports revenue state');
+  // Booleans only. The wallet number, IBAN and admin address must never appear in the payload.
+  for (const secret of ['process.env.VODAFONE_CASH_NUMBER,', 'process.env.INSTAPAY_ADDRESS,',
+    'process.env.BANK_ACCOUNT_INFO,', 'process.env.ADMIN_EMAIL,']) {
+    assert.equal(route.includes(secret), false,
+      `the diagnostic must not return ${secret.trim()} itself — booleans only`);
+  }
+  assert.match(route, /const set = \(v\) => !!String\(v \|\| ''\)\.trim\(\)/);
+  // InstaPay inherits the wallet number (auth.js serves INSTAPAY_ADDRESS || VODAFONE_CASH_NUMBER),
+  // so the diagnostic must report it the same way or it would understate what is actually live.
+  assert.match(route, /const instapay = set\(process\.env\.INSTAPAY_ADDRESS\) \|\| vodafone;/);
 });
