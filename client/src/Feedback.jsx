@@ -262,9 +262,9 @@ export function AdminFeedback({ token, apiUrl }) {
 }
 
 // ── shared styles ──
-const overlay = { position: 'absolute', inset: 0, zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'var(--surface)', backdropFilter: 'blur(4px)' };
-const modal   = { width: '100%', maxWidth: 360, padding: '18px 16px', borderRadius: 'var(--r-lg)', background: 'linear-gradient(180deg, rgba(10,18,30,0.98), rgba(4,8,14,0.99))', border: '1px solid var(--line)', boxShadow: 'var(--shadow-card)' };
-const card    = { padding: '13px 14px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.92), rgba(4,8,14,0.95))', border: '1px solid var(--line-strong)', boxShadow: '0 0 18px rgba(14,19,32,0.18)' };
+const overlay = { position: 'absolute', inset: 0, zIndex: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(14,19,32,0.42)', backdropFilter: 'blur(4px)' };
+const modal   = { width: '100%', maxWidth: 360, padding: '18px 16px', borderRadius: 'var(--r-lg)', background: 'var(--surface)', border: '1px solid var(--line)', boxShadow: 'var(--shadow-card)' };
+const card    = { padding: '13px 14px', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--line)', boxShadow: 'none' };
 const thanks  = { textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--player-2)', padding: '14px 0' };
 const textarea = { width: '100%', minHeight: 64, padding: 10, borderRadius: 'var(--r-sm)', resize: 'vertical', background: 'var(--surface-2)', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 13, border: '1px solid var(--line)', outline: 'none' };
 const btnGhost = { flex: 1, fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 11, padding: '9px', borderRadius: 'var(--r-sm)', cursor: 'pointer', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-dim)' };

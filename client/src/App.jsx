@@ -898,18 +898,22 @@ const GLOBAL_CSS = `
        BLUE = trust / primary / structure, ORANGE = the single action accent (use sparingly).
        Neutrals carry everything else. No neon, no rainbow. Intensity lives only in the fight
        (player = blue, boss = orange — the brand pair, not green/red). */
-    /* surfaces / depth — calm deep navy, not neon black */
-    --bg-0:#0a0f1a; --bg-1:#0f1626; --bg-2:#172033;
+    /* These BASE values were the dark theme's. Every one is overridden by the light
+       ":root, .app-shell" block further down (verified: all 83 tokens compute light), so they
+       never rendered — but a dark base under a light override is a trap: anything that ever
+       paints outside .app-shell would resolve to navy-on-white. Relit to match the override
+       exactly, so the fallback and the theme can no longer disagree. */
+    --bg-0:#F5F3EF; --bg-1:#FFFFFF; --bg-2:#EDEBE6;
     --surface:var(--surface-2); --surface-2:var(--surface-2);
-    --line:var(--surface-2); --line-strong:rgba(255,255,255,0.18);
-    /* accents — blue primary, orange action */
-    --accent:#3b82f6; --accent-2:#60a5fa; --accent-dim:rgba(14,19,32,0.45);
-    --action:#f97316; --action-2:#fb923c; --action-deep:#ea580c; --action-dim:rgba(249,115,22,0.45);
-    --player:#3b82f6; --player-2:#60a5fa; --player-glow:rgba(14,19,32,0.40);
-    --boss:#f97316; --boss-2:#fb923c; --boss-glow:rgba(249,115,22,0.40);
-    --warn:#f97316; --good:#3b82f6; --bad:#f87171; --violet:#3b82f6;
+    --line:var(--surface-2); --line-strong:rgba(14,19,32,0.17);
+    /* accents — ink structure, orange action */
+    --accent:#0E1320; --accent-2:#3A4150; --accent-dim:rgba(14,19,32,0.45);
+    --action:#D9541A; --action-2:#E8703A; --action-deep:#B8430F; --action-dim:rgba(249,115,22,0.45);
+    --player:#0E1320; --player-2:#3A4150; --player-glow:rgba(14,19,32,0.40);
+    --boss:#D9541A; --boss-2:#E8703A; --boss-glow:rgba(249,115,22,0.40);
+    --warn:#D9541A; --good:#0E1320; --bad:#B42318; --violet:#0E1320;
     /* text */
-    --text:#e8eef6; --text-dim:#9aa7bd; --text-faint:#64748b;
+    --text:#0E1320; --text-dim:#5A6270; --text-faint:#8A909C;
     /* type — one clean family, no gaming face */
     --font-display:'Inter','system-ui',sans-serif;
     --font-body:'Inter',system-ui,sans-serif;
@@ -937,11 +941,11 @@ const GLOBAL_CSS = `
     --glass-highlight:inset 0 1px 0 var(--surface-2);
     --e1:0 1px 2px rgba(14,19,32,0.16);
     --e2:0 8px 24px -8px rgba(14,19,32,0.16);
-    --e3:0 24px 64px -16px rgba(2,6,17,0.7);
+    --e3:0 24px 60px -20px rgba(14,19,32,.22);
     --r-xl:24px;
-    --grad-action:linear-gradient(180deg,#fb923c,#f97316);
+    --grad-action:#D9541A;
     --shadow-action:0 8px 24px -6px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.25);
-    --grad-ring:conic-gradient(from 220deg,#3b82f6,#60a5fa,transparent 70%);
+    --grad-ring:conic-gradient(from 220deg,#D9541A,#E8703A,transparent 70%);
     --ring-focus:0 0 0 1px var(--accent), 0 0 0 4px rgba(14,19,32,0.18);
     --sp-6:32px; --sp-7:48px;
     /* ── PREMIUM SURFACE LAYER (2026-07-24, owner: "extremely premium, extremely simple").
@@ -1236,11 +1240,12 @@ function BossAvatar({ emotion = 'composed', speaking = false, color = 'var(--acc
             opacity:0, pointerEvents:'none', transition:'opacity 70ms linear, transform 70ms linear' }} />
         <div style={{ position:'absolute', inset:0, borderRadius:'50%',
           border:`2.5px solid ${color}`,
-          boxShadow:`0 0 ${Math.round(28 * glow + 12)}px ${color}${speaking ? 'aa' : '55'}, inset 0 0 22px ${color}22`,
           transition:'box-shadow 0.6s var(--ease), border-color 0.6s' }} />
         <div style={{ position:'absolute', inset:10, borderRadius:'50%',
-          background:'radial-gradient(120% 120% at 30% 25%, var(--surface-2), rgba(6,10,18,0.92) 60%)',
-          border:'1px solid var(--surface-2)', display:'grid', placeItems:'center' }}>
+          // A solid ink monogram avatar: on the lit stage the old light-to-near-black gradient
+          // read as a smudge. Flat ink keeps the white initial at full contrast.
+          background:'var(--accent)',
+          border:'1px solid var(--line)', display:'grid', placeItems:'center' }}>
           {/* Elite pass: weight 800 + white glow read as a placeholder shouting. A lighter, smaller
               glyph with air around it reads as a deliberate monogram (fashion-house rule: negative
               space is the luxury). */}
@@ -1292,7 +1297,7 @@ function HpBar({ label, value, isPlayer, reason }) {
   // Player keeps red ONLY at critical (<25) — that IS a genuine warning.
   const solid = isPlayer
     ? (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : 'var(--bad)')
-    : (pct > 50 ? 'var(--accent)' : pct > 25 ? '#f97316' : '#fb923c');
+    : (pct > 50 ? 'var(--accent)' : pct > 25 ? 'var(--action)' : 'var(--action-2)');
   const rColor = isPlayer ? 'var(--bad)' : 'var(--accent)';   // player loss = red, gain = green
   const rSign  = isPlayer ? '−' : '+';
 
@@ -1356,11 +1361,10 @@ function WpmMeter({ wpm }) {
         background: 'var(--surface)', border:'1px solid var(--line)' }}>
         {/* green target zone */}
         <div style={{ position:'absolute', top:0, bottom:0, left:`${zoneL}%`, width:`${zoneW}%`,
-          background:'linear-gradient(90deg, rgba(14,19,32,0.25), rgba(14,19,32,0.4))',
-          boxShadow:'0 0 8px rgba(14,19,32,0.5)' }} />
+          background:'var(--surface-2)' }} />
         {/* needle */}
         <div style={{ position:'absolute', top:-2, bottom:-2, left:`${pos}%`, width:3, marginLeft:-1.5,
-          borderRadius:2, background:mColor, boxShadow:`0 0 8px ${mColor}`,
+          borderRadius:2, background:mColor,
           transition:'left var(--dur) var(--ease-out), background var(--dur)' }} />
       </div>
     </div>
@@ -1377,7 +1381,6 @@ function FillerCounter({ count }) {
       {/* key=count remounts the number so it replays the pop animation on every change */}
       <div key={count} style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:16, lineHeight:1,
         color: hot ? 'var(--bad)' : 'var(--text-faint)',
-        textShadow: hot ? '0 0 10px rgba(248,113,113,0.6)' : 'none',
         animation: hot ? 'tick-pop 0.4s var(--ease-spring)' : 'none' }}>
         {count}
       </div>
@@ -1391,9 +1394,11 @@ function PerformanceHud({ wpm, fillers }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:'var(--sp-3)', marginBottom:'var(--sp-3)',
       padding:'8px 12px', borderRadius:'var(--r-md)',
-      background:'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))',
+      // The live HUD kept its dark slab while its own labels went to var(--text-dim), so during a
+      // real interview it sat on the light stage as a black bar with dim grey type inside it.
+      background:'var(--surface)',
       border:'1px solid var(--line)',
-      boxShadow:'inset 0 0 24px rgba(14,19,32,0.16)' }}>
+      boxShadow:'none' }}>
       <WpmMeter wpm={wpm} />
       <div style={{ width:1, alignSelf:'stretch', background:'var(--line)' }} />
       <FillerCounter count={fillers} />
@@ -1463,7 +1468,7 @@ function WaveformRing({ volRef, active, bossSpeak }) {
           ? 'radial-gradient(circle at 50% 32%, rgba(14,19,32,0.20), rgba(14,19,32,0.04) 70%)'
           : 'var(--surface-2)',
         boxShadow: active
-          ? `0 0 30px ${ringCol}55, inset 0 0 24px ${ringCol}33`
+          ? 'none'
           : 'inset 0 0 18px rgba(14,19,32,0.16)',
         transform: `scale(${scale})`,
         transition:'transform 0.08s linear, box-shadow var(--dur-slow) var(--ease), border-color var(--dur-slow), background var(--dur-slow)',
@@ -1484,9 +1489,9 @@ function TranscriptPanel({ lines, userSpeak, bossName }) {
   return (
     <div style={{ flex:1, overflowY:'auto', padding:'10px 12px', fontSize:12.5, lineHeight:1.8,
       fontFamily:'var(--font-body)',
-      background:'linear-gradient(180deg, rgba(0,0,0,0.42), rgba(0,0,0,0.28))',
+      background:'var(--surface-2)',
       borderRadius:'var(--r-md)', border:'1px solid var(--line)',
-      boxShadow:'inset 0 0 30px rgba(14,19,32,0.16)', minHeight:90 }}>
+      boxShadow:'none', minHeight:90 }}>
       {lines.length === 0 && (
         <span style={{ color:'var(--text-faint)', fontStyle:'italic' }}>Bereit für das Gespräch…</span>
       )}
@@ -1580,7 +1585,7 @@ function GameOver({ winner, onRestart }) {
 function Metric({ label, value, sub, color = 'var(--accent)' }) {
   return (
     <div style={{ flex:1, minWidth:78, padding:'8px 6px', borderRadius:8, textAlign:'center',
-      background: 'var(--surface)', border:`1px solid ${color}33` }}>
+      background: 'var(--surface)', border:'1px solid var(--line)' }}>
       <div style={{ fontFamily:'var(--font-display)', fontSize:18, fontWeight:700, color }}>{value}</div>
       <div style={{ fontSize:8, letterSpacing:'0.08em', color:'var(--text-dim)', marginTop:2 }}>{label}</div>
       {sub && <div style={{ fontSize:7.5, color:'var(--text-faint)', marginTop:1 }}>{sub}</div>}
@@ -1600,7 +1605,7 @@ function CatBar({ label, value, color }) {
       <div style={{ height:9, borderRadius:'var(--r-pill)', overflow:'hidden',
         background: 'var(--surface)', border:'1px solid var(--surface-2)' }}>
         <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, value || 0))}%`, borderRadius:'inherit',
-          background:`linear-gradient(90deg, ${color}99, ${color})`, boxShadow:`0 0 10px ${color}66`,
+          background:color,
           transition:'width 0.7s var(--ease-out)' }} />
       </div>
     </div>
@@ -1988,13 +1993,18 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
       const W = 1080, H = 1080;
       const c = document.createElement('canvas'); c.width = W; c.height = H;
       const x = c.getContext('2d'); if (!x) return null;
-      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#04070d'); g.addColorStop(1, '#0a1222');
+      // CANVAS TAKES LITERAL COLOURS ONLY. fillStyle silently IGNORES a value it cannot parse and
+      // keeps the previous one, so the var(--…) tokens this block used to carry meant nearly every
+      // line was painted with the background gradient still loaded in fillStyle — an almost blank
+      // card. These are the light palette's literals, matching the app the image comes from.
+      const INK = '#0E1320', DIM = '#5A6270', FAINT = '#8A909C', ORANGE = '#D9541A';
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#F5F3EF');
       x.fillStyle = g; x.fillRect(0, 0, W, H);
-      x.fillStyle = accent; x.fillRect(0, 0, W, 14);
+      x.fillStyle = win ? INK : ORANGE; x.fillRect(0, 0, W, 14);
       x.textAlign = 'center';
-      x.fillStyle = 'var(--text-dim)'; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('DIE ARENA', W / 2, 130);
-      x.fillStyle = 'var(--text)'; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
-      x.fillStyle = (shareVariant === 'conquest' || shareVariant === 'simulation-record') ? 'var(--accent)' : '#f97316';
+      x.fillStyle = DIM; x.font = 'bold 36px system-ui,sans-serif'; x.fillText('DIE ARENA', W / 2, 130);
+      x.fillStyle = INK; x.font = 'bold 40px system-ui,sans-serif'; x.fillText('DEUTSCHES INTERVIEW-TRAINING', W / 2, 195);
+      x.fillStyle = ORANGE;
       x.font = 'bold 72px system-ui,sans-serif';
       const heroWords = shareHero.split(' '); let heroLine = '', heroY = 420;
       for (const word of heroWords) {
@@ -2002,19 +2012,19 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
         heroLine += `${word} `;
       }
       if (heroLine.trim()) x.fillText(heroLine.trim(), W / 2, heroY);
-      x.fillStyle = 'var(--text)'; x.font = 'bold 54px system-ui,sans-serif';
+      x.fillStyle = INK; x.font = 'bold 54px system-ui,sans-serif';
       x.fillText(shareVariant === 'simulation-record' && nm ? nm.toUpperCase() : `RANG · ${rank}`, W / 2, 700);
-      x.fillStyle = 'var(--text-dim)'; x.font = '32px system-ui,sans-serif';
+      x.fillStyle = DIM; x.font = '32px system-ui,sans-serif';
       x.fillText(shareVariant === 'invitation' ? 'SALMA · PERSÖNLICHE INTERVIEWTRAINERIN'
         : shareVariant === 'simulation-record'
           ? `${data.progress.hireReadiness.measuredSignals}/${data.progress.hireReadiness.totalSignals} SIMULATIONSSIGNALE GEMESSEN · ${new Date().toLocaleDateString('de-DE')}`
           : 'VERIFIZIERT AUS EINER ECHTEN TRAININGSSITZUNG', W / 2, 810);
-      x.fillStyle = '#f97316'; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('DEINE NÄCHSTE RUNDE WARTET', W / 2, 930);
+      x.fillStyle = ORANGE; x.font = 'bold 38px system-ui,sans-serif'; x.fillText('DEINE NÄCHSTE RUNDE WARTET', W / 2, 930);
       if (shareVariant === 'simulation-record') {
-        x.fillStyle = 'var(--text-faint)'; x.font = '24px system-ui,sans-serif';
+        x.fillStyle = FAINT; x.font = '24px system-ui,sans-serif';
         x.fillText('TRAININGSNACHWEIS · KEIN OFFIZIELLES SPRACH- ODER ARBEITGEBERZERTIFIKAT', W / 2, 970);
       }
-      x.fillStyle = 'var(--text-faint)'; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
+      x.fillStyle = FAINT; x.font = '30px system-ui,sans-serif'; x.fillText(shareUrl.replace(/^https?:\/\//, ''), W / 2, 1000);
       return await new Promise((res) => c.toBlob(res, 'image/png'));
     } catch { return null; }
   };
@@ -2108,18 +2118,21 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
           {/* ── Cinematic outcome + rank reveal ─────────────────────────────── */}
           <div style={{ textAlign:'center', padding:'8px 0 4px' }}>
             <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:13, letterSpacing:'0.22em',
-              color:accent, textShadow:`0 0 16px ${accent}88`, animation:'result-rise 0.4s var(--ease-out)' }}>
+              color:accent, animation:'result-rise 0.4s var(--ease-out)' }}>
               {typedPractice ? 'TIPPÜBUNG ABGESCHLOSSEN' : (win ? 'TRAININGSZIEL ERREICHT' : 'WEITER TRAINIEREN')}
             </div>
             {gradeUnavailable ? (
               <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:20, lineHeight:1.25, color:'var(--action)',
-                margin:'12px 0 2px', textShadow:'0 0 18px rgba(249,115,22,0.4)' }}>
+                margin:'12px 0 2px' }}>
                 {typedPractice ? 'Sprechen wurde nicht gemessen' : 'Bewertung nicht verfügbar'}
               </div>
             ) : (
               <>
-                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:54, lineHeight:1, color:'#fff',
-                  margin:'6px 0 2px', textShadow:`0 0 30px ${accent}aa, 0 2px 12px rgba(0,0,0,0.8)`,
+                {/* The rank was #fff at 54px on the light ground — invisible — and the only thing
+                    that had been carrying it was a textShadow built as `${accent}aa`, i.e.
+                    "var(--accent)aa", which is not a colour, so the shadow never applied either. */}
+                <div style={{ fontFamily:'var(--font-display)', fontWeight:700, fontSize:54, lineHeight:1, color:'var(--text)',
+                  margin:'6px 0 2px',
                   animation:'rank-pop 0.7s var(--ease-spring)' }}>
                   {rank}
                 </div>
@@ -2415,7 +2428,7 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:5 }}>
                   <div style={{ flex:1, height:7, borderRadius:'var(--r-pill)', overflow:'hidden', background: 'var(--surface)', border:'1px solid var(--surface-2)' }}>
                     <div style={{ height:'100%', width:`${Math.max(0, Math.min(100, data.progress.levelProgress.pct || 0))}%`, borderRadius:'inherit',
-                      background:'linear-gradient(90deg, var(--accent-2)99, var(--accent))', boxShadow:'0 0 8px rgba(14,19,32,0.35)', transition:'width 0.7s var(--ease-out)' }} />
+                      background:'var(--accent)', transition:'width 0.7s var(--ease-out)' }} />
                   </div>
                   <span style={{ fontSize:9.5, color:'var(--text-dim)', fontVariantNumeric:'tabular-nums' }}>{data.progress.levelProgress.pct ?? 0}%</span>
                 </div>
@@ -2782,10 +2795,10 @@ function Debrief({ data, pending, verdictHold = false, onRestart, onRevanche, on
 function Section({ title, color, right, children }) {
   return (
     <div style={{ borderRadius:10, padding:'10px 12px',
-      background: 'var(--surface)', border:`1px solid ${color}2a` }}>
+      background: 'var(--surface)', border:'1px solid var(--line)' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
         <span style={{ fontFamily:'var(--font-display)', fontSize:9.5, letterSpacing:'0.12em', color,
-          textShadow:`0 0 8px ${color}55` }}>{title}</span>
+           }}>{title}</span>
         {right}
       </div>
       {children}
@@ -3113,7 +3126,7 @@ function ProductHomePreview() {
       <div style={{ position:'relative', overflow:'hidden', padding:'22px 20px 20px',
         borderRadius:24, border:'1px solid var(--line)',
         background:'var(--surface)',
-        boxShadow:'0 24px 64px rgba(0,0,0,0.42), inset 0 1px 0 var(--surface-2)' }}>
+        boxShadow:'var(--e2), inset 0 1px 0 rgba(255,255,255,0.6)' }}>
         <div aria-hidden="true" style={{ position:'absolute', width:260, height:260, borderRadius:'50%',
           top:-150, right:-100, background:'none' }} />
         <div aria-hidden="true" style={{ position:'absolute', width:220, height:220, borderRadius:'50%',
@@ -6798,7 +6811,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         <div onClick={ackActivation} style={{ position:'absolute', inset:0, zIndex:240, display:'grid', placeItems:'center', padding:20,
           background: 'var(--surface)', backdropFilter:'blur(6px)', animation:'flash-in 0.3s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth:360, width:'100%', textAlign:'center', borderRadius:16, padding:'26px 20px',
-            background:'linear-gradient(180deg, rgba(0,22,44,0.98), rgba(0,8,18,0.99))', border:'1px solid rgba(14,19,32,0.5)', boxShadow:'0 0 40px rgba(14,19,32,0.2)' }}>
+            background:'var(--surface)', border:'1px solid var(--line-strong)', boxShadow:'var(--e2)' }}>
             <div style={{ fontFamily:'var(--font-display)', fontSize:17, fontWeight:700, color:'var(--accent)', marginTop:6 }}>
               {feedbackLang === 'ar' ? 'تم تفعيل اشتراكك!' : 'Dein Plan ist aktiv!'}
             </div>
@@ -6861,10 +6874,11 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         {/* Connection status is only meaningful DURING a session. On the idle home it showed a scary
             "GETRENNT" (disconnected) as the first thing a new user sees — pure noise. Hide when idle. */}
         {(isActive || isConnecting) && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+        // The global BACK button is position:fixed at top-left, so without an indent it sat on top
+        // of this row and clipped the word to "RBUNDEN". Indent only while that button is there.
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, paddingLeft: canGoBack ? 46 : 0 }}>
           <div style={{ width:7, height:7, borderRadius:'50%',
             background: isActive ? 'var(--accent)' : 'var(--action)',
-            boxShadow: isActive ? '0 0 6px var(--accent)' : 'none',
             animation: isActive ? 'pulse 2s infinite' : 'none' }} />
           <span style={{ fontSize:10, color:'var(--text-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {isActive ? 'VERBUNDEN' : 'VERBINDE…'}
@@ -6883,8 +6897,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               {/* animated progress fill — grows as rounds are cleared */}
               <div style={{ position:'absolute', left:18, top:11, height:3, borderRadius:2,
                 width:`calc((100% - 36px) * ${funnel.stages.length > 1 ? funnel.idx / (funnel.stages.length - 1) : 0})`,
-                background:'linear-gradient(90deg, var(--player), var(--accent))',
-                boxShadow:'0 0 8px var(--accent-dim)',
+                background:'var(--accent)',
                 transition:'width 0.6s var(--ease-out)' }} />
               {funnel.stages.map((st, i) => {
                 const done = i < funnel.idx, cur = i === funnel.idx;
@@ -6894,10 +6907,10 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                     <div key={cur ? `cur${i}` : `n${i}`} style={{ width:23, height:23, borderRadius:'50%', margin:'0 auto',
                       display:'flex', alignItems:'center', justifyContent:'center',
                       fontFamily:'var(--font-display)', fontWeight:700, fontSize:11,
-                      color: (cur || done) ? '#04070d' : 'var(--text-dim)',
+                      color: (cur || done) ? '#FFFFFF' : 'var(--text-dim)',
                       background: cur ? 'var(--accent)' : done ? 'var(--player)' : 'var(--surface-2)',
-                      border:`2px solid ${cur ? 'var(--accent)' : done ? 'var(--player)' : '#334155'}`,
-                      boxShadow: cur ? '0 0 12px var(--accent-dim)' : 'none',
+                      border:`2px solid ${cur ? 'var(--accent)' : done ? 'var(--player)' : 'var(--line-strong)'}`,
+                      boxShadow:'none',
                       animation: cur ? 'node-pop 0.5s var(--ease-spring)' : 'none',
                       transition:'background var(--dur), border-color var(--dur), color var(--dur)' }}>
                       {done ? '✓' : i + 1}
@@ -6911,7 +6924,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               })}
             </div>
             <div style={{ textAlign:'center', padding:'7px 10px', borderRadius:'var(--r-md)',
-              background:'linear-gradient(90deg,rgba(14,19,32,0.06),rgba(0,200,255,0.1),rgba(14,19,32,0.06))',
+              background:'var(--surface-2)',
               border:'1px solid var(--line)' }}>
               <span style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.45 }}>
                 {funnel.stages[funnel.idx]?.prompt ?? ''}
@@ -7252,7 +7265,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {showBriefing && csBriefing && (
         <div onClick={() => setShowBriefing(false)} style={{
           position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
-          background: 'var(--surface)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
+          background:'rgba(14,19,32,0.42)', backdropFilter:'blur(4px)', cursor:'pointer' }}>
           <div onClick={e => e.stopPropagation()} style={{
             width:'min(92vw,440px)', background:'var(--surface)', borderRadius:18,
             border:'1.5px solid rgba(14,19,32,0.45)', boxShadow:'0 0 60px rgba(14,19,32,0.18)',
@@ -7265,7 +7278,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
                 </div>
                 <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{csBriefing.skill || 'Drei Teile · nur Deutsch'}</div>
               </div>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.35)', textAlign:'right', lineHeight:1.4 }}>
+              <div style={{ fontSize:9, color:'var(--text-faint)', textAlign:'right', lineHeight:1.4 }}>
                 Antippen<br/>um zu starten
               </div>
             </div>
@@ -7297,7 +7310,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
             ))}
             </>}
             {/* Dismiss hint */}
-            <div style={{ marginTop:14, textAlign:'center', fontSize:10, color:'rgba(255,255,255,0.3)' }}>
+            <div style={{ marginTop:14, textAlign:'center', fontSize:10, color:'var(--text-faint)' }}>
               Verschwindet automatisch · Tippe zum sofortigen Schließen
             </div>
           </div>
@@ -7313,34 +7326,36 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       <div style={{ padding:'4px 14px 0' }}>
         <div style={{ marginTop:5, borderRadius:16, position:'relative', overflow:'hidden',
           height:'min(50vh, 400px)', minHeight:300,
-          background:'radial-gradient(120% 85% at 50% -8%, #0d1828 0%, #070e1a 48%, #02050b 100%)',
-          border:`1px solid ${boss.color}66`,
-          boxShadow:`0 0 44px ${boss.color}2e, inset 0 0 90px rgba(0,0,0,0.78)`,
+          // The cinematic DARK room. Its chips and badges had already been converted to light by the
+          // theme pass, so the stage was a mix — and the LIVE-INTERVIEW badge came out ink-on-ink,
+          // i.e. invisible. Lit to match the product: one warm ground, no black vignette, no glow.
+          background:'var(--surface-2)',
+          border:'1px solid var(--line-strong)',
+          boxShadow:'inset 0 1px 0 rgba(255,255,255,0.6)',
           transition:'border-color 0.6s, box-shadow 0.6s' }}>
 
           {/* cone of cold light from above — brightens while the boss speaks */}
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:1,
-            background:`radial-gradient(${bossSpeak ? '52% 70%' : '46% 62%'} at 50% -4%, ${boss.color}${bossSpeak ? '5a' : '2e'}, transparent ${bossSpeak ? '68%' : '62%'})`,
-            animation:`portrait-glow ${bossSpeak ? '1.6s' : '3.5s'} ease-in-out infinite`, transition:'background 0.45s' }} />
+            background:'none' }} />
           {/* Elite pass: the drifting teal sci-fi grid died — motion without meaning, and the only
               green in a blue room. The light cone + vignette carry the atmosphere alone. */}
           {/* edge vignette — the dark interview room */}
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:2,
-            background:'radial-gradient(135% 100% at 50% 32%, transparent 38%, rgba(0,0,0,0.82) 100%)' }} />
+            background:'none' }} />
 
           {/* Stage ribbon (aesthetic pass 2026-07-10): was a RED "⚔ ENDGEGNER" pill — red chrome
               (two-color law: red = errors only) + gaming jargon meaningless to a job-seeker. Plain
               blue, plain German. */}
           <div style={{ position:'absolute', top:10, left:12, zIndex:5,
             fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.16em',
-            color:'var(--accent-2)', padding:'3px 9px', borderRadius:'var(--r-pill)',
-            background:'rgba(14,19,32,0.10)', border:'1px solid rgba(14,19,32,0.35)' }}>LIVE-INTERVIEW</div>
+            color:'var(--text)', padding:'3px 9px', borderRadius:'var(--r-pill)',
+            background:'var(--surface)', border:'1px solid var(--line-strong)' }}>LIVE-INTERVIEW</div>
           {/* emotion badge — the boss's state */}
           <div style={{ position:'absolute', top:10, right:12, zIndex:5,
             fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.12em',
             color:boss.color, padding:'3px 9px', borderRadius:'var(--r-pill)',
-            background:`${boss.color}1a`, border:`1px solid ${boss.color}55`,
-            textShadow:`0 0 8px ${boss.color}`, transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
+            background:'var(--surface-2)', border:'1px solid var(--line-strong)',
+            transition:'color 0.5s, border-color 0.5s' }}>{boss.label}</div>
 
           {/* the lit opponent — leans in to listen while YOU speak; posture shifts with mood */}
           <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:56, zIndex:3 }}>
@@ -7354,13 +7369,13 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
           </div>
           {/* the room darkens while the candidate speaks — the spotlight shifts to them */}
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:4,
-            background:'radial-gradient(120% 100% at 50% 38%, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.62) 100%)',
-            opacity: userSpeak ? 1 : 0, transition:'opacity 0.45s' }} />
+            background:'none',
+            opacity: 0, transition:'opacity 0.45s' }} />
 
           {/* name + tags at the base of the stage */}
           <div style={{ position:'absolute', left:0, right:0, bottom:10, zIndex:6, textAlign:'center', padding:'0 12px' }}>
-            <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:700, color:'#fff',
-              letterSpacing:'0.04em', lineHeight:1, textShadow:'0 2px 12px rgba(0,0,0,0.9)' }}>
+            <div style={{ fontFamily:'var(--font-display)', fontSize:21, fontWeight:700, color:'var(--text)',
+              letterSpacing:'0.04em', lineHeight:1 }}>
               {funnel?.displayName ?? 'INTERVIEWER'}
             </div>
             {!funnel && <div style={{ fontSize:9.5, color:'var(--text-dim)', marginTop:4 }}>Dein nächster Interviewer wartet.</div>}
@@ -7373,7 +7388,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               {[({ yasmin:'GEDULDIG', karim:'SACHLICH', hana:'SKEPTISCH', tarek:'HOCHDRUCK', 'frau-mona-adel':'STRENG', lukas:'LOCKER' })[funnel?.bossId] || 'PROFESSIONELL', `NIVEAU ${funnel?.levelLabel || (level === 'c1' ? 'C1' : level === 'b2' ? 'B2' : 'A2–B1')}`, 'NUR DEUTSCH'].map((t) => (
                 <span key={t} style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:8.5, padding:'4px 10px',
                   borderRadius:'var(--r-pill)', letterSpacing:'0.12em',
-                  background:'var(--surface-2)', border:'1px solid rgba(255,255,255,0.13)', color:'var(--text-dim)' }}>
+                  background:'var(--surface)', border:'1px solid var(--line)', color:'var(--text-dim)' }}>
                   {t}
                 </span>
               ))}
@@ -7390,17 +7405,17 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
       {funnel && (
       <div style={{ padding:'8px 14px 0', flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
         <div style={{ flex:1, minHeight:0, display:'flex', flexDirection:'column', borderRadius:'var(--r-md)',
-          background:'linear-gradient(180deg, rgba(0,22,44,0.55), rgba(0,8,18,0.85))',
-          border:'1px solid var(--line)', boxShadow:'inset 0 0 30px rgba(14,19,32,0.16)', overflow:'hidden' }}>
+          background:'var(--surface)',
+          border:'1px solid var(--line)', boxShadow:'none', overflow:'hidden' }}>
           {/* who is speaking + live score flash */}
           <div style={{ padding:'6px 12px', display:'flex', alignItems:'center', gap:8,
             borderBottom:'1px solid var(--line)', background: 'var(--surface)' }}>
             <span style={{ fontFamily:'var(--font-display)', fontWeight:600, fontSize:9, letterSpacing:'0.14em',
               color: bossSpeak ? boss.color : userSpeak ? 'var(--player)' : 'var(--text-dim)',
-              textShadow: bossSpeak ? `0 0 8px ${boss.color}` : 'none', transition:'color 0.3s' }}>
+              transition:'color 0.3s' }}>
               {bossSpeak ? `${funnel?.displayName ?? 'INTERVIEWER'} SPRICHT` : userSpeak ? 'DU SPRICHST' : isActive ? 'DIALOG' : 'INTERVIEW'}
             </span>
-            {userSpeak && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--player)', boxShadow:'0 0 6px var(--player)', animation:'pulse 0.8s infinite' }} />}
+            {userSpeak && <span style={{ width:6, height:6, borderRadius:'50%', background:'var(--player)', animation:'pulse 0.8s infinite' }} />}
             <div style={{ flex:1 }} />
           </div>
           {/* the boss's current line — the prominent subtitle */}
@@ -7417,7 +7432,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
               ? bossText
               : isActive
                 ? <span style={{ color:'var(--text-faint)', animation:'pulse 1.2s infinite' }}>{funnel?.displayName ?? 'Der Interviewer'} spricht…</span>
-                : <span style={{ color:'#334155' }}>Interview noch nicht gestartet.</span>}
+                : <span style={{ color:'var(--text-faint)' }}>Interview noch nicht gestartet.</span>}
           </div>
           {/* transcript log */}
           <div style={{ flex:1, minHeight:0, padding:'0 6px 6px' }}>
@@ -7440,7 +7455,7 @@ function Arena({ auth, onLogout, onAccountUpdate, interviewPassClaimRevision = 0
         background:'linear-gradient(180deg, rgba(245,243,239,0) 0%, rgba(245,243,239,0.92) 26%, #F5F3EF 60%)' }}>
         {error && (
           <div style={{ marginBottom:12, padding:'8px 12px', borderRadius:8,
-            background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.35)',
+            background:'rgba(180,35,24,0.07)', border:'1px solid var(--bad)',
             color:'var(--bad)', fontSize:11 }}>
             ⚠ {wsErrorText(error, feedbackLang) ?? error}
             {geminiMode && (error === 'mic_denied' || error === 'mic_not_found') && (

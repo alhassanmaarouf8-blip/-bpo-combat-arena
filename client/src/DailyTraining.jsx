@@ -334,7 +334,7 @@ export default function DailyTraining({ token, apiUrl, onClose, onComplete, lang
 }
 
 const ov = { position: 'absolute', inset: 0, zIndex: 220, display: 'flex', flexDirection: 'column', background: 'var(--surface)', backdropFilter: 'blur(6px)', animation: 'flash-in 0.3s ease' };
-const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'linear-gradient(180deg, rgba(8,16,28,0.9), rgba(4,8,14,0.92))', border: '1px solid var(--line)', boxShadow: 'inset 0 0 24px rgba(14,19,32,0.16)' };
+const card = { padding: '12px 13px', borderRadius: 'var(--r-md)', background: 'var(--surface-2)', border: '1px solid var(--line)', boxShadow: 'none' };
 const secTitle = { fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-dim)', marginBottom: 6 };
 const inputSt = { width: '100%', padding: '11px', borderRadius: 'var(--r-sm)', background: 'var(--surface-2)', color: 'var(--text)', fontFamily: 'var(--font-body)', fontSize: 14, border: '1px solid var(--line)', outline: 'none', boxSizing: 'border-box' };
 // minWidth/minHeight 44 = the mobile touch-target floor — these are tap-mid-drill buttons.

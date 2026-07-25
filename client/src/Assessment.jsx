@@ -418,7 +418,7 @@ function Verdict({ result, lang, onGoPricing, onClose, onStartInterview }) {
 
 function Section({ title, color, children }) {
   return (
-    <div style={{ borderRadius: 10, padding: '11px 13px', marginBottom: 10, background: 'var(--surface)', border: `1px solid ${color}33` }}>
+    <div style={{ borderRadius: 10, padding: '11px 13px', marginBottom: 10, background: 'var(--surface)', border: '1px solid var(--line)' }}>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: 9.5, letterSpacing: '0.12em', color, marginBottom: 8 }}>{title}</div>
       {children}
     </div>

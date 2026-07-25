@@ -417,7 +417,7 @@
   line-height: 1.6;
 }
 .brain-guide__why-body p strong { color: var(--text, #0E1320); font-weight: 600; }
-.brain-guide__why-goal { color: #9aa7bd !important; }
+.brain-guide__why-goal { color: #5A6270 !important; }
 .brain-guide__why-body em { color: #8A909C; font-size: 11px; font-style: normal; }
 
 /* ── ORIENTATION (replaces the three numbered briefing cards + the north-star block) ──────────

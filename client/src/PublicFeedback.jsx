@@ -164,7 +164,7 @@ const S = {
     position: 'relative', width: '100%', maxWidth: 440, boxSizing: 'border-box',
     padding: '26px 22px 22px', borderRadius: 18,
     background: `linear-gradient(180deg, ${C.bg1}, ${C.bg0})`,
-    border: `1px solid ${C.line}`, boxShadow: '0 24px 64px -16px rgba(2,6,17,0.7)',
+    border: `1px solid ${C.line}`, boxShadow: '0 24px 60px -28px rgba(14,19,32,0.22)',
   },
   brand: { textAlign: 'center', fontSize: 13, fontWeight: 800, letterSpacing: '0.18em', color: C.dim, marginBottom: 14 },
   h1: { textAlign: 'center', fontSize: 22, fontWeight: 800, color: C.text, margin: '0 0 8px' },
