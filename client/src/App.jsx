@@ -4395,10 +4395,12 @@ const PERKS_DE = {
   // 'job' (Bis zum Job one-time plan): owner-vetoed 2026-07-10 evening — plan deleted server-side
   // (plans.config.js); its perks/sub-lines die with it (phantom-perk law: no copy without a plan).
 };
-const SUB_AR = {
-  basic: (m) => `لحد ${m} دقايق إنترفيو مباشر كل يوم + تمارين بلا حدود متفصّلة على أخطائك.`,
-  elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر كل يوم + كل مزايا Basic + إعادة تقييم شهرية + خصم مخصص.`,
-};
+// OWNER-AR: the two plan sub-lines. The previous strings mixed registers (دقايق vs دقيقة) and
+// promised a "خصم مخصص" (custom discount) the product does not offer. Empty until the owner
+// writes them; the paywall renders the German perks alone in the meantime.
+//   basic → "up to {m} live-interview minutes a day + unlimited drills cut to your own mistakes"
+//   elite → "up to {m} minutes a day + everything in Basic + a monthly re-assessment"
+const SUB_AR = {};
 
 function paywallSalmaKey(info, trialEnded) {
   if (info?.trial?.active) return 'paywall_trial_active';
@@ -4757,9 +4759,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <div style={{ fontFamily:'var(--font-display)', fontSize:14, fontWeight:800, color:'var(--accent)', marginTop:8 }}>
           {ar ? 'بنتأكد من دفعك' : 'Wir prüfen deine Zahlung'}
         </div>
-        <div dir="rtl" style={{ fontSize:13.5, color:'var(--text-dim)', marginTop:12, lineHeight:1.85 }}>
-          طلبك وصلنا ✅ وبنتأكد من الدفع — التفعيل عادة خلال ساعتين في مواعيد العمل. الكود بتاعك: <b style={{ color:'var(--action)' }}>{code}</b>.
-        </div>
+        {/* OWNER-AR: "your request arrived, we're checking the payment — activation is usually
+            within two hours during working hours. Your code: {code}" */}
         <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:14, lineHeight:1.65 }}>
           Deine Anfrage ist da ✅ — wir prüfen die Zahlung manuell. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Code: <b style={{ color:'var(--action)' }}>{code}</b>.
         </div>
@@ -4796,7 +4797,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         </div>
         <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:4, lineHeight:1.6 }}>
           Beide Pläne: Live-Interview JEDEN TAG. Die kostenlose Einstufung bleibt immer frei.
-          <br /><span dir="rtl">الخطتين: إنترفيو مباشر كل يوم. تقييم المستوى المجاني دايمًا متاح.</span>
+          {/* OWNER-AR: "both plans: a live interview every day — the free assessment stays free" */}
         </div>
       </div>
 
@@ -4863,7 +4864,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <div style={{ fontSize:10.5, color:'var(--bad)', textAlign:'center', lineHeight:1.6, marginBottom:10,
           background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'8px 10px' }}>
           Zahlung konnte nicht bestätigt werden — bitte versuche es erneut.
-          <br /><span dir="rtl">لم نتمكن من تأكيد الدفع — حاول مرة أخرى.</span>
+          {/* OWNER-AR: "we couldn't confirm the payment — try again" */}
         </div>
       )}
 
@@ -4871,7 +4872,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         <div role="status" style={{ fontSize:10.5, color:'var(--action)', textAlign:'center', lineHeight:1.6, marginBottom:10,
           background:'rgba(249,115,22,0.08)', border:'1px solid rgba(249,115,22,0.35)', borderRadius:8, padding:'9px 11px' }}>
           Zahlung ist vorübergehend nicht verfügbar — bitte nichts überweisen.
-          <br /><span dir="rtl">الدفع غير متاح حاليًا — ما تحوّلش أي مبلغ.</span>
+          {/* OWNER-AR: "payment is off right now — don't send anything" */}
         </div>
       )}
 
@@ -4998,7 +4999,10 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   <span style={{ color:accent, flex:'0 0 auto' }}>✓</span><span>{perk}</span>
                 </div>
               ))}
-              <div dir="rtl" style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id]?.(p.dailyLiveMinutes)}</div>
+              {/* Renders only once the owner fills SUB_AR — an empty slot must not leave a gap. */}
+              {SUB_AR[p.id] && (
+                <div dir="rtl" style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:6, lineHeight:1.6 }}>{SUB_AR[p.id](p.dailyLiveMinutes)}</div>
+              )}
               <button disabled={submitting || paymentAvailable !== true}
                 onClick={() => preparePayment({ planId: p.id, label: p.label, amountEGP: price, period: once ? 'once' : yearly ? 'yearly' : 'monthly' })}
                 style={{ width:'100%', marginTop:16, padding:'14px', minHeight:52, cursor:submitting?'wait':paymentAvailable===true?'pointer':'not-allowed',
@@ -5027,8 +5031,8 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
         {paymentError && <div role="alert" style={{ textAlign:'center', color:'var(--bad)', fontSize:12, padding:14 }}>{paymentError}</div>}
 
         <div style={{ fontSize:9.5, color:'var(--text-faint)', textAlign:'center', lineHeight:1.5 }}>
-          Zahlung manuell per {instapay && vodafone ? 'Vodafone Cash oder InstaPay' : instapay ? 'InstaPay' : 'Vodafone Cash'} während der Early-Access-Phase.{/* OWNER-AR slot (instapay) */}
-          <br /><span dir="rtl">الدفع يدوي عن طريق فودافون كاش في مرحلة الإطلاق المبكر.</span>
+          Zahlung manuell per {instapay && vodafone ? 'Vodafone Cash oder InstaPay' : instapay ? 'InstaPay' : 'Vodafone Cash'} während der Early-Access-Phase.
+          {/* OWNER-AR: "payment is manual by wallet or InstaPay during early access" */}
         </div>
       </div>
 
