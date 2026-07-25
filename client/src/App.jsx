@@ -4471,6 +4471,23 @@ const SUB_AR = {
   elite: (m) => `لحد ${m} دقيقة إنترفيو مباشر في اليوم + كل اللي في Basic + تقييم مستوى جديد كل شهر.`,
 };
 
+// ── THE TERM SENTENCE — the exact money commitment, in words, wherever money is decided ──────
+// Both numbers here are the server's, not the copywriter's. termDaysFor mirrors auth.js
+// activatePlan() exactly: monthly = 30 * DAY, yearly = 365 * DAY, once = onceDurationDays || 365.
+// It says "30 Tage" and not "1 Monat" on purpose — 30 days is literally the window the server
+// grants, and a label that rounds is a label that can be caught lying (elite-prompt #4).
+//
+// The second half is the fact that separates this product from a card-on-file subscription: the
+// rails are MANUAL (Vodafone Cash / InstaPay), there is no stored instrument and no recurring
+// charge anywhere in the server — planOf() simply lapses the account to 'free' once
+// billingPeriodEnd passes. A buyer who is afraid of a silent monthly debit is told, at the button,
+// that one cannot happen. Previously this sentence appeared on the Elite card only, so the Basic
+// buyer and everyone reaching the payment sheet were left to assume the usual subscription trap.
+const termDaysFor = (plan, { yearly, once }) =>
+  once ? (plan?.onceDurationDays || 365) : yearly ? 365 : 30;
+const termLineDE = (amountEGP, days) =>
+  `${fmtEgp(amountEGP)} EGP einmalig für ${days} Tage Zugang. Keine automatische Abbuchung — danach endet der Zugang, bis du selbst verlängerst.`;
+
 function paywallSalmaKey(info, trialEnded) {
   if (info?.trial?.active) return 'paywall_trial_active';
   if (trialEnded || info?.trial) return 'paywall_trial_over';
@@ -4764,6 +4781,35 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                 border:'1px solid var(--line-strong)', borderRadius:10, padding:'10px', marginTop:10, letterSpacing:'0.25em' }} />
           </div>
 
+          {/* GESAMT FÄLLIG — the total restated at the button. The amount is already in the sheet
+              header and inside the transfer instruction, but both sit ABOVE a rail picker, a copy
+              control and a 4-digit input; on a phone the header has scrolled away by the time the
+              thumb reaches the confirm. Nobody should tap "ICH HABE BEZAHLT" without the figure and
+              the term in the same viewport as the button. Neutral surface — the sheet's single
+              orange stays the action itself. */}
+          {(() => {
+            const payPlan = (plans || []).find((pl) => pl.id === pay.planId);
+            const payDays = termDaysFor(payPlan, { yearly: pay.period === 'yearly', once: pay.period === 'once' });
+            return (
+              <div style={{ marginTop:12, padding:'13px 15px', borderRadius:12,
+                background:'var(--surface-2)', border:'1px solid var(--line)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:10 }}>
+                  <span style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:700,
+                    letterSpacing:'0.13em', textTransform:'uppercase', color:'var(--text-faint)' }}>
+                    Gesamt fällig{/* OWNER-AR slot */}
+                  </span>
+                  <span dir="ltr" style={{ fontFamily:'var(--font-display)', fontSize:20, fontWeight:800,
+                    letterSpacing:'-0.02em', color:'var(--text)', fontVariantNumeric:'tabular-nums' }}>
+                    {fmt(pay.amountEGP)} EGP
+                  </span>
+                </div>
+                <div style={{ fontSize:11, color:'var(--text-dim)', marginTop:7, lineHeight:1.55 }}>
+                  {termLineDE(pay.amountEGP, payDays)}{/* OWNER-AR slot */}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* THE one orange action on this sheet. */}
           <button onClick={onPaid} disabled={submitting || !/^\d{4}$/.test(senderLast4)}
             style={{ width:'100%', marginTop:12, padding:'14px', minHeight:52, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
@@ -5003,6 +5049,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
           const price  = on ? ((yearly && !once) ? (p.offerYearlyEGP ?? base) : (p.offerPriceEGP ?? base)) : base;
           const period = once ? (ar ? 'مرة واحدة' : 'einmalig') : yearly ? (ar ? '/سنة' : '/Jahr') : (ar ? '/شهر' : '/Monat');
           const saving = (p.priceEGP * 12) - p.yearlyEGP;
+          const days   = termDaysFor(p, { yearly, once });
           const elite  = p.id === 'elite';
           const accent = elite ? 'var(--action)' : 'var(--text-dim)';
           // PREMIUM PASS: this is the screen where money happens, so it gets the most air.
@@ -5072,11 +5119,12 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
                   ? (ar ? 'الدفع غير متاح حاليًا' : 'ZAHLUNG DERZEIT NICHT VERFÜGBAR')
                   : `${p.label?.toUpperCase()} ${ar ? 'اختار' : 'WÄHLEN'} ▸`}
               </button>
-              {elite && (
-                <div style={{ fontSize:10.5, color:'var(--text-dim)', textAlign:'center', marginTop:8 }}>
-                  Keine automatische Abbuchung — du verlängerst selbst.{/* OWNER-AR slot */}
-                </div>
-              )}
+              {/* The term sentence, on EVERY plan — not just the recommended one. The buyer who
+                  chooses the cheaper card is exactly the buyer most worried about a hidden
+                  recurring charge, and he used to be the one told nothing. */}
+              <div style={{ fontSize:11, color:'var(--text-dim)', textAlign:'center', marginTop:9, lineHeight:1.55 }}>
+                {termLineDE(price, days)}{/* OWNER-AR slot */}
+              </div>
             </div>
           );
         })}
