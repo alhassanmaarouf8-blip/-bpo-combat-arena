@@ -394,10 +394,11 @@ export function planOf(account, now = Date.now()) {
   if (s.tier === 'pro' || s.tier === 'team') return 'elite'; // legacy paid grants keep access
   return 'free';
 }
-// FREE TRIAL — the acquisition engine. New free users live the full Fokus product (daily interview
-// minutes + ALL drills) for their first FREE_TRIAL_DAYS, so they FEEL the benefit before the paywall.
-// ONE day (owner order 2026-07-25, down from 3): taste it today, pay to keep it. Tunable.
-export const FREE_TRIAL_DAYS = 1;
+// FREE TRIAL — REMOVED (owner order 2026-07-25: "ok remove trial"). 0 days = trialActive() is
+// always false and every trial banner/timeline disappears (all UI reads this value from the server).
+// The free acquisition hooks that remain are SEPARATE mechanisms: the one free Einstufung and
+// the single free first interview. Set back >0 to resurrect the trial.
+export const FREE_TRIAL_DAYS = 0;
 const FREE_TRIAL_DAY_MS = 86400000;
 export function trialActive(account, now = Date.now()) {
   if (!account || isAdminAccount(account)) return false;   // admins are already elite

@@ -46,14 +46,15 @@ test('an account that already lapsed or never started is never claimed by a stra
   assert.equal(await claimTrialNotice(bare), false);
 });
 
-test('entitlement exposes the FULL trial length so the client never hardcodes it', () => {
+test('entitlement exposes the trial length (0 = removed) so the client never hardcodes it', () => {
   const trialAccount = { id: 'u-trial-3', email: 'x@test.local',
     subscription: { freeFightUsed: true, trialStartedAt: Date.now() } };
   const ent = entitlement(trialAccount);
   assert.equal(ent.trial.days, FREE_TRIAL_DAYS,
-    'the client distinguishes day 1 from day 2 with trial.days — a literal 3 there would lie the '
-    + 'moment FREE_TRIAL_DAYS changes');
-  assert.equal(ent.trial.active, true);
+    'the client renders trial UI from trial.days — a literal would lie the moment it changes');
+  // Owner order 2026-07-25: the trial is removed — a trial stamp never activates anything.
+  assert.equal(FREE_TRIAL_DAYS, 0);
+  assert.equal(ent.trial.active, false);
 });
 
 test('the notice mail carries evidence but NO manufactured urgency', async () => {

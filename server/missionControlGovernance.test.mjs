@@ -49,7 +49,7 @@ test('job discovery requires both its live switch and fail-closed concierge vali
   assert.equal(cannotOverrideBase.jobDiscoveryLive, false);
 });
 
-test('tracker entitlement follows the plan source of truth including Elite-equivalent trial', () => {
+test('tracker entitlement follows the plan source of truth (trial REMOVED: stamp = plain free)', () => {
   assert.deepEqual({
     free:PLANS.free.trackedApplications,
     basic:PLANS.basic.trackedApplications,
@@ -65,10 +65,11 @@ test('tracker entitlement follows the plan source of truth including Elite-equiv
     ['free', { id:'governance-free', subscription:{ plan:'free' } }, 1],
     ['basic', { id:'governance-basic', subscription:{ plan:'basic' } }, 100],
     ['elite', { id:'governance-elite', subscription:{ plan:'elite' } }, 250],
+    // Owner order 2026-07-25: the trial is removed — a trial stamp grants nothing beyond free.
     ['trial', {
       id:'governance-trial',
       subscription:{ plan:'free', trialStartedAt:NOW - 60_000 },
-    }, 250],
+    }, 1],
   ];
 
   for (const [label, account, expected] of cases) {

@@ -114,7 +114,7 @@ test('global AI fuse falls back deterministically without a second provider call
   resetVacancyAiFuseForTests();
 });
 
-test('feature policy is fail-closed and enforces free/basic/elite/trial/beta capabilities', () => {
+test('feature policy is fail-closed and enforces free/basic/elite/beta (trial REMOVED)', () => {
   const now = Date.parse('2026-07-13T09:00:00Z');
   const free = { id: 'free-1', subscription: { tier: 'trial', trialStartedAt: null } };
   const basic = { id: 'basic-1', subscription: { plan: 'basic' } };
@@ -128,8 +128,9 @@ test('feature policy is fail-closed and enforces free/basic/elite/trial/beta cap
   assert.equal(core.vacancyFlagsFor(basic, { env, now }).fullPlan, true);
   assert.equal(core.vacancyFlagsFor(basic, { env, now }).live, false);
   assert.equal(core.vacancyFlagsFor(elite, { env, now }).live, true);
-  assert.equal(core.vacancyFlagsFor(trial, { env, now }).fullPlan, true);
-  assert.equal(core.vacancyFlagsFor(trial, { env, now }).live, true);
+  // Owner order 2026-07-25: the trial is removed — a trial stamp behaves as plain free.
+  assert.equal(core.vacancyFlagsFor(trial, { env, now }).fullPlan, false);
+  assert.equal(core.vacancyFlagsFor(trial, { env, now }).live, false);
 
   const betaEnv = { VACANCY_MODE: 'beta', VACANCY_BETA_ACCOUNT_IDS: 'other, free-1' };
   assert.equal(core.vacancyFlagsFor(free, { env: betaEnv, now }).enabled, true);
