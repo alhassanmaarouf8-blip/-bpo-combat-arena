@@ -18,14 +18,16 @@ Render → `bpo-combat-arena` service → **Environment**. These must exist:
 | `SMTP_PASS` | SMTP app password; never commit it | ☐ |
 | `ADMIN_KEY` | High-entropy admin secret, at least 32 characters | ☐ |
 | `PAYMENT_MONITOR_KEY` | Separate high-entropy payment-monitor secret | ☐ |
-| `VODAFONE_CASH_NUMBER` | Public wallet number used by the implemented checkout | ☐ |
+| `VODAFONE_CASH_NUMBER` | Public wallet number — the wallet rail, and the InstaPay default | ☐ |
+| `INSTAPAY_ADDRESS` | *(optional)* InstaPay destination if it differs from the wallet number. **Unset = InstaPay uses `VODAFONE_CASH_NUMBER`,** which is correct when the owner's InstaPay is registered against that same mobile number | ☐ |
+| `BANK_ACCOUNT_INFO` | *(optional)* bank/IBAN line — set it and a third "Bank" rail appears in the checkout by itself | ☐ |
 | `WHATSAPP_NUMBER` | *(optional)* separate number for payment proof/support | ☐ |
 
 **Check it worked:** open the **Logs** tab → you should see the server start and `[db] Connected`.
 
 Before deploying the frontend, verify from a non-production test account that the backend can send
 both a verification email and a password-reset email, and that `/api/billing/status` reports a usable
-Vodafone Cash destination. If either check fails, stop: the repaired client intentionally blocks new
+payment destination (`vodafoneNumber`, and `instapayAddress` which mirrors it unless overridden). If either check fails, stop: the repaired client intentionally blocks new
 training before email confirmation and blocks checkout without the implemented payment rail.
 
 ## 1B. Deploy in this order — never frontend-only
