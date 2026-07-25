@@ -108,7 +108,12 @@ test('generic landing states the real offer (free-forever + true trial grant + p
   // Honest-when-thin: price and trial detail render ONLY behind real server data. If this gate is
   // ever removed, a cold start would paint a fallback/undefined price — worse than showing none.
   assert.match(source, /\{pricing\?\.plans\?\.length > 0 && \(/);
-  assert.match(source, /\{pricing\?\.trial\?\.dailySessions > 0 && \(/);
+  // RATCHET (2026-07-25): the gate must test `days` too, not just `dailySessions`. FREE_TRIAL_DAYS
+  // is 0 (auth.js) while the payload still publishes the trial's dailySessions, so guarding on
+  // sessions alone rendered "Deine 0 Testtage … 4 Interviews/Tag" on the public landing — four
+  // interviews a day on a trial lasting zero days, directly above the price. Guarding on the field
+  // the sentence NAMES is the fix; loosening this back to a sessions-only test restores the lie.
+  assert.match(source, /\{pricing\?\.trial\?\.days > 0 && pricing\?\.trial\?\.dailySessions > 0 && \(/);
   assert.match(source, /Nach Anmeldung und E-Mail-Bestätigung startest du kostenlos: alle Übungen und dein erstes Interview/);
   assert.match(source, /const activeStudyStart = firstRun && auth\.account\?\.studyAccess\?\.active === true/);
   assert.match(source, /activeStudyStart \? '8-MIN-DIAGNOSE STARTEN' : 'Interview starten'/);

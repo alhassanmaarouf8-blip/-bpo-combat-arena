@@ -7,7 +7,6 @@ import { progressRouter }   from './progress.js';
 import { analysisRouter }   from './analysisRoutes.js';
 import { personalStepRouter } from './personalStep.js';
 import { customQuestionsRouter } from './customQuestions.js';
-import { paymobRouter } from './paymob.js';
 import { authRouter, billingRouter } from './auth.js';
 import { planRouter }        from './plans.js';
 import { dailyRouter }       from './daily.js';
@@ -38,7 +37,6 @@ import { salmaCoachRouter } from './salmaCoach.js';
 import { studyCohortRouter } from './studyCohort.js';
 import { firstSessionTraceRouter } from './firstSessionTrace.js';
 import { pronunciationRouter } from './pronunciation.js';
-import { createPronunciationGoldRouter } from './pronunciationGold.js';
 // Call Floor (Mode 2) — named wiring exception per docs/FROZEN.md. The kill switch lives INSIDE
 // the router (CALLFLOOR_ENABLED=1); with the flag off every /api/callfloor route answers the
 // identical 404 the catch-all would, so Mode 1 behavior is byte-identical.
@@ -150,7 +148,6 @@ app.use('/api', progressRouter);
 app.use('/api', analysisRouter);   // Deep Diagnostic Engine (v2 Phase 2): full-transcript analysis + error events
 app.use('/api', personalStepRouter);   // Phase 4: the personal step (generated exercise block + server-confirmed completion)
 app.use('/api', customQuestionsRouter);   // "Meine eigenen Fragen": vision-extract + confirmed set → interview (flag CUSTOM_QUESTIONS_ENABLED)
-app.use('/api', paymobRouter);   // Paymob card + wallet checkout (all payment methods → instant activation; flag PAYMOB_ENABLED)
 app.use('/api', beaconRouter);   // PII-free funnel counters (see funnelBeacon.js)
 app.use('/api', planRouter);
 app.use('/api', dailyRouter);
@@ -172,7 +169,6 @@ app.use('/api', salmaCoachRouter); // Salma Personal Tutor (off by default; dete
 app.use('/api', studyCohortRouter); // Signed, allowlisted 21-day research cohort (off by default)
 app.use('/api', firstSessionTraceRouter); // First-interview activation trace (owner-only read)
 app.use('/api', pronunciationRouter); // Fail-closed pronunciation/clarity subsystem (all categories unvalidated by default)
-app.use('/api', createPronunciationGoldRouter()); // Consent-gated gold collection (PRON_GOLD_COLLECT=1 to enable; 404s otherwise)
 app.use('/api', callfloorRouter); // Call Floor (Mode 2) — CALLFLOOR_ENABLED=1 to enable; 404s otherwise
 app.use(engagementRouter);  // /admin/engagement — ADMIN_KEY-gated per-user engagement analytics (paths absolute)
 app.use(pushRouter);        // /api/push/* (opt-in) + /admin/push/daily (cron) — web-push reminders; paths absolute

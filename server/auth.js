@@ -1012,9 +1012,10 @@ billingRouter.get('/status', requireAuth, async (req, res) => {
     // explicitly to receive WhatsApp on a different number.
     whatsappNumber: process.env.WHATSAPP_NUMBER || process.env.VODAFONE_CASH_NUMBER || null,
     paymentAvailable: !!(process.env.VODAFONE_CASH_NUMBER || process.env.INSTAPAY_ADDRESS || process.env.BANK_ACCOUNT_INFO),
-    // Paymob card + wallet checkout available (env-only check, no import → no circular dep).
-    cardPayment: process.env.PAYMOB_ENABLED === '1' && !!process.env.PAYMOB_SECRET_KEY
-      && !!process.env.PAYMOB_PUBLIC_KEY && !!process.env.PAYMOB_HMAC,
+    // Paymob is dead (owner order, commit e2d7c82 removed the client card path; server/paymob.js
+    // deleted). Kept as a literal so the field stays in the contract for any client still reading
+    // it, but it can never advertise a checkout whose router no longer exists.
+    cardPayment: false,
     pendingPayment: pending,    // { referenceCode, plan, billingPeriod, createdAt } | null
     paymentIntent: intent,      // resumable transfer instructions created before money moves
     paymentRejected,            // true if their latest payment was rejected (→ normal paywall + note)
@@ -1111,10 +1112,8 @@ billingRouter.get('/state', requireAuth, async (req, res) => {
     // (flag false ⇒ the picker labels itself "ab Elite" — stored aspiration, not yet active).
     zielStelle: entitlement(account).zielStelle,
     customQuestions: entitlement(account).customQuestions,   // "Meine eigenen Fragen" armed + entitled
-    // Paymob card + wallet checkout available → client shows "Mit Karte/Wallet zahlen". Env-only check
-    // (no import of paymob.js) to avoid a circular dependency; mirrors paymobEnabled()'s core.
-    cardPayment: process.env.PAYMOB_ENABLED === '1' && !!process.env.PAYMOB_SECRET_KEY
-      && !!process.env.PAYMOB_PUBLIC_KEY && !!process.env.PAYMOB_HMAC,
+    // Paymob is dead (owner order, e2d7c82). Literal false — see the note on the billing route above.
+    cardPayment: false,
     targetIndustry,
   });
 });
