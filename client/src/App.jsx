@@ -4571,7 +4571,7 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
       )}
       <button onClick={() => copyText(code, 'code')}
         style={{ width:'100%', padding:'11px', minHeight:44, cursor:'pointer', fontFamily:'var(--font-display)', fontSize:11,
-          borderRadius:8, border:'1px dashed var(--action)', background:'rgba(249,115,22,0.08)', color:'var(--action)' }}>
+          borderRadius:10, border:'1px solid var(--line-strong)', background:'var(--surface)', color:'var(--text)' }}>
         {copied === 'code' ? (ar ? 'تم نسخ رقم الطلب ✓' : 'Vorgang kopiert ✓') : (ar ? `انسخ رقم الطلب · ${code}` : `Vorgang kopieren · ${code}`)}
       </button>
     </div>
@@ -4613,12 +4613,13 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
   if (pay && submitted) {
     return shell(<>
       <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', textAlign:'center', padding:'0 4px' }}>
-        <div style={{ fontSize:48 }}>✅</div>
-        <div dir="rtl" style={{ fontSize:14, color:'var(--accent)', fontWeight:700, marginTop:10, lineHeight:1.8 }}>
-          تم استلام طلبك ✅ — التفعيل بيتم يدويًا بعد مطابقة المبلغ وآخر ٤ أرقام من محفظتك، وعادة خلال ساعتين في مواعيد العمل. رقم الطلب: <b style={{ color:'var(--action)' }}>{refCode}</b>.
+        <div style={{ width:56, height:56, margin:'0 auto', borderRadius:'50%', display:'grid', placeItems:'center',
+          background:'var(--accent)' }}><Icon name="check" size={26} color="#FFFFFF" /></div>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:19, fontWeight:700, color:'var(--text)', marginTop:16 }}>
+          Anfrage erhalten{/* OWNER-AR slot */}
         </div>
-        <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:14, lineHeight:1.65 }}>
-          Anfrage erhalten! Wir gleichen Betrag und Wallet-Endziffern manuell ab. Während der Geschäftszeiten erfolgt die Aktivierung normalerweise innerhalb von zwei Stunden. Vorgang: <b style={{ color:'var(--action)' }}>{refCode}</b>.
+        <div style={{ fontSize:12.5, color:'var(--text-dim)', marginTop:8, lineHeight:1.6 }}>
+          Aktivierung nach Prüfung, meist unter 2 Stunden. Vorgang: <b style={{ color:'var(--text)' }}>{refCode}</b>.{/* OWNER-AR slot */}
         </div>
         {proofActions(refCode)}
       </div>
@@ -4634,31 +4635,13 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
     const cardLink = PAYMOB_LINKS[pay.planId];   // Paymob hosted link for this plan (card + wallet)
     const railDest = rail === 'instapay' ? instapay : vodafone;
     return shell(<>
-      <div style={{ textAlign:'center', marginBottom:12 }}>
-        <div style={{ fontFamily:'var(--font-display)', fontSize:15, fontWeight:800, letterSpacing:1.2, color:'var(--text)' }}>{pay.label?.toUpperCase()}</div>
-        <div style={{ fontSize:12, color:'var(--text-dim)', marginTop:4 }}>
-          <b>{fmt(pay.amountEGP)} EGP</b> {pay.period === 'once' ? (ar?'مرة واحدة':'einmalig') : pay.period === 'yearly' ? (ar?'سنويًا':'/Jahr') : (ar?'شهريًا':'/Monat')}
+      <div style={{ textAlign:'center', margin:'8px 0 18px' }}>
+        <div style={{ fontFamily:'var(--font-display)', fontSize:11, fontWeight:700, letterSpacing:'0.14em', color:'var(--text-dim)' }}>{pay.label?.toUpperCase()}</div>
+        <div style={{ marginTop:4 }}>
+          <span style={{ fontFamily:'var(--font-display)', fontSize:34, fontWeight:800, letterSpacing:'-0.03em', color:'var(--text)' }}>{fmt(pay.amountEGP)}</span>
+          <span style={{ fontSize:13, fontWeight:600, color:'var(--text-dim)' }}> EGP{pay.period === 'once' ? '' : pay.period === 'yearly' ? (ar?'/سنة':'/Jahr') : (ar?'/شهر':'/Monat')}</span>
         </div>
       </div>
-
-      {/* Card + wallet (Paymob) — all payment methods, instant activation. Blue (not orange) so the
-          Vodafone "Ich habe bezahlt" below stays the single orange action when both are shown. */}
-      {cardLink && (
-        <button onClick={() => payWithCard(pay)}
-          style={{ width:'100%', padding:'13px', minHeight:50, cursor:'pointer',
-            fontFamily:'var(--font-display)', fontSize:13, fontWeight:800, letterSpacing:'0.02em', borderRadius:10,
-            border:'none', color:'#FFFFFF', background:'var(--action)',
-            boxShadow:'0 1px 2px rgba(18,22,31,0.2)' }}>
-          {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
-        </button>
-      )}
-      {cardLink && !STORE_MODE && (vodafone || instapay) && (
-        <div style={{ textAlign:'center', fontSize:10.5, color:'var(--text-faint)', margin:'8px 0 6px' }}>
-          {vodafone && instapay ? (ar ? 'أو Vodafone Cash / InstaPay' : 'oder Vodafone Cash / InstaPay')
-            : instapay ? (ar ? 'أو InstaPay' : 'oder InstaPay')
-            : (ar ? 'أو Vodafone Cash' : 'oder Vodafone Cash')}
-        </div>
-      )}
 
       {!STORE_MODE && (vodafone || instapay) ? (
         <div style={{ flex:1 }}>
@@ -4678,76 +4661,69 @@ function PaywallScreen({ token, info, onUpgraded, onPaymentPending, onClose, lan
               ))}
             </div>
           )}
-          {/* Step 1 — send the money */}
-          <div style={{ borderRadius:12, padding:'14px', marginBottom:10, background: 'var(--surface)', border:'1px solid var(--line)' }}>
-            {rail === 'vodafone' ? (<>
-            <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
-              <b style={{ color:'var(--text)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per Vodafone Cash an diese Nummer:
+          {/* ONE card: where to send + how we recognise you. Nothing else — the price is in the
+              header, the button is the instruction, and support/refund live in one faint footer.
+              White + ink only inside; the sheet's single ORANGE is the confirm button below. */}
+          <div style={{ borderRadius:14, padding:'16px 15px', background:'var(--surface)', border:'1px solid var(--line)' }}>
+            <div style={{ fontSize:12.5, color:'var(--text-dim)', lineHeight:1.5 }}>
+              Sende <b style={{ color:'var(--text)' }}>{fmt(pay.amountEGP)} EGP</b> per {rail === 'instapay' ? 'InstaPay' : 'Vodafone Cash'} an:{/* OWNER-AR slot */}
             </div>
-            <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>حوّل <b>{fmt(pay.amountEGP)} جنيه</b> فودافون كاش على الرقم ده:</div>
-            </>) : (<>
-            <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
-              <b style={{ color:'var(--text)' }}>1)</b> Sende <b>{fmt(pay.amountEGP)} EGP</b> per InstaPay an diese Adresse:{/* OWNER-AR slot */}
-            </div>
-            </>)}
-            <div style={{ textAlign:'center', fontFamily:'Share Tech Mono, monospace', fontSize: rail === 'instapay' && String(railDest).length > 14 ? 17 : 22, fontWeight:700,
-              background:'var(--surface-2)', border:'1px solid var(--line-strong)', color:'var(--text)', borderRadius:8, padding:'12px', marginTop:8, letterSpacing:'0.08em', overflowWrap:'anywhere' }}>
+            <div style={{ textAlign:'center', fontFamily:'var(--font-display)', fontVariantNumeric:'tabular-nums',
+              fontSize: String(railDest).length > 14 ? 18 : 24, fontWeight:800, color:'var(--text)',
+              background:'var(--surface-2)', borderRadius:10, padding:'13px', marginTop:10, letterSpacing:'0.06em', overflowWrap:'anywhere' }}>
               {railDest}
             </div>
             <button type="button" onClick={() => copyText(railDest, 'wallet')}
-              style={{ width:'100%', marginTop:7, padding:'9px', minHeight:42, cursor:'pointer', borderRadius:8,
+              style={{ width:'100%', marginTop:8, padding:'10px', minHeight:44, cursor:'pointer', borderRadius:10, fontSize:12.5,
                 border:'1px solid var(--line-strong)', background:'var(--surface)', color:'var(--text)', fontWeight:700 }}>
-              {copied === 'wallet'
-                ? (ar ? 'تم النسخ ✓' : rail === 'instapay' ? 'Adresse kopiert ✓' : 'Nummer kopiert ✓')
-                : rail === 'instapay' ? (ar ? 'انسخ العنوان' : 'InstaPay-Adresse kopieren') : (ar ? 'انسخ رقم المحفظة' : 'Wallet-Nummer kopieren')}
+              {copied === 'wallet' ? (ar ? 'تم النسخ ✓' : 'Kopiert ✓') : (ar ? 'انسخ' : 'Kopieren')}
             </button>
-          </div>
 
-          {/* Step 2 — payer identity; Vodafone Cash has no transfer-note field. */}
-          <div style={{ borderRadius:10, padding:'12px 13px', marginBottom:10, background:'rgba(249,115,22,0.07)', border:'1px solid rgba(249,115,22,0.4)' }}>
-            <div style={{ fontSize:11.5, color:'var(--text)', lineHeight:1.5 }}>
-              <b style={{ color:'var(--text)' }}>2)</b> Gib die letzten 4 Ziffern der {rail === 'instapay' ? 'Handynummer ein, mit der du sendest' : 'Wallet ein, von der du sendest'}:{/* OWNER-AR slot (instapay) */}
+            <div style={{ height:1, background:'var(--line)', margin:'16px -15px' }} />
+
+            <div style={{ fontSize:12.5, color:'var(--text-dim)', lineHeight:1.5 }}>
+              Letzte 4 Ziffern der Nummer, von der du gesendet hast:{/* OWNER-AR slot */}
             </div>
-            <div dir="rtl" style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginTop:3 }}>اكتب آخر ٤ أرقام من رقم المحفظة اللي هتحوّل منها:</div>
             <input value={senderLast4} onChange={(e) => setSenderLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              inputMode="numeric" autoComplete="off" maxLength={4} aria-label="Letzte 4 Ziffern der sendenden Wallet"
-              placeholder="••••" style={{ width:'100%', boxSizing:'border-box', textAlign:'center', fontFamily:'Share Tech Mono, monospace',
-                fontSize:26, fontWeight:800, color:'var(--text)', background: 'var(--surface)', border:'1px solid var(--line-strong)',
-                borderRadius:8, padding:'10px', marginTop:8, letterSpacing:'0.25em' }} />
-            <div style={{ fontSize:10.5, color:'var(--text-dim)', marginTop:7, lineHeight:1.5 }}>
-              Vorgangsnummer: <b style={{ color:'var(--text)' }}>{refCode}</b> · رقم الطلب للدعم فقط، مش بيتكتب في التحويل.
-            </div>
+              inputMode="numeric" autoComplete="off" maxLength={4} aria-label="Letzte 4 Ziffern"
+              placeholder="••••" style={{ width:'100%', boxSizing:'border-box', textAlign:'center', fontFamily:'var(--font-display)',
+                fontVariantNumeric:'tabular-nums', fontSize:26, fontWeight:800, color:'var(--text)', background:'var(--surface)',
+                border:'1px solid var(--line-strong)', borderRadius:10, padding:'10px', marginTop:10, letterSpacing:'0.25em' }} />
           </div>
 
-          {/* Step 3 */}
-          <div style={{ fontSize:11.5, color:'var(--text-dim)', lineHeight:1.6, marginBottom:6 }}>
-            <b style={{ color:'var(--accent)' }}>3)</b> Tippe danach unten auf «Ich habe bezahlt».
-            <br /><span dir="rtl">وبعد ما تحوّل، دوس تحت على «دفعت».</span>
-          </div>
-
-          {/* TRUST at the money moment: the buyer is sending cash to a bare number — give it a face, a
-              receipt promise, and the HONEST basis of trust. No money-back guarantee is promised: the
-              3-day free trial IS the try-before-buy, and payments are non-refundable (owner 2026-07-23). */}
-          <div style={{ borderRadius:10, padding:'11px 13px', marginBottom:6, background:'rgba(14,19,32,0.07)',
-            border:'1px solid rgba(14,19,32,0.3)', fontSize:11.5, color:'var(--text-dim)', lineHeight:1.65 }}>
-            Du zahlst direkt an <b>Alhassan</b>, den Gründer — kein Zwischenhändler. Du bekommst eine
-            Bestätigung per WhatsApp. Du hast 3 Tage gratis getestet, bevor du zahlst — danach ist die
-            Zahlung nicht erstattungsfähig (<a href="/refund.html" target="_blank" rel="noopener noreferrer"
-            style={{ color:'var(--accent-2)' }}>Rückerstattungsrichtlinie</a>).{/* OWNER-AR slot */}
-          </div>
-
-          {/* "I paid" → records a PENDING request (verify-first). Grants NO access. */}
+          {/* THE one orange action on this sheet. */}
           <button onClick={onPaid} disabled={submitting || !/^\d{4}$/.test(senderLast4)}
-            style={{ width:'100%', marginTop:8, padding:'13px', minHeight:48, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
-              fontSize:12, letterSpacing:'0.08em', borderRadius:9, fontWeight:700, border:'none', color:'#FFFFFF',
-              background:'var(--accent)', opacity: (submitting || !/^\d{4}$/.test(senderLast4)) ? 0.62 : 1 }}>
+            style={{ width:'100%', marginTop:12, padding:'14px', minHeight:52, cursor: submitting ? 'wait' : 'pointer', fontFamily:'var(--font-display)',
+              fontSize:13.5, letterSpacing:'0.02em', borderRadius:12, fontWeight:700, border:'none', color:'#FFFFFF',
+              background:'var(--action)', boxShadow:'0 1px 2px rgba(18,22,31,0.2)',
+              opacity: (submitting || !/^\d{4}$/.test(senderLast4)) ? 0.45 : 1 }}>
             {submitting ? '…' : 'دفعت · ICH HABE BEZAHLT'}
           </button>
           {paymentError && <div role="alert" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>{paymentError}</div>}
+
+          {cardLink && (
+            <button onClick={() => payWithCard(pay)}
+              style={{ width:'100%', marginTop:10, padding:'12px', minHeight:48, cursor:'pointer',
+                fontFamily:'var(--font-display)', fontSize:12.5, fontWeight:700, borderRadius:12,
+                border:'1px solid var(--line-strong)', color:'var(--text)', background:'var(--surface)' }}>
+              {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
+            </button>
+          )}
+
+          <div style={{ fontSize:10.5, color:'var(--text-faint)', textAlign:'center', marginTop:14, lineHeight:1.6 }}>
+            Vorgang {refCode} · Bestätigung per WhatsApp · Aktivierung meist unter 2 Stunden ·{' '}
+            <a href="/refund.html" target="_blank" rel="noopener noreferrer" style={{ color:'var(--text-dim)' }}>Rückerstattung</a>{/* OWNER-AR slot */}
+          </div>
         </div>
-      ) : cardLink ? (
-        paymentError ? <div role="alert" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>{paymentError}</div> : null
-      ) : (
+      ) : cardLink ? (<>
+        <button onClick={() => payWithCard(pay)}
+          style={{ width:'100%', padding:'14px', minHeight:52, cursor:'pointer',
+            fontFamily:'var(--font-display)', fontSize:13.5, fontWeight:700, borderRadius:12,
+            border:'none', color:'#FFFFFF', background:'var(--action)', boxShadow:'0 1px 2px rgba(18,22,31,0.2)' }}>
+          {ar ? 'ادفع بالكارت' : 'Mit Karte zahlen'}{/* OWNER-AR slot */}
+        </button>
+        {paymentError ? <div role="alert" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>{paymentError}</div> : null}
+      </>) : (
         <div style={{ flex:1, display:'grid', placeItems:'center', textAlign:'center', color:'var(--text-dim)', fontSize:12, padding:20 }}>
           Zahlung bald verfügbar.<br /><span dir="rtl">الدفع هيكون متاح قريب.</span>
         </div>
