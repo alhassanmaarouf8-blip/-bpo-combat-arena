@@ -1,0 +1,28 @@
+name: keep-warm
+
+# Keep the Render free-tier backend awake so a fresh visitor (a lead trying the demo) never
+# hits the ~20-30s cold-start. Render spins a free web service down after 15 min with no
+# EXTERNAL inbound traffic; the server's own self-ping can't prevent the first sleep. This
+# external ping every ~10 min guarantees inbound traffic. $0 — GitHub Actions is free on this repo.
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 min (GitHub cron is best-effort; a spare margin under the 15-min idle limit)
+  workflow_dispatch: {}        # allow a manual "wake it now" before a demo
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping backend /health until it responds warm
+        run: |
+          URL="https://bpo-combat-arena.onrender.com/health"
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /tmp/h.json -w '%{http_code}' --max-time 40 "$URL" || echo 000)
+            echo "attempt $i → HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "warm:"; cat /tmp/h.json; exit 0
+            fi
+            sleep 8   # cold dyno is waking — give it a moment and retry
+          done
+          echo "backend did not return 200 after retries"; exit 1
