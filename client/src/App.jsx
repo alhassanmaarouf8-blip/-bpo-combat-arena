@@ -4020,14 +4020,14 @@ function AuthScreen({ onAuth, verificationNotice = null, initialMode = null }) {
             color:'var(--bad)', fontSize:12, lineHeight:1.55 }}>
             {studyEntryState.phase === 'expired' ? 'Dieser 21-Tage-Studienlink ist abgelaufen. Bitte fordere einen neuen Studienlink an.'
               : studyEntryState.phase === 'used' ? 'Dieser Studienplatz wurde bereits aktiviert. Melde dich mit dem bestehenden Konto an.'
-                : studyEntryState.phase === 'offline' ? 'Der Studienzugang konnte gerade nicht geprueft werden. Dein Link bleibt in diesem Browser erhalten.'
-                  : studyEntryState.phase === 'unavailable' ? 'Der Studienzugang ist gerade nicht verfuegbar. Bitte versuche es spaeter erneut.'
-                    : 'Dieser Studienlink ist ungueltig. Bitte verwende den aktuellen Link.'}
+                : studyEntryState.phase === 'offline' ? 'Der Studienzugang konnte gerade nicht geprüft werden. Dein Link bleibt in diesem Browser erhalten.'
+                  : studyEntryState.phase === 'unavailable' ? 'Der Studienzugang ist gerade nicht verfügbar. Bitte versuche es später erneut.'
+                    : 'Dieser Studienlink ist ungültig. Bitte verwende den aktuellen Link.'}
             {studyEntryState.phase === 'offline' && (
               <button type="button" onClick={retryStudyEntry} style={{ display:'block', marginTop:9, minHeight:44,
                 padding:'8px 10px', width:'100%', borderRadius:8, cursor:'pointer', border:'1px solid var(--accent)',
                 color:'var(--accent-2)', background:'rgba(14,19,32,0.12)', fontWeight:700 }}>
-                ERNEUT PRUEFEN
+                ERNEUT PRÜFEN
               </button>
             )}
           </div>
@@ -4292,10 +4292,10 @@ function EmailVerificationGate({ auth, onLogout, onVerifiedElsewhere, linkState 
         <button type="button" onClick={continueAfterVerification} disabled={state === 'checking'} style={{ width:'100%', minHeight:48, marginTop:10,
           borderRadius:11, cursor:state === 'checking'?'wait':'pointer', border:'1px solid var(--accent)',
           background:'rgba(14,19,32,0.10)', color:'var(--accent-2)', fontFamily:'var(--font-display)', fontWeight:700 }}>
-          {state === 'checking' ? 'PRUEFE...' : 'ICH HABE BESTAETIGT - WEITER'}
+          {state === 'checking' ? 'PRÜFE…' : 'ICH HABE BESTÄTIGT - WEITER'}
         </button>
         {state === 'not_verified' && <div role="status" style={{ marginTop:10, color:'var(--bad)', fontSize:12, lineHeight:1.5 }}>
-          Noch nicht bestaetigt oder gerade offline. Oeffne den Link und versuche es danach erneut.
+          Noch nicht bestätigt oder gerade offline. Öffne den Link und versuche es danach erneut.
         </div>}
         <button type="button" onClick={onLogout} style={{ marginTop:12, padding:8, border:0, background:'transparent',
           color:'var(--text-dim)', textDecoration:'underline', cursor:'pointer' }}>Andere E-Mail verwenden / Abmelden</button>
