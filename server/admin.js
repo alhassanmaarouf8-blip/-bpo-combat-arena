@@ -13,7 +13,7 @@
  */
 import express from 'express';
 import { adminCredentialOk, adminRequestOk, paymentMonitorCredentialOk, issueAdminSession, clearAdminSession } from './adminAuth.js';
-import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, grantComp, grantPlanForDays, adminSetPassword, rateLimit } from './auth.js';
+import { getAccountById, getAccountByEmail, activatePlan, deactivatePlan, deleteAccount, planOf, listAllAccounts, entitlement, trialActive, trialDaysLeft, freeFightAvailable, grantComp, grantPlanForDays, adminSetPassword, rateLimit } from './auth.js';
 import { loadPayments, mutatePayments, deletePaymentsFor } from './paymentsStore.js';
 import { deleteUser, loadUser }          from './store.js';
 import { listComp, addComp, removeComp } from './compAccess.js';
@@ -362,6 +362,16 @@ adminRouter.get('/admin/user-detail', async (req, res) => {
       whatsapp: acc.whatsapp?.number || null,
       plan: planOf(acc), comp: !!acc.subscription?.comp,
       trialActive: trialActive(acc), trialDaysLeft: trialActive(acc) ? trialDaysLeft(acc) : 0,
+      // THE MONEY GATE, made answerable: "why can this learner not start / not see a verdict?"
+      // Added 2026-07-31 after the free day sat unreachable for six days because nothing on this
+      // screen said whether an account could actually get in. `canStartNow` is the real gate the
+      // WebSocket enforces; `freeDayArmedAt` null + a spent account is the signature of the bug.
+      freeDay: {
+        canStartNow:      entitlement(acc).allowed,
+        freeInterviewLeft: freeFightAvailable(acc),
+        armedAt:          acc.subscription?.trialStartedAt || null,
+        verdictUnlocked:  entitlement(acc).interviewResults,
+      },
       referredBy: acc.referredBy || null,
       placement: p.placement || null,
       dailyStreakDays: (p.dailyDays || []).length,
