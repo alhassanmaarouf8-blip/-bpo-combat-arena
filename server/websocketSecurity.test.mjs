@@ -70,7 +70,12 @@ test('paywalled and duplicate WebSocket starts close instead of retaining capaci
   // Paywalled = the one free interview is SPENT. Owner order 2026-07-25 settled the model as
   // run-free / pay-for-results, so a brand-new free account may still start its single interview;
   // only after that does the WebSocket refuse.
+  // "Spent" is recorded by trialStartedAt, not freeFightUsed: the free day is armed once, ever, and
+  // freeFightAvailable() keys on that single stamp so a pre-2026-07-25 account (freeFightUsed set
+  // while FREE_TRIAL_DAYS was 0) is not locked out of a day it never received. Both are stamped
+  // together by consumeFreeFight, so a genuinely spent account looks like this.
   paywalledAccount.subscription.freeFightUsed = true;
+  paywalledAccount.subscription.trialStartedAt = Date.now() - 26 * 60 * 60 * 1000; // used, expired
   const paywalled = contextHarness();
   await managerHarness()._handleStartFight(paywalled.ctx, { token: auth.signToken(paywalledAccount) });
   assert.equal(paywalled.closed[0].code, 4403);

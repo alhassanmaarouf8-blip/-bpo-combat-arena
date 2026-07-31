@@ -458,7 +458,13 @@ export function interviewResultsUnlocked(account) {
 const FREE_FIGHT_SEC = 7 * 60;
 export function freeFightAvailable(account) {
   if (isAdminAccount(account)) return true;
-  return (dailyMinutesFor(account) || 0) <= 0 && !account?.subscription?.freeFightUsed;
+  // Keyed on trialStartedAt — the ONE field that records "this account has already had its free
+  // day" — never on freeFightUsed. Accounts that spent their free interview while FREE_TRIAL_DAYS
+  // was 0 carry freeFightUsed=true with trialStartedAt=null, so keying on the old flag locked every
+  // one of them out of the free day for good: consumeFreeFight (the only writer of trialStartedAt)
+  // sits *behind* this gate, so the trial could never arm. Measured in prod 2026-07-31 —
+  // activeTrials=0 and all 8 real accounts paywalled six days after the free day shipped.
+  return (dailyMinutesFor(account) || 0) <= 0 && !account?.subscription?.trialStartedAt;
 }
 
 // Entitlement = the plan's capabilities. `allowed` = may start an interview: a paid plan with live
@@ -501,13 +507,17 @@ export function entitlement(account) {
 // Mark the one-time free fight as spent (called once a free interview actually starts).
 export async function consumeFreeFight(account) {
   if (!account?.subscription) account.subscription = {};
-  if (!account.subscription.freeFightUsed) {
-    account.subscription.freeFightUsed = true;
-    // The trial clock begins only after the backend has accepted the learner's first
-    // interview session, never while they are merely reading or registering.
-    account.subscription.trialStartedAt ||= Date.now();
-    await persist();
-  }
+  const sub = account.subscription;
+  // Two stamps, each written at most once, and trialStartedAt is NOT nested behind freeFightUsed.
+  // freeFightAvailable() reads trialStartedAt, so on a pre-2026-07-25 account (freeFightUsed already
+  // true, trial never armed) the old nesting left it null forever — which, once that gate started
+  // reading it, would hand the same account a fresh free interview on every single connection.
+  // The trial clock begins only after the backend has accepted the learner's first interview
+  // session, never while they are merely reading or registering.
+  const changed = !sub.freeFightUsed || !sub.trialStartedAt;
+  sub.freeFightUsed = true;
+  sub.trialStartedAt ||= Date.now();
+  if (changed) await persist();
 }
 
 // ONE trial-ending notice per account, EVER. Claim-then-send: the flag is written and persisted
